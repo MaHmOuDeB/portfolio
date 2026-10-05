@@ -1,0 +1,318 @@
+{
+  "config": {
+    "configFile": "playwright.config.ts",
+    "rootDir": "tests/e2e",
+    "projects": [
+      {
+        "id": "desktop-chromium",
+        "name": "desktop-chromium"
+      },
+      {
+        "id": "mobile-chromium",
+        "name": "mobile-chromium"
+      },
+      {
+        "id": "screenshare-chromium",
+        "name": "screenshare-chromium"
+      },
+      {
+        "id": "desktop-webkit",
+        "name": "desktop-webkit"
+      }
+    ]
+  },
+  "suites": [
+    {
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "home renders and is accessible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "desktop-chromium",
+              "projectName": "desktop-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 962,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.342Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "mobile-chromium",
+              "projectName": "mobile-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 962,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.342Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "screenshare-chromium",
+              "projectName": "screenshare-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 962,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.342Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "desktop-webkit",
+              "projectName": "desktop-webkit",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 962,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.342Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-23da8446ed922df2687f",
+          "file": "smoke.spec.ts",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "home renders and is accessible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "mobile-chromium",
+              "projectName": "mobile-chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 958,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.335Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-8f79b3cf6ae5d89a0454",
+          "file": "smoke.spec.ts",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "home renders and is accessible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "screenshare-chromium",
+              "projectName": "screenshare-chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 2,
+                  "status": "passed",
+                  "duration": 971,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.339Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-001110a5c4aa7382ea47",
+          "file": "smoke.spec.ts",
+          "line": 4,
+          "column": 5
+        },
+        {
+          "title": "home renders and is accessible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "axe-violations",
+                  "description": "0"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "desktop-webkit",
+              "projectName": "desktop-webkit",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 3,
+                  "status": "passed",
+                  "duration": 1461,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-05T16:05:15.334Z",
+                  "annotations": [
+                    {
+                      "type": "axe-violations",
+                      "description": "0"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-76609b515d4447e0b76b",
+          "file": "smoke.spec.ts",
+          "line": 4,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-05T16:05:09.957Z",
+    "duration": 7230.5,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

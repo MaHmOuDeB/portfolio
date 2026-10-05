@@ -8,6 +8,7 @@
     "noUncheckedIndexedAccess": true,
     "types": ["node", "vitest/globals"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

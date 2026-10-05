@@ -20,6 +20,8 @@ export async function expectNoA11yViolations(page: Page): Promise<void> {
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
     .analyze();
+  // Recorded before asserting so scripts/build-meta.ts can sum it from the Playwright JSON report.
+  test.info().annotations.push({ type: 'axe-violations', description: String(violations.length) });
   expect(
     violations,
     `axe violations: ${violations.map((violation) => violation.id).join(', ')}`,
