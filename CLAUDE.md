@@ -6,8 +6,8 @@ experimentation and growth analyst in Berlin.
 @~/code/portfolio/private/CLAUDE.private.md
 @AGENTS.md
 
-> **Status: pre-build.** The stack, commands and structure sections are completed in Phase 3,
-> after the design direction is approved. Until then, no product code is written.
+> **Status:** the walking skeleton (CI, tests and tooling) is in place. Pages and visual design
+> follow the approved plan.
 
 ## Principles
 

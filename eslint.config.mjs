@@ -21,7 +21,10 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "playwright-report/**",
     "coverage/**",
-    "scaffold-tmp/**",
+    ".worktrees/**",
+    ".agents/**",
+    ".vercel/**",
+    ".lighthouseci/**",
   ]),
 ]);
 

@@ -33,5 +33,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", ".references", ".claude", "private", ".superpowers", "reports", "test-results", "playwright-report", "coverage", ".next"]
+  "exclude": ["node_modules", ".references", ".claude", "private", ".superpowers", ".worktrees", ".agents", ".vercel", ".lighthouseci", "reports", "test-results", "playwright-report", "coverage"]
 }

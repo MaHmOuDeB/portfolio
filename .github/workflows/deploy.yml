@@ -71,7 +71,7 @@ jobs:
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
-          npx vercel@62.2.0 pull --yes --environment="$environment" --token="$VERCEL_TOKEN"
+          npx --no-install vercel pull --yes --environment="$environment" --token="$VERCEL_TOKEN"
       - name: Build
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
         run: |
           if [ "$LAUNCHED" = "true" ]; then prod_flag=--prod; else prod_flag=; fi
           # shellcheck disable=SC2086
-          npx vercel@62.2.0 build $prod_flag --token="$VERCEL_TOKEN"
+          npx --no-install vercel build $prod_flag --token="$VERCEL_TOKEN"
       - name: Deploy
         id: deploy
         env:
@@ -91,8 +91,10 @@ jobs:
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
           args="$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/deploy-command.ts)"
+          [ -n "$args" ] || { echo "deploy-command produced no arguments" >&2; exit 1; }
+          # The deployment URL is the last line of stdout; progress output goes to stderr.
           # shellcheck disable=SC2086
-          url="$(npx vercel@62.2.0 $args --token="$VERCEL_TOKEN")"
+          url="$(npx --no-install vercel $args --token="$VERCEL_TOKEN" | tail -n1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Job summary
         env:

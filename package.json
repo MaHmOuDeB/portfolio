@@ -6,14 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
     "build:meta": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-meta.ts",
-    "lhci": "lhci autorun ${LHCI_EXTRA_HEADERS:+--collect.settings.extraHeaders=\"$LHCI_EXTRA_HEADERS\"}",
+    "lhci": "lhci autorun",
     "links": "lychee --config .lychee.toml http://localhost:3123/",
     "check": "npm run typecheck && npm run lint && npm run lint:css && npm run test"
   },
@@ -37,9 +37,10 @@
     "stylelint-config-standard": "40.0.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
+    "vercel": "62.2.0",
     "vitest": "5.0.3"
   },
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24.2 <25"
   }
 }
