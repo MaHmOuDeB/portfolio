@@ -1,0 +1,163 @@
+import { simulatePeeking, type PeekInput, type PeekMethod } from '@/lib/stats/peeking';
+import { ref } from './reference';
+
+/** Runs per simulation-agreement case; tolerances are built from the standard errors. */
+const RUNS = 10_000;
+const SIM_TIMEOUT = 60_000;
+const ALPHA = 0.05;
+
+const base: PeekInput = { seed: 3, runs: 200, looks: 5, nPerLook: 50, p: 0.35, method: 'naive' };
+
+describe('simulatePeeking agreement with the reference', () => {
+  for (const c of ref.peeking) {
+    it(
+      `${c.method} at ${c.looks} look(s) matches the reference (${c.fpr})`,
+      () => {
+        const r = simulatePeeking({
+          seed: 3,
+          runs: RUNS,
+          looks: c.looks,
+          nPerLook: c.nPerLook,
+          p: c.p,
+          method: c.method,
+        });
+        const tol = 3 * Math.sqrt(r.mcStdError ** 2 + c.se ** 2);
+        expect(Math.abs(r.falsePositiveRate - c.fpr)).toBeLessThanOrEqual(tol);
+      },
+      SIM_TIMEOUT,
+    );
+  }
+});
+
+describe('simulatePeeking anchors', () => {
+  const anchors: [number, number, number][] = [
+    [10, 0.17, 0.21],
+    [20, 0.23, 0.27],
+    [50, 0.3, 0.34],
+  ];
+  for (const [looks, lo, hi] of anchors) {
+    it(
+      `naive peeking at ${looks} looks wrongly declares a winner in [${lo}, ${hi}]`,
+      () => {
+        const r = simulatePeeking({ seed: 3, runs: RUNS, looks, nPerLook: 100, p: 0.35, method: 'naive' });
+        expect(r.falsePositiveRate).toBeGreaterThanOrEqual(lo);
+        expect(r.falsePositiveRate).toBeLessThanOrEqual(hi);
+      },
+      SIM_TIMEOUT,
+    );
+  }
+
+  it(
+    'a single look gives a naive rate within 3 standard errors of alpha',
+    () => {
+      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 1, nPerLook: 100, p: 0.35, method: 'naive' });
+      expect(Math.abs(r.falsePositiveRate - ALPHA)).toBeLessThanOrEqual(3 * r.mcStdError);
+    },
+    SIM_TIMEOUT,
+  );
+
+  it(
+    'O Brien-Fleming boundaries at 20 looks keep the overall rate at or below alpha',
+    () => {
+      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'obf' });
+      expect(r.falsePositiveRate).toBeLessThanOrEqual(ALPHA + 3 * r.mcStdError);
+    },
+    SIM_TIMEOUT,
+  );
+
+  it(
+    'the confidence sequence stays well below alpha but is not identically zero',
+    () => {
+      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'cs' });
+      expect(r.falsePositiveRate).toBeGreaterThan(0);
+      expect(r.falsePositiveRate).toBeLessThanOrEqual(ALPHA + 3 * r.mcStdError);
+    },
+    SIM_TIMEOUT,
+  );
+});
+
+describe('simulatePeeking output', () => {
+  for (const method of ['naive', 'obf', 'cs'] as PeekMethod[]) {
+    it(`${method}: cumulativeByLook is non-decreasing and ends at the rate`, () => {
+      const r = simulatePeeking({ ...base, method, runs: 500, looks: 8 });
+      expect(r.cumulativeByLook).toHaveLength(8);
+      for (let k = 1; k < r.cumulativeByLook.length; k += 1) {
+        expect(r.cumulativeByLook[k]).toBeGreaterThanOrEqual(r.cumulativeByLook[k - 1] as number);
+      }
+      expect(r.cumulativeByLook[7]).toBe(r.falsePositiveRate);
+      expect(r.falsePositiveRate).toBeGreaterThanOrEqual(0);
+      expect(r.falsePositiveRate).toBeLessThanOrEqual(1);
+    });
+  }
+
+  it('echoes the inputs and computes the Monte Carlo standard error', () => {
+    const r = simulatePeeking({ ...base, runs: 400 });
+    expect(r.seed).toBe(base.seed);
+    expect(r.runs).toBe(400);
+    expect(r.looks).toBe(base.looks);
+    expect(r.method).toBe('naive');
+    const f = r.falsePositiveRate;
+    expect(r.mcStdError).toBeCloseTo(Math.sqrt((f * (1 - f)) / 400), 15);
+  });
+
+  it('uses alpha = 0.05 by default and honours an explicit alpha', () => {
+    const a = simulatePeeking({ ...base, runs: 2000, looks: 3 });
+    expect(simulatePeeking({ ...base, runs: 2000, looks: 3, alpha: 0.05 })).toEqual(a);
+    const strict = simulatePeeking({ ...base, runs: 2000, looks: 3, alpha: 0.001 });
+    expect(strict.falsePositiveRate).toBeLessThan(a.falsePositiveRate);
+  });
+
+  it('is deterministic for a seed and differs across seeds', () => {
+    const a = simulatePeeking(base);
+    expect(simulatePeeking({ ...base })).toEqual(a);
+    expect(simulatePeeking({ ...base, seed: 1 })).not.toEqual(simulatePeeking({ ...base, seed: 2 }));
+  });
+
+  it('a flagged run stays counted at every later look', () => {
+    // alpha near 1 flags almost every run at look 1, so every later look is at least as high.
+    const r = simulatePeeking({ ...base, alpha: 0.999, runs: 300, looks: 4 });
+    expect(r.cumulativeByLook[0]).toBeGreaterThan(0.9);
+    expect(r.cumulativeByLook[3]).toBeGreaterThanOrEqual(r.cumulativeByLook[0] as number);
+  });
+
+  it('runs 1,000 runs of 20 looks quickly', () => {
+    const limit = process.env.CI ? 600 : 200;
+    simulatePeeking({ seed: 9, runs: 50, looks: 20, nPerLook: 100, p: 0.35, method: 'naive' });
+    const t0 = performance.now();
+    simulatePeeking({ seed: 3, runs: 1000, looks: 20, nPerLook: 100, p: 0.35, method: 'naive' });
+    expect(performance.now() - t0).toBeLessThan(limit);
+  });
+});
+
+describe('simulatePeeking validation', () => {
+  const bad: [string, Partial<PeekInput>][] = [
+    ['runs', { runs: 0 }],
+    ['runs', { runs: 1.5 }],
+    ['runs', { runs: Number.NaN }],
+    ['looks', { looks: 0 }],
+    ['looks', { looks: 61 }],
+    ['looks', { looks: 2.5 }],
+    ['nPerLook', { nPerLook: 0 }],
+    ['nPerLook', { nPerLook: 10.5 }],
+    ['p', { p: 0 }],
+    ['p', { p: 1 }],
+    ['p', { p: Number.NaN }],
+    ['alpha', { alpha: 0 }],
+    ['alpha', { alpha: 1 }],
+    ['seed', { seed: Number.NaN }],
+    ['seed', { seed: 1.5 }],
+    ['seed', { seed: Number.POSITIVE_INFINITY }],
+    ['method', { method: 'bayes' as PeekMethod }],
+  ];
+  for (const [name, patch] of bad) {
+    it(`rejects an invalid ${name} (${JSON.stringify(patch)}) naming the parameter`, () => {
+      expect(() => simulatePeeking({ ...base, ...patch })).toThrow(RangeError);
+      expect(() => simulatePeeking({ ...base, ...patch })).toThrow(new RegExp(`^${name} must`));
+    });
+  }
+
+  it('accepts the boundary values looks = 1 and looks = 60', () => {
+    expect(simulatePeeking({ ...base, runs: 5, looks: 1 }).cumulativeByLook).toHaveLength(1);
+    expect(simulatePeeking({ ...base, runs: 2, looks: 60, nPerLook: 5 }).cumulativeByLook).toHaveLength(60);
+  });
+});
