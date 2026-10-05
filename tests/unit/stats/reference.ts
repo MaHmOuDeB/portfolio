@@ -10,6 +10,7 @@ type Pair = [number, number];
 export type Reference = {
   meta: { numpy: string; scipy: string; statsmodels: string; python: string };
   normalCdf: Pair[];
+  /** 20 pairs, not 24: the complement 1 - p of every p at or below 1e-20 rounds to exactly 1. */
   normalQuantile: Pair[];
   sfc32: { seed: number; first: number[] };
   wilson: { x: number; n: number; alpha: number; lower: number; upper: number }[];
@@ -44,7 +45,12 @@ export type Reference = {
     lower: number;
     upper: number;
   }[];
-  /** Keyed "1" to "60": the 0.95 quantile of max_k |S_k| / sqrt(K) over K looks. */
+  /**
+   * Keyed "1" to "60": the 0.95 quantile of max_k |S_k| / sqrt(K) over K looks. "1" is exact
+   * (norm.ppf(0.975)); "2" to "60" are Monte Carlo estimates (2,000,000 paths), so they are not
+   * monotone in K and are accurate to about 1e-3. Tests must not assert monotonicity or use a
+   * tighter tolerance.
+   */
   obf: Record<string, number>;
   peeking: {
     looks: number;

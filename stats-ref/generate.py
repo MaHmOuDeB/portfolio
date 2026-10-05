@@ -1,7 +1,7 @@
 """Reference values for src/lib/stats, produced by scipy and statsmodels.
 
 Writes reference.json next to this file. Everything is deterministic: fixed seeds, sorted keys and
-floats written with repr precision, so two runs produce identical bytes. CI regenerates the file and
+floats rounded to 12 significant digits, so two runs produce identical bytes. CI regenerates the file and
 fails if it differs from the committed copy.
 
 Run with: cd stats-ref && uv run generate.py
@@ -36,6 +36,31 @@ def warn(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def round12(x: float) -> float:
+    """Round to 12 significant digits (not decimals, so tiny tail values keep their precision)."""
+    return float(f"{x:.12g}")
+
+
+def round_floats(value):
+    """Recursively round every float to 12 significant digits; ints, strings and keys are untouched.
+
+    A last-ulp difference in numpy/scipy between platforms (macOS arm64 vs Linux x86) must not change
+    the committed bytes. The library's tolerances (1e-9 absolute, 1e-12 for normalCdf, 1e-6 relative
+    in the tails) are all looser than this rounding. Values that the TypeScript reads as *inputs*
+    (the p of a quantile pair, tau2) are rounded before the reference is computed from them, so each
+    pair stays self-consistent.
+    """
+    if isinstance(value, bool) or isinstance(value, int) or isinstance(value, str):
+        return value
+    if isinstance(value, float):
+        return round12(value)
+    if isinstance(value, dict):
+        return {k: round_floats(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [round_floats(v) for v in value]
+    raise TypeError(f"unexpected type {type(value)}")
+
+
 # ---------------------------------------------------------------------------
 # meta
 # ---------------------------------------------------------------------------
@@ -66,11 +91,11 @@ def make_normal_quantile() -> list:
     base = [1e-300, 1e-100, 1e-20, 1e-10, 1e-5, 0.001, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5]
     ps: list[float] = []
     for p in base:
-        for q in (p, 1.0 - p):
+        for q in (p, round12(1.0 - p)):
             # 1 - 1e-20 rounds to exactly 1.0, whose quantile is +Infinity (not valid JSON), and
             # 1 - 0.5 is 0.5 again. Keep only complements that are distinct and strictly inside (0, 1).
             if 0.0 < q < 1.0 and q not in ps:
-                ps.append(q)
+                ps.append(q)  # already 12 significant digits: the quantile is computed from it
     return [[p, float(stats.norm.ppf(p))] for p in ps]
 
 
@@ -259,6 +284,11 @@ def make_sample_size() -> list:
         out.append(
             {"alpha": alpha, "baseline": baseline, "mde": mde, "n": solver_n, "power": power}
         )
+    # A library bump that makes a case disagree must fail loudly, not just print a warning.
+    assert len(out) == 20, f"expected 20 sampleSize cases, got {len(out)}"
+    assert {"alpha": 0.05, "baseline": 0.29, "mde": 0.05, "n": 1353, "power": 0.8} in out, (
+        "the 0.29 / 0.05 / 0.05 / 0.8 -> 1353 anchor is missing"
+    )
     return out
 
 
@@ -391,7 +421,7 @@ def make_mixture_cs() -> list:
     ]
     out = []
     for xa, na, xb, nb, alpha, baseline, n_cap in cases:
-        tau2 = optimal_ratio(alpha) * 2 * baseline * (1 - baseline) / n_cap
+        tau2 = round12(optimal_ratio(alpha) * 2 * baseline * (1 - baseline) / n_cap)
         ci = mixture_interval(xa, na, xb, nb, tau2, alpha)
         out.append(
             {
@@ -414,20 +444,43 @@ def make_mixture_cs() -> list:
 # ---------------------------------------------------------------------------
 
 REPS = 200_000
+OBF_REPS = 2_000_000
+OBF_CHUNK = 20_000
 OBF_MAX_LOOKS = 60
 
 
 def make_obf() -> dict:
+    """0.95 quantile c_K of max_{k<=K} |S_k| / sqrt(K), S_k = cumulative sum of standard normals.
+
+    K = 1 is exact: |S_1| = |Z|, so c_1 = norm.ppf(0.975). K = 2..60 are Monte Carlo estimates from
+    OBF_REPS paths of 60 normals (prefix K of each path), drawn in fixed-size chunks from one seeded
+    generator. Only the top OBF_REPS * 0.05 + 2 values per K are kept, which is enough to compute
+    np.quantile(..., 0.95) exactly without holding all 2M x 59 values in memory.
+    """
     rng = np.random.default_rng(NUMPY_SEED)
-    scaled = np.empty((REPS, OBF_MAX_LOOKS))
     sqrt_k = np.sqrt(np.arange(1, OBF_MAX_LOOKS + 1))
-    chunk = 20_000
-    for start in range(0, REPS, chunk):
-        z = rng.standard_normal((chunk, OBF_MAX_LOOKS))
+    q = 0.95
+    h = q * (OBF_REPS - 1)
+    lo = int(math.floor(h))
+    frac = h - lo
+    keep = OBF_REPS - lo + 1  # sorted indexes lo and lo + 1 both live in the top `keep` values
+    kept = [np.empty(0) for _ in range(OBF_MAX_LOOKS)]
+    for _ in range(OBF_REPS // OBF_CHUNK):
+        z = rng.standard_normal((OBF_CHUNK, OBF_MAX_LOOKS))
         running_max = np.maximum.accumulate(np.abs(np.cumsum(z, axis=1)), axis=1)
-        scaled[start : start + chunk] = running_max / sqrt_k
-    quantiles = np.quantile(scaled, 0.95, axis=0)
-    return {str(k): float(quantiles[k - 1]) for k in range(1, OBF_MAX_LOOKS + 1)}
+        scaled = running_max / sqrt_k
+        for k in range(2, OBF_MAX_LOOKS + 1):
+            merged = np.concatenate([kept[k - 1], scaled[:, k - 1]])
+            if merged.size > keep:
+                merged = np.partition(merged, merged.size - keep)[-keep:]
+            kept[k - 1] = merged
+    out = {"1": float(stats.norm.ppf(0.975))}
+    for k in range(2, OBF_MAX_LOOKS + 1):
+        top = np.sort(kept[k - 1])  # ascending; top[0] has global sorted index OBF_REPS - keep
+        offset = OBF_REPS - keep
+        low, high = top[lo - offset], top[lo + 1 - offset]
+        out[str(k)] = float(low + (high - low) * frac)
+    return out
 
 
 def make_peeking() -> list:
@@ -547,7 +600,7 @@ def main() -> None:
         "ztest": make_ztest(),
     }
     # allow_nan=False: a NaN or Infinity would produce invalid JSON, so fail loudly instead.
-    text = json.dumps(reference, sort_keys=True, indent=1, allow_nan=False) + "\n"
+    text = json.dumps(round_floats(reference), sort_keys=True, indent=1, allow_nan=False) + "\n"
     OUT.write_text(text, encoding="utf-8", newline="\n")
     print(f"wrote {OUT.name} ({len(text)} bytes, Python {platform.python_version()})")
 
