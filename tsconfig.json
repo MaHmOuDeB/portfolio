@@ -32,5 +32,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", ".references", ".claude", "private", ".superpowers", "reports", ".next"]
+  "exclude": ["node_modules", ".references", ".claude", "private", ".superpowers", "reports", "coverage", ".next"]
 }

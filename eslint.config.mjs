@@ -18,6 +18,7 @@ const eslintConfig = defineConfig([
     "private/**",
     ".superpowers/**",
     "reports/**",
+    "coverage/**",
     "scaffold-tmp/**",
   ]),
 ]);
