@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Git-ignored and scratch directories:
+    ".references/**",
+    ".claude/**",
+    "private/**",
+    ".superpowers/**",
+    "reports/**",
+    "scaffold-tmp/**",
   ]),
 ]);
 
