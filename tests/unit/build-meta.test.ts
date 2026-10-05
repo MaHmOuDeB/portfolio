@@ -35,7 +35,9 @@ describe('buildMeta', () => {
   });
 
   it('reads axe violations from test annotations, once per test', () => {
-    expect(buildMeta(base).axeViolations).toBe(0);
+    // The e2e fixture is a real Playwright report whose axe annotations were edited to "2", "1", "0",
+    // "0" (a real run has zeros) so that this assertion exercises summing.
+    expect(buildMeta(base).axeViolations).toBe(3);
     const annotation = (description: string) => [{ type: 'axe-violations', description }];
     const e2eJson = {
       stats: { expected: 2, unexpected: 0, flaky: 0, skipped: 0 },
@@ -84,5 +86,63 @@ describe('buildMeta', () => {
     expect(meta.e2eTests).toEqual({ passed: 0, total: 0 });
     expect(meta.axeViolations).toBe(0);
     expect(meta.lighthouse).toBeNull();
+  });
+
+  it.each([['x'], [[]], [{ suites: 'a' }], [{ stats: 'x', suites: [null, 1, 'a'] }]])(
+    'does not throw and returns zero counts for malformed reports (%j)',
+    (garbage) => {
+      const meta = buildMeta({
+        ...base,
+        vitestJson: garbage,
+        e2eJson: garbage,
+        lhciManifest: garbage,
+      });
+      expect(meta.unitTests).toEqual({ passed: 0, total: 0 });
+      expect(meta.e2eTests).toEqual({ passed: 0, total: 0 });
+      expect(meta.axeViolations).toBe(0);
+      expect(meta.lighthouse).toBeNull();
+    },
+  );
+
+  it.each([['abc'], ['-1'], ['Infinity'], ['']])(
+    'counts an axe annotation with description %j as 0',
+    (description) => {
+      const e2eJson = {
+        suites: [
+          { specs: [{ tests: [{ annotations: [{ type: 'axe-violations', description }] }] }] },
+        ],
+      };
+      expect(buildMeta({ ...base, e2eJson }).axeViolations).toBe(0);
+    },
+  );
+
+  it('ignores negative axe counts next to valid ones', () => {
+    const annotation = (description: string) => [{ type: 'axe-violations', description }];
+    const e2eJson = {
+      suites: [
+        {
+          specs: [
+            { tests: [{ annotations: annotation('-1') }, { annotations: annotation('2') }] },
+          ],
+        },
+      ],
+    };
+    expect(buildMeta({ ...base, e2eJson }).axeViolations).toBe(2);
+  });
+
+  it('returns null Lighthouse when the representative run has no usable summary', () => {
+    const run = (summary: unknown) => [{ isRepresentativeRun: true, summary }];
+    const full = { performance: 1, accessibility: 1, 'best-practices': 1, seo: 1 };
+    expect(buildMeta({ ...base, lhciManifest: run(undefined) }).lighthouse).toBeNull();
+    expect(buildMeta({ ...base, lhciManifest: run({ ...full, seo: undefined }) }).lighthouse).toBeNull();
+    expect(buildMeta({ ...base, lhciManifest: run({ ...full, seo: '1' }) }).lighthouse).toBeNull();
+    expect(buildMeta({ ...base, lhciManifest: run({ ...full, seo: 1.5 }) }).lighthouse).toBeNull();
+    expect(buildMeta({ ...base, lhciManifest: run({ ...full, seo: -0.1 }) }).lighthouse).toBeNull();
+    expect(buildMeta({ ...base, lhciManifest: run(full) }).lighthouse).toEqual({
+      performance: 100,
+      accessibility: 100,
+      bestPractices: 100,
+      seo: 100,
+    });
   });
 });

@@ -45,13 +45,11 @@ function list(value: unknown): unknown[] {
 function axeCountForTest(test: unknown): number {
   if (!isObject(test)) return 0;
   const sum = (annotations: unknown): number =>
-    list(annotations).reduce<number>(
-      (total, annotation) =>
-        isObject(annotation) && annotation.type === 'axe-violations'
-          ? total + (Number(annotation.description) || 0)
-          : total,
-      0,
-    );
+    list(annotations).reduce<number>((total, annotation) => {
+      if (!isObject(annotation) || annotation.type !== 'axe-violations') return total;
+      const count = Number(annotation.description);
+      return Number.isFinite(count) && count > 0 ? total + count : total;
+    }, 0);
   const direct = sum(test.annotations);
   if (direct > 0) return direct;
   return list(test.results).reduce<number>(
@@ -75,12 +73,20 @@ function lighthouseScores(manifest: unknown): BuildMeta['lighthouse'] {
   const run = list(manifest).find((entry) => isObject(entry) && entry.isRepresentativeRun === true);
   if (!isObject(run) || !isObject(run.summary)) return null;
   const { summary } = run;
-  const score = (key: string): number => Math.round(num(summary[key]) * 100);
+  const keys = ['performance', 'accessibility', 'best-practices', 'seo'] as const;
+  const scores = keys.map((key) => summary[key]);
+  const valid = scores.every(
+    (score) => typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 1,
+  );
+  if (!valid) return null;
+  const [performance, accessibility, bestPractices, seo] = scores.map((score) =>
+    Math.round(num(score) * 100),
+  );
   return {
-    performance: score('performance'),
-    accessibility: score('accessibility'),
-    bestPractices: score('best-practices'),
-    seo: score('seo'),
+    performance: performance ?? 0,
+    accessibility: accessibility ?? 0,
+    bestPractices: bestPractices ?? 0,
+    seo: seo ?? 0,
   };
 }
 
