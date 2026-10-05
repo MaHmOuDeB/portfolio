@@ -1,0 +1,19 @@
+# Private planning (never public)
+private/
+
+# Skills are restored from skills-lock.json (npx skills experimental_install)
+.claude/skills/
+
+.references/
+node_modules/
+.next/
+out/
+.vercel/
+.env*
+!.env.example
+.superpowers/
+.DS_Store
+
+.worktrees/
+.agents/
+.claude/settings.local.json
