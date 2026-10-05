@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "lhci": "lhci autorun ${LHCI_EXTRA_HEADERS:+--collect.settings.extraHeaders=\"$LHCI_EXTRA_HEADERS\"}",
+    "links": "lychee --config .lychee.toml http://localhost:3123/",
     "check": "npm run typecheck && npm run lint && npm run lint:css && npm run test"
   },
   "dependencies": {
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
+    "@lhci/cli": "0.15.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.19.1",

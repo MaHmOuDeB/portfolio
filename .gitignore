@@ -44,3 +44,4 @@ next-env.d.ts
 reports/
 test-results/
 playwright-report/
+.lighthouseci/
