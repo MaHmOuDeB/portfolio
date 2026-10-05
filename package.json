@@ -11,6 +11,7 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm run lint:css && npm run test"
   },
   "dependencies": {
@@ -19,6 +20,8 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.19.1",
     "@types/react": "19.3.0",

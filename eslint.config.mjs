@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "private/**",
     ".superpowers/**",
     "reports/**",
+    "test-results/**",
+    "playwright-report/**",
     "coverage/**",
     "scaffold-tmp/**",
   ]),
