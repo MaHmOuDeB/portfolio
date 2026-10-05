@@ -39,6 +39,23 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  stats-ref:
+    name: Statistics reference data
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      # Regenerates reference.json from the pinned scipy/statsmodels and fails if the committed copy
+      # is stale.
+      - name: Regenerate the reference data
+        working-directory: stats-ref
+        run: uv run --locked generate.py
+      - name: Check reference.json is up to date
+        run: git diff --exit-code stats-ref/reference.json
+
   build:
     name: Production build
     runs-on: ubuntu-24.04
