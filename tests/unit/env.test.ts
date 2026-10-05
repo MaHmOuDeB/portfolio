@@ -1,0 +1,116 @@
+import { readFileSync } from 'node:fs';
+import { serverEnv } from '@/lib/env';
+
+const VARS = [
+  'KV_REST_API_URL',
+  'KV_REST_API_TOKEN',
+  'KV_REST_API_READ_ONLY_TOKEN',
+  'EDGE_CONFIG',
+  'INTERNAL_TRAFFIC_SECRET',
+  'EXCLUDE_TOKEN',
+  'RATELIMIT_HMAC_KEY',
+  'VERCEL_ENV',
+] as const;
+
+const saved: Record<string, string | undefined> = {};
+
+beforeEach(() => {
+  for (const name of VARS) {
+    saved[name] = process.env[name];
+    delete process.env[name];
+  }
+});
+
+afterEach(() => {
+  for (const name of VARS) {
+    const value = saved[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
+
+describe('serverEnv', () => {
+  it('returns every key undefined and vercelEnv development for an empty env', () => {
+    expect(serverEnv()).toEqual({
+      kvUrl: undefined,
+      kvToken: undefined,
+      kvReadOnlyToken: undefined,
+      edgeConfig: undefined,
+      internalTrafficSecret: undefined,
+      excludeToken: undefined,
+      ratelimitHmacKey: undefined,
+      vercelEnv: 'development',
+    });
+  });
+
+  it('maps each variable to its key', () => {
+    process.env.KV_REST_API_URL = 'test-value-url';
+    process.env.KV_REST_API_TOKEN = 'test-value-token';
+    process.env.KV_REST_API_READ_ONLY_TOKEN = 'test-value-ro';
+    process.env.EDGE_CONFIG = 'test-value-edge';
+    process.env.INTERNAL_TRAFFIC_SECRET = 'test-value-internal';
+    process.env.EXCLUDE_TOKEN = 'test-value-exclude';
+    process.env.RATELIMIT_HMAC_KEY = 'test-value-hmac';
+    expect(serverEnv()).toEqual({
+      kvUrl: 'test-value-url',
+      kvToken: 'test-value-token',
+      kvReadOnlyToken: 'test-value-ro',
+      edgeConfig: 'test-value-edge',
+      internalTrafficSecret: 'test-value-internal',
+      excludeToken: 'test-value-exclude',
+      ratelimitHmacKey: 'test-value-hmac',
+      vercelEnv: 'development',
+    });
+  });
+
+  it('treats empty strings as unset', () => {
+    process.env.KV_REST_API_URL = '';
+    process.env.VERCEL_ENV = '';
+    const env = serverEnv();
+    expect(env.kvUrl).toBeUndefined();
+    expect(env.vercelEnv).toBe('development');
+  });
+
+  it('reads VERCEL_ENV on every call', () => {
+    process.env.VERCEL_ENV = 'preview';
+    expect(serverEnv().vercelEnv).toBe('preview');
+    process.env.VERCEL_ENV = 'production';
+    expect(serverEnv().vercelEnv).toBe('production');
+    process.env.VERCEL_ENV = 'development';
+    expect(serverEnv().vercelEnv).toBe('development');
+  });
+
+  it('maps an unknown VERCEL_ENV to development', () => {
+    process.env.VERCEL_ENV = 'staging';
+    expect(serverEnv().vercelEnv).toBe('development');
+  });
+});
+
+describe('.env.example', () => {
+  const source = readFileSync('src/lib/env.ts', 'utf8');
+  const example = readFileSync('.env.example', 'utf8');
+
+  const declared = new Set(
+    example
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('#'))
+      .map((line) => /^([A-Z][A-Z0-9_]*)=/.exec(line)?.[1])
+      .filter((name): name is string => name !== undefined),
+  );
+  const read = [...source.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]);
+
+  it('finds the variables env.ts reads', () => {
+    expect(read.length).toBe(VARS.length);
+  });
+
+  it('lists every variable env.ts reads as a NAME= line', () => {
+    for (const name of read) expect(declared).toContain(name);
+  });
+
+  it('gives every variable an empty value', () => {
+    const withValues = example
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('#') && /^[A-Z][A-Z0-9_]*=./.test(line));
+    expect(withValues).toEqual([]);
+  });
+});
