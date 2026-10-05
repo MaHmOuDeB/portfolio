@@ -4,6 +4,7 @@ Guidance for Claude Code in this repository: the portfolio site of Mahmoud El Be
 experimentation and growth analyst in Berlin.
 
 @~/code/portfolio/private/CLAUDE.private.md
+@AGENTS.md
 
 > **Status: pre-build.** The stack, commands and structure sections are completed in Phase 3,
 > after the design direction is approved. Until then, no product code is written.
