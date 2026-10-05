@@ -94,7 +94,9 @@ jobs:
           [ -n "$args" ] || { echo "deploy-command produced no arguments" >&2; exit 1; }
           # The deployment URL is the last line of stdout; progress output goes to stderr.
           # shellcheck disable=SC2086
-          url="$(npx --no-install vercel $args --token="$VERCEL_TOKEN" | tail -n1)"
+          out="$(npx --no-install vercel $args --token="$VERCEL_TOKEN")"
+          url="$(printf '%s\n' "$out" | tail -n1)"
+          [ -n "$url" ] || { echo "vercel deploy printed no URL" >&2; exit 1; }
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Job summary
         env:
