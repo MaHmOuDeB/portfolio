@@ -15,6 +15,7 @@
     "pretest:cov": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-obf-constants.ts --check",
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "gen:obf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-obf-constants.ts",
     "build:meta": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-meta.ts",
     "lhci": "lhci autorun",
     "links": "lychee --config .lychee.toml http://localhost:3123/",

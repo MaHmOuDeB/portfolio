@@ -48,8 +48,10 @@ export type Reference = {
   /**
    * Keyed "1" to "60": the 0.95 quantile of max_k |S_k| / sqrt(K) over K looks. "1" is exact
    * (norm.ppf(0.975)); "2" to "60" are Monte Carlo estimates (2,000,000 paths), so they are not
-   * monotone in K and are accurate to about 1e-3. Tests must not assert monotonicity or use a
-   * tighter tolerance.
+   * monotone in K and are accurate to about 3e-3 (largest error 2.3e-3 at K = 2). Exact values
+   * come from recursive integration (K = 2: 1.97743, K = 5: 2.04007, K = 10: 2.08650, K = 20:
+   * 2.12565); an exact table is a documented follow-up. Tests must not assert monotonicity or use
+   * a tighter tolerance.
    */
   obf: Record<string, number>;
   peeking: {

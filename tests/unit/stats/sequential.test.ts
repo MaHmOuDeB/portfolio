@@ -24,10 +24,22 @@ describe('mixtureRatio', () => {
     expect(mixtureRatio(0.05)).toBeCloseTo(8.21197, 5);
   });
 
-  it('solves r = 2 ln(1/alpha) + ln(1 + r)', () => {
-    for (const alpha of [1e-6, 0.001, 0.05, 0.5, 0.9]) {
+  it('converges across the whole of (0, 1) and solves r = c + log1p(r)', () => {
+    for (const alpha of [1e-12, 0.001, 0.01, 0.05, 0.1, 0.5, 0.9, 0.99, 0.999, 1 - 1e-6]) {
+      const c = 2 * Math.log(1 / alpha);
       const r = mixtureRatio(alpha);
-      expect(Math.abs(r - (2 * Math.log(1 / alpha) + Math.log(1 + r)))).toBeLessThan(1e-12 * r);
+      expect(Number.isFinite(r)).toBe(true);
+      expect(r).toBeGreaterThan(0);
+      expect(Math.abs(r - (c + Math.log1p(r)))).toBeLessThan(1e-12 * r);
+    }
+  });
+
+  it('agrees with the plain fixed-point iteration wherever that converges', () => {
+    for (const alpha of [1e-6, 0.001, 0.05, 0.1, 0.5, 0.9]) {
+      const c = 2 * Math.log(1 / alpha);
+      let fixed = c;
+      for (let i = 0; i < 2000; i += 1) fixed = c + Math.log(1 + fixed);
+      expect(Math.abs(mixtureRatio(alpha) - fixed)).toBeLessThan(1e-12 * fixed);
     }
   });
 
@@ -99,6 +111,33 @@ describe('mixtureCs', () => {
       const out = mixtureCs({ xA, nA: 1e7, xB, nB: 1e7 }, { tau2 });
       for (const v of Object.values(out)) expect(Number.isFinite(v)).toBe(true);
     }
+  });
+
+  it('is symmetric: all-converted and zero-converted arms give identical half-widths', () => {
+    const tau2 = optimalTau2({ baseline: 0.35, nCapPerArm: 1000 });
+    const full = mixtureCs({ xA: 1e7, nA: 1e7, xB: 1e7, nB: 1e7 }, { tau2 });
+    const none = mixtureCs({ xA: 0, nA: 1e7, xB: 0, nB: 1e7 }, { tau2 });
+    expect(full.halfWidth).toBe(none.halfWidth);
+  });
+
+  it('stays finite and matches the large-tau2 limit for a huge tau2', () => {
+    const n = 1e7;
+    const tau2 = 1e300;
+    const out = mixtureCs({ xA: 0, nA: n, xB: 0, nB: n }, { tau2 });
+    const q = 0.5 / (n + 1);
+    const v = 2 * (q * ((n + 0.5) / (n + 1))) / n;
+    // tau2 / v overflows here, so the independent value uses ln(tau2) - ln(v).
+    const limit = Math.sqrt(v * (2 * Math.log(20) + Math.log(tau2) - Math.log(v)));
+    expect(Number.isFinite(out.halfWidth)).toBe(true);
+    expect(Math.abs(out.halfWidth - limit) / limit).toBeLessThan(1e-3);
+    expect(out.halfWidth).toBeCloseTo(2.7e-6, 7);
+  });
+
+  it('rejects counts above 2^50', () => {
+    const big = 2 ** 51;
+    expect(() => mixtureCs({ xA: 0, nA: big, xB: 0, nB: 10 }, { tau2: 0.01 })).toThrow(/nA/);
+    expect(() => mixtureCs({ xA: 0, nA: 10, xB: 0, nB: big }, { tau2: 0.01 })).toThrow(/nB/);
+    expect(() => mixtureCs({ xA: 0, nA: 2 ** 50, xB: 0, nB: 2 ** 50 }, { tau2: 0.01 })).not.toThrow();
   });
 
   it('validates its inputs', () => {
@@ -174,10 +213,10 @@ describe('obfBoundary', () => {
   });
 
   it('validates look and looks', () => {
-    expect(() => obfBoundary(0, 5)).toThrow(/look/);
-    expect(() => obfBoundary(6, 5)).toThrow(/look/);
-    expect(() => obfBoundary(1.5, 5)).toThrow(/look/);
-    expect(() => obfBoundary(1, 61)).toThrow(RangeError);
+    expect(() => obfBoundary(0, 5)).toThrow(/^look must be/);
+    expect(() => obfBoundary(6, 5)).toThrow(/^look must be/);
+    expect(() => obfBoundary(1.5, 5)).toThrow(/^look must be/);
+    expect(() => obfBoundary(1, 61)).toThrow(/^looks must be/);
   });
 });
 

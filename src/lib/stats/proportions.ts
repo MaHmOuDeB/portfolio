@@ -7,6 +7,7 @@
  * here is written as `normalCdf(-x)`; that keeps tiny p-values free of cancellation.
  */
 import { normalCdf, normalQuantile } from './normal';
+import { checkAlpha, checkArm } from './validate';
 
 /** Successes and trials for the two arms: A is the control, B is the treatment. */
 export type Counts = { xA: number; nA: number; xB: number; nB: number };
@@ -16,19 +17,6 @@ export type Interval = { estimate: number; lower: number; upper: number };
 
 /** A threshold below which an SRM p-value flags a sample-ratio mismatch. */
 const SRM_FLAG_P = 0.001;
-
-function checkAlpha(alpha: number): void {
-  if (!(alpha > 0 && alpha < 1)) throw new RangeError(`alpha must be in (0, 1), got ${alpha}`);
-}
-
-function checkArm(x: number, n: number, xName: string, nName: string): void {
-  if (!Number.isInteger(n) || n < 1) {
-    throw new RangeError(`${nName} must be a positive integer, got ${n}`);
-  }
-  if (!Number.isInteger(x) || x < 0 || x > n) {
-    throw new RangeError(`${xName} must be an integer in [0, ${nName}] (${nName} = ${n}), got ${x}`);
-  }
-}
 
 /** The Wilson score limits for `x` successes in `n` trials, after validation. */
 function wilsonLimits(x: number, n: number, alpha: number): Interval {

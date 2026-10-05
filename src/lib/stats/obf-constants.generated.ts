@@ -2,7 +2,10 @@
 
 /**
  * O'Brien-Fleming boundary constants: index K - 1 holds the two-sided 0.95 critical value for K
- * equally spaced looks (K = 1 to 60). K = 1 is exact; the rest are Monte Carlo estimates.
+ * equally spaced looks (K = 1 to 60). K = 1 is exact; K >= 2 are Monte Carlo estimates accurate
+ * to about 3e-3 (largest error 2.3e-3 at K = 2). Exact values come from recursive integration
+ * (K = 2: 1.97743, K = 5: 2.04007, K = 10: 2.08650, K = 20: 2.12565); an exact table is a
+ * documented follow-up.
  */
 export const OBF_CONSTANTS: readonly number[] = [
   1.95996398454, 1.97977342704, 2.00388713667, 2.02489400137,
