@@ -11,6 +11,7 @@ function internalHeaders(): Record<string, string> {
   return { 'x-internal': createHmac('sha256', secret).update(INTERNAL_MESSAGE).digest('hex') };
 }
 
+// This fixture overrides extraHTTPHeaders wholesale, so a config-level use.extraHTTPHeaders would be clobbered.
 export const test = base.extend({
   extraHTTPHeaders: internalHeaders(),
 });
