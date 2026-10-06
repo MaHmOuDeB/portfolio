@@ -52,22 +52,23 @@ const SQRT_HALF = 0.70710678118654752440;
 /** ln of the largest double, Cephes MAXLOG: exp(-x^2) underflows beyond it. */
 const MAXLOG = 7.09782712893383996843e2;
 
+/** erf(x) for |x| < 1; `normalCdf` only calls it for |x| < 1/sqrt(2), so the |x| > 1 arm of Cephes is dropped. */
 function erf(x: number): number {
-  if (Math.abs(x) > 1) return 1 - erfc(x);
   const z = x * x;
   return (x * polevl(z, ERF_T)) / p1evl(z, ERF_U);
 }
 
+/**
+ * erfc(a) for a >= 1/sqrt(2); `normalCdf` passes |t|, so the negative-argument arms of Cephes
+ * (`a < 0`) are unreachable and dropped.
+ */
 function erfc(a: number): number {
-  const x = Math.abs(a);
-  if (x < 1) return 1 - erf(a);
+  if (a < 1) return 1 - erf(a);
   const z = -a * a;
-  if (z < -MAXLOG) return a < 0 ? 2 : 0;
-  const e = Math.exp(z);
-  const p = x < 8 ? polevl(x, ERFC_P) : polevl(x, ERFC_R);
-  const q = x < 8 ? p1evl(x, ERFC_Q) : p1evl(x, ERFC_S);
-  const y = (e * p) / q;
-  return a < 0 ? 2 - y : y;
+  if (z < -MAXLOG) return 0;
+  const p = a < 8 ? polevl(a, ERFC_P) : polevl(a, ERFC_R);
+  const q = a < 8 ? p1evl(a, ERFC_Q) : p1evl(a, ERFC_S);
+  return (Math.exp(z) * p) / q;
 }
 
 /** Probability density of the standard normal distribution at `x`. */

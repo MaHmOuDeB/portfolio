@@ -11,6 +11,12 @@ export default defineConfig({
     outputFile: { json: 'reports/vitest.json' },
     coverage: {
       provider: 'v8',
+      // Measured explicitly so the gate cannot pass because nothing was measured.
+      include: ['src/lib/stats/**/*.ts'],
+      thresholds: {
+        // The gate covers the statistics library only; other folders are not held to it.
+        'src/lib/stats/**': { lines: 95, branches: 95, statements: 95, functions: 95 },
+      },
     },
   },
 });
