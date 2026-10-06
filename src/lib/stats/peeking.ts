@@ -32,6 +32,9 @@ export type PeekResult = {
 
 /** The O'Brien-Fleming table covers 1 to 60 looks; the limit applies to every method. */
 const MAX_LOOKS = 60;
+/** Caps that keep one call bounded (and `looks * nPerLook` far below the mixture CS's 2^50 limit). */
+const MAX_RUNS = 1_000_000;
+const MAX_N_PER_LOOK = 100_000;
 const METHODS: readonly PeekMethod[] = ['naive', 'obf', 'cs'];
 
 /**
@@ -39,6 +42,8 @@ const METHODS: readonly PeekMethod[] = ['naive', 'obf', 'cs'];
  * `rng.uniform() < p` is `rng.next() / 2^32 < p`, and scaling by a power of two is exact, so
  * comparing the raw integer with the threshold gives identical draws from the same stream while
  * skipping a division and a call in the innermost loop. `n` and `p` are validated by the caller.
+ * It must stay equivalent to `binomial`; the "draws the same binomial stream" tests in
+ * tests/unit/stats/peeking.test.ts check that for every method.
  */
 function draw(rng: Rng, n: number, threshold: number): number {
   let successes = 0;
@@ -47,14 +52,14 @@ function draw(rng: Rng, n: number, threshold: number): number {
 }
 
 function validate(i: PeekInput, alpha: number): void {
-  if (!Number.isInteger(i.runs) || i.runs < 1) {
-    throw new RangeError(`runs must be a positive integer, got ${i.runs}`);
+  if (!Number.isInteger(i.runs) || i.runs < 1 || i.runs > MAX_RUNS) {
+    throw new RangeError(`runs must be an integer in [1, ${MAX_RUNS}], got ${i.runs}`);
   }
   if (!Number.isInteger(i.looks) || i.looks < 1 || i.looks > MAX_LOOKS) {
     throw new RangeError(`looks must be an integer in [1, ${MAX_LOOKS}], got ${i.looks}`);
   }
-  if (!Number.isInteger(i.nPerLook) || i.nPerLook < 1) {
-    throw new RangeError(`nPerLook must be a positive integer, got ${i.nPerLook}`);
+  if (!Number.isInteger(i.nPerLook) || i.nPerLook < 1 || i.nPerLook > MAX_N_PER_LOOK) {
+    throw new RangeError(`nPerLook must be an integer in [1, ${MAX_N_PER_LOOK}], got ${i.nPerLook}`);
   }
   if (!(i.p > 0 && i.p < 1)) throw new RangeError(`p must be in (0, 1), got ${i.p}`);
   if (!Number.isInteger(i.seed)) throw new RangeError(`seed must be a finite integer, got ${i.seed}`);
