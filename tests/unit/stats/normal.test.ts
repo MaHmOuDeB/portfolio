@@ -96,7 +96,7 @@ describe('normalQuantile', () => {
       fc.property(fc.double({ min: -8, max: 4, noNaN: true }), (x) => {
         expect(Math.abs(normalQuantile(normalCdf(x)) - x)).toBeLessThan(1e-8);
       }),
-      { numRuns: 2000 },
+      { seed: 20260101, numRuns: 2000 },
     );
   });
 
@@ -105,7 +105,7 @@ describe('normalQuantile', () => {
       fc.property(fc.double({ min: 4, max: 8, noNaN: true }), (x) => {
         expect(Math.abs(normalQuantile(normalCdf(-x)) - -x)).toBeLessThan(1e-8);
       }),
-      { numRuns: 2000 },
+      { seed: 20260101, numRuns: 2000 },
     );
   });
 });
