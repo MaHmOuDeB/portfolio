@@ -79,6 +79,11 @@ export function normalPdf(x: number): number {
 /**
  * Cumulative distribution function of the standard normal distribution (Cephes `ndtr`). Values
  * below about -37.7 underflow to 0.
+ *
+ * Accurate in the LOWER tail: `normalCdf(-x)` keeps full relative precision however small it is,
+ * while in the upper tail the result is `1 - tail` and is accurate in absolute terms only (it
+ * rounds to 1 from about x = 8). Write an upper-tail probability as `normalCdf(-x)`, not
+ * `1 - normalCdf(x)`.
  */
 export function normalCdf(x: number): number {
   const t = x * SQRT_HALF;

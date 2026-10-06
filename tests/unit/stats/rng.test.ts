@@ -12,6 +12,14 @@ describe('sfc32', () => {
     expect(sfc32(42).seed).toBe(42);
   });
 
+  it('coerces the seed with >>> 0 but reports the raw value', () => {
+    expect(sfc32(-1).next()).toBe(sfc32(4294967295).next());
+    expect(sfc32(2 ** 32 + 5).next()).toBe(sfc32(5).next());
+    expect(sfc32(1.7).next()).toBe(sfc32(1).next());
+    expect(sfc32(-1).seed).toBe(-1);
+    expect(sfc32(1.7).seed).toBe(1.7);
+  });
+
   it('is deterministic for a given seed', () => {
     const a = sfc32(123456);
     const b = sfc32(123456);

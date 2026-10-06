@@ -10,6 +10,10 @@ export type Rng = {
 /**
  * Chris Doty-Humphrey's sfc32, seeded as (0x9E3779B9, 0x243F6A88, 0xB7E15162, seed) with the
  * first 12 outputs discarded. The same seed always gives the same stream.
+ *
+ * The seed is coerced with `>>> 0`: a fractional seed is truncated (1.7 behaves as 1), a negative
+ * or out-of-range seed wraps modulo 2^32 (-1 behaves as 4294967295) and NaN or Infinity behave as
+ * 0. The `seed` property reports the raw value that was passed in, not the coerced one.
  */
 export function sfc32(seed: number): Rng {
   let a = 0x9e3779b9;
