@@ -48,6 +48,29 @@ describe('mixtureRatio', () => {
       expect(() => mixtureRatio(alpha)).toThrow(RangeError);
     }
   });
+
+  it('rejects an alpha below 1e-300 (where 1 / alpha overflows), naming alpha', () => {
+    for (const alpha of [1e-301, 1e-310, Number.MIN_VALUE]) {
+      expect(() => mixtureRatio(alpha)).toThrow(RangeError);
+      expect(() => mixtureRatio(alpha)).toThrow(/alpha/);
+    }
+  });
+
+  it('accepts alpha = 1e-300 and converges there', () => {
+    const c = -2 * Math.log(1e-300);
+    const r = mixtureRatio(1e-300);
+    expect(Math.abs(r - (c + Math.log1p(r)))).toBeLessThan(1e-12 * r);
+  });
+
+  it('still converges for alpha = 1 - 1e-12, with c taken as -2 ln(alpha) (no 1 / alpha rounding)', () => {
+    const alpha = 1 - 1e-12;
+    // log1p(-1e-12 ... ) is exact where log(1 / alpha) loses the low digits of 1 / alpha.
+    const c = -2 * Math.log1p(alpha - 1);
+    const r = mixtureRatio(alpha);
+    expect(Number.isFinite(r)).toBe(true);
+    expect(r).toBeGreaterThan(0);
+    expect(Math.abs(r - (c + Math.log1p(r)))).toBeLessThan(1e-12 * r);
+  });
 });
 
 describe('optimalTau2', () => {
@@ -131,6 +154,12 @@ describe('mixtureCs', () => {
     expect(Number.isFinite(out.halfWidth)).toBe(true);
     expect(Math.abs(out.halfWidth - limit) / limit).toBeLessThan(1e-3);
     expect(out.halfWidth).toBeCloseTo(2.7e-6, 7);
+  });
+
+  it('stays finite for an alpha so small that 1 / alpha overflows', () => {
+    const out = mixtureCs({ xA: 50, nA: 100, xB: 60, nB: 100 }, { tau2: 0.01, alpha: 1e-310 });
+    expect(Number.isFinite(out.halfWidth)).toBe(true);
+    expect(out.lower).toBeLessThan(out.upper);
   });
 
   it('rejects counts above 2^50', () => {

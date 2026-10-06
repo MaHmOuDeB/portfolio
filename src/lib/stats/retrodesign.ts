@@ -27,18 +27,24 @@ export type RetrodesignResult = {
  * Power, Type S error rate and exaggeration ratio of a two-sided z-test on an estimate
  * `X ~ N(trueEffect, se^2)`.
  *
- * By symmetry the true effect is taken as positive, `d = |trueEffect|`, with cut-off `c = z * se`
- * and `z = -normalQuantile(alpha / 2)`:
+ * By symmetry the true effect is taken as positive, `d = |trueEffect|`, and everything is written
+ * in units of the standard error: `r = d / se`, `z = -normalQuantile(alpha / 2)`, the upper
+ * cut-off at `z` and the arguments `a = r - z` and `b = -(r + z)` (computed directly, so `z * se`
+ * can never overflow):
  *
- * - `power = P(X > c) + P(X < -c) = Phi((d - c) / se) + Phi(-(c + d) / se)`;
- * - `typeS = P(X < -c) / power`, the second term over the total;
+ * - `power = P(X > c) + P(X < -c) = Phi(a) + Phi(b)`;
+ * - `typeS = P(X < -c) / power = Phi(b) / power`, the wrong-sign tail over the total;
  * - `exaggeration = E[|X|; |X| > c] / (power * d)`, where
- *   `E[|X|; |X| > c] = d (Phi(a) - Phi(b)) + se (phi(a) + phi(b))` with `a = (d - c) / se` and
- *   `b = -(c + d) / se`.
+ *   `E[|X|; |X| > c] / se = r (Phi(a) - Phi(b)) + phi(a) + phi(b)`.
  *
- * Every Phi is evaluated at a non-upper-tail argument (`normalCdf` is accurate in the lower tail
- * only), and the wrong-sign tail is kept as its own term so `typeS` stays accurate in relative
- * terms when it is astronomically small.
+ * Accuracy. `normalCdf` is accurate in the lower tail, so the wrong-sign term `Phi(b)` (always a
+ * lower-tail value) keeps full relative precision and `typeS` stays accurate in relative terms
+ * even when astronomically small. The right-tail term `Phi(a)` is an upper-tail probability once
+ * `a > 0` and is accurate in absolute terms only, which is all `power` and `exaggeration` need.
+ *
+ * Limits. `typeS` underflows to 0 once `z + d / se` exceeds about 38 (the lower tail of the
+ * normal distribution itself underflows there), and `exaggeration` overflows to Infinity when
+ * `d / se` falls below about 1e-308 (the ratio of a finite truncated mean to a vanishing `d`).
  *
  * @throws RangeError if `trueEffect` is not finite and non-zero (the ratio is undefined at 0),
  * `se` is not finite and positive, or `alpha` is not in (0, 1).
@@ -58,19 +64,18 @@ export function retrodesign(o: RetrodesignInput): RetrodesignResult {
     throw new RangeError(`retrodesign: alpha must be in (0, 1), got ${alpha}`);
   }
 
-  const d = Math.abs(trueEffect);
+  const ratio = Math.abs(trueEffect) / se;
   // -normalQuantile(alpha / 2) is exact for tiny alpha; 1 - alpha / 2 would round to 1.
-  const c = -normalQuantile(alpha / 2) * se;
-  const a = (d - c) / se;
-  const b = -(c + d) / se;
+  const z = -normalQuantile(alpha / 2);
+  const a = ratio - z;
+  const b = -(ratio + z);
 
   const rightTail = normalCdf(a); // P(X > c)
   const wrongTail = normalCdf(b); // P(X < -c)
   const power = rightTail + wrongTail;
   const typeS = wrongTail / power;
-  const truncatedMean =
-    d * (rightTail - wrongTail) + se * (normalPdf(a) + normalPdf(b));
-  const exaggeration = truncatedMean / (power * d);
+  const truncatedMean = ratio * (rightTail - wrongTail) + normalPdf(a) + normalPdf(b);
+  const exaggeration = truncatedMean / (power * ratio);
 
   return { power, typeS, exaggeration };
 }

@@ -67,34 +67,48 @@ describe("retrodesign", () => {
     }
   });
 
-  it("agrees with direct numerical integration for a low-power case", () => {
-    const se = 1;
-    const d = 0.5 * se;
-    const alpha = 0.05;
-    const c = -normalQuantile(alpha / 2) * se;
-    // Midpoint rule on grids aligned with the cut-off (1e5 steps per tail).
-    const steps = 100000;
-    const width = 10;
-    const h = width / steps;
-    const density = (x: number): number => normalPdf((x - d) / se) / se;
-    let prob = 0;
-    let wrongSign = 0;
-    let mass = 0;
-    for (let i = 0; i < steps; i += 1) {
-      const u = (i + 0.5) * h;
-      const upper = c + u;
-      const lower = -c - u;
-      prob += density(upper) * h;
-      wrongSign += density(lower) * h;
-      mass += (upper * density(upper) + -lower * density(lower)) * h;
-    }
-    const power = prob + wrongSign;
-    const r = retrodesign({ trueEffect: d, se, alpha });
-    expect(Math.abs(r.power - power)).toBeLessThan(1e-4);
-    expect(Math.abs(r.typeS - wrongSign / power)).toBeLessThan(1e-4);
-    const exaggeration = mass / (power * d);
-    expect(exaggeration).toBeGreaterThan(2);
-    expect(Math.abs(r.exaggeration - exaggeration)).toBeLessThan(1e-4);
+  it.each([1, 0.02])(
+    "agrees with direct numerical integration for a low-power case at se = %s",
+    (se) => {
+      const d = 0.5 * se;
+      const alpha = 0.05;
+      const c = -normalQuantile(alpha / 2) * se;
+      // Midpoint rule on grids aligned with the cut-off: 1e5 steps over 10 standard errors.
+      const steps = 100000;
+      const width = 10 * se;
+      const h = width / steps;
+      const density = (x: number): number => normalPdf((x - d) / se) / se;
+      let prob = 0;
+      let wrongSign = 0;
+      let mass = 0;
+      for (let i = 0; i < steps; i += 1) {
+        const u = (i + 0.5) * h;
+        const upper = c + u;
+        const lower = -c - u;
+        prob += density(upper) * h;
+        wrongSign += density(lower) * h;
+        mass += (upper * density(upper) + -lower * density(lower)) * h;
+      }
+      const power = prob + wrongSign;
+      const r = retrodesign({ trueEffect: d, se, alpha });
+      expect(Math.abs(r.power - power)).toBeLessThan(1e-6);
+      expect(Math.abs(r.typeS - wrongSign / power)).toBeLessThan(1e-6);
+      const exaggeration = mass / (power * d);
+      expect(exaggeration).toBeGreaterThan(2);
+      expect(Math.abs(r.exaggeration - exaggeration)).toBeLessThan(1e-6);
+    },
+  );
+
+  it("depends only on d / se, even when z * se would overflow", () => {
+    const unit = retrodesign({ trueEffect: 1, se: 1 });
+    // c = z * se would be Infinity for se > ~9e307 and make the power wrong.
+    const huge = retrodesign({ trueEffect: 1e308, se: 1e308 });
+    expect(huge.power).toBeCloseTo(unit.power, 12);
+    expect(huge.typeS).toBeCloseTo(unit.typeS, 12);
+    expect(huge.exaggeration).toBeCloseTo(unit.exaggeration, 12);
+    const wide = retrodesign({ trueEffect: 5e307, se: 1.5e308 });
+    const ratio = retrodesign({ trueEffect: 5e307 / 1.5e308, se: 1 });
+    expect(wide.power).toBeCloseTo(ratio.power, 12);
   });
 
   it("shows the winner’s curse: exaggeration is clearly above 1 at low power", () => {

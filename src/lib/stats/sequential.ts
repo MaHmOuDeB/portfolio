@@ -12,23 +12,31 @@ const RELATIVE_TOLERANCE = 1e-15;
 /** Counts beyond 2^50 lose the precision `(n + 0.5) / (n + 1)` needs (at 2^52 it rounds to 1). */
 const MAX_COUNT = 2 ** 50;
 const MAX_LOOKS = OBF_CONSTANTS.length;
+/** The smallest alpha `mixtureRatio` accepts: below it 1 / alpha overflows. */
+const MIN_ALPHA = 1e-300;
 
 /**
  * The ratio r* = tau^2 / V that makes the mixture confidence sequence tightest at the target
- * variance V: the root of r = c + log1p(r) with c = 2 ln(1/alpha), which is the stationarity
+ * variance V: the root of r = c + log1p(r) with c = -2 ln(alpha), which is the stationarity
  * condition of (1 + 1/r)(c + ln(1 + r)). About 8.212 at alpha = 0.05.
  *
  * g(r) = r - c - log1p(r) is increasing and convex for r > 0 and positive at the start
  * r0 = c + sqrt(2c), so Newton's method falls monotonically onto the root in a handful of steps
  * for every alpha in (0, 1). Near the root rounding can make a step non-positive: that is the
- * floor of double precision, so the iteration stops there.
+ * floor of double precision, so the iteration stops there. `c` is written `-2 ln(alpha)`, not
+ * `2 ln(1 / alpha)`, so that no rounding of 1 / alpha enters near alpha = 1.
+ *
+ * @throws RangeError if `alpha` is not in (0, 1) or is below 1e-300, where 1 / alpha overflows
+ * in the neighbouring formulas and the confidence sequence is of no practical use.
  */
 export function mixtureRatio(alpha: number): number {
   checkAlpha(alpha);
-  const c = 2 * Math.log(1 / alpha);
+  if (alpha < MIN_ALPHA) throw new RangeError(`alpha must be at least ${MIN_ALPHA}, got ${alpha}`);
+  const c = -2 * Math.log(alpha);
   let r = c + Math.sqrt(2 * c);
   for (let i = 0; i < MAX_ITERATIONS; i += 1) {
-    const step = (r - c - Math.log1p(r)) / (1 - 1 / (1 + r));
+    // g'(r) = 1 - 1 / (1 + r), written r / (1 + r) so it keeps full precision for tiny r.
+    const step = (r - c - Math.log1p(r)) / (r / (1 + r));
     if (!(step > 0)) return r;
     r -= step;
     if (step <= RELATIVE_TOLERANCE * r) return r;
@@ -86,7 +94,7 @@ export function mixtureCs(
   // log1p(tau2 / v) overflows when the ratio does; there it equals log(tau2) - log(v) to rounding.
   const ratio = tau2 / v;
   const logRatio = Number.isFinite(ratio) ? Math.log1p(ratio) : Math.log(tau2) - Math.log(v);
-  const halfWidth = Math.sqrt(v * (1 + v / tau2) * (2 * Math.log(1 / alpha) + logRatio));
+  const halfWidth = Math.sqrt(v * (1 + v / tau2) * (-2 * Math.log(alpha) + logRatio));
   const estimate = c.xB / c.nB - c.xA / c.nA;
   return { estimate, lower: estimate - halfWidth, upper: estimate + halfWidth, halfWidth };
 }
