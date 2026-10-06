@@ -1,0 +1,38 @@
+[
+  {
+    "url": "http://localhost:3124/",
+    "isRepresentativeRun": false,
+    "htmlPath": "reports/lhci/localhost--2026_10_05_16_02_42.report.html",
+    "jsonPath": "reports/lhci/localhost--2026_10_05_16_02_42.report.json",
+    "summary": {
+      "performance": 0.5,
+      "accessibility": 0.6,
+      "best-practices": 0.7,
+      "seo": 0.8
+    }
+  },
+  {
+    "url": "http://localhost:3124/",
+    "isRepresentativeRun": false,
+    "htmlPath": "reports/lhci/localhost--2026_10_05_16_02_52.report.html",
+    "jsonPath": "reports/lhci/localhost--2026_10_05_16_02_52.report.json",
+    "summary": {
+      "performance": 0.99,
+      "accessibility": 0.98,
+      "best-practices": 0.96,
+      "seo": 0.97
+    }
+  },
+  {
+    "url": "http://localhost:3124/",
+    "isRepresentativeRun": true,
+    "htmlPath": "reports/lhci/localhost--2026_10_05_16_03_02.report.html",
+    "jsonPath": "reports/lhci/localhost--2026_10_05_16_03_02.report.json",
+    "summary": {
+      "performance": 1,
+      "accessibility": 0.95,
+      "best-practices": 0.926,
+      "seo": 0.994
+    }
+  }
+]

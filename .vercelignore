@@ -1,3 +1,5 @@
 private/
 .references/
 .claude/
+.superpowers/
+.env*
