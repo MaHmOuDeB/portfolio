@@ -66,6 +66,20 @@ describe('wilson', () => {
     );
   });
 
+  it('stays finite and ordered for an alpha so small that 1 - alpha / 2 rounds to 1', () => {
+    for (const alpha of [1e-17, 1e-100, 1e-300]) {
+      const r = wilson(5, 10, alpha);
+      expect(Number.isFinite(r.lower) && Number.isFinite(r.upper), `alpha=${alpha}`).toBe(true);
+      expect(r.lower, `alpha=${alpha}`).toBeGreaterThanOrEqual(0);
+      expect(r.lower, `alpha=${alpha}`).toBeLessThan(r.estimate);
+      expect(r.estimate, `alpha=${alpha}`).toBeLessThan(r.upper);
+      expect(r.upper, `alpha=${alpha}`).toBeLessThanOrEqual(1);
+    }
+    const n = newcombeDiff({ xA: 5, nA: 10, xB: 6, nB: 10 }, 1e-17);
+    expect(Number.isFinite(n.lower) && Number.isFinite(n.upper)).toBe(true);
+    expect(n.lower).toBeLessThan(n.upper);
+  });
+
   it('is finite and ordered for very large n', () => {
     const r = wilson(5e6, 1e7);
     expect(r.lower).toBeLessThan(r.estimate);
@@ -167,6 +181,32 @@ describe('newcombeDiff', () => {
   });
 });
 
+describe('newcombeDiff arm swap (property)', () => {
+  it('negates the estimate and mirrors the bounds for random counts', () => {
+    const arm = fc
+      .integer({ min: 1, max: 1e6 })
+      .chain((n) => fc.tuple(fc.integer({ min: 0, max: n }), fc.constant(n)));
+    fc.assert(
+      fc.property(
+        arm,
+        arm,
+        fc.double({ min: 1e-6, max: 0.5, noNaN: true }),
+        ([xA, nA], [xB, nB], alpha) => {
+          const r = newcombeDiff({ xA, nA, xB, nB }, alpha);
+          const s = newcombeDiff({ xA: xB, nA: nB, xB: xA, nB: nA }, alpha);
+          const eps = 1e-12;
+          return (
+            Math.abs(s.estimate + r.estimate) <= eps &&
+            Math.abs(s.lower + r.upper) <= eps &&
+            Math.abs(s.upper + r.lower) <= eps
+          );
+        },
+      ),
+      FC,
+    );
+  });
+});
+
 describe('zTestTwoProportions', () => {
   it('matches every reference case within 1e-9', () => {
     expect(ref.ztest.length).toBeGreaterThan(0);
@@ -206,8 +246,9 @@ describe('zTestTwoProportions', () => {
 
   it('keeps a tiny p-value precise instead of cancelling to zero', () => {
     const r = zTestTwoProportions({ xA: 100000, nA: 1000000, xB: 105000, nB: 1000000 });
-    expect(r.p).toBeGreaterThan(0);
-    expect(r.p).toBeLessThan(1e-20);
+    // Independently verified (scipy, 1e-6 relative): z = 11.6567, p = 2.120894775631677e-31.
+    expect(r.z).toBeCloseTo(11.6567, 4);
+    expect(Math.abs(r.p / 2.120894775631677e-31 - 1)).toBeLessThanOrEqual(1e-6);
   });
 
   it('is defined for whole-arm-zero and whole-arm-full counts', () => {
@@ -274,8 +315,16 @@ describe('srmTest', () => {
     expect(r.chi2).toBe(100);
     expect(r.flagged).toBe(true);
     const extreme = srmTest(1000, 2000);
-    expect(extreme.p).toBeGreaterThan(0);
-    expect(extreme.p).toBeLessThan(1e-60);
+    // Independently verified (scipy, 1e-6 relative): p = 1.806316233094055e-74.
+    expect(Math.abs(extreme.p / 1.806316233094055e-74 - 1)).toBeLessThanOrEqual(1e-6);
+  });
+
+  it('rejects a share so small that an expected count underflows, naming the share', () => {
+    expect(() => srmTest(10, 10, 1e-310)).toThrow(RangeError);
+    expect(() => srmTest(10, 10, 1e-310)).toThrow(/expectedShareA/);
+    expect(() => srmTest(1, 1, 1e-301)).toThrow(/expectedShareA/);
+    // Just inside the limit still works: expected count 20 * 1e-299 = 2e-298.
+    expect(Number.isFinite(srmTest(10, 10, 1e-299).chi2)).toBe(true);
   });
 
   it('throws a RangeError for invalid inputs', () => {

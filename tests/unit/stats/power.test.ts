@@ -53,7 +53,9 @@ describe('sampleSizePerArm', () => {
         (c) => c.baseline === baseline && c.mde === mde && c.alpha === alpha && c.power === power,
       );
     for (const c of [find(0.35, 0.07, 0.05, 0.8), find(0.05, 0.005, 0.01, 0.8)]) {
-      if (c === undefined) continue;
+      // A missing case must fail the test, not silently skip it.
+      expect(c, 'near-integer reference case missing from reference.json').toBeDefined();
+      if (c === undefined) return;
       expect(sampleSizePerArm({ ...c, mdeType: 'absolute' })).toBe(c.n);
     }
   });
@@ -113,6 +115,26 @@ describe('sampleSizePerArm', () => {
     expect(() => sampleSizePerArm(plan({ mdeType: 'percent' as never }))).toThrow(RangeError);
   });
 
+  it('rejects an mde too small to change the treatment rate, naming mde', () => {
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-17 }))).toThrow(RangeError);
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-17 }))).toThrow(/mde/);
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: -1e-17 }))).toThrow(/mde/);
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-20, mdeType: 'relative' }))).toThrow(
+      /mde/,
+    );
+  });
+
+  it('rejects an mde that would need more than a safe integer of visitors, naming mde', () => {
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-9 }))).toThrow(RangeError);
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-9 }))).toThrow(/mde/);
+    expect(() => sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-16 }))).toThrow(/mde/);
+  });
+
+  it('still accepts a tiny but feasible mde', () => {
+    const n = sampleSizePerArm(plan({ baseline: 0.3, mde: 1e-5 }));
+    expect(Number.isSafeInteger(n)).toBe(true);
+  });
+
   it('exposes the formula string', () => {
     expect(SAMPLE_SIZE_FORMULA).toBe(
       'n per group = 2 · ((z₁₋α/₂ + z₁₋β) / h)², h = 2·asin√p₂ − 2·asin√p₁, rounded up',
@@ -126,12 +148,13 @@ describe('sampleSizePerArm', () => {
         fc.double({ min: 0.005, max: 0.3, noNaN: true }),
         fc.double({ min: 0.005, max: 0.3, noNaN: true }),
         fc.double({ min: 0.5, max: 0.95, noNaN: true }),
-        (baseline, a, b, power) => {
+        fc.double({ min: 0.001, max: 0.2, noNaN: true }),
+        (baseline, a, b, power, alpha) => {
           const lo = Math.min(a, b);
           const hi = Math.max(a, b);
           fc.pre(baseline + hi < 0.99);
-          const nLo = sampleSizePerArm(plan({ baseline, mde: lo, power }));
-          const nHi = sampleSizePerArm(plan({ baseline, mde: hi, power }));
+          const nLo = sampleSizePerArm(plan({ baseline, mde: lo, power, alpha }));
+          const nHi = sampleSizePerArm(plan({ baseline, mde: hi, power, alpha }));
           return nHi <= nLo;
         },
       ),
@@ -146,11 +169,12 @@ describe('sampleSizePerArm', () => {
         fc.double({ min: 0.01, max: 0.09, noNaN: true }),
         fc.double({ min: 0.06, max: 0.99, noNaN: true }),
         fc.double({ min: 0.06, max: 0.99, noNaN: true }),
-        (baseline, mde, a, b) => {
+        fc.double({ min: 0.001, max: 0.05, noNaN: true }),
+        (baseline, mde, a, b, alpha) => {
           const lo = Math.min(a, b);
           const hi = Math.max(a, b);
-          const nLo = sampleSizePerArm(plan({ baseline, mde, power: lo }));
-          const nHi = sampleSizePerArm(plan({ baseline, mde, power: hi }));
+          const nLo = sampleSizePerArm(plan({ baseline, mde, power: lo, alpha }));
+          const nHi = sampleSizePerArm(plan({ baseline, mde, power: hi, alpha }));
           return nHi >= nLo;
         },
       ),
@@ -205,8 +229,9 @@ describe('detectableEffect', () => {
         fc.double({ min: 0.05, max: 0.6, noNaN: true }),
         fc.double({ min: 0.01, max: 0.3, noNaN: true }),
         fc.double({ min: 0.5, max: 0.95, noNaN: true }),
-        (baseline, mde, power) => {
-          const x = plan({ baseline, mde, power });
+        fc.double({ min: 0.001, max: 0.2, noNaN: true }),
+        (baseline, mde, power, alpha) => {
+          const x = plan({ baseline, mde, power, alpha });
           const n = sampleSizePerArm(x);
           return (
             detectableEffect({ nPerArm: n, baseline, alpha: x.alpha, power: x.power }) <=
@@ -218,21 +243,29 @@ describe('detectableEffect', () => {
     );
   });
 
-  it('is non-increasing in n', () => {
+  it('is non-increasing in n, sampled on a log scale so the Infinity region is covered', () => {
+    let infinite = 0;
+    // n from 1 to 1e5 on a log scale: n below about 40 reaches the Infinity region.
+    const logN = fc.double({ min: 0, max: Math.log(1e5), noNaN: true });
     fc.assert(
       fc.property(
         fc.double({ min: 0.02, max: 0.9, noNaN: true }),
-        fc.integer({ min: 1, max: 100000 }),
-        fc.integer({ min: 1, max: 100000 }),
-        (baseline, a, b) => {
-          const lo = Math.min(a, b);
-          const hi = Math.max(a, b);
-          const o = { baseline, alpha: 0.05, power: 0.8 };
-          return detectableEffect({ ...o, nPerArm: hi }) <= detectableEffect({ ...o, nPerArm: lo });
+        logN,
+        logN,
+        fc.double({ min: 0.001, max: 0.2, noNaN: true }),
+        fc.double({ min: 0.5, max: 0.95, noNaN: true }),
+        (baseline, a, b, alpha, power) => {
+          const lo = Math.exp(Math.min(a, b));
+          const hi = Math.exp(Math.max(a, b));
+          const o = { baseline, alpha, power };
+          const atLo = detectableEffect({ ...o, nPerArm: lo });
+          if (atLo === Number.POSITIVE_INFINITY) infinite += 1;
+          return detectableEffect({ ...o, nPerArm: hi }) <= atLo;
         },
       ),
       FC,
     );
+    expect(infinite).toBeGreaterThan(0);
   });
 });
 
@@ -242,6 +275,17 @@ describe('durationWeeks', () => {
     expect(durationWeeks({ nPerArm: 70, entryViewsPerDay: 20 })).toBe(1);
     expect(durationWeeks({ nPerArm: 71, entryViewsPerDay: 20 })).toBe(2);
     expect(durationWeeks({ nPerArm: 1, entryViewsPerDay: 1000 })).toBe(1);
+  });
+
+  it('does not add a spurious week for a fractional rate', () => {
+    // 2 * 343 / 0.7 / 7 is exactly 140 weeks, but floating point gives 140.00000000000003.
+    expect(durationWeeks({ nPerArm: 343, entryViewsPerDay: 0.7 })).toBe(140);
+    // A genuinely fractional result still rounds up.
+    expect(durationWeeks({ nPerArm: 344, entryViewsPerDay: 0.7 })).toBe(141);
+  });
+
+  it('never returns less than one week', () => {
+    expect(durationWeeks({ nPerArm: 1, entryViewsPerDay: 1e9 })).toBe(1);
   });
 
   it('throws a RangeError naming the offending parameter', () => {

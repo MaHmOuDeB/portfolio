@@ -15,12 +15,16 @@ export type Counts = { xA: number; nA: number; xB: number; nB: number };
 /** A point estimate with its confidence limits. */
 export type Interval = { estimate: number; lower: number; upper: number };
 
+/** Below this an expected count has underflowed and chi2 is meaningless (or infinite). */
+const MIN_EXPECTED_COUNT = 1e-300;
+
 /** A threshold below which an SRM p-value flags a sample-ratio mismatch. */
 const SRM_FLAG_P = 0.001;
 
 /** The Wilson score limits for `x` successes in `n` trials, after validation. */
 function wilsonLimits(x: number, n: number, alpha: number): Interval {
-  const z = normalQuantile(1 - alpha / 2);
+  // -normalQuantile(alpha / 2) is exact for tiny alpha; 1 - alpha / 2 rounds to 1 below ~2e-16.
+  const z = -normalQuantile(alpha / 2);
   const p = x / n;
   const z2 = z * z;
   const denom = 1 + z2 / n;
@@ -80,6 +84,10 @@ export function zTestTwoProportions(c: Counts): { estimate: number; z: number; p
  * Chi-square sample-ratio-mismatch test with one degree of freedom: observed arm sizes `nA` and
  * `nB` against an expected share `expectedShareA` (default an even split) for arm A. The p-value
  * is `2 * normalCdf(-sqrt(chi2))`, exact for one degree of freedom, and `flagged` is `p < 0.001`.
+ *
+ * @throws RangeError if the counts are not non-negative integers with a positive total,
+ * `expectedShareA` is not in (0, 1), or either expected count (`total * share`) is below 1e-300
+ * (the share is so small that the expected count underflows).
  */
 export function srmTest(
   nA: number,
@@ -99,6 +107,11 @@ export function srmTest(
   const total = nA + nB;
   const expectedA = total * expectedShareA;
   const expectedB = total * (1 - expectedShareA);
+  if (expectedA < MIN_EXPECTED_COUNT || expectedB < MIN_EXPECTED_COUNT) {
+    throw new RangeError(
+      `expectedShareA ${expectedShareA} is too extreme for ${total} users: an expected count is below ${MIN_EXPECTED_COUNT}`,
+    );
+  }
   const chi2 = (nA - expectedA) ** 2 / expectedA + (nB - expectedB) ** 2 / expectedB;
   const p = 2 * normalCdf(-Math.sqrt(chi2));
   return { chi2, p, flagged: p < SRM_FLAG_P };
