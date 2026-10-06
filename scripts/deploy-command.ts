@@ -1,9 +1,9 @@
 // Builds the argv for `vercel deploy`. Production is only ever targeted once the site is launched,
-// so the guard lives here, where it is unit-tested, instead of in workflow YAML.
+// so the guard lives here, where it is unit-tested, instead of in workflow YAML. The target is
+// always stated explicitly: Vercel assigns a project's first deployment to production when no
+// target is given, so merely omitting --prod is not a guard.
 export function deployCommand(opts: { launched: boolean }): string[] {
-  const argv = ['deploy', '--prebuilt'];
-  if (opts.launched) argv.push('--prod');
-  return argv;
+  return ['deploy', '--prebuilt', opts.launched ? '--prod' : '--target=preview'];
 }
 
 function main(): void {

@@ -2,10 +2,12 @@ import { spawnSync } from 'node:child_process';
 import { deployCommand } from '../../scripts/deploy-command.ts';
 
 describe('deployCommand', () => {
-  it('never contains --prod when the site is not launched', () => {
+  it('states the preview target explicitly when the site is not launched', () => {
     const argv = deployCommand({ launched: false });
-    expect(argv).toEqual(['deploy', '--prebuilt']);
+    expect(argv).toEqual(['deploy', '--prebuilt', '--target=preview']);
+    expect(argv).toContain('--target=preview');
     expect(argv).not.toContain('--prod');
+    expect(argv).not.toContain('--target=production');
   });
 
   it('ends with --prod once the site is launched', () => {
@@ -28,12 +30,12 @@ describe('deploy-command CLI', () => {
     return result.stdout.trim();
   }
 
-  it('omits --prod when LAUNCHED is unset', () => {
-    expect(run({})).toBe('deploy --prebuilt');
+  it('targets preview when LAUNCHED is unset', () => {
+    expect(run({})).toBe('deploy --prebuilt --target=preview');
   });
 
-  it('omits --prod when LAUNCHED is "false"', () => {
-    expect(run({ LAUNCHED: 'false' })).toBe('deploy --prebuilt');
+  it('targets preview when LAUNCHED is "false"', () => {
+    expect(run({ LAUNCHED: 'false' })).toBe('deploy --prebuilt --target=preview');
   });
 
   it('adds --prod when LAUNCHED is "true"', () => {
@@ -44,7 +46,7 @@ describe('deploy-command CLI', () => {
     expect(run({}, ['--launched'])).toBe('deploy --prebuilt --prod');
   });
 
-  it('only counts the exact string "true", so "True" omits --prod', () => {
-    expect(run({ LAUNCHED: 'True' })).toBe('deploy --prebuilt');
+  it('only counts the exact string "true", so "True" targets preview', () => {
+    expect(run({ LAUNCHED: 'True' })).toBe('deploy --prebuilt --target=preview');
   });
 });

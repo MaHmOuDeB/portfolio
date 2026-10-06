@@ -79,9 +79,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
-          if [ "$LAUNCHED" = "true" ]; then prod_flag=--prod; else prod_flag=; fi
-          # shellcheck disable=SC2086
-          npx --no-install vercel build $prod_flag --token="$VERCEL_TOKEN"
+          if [ "$LAUNCHED" = "true" ]; then target_flag=--prod; else target_flag=--target=preview; fi
+          npx --no-install vercel build "$target_flag" --token="$VERCEL_TOKEN"
       - name: Deploy
         id: deploy
         env:
@@ -97,6 +96,22 @@ jobs:
           out="$(npx --no-install vercel $args --token="$VERCEL_TOKEN")"
           url="$(printf '%s\n' "$out" | tail -n1)"
           [ -n "$url" ] || { echo "vercel deploy printed no URL" >&2; exit 1; }
+          # Post-deploy guard: until launch the deployment must be a preview. Vercel puts a
+          # project's first deployment in production when no target is given, so ask Vercel what
+          # it actually created and fail closed on anything but "preview" (including no answer).
+          if [ "$LAUNCHED" != "true" ]; then
+            inspect="$(npx --no-install vercel inspect "$url" --token="$VERCEL_TOKEN" 2>&1)" || {
+              printf '%s\n' "$inspect" >&2
+              echo "vercel inspect failed; cannot verify the deployment target of $url" >&2
+              exit 1
+            }
+            target="$(printf '%s\n' "$inspect" | node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/parse-inspect-target.ts)"
+            if [ "$target" != "preview" ]; then
+              printf '%s\n' "$inspect" >&2
+              echo "::error::Deployment $url has target '${target:-unknown}' but the site is not launched; expected 'preview'." >&2
+              exit 1
+            fi
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Job summary
         env:
