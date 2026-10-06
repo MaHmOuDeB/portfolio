@@ -319,6 +319,13 @@ describe('srmTest', () => {
     expect(Math.abs(extreme.p / 1.806316233094055e-74 - 1)).toBeLessThanOrEqual(1e-6);
   });
 
+  it('gives chi2 = Infinity, p = 0 and flagged for huge counts at an extreme share, never NaN', () => {
+    const r = srmTest(1e200, 1, 1e-299);
+    expect(r.chi2).toBe(Infinity);
+    expect(r.p).toBe(0);
+    expect(r.flagged).toBe(true);
+  });
+
   it('rejects a share so small that an expected count underflows, naming the share', () => {
     expect(() => srmTest(10, 10, 1e-310)).toThrow(RangeError);
     expect(() => srmTest(10, 10, 1e-310)).toThrow(/expectedShareA/);

@@ -243,13 +243,17 @@ describe('detectableEffect', () => {
     );
   });
 
-  it('is non-increasing in n, sampled on a log scale so the Infinity region is covered', () => {
-    let infinite = 0;
-    // n from 1 to 1e5 on a log scale: n below about 40 reaches the Infinity region.
-    const logN = fc.double({ min: 0, max: Math.log(1e5), noNaN: true });
+  it('is non-increasing in n, sampled on a log scale across the Infinity transition', () => {
+    let infiniteAtLow = 0;
+    let finitePairs = 0;
+    let runs = 0;
+    // A comparison Infinity <= Infinity is trivially true, so the n range and the baselines are
+    // chosen (n from 20 to 1e5 on a log scale, baseline in [0.05, 0.6]) to keep most draws
+    // finite-to-finite while the lowest n and the highest baseline and power still reach Infinity.
+    const logN = fc.double({ min: Math.log(20), max: Math.log(1e5), noNaN: true });
     fc.assert(
       fc.property(
-        fc.double({ min: 0.02, max: 0.9, noNaN: true }),
+        fc.double({ min: 0.05, max: 0.6, noNaN: true }),
         logN,
         logN,
         fc.double({ min: 0.001, max: 0.2, noNaN: true }),
@@ -259,13 +263,23 @@ describe('detectableEffect', () => {
           const hi = Math.exp(Math.max(a, b));
           const o = { baseline, alpha, power };
           const atLo = detectableEffect({ ...o, nPerArm: lo });
-          if (atLo === Number.POSITIVE_INFINITY) infinite += 1;
-          return detectableEffect({ ...o, nPerArm: hi }) <= atLo;
+          const atHi = detectableEffect({ ...o, nPerArm: hi });
+          runs += 1;
+          if (atLo === Number.POSITIVE_INFINITY) infiniteAtLow += 1;
+          if (Number.isFinite(atLo) && Number.isFinite(atHi)) finitePairs += 1;
+          return atHi <= atLo;
         },
       ),
       FC,
     );
-    expect(infinite).toBeGreaterThan(0);
+    expect(infiniteAtLow).toBeGreaterThan(0);
+    expect(finitePairs).toBeGreaterThanOrEqual(runs / 2);
+  });
+
+  it('crosses from Infinity at a small n to a finite effect at a large n', () => {
+    const o = { baseline: 0.5, alpha: 0.05, power: 0.8 };
+    expect(detectableEffect({ ...o, nPerArm: 5 })).toBe(Number.POSITIVE_INFINITY);
+    expect(Number.isFinite(detectableEffect({ ...o, nPerArm: 10000 }))).toBe(true);
   });
 });
 

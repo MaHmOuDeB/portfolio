@@ -15,7 +15,7 @@ export type Counts = { xA: number; nA: number; xB: number; nB: number };
 /** A point estimate with its confidence limits. */
 export type Interval = { estimate: number; lower: number; upper: number };
 
-/** Below this an expected count has underflowed and chi2 is meaningless (or infinite). */
+/** Below this the expected count of arm A has underflowed and chi2 is meaningless (or infinite). */
 const MIN_EXPECTED_COUNT = 1e-300;
 
 /** A threshold below which an SRM p-value flags a sample-ratio mismatch. */
@@ -86,8 +86,9 @@ export function zTestTwoProportions(c: Counts): { estimate: number; z: number; p
  * is `2 * normalCdf(-sqrt(chi2))`, exact for one degree of freedom, and `flagged` is `p < 0.001`.
  *
  * @throws RangeError if the counts are not non-negative integers with a positive total,
- * `expectedShareA` is not in (0, 1), or either expected count (`total * share`) is below 1e-300
- * (the share is so small that the expected count underflows).
+ * `expectedShareA` is not in (0, 1), or the expected count of arm A (`total * share`) is below 1e-300
+ * (the share is so small that the expected count underflows). The share is only ever too small
+ * for arm A; an arm-B share cannot underflow because `1 - share` is at least 1.1e-16.
  */
 export function srmTest(
   nA: number,
@@ -107,11 +108,14 @@ export function srmTest(
   const total = nA + nB;
   const expectedA = total * expectedShareA;
   const expectedB = total * (1 - expectedShareA);
-  if (expectedA < MIN_EXPECTED_COUNT || expectedB < MIN_EXPECTED_COUNT) {
+  // Only arm A can underflow: 1 - share is at least 1.1e-16, so expectedB is never tiny.
+  if (expectedA < MIN_EXPECTED_COUNT) {
     throw new RangeError(
-      `expectedShareA ${expectedShareA} is too extreme for ${total} users: an expected count is below ${MIN_EXPECTED_COUNT}`,
+      `expectedShareA ${expectedShareA} is too extreme for ${total} users: the expected count of arm A is below ${MIN_EXPECTED_COUNT}`,
     );
   }
+  // chi2 can still be Infinity for an extreme share with huge counts; p is then 0 and flagged
+  // is true, never NaN.
   const chi2 = (nA - expectedA) ** 2 / expectedA + (nB - expectedB) ** 2 / expectedB;
   const p = 2 * normalCdf(-Math.sqrt(chi2));
   return { chi2, p, flagged: p < SRM_FLAG_P };

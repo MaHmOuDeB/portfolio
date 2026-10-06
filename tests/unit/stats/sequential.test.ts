@@ -64,7 +64,8 @@ describe('mixtureRatio', () => {
 
   it('still converges for alpha = 1 - 1e-12, with c taken as -2 ln(alpha) (no 1 / alpha rounding)', () => {
     const alpha = 1 - 1e-12;
-    // log1p(-1e-12 ... ) is exact where log(1 / alpha) loses the low digits of 1 / alpha.
+    // alpha - 1 is exact for alpha this close to 1, and log1p of it keeps every digit, whereas
+    // log(1 / alpha) would first round 1 / alpha.
     const c = -2 * Math.log1p(alpha - 1);
     const r = mixtureRatio(alpha);
     expect(Number.isFinite(r)).toBe(true);
@@ -160,6 +161,10 @@ describe('mixtureCs', () => {
     const out = mixtureCs({ xA: 50, nA: 100, xB: 60, nB: 100 }, { tau2: 0.01, alpha: 1e-310 });
     expect(Number.isFinite(out.halfWidth)).toBe(true);
     expect(out.lower).toBeLessThan(out.upper);
+    // Independent value from the textbook formula sqrt(V (V + tau2) / tau2 * (2 ln(1/alpha) +
+    // ln((V + tau2) / V))) with p = (x + 0.5) / (n + 1) and ln(1/alpha) = 310 ln(10), evaluated
+    // directly in a separate script (no 1 / alpha anywhere): 3.2305757865.
+    expect(Math.abs(out.halfWidth - 3.2305757865) / 3.2305757865).toBeLessThan(1e-4);
   });
 
   it('rejects counts above 2^50', () => {

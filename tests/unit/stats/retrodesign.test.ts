@@ -111,6 +111,38 @@ describe("retrodesign", () => {
     expect(wide.power).toBeCloseTo(ratio.power, 12);
   });
 
+  it("returns the limit values when d / se overflows to Infinity", () => {
+    for (const [d, se] of [
+      [1e300, 1e-9],
+      [1e308, 1e-10],
+      [-1e308, 1e-10],
+    ] as const) {
+      const r = retrodesign({ trueEffect: d, se });
+      expect(r, `d=${d} se=${se}`).toEqual({ power: 1, typeS: 0, exaggeration: 1 });
+    }
+  });
+
+  it("never returns NaN for extreme finite effects and standard errors", () => {
+    // d and se on a log grid from 1e-300 to 1e300, so d / se spans 1e-600 (underflow to 0)
+    // to 1e600 (overflow to Infinity).
+    for (let i = -300; i <= 300; i += 20) {
+      for (let j = -300; j <= 300; j += 20) {
+        for (const alpha of [0.05, 1e-17]) {
+          const r = retrodesign({ trueEffect: 10 ** i, se: 10 ** j, alpha });
+          const label = `d=1e${i} se=1e${j} alpha=${alpha}`;
+          for (const [name, v] of Object.entries(r)) {
+            expect(Number.isNaN(v), `${name} ${label}`).toBe(false);
+          }
+          expect(r.power, label).toBeGreaterThanOrEqual(0);
+          expect(r.power, label).toBeLessThanOrEqual(1);
+          expect(r.typeS, label).toBeGreaterThanOrEqual(0);
+          expect(r.typeS, label).toBeLessThanOrEqual(0.5);
+          expect(r.exaggeration, label).toBeGreaterThanOrEqual(1 - 1e-12);
+        }
+      }
+    }
+  });
+
   it("shows the winner’s curse: exaggeration is clearly above 1 at low power", () => {
     expect(
       retrodesign({ trueEffect: 0.5 * 0.02, se: 0.02 }).exaggeration,

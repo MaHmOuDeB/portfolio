@@ -12,7 +12,10 @@ const RELATIVE_TOLERANCE = 1e-15;
 /** Counts beyond 2^50 lose the precision `(n + 0.5) / (n + 1)` needs (at 2^52 it rounds to 1). */
 const MAX_COUNT = 2 ** 50;
 const MAX_LOOKS = OBF_CONSTANTS.length;
-/** The smallest alpha `mixtureRatio` accepts: below it 1 / alpha overflows. */
+/**
+ * The smallest alpha `mixtureRatio` accepts. 1 / alpha only overflows below about 5.6e-309; the
+ * floor is a deliberate safety margin far above that.
+ */
 const MIN_ALPHA = 1e-300;
 
 /**
@@ -26,8 +29,9 @@ const MIN_ALPHA = 1e-300;
  * floor of double precision, so the iteration stops there. `c` is written `-2 ln(alpha)`, not
  * `2 ln(1 / alpha)`, so that no rounding of 1 / alpha enters near alpha = 1.
  *
- * @throws RangeError if `alpha` is not in (0, 1) or is below 1e-300, where 1 / alpha overflows
- * in the neighbouring formulas and the confidence sequence is of no practical use.
+ * @throws RangeError if `alpha` is not in (0, 1) or is below 1e-300. 1 / alpha only overflows
+ * below about 5.6e-309; 1e-300 is a deliberate safety margin, and a confidence sequence at such
+ * an alpha is of no practical use anyway.
  */
 export function mixtureRatio(alpha: number): number {
   checkAlpha(alpha);
