@@ -88,9 +88,15 @@ export function sampleSizePerArm(i: PlanInput): number {
  * The smallest absolute rise over `baseline` that `nPerArm` visitors per arm detect with the
  * given power: `h = (z₁₋α/₂ + z₁₋β)·√(2/n)`, `p2 = sin²(asin(√baseline) + h/2)`, result `p2 − baseline`.
  *
+ * Assumes ONE look at the end with a z-test. A sequential design that uses the confidence
+ * sequence needs a larger effect for the same power (about 40% larger at 225 per arm, alpha 0.05,
+ * power 0.8: at baseline 0.1 roughly 13.5 percentage points instead of 9.2); a function for that
+ * is planned separately.
+ *
  * Returns `Infinity` when the sample is so small that no rise up to 100% is detectable, that is
  * when `asin(√baseline) + h/2 ≥ π/2` (the angle formula would otherwise wrap around and return a
- * wrong, smaller effect).
+ * wrong, smaller effect). `Infinity` does not survive `JSON.stringify` (it becomes `null`), so it
+ * must never be put into published JSON; check for it first.
  *
  * @throws RangeError if `nPerArm` is not finite or below 1, or `baseline`, `alpha` or `power` is
  * out of range.

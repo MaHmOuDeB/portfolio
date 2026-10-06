@@ -164,7 +164,15 @@ describe('mixtureCs', () => {
     // Independent value from the textbook formula sqrt(V (V + tau2) / tau2 * (2 ln(1/alpha) +
     // ln((V + tau2) / V))) with p = (x + 0.5) / (n + 1) and ln(1/alpha) = 310 ln(10), evaluated
     // directly in a separate script (no 1 / alpha anywhere): 3.2305757865.
-    expect(Math.abs(out.halfWidth - 3.2305757865) / 3.2305757865).toBeLessThan(1e-4);
+    expect(Math.abs(out.halfWidth - 3.2305757865) / 3.2305757865).toBeLessThan(1e-9);
+  });
+
+  it('does not clamp the interval to [-1, 1] at a tiny sample', () => {
+    const tau2 = optimalTau2({ baseline: 0.3, nCapPerArm: 1000 });
+    const out = mixtureCs({ xA: 0, nA: 1, xB: 0, nB: 1 }, { tau2 });
+    expect(out.halfWidth).toBeGreaterThan(15);
+    expect(out.lower).toBeLessThan(-1);
+    expect(out.upper).toBeGreaterThan(1);
   });
 
   it('rejects counts above 2^50', () => {
@@ -185,31 +193,34 @@ describe('mixtureCs', () => {
     expect(() => mixtureCs(c, { tau2: 0.01, alpha: 1 })).toThrow(/alpha/);
   });
 
-  it('keeps a false-positive share under 0.0745 when peeked at every 10 per arm', () => {
-    const p = 0.35;
-    const reps = 2000;
-    const tau2 = optimalTau2({ baseline: p, nCapPerArm: 1000 });
-    const rng = sfc32(11);
-    let everExcluded = 0;
-    for (let r = 0; r < reps; r += 1) {
-      let xA = 0;
-      let xB = 0;
-      for (let n = 1; n <= 1000; n += 1) {
-        if (rng.uniform() < p) xA += 1;
-        if (rng.uniform() < p) xB += 1;
-        if (n >= 50 && n % 10 === 0) {
-          const { lower, upper } = mixtureCs({ xA, nA: n, xB, nB: n }, { tau2 });
-          if (lower > 0 || upper < 0) {
-            everExcluded += 1;
-            break;
+  it.each([0.35, 0.05])(
+    'keeps a false-positive share under 0.0745 when peeked at every 10 per arm (p = %s)',
+    (p) => {
+      const reps = 2000;
+      const tau2 = optimalTau2({ baseline: p, nCapPerArm: 1000 });
+      const rng = sfc32(11);
+      let everExcluded = 0;
+      for (let r = 0; r < reps; r += 1) {
+        let xA = 0;
+        let xB = 0;
+        for (let n = 1; n <= 1000; n += 1) {
+          if (rng.uniform() < p) xA += 1;
+          if (rng.uniform() < p) xB += 1;
+          if (n >= 50 && n % 10 === 0) {
+            const { lower, upper } = mixtureCs({ xA, nA: n, xB, nB: n }, { tau2 });
+            if (lower > 0 || upper < 0) {
+              everExcluded += 1;
+              break;
+            }
           }
         }
       }
-    }
-    const share = everExcluded / reps;
-    expect(share).toBeGreaterThan(0);
-    expect(share).toBeLessThanOrEqual(0.05 + 3 * Math.sqrt((0.05 * 0.95) / reps));
-  }, 60_000);
+      const share = everExcluded / reps;
+      expect(share).toBeGreaterThan(0);
+      expect(share).toBeLessThanOrEqual(0.05 + 3 * Math.sqrt((0.05 * 0.95) / reps));
+    },
+    60_000,
+  );
 });
 
 describe('obfConstant', () => {

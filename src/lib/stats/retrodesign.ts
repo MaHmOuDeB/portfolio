@@ -69,7 +69,7 @@ export function retrodesign(o: RetrodesignInput): RetrodesignResult {
   const ratio = Math.abs(trueEffect) / se;
   // d / se overflows (for example d = 1e300, se = 1e-9): the limit of every quantity is exact.
   if (!Number.isFinite(ratio)) return { power: 1, typeS: 0, exaggeration: 1 };
-  // -normalQuantile(alpha / 2) is exact for tiny alpha; 1 - alpha / 2 would round to 1.
+  // -normalQuantile(alpha / 2) is accurate for tiny alpha; 1 - alpha / 2 would round to 1.
   const z = -normalQuantile(alpha / 2);
   const a = ratio - z;
   const b = -(ratio + z);

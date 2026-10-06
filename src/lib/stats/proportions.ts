@@ -23,7 +23,7 @@ const SRM_FLAG_P = 0.001;
 
 /** The Wilson score limits for `x` successes in `n` trials, after validation. */
 function wilsonLimits(x: number, n: number, alpha: number): Interval {
-  // -normalQuantile(alpha / 2) is exact for tiny alpha; 1 - alpha / 2 rounds to 1 below ~2e-16.
+  // -normalQuantile(alpha / 2) is accurate for tiny alpha; 1 - alpha / 2 rounds to 1 below ~2e-16.
   const z = -normalQuantile(alpha / 2);
   const p = x / n;
   const z2 = z * z;
@@ -38,7 +38,8 @@ function wilsonLimits(x: number, n: number, alpha: number): Interval {
 
 /**
  * The Wilson score interval for a single proportion with `x` successes in `n` trials, at
- * confidence level `1 - alpha`.
+ * confidence level `1 - alpha`. `n` must be at least 1: with zero exposures it throws, so the UI
+ * must show its "collecting data" state first.
  */
 export function wilson(x: number, n: number, alpha = 0.05): Interval {
   checkArm(x, n, 'x', 'n');
@@ -67,7 +68,9 @@ export function newcombeDiff(c: Counts, alpha = 0.05): Interval {
 
 /**
  * The pooled two-sided z-test for `pB - pA`. When the pooled proportion is 0 or 1 the standard
- * error is zero and the test has nothing to say, so it returns `z = 0` and `p = 1`.
+ * error is zero and the test has nothing to say, so it returns `z = 0` and `p = 1`. Zero
+ * exposures in either arm (`nA` or `nB` of 0) throw, so the UI must show its "collecting data"
+ * state first.
  */
 export function zTestTwoProportions(c: Counts): { estimate: number; z: number; p: number } {
   checkArm(c.xA, c.nA, 'xA', 'nA');
@@ -86,9 +89,10 @@ export function zTestTwoProportions(c: Counts): { estimate: number; z: number; p
  * is `2 * normalCdf(-sqrt(chi2))`, exact for one degree of freedom, and `flagged` is `p < 0.001`.
  *
  * @throws RangeError if the counts are not non-negative integers with a positive total,
- * `expectedShareA` is not in (0, 1), or the expected count of arm A (`total * share`) is below 1e-300
- * (the share is so small that the expected count underflows). The share is only ever too small
- * for arm A; an arm-B share cannot underflow because `1 - share` is at least 1.1e-16.
+ * `expectedShareA` is not in (0, 1), or the expected count of arm A (`total * share`) is below
+ * 1e-300 (the share is so small that the expected count underflows; an arm-B share cannot
+ * underflow because `1 - share` is at least 1.1e-16). Zero users in total throws, so the UI must
+ * show its "collecting data" state first; an arm with zero users is allowed.
  */
 export function srmTest(
   nA: number,

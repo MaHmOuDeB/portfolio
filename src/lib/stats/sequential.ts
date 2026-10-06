@@ -1,7 +1,10 @@
 /**
- * Sequential methods for the live experiment: an always-valid two-sided normal-mixture
- * confidence sequence on the difference in proportions pB - pA (safe to look at at any time),
- * and O'Brien-Fleming group-sequential boundaries. Every difference is B - A.
+ * Sequential methods for the live experiment: a two-sided normal-mixture confidence sequence on
+ * the difference in proportions pB - pA, approximately valid at any look, and O'Brien-Fleming
+ * group-sequential boundaries. The confidence sequence's guarantee is exact for Gaussian data with
+ * known variance; with the plug-in (floored) variance used on conversion data it is approximate,
+ * and the simulation in tests/unit/stats/sequential.test.ts shows it is conservative (ever-exclude
+ * rates well below the 0.05 target). Every difference is B - A.
  */
 import { OBF_CONSTANTS } from './obf-constants.generated';
 import type { Counts, Interval } from './proportions';
@@ -73,12 +76,23 @@ function armVariance(x: number, n: number): number {
 }
 
 /**
- * The two-sided normal-mixture confidence sequence at level 1 - alpha for pB - pA. The variance
+ * The two-sided normal-mixture confidence sequence at level 1 - alpha for pB - pA, approximately
+ * valid at any look: the coverage guarantee is exact for Gaussian data with known variance, and
+ * with the plug-in (floored) variance on conversion data it is approximate. It is conservative in
+ * practice: the simulation in tests/unit/stats/sequential.test.ts and independent runs at
+ * conversion rates 0.02 to 0.5 give ever-exclude rates of roughly 0.009 to 0.026 against the
+ * 0.05 target. The variance
  * V = pA(1-pA)/nA + pB(1-pB)/nB uses p = (x + 0.5) / (n + 1), a floor that keeps V positive when
  * an arm has no conversions (or all of them). The half-width is
  * sqrt(V (V + tau2) / tau2 * (2 ln(1/alpha) + ln((V + tau2) / V))), evaluated as
  * V (1 + V / tau2) (2 ln(1/alpha) + log1p(tau2 / V)), which neither overflows for a huge tau2 (the
  * log term then falls back to ln(tau2) - ln(V)) nor cancels for a tiny one. Counts must be at most 2^50.
+ *
+ * Zero exposures throw (`nA` and `nB` must be at least 1), so the caller must show its
+ * "collecting data" state before the first visitor in each arm. The interval is not clamped to
+ * [-1, 1]: at a tiny sample the half-width is far wider than a difference of proportions can be
+ * (about 15.7 at one visitor per arm with tau2 tuned for 1,000 per arm at baseline 0.3), and
+ * callers may clamp it for display.
  */
 export function mixtureCs(
   c: Counts,
@@ -109,7 +123,7 @@ export function mixtureCs(
  * and its values for K >= 2 are Monte Carlo estimates accurate to about 3e-3 (largest error 2.3e-3
  * at K = 2); K = 1 is exact. Exact values come from recursive numerical integration (for example
  * K = 2: 1.97743, K = 5: 2.04007, K = 10: 2.08650, K = 20: 2.12565); an exact table is a
- * documented follow-up.
+ * documented follow-up. The constants are for two-sided alpha = 0.05 only.
  */
 export function obfConstant(looks: number): number {
   if (!Number.isInteger(looks) || looks < 1 || looks > MAX_LOOKS) {
@@ -118,7 +132,10 @@ export function obfConstant(looks: number): number {
   return OBF_CONSTANTS[looks - 1] as number;
 }
 
-/** The two-sided |z| boundary at look `look` of `looks`: obfConstant(looks) * sqrt(looks / look). */
+/**
+ * The two-sided |z| boundary at look `look` of `looks`: obfConstant(looks) * sqrt(looks / look).
+ * Valid for two-sided alpha = 0.05 only, like the constants.
+ */
 export function obfBoundary(look: number, looks: number): number {
   const constant = obfConstant(looks);
   if (!Number.isInteger(look) || look < 1 || look > looks) {
