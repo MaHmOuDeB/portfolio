@@ -2,4 +2,5 @@ private/
 .references/
 .claude/
 .superpowers/
-.env*
+.env.local
+.env.*.local
