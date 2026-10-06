@@ -5,7 +5,7 @@
  * binomials from the seeded sfc32 stream, so a seed always reproduces a result.
  */
 import { zTestTwoProportions, type Counts } from './proportions';
-import { binomial, sfc32 } from './rng';
+import { sfc32, type Rng } from './rng';
 import { mixtureCs, obfBoundary, optimalTau2 } from './sequential';
 import { checkAlpha } from './validate';
 
@@ -33,6 +33,18 @@ export type PeekResult = {
 /** The O'Brien-Fleming table covers 1 to 60 looks; the limit applies to every method. */
 const MAX_LOOKS = 60;
 const METHODS: readonly PeekMethod[] = ['naive', 'obf', 'cs'];
+
+/**
+ * Exactly `binomial(rng, n, p)`, the successes in `n` Bernoulli(p) trials, for `threshold = p * 2^32`.
+ * `rng.uniform() < p` is `rng.next() / 2^32 < p`, and scaling by a power of two is exact, so
+ * comparing the raw integer with the threshold gives identical draws from the same stream while
+ * skipping a division and a call in the innermost loop. `n` and `p` are validated by the caller.
+ */
+function draw(rng: Rng, n: number, threshold: number): number {
+  let successes = 0;
+  for (let t = 0; t < n; t += 1) if (rng.next() < threshold) successes += 1;
+  return successes;
+}
 
 function validate(i: PeekInput, alpha: number): void {
   if (!Number.isInteger(i.runs) || i.runs < 1) {
@@ -73,6 +85,7 @@ export function simulatePeeking(i: PeekInput): PeekResult {
   const { seed, runs, looks, nPerLook, p, method } = i;
 
   const rng = sfc32(seed);
+  const threshold = p * 4294967296;
   const tau2 = method === 'cs' ? optimalTau2({ baseline: p, nCapPerArm: looks * nPerLook, alpha }) : 0;
   const boundary = new Float64Array(looks);
   if (method === 'obf') for (let k = 1; k <= looks; k += 1) boundary[k - 1] = obfBoundary(k, looks);
@@ -85,8 +98,8 @@ export function simulatePeeking(i: PeekInput): PeekResult {
     counts.xA = 0;
     counts.xB = 0;
     for (let k = 1; k <= looks; k += 1) {
-      counts.xA += binomial(rng, nPerLook, p);
-      counts.xB += binomial(rng, nPerLook, p);
+      counts.xA += draw(rng, nPerLook, threshold);
+      counts.xB += draw(rng, nPerLook, threshold);
       counts.nA = k * nPerLook;
       counts.nB = counts.nA;
       let flagged: boolean;

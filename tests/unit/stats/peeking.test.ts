@@ -1,8 +1,15 @@
 import { simulatePeeking, type PeekInput, type PeekMethod } from '@/lib/stats/peeking';
+import { zTestTwoProportions } from '@/lib/stats/proportions';
+import { binomial, sfc32 } from '@/lib/stats/rng';
 import { ref } from './reference';
 
-/** Runs per simulation-agreement case; tolerances are built from the standard errors. */
-const RUNS = 10_000;
+/**
+ * Runs per simulation-agreement case (ruling 30: the whole block took about 19 s at 20,000 runs,
+ * under the 20 s limit, so it keeps 20,000) and per anchor case. Tolerances come from the
+ * standard errors, so they hold for either count.
+ */
+const AGREEMENT_RUNS = 20_000;
+const ANCHOR_RUNS = 10_000;
 const SIM_TIMEOUT = 60_000;
 const ALPHA = 0.05;
 
@@ -15,7 +22,7 @@ describe('simulatePeeking agreement with the reference', () => {
       () => {
         const r = simulatePeeking({
           seed: 3,
-          runs: RUNS,
+          runs: AGREEMENT_RUNS,
           looks: c.looks,
           nPerLook: c.nPerLook,
           p: c.p,
@@ -39,7 +46,7 @@ describe('simulatePeeking anchors', () => {
     it(
       `naive peeking at ${looks} looks wrongly declares a winner in [${lo}, ${hi}]`,
       () => {
-        const r = simulatePeeking({ seed: 3, runs: RUNS, looks, nPerLook: 100, p: 0.35, method: 'naive' });
+        const r = simulatePeeking({ seed: 3, runs: ANCHOR_RUNS, looks, nPerLook: 100, p: 0.35, method: 'naive' });
         expect(r.falsePositiveRate).toBeGreaterThanOrEqual(lo);
         expect(r.falsePositiveRate).toBeLessThanOrEqual(hi);
       },
@@ -50,7 +57,7 @@ describe('simulatePeeking anchors', () => {
   it(
     'a single look gives a naive rate within 3 standard errors of alpha',
     () => {
-      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 1, nPerLook: 100, p: 0.35, method: 'naive' });
+      const r = simulatePeeking({ seed: 3, runs: ANCHOR_RUNS, looks: 1, nPerLook: 100, p: 0.35, method: 'naive' });
       expect(Math.abs(r.falsePositiveRate - ALPHA)).toBeLessThanOrEqual(3 * r.mcStdError);
     },
     SIM_TIMEOUT,
@@ -59,7 +66,7 @@ describe('simulatePeeking anchors', () => {
   it(
     'O Brien-Fleming boundaries at 20 looks keep the overall rate at or below alpha',
     () => {
-      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'obf' });
+      const r = simulatePeeking({ seed: 3, runs: ANCHOR_RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'obf' });
       expect(r.falsePositiveRate).toBeLessThanOrEqual(ALPHA + 3 * r.mcStdError);
     },
     SIM_TIMEOUT,
@@ -68,7 +75,7 @@ describe('simulatePeeking anchors', () => {
   it(
     'the confidence sequence stays well below alpha but is not identically zero',
     () => {
-      const r = simulatePeeking({ seed: 3, runs: RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'cs' });
+      const r = simulatePeeking({ seed: 3, runs: ANCHOR_RUNS, looks: 20, nPerLook: 100, p: 0.35, method: 'cs' });
       expect(r.falsePositiveRate).toBeGreaterThan(0);
       expect(r.falsePositiveRate).toBeLessThanOrEqual(ALPHA + 3 * r.mcStdError);
     },
@@ -118,6 +125,28 @@ describe('simulatePeeking output', () => {
     const r = simulatePeeking({ ...base, alpha: 0.999, runs: 300, looks: 4 });
     expect(r.cumulativeByLook[0]).toBeGreaterThan(0.9);
     expect(r.cumulativeByLook[3]).toBeGreaterThanOrEqual(r.cumulativeByLook[0] as number);
+  });
+
+  it('draws the same binomial stream as binomial() on the same seed', () => {
+    const [runs, looks, nPerLook, p, seed] = [400, 3, 40, 0.35, 11] as const;
+    const rng = sfc32(seed);
+    const firstFlag = new Array<number>(looks).fill(0);
+    for (let run = 0; run < runs; run += 1) {
+      let xA = 0;
+      let xB = 0;
+      for (let k = 1; k <= looks; k += 1) {
+        xA += binomial(rng, nPerLook, p);
+        xB += binomial(rng, nPerLook, p);
+        const n = k * nPerLook;
+        if (zTestTwoProportions({ xA, nA: n, xB, nB: n }).p < ALPHA) {
+          firstFlag[k - 1] = (firstFlag[k - 1] as number) + 1;
+          break;
+        }
+      }
+    }
+    const expected = firstFlag.reduce<number[]>((acc, f) => [...acc, (acc.at(-1) ?? 0) + f], []);
+    const r = simulatePeeking({ seed, runs, looks, nPerLook, p, method: 'naive' });
+    expect(r.cumulativeByLook).toEqual(expected.map((e) => e / runs));
   });
 
   it('runs 1,000 runs of 20 looks quickly', () => {
