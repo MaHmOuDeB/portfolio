@@ -48,13 +48,16 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      # Regenerates reference.json from the pinned scipy/statsmodels and fails if the committed copy
-      # is stale.
+      # Regenerates the reference data from the pinned scipy/statsmodels into a temporary file and
+      # compares it numerically with the committed reference.json (floats within 1e-9 relative,
+      # everything else exact), so a last-digit difference in a platform's math library cannot fail
+      # the build while a real change in a reference value does.
       - name: Regenerate the reference data
         working-directory: stats-ref
-        run: uv run --locked generate.py
+        run: uv run --locked generate.py "$RUNNER_TEMP/reference.fresh.json"
       - name: Check reference.json is up to date
-        run: git diff --exit-code stats-ref/reference.json
+        working-directory: stats-ref
+        run: uv run --locked check_reference.py reference.json "$RUNNER_TEMP/reference.fresh.json"
 
   build:
     name: Production build

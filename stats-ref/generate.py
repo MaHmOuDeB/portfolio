@@ -1,10 +1,12 @@
 """Reference values for src/lib/stats, produced by scipy and statsmodels.
 
-Writes reference.json next to this file. Everything is deterministic: fixed seeds, sorted keys and
-floats rounded to 12 significant digits, so two runs produce identical bytes. CI regenerates the file and
-fails if it differs from the committed copy.
+Writes reference.json next to this file (or to the path given as the optional first argument).
+Everything is deterministic: fixed seeds, sorted keys and floats rounded to 12 significant digits,
+so two runs on the same platform produce identical bytes. CI regenerates the file to a temporary
+path and compares it numerically with the committed copy (check_reference.py), so a last-digit
+difference from another platform's libm does not fail the build.
 
-Run with: cd stats-ref && uv run generate.py
+Run with: cd stats-ref && uv run generate.py [output-path]
 """
 
 from __future__ import annotations
@@ -82,7 +84,7 @@ def make_meta() -> dict:
 
 
 def make_normal_cdf() -> list:
-    # np.arange over integers, scaled by an exact power of two, gives exact multiples of 0.25.
+    # Python integers from range(), scaled by an exact power of two, give exact multiples of 0.25.
     xs = [float(k) * 0.25 for k in range(-160, 33)] + [-1e-9, 1e-9]
     return [[x, float(stats.norm.cdf(x))] for x in xs]
 
@@ -581,7 +583,8 @@ def make_retrodesign() -> list:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def main(argv: list[str]) -> None:
+    out = Path(argv[1]) if len(argv) > 1 else OUT
     reference = {
         "detectableEffect": make_detectable_effect(),
         "meta": make_meta(),
@@ -601,9 +604,9 @@ def main() -> None:
     }
     # allow_nan=False: a NaN or Infinity would produce invalid JSON, so fail loudly instead.
     text = json.dumps(round_floats(reference), sort_keys=True, indent=1, allow_nan=False) + "\n"
-    OUT.write_text(text, encoding="utf-8", newline="\n")
-    print(f"wrote {OUT.name} ({len(text)} bytes, Python {platform.python_version()})")
+    out.write_text(text, encoding="utf-8", newline="\n")
+    print(f"wrote {out.name} ({len(text)} bytes, Python {platform.python_version()})")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv)
