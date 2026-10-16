@@ -89,6 +89,24 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
+          # Pre-deploy gate. The CLI drops --target=preview before it calls the API, so the flag
+          # alone does not stop Vercel from making a project's first deployment a production one.
+          # Until launch, refuse to deploy unless the project already has a production deployment
+          # (any state), and fail closed if the API cannot be asked.
+          if [ "$LAUNCHED" != "true" ]; then
+            existing="$(curl --silent --show-error --fail --get 'https://api.vercel.com/v6/deployments' \
+              --data-urlencode "projectId=$VERCEL_PROJECT_ID" --data-urlencode "teamId=$VERCEL_ORG_ID" \
+              --data-urlencode 'target=production' --data-urlencode 'limit=1' \
+              --header "Authorization: Bearer $VERCEL_TOKEN")" || {
+              echo "Could not list production deployments; refusing to deploy." >&2
+              exit 1
+            }
+            has_production="$(printf '%s\n' "$existing" | node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/has-production-deployment.ts)"
+            if [ "$has_production" != "yes" ]; then
+              echo "::error::The project has no production deployment yet, so Vercel would make this deployment production. Not deploying." >&2
+              exit 1
+            fi
+          fi
           args="$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/deploy-command.ts)"
           [ -n "$args" ] || { echo "deploy-command produced no arguments" >&2; exit 1; }
           # The deployment URL is the last line of stdout; progress output goes to stderr.
@@ -96,11 +114,11 @@ jobs:
           out="$(npx --no-install vercel $args --token="$VERCEL_TOKEN")"
           url="$(printf '%s\n' "$out" | tail -n1)"
           [ -n "$url" ] || { echo "vercel deploy printed no URL" >&2; exit 1; }
-          # Post-deploy guard: until launch the deployment must be a preview. Vercel puts a
-          # project's first deployment in production when no target is given, so ask Vercel what
-          # it actually created and fail closed on anything but "preview" (including no answer).
+          # Post-deploy check (second layer, it detects rather than prevents): ask Vercel what it
+          # actually created and fail closed on anything but "preview" (including no answer). If it
+          # ever trips, the deployment is already live: roll back by promoting the previous one.
           if [ "$LAUNCHED" != "true" ]; then
-            inspect="$(npx --no-install vercel inspect "$url" --token="$VERCEL_TOKEN" 2>&1)" || {
+            inspect="$(NO_COLOR=1 FORCE_COLOR=0 npx --no-install vercel inspect "$url" --token="$VERCEL_TOKEN" 2>&1)" || {
               printf '%s\n' "$inspect" >&2
               echo "vercel inspect failed; cannot verify the deployment target of $url" >&2
               exit 1

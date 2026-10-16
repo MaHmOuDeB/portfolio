@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { deployCommand } from '../../scripts/deploy-command.ts';
 
 describe('deployCommand', () => {
-  it('states the preview target explicitly when the site is not launched', () => {
+  it('passes the preview target flag and never --prod when the site is not launched', () => {
     const argv = deployCommand({ launched: false });
     expect(argv).toEqual(['deploy', '--prebuilt', '--target=preview']);
     expect(argv).toContain('--target=preview');

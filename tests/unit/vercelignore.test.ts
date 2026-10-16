@@ -30,6 +30,8 @@ describe('.vercelignore', () => {
   });
 
   it('still excludes local env files', () => {
+    expect(ignored('.env')).toBe(true);
+    expect(ignored('.env.production')).toBe(true);
     expect(ignored('.env.local')).toBe(true);
     expect(ignored('.env.production.local')).toBe(true);
     expect(ignored('.env.development.local')).toBe(true);

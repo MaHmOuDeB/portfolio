@@ -2,5 +2,9 @@ private/
 .references/
 .claude/
 .superpowers/
+.env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.test
