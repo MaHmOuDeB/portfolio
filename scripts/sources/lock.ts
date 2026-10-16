@@ -13,7 +13,8 @@ export type LockEntry = {
 export type Lock = { version: 1; sources: Partial<Record<SourceId, LockEntry>> };
 
 const ENTRY_FIELDS = ['commit', 'path', 'repo', 'schema', 'sha256'] as const;
-const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+// owner/name; neither segment may be '.' or '..'.
+const REPO = /^(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/(?!\.{1,2}$)[A-Za-z0-9_.-]+$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 
@@ -40,8 +41,8 @@ function parseEntry(id: SourceId, raw: unknown): LockEntry {
   const commit = str('commit');
   if (!COMMIT.test(commit)) throw new Error(`${at}.commit must be 40 lowercase hex characters, got '${commit}'`);
   const path = str('path');
-  if (path === '' || path.startsWith('/') || path.startsWith('-') || path.split('/').includes('..')) {
-    throw new Error(`${at}.path must be a relative path inside the repo, got '${path}'`);
+  if (path !== `reports/site/${id}.json`) {
+    throw new Error(`${at}.path must be 'reports/site/${id}.json', got '${path}'`);
   }
   const sha256 = str('sha256');
   if (!SHA256.test(sha256)) throw new Error(`${at}.sha256 must be 64 lowercase hex characters, got '${sha256}'`);

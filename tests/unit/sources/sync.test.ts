@@ -123,6 +123,12 @@ describe('vendorAll', () => {
     expect(lock.sources.retention?.sha256).toBe(sha256Hex(RETENTION_BYTES));
   });
 
+  it('never runs git outside SOURCES_ROOT, even for a lock that skipped parseLock', () => {
+    const lock = syncedLock();
+    const bad: Lock = { version: 1, sources: { retention: { ...lock.sources.retention!, repo: 'mahmoud/..' } } };
+    expect(() => vendorAll({ lock: bad, root: w.root, sourcesRoot: w.sourcesRoot })).toThrow(/outside/);
+  });
+
   it('refuses a commit whose bytes no longer match the locked sha256', () => {
     const lock = syncedLock();
     const bad: Lock = { version: 1, sources: { retention: { ...lock.sources.retention!, sha256: '0'.repeat(64) } } };

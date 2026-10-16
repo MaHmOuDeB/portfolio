@@ -10,7 +10,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCE_IDS, type SourceId } from '../src/lib/facts/types.ts';
 import { collectFacts, renderFactsModule } from './sources/facts.ts';
@@ -32,7 +32,14 @@ export const DEFAULT_CLONE_DIRS: Record<SourceId, string> = {
 
 const exportPath = (id: SourceId) => `reports/site/${id}.json`;
 const vendoredPath = (root: string, id: string) => join(root, SOURCES_DIR, `${id}.json`);
-const cloneDir = (sourcesRoot: string, repo: string) => join(sourcesRoot, repo.split('/')[1] as string);
+function cloneDir(sourcesRoot: string, repo: string): string {
+  const dir = resolve(sourcesRoot, repo.split('/')[1] as string);
+  const rel = relative(resolve(sourcesRoot), dir);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`clone directory for '${repo}' is outside ${sourcesRoot}`);
+  }
+  return dir;
+}
 const entries = (lock: Lock) =>
   SOURCE_IDS.flatMap((id) => {
     const entry = lock.sources[id];
@@ -144,8 +151,7 @@ function repoFromOrigin(url: string): string {
 
 /** Returns a copy of `lock` with `id` pinned to `ref` of its local clone. Refuses an unpushed commit. */
 export function updateEntry(o: { id: SourceId; ref: string; lock: Lock; root: string; sourcesRoot: string }): Lock {
-  const dirName = o.lock.sources[o.id]?.repo.split('/')[1] ?? DEFAULT_CLONE_DIRS[o.id];
-  const dir = join(o.sourcesRoot, dirName);
+  const dir = cloneDir(o.sourcesRoot, o.lock.sources[o.id]?.repo ?? `local/${DEFAULT_CLONE_DIRS[o.id]}`);
   if (!existsSync(dir)) throw new Error(`${o.id}: no local clone at ${dir} (set SOURCES_ROOT)`);
   const commit = git(dir, 'rev-parse', `${o.ref}^{commit}`);
   if (git(dir, 'branch', '-r', '--contains', commit) === '') {

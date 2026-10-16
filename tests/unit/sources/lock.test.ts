@@ -60,6 +60,14 @@ describe('parseLock rejects', () => {
     ['repo', { repo: 'no-owner' }],
     ['schema', { schema: 'weather/1' }],
     ['path', { path: '../escape.json' }],
+    ['path', { path: '%2e%2e/%2e%2e/%2e%2e/evil/repo/c/f.json' }],
+    ['path', { path: 'reports/site/weather.json' }],
+    ['path', { path: 'reports/other.json' }],
+    ['repo', { repo: '../..' }],
+    ['repo', { repo: './x' }],
+    ['repo', { repo: 'x/..' }],
+    ['repo', { repo: '../x' }],
+    ['repo', { repo: 'x/.' }],
   ])('a malformed %s', (field, patch) => {
     const bad = { ...entry(), ...patch };
     expect(() => parseLock(lockText({ retention: bad }))).toThrow(new RegExp(`sources\\.retention\\.${field}`));
