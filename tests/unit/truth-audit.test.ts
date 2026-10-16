@@ -95,8 +95,45 @@ describe('auditHtml', () => {
   it('redacts a deny-list term from any other finding detail', () => {
     const html = page('<p><data value="1" data-fact="secretword.a.b">1</data></p>');
     const findings = auditHtml(html, ctx({ denylist: ['Secretword'] }));
-    expect(findings).toEqual([{ route: '/', kind: 'unknown-fact', detail: 'data-fact "[deny-list term #1].a.b"' }]);
+    // The raw-HTML pass also sees the term in the attribute.
+    expect(findings).toEqual([
+      { route: '/', kind: 'unknown-fact', detail: 'data-fact "[deny-list term #1].a.b"' },
+      { route: '/', kind: 'denylisted', detail: 'deny-list term #1' },
+    ]);
     expect(JSON.stringify(findings).toLowerCase()).not.toContain('secretword');
+  });
+
+  describe('deny-list terms that span nodes or hide outside scanned text', () => {
+    const term = 'Secret word';
+    const hit = [{ route: '/', kind: 'denylisted', detail: 'deny-list term #1' }];
+    const cases: [string, string][] = [
+      ['split by inline markup', page('<p><em>Secret</em> word</p>')],
+      ['split mid-word by inline markup', page('<p><strong>Secret</strong> <b>wo</b>rd</p>')],
+      ['split by a React text separator comment', page('<p>Secret<!-- --> word</p>')],
+      ['joined by a non-breaking space', page('<p>Secret word</p>')],
+      ['inside a data-fact element', page('<p><data value="3" data-fact="profile.audible.teams">secret word</data></p>')],
+      ['only in a script payload', page('<p>Hi.</p><script>self.__next_f.push([1,"secret word"])</script>')],
+      ['only in an href slug', page('<p><a href="/work/secret word-notes">Notes</a></p>')],
+    ];
+    it.each(cases)('finds a term %s, by index only', (_name, html) => {
+      const findings = auditHtml(html, ctx({ denylist: [term] }));
+      expect(findings).toEqual(hit);
+      expect(JSON.stringify(findings).toLowerCase()).not.toContain('secret');
+    });
+
+    it('matches a non-breaking space in the term against a normal space in the text', () => {
+      expect(auditHtml(page('<p>Secret word</p>'), ctx({ denylist: ['secret word'] }))).toEqual(hit);
+    });
+
+    it('redacts a whitespace-variant term from other finding details', () => {
+      const html = page('<p><data value="1" data-fact="secret word.a.b">1</data></p>');
+      const findings = auditHtml(html, ctx({ denylist: [term] }));
+      expect(findings).toEqual([
+        { route: '/', kind: 'unknown-fact', detail: 'data-fact "[deny-list term #1].a.b"' },
+        { route: '/', kind: 'denylisted', detail: 'deny-list term #1' },
+      ]);
+      expect(JSON.stringify(findings).toLowerCase()).not.toContain('secret');
+    });
   });
 
   it('flags the banned phrases in any case', () => {

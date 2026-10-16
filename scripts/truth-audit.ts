@@ -59,11 +59,16 @@ function allowSpans(text: string, route: string): Span[] {
   );
 }
 
+// Deny-list matching ignores case and treats any run of whitespace (U+00A0 included) as one space.
+const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, ' ');
+
 function redact(detail: string, denylist: readonly string[]): string {
-  return denylist.reduce(
-    (out, term, i) => (term === '' ? out : out.replace(new RegExp(escapeRegExp(term), 'gi'), `[deny-list term #${i + 1}]`)),
-    detail,
-  );
+  return denylist.reduce((out, term, i) => {
+    const t = normalize(term).trim();
+    if (t === '') return out;
+    const pattern = new RegExp(escapeRegExp(t).replaceAll(' ', '\\s+'), 'gi');
+    return out.replace(pattern, `[deny-list term #${i + 1}]`);
+  }, detail);
 }
 
 // The label for a meta tag the audit reads, or undefined for any other meta tag.
@@ -80,13 +85,18 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   const add = (kind: FindingKind, detail: string) =>
     findings.push({ route: ctx.route, kind, detail: redact(detail, ctx.denylist) });
   const denyHits = new Set<number>();
-  const denylist = ctx.denylist.map((t) => t.toLowerCase());
-
-  const scan = (text: string, where: string, cover: Cover) => {
-    const lower = text.toLowerCase();
+  const denylist = ctx.denylist.map(normalize);
+  const checkDenylist = (text: string) => {
+    const t = normalize(text);
     denylist.forEach((term, i) => {
-      if (term !== '' && lower.includes(term)) denyHits.add(i);
+      if (term.trim() !== '' && t.includes(term)) denyHits.add(i);
     });
+  };
+  const textParts: string[] = [];
+
+  // The deny-list check runs before the early return for marked text.
+  const scan = (text: string, where: string, cover: Cover) => {
+    checkDenylist(text);
     for (const m of text.matchAll(BANNED)) add('banned-phrase', `"${m[0]}" in ${where}`);
     if (cover === 'marked') return;
     for (const m of text.matchAll(NUMBER)) {
@@ -117,6 +127,7 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
     for (const node of parent.childNodes) {
       if (node.nodeName === '#text') {
         const text = (node as T.TextNode).value;
+        textParts.push(text);
         if (inTitle) scan(text, '<title>', 'display');
         else scan(text, 'text', marked ? 'marked' : 'none');
         continue;
@@ -139,6 +150,10 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
 
   // scriptingEnabled: false parses <noscript> content as markup instead of raw text.
   walk(parse(html, { scriptingEnabled: false }), false, false);
+  // A term split across nodes (inline markup, React's <!-- --> separators) is caught in the joined
+  // text; one that ships outside scanned text (RSC payload, JSON-LD, href slugs) in the raw HTML.
+  checkDenylist(textParts.join(''));
+  checkDenylist(html);
   for (const i of [...denyHits].sort((a, b) => a - b)) add('denylisted', `deny-list term #${i + 1}`);
   return findings;
 }
