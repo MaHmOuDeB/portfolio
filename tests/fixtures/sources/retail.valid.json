@@ -1,0 +1,257 @@
+{
+ "_meta": {
+  "schema": "retail/1",
+  "source": "retail",
+  "generator": "scripts/export_site_data.py",
+  "inputs": [
+   {
+    "path": "reports/results.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rows": null
+   }
+  ],
+  "engine": {
+   "python": "3.12.4"
+  },
+  "dataset": {
+   "name": "Example public dataset",
+   "url": "https://example.org/dataset",
+   "licence": "CC BY 4.0"
+  },
+  "provenance": "public-data"
+ },
+ "facts": {
+  "sales.months_covered": {
+   "value": 25,
+   "unit": "count",
+   "decimals": 0,
+   "label": "Months covered",
+   "from": "sql:monthly_sales"
+  },
+  "sales.last_date": {
+   "value": "2011-12-09",
+   "unit": "date",
+   "decimals": 0,
+   "label": "Last order date",
+   "from": "sql:monthly_sales"
+  }
+ },
+ "tables": {
+  "monthly": [
+   {
+    "month": "2009-12",
+    "sales_gbp_raw": 700000,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690000,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-01",
+    "sales_gbp_raw": 700001,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690001,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-02",
+    "sales_gbp_raw": 700002,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690002,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-03",
+    "sales_gbp_raw": 700003,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690003,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-04",
+    "sales_gbp_raw": 700004,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690004,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-05",
+    "sales_gbp_raw": 700005,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690005,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-06",
+    "sales_gbp_raw": 700006,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690006,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-07",
+    "sales_gbp_raw": 700007,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690007,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-08",
+    "sales_gbp_raw": 700008,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690008,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-09",
+    "sales_gbp_raw": 700009,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690009,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-10",
+    "sales_gbp_raw": 700010,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690010,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-11",
+    "sales_gbp_raw": 700011,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690011,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2010-12",
+    "sales_gbp_raw": 700012,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690012,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-01",
+    "sales_gbp_raw": 700013,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690013,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-02",
+    "sales_gbp_raw": 700014,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690014,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-03",
+    "sales_gbp_raw": 700015,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690015,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-04",
+    "sales_gbp_raw": 700016,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690016,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-05",
+    "sales_gbp_raw": 700017,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690017,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-06",
+    "sales_gbp_raw": 700018,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690018,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-07",
+    "sales_gbp_raw": 700019,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690019,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-08",
+    "sales_gbp_raw": 700020,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690020,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-09",
+    "sales_gbp_raw": 700021,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690021,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-10",
+    "sales_gbp_raw": 700022,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690022,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-11",
+    "sales_gbp_raw": 700023,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690023,
+    "returns_gbp_clean": 20000,
+    "partial": false
+   },
+   {
+    "month": "2011-12",
+    "sales_gbp_raw": 700024,
+    "returns_gbp_raw": 30000,
+    "sales_gbp_clean": 690024,
+    "returns_gbp_clean": 20000,
+    "partial": true
+   }
+  ],
+  "largest_reversals": [
+   {
+    "date": "2010-03-08",
+    "value_gbp": 12000
+   },
+   {
+    "date": "2010-06-14",
+    "value_gbp": 12000
+   },
+   {
+    "date": "2011-01-20",
+    "value_gbp": 12000
+   }
+  ]
+ }
+}

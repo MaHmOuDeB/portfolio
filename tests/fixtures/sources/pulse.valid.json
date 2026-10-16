@@ -1,0 +1,99 @@
+{
+ "_meta": {
+  "schema": "pulse/1",
+  "source": "pulse",
+  "generator": "scripts/export_site_data.py",
+  "inputs": [
+   {
+    "path": "docs/data.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "rows": 7
+   }
+  ],
+  "engine": {
+   "python": "3.12.4"
+  },
+  "dataset": null,
+  "provenance": "none"
+ },
+ "facts": {
+  "taxonomy.events": {
+   "value": 7,
+   "unit": "count",
+   "decimals": 0,
+   "label": "Events in the taxonomy",
+   "from": "docs/data.json#/events"
+  }
+ },
+ "tables": {
+  "events": [
+   {
+    "name": "event_1",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_2",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_3",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_4",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_5",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_6",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   },
+   {
+    "name": "event_7",
+    "fires_when": "a visitor does something",
+    "properties": [
+     "plan",
+     "source"
+    ],
+    "question": "What happened?"
+   }
+  ],
+  "user_properties": [
+   "plan",
+   "country"
+  ]
+ }
+}
