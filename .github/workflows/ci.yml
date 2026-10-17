@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # `labeled` re-runs the checks when the `update-baselines` label is added (see the e2e job).
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
 
@@ -93,6 +95,9 @@ jobs:
     timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
+    env:
+      # The `update-baselines` label on the PR regenerates every visual baseline in this container.
+      UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -115,6 +120,16 @@ jobs:
           path: reports/e2e.json
           if-no-files-found: error
           retention-days: 14
+      # Visual baselines, to download, review and commit (never generate them on a Mac). Only the
+      # screenshots folder is uploaded, never test-results/ or traces.
+      - name: Upload visual baselines
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+          if-no-files-found: warn
+          retention-days: 7
 
   lhci:
     name: Lighthouse CI
