@@ -51,4 +51,21 @@ describe('Berlin time', () => {
   it('rejects a string that is not a timestamp', () => {
     expect(() => berlinTime('not a date')).toThrow(TypeError);
   });
+
+  it('rejects a timestamp without an offset, which would be read in the server timezone', () => {
+    for (const tz of ['UTC', 'America/New_York']) {
+      process.env.TZ = tz;
+      expect(() => berlinTime('2026-10-24T22:30:00')).toThrow(TypeError);
+      expect(() => berlinDate('2026-10-24T22:30:00')).toThrow(TypeError);
+      expect(() => updatedLabel('2026-10-24T22:30:00', '2026-10-24T22:30:00Z')).toThrow(TypeError);
+      expect(() => updatedLabel('2026-10-24T22:30:00Z', '2026-10-24T22:30')).toThrow(TypeError);
+    }
+  });
+
+  it('accepts an explicit offset, fractional seconds and no seconds', () => {
+    expect(berlinTime('2026-10-24T22:30:00+00:00')).toBe('00:30');
+    expect(berlinTime('2026-10-25T00:30:00+02:00')).toBe('00:30');
+    expect(berlinTime('2026-10-24T22:30:00.123Z')).toBe('00:30');
+    expect(berlinTime('2026-10-24T22:30Z')).toBe('00:30');
+  });
 });

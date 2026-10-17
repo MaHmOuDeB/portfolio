@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatInterval, formatNumber, formatSignedPoints } from '@/lib/figure/format';
+import { formatInterval, formatNumber, formatSignedNumber, formatSignedPoints } from '@/lib/figure/format';
 
 describe('formatNumber', () => {
   it('groups thousands in en-GB', () => {
@@ -19,6 +19,20 @@ describe('formatNumber', () => {
     expect(formatNumber(2.5, 1)).toBe('2.5');
     expect(formatNumber(2, 1)).toBe('2');
     expect(formatNumber(2.456, 1)).toBe('2.5');
+  });
+
+  it('does not print a small non-zero value as zero', () => {
+    expect(formatNumber(0.004)).toBe('0.004');
+    expect(formatNumber(-0.004)).toBe('\u22120.004');
+    expect(formatNumber(0.0123)).toBe('0.0123');
+    expect(formatNumber(0.0456)).toBe('0.0456');
+    expect(formatNumber(0.25)).toBe('0.25');
+    expect(formatNumber(0.456789)).toBe('0.457');
+  });
+
+  it('keeps two decimals from 1 up', () => {
+    expect(formatNumber(1200.456)).toBe('1,200.46');
+    expect(formatNumber(1.5)).toBe('1.5');
   });
 
   it('throws on a number that is not finite', () => {
@@ -63,5 +77,19 @@ describe('formatInterval', () => {
   it('never prints a signed zero at either end', () => {
     expect(formatInterval(-0.4, 0.3, 0)).toBe('0 to 0');
     expect(formatInterval(-0.4, 5, 0)).toBe('0 to +5');
+  });
+});
+
+describe('formatSignedNumber', () => {
+  it('signs a difference and trims trailing zeros', () => {
+    expect(formatSignedNumber(5)).toBe('+5');
+    expect(formatSignedNumber(-0.4)).toBe('\u22120.4');
+    expect(formatSignedNumber(2.5)).toBe('+2.5');
+  });
+
+  it('prints zero and values that round to zero as a bare "0"', () => {
+    expect(formatSignedNumber(0)).toBe('0');
+    expect(formatSignedNumber(-0)).toBe('0');
+    expect(formatSignedNumber(0.04)).toBe('0');
   });
 });

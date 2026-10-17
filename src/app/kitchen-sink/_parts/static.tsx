@@ -15,7 +15,9 @@ const FICTIONAL_TABLE: TableData = {
   rows: [
     ['Group A', 1353, 168, 0],
     ['Group B', 1301, 181, -0.4],
+    ['Difference', 0, 13, 5],
   ],
+  formats: ['number', 'count', 'count', 'signedPoints'],
   refs: REFS,
 };
 

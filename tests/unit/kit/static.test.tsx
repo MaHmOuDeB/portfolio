@@ -104,6 +104,43 @@ describe('DataTable', () => {
     expect(cells.map(text)).toEqual(['Group A', '1,353', '0.25', 'Group B', '0', '1,200.46']);
   });
 
+  it('does not print a small non-zero rate as zero', () => {
+    const rates: TableData = { columns: ['Rate'], rows: [[0.004], [-0.004], [0.0123], [0.0456]], refs: ['simulated'] };
+    const cells = find(parse(renderToStaticMarkup(<DataTable id="r" caption="c" table={rates} mode="open" />)), 'td');
+    expect(cells.map(text)).toEqual(['0.004', '\u22120.004', '0.0123', '0.0456']);
+  });
+
+  it('formats each column as asked: count, points and signedPoints', () => {
+    const formatted: TableData = {
+      columns: ['Label', 'Count', 'Points', 'Difference'],
+      rows: [
+        ['x', 1353.4, 2.25, 5],
+        ['y', 12, -0.04, -0.4],
+        ['z', 0, 0, 0],
+      ],
+      formats: ['number', 'count', 'points', 'signedPoints'],
+      refs: ['simulated'],
+    };
+    const cells = find(parse(renderToStaticMarkup(<DataTable id="f" caption="c" table={formatted} mode="open" />)), 'td');
+    expect(cells.map(text)).toEqual([
+      'x', '1,353', '2.3', '+5',
+      'y', '12', '0', '\u22120.4',
+      'z', '0', '0', '0',
+    ]);
+  });
+
+  it('without formats, integers and ordinary values print as before', () => {
+    const plain: TableData = { columns: ['A', 'B'], rows: [[1353, 12.5]], refs: ['simulated'] };
+    const cells = find(parse(renderToStaticMarkup(<DataTable id="p" caption="c" table={plain} mode="open" />)), 'td');
+    expect(cells.map(text)).toEqual(['1,353', '12.5']);
+  });
+
+  it('refuses formats that do not match the columns', () => {
+    expect(() =>
+      renderToStaticMarkup(<DataTable id="m" caption="c" table={{ ...table, formats: ['count'] }} mode="open" />),
+    ).toThrow();
+  });
+
   it('passes several refs through unchanged', () => {
     const html = renderToStaticMarkup(
       <DataTable id="t2" caption="c" table={{ ...table, refs: ['simulated', 'live'] }} mode="open" />,

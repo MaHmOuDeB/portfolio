@@ -13,10 +13,14 @@ const berlin = new Intl.DateTimeFormat('en-GB', {
 
 type Parts = { year: string; month: string; day: string; hour: string; minute: string };
 
+// An explicit offset is required: without one, ECMAScript reads the string as the machine's local
+// time, so the output would depend on the server's timezone.
+const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
 function parts(iso: string): Parts {
   const time = Date.parse(iso);
-  if (!/^\d{4}-\d{2}-\d{2}T/.test(iso) || Number.isNaN(time)) {
-    throw new TypeError(`timestamp must be an ISO date-time string, got ${JSON.stringify(iso)}`);
+  if (!ISO_WITH_OFFSET.test(iso) || Number.isNaN(time)) {
+    throw new TypeError(`timestamp must be an ISO date-time string with an offset, got ${JSON.stringify(iso)}`);
   }
   const found: Partial<Parts> = {};
   for (const p of berlin.formatToParts(time)) {

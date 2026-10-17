@@ -66,7 +66,7 @@ test.describe('kitchen sink', () => {
     await summary.click();
     await expect(folded.locator('table')).toBeVisible();
     await expect(page.locator('[data-specimen="table--open"] table')).toBeVisible();
-    await expect(page.locator('[data-specimen="table--open"] td[data-derived="simulated"]')).toHaveCount(8);
+    await expect(page.locator('[data-specimen="table--open"] td[data-derived="simulated"]')).toHaveCount(12);
 
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).toContainText('you are in group B');
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).not.toContainText('views so far');
