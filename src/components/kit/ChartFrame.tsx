@@ -17,7 +17,10 @@ export type AxisSpec = {
   domain: [number, number];
   /** Tick values per layout, usually from niceTicks. Values outside the domain are dropped. */
   ticks: { narrow: number[]; wide: number[] };
-  /** One of the helpers in lib/figure/format, so a zero prints "0" and a minus is U+2212. */
+  /**
+   * One of the helpers in lib/figure/format, so a zero prints "0" and a minus is U+2212. It needs
+   * enough digits for the tick step: a repeated label, or a non-zero tick printed like zero, throws.
+   */
   format: (v: number) => string;
   label: string;
   /** Where the tick numbers come from; spread on every tick label. Never empty. */
@@ -46,7 +49,7 @@ export type Annotation = {
 
 export type ChartFrameProps = {
   id: string;
-  /** States the finding. */
+  /** States the finding in words, without a digit (it throws otherwise). */
   ariaLabel: string;
   x: AxisSpec;
   y: AxisSpec & { zeroLabel?: string; aboveLabel?: string; belowLabel?: string };
@@ -76,7 +79,8 @@ const SIDE_LABEL_ROOM = 16;
 const ZERO_LABEL_GAP = 6;
 
 const LABEL = 'text-xs fill-muted';
-// A 2 px bg halo keeps a tick label readable where a band or a line runs under it.
+// A 2 px bg halo keeps a label inside the plot (y ticks, the zero label, "B higher" and "B lower")
+// readable where a band or a line runs under it: muted on series-ghost alone is under AA.
 const TICK_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 // The annotation's halo is 3 px: half of a 6 px stroke painted under the fill.
 const NOTE_HALO = { stroke: 'var(--color-bg)', strokeWidth: '6px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
@@ -86,6 +90,26 @@ const crisp = (y: number) => Math.round(y - 0.5) + 0.5;
 
 function inDomain(v: number, [a, b]: [number, number]): boolean {
   return Number.isFinite(v) && v >= Math.min(a, b) && v <= Math.max(a, b);
+}
+
+/**
+ * The printed tick labels, refused when the format is too coarse for the step: a non-zero tick that
+ * prints like zero would claim a value it does not have, and a repeated label makes the axis lie.
+ * Pick the digits from the tick step. Throws like the format helpers do on NaN.
+ */
+function tickLabels(axis: 'x' | 'y', ticks: readonly number[], format: (v: number) => string, withZero: boolean): string[] {
+  const zero = format(0);
+  const labels = ticks.map(format);
+  const seen = new Set<string>(withZero ? [zero] : []);
+  ticks.forEach((v, i) => {
+    const label = labels[i]!;
+    if (v !== 0 && label === zero) {
+      throw new TypeError(`the ${axis} tick ${String(v)} prints like zero ("${label}"); give the format more digits`);
+    }
+    if (seen.has(label)) throw new TypeError(`the ${axis} tick label "${label}" appears twice; give the format more digits`);
+    seen.add(label);
+  });
+  return labels;
 }
 
 function xAnchor(i: number, count: number, frac: number): 'start' | 'middle' | 'end' {
@@ -122,6 +146,8 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   const [yLo, yHi] = [Math.min(...p.y.domain), Math.max(...p.y.domain)];
   const yTicks = p.y.ticks[layout].filter((v) => inDomain(v, p.y.domain) && v !== 0);
   const xTicks = p.x.ticks[layout].filter((v) => inDomain(v, p.x.domain));
+  const yLabels = tickLabels('y', yTicks, p.y.format, hasZero);
+  const xLabels = tickLabels('x', xTicks, p.x.format, false);
   const note = p.annotation?.(ctx);
   const className = responsive ? (layout === 'narrow' ? 'block sm:hidden' : 'block max-sm:hidden') : 'block';
 
@@ -149,7 +175,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
 
         {yTicks.map((v, i) => (
           <text key={i} data-tick="y" {...yTick} className={LABEL} {...TICK_HALO} x={0} y={crisp(ctx.yPx(v)) - LABEL_GAP}>
-            {p.y.format(v)}
+            {yLabels[i]}
           </text>
         ))}
         {hasZero ? (
@@ -159,7 +185,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           </text>
         ) : null}
         {hasZero && p.y.aboveLabel && yHi > 0 && zeroY >= SIDE_LABEL_ROOM ? (
-          <text data-side="above" className={LABEL} x="100%" y={zeroY - LABEL_GAP} textAnchor="end">
+          <text data-side="above" className={LABEL} {...TICK_HALO} x="100%" y={zeroY - LABEL_GAP} textAnchor="end">
             {p.y.aboveLabel}
           </text>
         ) : null}
@@ -167,6 +193,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <text
             data-side="below"
             className={LABEL}
+            {...TICK_HALO}
             x="100%"
             y={zeroY + LABEL_GAP}
             textAnchor="end"
@@ -186,7 +213,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
             y={height + X_TICK_BASELINE}
             textAnchor={xAnchor(i, xTicks.length, xFrac(v))}
           >
-            {p.x.format(v)}
+            {xLabels[i]}
           </text>
         ))}
         <text data-axis-label="" className={LABEL} x="100%" y={height + X_LABEL_BASELINE} textAnchor="end">
@@ -213,6 +240,11 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
 }
 
 export function ChartFrame(p: ChartFrameProps) {
+  // The accessible name states the finding in words; its numbers live in the table and the readout,
+  // where they carry data-derived. A digit here would escape the truth audit's markers.
+  if (/\d/.test(p.ariaLabel)) {
+    throw new TypeError(`a chart's ariaLabel states the finding in words and holds no digit: "${p.ariaLabel}"`);
+  }
   const layouts: Layout[] = p.layout ? [p.layout] : ['narrow', 'wide'];
   return (
     <div data-chart={p.id} className="w-full">

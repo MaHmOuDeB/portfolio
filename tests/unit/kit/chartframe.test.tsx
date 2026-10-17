@@ -197,6 +197,12 @@ describe('ChartFrame', () => {
     expect(attr(above, 'dominant-baseline')).toBeUndefined();
     expect(Number(attr(below, 'y'))).toBe(zeroY + 4);
     expect(attr(below, 'dominant-baseline')).toBe('hanging');
+    // They sit on the band in the collecting state, where muted on series-ghost is under AA.
+    for (const t of [above, below]) {
+      expect(attr(t, 'paint-order')).toBe('stroke');
+      expect(attr(t, 'stroke')).toBe('var(--color-bg)');
+      expect(attr(t, 'stroke-width')).toBe('4px');
+    }
   });
 
   it('labels both axes in text-xs muted', () => {
@@ -253,6 +259,12 @@ describe('ChartFrame', () => {
   it('refuses empty axis refs', () => {
     expect(() => render({ y: { ...FIXTURE.y, refs: [] } })).toThrow(/at least one ref/);
   });
+
+  it('refuses a digit in the accessible name: the finding is said in words, the numbers live in the table', () => {
+    expect(() => render({ ariaLabel: 'The interval is 12 points wide' })).toThrow(TypeError);
+    expect(() => render({ ariaLabel: 'Settles near zero after 3 looks' })).toThrow(/digit/);
+    expect(() => render({ ariaLabel: 'The interval narrows and still includes zero' })).not.toThrow();
+  });
 });
 
 describe('ChartFrame with hostile input', () => {
@@ -285,11 +297,38 @@ describe('ChartFrame with hostile input', () => {
     expect(text(byTag(ticks(wide!).find((t) => hasAttr(t, 'data-zero-tick'))!, 'tspan')[0]!)).toBe('0');
   });
 
-  it('prints a tick of -0 or one that rounds to zero as "0", never "+0" or "−0"', () => {
-    const out = html({
-      y: { ...FIXTURE.y, domain: [-0.4, 0.3], ticks: { narrow: [-0.4, -0, 0.3], wide: [-0.4, -0.2, 0, 0.2] } },
+  it('refuses a tick format too coarse for the step: a false "0" or a repeated label', () => {
+    // At 0 digits −0.4, −0.2 and +0.2 would all print "0", next to the real zero tick.
+    expect(() =>
+      html({ y: { ...FIXTURE.y, domain: [-0.4, 0.3], ticks: { narrow: [-0.4, 0.3], wide: [-0.4, -0.2, 0, 0.2] } } }),
+    ).toThrow(TypeError);
+    // A non-zero tick that prints like zero is refused even without a zero tick beside it.
+    expect(() =>
+      html({ y: { ...FIXTURE.y, domain: [0.1, 0.9], ticks: { narrow: [0.2], wide: [0.2, 0.8] } }, annotation: undefined }),
+    ).toThrow(/prints like zero/);
+    // −1 and −0.5 both print "−1" at 0 digits.
+    expect(() =>
+      html({ y: { ...FIXTURE.y, domain: [-1.2, 0.9], ticks: { narrow: [-1, 0.5], wide: [-1, -0.5, 0, 0.5] } } }),
+    ).toThrow(/twice/);
+    // The same on the x axis.
+    expect(() => html({ x: { ...FIXTURE.x, ticks: { narrow: [0, 100], wide: [100, 100.2] } } })).toThrow(/twice/);
+  });
+
+  it('prints distinct labels at enough digits, a -0 tick as "0", never "+0" or "−0"', () => {
+    const root = render({
+      y: {
+        ...FIXTURE.y,
+        domain: [-0.4, 0.3],
+        ticks: { narrow: [-0.4, -0, 0.3], wide: [-0.4, -0.2, 0, 0.2] },
+        format: (v) => formatSignedPoints(v, 1),
+      },
+      annotation: undefined,
     });
-    expect(out).not.toMatch(/[+−]0(?![.\d])/);
+    const [narrow, wide] = frames(root);
+    const labels = (f: Node) => ticks(f).filter((t) => attr(t, 'data-tick') === 'y').map((t) => text(byTag(t, 'tspan')[0] ?? t));
+    expect(labels(narrow!)).toEqual(['−0.4', '+0.3', '0']);
+    expect(labels(wide!)).toEqual(['−0.4', '−0.2', '+0.2', '0']);
+    expect(renderToStaticMarkup(<ChartFrame {...FIXTURE} />)).not.toMatch(/[+−]0(?![.\d])/);
   });
 
   it('drops ticks that are not finite or fall outside the domain instead of pinning them to an edge', () => {

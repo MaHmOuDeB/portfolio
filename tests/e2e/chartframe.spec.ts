@@ -117,6 +117,25 @@ for (const width of WIDTHS) {
       expect(hits).toEqual([]);
     });
 
+    test('labels inside the plot carry a bg halo painted under the text', async ({ page }) => {
+      await openAt(page, width);
+      const halos = await visibleFrames(page).evaluateAll((frames) =>
+        frames.flatMap((f) =>
+          [...f.querySelectorAll('text[data-tick="y"], text[data-side]')].map((t) => {
+            const s = getComputedStyle(t);
+            return { stroke: s.stroke, width: s.strokeWidth, order: s.paintOrder.split(' ')[0] };
+          }),
+        ),
+      );
+      // The static, narrow and wide specimens and the one-look specimen each draw "B higher" and "B lower".
+      expect(halos.length).toBeGreaterThan(6);
+      expect(new Set(halos.map((h) => JSON.stringify(h)))).toEqual(
+        new Set([JSON.stringify({ stroke: 'rgb(255, 255, 255)', width: '4px', order: 'stroke' })]),
+      );
+      const sides = await visibleFrames(page).evaluateAll((frames) => frames.flatMap((f) => [...f.querySelectorAll('text[data-side]')]).length);
+      expect(sides).toBe(8);
+    });
+
     test('every mark keeps its stroke width however far the layer stretches', async ({ page }) => {
       await openAt(page, width);
       const effects = await visibleFrames(page).evaluateAll((frames) =>
