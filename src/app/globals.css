@@ -88,9 +88,32 @@ html:not([data-js]) [data-js-only] {
   display: none;
 }
 
-/* While a slider is dragged, marks follow the pointer without easing. */
-[data-dragging] [data-mark] {
+/*
+ * While a slider is dragged, marks follow the pointer without easing; while a Figure resets
+ * (data-instant, set by instantly() in components/kit/Figure.tsx) the preset lands at once.
+ */
+:is([data-dragging], [data-instant]) [data-mark] {
   transition: none;
+}
+
+/*
+ * A Figure whose boundary caught an error shows its fallback (preview, sentence, open table): its
+ * controls, result line and own tables would act on a chart that is gone.
+ */
+[data-figure]:has([data-figure-fallback]) :is([data-figure-controls], [data-figure-result], [data-figure-tables]) {
+  display: none;
+}
+
+/*
+ * An island that failed to load (LoadOnIntent) falls back to its preview in the no-JS form:
+ * JS-only parts hide, no-JS parts come back with the display their utilities give them.
+ */
+html[data-js] [data-island="failed"] [data-js-only] {
+  display: none;
+}
+
+html[data-js] [data-island="failed"] [data-nojs-only] {
+  display: revert-layer;
 }
 
 /*

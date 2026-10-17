@@ -9,6 +9,7 @@ import { TextLink } from '@/components/kit/TextLink';
 import { ChartFrameSection } from './chartframe';
 import { ControlsSection } from './controls';
 import { FactsSection } from './facts';
+import { FiguresSection } from './figures';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
 import { StepNavSection } from './stepnav';
@@ -168,5 +169,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'chart-frame',
     title: 'Chart frame',
     render: () => <ChartFrameSection />,
+  },
+  {
+    id: 'figures',
+    title: 'Figures',
+    render: () => <FiguresSection />,
   },
 ];
