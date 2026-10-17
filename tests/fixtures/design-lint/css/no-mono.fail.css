@@ -1,0 +1,3 @@
+.font-code { font-family: var(--font-code); } /* expect */
+.label { font-family: ui-monospace, Menlo, monospace; } /* expect */
+pre, .eyebrow { font-family: var(--default-mono-font-family); } /* expect */

@@ -1,0 +1,8 @@
+/* Ring utilities draw the focus ring through box-shadow; preflight removes Firefox's glow. */
+.focus-visible\:ring-2 { box-shadow: var(--tw-inset-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow); }
+.focus-visible\:ring-2:focus-visible { --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 2px var(--tw-ring-color, currentcolor); box-shadow: var(--tw-ring-shadow); }
+.ring-2 { &:focus-visible { box-shadow: var(--tw-ring-shadow); } }
+:-moz-ui-invalid { box-shadow: none; }
+@property --tw-shadow { syntax: "*"; inherits: false; initial-value: 0 0 #0000; }
+.blur-sm { filter: blur(4px); }
+.text-shadow-none { text-shadow: none; }

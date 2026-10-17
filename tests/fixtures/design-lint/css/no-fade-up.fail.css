@@ -1,0 +1,4 @@
+.fade-up { opacity: 0; } /* expect */
+.motion-safe\:fadeup { opacity: 0; } /* expect */
+.animate-in { animation: enter 0.3s; } /* expect */
+.slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; } /* expect */

@@ -1,0 +1,3 @@
+/* clsx('uppercase') in a component compiles to this utility. */
+.uppercase { text-transform: uppercase; } /* expect */
+.label { text-transform: UPPERCASE; } /* expect */

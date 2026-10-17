@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     ".agents/**",
     ".vercel/**",
     ".lighthouseci/**",
+    // Design-lint fixtures break the rules on purpose.
+    "tests/fixtures/design-lint/**",
   ]),
 ]);
 

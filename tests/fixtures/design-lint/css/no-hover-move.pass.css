@@ -1,0 +1,5 @@
+.hover\:text-accent:hover { color: var(--color-accent); }
+@media (hover: hover) { .hover\:underline:hover { text-decoration-line: underline; } }
+.translate-x-2 { translate: 0.5rem 0; }
+.-scale-x-100 { scale: -1 1; }
+.focus-visible\:outline:focus-visible { outline-style: solid; }

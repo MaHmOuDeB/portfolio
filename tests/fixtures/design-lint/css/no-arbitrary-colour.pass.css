@@ -1,0 +1,10 @@
+:root { --color-bg: #fff; --color-ink: #1d1d1f; }
+@property --tw-shadow { syntax: "*"; inherits: false; initial-value: #0000; }
+@property --tw-ring-offset-color { syntax: "*"; inherits: false; initial-value: #fff; }
+*, ::before { --tw-shadow: 0 0 #0000; --tw-ring-offset-color: #fff; }
+.bg-ink { background-color: var(--color-ink); }
+/* Preflight: lightningcss writes transparent as #0000. */
+button, input { background-color: #0000; }
+.bg-transparent { background-color: #00000000; }
+::placeholder { color: color-mix(in oklab, currentcolor 50%, transparent); }
+.mask-fade { mask-image: url(#fade); }
