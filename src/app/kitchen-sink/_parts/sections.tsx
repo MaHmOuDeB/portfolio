@@ -11,6 +11,7 @@ import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
 import { StepNavSection } from './stepnav';
+import { UrlStateSection } from './url-state';
 
 export type SinkSection = {
   /** Kebab-case, unique: the section's anchor and `data-section`. */
@@ -156,5 +157,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'step-navigation',
     title: 'Step navigation',
     render: () => <StepNavSection />,
+  },
+  {
+    id: 'url-state',
+    title: 'URL state',
+    render: () => <UrlStateSection />,
   },
 ];
