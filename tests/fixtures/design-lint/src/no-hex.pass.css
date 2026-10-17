@@ -1,0 +1,5 @@
+/* Comments are never seen: #fff. */
+.panel {
+  @apply bg-bg text-ink ring-accent;
+  mask-image: url(#fade);
+}

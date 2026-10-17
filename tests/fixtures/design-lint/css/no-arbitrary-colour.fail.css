@@ -5,3 +5,8 @@
 .fill-\[hsl\(0_0\%_0\%\)\] { fill: hsl(0 0% 0%); } /* expect */
 .stroke-\[hsla\(0\,0\%\,0\%\,1\)\] { stroke: hsla(0, 0%, 0%, 1); } /* expect */
 :root { --brand: #d9620a; } /* expect */
+.ring-\[\#d9620a\] { --tw-ring-color: #d9620a; } /* expect */
+.ring-offset-\[\#fff\] { --tw-ring-offset-color: #fff; } /* expect */
+.from-\[\#d9620a\] { --tw-gradient-from: #d9620a; } /* expect */
+.drop-shadow-\[\#d9620a\] { --tw-drop-shadow-color: #d9620a; } /* expect */
+@layer utilities { .ring-\[\#0a5fd9\] { --tw-ring-color: #0a5fd9; } } /* expect */

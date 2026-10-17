@@ -1,4 +1,9 @@
 // Comments are never seen: #fff, PR #456.
+const note = 'Merged in PR #123';
+const anchor = '#add';
+const tone = cva('px-2', { variants: { tone: { brand: 'bg-accent ring-accent' } } });
+const masked = 'mask-[url(#fade)]';
+
 export function Pass() {
   return (
     <section className="bg-bg text-ink" style={{ color: 'var(--color-ink)' }}>

@@ -67,7 +67,11 @@ const HOVER_MOVE_SELECTOR = /hover\\?:-?(translate|scale)/;
 const HOVER_MOVE_PROPS = new Set(['transform', '-webkit-transform', 'translate', 'scale']);
 const DARK_SCHEME = /prefers-color-scheme\s*:\s*dark/i;
 const DARK_VARIANT = 'dark\\:';
-const MONO = /monospace|--font-code|--default-mono-font-family/i;
+// Matched on the lower-cased family list with quotes removed and underscores as spaces, so an
+// arbitrary family such as font-['SF_Mono',Menlo] is caught as well as the generic keyword.
+const MONO =
+  /--font-code|--default-mono-font-family|\b(?:(?:ui-)?monospace|menlo|monaco|consolas|courier(?: new)?|sf ?mono(?:-regular)?|fira (?:code|mono)|jetbrains mono|source code pro|roboto mono|cascadia(?: code| mono)?|ibm plex mono|dejavu sans mono|liberation mono)\b/;
+const normaliseFamily = (value: string) => value.toLowerCase().replace(/["']/g, '').replace(/[_\s]+/g, ' ');
 const CODE_SELECTOR = /^(?:pre|code|kbd|samp)$|^\.code-block/;
 const CLASS = /\.((?:\\.|[\w-])+)/g;
 
@@ -84,11 +88,16 @@ function enclosingRules(node: Node): Rule[] {
   return rules;
 }
 
-function insideAtRule(node: Node, test: (name: string) => boolean): boolean {
-  for (let p = node.parent; p; p = p.parent) if (p.type === 'atrule' && test((p as AtRule).name)) return true;
+function insideAtRule(node: Node, test: (atRule: AtRule) => boolean): boolean {
+  for (let p = node.parent; p; p = p.parent) if (p.type === 'atrule' && test(p as AtRule)) return true;
   return false;
 }
-const isKeyframes = (name: string) => /(?:^|-)keyframes$/i.test(name);
+const isKeyframes = (a: AtRule) => /(?:^|-)keyframes$/i.test(a.name);
+const isProperty = (a: AtRule) => a.name.toLowerCase() === 'property';
+// Tailwind declares the --tw-* defaults (such as --tw-ring-offset-color: #fff) in @property rules
+// and in an `@layer properties` fallback; only there may a --tw-* variable hold a literal colour.
+const isPropertyDefaults = (a: AtRule) =>
+  isProperty(a) || (a.name.toLowerCase() === 'layer' && a.params.trim() === 'properties');
 
 // Whether a selector carries a Tailwind ring utility class (`ring-2`, `focus-visible:ring-2`, ...).
 function hasRingClass(selector: string): boolean {
@@ -106,7 +115,7 @@ function lintDeclaration(decl: Declaration, report: (rule: RuleId, node: Node, e
   const context = rules.map((r) => r.selector).join(' ');
   const excerpt = `${context ? `${context} ` : ''}{ ${decl.prop}: ${decl.value} }`;
   const add = (rule: RuleId) => report(rule, decl, excerpt);
-  const inProperty = insideAtRule(decl, (name) => name.toLowerCase() === 'property');
+  const inProperty = insideAtRule(decl, isProperty);
 
   // Tailwind writes a drop-shadow() filter into --tw-drop-shadow-size, not into `filter` itself.
   if (prop === 'box-shadow' && !isNone(decl.value) && !hasRingClass(context)) add('no-shadow');
@@ -117,7 +126,7 @@ function lintDeclaration(decl: Declaration, report: (rule: RuleId, node: Node, e
 
   if (
     prop === 'font-family' &&
-    MONO.test(decl.value) &&
+    MONO.test(normaliseFamily(decl.value)) &&
     !rules.some((r) => r.selectors.every((s) => CODE_SELECTOR.test(s.trim())))
   ) {
     add('no-mono');
@@ -125,7 +134,7 @@ function lintDeclaration(decl: Declaration, report: (rule: RuleId, node: Node, e
 
   if (
     !prop.startsWith('--color-') &&
-    !prop.startsWith('--tw-') &&
+    !(prop.startsWith('--tw-') && insideAtRule(decl, isPropertyDefaults)) &&
     !inProperty &&
     arbitraryColour(decl.value)
   ) {
@@ -150,7 +159,7 @@ export function lintCompiledCss(css: string, file: string): Violation[] {
   postcss.parse(css, { from: file }).walk((node: ChildNode) => {
     if (node.type === 'atrule') {
       const head = `@${node.name} ${node.params}`;
-      if (isKeyframes(node.name) && !node.params.trim().startsWith('scroll-moment-')) report('no-keyframes', node, head);
+      if (isKeyframes(node) && !node.params.trim().startsWith('scroll-moment-')) report('no-keyframes', node, head);
       if (DARK_SCHEME.test(node.params)) report('no-dark', node, head);
     } else if (node.type === 'rule') {
       if (insideAtRule(node, isKeyframes)) return; // `from`, `to` and percentages are not selectors
@@ -167,17 +176,32 @@ export function lintCompiledCss(css: string, file: string): Violation[] {
 // ---------------------------------------------------------------------------------------------
 // Pass 2: source
 
+// Written as escapes so the script itself stays readable in any editor.
+const ARROWS = /[\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2794-\u27BF\u2B05-\u2B07\u203A]/gu;
+const DOTS = /[\u00B7\u2022\u2219\u22C5\u2027\u30FB]/gu;
+// Emoji, text-default pictographs forced to emoji with U+FE0F, and check, cross and ballot marks.
+const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|[\u2610-\u2612\u2713-\u2718]/gu;
 const CHARACTER_RULES: readonly (readonly [RuleId, RegExp])[] = [
-  ['no-arrow-in-content', /→/gu],
-  ['no-middle-dot', /·/gu],
-  // Emoji, text-default pictographs forced to emoji with U+FE0F, and check, cross and ballot marks.
-  ['no-emoji', /\p{Emoji_Presentation}|\p{Extended_Pictographic}️|[☐-☒✓-✘]/gu],
+  ['no-arrow-in-content', ARROWS],
+  ['no-middle-dot', DOTS],
+  ['no-emoji', EMOJI],
 ];
 
+// Named entities that decode to a banned character (numeric entities are decoded generically).
+const RIGHT = '\u2192';
+const LEFT = '\u2190';
 const NAMED_ENTITIES: Readonly<Record<string, string>> = {
-  rarr: '→', rightarrow: '→', RightArrow: '→', srarr: '→', ShortRightArrow: '→',
-  middot: '·', centerdot: '·', CenterDot: '·',
-  check: '✓', checkmark: '✓', cross: '✗',
+  rarr: RIGHT, rightarrow: RIGHT, RightArrow: RIGHT, srarr: RIGHT, ShortRightArrow: RIGHT,
+  longrightarrow: RIGHT, LongRightArrow: RIGHT, xrarr: RIGHT, rarrw: RIGHT, map: RIGHT, mapsto: RIGHT,
+  larr: LEFT, leftarrow: LEFT, LeftArrow: LEFT, slarr: LEFT, ShortLeftArrow: LEFT, longleftarrow: LEFT,
+  LongLeftArrow: LEFT, xlarr: LEFT,
+  uarr: '\u2191', darr: '\u2193', harr: '\u2194', nearr: '\u2197', nwarr: '\u2196', searr: '\u2198',
+  swarr: '\u2199', crarr: '\u21B5', rArr: '\u21D2', Rightarrow: '\u21D2', DoubleRightArrow: '\u21D2',
+  lArr: '\u21D0', Leftarrow: '\u21D0', DoubleLeftArrow: '\u21D0', uArr: '\u21D1', dArr: '\u21D3',
+  hArr: '\u21D4', iff: '\u21D4', xrArr: '\u27F9', Longrightarrow: '\u27F9', rsaquo: '\u203A',
+  middot: '\u00B7', centerdot: '\u00B7', CenterDot: '\u00B7', bull: '\u2022', bullet: '\u2022',
+  sdot: '\u22C5',
+  check: '\u2713', checkmark: '\u2713', cross: '\u2717',
 };
 
 function decodeEntities(text: string): string {
@@ -201,6 +225,11 @@ function checkCharacters(sink: Sink, text: string, firstLine: number): void {
     }
   }
 }
+
+// An arbitrary Tailwind value holding a literal colour, such as bg-[#fff], ring-[#d9620a] or
+// text-[rgb(0_0_0)]. Checked in every string literal, because a const or a cva() variant string
+// reaches className indirectly. Brackets keep prose such as "PR #123" and href="#add" clear.
+const ARBITRARY_COLOUR_TOKEN = /\[[^\]\s]*(?:#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\()[^\]\s]*\]/;
 
 const CODE_TAGS = new Set(['code', 'pre']);
 const COLOUR_ATTRS = new Set(['className', 'style', 'fill', 'stroke', 'stopColor', 'floodColor', 'color', 'stop-color', 'flood-color']);
@@ -231,10 +260,15 @@ function lintTypeScript(sink: Sink, text: string): void {
   const visit = (node: ts.Node, inCode: boolean): void => {
     if (ts.isJsxElement(node) && CODE_TAGS.has(node.openingElement.tagName.getText(sf))) inCode = true;
 
-    if (ts.isJsxAttribute(node) && node.initializer && COLOUR_ATTRS.has(node.name.getText(sf))) {
+    const colourAttr = ts.isJsxAttribute(node) && node.initializer && COLOUR_ATTRS.has(node.name.getText(sf));
+    if (colourAttr) {
       for (const lit of literalsIn(node.initializer)) {
         if (HAS_HEX.test(stripUrls(lit.text))) push(sink, 'no-hex', lineOf(lit.getStart(sf)));
       }
+    }
+    // Outside colour attributes (already checked above), only arbitrary-colour tokens count.
+    if (isLiteral(node) && !ts.findAncestor(node, (a) => ts.isJsxAttribute(a) && COLOUR_ATTRS.has(a.name.getText(sf)))) {
+      if (ARBITRARY_COLOUR_TOKEN.test(stripUrls(node.text))) push(sink, 'no-hex', lineOf(node.getStart(sf)));
     }
 
     if (!inCode) {
@@ -283,10 +317,12 @@ function lintMdx(sink: Sink, text: string): void {
 }
 
 function lintSourceCss(sink: Sink, text: string): void {
-  postcss.parse(text, { from: sink.file }).walkDecls((decl) => {
-    if (HAS_HEX.test(stripUrls(decl.value))) {
-      sink.out.push({ rule: 'no-hex', file: sink.file, line: decl.source?.start?.line ?? 0, excerpt: excerptOf(`${decl.prop}: ${decl.value}`) });
-    }
+  const report = (node: Node, excerpt: string) =>
+    sink.out.push({ rule: 'no-hex', file: sink.file, line: node.source?.start?.line ?? 0, excerpt: excerptOf(excerpt) });
+  postcss.parse(text, { from: sink.file }).walk((node) => {
+    // At-rule params cover `@apply bg-[#fff]`, which only reaches the compiled CSS as a declaration.
+    if (node.type === 'decl' && HAS_HEX.test(stripUrls(node.value))) report(node, `${node.prop}: ${node.value}`);
+    else if (node.type === 'atrule' && HAS_HEX.test(stripUrls(node.params))) report(node, `@${node.name} ${node.params}`);
   });
 }
 

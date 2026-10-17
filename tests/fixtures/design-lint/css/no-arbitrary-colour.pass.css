@@ -1,7 +1,8 @@
 :root { --color-bg: #fff; --color-ink: #1d1d1f; }
 @property --tw-shadow { syntax: "*"; inherits: false; initial-value: #0000; }
 @property --tw-ring-offset-color { syntax: "*"; inherits: false; initial-value: #fff; }
-*, ::before { --tw-shadow: 0 0 #0000; --tw-ring-offset-color: #fff; }
+@layer properties { @supports (-webkit-hyphens: none) { *, ::before { --tw-shadow: 0 0 #0000; --tw-ring-offset-color: #fff; } } }
+.shadow-none { --tw-shadow: 0 0 #0000; }
 .bg-ink { background-color: var(--color-ink); }
 /* Preflight: lightningcss writes transparent as #0000. */
 button, input { background-color: #0000; }

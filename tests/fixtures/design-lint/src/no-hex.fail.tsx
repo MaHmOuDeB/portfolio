@@ -1,3 +1,8 @@
+const button = cva('px-2', { variants: { tone: { brand: 'bg-[#d9620a] text-ink' } } }); // expect
+const ring = 'focus-visible:ring-[#0a5fd9]'; // expect
+const fill = `fill-[rgb(0_0_0)] ${'p-1'}`; // expect
+const stops = ['from-[#cedff7]', 'to-bg']; // expect
+
 export function Fail() {
   return (
     <div>
