@@ -49,7 +49,7 @@ describe('ConfidenceChart', () => {
   it('in collecting states shows progress, never a chart: zero views in both groups', () => {
     const root = chart({ ...AB, nA: 0, nB: 0 });
     expect(squash(text(root))).toContain('Progress: 0 of 50 in the smaller group');
-    expect(squash(text(root))).toContain('Estimate appears at 50 per group.');
+    expect(squash(text(root))).toContain('Estimates appear at 50 views per group, as the pre-registration says.');
     expect(frames(root)).toHaveLength(0);
     // The hollow glyph: the bar in line, a hollow muted dot.
     const dot = byTag(root, 'circle')[0]!;
@@ -128,6 +128,17 @@ describe('ConfidenceChart', () => {
     expect(label(AB)).not.toMatch(/\d/);
     expect(label(liveFixture('ship-b', 'enough-data', 'fresh'))).toMatch(/above zero/);
     expect(label(liveFixture('stop-for-harm', 'enough-data', 'fresh'))).toMatch(/below zero/);
+    // The final state is not "yet"; calibration (A/A) names no group as higher.
+    const inconclusive = label(liveFixture('inconclusive', 'enough-data', 'fresh'));
+    expect(inconclusive).toMatch(/final interval includes zero/);
+    expect(inconclusive).not.toMatch(/\byet\b/);
+    const aa = label(liveFixture('calibration', 'enough-data', 'fresh'));
+    expect(aa).toMatch(/identical groups/);
+    expect(aa).not.toMatch(/B higher|B lower|\byet\b/);
+    expect(label({ ...liveFixture('calibration', 'enough-data', 'fresh'), series: [{ n: 100, lower: 2, upper: 9, estimate: 5 }] })).toMatch(
+      /does not include zero/,
+    );
+    for (const s of [inconclusive, aa]) expect(s).not.toMatch(/\d/);
   });
 
   it('draws the Now row under the chart with the current interval', () => {
@@ -208,10 +219,19 @@ describe('NowRow', () => {
     expect(attr(dot, 'stroke')).toBe('var(--color-bg)');
   });
 
-  it('never prints "−0 to +0" for an interval that rounds to zero', () => {
+  it('gives a small interval the decimals its bounds need, never "−0 to +0"', () => {
     const html = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.04, upper: 0.03 }} />);
-    expect(squash(text(parse(html)))).toContain('now: 0 to 0');
-    expect(html).not.toMatch(/−0 |\+0</);
+    expect(squash(text(parse(html)))).toContain('now: −0.04 to +0.03');
+    // Below the display floor a bound reads "0": the row claims no sign.
+    const floor = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.0001, upper: 0.0002 }} />);
+    expect(squash(text(parse(floor)))).toContain('now: 0 to 0');
+    expect(floor).not.toMatch(/−0 |\+0</);
+  });
+
+  it('never prints a count above the target: both groups at 50 with no look yet', () => {
+    const root = parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z' }} />));
+    expect(squash(text(root))).toBe('50 views per group are in; the first estimate appears at the next look.');
+    expect(byTag(root, 'progress')).toHaveLength(0);
   });
 });
 
@@ -259,10 +279,48 @@ describe('LiveStateBody', () => {
     expect(frames(inconclusive)).toHaveLength(2);
   });
 
-  it('an outcome without 50 views per group gives no verdict and keeps collecting', () => {
-    const root = body('ship-b', 'low-data');
-    expect(paragraphs(root)[0]).toBe('The rules need 50 views per group, so no verdict is shown.');
+  it('inconclusive without 50 views per group says so, with no interval', () => {
+    const root = body('inconclusive', 'low-data');
+    expect(paragraphs(root)[0]).toBe(
+      "Inconclusive at the six-month limit: fewer than 50 views per group arrived, so no interval is shown. What I'll do now: keep page A and test a bolder change.",
+    );
     expect(frames(root)).toHaveLength(0);
+  });
+
+  it('ship-b or stop-for-harm without 50 views per group (the rules never produce it) claims no verdict', () => {
+    for (const phase of ['ship-b', 'stop-for-harm'] as const) {
+      const root = body(phase, 'low-data');
+      expect(squash(text(root))).not.toMatch(/Ship B|B did worse|above zero|below zero/);
+      expect(frames(root)).toHaveLength(0);
+    }
+  });
+
+  it('both groups at 50 or more with no look yet: the first estimate is due, never "180 of 50"', () => {
+    const s = { ...liveFixture('ab', 'enough-data', 'fresh'), series: [] };
+    const all = squash(text(stateBody(s)));
+    expect(all).toContain('50 views per group are in; the first estimate appears at the next look.');
+    expect(all).not.toMatch(/\d+ of 50/);
+    expect(squash(text(chart(s)))).toBe('50 views per group are in; the first estimate appears at the next look.');
+  });
+
+  it('a verdict never prints a bound it calls above or below zero as "0"', () => {
+    const ship = { ...liveFixture('ship-b', 'enough-data', 'fresh'), series: [{ n: 176, lower: 0.3, upper: 26.3, estimate: 13 }] };
+    expect(paragraphs(stateBody(ship))[0]).toContain('(+0.3 to +26.3 points)');
+    const harm = { ...liveFixture('stop-for-harm', 'enough-data', 'fresh'), series: [{ n: 176, lower: -26.3, upper: -0.4, estimate: -13 }] };
+    expect(paragraphs(stateBody(harm))[0]).toContain('(−26.3 to −0.4 points)');
+    const tiny = { ...ship, series: [{ n: 176, lower: 0.0001, upper: 20, estimate: 10 }] };
+    expect(paragraphs(stateBody(tiny))[0]).toContain('(+0.001 to +20.000 points)');
+  });
+
+  it('inconclusive rules out only what the interval rules out, rounded up', () => {
+    const base = liveFixture('inconclusive', 'enough-data', 'fresh');
+    const first = (s: LiveSnapshot) => paragraphs(stateBody(s))[0];
+    // A caller's smaller number would be false: the interval still reaches +22.
+    expect(first({ ...base, ruledOutAbove: 5 })).toContain('an effect larger than 22 points is ruled out');
+    expect(first({ ...base, ruledOutAbove: 30 })).toContain('an effect larger than 30 points is ruled out');
+    // 22.4 must not print 22: an effect of 22.2 is not ruled out.
+    const reach = { ...base, series: [{ n: 176, lower: -14, upper: 22.4, estimate: 4 }] };
+    expect(first(reach)).toContain('from −14 to +22 points, so an effect larger than 23 points is ruled out');
   });
 
   it('SRM failed: the status in warn, the counts and no interval', () => {

@@ -39,12 +39,12 @@ export function formatSignedNumber(v: number, maxDigits = 1): string {
   return signed(v, 0, maxDigits, true);
 }
 
-/** "+31", "−12", "0": a difference in percentage points with a fixed number of decimals. */
-export function formatSignedPoints(v: number, digits: 0 | 1): string {
+/** "+31", "−12", "0": a difference in percentage points with a fixed number of decimals (0 to 6). */
+export function formatSignedPoints(v: number, digits: number): string {
   return signed(v, digits, digits, true);
 }
 
 /** "−12 to +31". Each end follows formatSignedPoints, so "−0 to +0" cannot appear. */
-export function formatInterval(lower: number, upper: number, digits: 0 | 1): string {
+export function formatInterval(lower: number, upper: number, digits: number): string {
   return `${formatSignedPoints(lower, digits)} to ${formatSignedPoints(upper, digits)}`;
 }

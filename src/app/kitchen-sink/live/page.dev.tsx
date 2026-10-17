@@ -73,7 +73,7 @@ function LiveFigure({ id, phase, data, fresh, runtime }: { id: string; phase: Li
       titleLevel={4}
       title={TITLE}
       state={state}
-      provenance="live"
+      provenance="simulated"
       table={confidenceTable(snapshot, SINK_REFS)}
       caption={CAPTION}
       // The forced error shows the build-time chart: what the data calls for, never a hidden verdict.

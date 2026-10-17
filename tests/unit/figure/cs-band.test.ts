@@ -5,6 +5,8 @@ import {
   confidenceTable,
   confidenceYDomain,
   contentBody,
+  csPointFromInterval,
+  formatIntervalPoints,
   intervalDigits,
   liveFigureState,
   MAX_POINTS,
@@ -14,6 +16,8 @@ import {
   type LiveSnapshot,
 } from '@/lib/figure/cs-band';
 import { MIN_PER_GROUP, resolveFigureBody } from '@/lib/figure/states';
+import { mixtureCs } from '@/lib/stats';
+import { ref } from '../stats/reference';
 
 // Review Focus 4: extreme live data. Every difference is B − A in percentage points.
 
@@ -195,10 +199,63 @@ describe('shownSeries', () => {
   });
 });
 
-describe('intervalDigits', () => {
+describe('intervalDigits and formatIntervalPoints', () => {
+  // The rule: one decimal below ten points of width, none above; then more decimals (up to three)
+  // until every bound that is not exactly zero shows a non-zero digit. Only a bound smaller than
+  // 0.0005 points can still print "0", and only where no sign is claimed: a verdict sentence
+  // rounds it away from zero to the smallest shown unit.
   it('gives a decimal to narrow intervals, so −0.4 to +0.3 never prints as zero to zero', () => {
     expect(intervalDigits(-12, 31)).toBe(0);
     expect(intervalDigits(-0.4, 0.3)).toBe(1);
+    expect(intervalDigits(0, 26)).toBe(0);
+  });
+
+  it('adds decimals until no bound that is not zero prints "0"', () => {
+    expect(formatIntervalPoints(0.3, 26.3)).toBe('+0.3 to +26.3');
+    expect(formatIntervalPoints(-26.3, -0.4)).toBe('−26.3 to −0.4');
+    expect(formatIntervalPoints(0.04, 9.9)).toBe('+0.04 to +9.90');
+    expect(formatIntervalPoints(-0.04, 0.03)).toBe('−0.04 to +0.03');
+    expect(formatIntervalPoints(-12.2, 31)).toBe('−12 to +31');
+    expect(formatIntervalPoints(0, 26)).toBe('0 to +26');
+  });
+
+  it('prints a bound below the display floor as "0", or rounds it away from zero where a sign is claimed', () => {
+    expect(intervalDigits(0.0001, 20)).toBe(3);
+    expect(formatIntervalPoints(-0.0001, 0.0002)).toBe('0 to 0');
+    expect(formatIntervalPoints(0.0001, 20, { awayFromZero: true })).toBe('+0.001 to +20.000');
+    expect(formatIntervalPoints(-20, -0.0001, { awayFromZero: true })).toBe('−20.000 to −0.001');
+  });
+
+  it('never prints a bound that is not zero as "0" above the floor (property)', () => {
+    const bound = fc.double({ min: -100, max: 100, noNaN: true }).filter((v) => v === 0 || Math.abs(v) >= 0.0005);
+    fc.assert(
+      fc.property(bound, bound, (a, b) => {
+        const [lower, upper] = [Math.min(a, b), Math.max(a, b)];
+        const [lo, hi] = formatIntervalPoints(lower, upper).split(' to ');
+        if (lower !== 0) expect(lo).not.toBe('0');
+        if (upper !== 0) expect(hi).not.toBe('0');
+        expect(`${lo} ${hi}`).not.toMatch(/[−+]0(\.0+)?(?!\.?\d)/);
+      }),
+    );
+  });
+});
+
+describe('csPointFromInterval', () => {
+  it('turns a mixtureCs interval in proportions into percentage points (a reference case)', () => {
+    // stats-ref: 0 of 100 in A, 5 of 100 in B.
+    const c = ref.mixtureCs.find((r) => r.xA === 0 && r.nA === 100 && r.xB === 5 && r.nB === 100)!;
+    const p = csPointFromInterval(100, mixtureCs(c, { tau2: c.tau2, alpha: c.alpha }));
+    expect(p.n).toBe(100);
+    expect(p.estimate).toBeCloseTo(5, 9);
+    expect(p.lower).toBeCloseTo(c.lower * 100, 9);
+    expect(p.upper).toBeCloseTo(c.upper * 100, 9);
+    expect(p.lower).toBeCloseTo(-2.21764241671, 6);
+    expect(p.upper).toBeCloseTo(12.2176424167, 6);
+  });
+
+  it('clamps the unclamped half-width of a tiny sample to ±100 points', () => {
+    const p = csPointFromInterval(1, { estimate: 0, lower: -15.7, upper: 15.7 });
+    expect(p).toEqual({ n: 1, estimate: 0, lower: -100, upper: 100 });
   });
 });
 

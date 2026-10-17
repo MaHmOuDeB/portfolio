@@ -15,7 +15,7 @@
 import { scaleLinear } from 'd3-scale';
 import type { TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
-import { formatNumber, formatSignedNumber } from './format';
+import { formatNumber, formatSignedNumber, formatSignedPoints } from './format';
 import { niceTicks, type Layout } from './scales';
 import {
   dataAmount,
@@ -28,7 +28,10 @@ import {
   type LivePhase,
 } from './states';
 
-/** One look at the experiment. `n` is the views in the smaller group; the rest are B − A in points. */
+/**
+ * One look at the experiment. `n` is the views in the smaller group; the rest are B − A in
+ * PERCENTAGE POINTS (not proportions: convert a mixtureCs interval with csPointFromInterval).
+ */
 export type CsPoint = { n: number; lower: number; upper: number; estimate: number };
 
 export type LiveSnapshot = {
@@ -164,9 +167,51 @@ export function contentBody(s: LiveSnapshot): FigureBody {
   return resolveFigureBody({ live: { ...live!, freshness: { kind: 'fresh' } } });
 }
 
-/** Decimals for an interval: one when it is narrower than ten points, so "−0.4 to +0.3" keeps its digits. */
-export function intervalDigits(lower: number, upper: number): 0 | 1 {
-  return Math.abs(upper - lower) < 10 ? 1 : 0;
+/** Decimals an interval may grow to before a bound below the display floor prints "0". */
+const MAX_INTERVAL_DIGITS = 3;
+
+/**
+ * Decimals for an interval: one when it is narrower than ten points, none when wider; then more,
+ * up to three, until every bound that is not exactly zero shows a non-zero digit. So "+0.3 to
+ * +26.3", never "0 to +26", and "−0.04 to +0.03", never "0 to 0". Only a bound under 0.0005
+ * points can still print "0" (see formatIntervalPoints for sentences that claim its sign).
+ */
+export function intervalDigits(lower: number, upper: number): number {
+  let digits = Math.abs(upper - lower) < 10 ? 1 : 0;
+  const shows = (v: number) => v === 0 || formatSignedPoints(v, digits) !== '0';
+  while (digits < MAX_INTERVAL_DIGITS && !(shows(lower) && shows(upper))) digits += 1;
+  return digits;
+}
+
+/**
+ * "−12 to +31", with intervalDigits' decimals. `awayFromZero` is for sentences that claim a bound's
+ * sign ("the lower end is above zero"): a bound below the display floor then prints as the smallest
+ * shown unit on its own side ("+0.001"), never as "0".
+ */
+export function formatIntervalPoints(lower: number, upper: number, o: { awayFromZero?: boolean } = {}): string {
+  const digits = intervalDigits(lower, upper);
+  const one = (v: number) => {
+    const text = formatSignedPoints(v, digits);
+    if (text !== '0' || v === 0 || !o.awayFromZero) return text;
+    return `${v < 0 ? '−' : '+'}${(10 ** -digits).toFixed(digits)}`;
+  };
+  return `${one(lower)} to ${one(upper)}`;
+}
+
+/**
+ * The CsPoint the chart consumes, from a confidence-sequence interval of `mixtureCs`
+ * (src/lib/stats), which is in PROPORTIONS: estimate = xB/nB − xA/nA and an unclamped half-width.
+ * The point is in PERCENTAGE POINTS (×100), each value clamped to ±100 points (a tiny sample's
+ * half-width can be far wider than a difference of proportions can be). `n` is the views in the
+ * smaller group at that look.
+ */
+export function csPointFromInterval(n: number, interval: { estimate: number; lower: number; upper: number }): CsPoint {
+  return {
+    n,
+    estimate: clampPoints(interval.estimate * 100),
+    lower: clampPoints(interval.lower * 100),
+    upper: clampPoints(interval.upper * 100),
+  };
 }
 
 const NOT_SHOWN_YET = 'Not shown yet';

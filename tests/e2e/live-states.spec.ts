@@ -61,7 +61,7 @@ test.describe('live Figure states', () => {
     }
   });
 
-  test('paused, SRM failed, stale and error say so', async ({ page }) => {
+  test('paused, SRM failed, stale, error and the Simulated badge say so', async ({ page }) => {
     const all = await specimens(page);
     expect(all).toHaveLength(TOTAL);
     for (const s of all) {
@@ -72,6 +72,9 @@ test.describe('live Figure states', () => {
         expect(s.text, s.id).not.toContain('now:');
       }
       if (fresh === 'stale') expect(s.text, s.id).toMatch(/Updated \d{2}\.\d{2}, \d{2}:\d{2}/);
+      // Fictional data: the badge says Simulated, never Live from this site.
+      expect(s.text, s.id).toContain('Simulated');
+      expect(s.text, s.id).not.toContain('Live from this site');
       if (runtime === 'error') {
         expect(s.text, s.id).toContain('This chart could not load. The numbers for both groups are in the table below.');
       }
@@ -83,6 +86,7 @@ test.describe('live Figure states', () => {
     await expect(low.locator('svg[data-chart-frame]')).toHaveCount(0);
     await expect(low.locator('[data-now-row="collecting"]')).toBeVisible();
     await expect(low.locator('progress')).toHaveAccessibleName('Progress: 12 of 50 in the smaller group');
+    await expect(low).toContainText('Estimates appear at 50 views per group, as the pre-registration says.');
     const ab = page.locator('[data-specimen="live--ab--enough-data--fresh--default"]');
     await expect(ab.locator('svg[data-chart-frame]:visible')).toHaveCount(1);
     await expect(ab.locator('[data-now-row="interval"] p')).toHaveText('now: −12 to +31');

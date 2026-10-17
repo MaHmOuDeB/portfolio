@@ -1,11 +1,12 @@
 // The "Now" row under the ConfidenceChart: the large interval glyph drawn on a horizontal
 // difference axis (B − A, the chart's y-domain laid flat) with a zero tick, labelled with the
 // current interval. While the test is collecting there is no interval: the row draws the hollow
-// grey glyph, says when the estimate appears and shows the progress line, in place of empty axes.
+// grey glyph, says when the estimates appear and shows the progress line, in place of empty axes.
+// Once both groups have 50 views but no look has been computed, it says the first estimate is due
+// instead, so it never prints a count above its target ("180 of 50").
 // Server-safe; the axis is an SVG with no viewBox, positioned by percentages, so it fits any width.
 import { glyphGeometry } from '@/lib/figure/glyph';
-import { formatInterval } from '@/lib/figure/format';
-import { intervalDigits } from '@/lib/figure/cs-band';
+import { formatIntervalPoints } from '@/lib/figure/cs-band';
 import { linearFrac, pct } from '@/lib/figure/scales';
 import { MIN_PER_GROUP } from '@/lib/figure/states';
 import { Derived, derivedAttr, type DerivedRef } from './Derived';
@@ -37,12 +38,19 @@ function anchorFor(frac: number): 'start' | 'middle' | 'end' {
 }
 
 function Collecting({ nSmaller, plannedEnd, refs }: { nSmaller: number; plannedEnd: string; refs: readonly DerivedRef[] }) {
+  const target = <Derived value={MIN_PER_GROUP} unit="count" refs={refs} />;
+  if (nSmaller >= MIN_PER_GROUP) {
+    return (
+      <div data-now-row="due" className="mt-4">
+        <IntervalGlyph size="large" variant="hollow" estimateAt={0.5} />
+        <p className="mt-2 text-sm">{target} views per group are in; the first estimate appears at the next look.</p>
+      </div>
+    );
+  }
   return (
     <div data-now-row="collecting" className="mt-4">
       <IntervalGlyph size="large" variant="hollow" estimateAt={0.5} />
-      <p className="mt-2 text-sm">
-        Estimate appears at <Derived value={MIN_PER_GROUP} unit="count" refs={refs} /> per group.
-      </p>
+      <p className="mt-2 text-sm">Estimates appear at {target} views per group, as the pre-registration says.</p>
       <div className="mt-2">
         <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} refs={refs} />
       </div>
@@ -63,7 +71,7 @@ export function NowRow({ domain, interval, collecting, refs = ['live'] }: Props)
   return (
     <div data-now-row="interval" className="mt-4">
       <p className="text-sm font-semibold">
-        now: <span {...derivedAttr(refs)}>{formatInterval(lower, upper, intervalDigits(lower, upper))}</span>
+        now: <span {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
       </p>
       <svg aria-hidden="true" focusable="false" width="100%" height={ROW_HEIGHT} className="mt-1 block overflow-visible">
         <line x1={0} x2="100%" y1={MID + 0.5} y2={MID + 0.5} className="stroke-line" />

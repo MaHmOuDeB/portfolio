@@ -38,20 +38,37 @@ const SIDE_LABEL = { share: { narrow: 0.21, wide: 0.1 }, gap: 4, height: 13 };
 const DOT_REACH = 6;
 const LABEL_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 
-/** What a body shows of the chart. Paused, error and default keep what the data calls for. */
+/** The body the data calls for: paused, error and default keep it. */
+const ownBody = (snapshot: LiveSnapshot, body: FigureBody): FigureBody =>
+  body === 'paused' || body === 'error' || body === 'default' ? contentBody(snapshot) : body;
+
+/** What a body shows of the chart. */
 function shows(snapshot: LiveSnapshot, body: FigureBody): 'chart' | 'running' | 'collecting' | 'nothing' {
-  const own = body === 'paused' || body === 'error' || body === 'default' ? contentBody(snapshot) : body;
+  const own = ownBody(snapshot, body);
   if (own === 'srm-suppressed' || own === 'aa-failed') return 'nothing';
   if (own === 'low-data') return 'collecting';
   return (own === 'calibration' || own === 'ab') && body !== 'paused' ? 'running' : 'chart';
 }
 
-function ariaLabel(m: ConfidenceModel): string {
+/**
+ * The finding in words, without a digit. Calibration (A/A) compares two identical groups, so it
+ * names no group as higher; a decided test speaks of its final interval, a running one of the
+ * current interval and what is not ruled out yet.
+ */
+function ariaLabel(m: ConfidenceModel, own: FigureBody): string {
+  if (own === 'calibration') {
+    const where = m.includesZero ? 'the current interval includes zero' : 'the current interval does not include zero';
+    return `The difference between the two identical groups as views per group grow: ${where}`;
+  }
+  const final = own === 'ship-b' || own === 'stop-for-harm' || own === 'inconclusive';
+  const which = final ? 'the final interval' : 'the current interval';
   const where = m.includesZero
-    ? 'the current interval still includes zero, so no difference is ruled out yet'
+    ? final
+      ? `${which} includes zero`
+      : `${which} still includes zero, so no difference is ruled out yet`
     : m.current.lower > 0
-      ? 'the current interval lies above zero: B higher'
-      : 'the current interval lies below zero: B lower';
+      ? `${which} lies above zero: B higher`
+      : `${which} lies below zero: B lower`;
   return `The difference between the groups, B minus A, as views per group grow: ${where}`;
 }
 
@@ -169,7 +186,7 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
     <div data-confidence-chart={id}>
       <ChartFrame
         id={`${id}-chart`}
-        ariaLabel={ariaLabel(m)}
+        ariaLabel={ariaLabel(m, ownBody(snapshot, body))}
         layout={layout}
         x={{ ...m.x, label: 'Views per group', refs }}
         y={{
