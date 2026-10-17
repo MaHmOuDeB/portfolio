@@ -18,6 +18,8 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,
+    // The only build that includes the dev-only kitchen sink. The production build never does.
+    env: { KITCHEN_SINK: '1' },
   },
   projects: [
     {
