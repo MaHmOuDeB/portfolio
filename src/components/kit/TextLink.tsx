@@ -12,13 +12,15 @@ type Props = {
   external?: boolean;
   /** A leading icon, for a link whose icon names it (mail, LinkedIn, GitHub). */
   icon?: IconName;
+  /** Overrides the accessible name when the visible text is shorter than the full action. */
+  'aria-label'?: string;
   children: ReactNode;
 };
 
 const BASE = 'text-muted underline decoration-muted hover:text-ink focus-visible:text-ink';
 const STANDALONE = 'inline-flex min-h-(--size-target) items-center gap-2';
 
-export function TextLink({ href, standalone, external, icon, children }: Props) {
+export function TextLink({ href, standalone, external, icon, children, 'aria-label': ariaLabel }: Props) {
   const className = cx(BASE, standalone && STANDALONE);
   const content = (
     <>
@@ -35,13 +37,14 @@ export function TextLink({ href, standalone, external, icon, children }: Props) 
         className={className}
         data-touch-target={standalone ? '' : undefined}
         rel={external ? 'noopener' : undefined}
+        aria-label={ariaLabel}
       >
         {content}
       </a>
     );
   }
   return (
-    <Link href={href} className={className} data-touch-target={standalone ? '' : undefined}>
+    <Link href={href} className={className} data-touch-target={standalone ? '' : undefined} aria-label={ariaLabel}>
       {content}
     </Link>
   );

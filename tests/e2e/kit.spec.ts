@@ -53,6 +53,39 @@ test.describe('kitchen sink', () => {
     await expect(fact).toHaveText('270+');
   });
 
+  test('shows the static primitives: badges, callout, tables, test notes, labels, progress', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const badges = page.locator('[data-specimen="badge--all"] span');
+    await expect(badges).toHaveText(['Simulated', 'Public data', 'Live from this site']);
+    await expect(page.locator('[data-specimen="callout--titled"]')).toBeVisible();
+
+    const folded = page.locator('[data-specimen="table--disclosure"] details');
+    await expect(folded.locator('table')).toBeHidden();
+    const summary = folded.locator('summary');
+    expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await summary.click();
+    await expect(folded.locator('table')).toBeVisible();
+    await expect(page.locator('[data-specimen="table--open"] table')).toBeVisible();
+    await expect(page.locator('[data-specimen="table--open"] td[data-derived="simulated"]')).toHaveCount(8);
+
+    await expect(page.locator('[data-specimen="testnote--ab-early"]')).toContainText('you are in group B');
+    await expect(page.locator('[data-specimen="testnote--ab-early"]')).not.toContainText('views so far');
+    await expect(page.locator('[data-specimen="testnote--ab-counted"]')).toContainText('(212 views so far).');
+    await expect(
+      page.locator('[data-specimen="testnote--paused"]').getByRole('link', { name: 'See why the experiment is paused' }),
+    ).toBeVisible();
+
+    await expect(page.locator('[data-specimen="updated--labels"] time')).toHaveText([
+      'Updated 14:05',
+      'Updated 24.10, 23:30',
+    ]);
+
+    const bars = page.locator('[data-specimen="progress--states"] progress');
+    await expect(bars).toHaveCount(3);
+    await expect(page.getByRole('progressbar', { name: 'Progress: 0 of 50 in the smaller group' })).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'Progress: 12 of 50 in the smaller group' })).toBeVisible();
+  });
+
   test('says that its data is fictional', async ({ page }) => {
     await page.goto('/kitchen-sink');
     await expect(page.getByText('fictional', { exact: false }).first()).toBeVisible();

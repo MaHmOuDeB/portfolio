@@ -8,6 +8,7 @@ import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
 import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
+import { StaticSection } from './static';
 
 export type SinkSection = {
   /** Kebab-case, unique: the section's anchor and `data-section`. */
@@ -138,5 +139,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'fact-and-stat',
     title: 'Fact and Stat',
     render: () => <FactsSection />,
+  },
+  {
+    id: 'static-primitives',
+    title: 'Static primitives',
+    render: () => <StaticSection />,
   },
 ];
