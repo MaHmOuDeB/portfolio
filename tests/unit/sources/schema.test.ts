@@ -141,8 +141,8 @@ describe('profile allows exactly the eight approved facts', () => {
 
   it('rejects a ninth fact key', () => {
     const j = clone(base);
-    j.facts['audible.revenue_lift'] = j.facts['audible.markets'];
-    expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts .*audible\.revenue_lift/);
+    j.facts['audible.unlisted_key'] = j.facts['audible.markets'];
+    expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts .*audible\.unlisted_key/);
   });
 
   it('rejects a missing approved key', () => {
