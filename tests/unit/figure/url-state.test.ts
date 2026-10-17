@@ -225,6 +225,20 @@ describe('assertFigureId', () => {
   });
 });
 
+describe('a schema param named preset', () => {
+  // `${id}.preset` names the preset, so a param of that name would read and write the same key.
+  const clash = { preset: { kind: 'enum', values: ['a', 'b'] } } as const;
+  const clashPresets: Presets<typeof clash> = { default: { preset: 'a' } };
+
+  it('is refused with a TypeError by the reader and the writer', () => {
+    expect(() => readFigureParams(new URLSearchParams(), 'demo', clash, clashPresets)).toThrow(TypeError);
+    expect(() => readFigureParams(new URLSearchParams(), 'demo', clash, clashPresets)).toThrow(
+      'a Figure param cannot be named "preset"',
+    );
+    expect(() => writeFigureParams<typeof clash>(new URLSearchParams(), 'demo', { preset: 'b' })).toThrow(TypeError);
+  });
+});
+
 describe('URL_DEBOUNCE_MS', () => {
   it('is about a quarter of a second', () => {
     expect(URL_DEBOUNCE_MS).toBe(250);

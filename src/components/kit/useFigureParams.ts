@@ -17,6 +17,10 @@
 // - A write applies only on the pathname it was scheduled on (figureUrl), so this Figure's keys
 //   never land on another page's URL. Each write starts from the current location, so other
 //   Figures' keys and the hash are kept.
+// - Back or Forward within the same page (across a hash entry, say) re-reads the URL: the entry
+//   the visitor returns to is the view they had there, so the Figure follows it instead of
+//   drifting from its own URL. Any pending write is dropped first, because it belongs to the
+//   entry the visitor left.
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -50,9 +54,11 @@ export function useFigureParams<S extends ParamSchema>(
 } {
   assertFigureId(id);
   const search = useSearchParams();
-  // Read once: later URL changes are this hook's own writes, or another Figure's.
+  // Read once here: later URL changes are this hook's own writes or another Figure's; only
+  // Back and Forward (popstate, below) bring a URL the Figure has to follow.
   const [initial] = useState(() => readFigureParams(search, id, schema, presets));
   const [values, setValues] = useState(initial.values);
+  const [preset, setPreset] = useState(initial.preset);
   const latest = useRef(initial.values);
   const pending = useRef<Pending | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,6 +83,23 @@ export function useFigureParams<S extends ParamSchema>(
     };
   }, [flush]);
 
+  useEffect(() => {
+    const page = window.location.pathname;
+    const onPopState = () => {
+      // Another page's URL is not this Figure's; the router unmounts it there.
+      if (window.location.pathname !== page) return;
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+      pending.current = null;
+      const next = readFigureParams(new URLSearchParams(window.location.search), id, schema, presets);
+      latest.current = next.values;
+      setValues(next.values);
+      setPreset(next.preset);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [id, schema, presets]);
+
   const set = useCallback(
     <K extends keyof S>(key: K, value: ParamValues<S>[K]) => {
       const next = { ...latest.current, [key]: value };
@@ -90,13 +113,13 @@ export function useFigureParams<S extends ParamSchema>(
   );
 
   const reset = useCallback(() => {
-    const restored = presets[initial.preset]!;
+    const restored = presets[preset]!;
     latest.current = restored;
     setValues(restored);
     // At once, replacing any pending write, so a late debounced write cannot bring keys back.
-    pending.current = { write: (s) => resetFigureParams(s, id, initial.preset), on: window.location.pathname };
+    pending.current = { write: (s) => resetFigureParams(s, id, preset), on: window.location.pathname };
     flush();
-  }, [flush, id, initial.preset, presets]);
+  }, [flush, id, preset, presets]);
 
-  return { values, preset: initial.preset, set, reset };
+  return { values, preset, set, reset };
 }

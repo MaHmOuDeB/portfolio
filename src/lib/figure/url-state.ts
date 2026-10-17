@@ -21,11 +21,24 @@ export type Presets<S extends ParamSchema> = { default: ParamValues<S> } & Recor
 export const URL_DEBOUNCE_MS = 250;
 
 const DEFAULT_PRESET = 'default';
+const PRESET_PARAM = 'preset';
 const FIGURE_ID = /^[a-z][a-z0-9-]*$/;
 
 /** Throws on an id that would break the namespace (a dot, a capital): a programmer error. */
 export function assertFigureId(id: string): void {
   if (!FIGURE_ID.test(id)) throw new Error(`Figure id "${id}" must match ${FIGURE_ID}`);
+}
+
+/**
+ * Throws on a param named `preset`: `${id}.preset` names the preset, so such a param would read and
+ * write the same key. A programmer error, caught on the first read or write.
+ */
+function assertParamNames(names: Iterable<string>): void {
+  for (const name of names) {
+    if (name === PRESET_PARAM) {
+      throw new TypeError(`a Figure param cannot be named "${PRESET_PARAM}": the key <id>.${PRESET_PARAM} names the preset`);
+    }
+  }
 }
 
 const keyOf = (id: string, param: string) => `${id}.${param}`;
@@ -46,7 +59,8 @@ export function readFigureParams<S extends ParamSchema>(
   presets: Presets<S>,
 ): { values: ParamValues<S>; preset: string } {
   assertFigureId(id);
-  const asked = search.get(keyOf(id, 'preset'));
+  assertParamNames(Object.keys(schema));
+  const asked = search.get(keyOf(id, PRESET_PARAM));
   // Own properties only: `?demo.preset=toString` must not reach Object.prototype.
   const preset = asked !== null && Object.hasOwn(presets, asked) ? asked : DEFAULT_PRESET;
   const base = presets[preset] as Record<string, number | string>;
@@ -64,6 +78,7 @@ export function writeFigureParams<S extends ParamSchema>(
   values: ParamValues<S>,
 ): URLSearchParams {
   assertFigureId(id);
+  assertParamNames(Object.keys(values));
   const next = new URLSearchParams(search);
   for (const [param, value] of Object.entries(values)) next.set(keyOf(id, param), String(value));
   return next;
@@ -93,7 +108,7 @@ export function figureUrl(
  */
 export function resetFigureParams(search: URLSearchParams, id: string, preset: string): URLSearchParams {
   assertFigureId(id);
-  const presetKey = keyOf(id, 'preset');
+  const presetKey = keyOf(id, PRESET_PARAM);
   const next = new URLSearchParams(search);
   for (const key of new Set(next.keys())) {
     if (isOwnKey(id, key) && key !== presetKey) next.delete(key);
