@@ -1,0 +1,342 @@
+{
+ "_meta": {
+  "schema": "weather/1",
+  "source": "weather",
+  "generator": "scripts/export_site_data.py",
+  "inputs": [
+   {
+    "path": "reports/results.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rows": null
+   }
+  ],
+  "engine": {
+   "python": "3.12.4"
+  },
+  "dataset": {
+   "name": "Example public dataset",
+   "url": "https://example.org/dataset",
+   "licence": "CC BY 4.0"
+  },
+  "provenance": "public-data"
+ },
+ "facts": {
+  "quarantine.rows": {
+   "value": 3,
+   "unit": "count",
+   "decimals": 0,
+   "label": "Observations quarantined",
+   "from": "sql:quarantine_observation"
+  },
+  "quarantine.max_wind_kmh": {
+   "value": 120.5,
+   "unit": "kmh",
+   "decimals": 1,
+   "label": "Highest quarantined wind speed",
+   "from": "sql:quarantine_observation"
+  }
+ },
+ "tables": {
+  "checks": [
+   {
+    "name": "check_1",
+    "severity": "error",
+    "failing_rows": 0
+   },
+   {
+    "name": "check_2",
+    "severity": "warn",
+    "failing_rows": 1
+   },
+   {
+    "name": "check_3",
+    "severity": "info",
+    "failing_rows": 2
+   },
+   {
+    "name": "check_4",
+    "severity": "error",
+    "failing_rows": 3
+   },
+   {
+    "name": "check_5",
+    "severity": "warn",
+    "failing_rows": 4
+   },
+   {
+    "name": "check_6",
+    "severity": "info",
+    "failing_rows": 5
+   },
+   {
+    "name": "check_7",
+    "severity": "error",
+    "failing_rows": 6
+   },
+   {
+    "name": "check_8",
+    "severity": "warn",
+    "failing_rows": 7
+   },
+   {
+    "name": "check_9",
+    "severity": "info",
+    "failing_rows": 8
+   },
+   {
+    "name": "check_10",
+    "severity": "error",
+    "failing_rows": 9
+   },
+   {
+    "name": "check_11",
+    "severity": "warn",
+    "failing_rows": 10
+   },
+   {
+    "name": "check_12",
+    "severity": "info",
+    "failing_rows": 11
+   },
+   {
+    "name": "check_13",
+    "severity": "error",
+    "failing_rows": 12
+   },
+   {
+    "name": "check_14",
+    "severity": "warn",
+    "failing_rows": 13
+   },
+   {
+    "name": "check_15",
+    "severity": "info",
+    "failing_rows": 14
+   },
+   {
+    "name": "check_16",
+    "severity": "error",
+    "failing_rows": 15
+   },
+   {
+    "name": "check_17",
+    "severity": "warn",
+    "failing_rows": 16
+   },
+   {
+    "name": "check_18",
+    "severity": "info",
+    "failing_rows": 17
+   }
+  ],
+  "table_rows": {
+   "stg_weather": 100,
+   "dim_location": 10,
+   "dim_condition": 5,
+   "fact_observation": 97,
+   "quarantine_observation": 3
+  },
+  "cv_folds": [
+   {
+    "model": "logistic",
+    "fold": 1,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "logistic",
+    "fold": 2,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "logistic",
+    "fold": 3,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "logistic",
+    "fold": 4,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "logistic",
+    "fold": 5,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "random_forest",
+    "fold": 1,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "random_forest",
+    "fold": 2,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "random_forest",
+    "fold": 3,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "random_forest",
+    "fold": 4,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "random_forest",
+    "fold": 5,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "gradient_boosting",
+    "fold": 1,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "gradient_boosting",
+    "fold": 2,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "gradient_boosting",
+    "fold": 3,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "gradient_boosting",
+    "fold": 4,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "gradient_boosting",
+    "fold": 5,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "baseline",
+    "fold": 1,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "baseline",
+    "fold": 2,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "baseline",
+    "fold": 3,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "baseline",
+    "fold": 4,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   },
+   {
+    "model": "baseline",
+    "fold": 5,
+    "f1_rain": 0.6,
+    "roc_auc": 0.8,
+    "avg_precision": 0.7,
+    "accuracy": 0.75,
+    "test_places": 20,
+    "test_rows": 400
+   }
+  ]
+ }
+}

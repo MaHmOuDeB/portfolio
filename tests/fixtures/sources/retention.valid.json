@@ -1,0 +1,465 @@
+{
+ "_meta": {
+  "schema": "retention/1",
+  "source": "retention",
+  "generator": "scripts/export_site_data.py",
+  "inputs": [
+   {
+    "path": "reports/results.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rows": null
+   }
+  ],
+  "engine": {
+   "python": "3.12.4"
+  },
+  "dataset": {
+   "name": "Example public dataset",
+   "url": "https://example.org/dataset",
+   "licence": "CC BY 4.0"
+  },
+  "provenance": "public-data"
+ },
+ "facts": {
+  "cohorts.retention_month1": {
+   "value": 0.201,
+   "unit": "share",
+   "decimals": 1,
+   "label": "Month-1 retention, size-weighted",
+   "from": "results.json#/cohorts/retention_month1"
+  },
+  "winback.lapsed_customers": {
+   "value": 3351,
+   "unit": "count",
+   "decimals": 0,
+   "label": "Lapsed customers at the test cutoff",
+   "from": "results.json#/lapsed_group/customers"
+  }
+ },
+ "tables": {
+  "cohort_matrix": [
+   {
+    "cohort_month": "2010-01",
+    "cohort_size": 300,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-02",
+    "cohort_size": 301,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-03",
+    "cohort_size": 302,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-04",
+    "cohort_size": 303,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-05",
+    "cohort_size": 304,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-06",
+    "cohort_size": 305,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-07",
+    "cohort_size": 306,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-08",
+    "cohort_size": 307,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-09",
+    "cohort_size": 308,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-10",
+    "cohort_size": 309,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   },
+   {
+    "cohort_month": "2010-11",
+    "cohort_size": 310,
+    "retention": [
+     1,
+     0.29,
+     0.28,
+     0.27,
+     0.26,
+     0.25,
+     0.24,
+     0.23,
+     0.22,
+     0.21,
+     0.2,
+     0.19,
+     0.18
+    ]
+   }
+  ],
+  "rfm_segments": [
+   {
+    "segment": "Champions",
+    "customers": 100,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 30,
+    "median_orders": 1
+   },
+   {
+    "segment": "Loyal",
+    "customers": 101,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 31,
+    "median_orders": 2
+   },
+   {
+    "segment": "New / recent",
+    "customers": 102,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 32,
+    "median_orders": 3
+   },
+   {
+    "segment": "At risk (were frequent)",
+    "customers": 103,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 33,
+    "median_orders": 4
+   },
+   {
+    "segment": "Occasional",
+    "customers": 104,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 34,
+    "median_orders": 5
+   },
+   {
+    "segment": "Dormant",
+    "customers": 105,
+    "customer_share": 0.1,
+    "revenue_share": 0.1,
+    "repurchase_rate_90d": 0.5,
+    "median_recency_days": 35,
+    "median_orders": 6
+   }
+  ],
+  "models": [
+   {
+    "model": "Baseline: most recent buyer first",
+    "roc_auc": 0.76,
+    "precision_top10pct": 0.78,
+    "lift_top10pct": 1.8,
+    "lapsed_roc_auc": 0.69
+   },
+   {
+    "model": "Logistic regression",
+    "roc_auc": 0.77,
+    "precision_top10pct": 0.78,
+    "lift_top10pct": 1.8,
+    "lapsed_roc_auc": 0.69
+   },
+   {
+    "model": "Gradient boosting",
+    "roc_auc": 0.78,
+    "precision_top10pct": 0.78,
+    "lift_top10pct": 1.8,
+    "lapsed_roc_auc": 0.69
+   }
+  ],
+  "calibration": [
+   {
+    "bin": 0,
+    "predicted": 0.03,
+    "observed": 0.09,
+    "customers": 500
+   },
+   {
+    "bin": 1,
+    "predicted": 0.13,
+    "observed": 0.19,
+    "customers": 500
+   },
+   {
+    "bin": 2,
+    "predicted": 0.23,
+    "observed": 0.29000000000000004,
+    "customers": 500
+   },
+   {
+    "bin": 3,
+    "predicted": 0.32999999999999996,
+    "observed": 0.39,
+    "customers": 500
+   },
+   {
+    "bin": 4,
+    "predicted": 0.43000000000000005,
+    "observed": 0.49,
+    "customers": 500
+   },
+   {
+    "bin": 5,
+    "predicted": 0.53,
+    "observed": 0.59,
+    "customers": 500
+   },
+   {
+    "bin": 6,
+    "predicted": 0.63,
+    "observed": 0.69,
+    "customers": 500
+   },
+   {
+    "bin": 7,
+    "predicted": 0.73,
+    "observed": 0.7899999999999999,
+    "customers": 500
+   },
+   {
+    "bin": 8,
+    "predicted": 0.8300000000000001,
+    "observed": 0.89,
+    "customers": 500
+   },
+   {
+    "bin": 9,
+    "predicted": 0.93,
+    "observed": 0.99,
+    "customers": 500
+   }
+  ],
+  "lapsed_targeting": [
+   {
+    "contact_share": 0.05,
+    "contacted": 167,
+    "returners_model": 116,
+    "returners_random": 48.4,
+    "revenue_next_90d_model_gbp": 96109,
+    "revenue_next_90d_random_gbp": 28769
+   },
+   {
+    "contact_share": 0.1,
+    "contacted": 167,
+    "returners_model": 116,
+    "returners_random": 48.4,
+    "revenue_next_90d_model_gbp": 96109,
+    "revenue_next_90d_random_gbp": 28769
+   },
+   {
+    "contact_share": 0.2,
+    "contacted": 167,
+    "returners_model": 116,
+    "returners_random": 48.4,
+    "revenue_next_90d_model_gbp": 96109,
+    "revenue_next_90d_random_gbp": 28769
+   },
+   {
+    "contact_share": 0.3,
+    "contacted": 167,
+    "returners_model": 116,
+    "returners_random": 48.4,
+    "revenue_next_90d_model_gbp": 96109,
+    "revenue_next_90d_random_gbp": 28769
+   }
+  ],
+  "holdout_sizes": [
+   {
+    "group": "group 1",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   },
+   {
+    "group": "group 2",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   },
+   {
+    "group": "group 3",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   },
+   {
+    "group": "group 4",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   },
+   {
+    "group": "group 5",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   },
+   {
+    "group": "group 6",
+    "baseline_rate": 0.29,
+    "uplift_pp": 2,
+    "customers_per_arm": 8240
+   }
+  ]
+ }
+}

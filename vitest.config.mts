@@ -2,8 +2,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  // JSX in .tsx tests compiles with the automatic runtime whatever tsconfig's jsx setting is.
+  oxc: { jsx: { runtime: 'automatic' } },
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.{ts,tsx}'],
     passWithNoTests: false,
     environment: 'node',
     globals: true,

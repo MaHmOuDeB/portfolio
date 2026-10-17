@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weather-1.schema.json",
+  "title": "weather/1 site export",
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "properties": {
+        "value": {},
+        "unit": {
+          "enum": [
+            "count",
+            "share",
+            "pp",
+            "gbp",
+            "decimal",
+            "kmh",
+            "minutes",
+            "date"
+          ]
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "label": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "suffix": {
+          "const": "+"
+        },
+        "scale": {
+          "enum": [
+            "k",
+            "M"
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "decimals",
+        "label",
+        "from"
+      ],
+      "additionalProperties": false,
+      "propertyNames": {
+        "not": {
+          "pattern": "[Ll][Ee][Aa][Kk]"
+        }
+      },
+      "if": {
+        "properties": {
+          "unit": {
+            "const": "date"
+          }
+        },
+        "required": [
+          "unit"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}Z)?$"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "value": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": "weather/1"
+        },
+        "source": {
+          "const": "weather"
+        },
+        "generator": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "rows": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "sha256",
+              "rows"
+            ],
+            "additionalProperties": false,
+            "propertyNames": {
+              "not": {
+                "pattern": "[Ll][Ee][Aa][Kk]"
+              }
+            }
+          }
+        },
+        "engine": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "not": {
+              "pattern": "[Ll][Ee][Aa][Kk]"
+            }
+          }
+        },
+        "dataset": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "licence": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "url",
+                "licence"
+              ],
+              "additionalProperties": false,
+              "propertyNames": {
+                "not": {
+                  "pattern": "[Ll][Ee][Aa][Kk]"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "enum": [
+            "public-data",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "source",
+        "generator",
+        "inputs",
+        "engine",
+        "dataset",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "propertyNames": {
+        "not": {
+          "pattern": "[Ll][Ee][Aa][Kk]"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "$ref": "#/$defs/meta"
+    },
+    "facts": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+        "not": {
+          "pattern": "[Ll][Ee][Aa][Kk]"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/fact"
+      }
+    },
+    "tables": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "minItems": 18,
+          "maxItems": 18,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn",
+                  "info"
+                ]
+              },
+              "failing_rows": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "name",
+              "severity",
+              "failing_rows"
+            ],
+            "additionalProperties": false,
+            "propertyNames": {
+              "not": {
+                "pattern": "[Ll][Ee][Aa][Kk]"
+              }
+            }
+          }
+        },
+        "table_rows": {
+          "type": "object",
+          "properties": {
+            "stg_weather": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dim_location": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dim_condition": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fact_observation": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "quarantine_observation": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "stg_weather",
+            "dim_location",
+            "dim_condition",
+            "fact_observation",
+            "quarantine_observation"
+          ],
+          "additionalProperties": false,
+          "propertyNames": {
+            "not": {
+              "pattern": "[Ll][Ee][Aa][Kk]"
+            }
+          }
+        },
+        "cv_folds": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "fold": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "f1_rain": {
+                "type": "number"
+              },
+              "roc_auc": {
+                "type": "number"
+              },
+              "avg_precision": {
+                "type": "number"
+              },
+              "accuracy": {
+                "type": "number"
+              },
+              "test_places": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "test_rows": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "model",
+              "fold",
+              "f1_rain",
+              "roc_auc",
+              "avg_precision",
+              "accuracy",
+              "test_places",
+              "test_rows"
+            ],
+            "additionalProperties": false,
+            "propertyNames": {
+              "not": {
+                "pattern": "[Ll][Ee][Aa][Kk]"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "checks",
+        "table_rows",
+        "cv_folds"
+      ],
+      "additionalProperties": false,
+      "propertyNames": {
+        "not": {
+          "pattern": "[Ll][Ee][Aa][Kk]"
+        }
+      }
+    }
+  },
+  "required": [
+    "_meta",
+    "facts",
+    "tables"
+  ],
+  "additionalProperties": false,
+  "propertyNames": {
+    "not": {
+      "pattern": "[Ll][Ee][Aa][Kk]"
+    }
+  }
+}
