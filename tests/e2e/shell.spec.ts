@@ -251,3 +251,42 @@ test('the sticky header never covers an in-page anchor target', async ({ page })
   expect(header).toBe(64);
   expect(top).toBeGreaterThanOrEqual(header);
 });
+
+test.describe('not found page', () => {
+  test('an unknown address returns 404 with the approved copy, shell and actions', async ({ page }) => {
+    const response = await page.goto('/no-such-page');
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+    const main = page.locator('main#main');
+    await expect(main).toContainText(
+      'There is no page at this address. Check the address, or start from one of these pages.',
+    );
+    await expect(main.getByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
+    await expect(main.getByRole('link', { name: 'Lab' })).toHaveAttribute('href', '/lab');
+    await expect(main.getByRole('link', { name: 'Email' })).toHaveAttribute(
+      'href',
+      'mailto:elberguimahmoud11@gmail.com',
+    );
+    await expect(page.getByRole('banner')).toBeVisible();
+    await expect(page.getByRole('contentinfo')).toBeVisible();
+    expect(await page.title()).toBe('Page not found');
+    expect(await page.locator('body').innerText()).not.toMatch(/\b(404|500)\b/);
+    expect(await page.title()).not.toMatch(/\b(404|500)\b/);
+  });
+
+  test('the actions are at least 44 px tall', async ({ page }) => {
+    await page.goto('/no-such-page');
+    const targets = page.locator('main#main [data-touch-target]');
+    expect(await targets.count()).toBe(3);
+    for (const height of await targets.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().height),
+    )) {
+      expect(height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('axe finds no violations', async ({ page }) => {
+    await page.goto('/no-such-page');
+    await expectNoA11yViolations(page);
+  });
+});

@@ -22,8 +22,13 @@ const VARIANT = {
   secondary: 'border border-muted text-ink hover:bg-line focus-visible:bg-line',
 } as const;
 
+/** The class list of a button, for a real `<button>` that must look like a ButtonLink. */
+export function buttonClass(variant: keyof typeof VARIANT): string {
+  return cx(BASE, VARIANT[variant]);
+}
+
 export function ButtonLink({ href, variant, icon, download, external, children }: Props) {
-  const className = cx(BASE, VARIANT[variant]);
+  const className = buttonClass(variant);
   const content = (
     <>
       {icon ? <Icon name={icon} /> : null}
