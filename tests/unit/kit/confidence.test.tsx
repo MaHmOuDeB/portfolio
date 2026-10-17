@@ -229,9 +229,13 @@ describe('NowRow', () => {
   });
 
   it('never prints a count above the target: both groups at 50 with no look yet', () => {
-    const root = parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z' }} />));
-    expect(squash(text(root))).toBe('50 views per group are in; the first estimate appears at the next look.');
-    expect(byTag(root, 'progress')).toHaveLength(0);
+    const row = (due?: boolean) =>
+      parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z', due }} />));
+    // A running test: the first estimate is due.
+    expect(squash(text(row(true)))).toBe('50 views per group are in; the first estimate appears at the next look.');
+    // Otherwise (before data, which never has these counts) no promise of a look and no count.
+    expect(squash(text(row()))).toBe('Estimates appear at 50 views per group, as the pre-registration says.');
+    for (const root of [row(true), row()]) expect(byTag(root, 'progress')).toHaveLength(0);
   });
 });
 
@@ -290,9 +294,56 @@ describe('LiveStateBody', () => {
   it('ship-b or stop-for-harm without 50 views per group (the rules never produce it) claims no verdict', () => {
     for (const phase of ['ship-b', 'stop-for-harm'] as const) {
       const root = body(phase, 'low-data');
-      expect(squash(text(root))).not.toMatch(/Ship B|B did worse|above zero|below zero/);
+      expect(paragraphs(root)).toEqual(['The interval for this look is not available.']);
       expect(frames(root)).toHaveLength(0);
     }
+  });
+
+  describe('a decided state never reads as running and is never empty', () => {
+    const DECIDED = ['inconclusive', 'ship-b', 'stop-for-harm'] as const;
+    const NAN = { n: Number.NaN, lower: Number.NaN, upper: Number.NaN, estimate: Number.NaN };
+    const seriesKinds = { valid: undefined, empty: [], 'all-NaN': [NAN, { ...NAN, n: 100 }, { ...NAN, n: 176, lower: 1 }] };
+    const counts = { below: [12, 14], at: [50, 50], above: [180, 176] } as const;
+    const NEXT = "What I'll do now: keep page A and test a bolder change.";
+    const running = /next look|Progress:|Planned end|Estimates appear|A\/B started|Calibrating/;
+    for (const phase of DECIDED) {
+      for (const [kind, series] of Object.entries(seriesKinds)) {
+        for (const [amount, [nA, nB]] of Object.entries(counts)) {
+          for (const fresh of ['fresh', 'paused'] as const) {
+            it(`${phase}, ${kind} series, counts ${amount} 50, ${fresh}`, () => {
+              const base = liveFixture(phase, 'enough-data', fresh);
+              const s: LiveSnapshot = { ...base, nA, nB, series: series ?? base.series };
+              const root = stateBody(s);
+              const all = squash(text(root));
+              const p = paragraphs(root).filter((t) => !t.startsWith('Paused on') && !t.startsWith('now:') && !t.startsWith('Leaving'));
+              expect(p.length, all).toBeGreaterThan(0);
+              expect(all).not.toMatch(running);
+              const interval = kind === 'valid' && amount !== 'below';
+              if (interval) {
+                expect(frames(root)).toHaveLength(2);
+                expect(p[0]).toMatch(/^(Ship B\.|Stopped: B did worse\.|Inconclusive at the six-month limit: the difference runs from)/);
+              } else {
+                expect(frames(root)).toHaveLength(0);
+                // No Now row of any kind: no interval, and no collecting or due row.
+                expect(withAttr(root, 'data-now-row')).toHaveLength(0);
+                const expected =
+                  phase !== 'inconclusive'
+                    ? 'The interval for this look is not available.'
+                    : amount === 'below'
+                      ? `Inconclusive at the six-month limit: fewer than 50 views per group arrived, so no interval is shown. ${NEXT}`
+                      : `Inconclusive at the six-month limit. ${NEXT}`;
+                expect(p).toEqual([expected]);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    it('inconclusive without a next step ends at its first sentence', () => {
+      const s = { ...liveFixture('inconclusive', 'enough-data', 'fresh'), series: [], nextStep: undefined };
+      expect(paragraphs(stateBody(s))).toEqual(['Inconclusive at the six-month limit.']);
+    });
   });
 
   it('both groups at 50 or more with no look yet: the first estimate is due, never "180 of 50"', () => {

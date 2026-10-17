@@ -5,6 +5,7 @@ import {
   confidenceTable,
   confidenceYDomain,
   contentBody,
+  ceilAt,
   csPointFromInterval,
   formatIntervalPoints,
   intervalDigits,
@@ -235,6 +236,29 @@ describe('intervalDigits and formatIntervalPoints', () => {
         if (lower !== 0) expect(lo).not.toBe('0');
         if (upper !== 0) expect(hi).not.toBe('0');
         expect(`${lo} ${hi}`).not.toMatch(/[−+]0(\.0+)?(?!\.?\d)/);
+      }),
+    );
+  });
+});
+
+describe('ceilAt', () => {
+  it('rounds up at the given decimals without float artefacts', () => {
+    expect(ceilAt(0.07, 2)).toBe(0.07);
+    expect(ceilAt(0.1, 1)).toBe(0.1);
+    expect(ceilAt(0.29, 2)).toBe(0.29);
+    expect(ceilAt(22, 0)).toBe(22);
+    expect(ceilAt(22.4, 0)).toBe(23);
+    expect(ceilAt(0.071, 2)).toBe(0.08);
+  });
+
+  it('never rounds down and never by a whole unit or more (property)', () => {
+    // The snap before the ceiling forgives a gap under 1e-9 of a unit (a float artefact), so the
+    // lower bound is v less that tolerance.
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 100, noNaN: true }), fc.integer({ min: 0, max: 3 }), (v, d) => {
+        const r = ceilAt(v, d);
+        expect(r).toBeGreaterThanOrEqual(v - 1e-9 / 10 ** d);
+        expect(r).toBeLessThan(v + 10 ** -d);
       }),
     );
   });

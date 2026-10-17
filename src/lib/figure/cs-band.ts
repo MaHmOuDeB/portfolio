@@ -167,6 +167,16 @@ export function contentBody(s: LiveSnapshot): FigureBody {
   return resolveFigureBody({ live: { ...live!, freshness: { kind: 'fresh' } } });
 }
 
+/**
+ * `v` rounded up at `digits` decimals: a ruled-out size rounded down would claim more than the
+ * interval does. The product is snapped to nine decimals first, so a float artefact
+ * (0.07 × 100 = 7.000000000000001) does not round 0.07 up to 0.08.
+ */
+export function ceilAt(v: number, digits: number): number {
+  const k = 10 ** digits;
+  return Math.ceil(Number((v * k).toFixed(9))) / k;
+}
+
 /** Decimals an interval may grow to before a bound below the display floor prints "0". */
 const MAX_INTERVAL_DIGITS = 3;
 

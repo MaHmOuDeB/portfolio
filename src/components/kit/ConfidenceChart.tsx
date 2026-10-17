@@ -8,7 +8,8 @@
 // - the current estimate as a series-2 dot with a 2 px bg ring;
 // - "your view" as a muted x-axis tick (its one-time fade belongs to the scroll moment).
 // In the collecting states it draws no chart, only the collecting Now row. When the split check
-// failed or the calibration stopped it draws nothing, so a hidden verdict never leaks.
+// failed or the calibration stopped it draws nothing, so a hidden verdict never leaks; nor does a
+// decided test without an interval, which must not read as still collecting.
 import { area, line } from 'd3-shape';
 import { contentBody, confidenceModel, smallerGroup, type ConfidenceModel, type CsPoint, type LiveSnapshot } from '@/lib/figure/cs-band';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
@@ -175,10 +176,18 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
   const shown = shows(snapshot, body);
   if (shown === 'nothing') return null;
   const m = shown === 'chart' || shown === 'running' ? confidenceModel(snapshot) : null;
+  // A decided test without an interval draws nothing: a collecting row would read as running.
+  if (m === null && shown === 'chart') return null;
   if (m === null) {
+    // Only a running phase (calibration or A/B, paused or not) is promised its next look.
+    const due = snapshot.phase === 'calibration' || snapshot.phase === 'ab';
     return (
       <div data-confidence-chart={id}>
-        <NowRow domain={[-1, 1]} collecting={{ nSmaller: smallerGroup(snapshot), plannedEnd: snapshot.plannedEnd }} refs={refs} />
+        <NowRow
+          domain={[-1, 1]}
+          collecting={{ nSmaller: smallerGroup(snapshot), plannedEnd: snapshot.plannedEnd, due }}
+          refs={refs}
+        />
       </div>
     );
   }

@@ -7,8 +7,9 @@
 // - calibration and ab: the chart and the Now row, with "SRM passed" in ok; ab adds the guardrail.
 // - ship-b, stop-for-harm, inconclusive: the sentence, the chart and the Now row. A sentence that
 //   says a bound is above or below zero never prints that bound as "0". Without an interval to
-//   show, inconclusive says fewer than 50 views per group arrived; ship-b and stop-for-harm (which
-//   the rules never reach without one) claim no verdict, and the row keeps collecting.
+//   show, an ended test never reads as running (no collecting row, no planned end): inconclusive
+//   says it ended (and, under 50 views per group, why no interval shows); ship-b and stop-for-harm
+//   (which the rules never reach without one) say the interval is not available.
 // - srm-suppressed: "SRM failed" in warn, the sentence and the counts, never an interval.
 // - aa-failed: its sentence.
 // - paused: "Paused on dd.mm: reason." above whatever the frozen data calls for (the last chart, the
@@ -16,6 +17,7 @@
 // The error runtime and the static default never reach a live body; they draw what the data calls for.
 import type { ReactNode } from 'react';
 import {
+  ceilAt,
   contentBody,
   confidenceModel,
   formatIntervalPoints,
@@ -61,11 +63,6 @@ function Interval({ lower, upper, refs, signed }: { lower: number; upper: number
   return <Num refs={refs}>{formatIntervalPoints(lower, upper, { awayFromZero: signed })}</Num>;
 }
 
-/** Rounded up at `digits`: a ruled-out size rounded down would claim more than the interval does. */
-function ceilAt(v: number, digits: number): number {
-  const k = 10 ** digits;
-  return Math.ceil(v * k) / k;
-}
 
 const finite = (...vs: number[]) => vs.every(Number.isFinite);
 const clamp = (v: number) => Math.min(MAX_POINTS, Math.max(-MAX_POINTS, v));
@@ -93,10 +90,18 @@ function NextStep({ snapshot }: { snapshot: LiveSnapshot }) {
 function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 'inconclusive'; snapshot: LiveSnapshot; refs: readonly DerivedRef[] }) {
   const m = confidenceModel(snapshot);
   if (m === null) {
-    // No interval may be shown. Only inconclusive can end that way (the cap came first); ship-b and
-    // stop-for-harm need an interval, so without one no verdict is claimed. With 50 views per group
-    // in but no look yet, the chart's row says the first estimate is due.
-    if (body !== 'inconclusive' || smallerGroup(snapshot) >= MIN_PER_GROUP) return null;
+    // No interval may be shown, and the test has ended: no collecting row, no planned end, no
+    // promise of a next look. Inconclusive can end this way (the cap came first, or its looks are
+    // missing); ship-b and stop-for-harm need an interval, so without one no verdict is claimed.
+    if (body !== 'inconclusive') return <p className={P}>The interval for this look is not available.</p>;
+    if (smallerGroup(snapshot) >= MIN_PER_GROUP) {
+      return (
+        <p className={P}>
+          Inconclusive at the six-month limit.
+          <NextStep snapshot={snapshot} />
+        </p>
+      );
+    }
     return (
       <p className={P}>
         Inconclusive at the six-month limit: fewer than <Derived value={MIN_PER_GROUP} unit="count" refs={refs} /> views

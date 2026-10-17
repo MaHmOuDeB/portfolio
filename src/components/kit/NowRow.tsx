@@ -2,8 +2,9 @@
 // difference axis (B − A, the chart's y-domain laid flat) with a zero tick, labelled with the
 // current interval. While the test is collecting there is no interval: the row draws the hollow
 // grey glyph, says when the estimates appear and shows the progress line, in place of empty axes.
-// Once both groups have 50 views but no look has been computed, it says the first estimate is due
-// instead, so it never prints a count above its target ("180 of 50").
+// It never prints a count above its target ("180 of 50"): once both groups have 50 views and no
+// look has been computed, a running test (`due`) says the first estimate is due; otherwise only the
+// rule is stated.
 // Server-safe; the axis is an SVG with no viewBox, positioned by percentages, so it fits any width.
 import { glyphGeometry } from '@/lib/figure/glyph';
 import { formatIntervalPoints } from '@/lib/figure/cs-band';
@@ -18,8 +19,8 @@ type Props = {
   domain: [number, number];
   /** The current interval; the dot sits at `estimate`, or mid-interval without one. */
   interval?: { lower: number; upper: number; estimate?: number };
-  /** Draws the collecting form instead. */
-  collecting?: { nSmaller: number; plannedEnd: string };
+  /** Draws the collecting form instead. `due`: the test is running, so a next look will come. */
+  collecting?: { nSmaller: number; plannedEnd: string; due?: boolean };
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
   refs?: readonly DerivedRef[];
 };
@@ -37,8 +38,27 @@ function anchorFor(frac: number): 'start' | 'middle' | 'end' {
   return frac < 0.05 ? 'start' : frac > 0.95 ? 'end' : 'middle';
 }
 
-function Collecting({ nSmaller, plannedEnd, refs }: { nSmaller: number; plannedEnd: string; refs: readonly DerivedRef[] }) {
+function Collecting({
+  nSmaller,
+  plannedEnd,
+  due,
+  refs,
+}: {
+  nSmaller: number;
+  plannedEnd: string;
+  due?: boolean;
+  refs: readonly DerivedRef[];
+}) {
   const target = <Derived value={MIN_PER_GROUP} unit="count" refs={refs} />;
+  const rule = <p className="mt-2 text-sm">Estimates appear at {target} views per group, as the pre-registration says.</p>;
+  if (nSmaller >= MIN_PER_GROUP && !due) {
+    return (
+      <div data-now-row="collecting" className="mt-4">
+        <IntervalGlyph size="large" variant="hollow" estimateAt={0.5} />
+        {rule}
+      </div>
+    );
+  }
   if (nSmaller >= MIN_PER_GROUP) {
     return (
       <div data-now-row="due" className="mt-4">
@@ -50,7 +70,7 @@ function Collecting({ nSmaller, plannedEnd, refs }: { nSmaller: number; plannedE
   return (
     <div data-now-row="collecting" className="mt-4">
       <IntervalGlyph size="large" variant="hollow" estimateAt={0.5} />
-      <p className="mt-2 text-sm">Estimates appear at {target} views per group, as the pre-registration says.</p>
+      {rule}
       <div className="mt-2">
         <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} refs={refs} />
       </div>
