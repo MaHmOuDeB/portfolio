@@ -39,11 +39,11 @@ describe('Derived', () => {
       createElement(Derived, {
         value: 0.34,
         unit: 'share',
-        refs: ['profile.audible.teams', 'simulated'],
+        refs: ['profile.n8n.automated_tests', 'simulated'],
         decimals: 0,
       }),
     );
-    expect(html).toBe('<data value="0.34" data-derived="profile.audible.teams simulated">34%</data>');
+    expect(html).toBe('<data value="0.34" data-derived="profile.n8n.automated_tests simulated">34%</data>');
   });
 
   it('passes suffix and scale through to the formatter', () => {

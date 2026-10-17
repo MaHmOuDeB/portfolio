@@ -1,6 +1,8 @@
 // A figure computed from facts, a simulation, live data or the build. It names where it came from
 // in data-derived so the truth audit can check the refs. Server-safe, no hooks.
-import { formatValue, type FactId } from '@/lib/facts';
+// The formatter comes from its own module so client bundles do not pull in the FACTS map.
+import { formatValue } from '@/lib/facts/format';
+import type { FactId } from '@/lib/facts';
 import type { SourceId, Unit } from '@/lib/facts/types';
 
 export type DerivedRef = FactId | `source:${SourceId}` | 'simulated' | 'live' | 'build';

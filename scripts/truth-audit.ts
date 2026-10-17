@@ -16,7 +16,7 @@ import { SOURCE_IDS } from '../src/lib/facts/types.ts';
 import { ALLOW } from './truth-audit.allow.ts';
 
 export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase';
-export type Finding = { route: string; kind: FindingKind; detail: string }; // detail never contains a deny-list term
+export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
 export type AuditContext = {
   route: string;
   factIds: ReadonlySet<string>;
@@ -83,7 +83,7 @@ function metaLabel(attrs: ReadonlyMap<string, string>): string | undefined {
 export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   const findings: Finding[] = [];
   const add = (kind: FindingKind, detail: string) =>
-    findings.push({ route: ctx.route, kind, detail: redact(detail, ctx.denylist) });
+    findings.push({ route: redact(ctx.route, ctx.denylist), kind, detail: redact(detail, ctx.denylist) });
   const denyHits = new Set<number>();
   const denylist = ctx.denylist.map(normalize);
   const checkDenylist = (text: string) => {
@@ -197,7 +197,7 @@ function main(): number {
   const findings = pages.flatMap((p) =>
     auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: FACT_DISPLAYS, denylist }),
   );
-  for (const f of findings) console.log(`${f.route} ${f.kind} ${f.detail}`);
+  for (const f of findings) console.log(`${redact(f.route, denylist)} ${f.kind} ${redact(f.detail, denylist)}`);
   if (findings.length > 0) return 1;
   console.log(`truth audit: ${pages.length} pages, 0 findings`);
   return 0;

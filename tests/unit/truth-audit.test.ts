@@ -136,6 +136,12 @@ describe('auditHtml', () => {
     });
   });
 
+  it('redacts a deny-list term from the route', () => {
+    const findings = auditHtml(fixture('stray'), ctx({ route: '/secretword-notes', denylist: ['Secretword'] }));
+    expect(findings).toEqual([stray('"1,353" in text', '/[deny-list term #1]-notes')]);
+    expect(JSON.stringify(findings).toLowerCase()).not.toContain('secretword');
+  });
+
   it('flags the banned phrases in any case', () => {
     const html = page('<p>An AI-powered, Passionate rockstar.</p>');
     expect(auditHtml(html, ctx())).toEqual([
@@ -226,6 +232,14 @@ describe('truth-audit CLI', () => {
       '/notes denylisted deny-list term #1',
       '/work/retention stray-number "1,353" in text',
     ]);
+    expect((r.stdout + r.stderr).toLowerCase()).not.toContain('secretword');
+  });
+
+  it('never prints a deny-list term that is part of a page file name', () => {
+    build({ 'secretword-notes.html': 'stray' });
+    const r = run({ TRUTH_DENYLIST: 'Secretword' });
+    expect(r.status).toBe(1);
+    expect(r.stdout.trim().split('\n')).toEqual(['/[deny-list term #1]-notes stray-number "1,353" in text']);
     expect((r.stdout + r.stderr).toLowerCase()).not.toContain('secretword');
   });
 
