@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Footer } from "@/components/shell/Footer";
+import { SiteHeader } from "@/components/shell/SiteHeader";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { inter } from "./fonts";
 import "./globals.css";
@@ -18,11 +20,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
       </head>
-      <body className="bg-bg font-sans text-base text-ink">
+      <body className="flex min-h-svh flex-col bg-bg font-sans text-base text-ink">
         <SkipLink />
-        <main id="main" tabIndex={-1}>
+        <SiteHeader />
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-page flex-1 px-4 md:px-8">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );

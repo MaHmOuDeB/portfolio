@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
-import { test } from './fixtures';
+import type { Page } from '@playwright/test';
+import { expectNoA11yViolations, test } from './fixtures';
 
 test('skip link is the first tab stop and moves focus to main', async ({ page, browserName }) => {
   await page.goto('/');
@@ -92,4 +93,130 @@ test('a dragged figure turns off mark transitions even when a duration utility i
   await expect(mark).toHaveCSS('transition-duration', '0.24s');
   await page.evaluate(() => document.getElementById('figure')?.setAttribute('data-dragging', ''));
   await expect(mark).toHaveCSS('transition-duration', '0s');
+});
+
+const PHONE = /\+\d{2}[\d\s]{8,}|\b0\d{3}\s?\d{3,}/;
+const LABELS = ['Work', 'Lab', 'Live test', 'About'];
+
+function isPhone(page: Page): boolean {
+  return (page.viewportSize()?.width ?? 0) < 768;
+}
+
+test.describe('site header', () => {
+  test('desktop: wordmark, full navigation in order, CV (PDF), no Menu', async ({ page }) => {
+    test.skip(isPhone(page), 'desktop layout');
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toHaveAttribute('href', '/');
+    const nav = header.getByRole('navigation', { name: 'Main' });
+    await expect(nav.getByRole('link')).toHaveText(LABELS);
+    const cv = header.getByRole('link', { name: 'CV (PDF)' });
+    await expect(cv).toHaveAttribute('href', '/cv.pdf');
+    await expect(cv).toHaveAttribute('download', '');
+    await expect(header.locator('summary')).toBeHidden();
+  });
+
+  test('phone: full navigation is hidden, wordmark, CV (PDF) and Menu are shown', async ({ page }) => {
+    test.skip(!isPhone(page), 'phone layout');
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
+    await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'CV (PDF)' })).toBeVisible();
+    await expect(header.locator('summary')).toHaveText('Menu');
+  });
+
+  test('phone: Menu lists the same four labels and Escape closes it', async ({ page }) => {
+    test.skip(!isPhone(page), 'phone layout');
+    await page.goto('/');
+    const summary = page.getByRole('banner').locator('summary');
+    const list = page.getByRole('navigation', { name: 'Menu' });
+    await expect(list).toBeHidden();
+    await summary.click();
+    await expect(list.getByRole('link')).toHaveText(LABELS);
+    await page.keyboard.press('Escape');
+    await expect(list).toBeHidden();
+    await expect(summary).toBeFocused();
+  });
+
+  test('phone: Menu opens without JavaScript', async ({ browser, baseURL, page: runner }) => {
+    test.skip(!isPhone(runner), 'phone layout');
+    const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 375, height: 812 } });
+    const page = await context.newPage();
+    await page.goto('/');
+    await page.getByRole('banner').locator('summary').click();
+    await expect(page.getByRole('navigation', { name: 'Menu' }).getByRole('link')).toHaveText(LABELS);
+    await context.close();
+  });
+
+  test('sticky from md up, never under md', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const filler = document.createElement('div');
+      filler.style.height = '3000px';
+      document.getElementById('main')?.append(filler);
+    });
+    await page.mouse.wheel(0, 1000);
+    await page.waitForFunction(() => window.scrollY >= 900);
+    const top = await page.getByRole('banner').evaluate((el) => el.getBoundingClientRect().top);
+    if (isPhone(page)) expect(top).toBeLessThan(-100);
+    else expect(top).toBe(0);
+  });
+
+  test('interactive header controls are at least 44 px tall', async ({ page }) => {
+    await page.goto('/');
+    const targets = page.getByRole('banner').locator('[data-touch-target]:visible');
+    expect(await targets.count()).toBeGreaterThan(0);
+    for (const box of await targets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) {
+      expect(box).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('marks the current page and nothing else', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('[aria-current="page"]')).toHaveCount(0);
+  });
+});
+
+test.describe('footer', () => {
+  test('contact and privacy links, with visible labels and no address text', async ({ page }) => {
+    await page.goto('/');
+    const footer = page.getByRole('contentinfo');
+    await expect(footer.getByRole('link', { name: 'Email' })).toHaveAttribute(
+      'href',
+      'mailto:elberguimahmoud11@gmail.com',
+    );
+    await expect(footer.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/melbergui',
+    );
+    await expect(footer.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/MaHmOuDeB',
+    );
+    await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(await footer.innerText()).not.toContain('@');
+    for (const height of await footer
+      .locator('[data-touch-target]')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) {
+      expect(height).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+test('the page text carries no phone number', async ({ page }) => {
+  await page.goto('/');
+  expect(await page.locator('body').innerText()).not.toMatch(PHONE);
+});
+
+test('axe finds no violations with the shell in place', async ({ page }) => {
+  await page.goto('/');
+  await expectNoA11yViolations(page);
+});
+
+test('axe finds no violations with the phone Menu open', async ({ page }) => {
+  test.skip(!isPhone(page), 'phone layout');
+  await page.goto('/');
+  await page.getByRole('banner').locator('summary').click();
+  await expectNoA11yViolations(page);
 });
