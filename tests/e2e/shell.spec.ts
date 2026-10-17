@@ -220,3 +220,34 @@ test('axe finds no violations with the phone Menu open', async ({ page }) => {
   await page.getByRole('banner').locator('summary').click();
   await expectNoA11yViolations(page);
 });
+
+test('the sticky header never covers an in-page anchor target', async ({ page }) => {
+  test.skip(isPhone(page), 'the header is sticky from md up only');
+  await page.goto('/');
+  await page.evaluate(() => {
+    const main = document.getElementById('main');
+    const target = document.createElement('a');
+    target.id = 'target';
+    target.href = '#target';
+    target.textContent = 'Focus target';
+    const filler = document.createElement('div');
+    filler.style.height = '3000px';
+    main?.prepend(target);
+    main?.append(filler);
+  });
+  await page.mouse.wheel(0, 1500);
+  await page.waitForFunction(() => window.scrollY >= 1000);
+  // Following an in-page link scrolls the target to the top edge of the viewport.
+  await page.evaluate(() => {
+    window.location.hash = 'target';
+  });
+  await page.waitForFunction(() => window.scrollY < 1000);
+  const { top, header } = await page.evaluate(() => ({
+    top: document.getElementById('target')?.getBoundingClientRect().top ?? -1,
+    header: Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--header-h'),
+    ) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+  }));
+  expect(header).toBe(64);
+  expect(top).toBeGreaterThanOrEqual(header);
+});

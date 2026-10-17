@@ -12,6 +12,18 @@
     background: var(--color-bg);
     color: var(--color-ink);
   }
+
+  /*
+   * From md up the header is sticky, so a focused element or an in-page anchor must not land
+   * behind it (WCAG 2.2 SC 2.4.11). Under md the header scrolls away and needs no offset. The
+   * media query repeats --breakpoint-md (48rem) because custom properties do not work in queries.
+   * In base, not unlayered: a utility or a page may still set its own scroll-padding.
+   */
+  @media (width >= 48rem) {
+    html {
+      scroll-padding-top: var(--header-h);
+    }
+  }
 }
 
 /*
