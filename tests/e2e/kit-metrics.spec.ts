@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { test } from './fixtures';
+import { test, waitForIslands } from './fixtures';
 
 // Kit-wide checks on real rendered values (computed font sizes, laid-out boxes, scroll width), not
 // on class names. Tagged @matrix: they run in every chromium project of the responsive matrix.
@@ -13,7 +13,13 @@ const REFLOW_PAGES = ['/', '/no-such-page', '/kitchen-sink', '/kitchen-sink/live
 // /kitchen-sink/live holds 144 Figures (about 2.7 MB of HTML): loading and scanning it is slow.
 const SLOW_PAGE_TIMEOUT = 90_000;
 
-type ChartTextReport = { checked: number; small: string[]; smallNotes: string[]; underViewBox: string[] };
+/** `counts` are the visible elements each family matched: a family that must exist is asserted > 0. */
+type ChartTextReport = {
+  counts: { frameTexts: number; nowRowTexts: number; annotations: number; figureSvgs: number };
+  small: string[];
+  smallNotes: string[];
+  underViewBox: string[];
+};
 
 /** Every visible `text` in a chart frame or Now row, measured from computed style. */
 function measureChartText(page: Page): Promise<ChartTextReport> {
@@ -29,16 +35,26 @@ function measureChartText(page: Page): Promise<ChartTextReport> {
     };
     const size = (el: Element) => parseFloat(getComputedStyle(el).fontSize);
 
-    const report: ChartTextReport = { checked: 0, small: [], smallNotes: [], underViewBox: [] };
+    const report: ChartTextReport = {
+      counts: { frameTexts: 0, nowRowTexts: 0, annotations: 0, figureSvgs: 0 },
+      small: [],
+      smallNotes: [],
+      underViewBox: [],
+    };
     for (const el of document.querySelectorAll('svg[data-chart-frame] text, [data-now-row] text')) {
       if (!visible(el)) continue;
-      report.checked += 1;
+      if (el.closest('[data-now-row]')) report.counts.nowRowTexts += 1;
+      else report.counts.frameTexts += 1;
       const px = size(el);
       if (el.hasAttribute('data-annotation')) {
+        report.counts.annotations += 1;
         if (px < 14) report.smallNotes.push(`${label(el)} is ${px}px`);
       } else if (px < 12) {
         report.small.push(`${label(el)} is ${px}px`);
       }
+    }
+    for (const svg of document.querySelectorAll('[data-figure] svg')) {
+      if (visible(svg)) report.counts.figureSvgs += 1;
     }
     for (const el of document.querySelectorAll('[data-figure] svg[viewBox] text')) {
       if (visible(el)) report.underViewBox.push(label(el));
@@ -51,16 +67,30 @@ for (const path of SINK_PAGES) {
   test(`@matrix chart text is at least 12 px and annotations 14 px on ${path}`, async ({ page }) => {
     test.setTimeout(SLOW_PAGE_TIMEOUT);
     await page.goto(path);
+    await waitForIslands(page);
     const report = await measureChartText(page);
-    // A vacuous pass would hide a renamed attribute.
-    expect(report.checked, 'visible chart texts found').toBeGreaterThan(0);
+    // Each family must exist on both sink pages: a renamed attribute or a chart that stopped
+    // rendering would otherwise pass every `toEqual([])` below with nothing measured.
+    expect(report.counts.frameTexts, 'visible text in svg[data-chart-frame]').toBeGreaterThan(0);
+    expect(report.counts.figureSvgs, 'visible svg inside [data-figure]').toBeGreaterThan(0);
+    // The only annotated chart is the demo Figure on /kitchen-sink; the Now row (with its "0" tick)
+    // is drawn by the live states on /kitchen-sink/live.
+    if (path === '/kitchen-sink') {
+      expect(report.counts.annotations, 'visible [data-annotation]').toBeGreaterThan(0);
+    } else {
+      expect(report.counts.nowRowTexts, 'visible text in [data-now-row]').toBeGreaterThan(0);
+    }
     expect(report.small, 'chart text under 12px').toEqual([]);
     expect(report.smallNotes, 'annotation under 14px').toEqual([]);
     expect(report.underViewBox, 'text inside an svg with a viewBox').toEqual([]);
   });
 }
 
-type TargetReport = { checked: number; tooSmall: string[]; unwrapped: string[] };
+type TargetReport = {
+  counts: { targets: number; buttons: number; summaries: number; ranges: number };
+  tooSmall: string[];
+  unwrapped: string[];
+};
 
 /** Every visible touch target is 44 px; every button, summary and slider is, or sits in, one. */
 function measureTargets(page: Page): Promise<TargetReport> {
@@ -78,10 +108,14 @@ function measureTargets(page: Page): Promise<TargetReport> {
       return `${owner ? `${owner}: ` : ''}<${el.tagName.toLowerCase()}> "${name}"`;
     };
 
-    const report: TargetReport = { checked: 0, tooSmall: [], unwrapped: [] };
+    const report: TargetReport = {
+      counts: { targets: 0, buttons: 0, summaries: 0, ranges: 0 },
+      tooSmall: [],
+      unwrapped: [],
+    };
     for (const el of document.querySelectorAll('[data-touch-target]')) {
       if (!visible(el)) continue;
-      report.checked += 1;
+      report.counts.targets += 1;
       const box = el.getBoundingClientRect();
       const square = el.getAttribute('data-touch-target') === 'square';
       if (box.height < MIN || (square && box.width < MIN)) {
@@ -90,17 +124,30 @@ function measureTargets(page: Page): Promise<TargetReport> {
     }
     for (const el of document.querySelectorAll('button, summary, input[type="range"]')) {
       if (!visible(el)) continue;
+      if (el instanceof HTMLButtonElement) report.counts.buttons += 1;
+      else if (el instanceof HTMLInputElement) report.counts.ranges += 1;
+      else report.counts.summaries += 1;
       if (!el.closest('[data-touch-target]')) report.unwrapped.push(label(el));
     }
     return report;
   });
 }
 
+// What each page must show, so a family that vanished cannot pass with nothing measured. The
+// header's Menu summary exists under md only; the sink has every control family at every width.
+const CONTROLS_ON_SINK = ['buttons', 'summaries', 'ranges'] as const;
+
 for (const path of TARGET_PAGES) {
   test(`@matrix touch targets are at least 44 px on ${path}`, async ({ page }) => {
     await page.goto(path);
+    await waitForIslands(page);
     const report = await measureTargets(page);
-    expect(report.checked, 'visible touch targets found').toBeGreaterThan(0);
+    expect(report.counts.targets, 'visible [data-touch-target]').toBeGreaterThan(0);
+    if (path === '/kitchen-sink') {
+      for (const family of CONTROLS_ON_SINK) expect(report.counts[family], `visible ${family}`).toBeGreaterThan(0);
+    } else if ((page.viewportSize()?.width ?? 0) < 768) {
+      expect(report.counts.summaries, 'visible summary (the header Menu)').toBeGreaterThan(0);
+    }
     expect(report.tooSmall, 'targets under 44px').toEqual([]);
     expect(report.unwrapped, 'controls outside a [data-touch-target]').toEqual([]);
   });

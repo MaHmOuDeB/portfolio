@@ -27,3 +27,15 @@ export async function expectNoA11yViolations(page: Page): Promise<void> {
     `axe violations: ${violations.map((violation) => violation.id).join(', ')}`,
   ).toEqual([]);
 }
+
+/**
+ * Waits until every Figure island has left `data-island="idle"`. An island swaps its preview for
+ * the interactive content when the page is idle (2 s at the latest), so a measurement or a shot
+ * taken earlier sees the preview or the island depending on timing. The terminal values are
+ * "ready" (swapped in) and "failed" (the preview came back in its no-JS form); a Figure that
+ * fails on purpose in the sink ends in one of them too, so nothing waits forever. A page with no
+ * island has nothing to wait for.
+ */
+export async function waitForIslands(page: Page): Promise<void> {
+  await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
+}

@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { test } from './fixtures';
+import { test, waitForIslands } from './fixtures';
 
 // Visual baselines. The PNGs live in tests/e2e/__screenshots__/{project}/ and are generated only in
 // the CI container (mcr.microsoft.com/playwright), never on a Mac: font rasterisation differs. A PR
@@ -12,9 +12,13 @@ const SKIP_LOCALLY = 'baselines exist only for the CI container';
 const LIVE_PROJECTS = ['desktop-chromium', 'mobile-chromium'];
 const SLOW_PAGE_TIMEOUT = 240_000;
 
-/** Fonts and layout settled, so a shot never catches a fallback face. */
+/**
+ * Fonts loaded and every island swapped in (or failed), so a shot never catches a fallback face or
+ * a Figure between its server preview and its interactive form.
+ */
 async function settled(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
+  await waitForIslands(page);
 }
 
 async function specimenIds(page: Page): Promise<string[]> {

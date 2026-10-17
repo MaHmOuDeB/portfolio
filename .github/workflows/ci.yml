@@ -97,6 +97,8 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       # The `update-baselines` label on the PR regenerates every visual baseline in this container.
+      # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
+      # diffs are: remove the label (and commit the reviewed baselines) before merging.
       UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
