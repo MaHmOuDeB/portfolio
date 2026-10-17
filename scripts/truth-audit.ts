@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { FACTS, FACT_DISPLAYS } from '../src/lib/facts/facts.generated.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
-import { ALLOW } from './truth-audit.allow.ts';
+import { ALLOW, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
 export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase';
 export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
@@ -105,6 +105,7 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
       const end = start + token.length;
       if (cover === 'display' && contains(displaySpans(text, ctx.factDisplays), start, end)) continue;
       if (contains(allowSpans(text, ctx.route), start, end)) continue;
+      if (FRAMEWORK_ROUTES.includes(ctx.route)) continue;
       add('stray-number', `"${token}" in ${where}`);
     }
   };

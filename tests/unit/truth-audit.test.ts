@@ -160,6 +160,35 @@ describe('auditHtml', () => {
   });
 });
 
+describe('framework routes', () => {
+  const global = { route: '/_global-error' };
+  const html = page('<p>Ran 500 tests</p>', '<title>500: This page couldn’t load</title>');
+
+  it('skips stray-number findings on /_global-error', () => {
+    expect(auditHtml(html, ctx(global))).toEqual([]);
+  });
+
+  it.each(['/_not-found', '/about'])('still flags the same stray numbers on %s', (route) => {
+    expect(auditHtml(html, ctx({ route }))).toEqual([
+      stray('"500" in <title>', route),
+      stray('"500" in text', route),
+    ]);
+  });
+
+  it('still reports a deny-list term on /_global-error, by index only', () => {
+    const findings = auditHtml(page('<p>Secretword 500</p>'), ctx({ ...global, denylist: ['other', 'Secretword'] }));
+    expect(findings).toEqual([{ route: '/_global-error', kind: 'denylisted', detail: 'deny-list term #2' }]);
+  });
+
+  it('still validates data-derived on /_global-error', () => {
+    const findings = auditHtml(page('<p data-derived>1</p><p data-derived="nope">2</p>'), ctx(global));
+    expect(findings).toEqual([
+      { route: '/_global-error', kind: 'bad-derived', detail: 'data-derived is empty' },
+      { route: '/_global-error', kind: 'bad-derived', detail: 'data-derived "nope"' },
+    ]);
+  });
+});
+
 describe('routeOf', () => {
   it('maps built html files to routes', () => {
     expect(routeOf('.next/server/app/work/retention.html')).toBe('/work/retention');
