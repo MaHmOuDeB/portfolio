@@ -6,6 +6,7 @@ import { ButtonLink } from '@/components/kit/ButtonLink';
 import { Icon, type IconName } from '@/components/kit/Icon';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
+import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
 
 export type SinkSection = {
@@ -132,5 +133,10 @@ export const SECTIONS: readonly SinkSection[] = [
         </Specimen>
       </>
     ),
+  },
+  {
+    id: 'fact-and-stat',
+    title: 'Fact and Stat',
+    render: () => <FactsSection />,
   },
 ];

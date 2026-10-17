@@ -43,6 +43,16 @@ test.describe('kitchen sink', () => {
     await expect(page.locator('[data-specimen="icons--all"] svg')).toHaveCount(6);
   });
 
+  test('shows Stat with a derived value and a Fact in the one markup', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const stat = page.locator('[data-specimen="stat--derived"] data');
+    await expect(stat).toHaveAttribute('data-derived', 'simulated');
+    await expect(stat).toHaveText('1,353');
+    const fact = page.locator('[data-specimen="fact--inline"] data');
+    await expect(fact).toHaveAttribute('data-fact', 'profile.n8n.automated_tests');
+    await expect(fact).toHaveText('270+');
+  });
+
   test('says that its data is fictional', async ({ page }) => {
     await page.goto('/kitchen-sink');
     await expect(page.getByText('fictional', { exact: false }).first()).toBeVisible();
