@@ -10,7 +10,7 @@ import { NavLinks } from './NavLinks';
 export function SiteHeader() {
   return (
     <header className="z-(--z-header) border-b border-line bg-bg md:sticky md:top-0 md:h-(--header-h)">
-      <div className="mx-auto flex min-h-(--header-h) max-w-page items-center justify-between gap-4 px-4 md:h-full md:px-8">
+      <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:h-full md:px-8">
         <Link
           href="/"
           data-touch-target
@@ -21,7 +21,7 @@ export function SiteHeader() {
           </span>
           <span>{SITE.name.replace('El Bergui', 'El Bergui')}</span>
         </Link>
-        <div className="flex items-center gap-2 md:gap-6">
+        <div className="ml-auto flex items-center gap-2 md:gap-6">
           <nav aria-label="Main" className="hidden md:block">
             <NavLinks className="flex items-center gap-6" />
           </nav>
