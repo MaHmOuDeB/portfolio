@@ -6,6 +6,7 @@ import { ButtonLink } from '@/components/kit/ButtonLink';
 import { Icon, type IconName } from '@/components/kit/Icon';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
+import { ChartFrameSection } from './chartframe';
 import { ControlsSection } from './controls';
 import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
@@ -162,5 +163,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'url-state',
     title: 'URL state',
     render: () => <UrlStateSection />,
+  },
+  {
+    id: 'chart-frame',
+    title: 'Chart frame',
+    render: () => <ChartFrameSection />,
   },
 ];
