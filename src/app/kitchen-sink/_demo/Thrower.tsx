@@ -12,7 +12,7 @@ export function Thrower({ children }: { children: ReactNode }) {
   return (
     <div data-thrower="" onPointerEnter={() => setBroken(true)}>
       {children}
-      <button type="button" className={`mt-3 ${buttonClass('secondary')}`} onClick={() => setBroken(true)}>
+      <button type="button" data-touch-target className={`mt-3 ${buttonClass('secondary')}`} onClick={() => setBroken(true)}>
         Make this chart fail
       </button>
     </div>
