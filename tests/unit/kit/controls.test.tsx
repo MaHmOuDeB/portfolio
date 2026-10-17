@@ -1,4 +1,6 @@
 import { parseFragment } from 'parse5';
+import { auditHtml } from '../../../scripts/truth-audit.ts';
+import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ResetButton } from '@/components/kit/ResetButton';
@@ -36,6 +38,7 @@ const looks = (overrides: Partial<SliderProps> = {}) =>
         value={20}
         onChange={noop}
         valueText={(n) => `${n} looks`}
+        refs={['simulated']}
         {...overrides}
       />,
     ),
@@ -102,6 +105,29 @@ describe('Slider', () => {
 
   it('is hidden without JavaScript', () => {
     expect(hasAttr(find(looks(), (n) => hasAttr(n, 'data-slider'))[0]!, 'data-js-only')).toBe(true);
+  });
+
+  it('marks its root with data-derived from the caller refs', () => {
+    const root = find(looks({ refs: ['simulated', 'live'] }), (n) => hasAttr(n, 'data-slider'))[0]!;
+    expect(attr(root, 'data-derived')).toBe('simulated live');
+  });
+
+  it('throws on empty refs, like every derived figure', () => {
+    expect(() => looks({ refs: [] })).toThrow('a derived figure needs at least one ref');
+  });
+
+  it('passes the truth audit with its marker, and would fail without it', () => {
+    const page = (body: string) => `<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body>${body}</body></html>`;
+    const ctx = { route: '/lab', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
+    const markup = renderToStaticMarkup(
+      <Slider id="looks" label="Looks" min={1} max={50} step={1} value={20} onChange={noop} valueText={(n) => `${n} looks`} refs={['simulated']} />,
+    );
+    expect(auditHtml(page(markup), ctx)).toEqual([]);
+    const unmarked = markup.replace(' data-derived="simulated"', '');
+    expect(unmarked).not.toContain('data-derived');
+    expect(auditHtml(page(unmarked), ctx)).toEqual([
+      { route: '/lab', kind: 'stray-number', detail: '"20" in aria-valuetext' },
+    ]);
   });
 
   it('disables both inputs when disabled', () => {

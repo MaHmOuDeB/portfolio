@@ -4,6 +4,7 @@
 // track under it is drawn, not native. Every value is snapped, so a hostile value from a prop or a
 // typed entry is clamped and never throws. Hidden without JavaScript: the server renders the preset.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { cx } from '@/lib/cx';
 import { snapToStep } from '@/lib/figure/snap';
 
@@ -22,6 +23,8 @@ export type SliderProps = {
   valueText: (value: number) => string;
   /** Accessible name of the number input; default `${label}, exact value`. */
   numberLabel?: string;
+  /** Where the value comes from, for data-derived on the root: it covers the numbers in aria-valuetext. */
+  refs: readonly DerivedRef[];
   disabled?: boolean;
 };
 
@@ -39,6 +42,7 @@ export function Slider({
   onCommit,
   valueText,
   numberLabel,
+  refs,
   disabled,
 }: SliderProps) {
   const snap = (v: number) => snapToStep(v, min, max, step);
@@ -64,7 +68,7 @@ export function Slider({
   };
 
   return (
-    <div data-slider data-js-only className="flex min-w-0 flex-col gap-1">
+    <div data-slider data-js-only {...derivedAttr(refs)} className="flex min-w-0 flex-col gap-1">
       <label htmlFor={id} className="text-sm text-muted">
         {label}
       </label>

@@ -22,7 +22,9 @@ const LOOKS = { min: 1, max: 50, step: 1 } as const;
 const PRESET_LOOKS = 20;
 const PRESET_FIX: Fix = 'none';
 const looksText = (n: number) => `${n} looks`;
-const SIMULATED = derivedAttr(['simulated']);
+const REFS = ['simulated'] as const;
+// The release line prints a number outside the Slider, so it carries its own marker.
+const SIMULATED = derivedAttr(REFS);
 const row = 'flex flex-wrap items-end gap-x-6 gap-y-4';
 const sliderBox = 'w-full xs:w-80';
 
@@ -31,7 +33,7 @@ function Demo() {
   const [fix, setFix] = useState<Fix>(PRESET_FIX);
   const [released, setReleased] = useState<number | null>(null);
   return (
-    <div data-figure="sink-controls" {...SIMULATED}>
+    <div data-figure="sink-controls">
       <div className={row}>
         <div className={sliderBox}>
           <Slider
@@ -42,6 +44,7 @@ function Demo() {
             onChange={setLooks}
             onCommit={setReleased}
             valueText={looksText}
+            refs={REFS}
           />
         </div>
         <Segmented name="sink-fix" legend="Fix" options={FIX_OPTIONS} value={fix} onChange={setFix} />
@@ -52,7 +55,7 @@ function Demo() {
           }}
         />
       </div>
-      <p data-released aria-live="polite" className="mt-4 text-sm text-muted">
+      <p data-released aria-live="polite" {...SIMULATED} className="mt-4 text-sm text-muted">
         {released === null ? 'Not released yet.' : `Released at ${looksText(released)}`}
       </p>
     </div>
@@ -62,7 +65,7 @@ function Demo() {
 function LooksAt({ id, initial, disabled }: { id: string; initial: number; disabled?: boolean }) {
   const [looks, setLooks] = useState(initial);
   return (
-    <div className={sliderBox} {...SIMULATED}>
+    <div className={sliderBox}>
       <Slider
         id={id}
         label="Looks"
@@ -70,6 +73,7 @@ function LooksAt({ id, initial, disabled }: { id: string; initial: number; disab
         value={looks}
         onChange={setLooks}
         valueText={looksText}
+        refs={REFS}
         disabled={disabled}
       />
     </div>

@@ -118,6 +118,7 @@ test.describe('kitchen sink controls', () => {
     await page.goto('/kitchen-sink');
     const range = looks(page);
     await expect(range).toHaveAttribute('aria-valuetext', '20 looks');
+    await expect(demo(page).locator('[data-slider]')).toHaveAttribute('data-derived', 'simulated');
     await range.focus();
     for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
     await expect(exact(page)).toHaveValue('23');
