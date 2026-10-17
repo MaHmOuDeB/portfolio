@@ -10,6 +10,7 @@ import { ControlsSection } from './controls';
 import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
+import { StepNavSection } from './stepnav';
 
 export type SinkSection = {
   /** Kebab-case, unique: the section's anchor and `data-section`. */
@@ -150,5 +151,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'controls',
     title: 'Controls',
     render: () => <ControlsSection />,
+  },
+  {
+    id: 'step-navigation',
+    title: 'Step navigation',
+    render: () => <StepNavSection />,
   },
 ];

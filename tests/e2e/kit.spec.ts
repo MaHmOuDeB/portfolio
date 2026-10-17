@@ -280,3 +280,107 @@ test.describe('kitchen sink controls', () => {
     await context.close();
   });
 });
+
+test.describe('kitchen sink step navigation', () => {
+  const demo = (page: Page) => page.locator('[data-specimen="stepnav--demo"]');
+  const previous = (page: Page) => demo(page).getByRole('button', { name: 'Previous' });
+  const next = (page: Page) => demo(page).getByRole('button', { name: 'Next' });
+  const outside = (page: Page) => demo(page).getByRole('button', { name: /from outside/ });
+  const count = (page: Page) => demo(page).locator('[data-step-count]');
+  const live = (page: Page) => demo(page).locator('[data-step-live]');
+  const currentStep = (page: Page) => demo(page).locator('[aria-current="step"]');
+
+  test('Next twice reads "3 of 5" and announces it once; an outside change announces nothing', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    await expect(count(page)).toHaveText('1 of 5');
+    await expect(count(page)).toHaveAttribute('data-derived', 'simulated');
+    await expect(live(page)).toHaveText('');
+    await expect(live(page)).toHaveAttribute('aria-live', 'polite');
+    await next(page).click();
+    await next(page).click();
+    await expect(count(page)).toHaveText('3 of 5');
+    await expect(live(page)).toHaveText('3 of 5');
+    await expect(currentStep(page)).toHaveCount(1);
+    await expect(currentStep(page)).toHaveAttribute('data-step', '3');
+
+    await outside(page).click();
+    await expect(count(page)).toHaveText('4 of 5');
+    await expect(live(page)).toHaveText('3 of 5');
+    await expect(currentStep(page)).toHaveAttribute('data-step', '4');
+  });
+
+  test('arrows work with focus inside; at the end Next does nothing and keeps focus', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    await outside(page).click();
+    await expect(count(page)).toHaveText('4 of 5');
+    await next(page).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(count(page)).toHaveText('5 of 5');
+    await expect(live(page)).toHaveText('5 of 5');
+    await expect(next(page)).toHaveAttribute('aria-disabled', 'true');
+    await expect(next(page)).not.toHaveAttribute('disabled');
+
+    // Playwright treats aria-disabled as not enabled; force the click a visitor can still make.
+    // Focus is asserted after keys only: Safari does not focus a button on a mouse click.
+    await next(page).click({ force: true });
+    await expect(count(page)).toHaveText('5 of 5');
+    await next(page).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowRight');
+    await expect(count(page)).toHaveText('5 of 5');
+    await expect(next(page)).toBeFocused();
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(count(page)).toHaveText('4 of 5');
+    await expect(live(page)).toHaveText('4 of 5');
+    await expect(previous(page)).not.toHaveAttribute('aria-disabled');
+    await expect(next(page)).toBeFocused();
+  });
+
+  test('Previous is aria-disabled on the first step, does nothing and keeps focus', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    await expect(previous(page)).toHaveAttribute('aria-disabled', 'true');
+    await expect(previous(page)).not.toHaveAttribute('disabled');
+    await previous(page).click({ force: true });
+    await previous(page).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowLeft');
+    await expect(count(page)).toHaveText('1 of 5');
+    await expect(live(page)).toHaveText('');
+    await expect(previous(page)).toBeFocused();
+  });
+
+  test('Tab reaches Previous then Next, and both are at least 44 px tall', async ({ page, browserName }) => {
+    await page.goto('/kitchen-sink');
+    for (const button of [previous(page), next(page)]) {
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await previous(page).focus();
+    // WebKit on macOS skips some controls on Tab (Safari's default); Alt+Tab reaches every one.
+    await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab');
+    await expect(next(page)).toBeFocused();
+  });
+
+  test('shows the first, middle, last and single-step states', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const state = (id: string) => page.locator(`[data-specimen="stepnav--${id}"]`);
+    await expect(state('first').locator('[data-step-count]')).toHaveText('1 of 5');
+    await expect(state('first').getByRole('button', { name: 'Previous' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(state('middle').locator('[data-step-count]')).toHaveText('3 of 5');
+    await expect(state('middle').locator('[aria-disabled]')).toHaveCount(0);
+    await expect(state('last').locator('[data-step-count]')).toHaveText('5 of 5');
+    await expect(state('last').getByRole('button', { name: 'Next' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(state('single').locator('[data-step-count]')).toHaveText('1 of 1');
+    await expect(state('single').locator('[aria-disabled="true"]')).toHaveCount(2);
+  });
+
+  test('is hidden without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto('/kitchen-sink');
+    await expect(page.locator('[data-specimen="stepnav--demo"] nav')).toBeHidden();
+    await context.close();
+  });
+});
