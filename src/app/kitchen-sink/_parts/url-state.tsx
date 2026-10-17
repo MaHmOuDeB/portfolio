@@ -1,6 +1,6 @@
 'use client';
 
-// The "URL state" section of the kitchen sink: two fictional Figures, `demo` and `demo-b`, on one
+// The "URL state" section of the kitchen sink: two fictional Figures, `sample` and `sample-b`, on one
 // page. Each reads its own `?<id>.<param>` keys through useFigureParams and writes them back as the
 // controls move; Reset clears only its own keys. Each sits in a <Suspense> whose fallback is the
 // same view at the default preset: that is what the static HTML shows (a prerendered page cannot
@@ -102,11 +102,11 @@ export function UrlStateSection() {
     <Specimen
       id="url-state--two-figures"
       title="Two Figures sharing one URL"
-      note="Each Figure keeps its own keys in the query string, like ?demo.tail=one, and a preset key picks a named starting point that explicit keys override. Moving a control rewrites the URL a quarter of a second after the last change, without adding to the Back history. Reset clears only its own Figure's keys."
+      note="Each Figure keeps its own keys in the query string, like ?sample.tail=one, and a preset key picks a named starting point that explicit keys override. Moving a control rewrites the URL a quarter of a second after the last change, without adding to the Back history. Reset clears only its own Figure's keys."
     >
       <div className="flex flex-col gap-8">
-        <UrlFigure id="demo" />
-        <UrlFigure id="demo-b" />
+        <UrlFigure id="sample" />
+        <UrlFigure id="sample-b" />
       </div>
     </Specimen>
   );
