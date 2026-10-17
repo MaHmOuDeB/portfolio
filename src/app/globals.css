@@ -5,6 +5,7 @@
 @source not "../../scripts";
 @source not "../../stats-ref";
 @source not "../../docs";
+@source not "../../*.md";
 
 @layer base {
   body {
