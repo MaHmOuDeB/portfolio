@@ -1,0 +1,165 @@
+# Design tokens: Clarity (light only)
+
+`src/styles/tokens.css` is the source of truth. This file documents every name in it. A CI check
+compares the two and fails if a token exists in one and not the other.
+
+## Why this direction
+
+The design is called Clarity and is light only. It extends the CV's design to the web: one neutral
+sans, hierarchy from weight and space, grey links with an underline. Inter is the most common web
+face, so the character comes from elsewhere: the interval glyph, the chart system and a tuned Inter
+(optical sizes, `cv05`).
+
+## Closed namespaces
+
+Every Tailwind namespace the site does not use is reset to `initial`, then only the names below are
+redefined: colour, shadow, breakpoint, font, font weight, text, radius, tracking, ease, animate,
+container, drop shadow, inset shadow and text shadow. `bg-blue-500`, `shadow-md`, `font-bold`,
+`text-5xl`, `rounded-2xl`, `rounded-lg`, `tracking-widest` and `animate-bounce` produce nothing.
+The theme is `@theme static`, so every variable is emitted even when no utility uses it (an SVG
+`fill="var(--color-series-2)"` always resolves). There is no `--font-display` and no `.tabular`
+class.
+
+## Colour
+
+The contrast pairs were checked at Gate 2: text pairs at WCAG AA 4.5:1, non-text pairs at 3:1
+against the colour each mark sits next to, and a colour-vision distance of at least 15 between the
+two chart series. Colours that touch where the bare pair is below 3:1 (an orange dot
+on the blue line or the band, the band fill on white, the grid, the focus ring next to an `ink`
+fill) are listed as overlap pairs, each with the drawing rule that makes it pass.
+
+| Token | Hex | Use | Contrast on bg |
+|---|---|---|---|
+| `bg` | `#FFFFFF` | page and figure background, the 2 px ring round dots, annotation halos | n/a |
+| `ink` | `#1D1D1F` | text, primary button fill, selected segment, zero line | 16.83 |
+| `muted` | `#6E6E73` | secondary text, links and their underline, captions, input borders, the slider track edge, badge border, the running estimate line | 5.07 |
+| `line` | `#E8E8ED` | rules, chart grid, the inactive track fill | decorative |
+| `accent` | `#0A5FD9` | controls: focus ring, the active part of a slider track | 5.75 |
+| `series-1` | `#0A5FD9` | the first chart series, interval bounds (1 px lines), the glyph bar and caps | 5.75 |
+| `series-2` | `#D9620A` | the current estimate, the point being made | 3.68 (fills, lines and dots only, never text) |
+| `series-ghost` | `#CEDFF7` | band fill only, the projected width at the cap, inactive curves | decorative |
+| `ok` | `#1B7F3B` | the word for a passed check (for example "SRM passed") | 5.07 |
+| `warn` | `#B04A00` | the word for a real warning (SRM, paused, error) | 5.49 |
+
+Rules:
+- Text never uses `series-2`.
+- `accent` is a separate token that deliberately shares the `series-1` hue. Controls use `accent`;
+  icons and decoration never use blue. The interval glyph is drawn in the series colours because it
+  is a data mark (an interval and an estimate), not decoration.
+- `series-2` means only the current estimate or the point being made. "Your view" is a `muted`
+  x-axis tick, and the provenance badge is neutral.
+- Status is always a word, with an optional glyph; colour only repeats it. `ok` against `warn` is
+  only about 10 apart under red-green colour blindness, so they are never the only cue.
+- Every `series-2` dot has a 2 px `bg` ring (a bare dot is 1.56:1 on the blue line and 2.72:1 on
+  the band; with the ring it is 3.68:1).
+- No other colours. No gradients, no tinted greys, no black (`#000`).
+- Links are `muted` with a `muted` underline, never blue, and turn `ink` on hover and focus.
+- Input borders and the slider track edge are `muted`, never `line` (1.22:1). The active part of
+  the track is filled in `accent`.
+
+## Interaction states
+
+All states use existing tokens; there are no extra tints.
+
+| State | Rule |
+|---|---|
+| hover | `muted` text, icons, underlines and borders turn `ink`. The primary button keeps its `ink` fill. A colour change only: no movement, no scale, no shadow. |
+| pressed | The same as hover, held while pressed. |
+| selected | `ink` fill with a `bg` label (selected segment). The current step and the current navigation item are `ink` text with a 2 px `ink` bar. In forced-colors mode the selected segment gets a `Highlight` border. |
+| disabled | `muted` text, a `line` border, no fill. StepNav ends use `aria-disabled`, so they keep focus. |
+| focus | A 2 px `accent` outline at a 2 px offset, always on `bg` (never clipped by `overflow: hidden`). |
+
+## Type
+
+One family, Inter (variable), loaded with `next/font/local` with the `opsz` axis, so the display
+sizes get Inter Display's tighter forms. `font-optical-sizing:
+auto` is set on `html`. `font-sans` is the only text family; its feature settings
+(`--font-sans--font-feature-settings`) are `cv05` (lowercase l with a tail, so "El" never reads as
+"EI") and `tnum`, so every number uses tabular figures. Weights used: `font-weight-regular` 400,
+`font-weight-medium` 500, `font-weight-semibold` 600. Code blocks only use `font-code`, which
+`--default-mono-font-family` also makes the default for `code`, `kbd`, `samp` and `pre`.
+
+| Token | Size | Line height | Use |
+|---|---|---|---|
+| `text-xs` | 13 px | 1.5 | captions, badges, chart tick labels |
+| `text-sm` | 15 px | 1.5 | UI labels, buttons, navigation, the test note, chart annotations |
+| `text-base` | 18 px | 1.6 | body text |
+| `text-lg` | 20 px | 1.4 | card headlines |
+| `text-xl` | 24 px | 1.3 | section titles, Figure titles |
+| `text-2xl` | 34 px | 1.2 | page titles |
+| `text-3xl` | 48 px | 1.1 | `Stat` numbers |
+| `text-readout-sm` | 48 px | 1, -0.03 em, 600 | the hero readout under 768 px |
+| `text-readout` | 64 px | 1, -0.03 em, 600 | the hero readout; always with its unit ("visitors per group") |
+| `text-display-sm` | 44 px | 1.04, -0.02 em | the name in the hero under 768 px |
+| `text-display` | 72 px | 1.04, -0.02 em | the name in the hero |
+
+Hierarchy comes from weight and space, not from size jumps and not from capitals. The readout
+stays below the name at every width. Text is left-aligned in `container-text`, which holds about 75
+characters.
+
+## Space and layout
+
+- `spacing`: 4 px base. Use multiples (4, 8, 12, 16, 24, 32, 48, 80).
+- `spacing-section`: 80 px between major blocks on desktop (`py-section`); 48 px on phones
+  (`py-12`).
+- `size-target`: 44 px, the minimum height (and width for icon-only controls) of buttons,
+  segmented options, StepNav, Reset, Menu and standalone links: `min-h-(--size-target)`.
+- `chart-h-phone`: 40svh, the sticky chart's height on phones.
+- `header-h`: 64 px, the `SiteHeader` height; the sticky chart's top offset from `md` up.
+- `container-text` 680 px, `container-figure` 960 px, `container-page` 1280 px.
+- Page side padding: 32 px desktop, 16 px phone.
+- Radius: `radius-sm` 4 px (badges, buttons), `radius-md` 8 px (inputs). `rounded-full` is used only for dots.
+  No shadows exist.
+
+## Breakpoints
+
+| Name | Width | What changes at and above it |
+|---|---|---|
+| (none) | under 480 px | Segmented options stack as a radio list. |
+| `xs` | 480 px | Segmented options sit in one row. |
+| `sm` | 640 px | `ChartFrame` uses its wide layout; below 640 px it redraws a narrow layout. |
+| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation and becomes sticky; the sticky chart sits beside the steps, offset by `header-h`. |
+| `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
+| `xl` | 1440 px | Content stays at `container-page`; only the margins grow. |
+
+The screen-share size (1024 by 576) sits exactly on `lg`, so it gets the `lg` layout; it is a test
+target, not a breakpoint. The chart is sticky only on screens at least 600 px tall (a height
+query).
+
+## Layers
+
+| Token | Value | Use |
+|---|---|---|
+| `z-chart` | 10 | the sticky scroll-moment chart |
+| `z-header` | 20 | `SiteHeader`, sticky from `md` |
+| `z-menu` | 30 | the phone Menu panel |
+
+Use them as `z-(--z-chart)`. Nothing else sets a z-index.
+
+## Motion
+
+| Token | Value | Use |
+|---|---|---|
+| `duration-fast` | 120 ms | hover and press feedback |
+| `duration-base` | 240 ms | an interactive Figure changing |
+| `duration-step` | 320 ms | one scroll-moment step changing |
+| `ease-standard` | `cubic-bezier(.2,0,0,1)` | most transitions |
+| `ease-emphasis` | `cubic-bezier(.3,0,0,1.1)` | the interval dot settling |
+
+Tailwind v4 has no duration namespace, so durations are written `duration-(--duration-fast)`.
+`--default-transition-duration` is `var(--duration-fast)` and
+`--default-transition-timing-function` is `var(--ease-standard)`, so a bare `transition-colors`
+follows the tokens. Under `prefers-reduced-motion: reduce`, every duration is 0 ms.
+
+## Base styles in `tokens.css`
+
+`color-scheme: light` on `:root`, so phone browsers do not force a dark theme;
+`font-optical-sizing: auto` on `html`; and the `:focus-visible` ring, inside `@layer base` so a
+utility can override it.
+
+## Not allowed (enforced by the design lint)
+
+Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and animations (they do
+not exist); `uppercase` combined with letter spacing; the arrow character in content; monospace
+outside code blocks; `fade-up` classes; hover movement (`hover:translate`, `hover:scale`); dark
+mode.

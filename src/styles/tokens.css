@@ -1,0 +1,137 @@
+/*
+ * Design tokens for the portfolio (direction: Clarity, light only).
+ * Source of truth for colour, type, space, radius, layers and motion. Documented in
+ * `docs/design/tokens.md`; CI fails if the two drift.
+ *
+ * Every Tailwind namespace the site does not need is reset to `initial` first, so default
+ * utilities do not exist: bg-blue-500, shadow-md, font-bold, text-5xl, rounded-2xl and
+ * animate-bounce simply produce nothing. Only the names below are redefined.
+ * `static` emits every variable even when no utility uses it, so an SVG attribute such as
+ * fill="var(--color-series-2)" always resolves.
+ */
+@import "tailwindcss";
+
+@theme static {
+  --color-*: initial;
+  --shadow-*: initial;
+  --breakpoint-*: initial;
+  --font-*: initial;
+  --font-weight-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --tracking-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+  --container-*: initial;
+  --drop-shadow-*: initial;
+  --inset-shadow-*: initial;
+  --text-shadow-*: initial;
+
+  /* Colour */
+  --color-bg: #ffffff;
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-line: #e8e8ed;
+  --color-accent: #0a5fd9; /* controls and focus; shares the series-1 hue on purpose */
+  --color-series-1: #0a5fd9;
+  --color-series-2: #d9620a;
+  --color-series-ghost: #cedff7; /* band fill only, decorative */
+  --color-ok: #1b7f3b;
+  --color-warn: #b04a00;
+
+  /* Type: Inter with the opsz axis, cv05 (l with a tail) and tabular figures everywhere */
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans--font-feature-settings: "cv05", "tnum";
+  --font-code: ui-monospace, "SF Mono", Menlo, monospace; /* code blocks only */
+  --default-mono-font-family: var(--font-code);
+
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1.125rem;
+  --text-base--line-height: 1.6;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.3;
+  --text-2xl: 2.125rem;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 3rem;
+  --text-3xl--line-height: 1.1;
+  --text-readout-sm: 3rem; /* the hero readout under md */
+  --text-readout-sm--line-height: 1;
+  --text-readout-sm--letter-spacing: -0.03em;
+  --text-readout-sm--font-weight: 600;
+  --text-readout: 4rem;
+  --text-readout--line-height: 1;
+  --text-readout--letter-spacing: -0.03em;
+  --text-readout--font-weight: 600;
+  --text-display-sm: 2.75rem; /* the name under md */
+  --text-display-sm--line-height: 1.04;
+  --text-display-sm--letter-spacing: -0.02em;
+  --text-display: 4.5rem;
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.02em;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* Space and layout */
+  --spacing: 0.25rem; /* 4 px base; use multiples */
+  --spacing-section: 5rem; /* 80 px between major blocks: py-section */
+  --size-target: 2.75rem; /* 44 px minimum touch target */
+  --chart-h-phone: 40svh; /* the sticky chart's height on phones */
+  --header-h: 4rem; /* SiteHeader height; sticky chart offset from md up */
+  --container-text: 42.5rem; /* 680 px text column, about 75 characters */
+  --container-figure: 60rem; /* 960 px figures */
+  --container-page: 80rem; /* 1280 px page */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+
+  --breakpoint-xs: 30rem; /* 480 px: Segmented stops stacking */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 90rem;
+
+  /* Layers (use as z-(--z-chart) and so on) */
+  --z-chart: 10; /* the sticky scroll-moment chart */
+  --z-header: 20; /* SiteHeader, sticky from md */
+  --z-menu: 30; /* the phone Menu panel */
+
+  /* Motion (use as duration-(--duration-fast); v4 has no duration namespace) */
+  --duration-fast: 120ms;
+  --duration-base: 240ms;
+  --duration-step: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasis: cubic-bezier(0.3, 0, 0, 1.1);
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-standard);
+}
+
+/* Reduced motion: every duration collapses, so no transition runs, including transition-colors. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-step: 0ms;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    font-optical-sizing: auto;
+  }
+
+  /* Visible keyboard focus everywhere; in base so a utility can override it. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

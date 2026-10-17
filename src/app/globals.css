@@ -1,1 +1,14 @@
-@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Lint fixtures and docs must never reach the compiled CSS. */
+@source not "../../tests";
+@source not "../../scripts";
+@source not "../../stats-ref";
+@source not "../../docs";
+
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+}
