@@ -6,6 +6,7 @@ import { ButtonLink } from '@/components/kit/ButtonLink';
 import { Icon, type IconName } from '@/components/kit/Icon';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
+import { ControlsSection } from './controls';
 import { FactsSection } from './facts';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
@@ -144,5 +145,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'static-primitives',
     title: 'Static primitives',
     render: () => <StaticSection />,
+  },
+  {
+    id: 'controls',
+    title: 'Controls',
+    render: () => <ControlsSection />,
   },
 ];
