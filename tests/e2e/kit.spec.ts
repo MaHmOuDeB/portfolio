@@ -102,7 +102,7 @@ test.describe('kitchen sink', () => {
     await page.goto('/kitchen-sink/live');
     await expect(page.locator('h1')).toHaveText('Live Figure states');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-    await expectNoA11yViolations(page);
+    // Its accessibility check runs in live-states.spec.ts, with the time 144 Figures need.
   });
 });
 
