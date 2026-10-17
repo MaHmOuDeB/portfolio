@@ -141,9 +141,28 @@ export type DemoFigureViewProps = {
   announcement?: string;
   state?: FigureState;
   titleLevel?: 2 | 3 | 4;
+  /** The server's preset chart for the error fallback; an island passes it (Figure `preview`). */
+  preview?: ReactNode;
+  /** Sink only: the chart throws while rendering, as a client-side bug would. */
+  breakChart?: boolean;
 };
 
-export function DemoFigureView({ id, values, controls, announcement, state, titleLevel }: DemoFigureViewProps) {
+/** A chart part that fails while rendering, for the kitchen sink's failing island. */
+export const CHART_FAILURE = 'A fictional chart failure in the kitchen sink';
+function Broken(): never {
+  throw new Error(CHART_FAILURE);
+}
+
+export function DemoFigureView({
+  id,
+  values,
+  controls,
+  announcement,
+  state,
+  titleLevel,
+  preview,
+  breakChart,
+}: DemoFigureViewProps) {
   const model = demoModel(values);
   return (
     <Figure
@@ -154,6 +173,7 @@ export function DemoFigureView({ id, values, controls, announcement, state, titl
       provenance="simulated"
       table={demoTable(model)}
       controls={controls}
+      preview={preview}
       result={<span {...SIMULATED}>{resultSentence(model)}</span>}
       announcement={announcement}
       caption={
@@ -165,6 +185,7 @@ export function DemoFigureView({ id, values, controls, announcement, state, titl
       }
     >
       <DemoChart id={id} model={model} />
+      {breakChart ? <Broken /> : null}
     </Figure>
   );
 }

@@ -13,10 +13,10 @@
 // - If the island cannot load or throws outside its Figure's own boundary, the preview comes back
 //   in its no-JS form (states.md: no-js covers "failed to load"): `data-island="failed"` hides the
 //   [data-js-only] parts and shows the [data-nojs-only] ones (globals.css). The static HTML is never
-//   broken.
+//   broken. Focus that was inside the island goes to the open table.
 // - The root carries `data-island="idle" | "ready" | "failed"`.
 import { catchError } from 'next/error';
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
 
 const IDLE_TIMEOUT_MS = 2000;
 
@@ -26,19 +26,26 @@ function Arrived({ onArrive }: { onArrive: () => void }) {
   return null;
 }
 
-function Island({ preview, children }: { preview: ReactNode; children: ReactNode }) {
+function Island({
+  preview,
+  children,
+  root,
+}: {
+  preview: ReactNode;
+  children: ReactNode;
+  root: RefObject<HTMLDivElement | null>;
+}) {
   // `loading`: intent seen, the island is rendering (its code may still be on the way).
   // `ready`: the island has committed and the preview is gone.
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
   const focusedId = useRef<string | null>(null);
 
   const load = useCallback(() => {
     const active = document.activeElement;
     if (active instanceof HTMLElement && active.id && root.current?.contains(active)) focusedId.current = active.id;
     setLoading(true);
-  }, []);
+  }, [root]);
   const arrive = useCallback(() => setReady(true), []);
 
   useEffect(() => {
@@ -94,16 +101,42 @@ function Island({ preview, children }: { preview: ReactNode; children: ReactNode
   );
 }
 
-function IslandFailed({ preview }: { preview: ReactNode }) {
-  return <div data-island="failed">{preview}</div>;
+type FailedProps = { preview: ReactNode; root: RefObject<HTMLDivElement | null> };
+
+// The failed island's preview, in its no-JS form. If focus was inside the island (a focus-triggered
+// load, or a control of the island itself), the remount drops it on <body>; it goes to the open
+// table, the one thing in the no-JS view a keyboard can reach and the next step it offers.
+function FailedPreview({ preview, root }: FailedProps) {
+  const box = useRef<HTMLDivElement>(null);
+  // Read while this renders: the island that failed is still in the DOM then.
+  const [hadFocus] = useState(() => focusWasIn(root));
+  useEffect(() => {
+    const active = document.activeElement;
+    if (!hadFocus || (active !== null && active !== document.body)) return;
+    box.current?.querySelector<HTMLElement>('[data-nojs-only] [role="region"]')?.focus();
+  }, [hadFocus]);
+  return (
+    <div ref={box} data-island="failed">
+      {preview}
+    </div>
+  );
 }
 
-const Guard = catchError(IslandFailed);
+function focusWasIn(root: RefObject<HTMLDivElement | null>): boolean {
+  return typeof document !== 'undefined' && (root.current?.contains(document.activeElement) ?? false);
+}
+
+const Guard = catchError(function IslandFailed(props: FailedProps) {
+  return <FailedPreview {...props} />;
+});
 
 export function LoadOnIntent({ preview, children }: { preview: ReactNode; children: ReactNode /* the lazy island */ }) {
+  const root = useRef<HTMLDivElement>(null);
   return (
-    <Guard preview={preview}>
-      <Island preview={preview}>{children}</Island>
+    <Guard preview={preview} root={root}>
+      <Island preview={preview} root={root}>
+        {children}
+      </Island>
     </Guard>
   );
 }

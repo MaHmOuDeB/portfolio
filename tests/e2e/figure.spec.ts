@@ -10,6 +10,7 @@ import { expectNoA11yViolations, test } from './fixtures';
 const RESULT = /^[\d,]+ visitors per group to detect a rise of 2 points$/;
 const STATIC_SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const THROWN = 'A fictional failure in the kitchen sink';
+const CHART_FAILURE = 'A fictional chart failure in the kitchen sink';
 
 const figure = (page: Page, id: string) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id: string) => page.locator('[data-island]', { has: figure(page, id) });
@@ -219,6 +220,40 @@ test.describe('kitchen sink Figures', () => {
     await expect(status).toBeFocused();
   });
 
+  test("an island's own chart throwing on a keyboard step shows the ruled fallback in that Figure only", async ({ page }) => {
+    const errors = watchErrors(page, [CHART_FAILURE]);
+    await page.goto('/kitchen-sink');
+    await ready(page, 'fragile');
+    const f = figure(page, 'fragile');
+    await baseline(page, 'fragile').focus();
+    await page.keyboard.press('ArrowRight');
+
+    const status = f.getByRole('status');
+    await expect(status).toHaveText(STATIC_SENTENCE);
+    await expect(status).toBeFocused();
+    await expect(f.locator('[data-figure-fallback] table')).toBeVisible();
+    // The build-time chart from the server, not the client chart that threw.
+    await expect(f.locator('[data-figure-preview] svg[data-chart-frame]:visible')).toHaveCount(1);
+    await expect(f.getByRole('heading', { level: 4 })).toHaveText('Smaller rises need many more visitors.');
+    await expect(f.getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(f.locator('a')).toHaveCount(0);
+    await expect(f).not.toContainText(CHART_FAILURE);
+    // Not the island guard's no-JS view, and not the page-level error page.
+    await expect(f.getByText('Controls need JavaScript.')).toBeHidden();
+    await expect(page.locator('[data-island="failed"]')).toHaveCount(0);
+    await expect(island(page, 'fragile')).toHaveAttribute('data-island', 'ready');
+    await expect(page.getByRole('heading', { level: 1, name: 'Kitchen sink' })).toBeVisible();
+    await expect(page.getByText('This page could not load')).toHaveCount(0);
+
+    // The other Figures stay interactive.
+    await ready(page, 'demo');
+    await baseline(page, 'demo').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(baseline(page, 'demo')).toHaveValue('0.11');
+    await expect(figure(page, 'demo').getByRole('status')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
   test('intent: the island is idle until the pointer arrives, and its code loads only then', async ({ page }) => {
     await withoutIdle(page);
     const chunks: string[] = [];
@@ -276,6 +311,22 @@ test.describe('kitchen sink Figures', () => {
     // The rest of the page is untouched.
     await expect(page.getByRole('heading', { level: 1, name: 'Kitchen sink' })).toBeVisible();
     await expect(figure(page, 'static').locator('svg[data-chart-frame]:visible')).toHaveCount(1);
+  });
+
+  test('an island that fails after focus loaded it hands focus to the open table', async ({ page }) => {
+    await withoutIdle(page);
+    watchErrors(page, ['chunk', 'Chunk', 'Failed to fetch', 'dynamically imported module', 'Importing a module script failed']);
+    let block = false;
+    await page.route('**/_next/static/**/*.js', (route) => (block ? route.abort() : route.continue()));
+    await page.goto('/kitchen-sink');
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(500);
+    block = true;
+
+    await baseline(page, 'demo').focus();
+    const failed = page.locator('[data-island="failed"]', { has: figure(page, 'demo') });
+    await expect(failed).toHaveCount(1);
+    await expect(figure(page, 'demo').locator('[data-nojs-only] [role="region"]')).toBeFocused();
   });
 
   test('axe finds no violations with the islands loaded and a fallback showing', async ({ page }) => {

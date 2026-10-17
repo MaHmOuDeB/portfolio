@@ -9,7 +9,8 @@
 // - A forced runtime (kitchen sink, tests): `no-js` renders the no-JS view ungated, with no controls
 //   and no disclosure; `error` renders the error fallback in place of the chart, with no controls,
 //   no result and no second table. A real error caught by the boundary looks the same: globals.css
-//   hides the controls, result and tables of a Figure that holds a fallback.
+//   hides the controls, result and tables of a Figure that holds a fallback. The fallback's preview
+//   is `preview`, else the children: an island Figure passes the server's preset chart.
 // - The announcement region is polite and starts empty: the state a page loads in is plain text and
 //   is not announced. The island sets `announcement` on commit only (slider release, toggle, Reset).
 //   It carries the table's refs, so the truth audit covers the numbers it speaks.
@@ -53,7 +54,11 @@ export type FigureProps = {
       controls?: ReactNode;
       /** The live sentence; it marks its own numbers with data-derived. */
       result?: ReactNode;
-      /** Build-time chart for the error fallback; default: children. */
+      /**
+       * Build-time chart for the error fallback; default: children. The default is safe only when
+       * the children are server-rendered. An island that renders its own Figure must pass the
+       * server's preset chart here: its client children are what threw, and would throw again.
+       */
       preview?: ReactNode;
       /** Polite live text, set by the island on commit only. */
       announcement?: string;

@@ -7,11 +7,12 @@
 //   that do nothing, so nothing moves when the island replaces the preview.
 import { lazy } from 'react';
 import { DemoControls, type DemoValues } from './DemoControls';
+import type { DemoInteractiveProps } from './DemoInteractive';
 
 const LazyDemo = lazy(() => import('./DemoInteractive'));
 
-export function DemoIsland({ id, titleLevel }: { id: string; titleLevel?: 2 | 3 | 4 }) {
-  return <LazyDemo id={id} titleLevel={titleLevel} />;
+export function DemoIsland(props: DemoInteractiveProps) {
+  return <LazyDemo {...props} />;
 }
 
 const noop = () => {};

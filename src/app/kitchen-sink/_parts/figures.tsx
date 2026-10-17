@@ -125,6 +125,13 @@ export function FiguresSection() {
           </Thrower>
         </Figure>
       </Specimen>
+      <Specimen
+        id="figures--island-throws"
+        title="An interactive Figure whose chart throws"
+        note="The same interactive Figure, with a fictional bug: one step up the baseline slider makes its chart throw in the browser. Only this Figure shows the fallback, with the build-time chart."
+      >
+        <DemoFigure id="fragile" titleLevel={4} failAt={0.11} />
+      </Specimen>
       <Specimen id="figures--diagram" title="Diagram" note="A title, the drawing and a caption: no badge, controls or table.">
         <StepsDiagram id="steps" />
       </Specimen>
