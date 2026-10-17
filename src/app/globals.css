@@ -12,18 +12,21 @@
     background: var(--color-bg);
     color: var(--color-ink);
   }
+}
 
-  /* No-JS and JS-only content: <html data-js> is set by the inline script in the root layout. */
-  html[data-js] [data-nojs-only] {
-    display: none;
-  }
+/*
+ * Outside any @layer on purpose: unlayered CSS beats every layer, so a utility on the same element
+ * (flex, duration-*) can never undo these. <html data-js> is set by the inline script in the root layout.
+ */
+html[data-js] [data-nojs-only] {
+  display: none;
+}
 
-  html:not([data-js]) [data-js-only] {
-    display: none;
-  }
+html:not([data-js]) [data-js-only] {
+  display: none;
+}
 
-  /* While a slider is dragged, marks follow the pointer without easing. */
-  [data-dragging] [data-mark] {
-    transition: none;
-  }
+/* While a slider is dragged, marks follow the pointer without easing. */
+[data-dragging] [data-mark] {
+  transition: none;
 }
