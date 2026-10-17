@@ -134,6 +134,38 @@ test.describe('kitchen sink URL state', () => {
     await expectShows(page, 'demo', '0.01', 'Two-sided');
   });
 
+  test('a link clicked before the debounce fires still navigates, and Back finds the change', async ({ page }) => {
+    // Next's patched replaceState dispatches a router RESTORE, and a RESTORE that arrives while a
+    // navigation is pending discards it. Hold every RSC request so the navigation stays pending,
+    // and pause the clock so the debounce fires only when the test says.
+    const held: string[] = [];
+    await page.route(
+      (url) => url.searchParams.has('_rsc'),
+      async (route) => {
+        held.push(new URL(route.request().url()).pathname);
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        await route.continue().catch(() => {});
+      },
+    );
+    await page.clock.install();
+    await open(page, '/kitchen-sink');
+    await page.clock.pauseAt(Date.now() + 60_000);
+    await baseline(page, 'demo').focus();
+    await page.keyboard.press('ArrowRight');
+    await expectShows(page, 'demo', '0.3', 'Two-sided');
+    await page.locator('[data-specimen="links--button"]').getByRole('link', { name: 'Primary link' }).click();
+    // The debounce would fire now, while the navigation waits for its RSC payload.
+    await page.clock.runFor(DEBOUNCE_MS * 2);
+    await page.clock.resume();
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/');
+    expect(held).toContain('/');
+
+    await page.goBack();
+    await expect.poll(() => query(page)).toBe('?demo.baseline=0.3&demo.tail=two');
+    await expect(figure(page, 'demo')).toHaveAttribute('data-state-from', 'url');
+    await expectShows(page, 'demo', '0.3', 'Two-sided');
+  });
+
   test("Reset clears only its own Figure's keys and restores the preset the page loaded with", async ({ page }) => {
     await open(page, '/kitchen-sink?demo.preset=interview&demo.baseline=0.3&demo-b.baseline=0.2&ghost.x=1');
     await expectShows(page, 'demo', '0.3', 'One-sided');

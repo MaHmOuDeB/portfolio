@@ -70,6 +70,24 @@ export function writeFigureParams<S extends ParamSchema>(
 }
 
 /**
+ * The URL a pending write leads to, or null when there is nothing to write: the URL would not
+ * change, or the location is no longer the page the write was scheduled on (after Back, or between
+ * a navigation's commit and the Figure's unmount), where it would put this Figure's keys on
+ * another page's URL.
+ */
+export function figureUrl(
+  location: { pathname: string; search: string; hash: string },
+  scheduledOn: string,
+  write: (search: URLSearchParams) => URLSearchParams,
+): string | null {
+  const { pathname, search, hash } = location;
+  if (pathname !== scheduledOn) return null;
+  const query = write(new URLSearchParams(search)).toString();
+  const url = `${pathname}${query ? `?${query}` : ''}${hash}`;
+  return url === `${pathname}${search}${hash}` ? null : url;
+}
+
+/**
  * Removes every key of this Figure from a copy of `search`, except `${id}.preset` when the page
  * loaded with a preset other than `default`: Reset restores that preset, and the URL says so.
  */

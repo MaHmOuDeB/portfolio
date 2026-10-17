@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   assertFigureId,
+  figureUrl,
   readFigureParams,
   resetFigureParams,
   URL_DEBOUNCE_MS,
@@ -178,6 +179,28 @@ describe('resetFigureParams', () => {
   it('writes the loaded preset back when it was given as a repeated or stale key', () => {
     const before = new URLSearchParams('demo.preset=interview&demo.preset=nope');
     expect(resetFigureParams(before, 'demo', 'interview').toString()).toBe('demo.preset=interview');
+  });
+});
+
+describe('figureUrl', () => {
+  const at = (pathname: string, search = '', hash = '') => ({ pathname, search, hash });
+  const write = (s: URLSearchParams) => writeFigureParams<typeof schema>(s, 'demo', { baseline: 0.3, power: '0.8' });
+
+  it('applies the write to the current query and keeps the hash', () => {
+    expect(figureUrl(at('/lab', '?other.x=1', '#peeking'), '/lab', write)).toBe(
+      '/lab?other.x=1&demo.baseline=0.3&demo.power=0.8#peeking',
+    );
+  });
+
+  it('drops a write scheduled on another page, so keys never land on the wrong URL', () => {
+    expect(figureUrl(at('/about', '?x=1'), '/lab', write)).toBeNull();
+  });
+
+  it('gives null when the URL would not change, and drops an emptied query', () => {
+    expect(figureUrl(at('/lab', '?demo.baseline=0.3&demo.power=0.8'), '/lab', write)).toBeNull();
+    expect(figureUrl(at('/lab', '?demo.baseline=0.3', '#a'), '/lab', (s) => resetFigureParams(s, 'demo', 'default'))).toBe(
+      '/lab#a',
+    );
   });
 });
 
