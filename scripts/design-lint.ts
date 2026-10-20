@@ -29,7 +29,12 @@ export const CSS_RULES: readonly RuleId[] = [
   'no-shadow', 'no-caps', 'no-mono', 'no-keyframes', 'no-arbitrary-colour', 'no-fade-up',
   'no-hover-move', 'no-dark',
 ];
-export const SOURCE_RULES: readonly RuleId[] = ['no-hex', 'no-arrow-in-content', 'no-middle-dot', 'no-emoji'];
+// The last four also run over compiled CSS (pass 1); in source they read inline `style` objects and
+// SVG paint attributes, which Tailwind never sees.
+export const SOURCE_RULES: readonly RuleId[] = [
+  'no-hex', 'no-arrow-in-content', 'no-middle-dot', 'no-emoji',
+  'no-shadow', 'no-caps', 'no-mono', 'no-arbitrary-colour',
+];
 
 // Files exempt from a source rule, keyed by repo-relative path. Each entry says why.
 export const ALLOW_LIST: Readonly<Record<string, { rules: RuleId[]; reason: string }>> = {
@@ -232,7 +237,50 @@ function checkCharacters(sink: Sink, text: string, firstLine: number): void {
 const ARBITRARY_COLOUR_TOKEN = /\[[^\]\s]*(?:#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\()[^\]\s]*\]/;
 
 const CODE_TAGS = new Set(['code', 'pre']);
-const COLOUR_ATTRS = new Set(['className', 'style', 'fill', 'stroke', 'stopColor', 'floodColor', 'color', 'stop-color', 'flood-color']);
+const PAINT_ATTRS = new Set([
+  'fill', 'stroke', 'stopColor', 'floodColor', 'lightingColor', 'color',
+  'stop-color', 'flood-color', 'lighting-color',
+]);
+const COLOUR_ATTRS = new Set(['className', 'style', ...PAINT_ATTRS]);
+
+// Inline style objects (`style={{ ... }}`) and SVG paint attributes. Only an object literal written
+// in the attribute is read: a style object built elsewhere and passed by name is not followed.
+// The CSS named colours (CSS Color Level 4), compared lower-case; `transparent` and `currentcolor`
+// are deliberately not in the list, and `none`, `inherit`, `var(--color-*)` and `url(#id)` are not
+// colours either.
+const NAMED_COLOURS = new Set(
+  (
+    'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown ' +
+    'burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan ' +
+    'darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid ' +
+    'darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet ' +
+    'deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ' +
+    'ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki ' +
+    'lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow ' +
+    'lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray ' +
+    'lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine ' +
+    'mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise ' +
+    'mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab ' +
+    'orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru ' +
+    'pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown ' +
+    'seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan ' +
+    'teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen'
+  ).split(' '),
+);
+const COLOUR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color-mix|color)\(/i;
+const STYLE_COLOUR_PROPS = new Set([
+  'color', 'backgroundColor', 'background', 'borderColor', 'borderTopColor', 'borderRightColor',
+  'borderBottomColor', 'borderLeftColor', 'border', 'borderTop', 'borderRight', 'borderBottom', 'borderLeft',
+  'outline', 'outlineColor', 'fill', 'stroke', 'stopColor', 'floodColor', 'lightingColor', 'caretColor',
+  'accentColor', 'textDecorationColor', 'columnRuleColor',
+]);
+const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/** Whether a CSS value holds a colour literal: a colour function or a named colour. */
+function hasColourLiteral(value: string): boolean {
+  const v = value.replace(/var\([^)]*\)/gi, ' ').replace(/url\([^)]*\)/gi, ' ');
+  return COLOUR_FUNCTION.test(v) || v.toLowerCase().split(/[\s,/]+/).some((token) => NAMED_COLOURS.has(token));
+}
 
 type Literal = ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | ts.TemplateLiteralLikeNode;
 const isLiteral = (node: ts.Node): node is Literal =>
@@ -252,6 +300,32 @@ function literalsIn(node: ts.Node): Literal[] {
   return found;
 }
 
+// The properties of an inline `style={{ ... }}` object literal, by the rule each one breaks.
+function lintStyleObject(sink: Sink, sf: ts.SourceFile, initializer: ts.JsxAttributeValue, inCode: boolean): void {
+  if (!ts.isJsxExpression(initializer) || !initializer.expression || !ts.isObjectLiteralExpression(initializer.expression)) return;
+  for (const prop of initializer.expression.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const key = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? toCamel(prop.name.text) : undefined;
+    if (key === undefined) continue;
+    const line = sf.getLineAndCharacterOfPosition(prop.getStart(sf)).line + 1;
+    const value = ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer)
+      ? prop.initializer.text
+      : undefined;
+    const literalText = literalsIn(prop.initializer).map((l) => l.text).join(' ');
+    if (key === 'boxShadow' || key === 'textShadow') {
+      if (value?.trim().toLowerCase() !== 'none') push(sink, 'no-shadow', line);
+    } else if ((key === 'filter' || key === 'backdropFilter') && /drop-shadow\(/i.test(literalText)) {
+      push(sink, 'no-shadow', line);
+    } else if (key === 'textTransform' && /uppercase/i.test(literalText)) {
+      push(sink, 'no-caps', line);
+    } else if (key === 'fontFamily' && !inCode && MONO.test(normaliseFamily(literalText))) {
+      push(sink, 'no-mono', line);
+    } else if (STYLE_COLOUR_PROPS.has(key) && hasColourLiteral(literalText)) {
+      push(sink, 'no-arbitrary-colour', line);
+    }
+  }
+}
+
 function lintTypeScript(sink: Sink, text: string): void {
   const kind = sink.file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(sink.file, text, ts.ScriptTarget.Latest, true, kind);
@@ -265,6 +339,15 @@ function lintTypeScript(sink: Sink, text: string): void {
       for (const lit of literalsIn(node.initializer)) {
         if (HAS_HEX.test(stripUrls(lit.text))) push(sink, 'no-hex', lineOf(lit.getStart(sf)));
       }
+    }
+    // SVG paint attributes: a colour function or a named colour is as arbitrary as a hex.
+    if (ts.isJsxAttribute(node) && node.initializer && PAINT_ATTRS.has(node.name.getText(sf))) {
+      for (const lit of literalsIn(node.initializer)) {
+        if (hasColourLiteral(lit.text)) push(sink, 'no-arbitrary-colour', lineOf(lit.getStart(sf)));
+      }
+    }
+    if (ts.isJsxAttribute(node) && node.name.getText(sf) === 'style' && node.initializer) {
+      lintStyleObject(sink, sf, node.initializer, inCode);
     }
     // Outside colour attributes (already checked above), only arbitrary-colour tokens count.
     if (isLiteral(node) && !ts.findAncestor(node, (a) => ts.isJsxAttribute(a) && COLOUR_ATTRS.has(a.name.getText(sf)))) {

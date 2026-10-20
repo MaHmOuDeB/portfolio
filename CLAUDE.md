@@ -191,15 +191,20 @@ page, give it the primitives catalogue above and the golden page.
   - Respect `prefers-reduced-motion` (the tokens collapse every duration).
   - No scroll-jacking and no fade-up-on-every-section.
 - **Banned by `scripts/design-lint.ts`**, one bullet per rule id. Pass 1 reads the CSS the build
-  emits (`npm run lint:design`), pass 2 reads the source (`npm run lint:design:src`).
+  emits (`npm run lint:design`), pass 2 reads the source (`npm run lint:design:src`). Four rules run
+  in both passes: in source they also read an inline `style={{ ... }}` object literal and SVG paint
+  attributes (a style object built elsewhere and passed by name is not followed).
   - `no-shadow`: any `box-shadow` except the focus-ring utilities, any `drop-shadow()` and any
-    `text-shadow`.
-  - `no-caps`: `text-transform: uppercase`.
+    `text-shadow`; in source, an inline `boxShadow`, `textShadow` or `drop-shadow` filter.
+  - `no-caps`: `text-transform: uppercase`, or an inline `textTransform: 'uppercase'`.
   - `no-mono`: a monospace font family outside `pre`, `code`, `kbd`, `samp` and the code block
-    class.
+    class, or an inline `fontFamily` naming one outside `<code>` and `<pre>`.
   - `no-keyframes`: any `@keyframes` that is not a `scroll-moment-*` one.
   - `no-arbitrary-colour`: a hex, `rgb()` or `hsl()` literal in compiled CSS outside the theme
-    variables (blocks `bg-[#fff]`).
+    variables (blocks `bg-[#fff]`); in source, a colour function or a CSS colour name (`red`) in an
+    SVG paint attribute (`fill`, `stroke`, `stopColor`, `floodColor`, `lightingColor`, `color`) or
+    an inline colour style. `currentColor`, `none`, `transparent`, `inherit` and
+    `var(--color-*)` are fine.
   - `no-fade-up`: `fade-up`, `animate-in` and `slide-in-from` classes.
   - `no-hover-move`: `hover:translate-*`, `hover:scale-*`, or a transform inside a `:hover` rule.
   - `no-dark`: `prefers-color-scheme: dark` and `dark:` variants. The site is light only.

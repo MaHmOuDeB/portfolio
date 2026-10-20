@@ -40,12 +40,15 @@ const srcFixtures = fixtures('src').filter((f) => f.rule !== FORMULA);
 const formulaFixtures = fixtures('src').filter((f) => f.rule === FORMULA);
 
 describe('rule ids', () => {
-  it('lists the eight compiled-CSS rules and the four source rules', () => {
+  it('lists the eight compiled-CSS rules and the eight source rules', () => {
     expect([...CSS_RULES]).toEqual([
       'no-shadow', 'no-caps', 'no-mono', 'no-keyframes', 'no-arbitrary-colour', 'no-fade-up',
       'no-hover-move', 'no-dark',
     ]);
-    expect([...SOURCE_RULES]).toEqual(['no-hex', 'no-arrow-in-content', 'no-middle-dot', 'no-emoji']);
+    expect([...SOURCE_RULES]).toEqual([
+      'no-hex', 'no-arrow-in-content', 'no-middle-dot', 'no-emoji',
+      'no-shadow', 'no-caps', 'no-mono', 'no-arbitrary-colour',
+    ]);
   });
 
   it('has a passing and a failing fixture for every rule, and no fixture for an unknown rule', () => {
@@ -83,6 +86,29 @@ describe('lintSource fixtures', () => {
     const text = read(rel);
     expect(markedLines(text).length).toBeGreaterThan(0);
     expect(linesOf(lintSource(text, rel), rule)).toEqual(markedLines(text));
+  });
+});
+
+describe('inline styles and SVG paint in source', () => {
+  const bypass =
+    "export const A = () => <p style={{ boxShadow: '0 1px 4px var(--color-ink)', textTransform: 'uppercase', fontFamily: 'ui-monospace, monospace' }}>x</p>;\n";
+  it('reports a shadow, capitals and monospace written as an inline style object', () => {
+    expect(lintSource(bypass, 'src/a.tsx').map((v) => v.rule)).toEqual(['no-shadow', 'no-caps', 'no-mono']);
+  });
+
+  it('reports named and functional colours in SVG paint attributes', () => {
+    const svg = 'export const A = () => <rect fill="red" stroke="rgb(255,0,0)" />;\n';
+    expect(lintSource(svg, 'src/a.tsx').map((v) => v.rule)).toEqual(['no-arbitrary-colour', 'no-arbitrary-colour']);
+  });
+
+  it('keeps ordinary inline styles allowed', () => {
+    const ok = "export const A = () => <p style={{ width: `${w}%`, height: 4, color: 'var(--color-ink)' }}>x</p>;\n";
+    expect(lintSource(ok, 'src/a.tsx')).toEqual([]);
+  });
+
+  it('allows monospace inside code and pre', () => {
+    const code = "export const A = () => <code style={{ fontFamily: 'Menlo' }}>x</code>;\n";
+    expect(lintSource(code, 'src/a.tsx')).toEqual([]);
   });
 });
 
