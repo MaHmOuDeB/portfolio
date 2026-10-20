@@ -290,3 +290,21 @@ test.describe('not found page', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// next/link prefetches in-view links; a prefetch of a page a later plan builds is a 404 in the
+// console, which fails Lighthouse Best Practices. lib/nav.ts prefetchFor turns those off.
+test('the home page loads without console errors or failed requests, prefetches included', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
+  });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  // Prefetches start after hydration, on idle; give them time to fire before asserting none failed.
+  await page.waitForTimeout(1500);
+  expect(errors).toEqual([]);
+});

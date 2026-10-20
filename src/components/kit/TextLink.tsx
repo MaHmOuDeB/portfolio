@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cx } from '@/lib/cx';
+import { prefetchFor } from '@/lib/nav';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -44,7 +45,7 @@ export function TextLink({ href, standalone, external, icon, children, 'aria-lab
     );
   }
   return (
-    <Link href={href} className={className} data-touch-target={standalone ? '' : undefined} aria-label={ariaLabel}>
+    <Link href={href} prefetch={prefetchFor(href)} className={className} data-touch-target={standalone ? '' : undefined} aria-label={ariaLabel}>
       {content}
     </Link>
   );

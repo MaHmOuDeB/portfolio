@@ -22,3 +22,9 @@ export const CONTACT = {
 } as const;
 
 export const PRIVACY_HREF = '/privacy';
+
+// The routes that have a page today. next/link prefetches every in-view site link, and a prefetch of
+// a page a later plan builds is a 404 in the console (Lighthouse Best Practices), so links to other
+// paths are not prefetched (lib/nav.ts prefetchFor). tests/unit/live-routes.test.ts keeps this list
+// equal to the pages under src/app: add a route here when its page lands.
+export const LIVE_ROUTES: readonly string[] = ['/'];

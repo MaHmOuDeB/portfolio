@@ -17,7 +17,7 @@ const island = (page: Page, id: string) => page.locator('[data-island]', { has: 
 const baseline = (page: Page, id: string) => figure(page, id).getByRole('slider', { name: 'Baseline conversion' });
 const query = (page: Page) => new URL(page.url()).searchParams;
 
-/** Collects page errors and console errors, except header prefetch 404s and the expected throws. */
+/** Collects page errors and console errors, except resource 404s and the expected throws. */
 function watchErrors(page: Page, expected: readonly string[] = []) {
   const errors: string[] = [];
   page.on('pageerror', (error) => {

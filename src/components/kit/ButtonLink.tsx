@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cx } from '@/lib/cx';
+import { prefetchFor } from '@/lib/nav';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -49,7 +50,7 @@ export function ButtonLink({ href, variant, icon, download, external, children }
     );
   }
   return (
-    <Link href={href} className={className} data-touch-target>
+    <Link href={href} prefetch={prefetchFor(href)} className={className} data-touch-target>
       {content}
     </Link>
   );

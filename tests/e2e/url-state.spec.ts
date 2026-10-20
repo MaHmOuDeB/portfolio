@@ -20,8 +20,8 @@ const query = (page: Page) => new URL(page.url()).search;
 async function open(page: Page, path: string) {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  // A hydration mismatch or a throw shows up here. Resource 404s do not count: the header prefetches
-  // Work, Lab, Live test and About, which later plans build.
+  // A hydration mismatch or a throw shows up here. Resource 404s do not count (shell.spec.ts checks
+  // them on the home page).
   page.on('console', (message) => {
     if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
       errors.push(message.text());

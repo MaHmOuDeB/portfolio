@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cx } from '@/lib/cx';
-import { isCurrent } from '@/lib/nav';
+import { isCurrent, prefetchFor } from '@/lib/nav';
 import { NAV } from '@/lib/site';
 
 export function NavLinks({ className }: { className?: string }) {
@@ -17,6 +17,7 @@ export function NavLinks({ className }: { className?: string }) {
           <li key={item.href}>
             <Link
               href={item.href}
+              prefetch={prefetchFor(item.href)}
               aria-current={current ? 'page' : undefined}
               data-touch-target
               className={cx(
