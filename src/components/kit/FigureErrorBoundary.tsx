@@ -21,7 +21,7 @@ import { DataTable, type TableData } from './DataTable';
 /** Chart kind without live axes, chart kind with live axes, diagram kind. */
 export type FallbackBody = 'static' | 'live' | 'diagram';
 
-// RULING-home-and-errors item 2, verbatim.
+// The fallback sentences. They say where the numbers are, without a status code.
 const SENTENCE: Record<FallbackBody, string> = {
   static: 'This chart could not load. The numbers are in the table below.',
   live: 'This chart could not load. The numbers for both groups are in the table below.',

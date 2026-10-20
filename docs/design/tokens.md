@@ -22,7 +22,7 @@ class.
 
 ## Colour
 
-The contrast pairs were checked at Gate 2: text pairs at WCAG AA 4.5:1, non-text pairs at 3:1
+The contrast pairs were checked when the palette was chosen: text pairs at WCAG AA 4.5:1, non-text pairs at 3:1
 against the colour each mark sits next to, and a colour-vision distance of at least 15 between the
 two chart series. Colours that touch where the bare pair is below 3:1 (an orange dot
 on the blue line or the band, the band fill on white, the grid, the focus ring next to an `ink`

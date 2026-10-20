@@ -1,5 +1,5 @@
-// The body of a live Figure in each state of states.md: the state message (the copy deck's "State
-// messages", verbatim) and the parts the state allows. Server-safe, no hooks. Every number carries
+// The body of a live Figure in each state of the state matrix (src/lib/figure/states.ts): the state
+// message and the parts the state allows. Server-safe, no hooks. Every number carries
 // data-derived with the caller's refs.
 //
 // - low-data: "A/B started dd.mm." first in the A/B phase, "Calibrating: …" in calibration; no

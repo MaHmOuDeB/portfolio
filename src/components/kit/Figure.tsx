@@ -37,7 +37,7 @@ export type FigureProps = {
   id: string;
   /** A finding (static) or a relationship (interactive); may hold a <Fact>. */
   title: ReactNode;
-  /** The axes in states.md; defaults to the static default. */
+  /** The axes in src/lib/figure/states.ts; defaults to the static default. */
   state?: FigureState;
   /** What is drawn, the source, the seed. */
   caption: ReactNode;
@@ -195,7 +195,7 @@ export function Figure(p: FigureProps) {
 
 /**
  * Runs `apply` (a state change) with the Figure's marks held still, so the change lands at once:
- * Reset restores the preset instantly (motion.md). The flag lasts until two frames after the change.
+ * Reset restores the preset instantly. The flag lasts until two frames after the change.
  */
 export function instantly(figureId: string, apply: () => void): void {
   const figure = document.getElementById(figureId);

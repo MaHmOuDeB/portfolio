@@ -35,7 +35,7 @@ const FRESHNESS = [FRESH, STALE, PAUSED] as const;
 
 const live = (phase: LivePhase, data: DataAmount, freshness: Freshness = FRESH): LiveAxes => ({ phase, data, freshness });
 
-// An independent oracle for states.md "Order of precedence": the first rule that applies wins.
+// An independent oracle for the order of precedence in src/lib/figure/states.ts: the first rule that applies wins.
 function expected(runtime: string, axes: LiveAxes): FigureBody {
   if (runtime === 'error') return 'error';
   if (axes.freshness.kind === 'paused') return 'paused';

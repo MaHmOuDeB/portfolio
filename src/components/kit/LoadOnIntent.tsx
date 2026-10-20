@@ -11,7 +11,7 @@
 //   flickers, and the static HTML has no Suspense boundary of its own (the preview is inline, once).
 //   A control in the preview that had focus hands it to the island's control with the same id.
 // - If the island cannot load or throws outside its Figure's own boundary, the preview comes back
-//   in its no-JS form (states.md: no-js covers "failed to load"): `data-island="failed"` hides the
+//   in its no-JS form (the no-js runtime state covers "failed to load"): `data-island="failed"` hides the
 //   [data-js-only] parts and shows the [data-nojs-only] ones (globals.css). The static HTML is never
 //   broken. Focus that was inside the island goes to the open table.
 // - The root carries `data-island="idle" | "ready" | "failed"`.

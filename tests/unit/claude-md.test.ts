@@ -44,10 +44,7 @@ describe('CLAUDE.md', () => {
     expect(claudeMd).not.toMatch(/audible/i);
     expect(claudeMd).not.toContain('Known');
     expect(claudeMd).not.toMatch(/known gaps/i);
-    expect(claudeMd).not.toMatch(/fact sheet/i);
-    const withoutImport = claudeMd.replace('@~/code/portfolio/private/CLAUDE.private.md', '');
-    expect(withoutImport).not.toMatch(/private\//);
-    expect(withoutImport).not.toMatch(/CLAUDE\.private/);
+    // Private paths and process documents are checked repo-wide by public-tree.test.ts.
   });
 
   it('follows its own copy rules: no arrows or middle dots', () => {

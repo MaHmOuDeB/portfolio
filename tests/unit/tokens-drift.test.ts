@@ -70,10 +70,4 @@ describe('tokens.css and docs/design/tokens.md', () => {
     expect(unknown).toEqual([]);
     expect(firstColumnNames().length).toBeGreaterThan(20);
   });
-
-  test('the document carries nothing from the private folder', () => {
-    for (const forbidden of ['private/', 'gate2-review', 'DECISIONS']) {
-      expect(doc).not.toContain(forbidden);
-    }
-  });
 });
