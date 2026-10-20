@@ -78,6 +78,13 @@ jobs:
       - name: Check the build has no kitchen sink
         run: npm run assert:no-kitchen-sink
       - run: npm run lint:design
+      # Fails if TRUTH_DENYLIST is missing; findings name a deny-list term only by its index, so
+      # the public log never holds a term. The secret is not exposed to pull requests from forks,
+      # where the audit fails with "TRUTH_DENYLIST missing in CI".
+      - name: Truth audit
+        run: npm run truth:audit
+        env:
+          TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}
       - name: Upload build output
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
