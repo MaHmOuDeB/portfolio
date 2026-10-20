@@ -8,7 +8,7 @@ type Props = {
   length?: number;
   /** Where the estimate sits along the bar, 0 to 1. */
   estimateAt?: number;
-  /** Hollow is the grey "no estimate yet" form used while a test is collecting. */
+  /** Hollow is the grey "no estimate yet" form used while a test is collecting (bar, caps and dot in muted). */
   variant?: 'filled' | 'hollow';
   /** Omit for a decorative glyph (aria-hidden). */
   label?: string;
@@ -23,7 +23,8 @@ export function IntervalGlyph({
 }: Props) {
   const g = glyphGeometry(size);
   const hollow = variant === 'hollow';
-  const frame = hollow ? 'var(--color-line)' : 'var(--color-series-1)';
+  // Hollow draws its bar and caps in muted: line is 1.2:1 against the page and the glyph would vanish.
+  const frame = hollow ? 'var(--color-muted)' : 'var(--color-series-1)';
   const at = Math.min(1, Math.max(0, estimateAt)) * length;
   const capY = (g.height - g.capHeight) / 2;
   const a11y = label

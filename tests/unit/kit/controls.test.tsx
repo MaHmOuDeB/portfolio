@@ -188,9 +188,30 @@ describe('Segmented', () => {
     const html = renderToStaticMarkup(
       <Segmented name="fix" legend="Fix" options={FIX} value="none" onChange={noop} />,
     );
-    expect(html).toContain('max-xs:flex-col');
+    // Stacked by default, one joined row from xs up.
+    expect(html).toContain('flex flex-col gap-2 xs:inline-flex xs:flex-row xs:gap-0');
     expect(html).not.toMatch(/overflow-(hidden|clip)/);
     expect(hasAttr(byTag(parse(html), 'fieldset')[0]!, 'data-js-only')).toBe(true);
+  });
+
+  it('is exactly one touch target tall (44 px): no padding or border round the options', () => {
+    const root = parse(renderToStaticMarkup(<Segmented name="fix" legend="Fix" options={FIX} value="none" onChange={noop} />));
+    const group = byTag(root, 'fieldset')[0]!.childNodes!.find((n) => n.nodeName === 'div')!;
+    expect(attr(group, 'class')).not.toMatch(/(^|\s)(p|px|py)-\d|(^|\s)border(\s|$)/);
+    for (const label of byTag(root, 'label')) expect(attr(label, 'class')).toContain('min-h-(--size-target)');
+  });
+
+  it('gives a stacked option a radio mark: an empty ring, a dot when chosen, hidden from xs up', () => {
+    const root = parse(renderToStaticMarkup(<Segmented name="fix" legend="Fix" options={FIX} value="none" onChange={noop} />));
+    const labels = byTag(root, 'label');
+    const marks = labels.map((l) => byTag(l, 'span').find((sp) => attr(sp, 'aria-hidden') === 'true')!);
+    for (const mark of marks) {
+      expect(attr(mark, 'class')).toContain('rounded-full');
+      expect(attr(mark, 'class')).toContain('xs:hidden');
+    }
+    expect(byTag(marks[0]!, 'span')).toHaveLength(2); // the ring and its dot
+    expect(byTag(marks[1]!, 'span')).toHaveLength(1); // the empty ring
+    for (const label of labels) expect(attr(label, 'class')).toContain('max-xs:w-full');
   });
 
   it('falls back to the first option when the value is not one of the options', () => {

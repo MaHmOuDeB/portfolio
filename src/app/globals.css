@@ -64,6 +64,16 @@
   }
 
   /*
+   * Tabular figures only where numbers are. Inter's tnum feature also gives the hyphen, the minus,
+   * the full stop, the colon and the space the width of a digit, so on body text it spaces
+   * "kitchen-sink" out. Facts, derived numbers, table cells, dates, form values and progress carry
+   * it; a component that prints a number in other markup adds data-tabular.
+   */
+  :is([data-fact], [data-derived], [data-tabular], td, th, time, data, output, input, progress) {
+    font-feature-settings: "cv05", "tnum";
+  }
+
+  /*
    * The header is sticky only where it is safe: from md up (48rem) and on a screen at least 700 px
    * (43.75rem) tall. Below that height it would take more than a tenth of the screen, so it scrolls
    * away like on a phone. While it is sticky, a focused element or an in-page anchor must not land

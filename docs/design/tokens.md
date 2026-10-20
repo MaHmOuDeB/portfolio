@@ -74,8 +74,11 @@ All states use existing tokens; there are no extra tints.
 One family, Inter (variable), loaded with `next/font/local` with the `opsz` axis, so the display
 sizes get Inter Display's tighter forms. `font-optical-sizing:
 auto` is set on `html`. `font-sans` is the only text family; its feature settings
-(`--font-sans--font-feature-settings`) are `cv05` (lowercase l with a tail, so "El" never reads as
-"EI") and `tnum`, so every number uses tabular figures. Weights used: `font-weight-regular` 400,
+(`--font-sans--font-feature-settings`) is `cv05` (lowercase l with a tail, so "El" never reads as
+"EI"). Tabular figures (`tnum`) are not on body text: the feature also widens the hyphen, the full
+stop, the colon and the space, so "kitchen-sink" would read "kitchen - sink". They are turned on in
+`globals.css` for the elements that hold numbers (facts, derived numbers, table cells, dates, form
+values, progress), so a number still lines up. Weights used: `font-weight-regular` 400,
 `font-weight-medium` 500, `font-weight-semibold` 600. Code blocks only use `font-code`, which
 `--default-mono-font-family` also makes the default for `code`, `kbd`, `samp` and `pre`.
 

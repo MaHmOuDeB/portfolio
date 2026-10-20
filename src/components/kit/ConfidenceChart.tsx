@@ -12,7 +12,7 @@
 // decided test without an interval, which must not read as still collecting.
 import { area, line } from 'd3-shape';
 import { contentBody, confidenceModel, smallerGroup, type ConfidenceModel, type CsPoint, type LiveSnapshot } from '@/lib/figure/cs-band';
-import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
+import { pct, type Layout } from '@/lib/figure/scales';
 import type { FigureBody } from '@/lib/figure/states';
 import { ChartFrame, MARK_UNITS, type PlotContext } from './ChartFrame';
 import type { DerivedRef } from './Derived';
@@ -31,12 +31,6 @@ type Props = {
 const HEIGHT = { narrow: 220, wide: 280 } as const;
 const VIEW_TICK = 8;
 const VIEW_LABEL_GAP = 4;
-// ChartFrame writes "B higher" and "B lower" at the right end of the zero line, 4 px off it, in
-// text-xs (about 60 px wide with the dot's reach). Their box: the share of the narrowest plot of
-// each layout (about 290 px narrow, 600 px wide) and its height in px. With the reach of the
-// current dot (r 4 and its 2 px ring), the dot is never hidden under a label.
-const SIDE_LABEL = { share: { narrow: 0.21, wide: 0.1 }, gap: 4, height: 13 };
-const DOT_REACH = 6;
 const LABEL_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 
 /** The body the data calls for: paused, error and default keep it. */
@@ -71,23 +65,6 @@ function ariaLabel(m: ConfidenceModel, own: FigureBody): string {
       ? `${which} lies above zero: B higher`
       : `${which} lies below zero: B lower`;
   return `The difference between the groups, B minus A, as views per group grow: ${where}`;
-}
-
-/** "B higher" and "B lower", each left out where the current estimate would sit under it. */
-function sideLabels(m: ConfidenceModel): { aboveLabel?: string; belowLabel?: string } {
-  let above = true;
-  let below = true;
-  const x = linearFrac(m.x.domain)(m.current.n);
-  const yFrac = linearFrac(m.y.domain);
-  for (const layout of ['narrow', 'wide'] as const) {
-    if (x <= 1 - SIDE_LABEL.share[layout]) continue;
-    // px below the zero line (negative: above it).
-    const below0 = (yFrac(0) - yFrac(m.current.estimate)) * HEIGHT[layout];
-    const reach = SIDE_LABEL.gap + SIDE_LABEL.height + DOT_REACH;
-    if (below0 > -reach && below0 < DOT_REACH) above = false;
-    if (below0 < reach && below0 > -DOT_REACH) below = false;
-  }
-  return { aboveLabel: above ? 'B higher' : undefined, belowLabel: below ? 'B lower' : undefined };
 }
 
 function Marks({ ctx, m, project }: { ctx: PlotContext; m: ConfidenceModel; project: boolean }) {
@@ -202,8 +179,10 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
           ...m.y,
           label: 'B − A (percentage points)',
           refs,
+          // The zero-line words sit in the chart's right margin, so they never cover a mark.
           zeroLabel: 'no difference',
-          ...sideLabels(m),
+          aboveLabel: 'B higher',
+          belowLabel: 'B lower',
         }}
         height={HEIGHT}
         marks={(ctx) => <Marks ctx={ctx} m={m} project={shown === 'running'} />}

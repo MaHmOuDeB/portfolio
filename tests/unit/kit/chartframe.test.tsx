@@ -150,13 +150,29 @@ describe('ChartFrame', () => {
     expect(text(ticks(wide!).find((t) => attr(t, 'data-tick') === 'y')!)).toBe('−20');
   });
 
-  it('gives y tick labels, which sit inside the plot, a 2 px bg halo', () => {
+  it('puts the y tick labels in a left gutter, right-aligned and centred on their gridline, never on the plot', () => {
     const [, wide] = frames(render());
-    for (const t of ticks(wide!).filter((n) => attr(n, 'data-tick') === 'y')) {
-      expect(attr(t, 'paint-order')).toBe('stroke');
-      expect(attr(t, 'stroke')).toBe('var(--color-bg)');
-      expect(attr(t, 'stroke-width')).toBe('4px');
+    const grid = find(wide!, (n) => hasAttr(n, 'data-grid')).map((g) => Number(attr(g, 'y1')));
+    for (const t of ticks(wide!).filter((n) => attr(n, 'data-tick') === 'y' && !hasAttr(n, 'data-zero-tick'))) {
+      expect(attr(t, 'x')).toBe('0');
+      expect(Number(attr(t, 'dx'))).toBeLessThan(0);
+      expect(attr(t, 'text-anchor')).toBe('end');
+      expect(attr(t, 'dominant-baseline')).toBe('middle');
+      expect(grid).toContain(Number(attr(t, 'y')));
     }
+    // The gutter is the svg's own padding, wide enough for the longest label.
+    const style = attr(wide!, 'style')!;
+    expect(style).toMatch(/padding-left:\s*\d+px/);
+    expect(Number(/padding-left:\s*(\d+)px/.exec(style)![1])).toBeGreaterThanOrEqual('−20'.length * 8);
+    expect(attr(wide!, 'class')).toContain('overflow-visible');
+  });
+
+  it('snaps the y scale to the middle of a pixel row, so a horizontal 1 px line is sharp', () => {
+    const ys: number[] = [];
+    renderToStaticMarkup(
+      <ChartFrame {...FIXTURE} marks={(ctx) => { ys.push(ctx.yPx(13.37), ctx.yPx(0), ctx.yPx(-20)); return null; }} />,
+    );
+    for (const y of ys) expect(y % 1).toBe(0.5);
   });
 
   it('places x ticks at percentages of the width: the first starts, the last ends, the rest centre', () => {
@@ -174,35 +190,46 @@ describe('ChartFrame', () => {
     expect(attr(zero[0]!, 'class')).toContain('stroke-ink');
     const zeroTick = ticks(wide!).find((t) => hasAttr(t, 'data-zero-tick'))!;
     expect(attr(zeroTick, 'data-derived')).toBe('simulated build');
-    expect(text(zeroTick)).toBe('0no difference');
-    expect(text(byTag(zeroTick, 'tspan')[0]!)).toBe('0');
-    expect(text(byTag(zeroTick, 'tspan')[1]!)).toBe('no difference');
+    expect(text(zeroTick)).toBe('0');
+    expect(attr(zeroTick, 'x')).toBe('0');
+    expect(attr(zeroTick, 'text-anchor')).toBe('end');
+    // The words of the zero line are in the right margin, on the zero line.
+    const words = find(wide!, (n) => hasAttr(n, 'data-zero-label'))[0]!;
+    expect(text(words)).toBe('no difference');
+    expect(Number(attr(words, 'y'))).toBe(Number(attr(zero[0]!, 'y1')));
+    expect(attr(words, 'x')).toBe('100%');
+    expect(Number(attr(words, 'dx'))).toBeGreaterThan(0);
     // The zero gridline is not drawn twice.
     const grid = find(wide!, (n) => hasAttr(n, 'data-grid'));
     expect(grid).toHaveLength(6);
   });
 
-  it('writes "B higher" and "B lower" right-aligned just above and below the zero line', () => {
-    const [, wide] = frames(render());
+  it('stacks "B higher", "no difference" and "B lower" in the right margin, clear of the plot', () => {
+    const [narrow, wide] = frames(render());
     const zeroY = Number(attr(find(wide!, (n) => hasAttr(n, 'data-zero-line'))[0]!, 'y1'));
     const above = find(wide!, (n) => attr(n, 'data-side') === 'above')[0]!;
     const below = find(wide!, (n) => attr(n, 'data-side') === 'below')[0]!;
     expect(text(above)).toBe('B higher');
     expect(text(below)).toBe('B lower');
     for (const t of [above, below]) {
+      // x is the plot's right edge; the 8 px dx puts the text in the margin, off the plot.
       expect(attr(t, 'x')).toBe('100%');
-      expect(attr(t, 'text-anchor')).toBe('end');
+      expect(Number(attr(t, 'dx'))).toBeGreaterThanOrEqual(8);
+      expect(attr(t, 'text-anchor')).toBeUndefined();
     }
-    expect(Number(attr(above, 'y'))).toBe(zeroY - 4);
-    expect(attr(above, 'dominant-baseline')).toBeUndefined();
-    expect(Number(attr(below, 'y'))).toBe(zeroY + 4);
+    // Above and below clear the one-line zero label by at least 4 px.
+    expect(zeroY - Number(attr(above, 'y'))).toBeGreaterThanOrEqual(8 + 4);
     expect(attr(below, 'dominant-baseline')).toBe('hanging');
-    // They sit on the band in the collecting state, where muted on series-ghost is under AA.
-    for (const t of [above, below]) {
-      expect(attr(t, 'paint-order')).toBe('stroke');
-      expect(attr(t, 'stroke')).toBe('var(--color-bg)');
-      expect(attr(t, 'stroke-width')).toBe('4px');
-    }
+    expect(Number(attr(below, 'y')) - zeroY).toBeGreaterThanOrEqual(8 + 4);
+    // The margin is the svg's right padding, as wide as the longest word.
+    expect(Number(/padding-right:\s*(\d+)px/.exec(attr(wide!, 'style')!)![1])).toBeGreaterThanOrEqual('no difference'.length * 6);
+    // On a phone "no difference" takes two lines to keep the plot wide; the text still reads whole.
+    const narrowWords = find(narrow!, (n) => hasAttr(n, 'data-zero-label'))[0]!;
+    expect(byTag(narrowWords, 'tspan').map(text)).toEqual(['no ', 'difference']);
+    expect(text(narrowWords)).toBe('no difference');
+    expect(Number(/padding-right:\s*(\d+)px/.exec(attr(narrow!, 'style')!)![1])).toBeLessThan(
+      Number(/padding-right:\s*(\d+)px/.exec(attr(wide!, 'style')!)![1]),
+    );
   });
 
   it('labels both axes in text-xs muted', () => {
@@ -251,8 +278,8 @@ describe('ChartFrame', () => {
       />,
     );
     expect(seen).toEqual([
-      { layout: 'narrow', height: 200, top: 0, bottom: 200, mid: 0.5 },
-      { layout: 'wide', height: 280, top: 0, bottom: 280, mid: 0.5 },
+      { layout: 'narrow', height: 200, top: 0.5, bottom: 200.5, mid: 0.5 },
+      { layout: 'wide', height: 280, top: 0.5, bottom: 280.5, mid: 0.5 },
     ]);
   });
 
@@ -294,7 +321,7 @@ describe('ChartFrame with hostile input', () => {
     );
     const [, wide] = frames(root);
     expect(find(wide!, (n) => hasAttr(n, 'data-zero-line'))).toHaveLength(1);
-    expect(text(byTag(ticks(wide!).find((t) => hasAttr(t, 'data-zero-tick'))!, 'tspan')[0]!)).toBe('0');
+    expect(text(ticks(wide!).find((t) => hasAttr(t, 'data-zero-tick'))!)).toBe('0');
   });
 
   it('refuses a tick format too coarse for the step: a false "0" or a repeated label', () => {

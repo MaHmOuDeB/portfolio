@@ -33,7 +33,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
     >
       <summary
         data-touch-target
-        className="inline-flex min-h-(--size-target) min-w-(--size-target) cursor-pointer list-none items-center justify-center gap-2 rounded-sm px-2 text-sm font-medium text-ink marker:hidden [&::-webkit-details-marker]:hidden"
+        className="inline-flex min-h-(--size-target) min-w-(--size-target) cursor-pointer list-none items-center justify-center gap-1 rounded-sm px-2 text-sm font-medium text-ink marker:hidden [&::-webkit-details-marker]:hidden"
       >
         <Icon name="menu" />
         Menu

@@ -144,7 +144,7 @@ export function Figure(p: FigureProps) {
           data-figure-controls=""
           role="group"
           aria-label="Controls"
-          className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4"
+          className="mt-4 flex flex-col gap-4 xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
         >
           {p.controls}
         </div>

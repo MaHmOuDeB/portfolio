@@ -117,21 +117,37 @@ for (const width of WIDTHS) {
       expect(hits).toEqual([]);
     });
 
-    test('labels inside the plot carry a bg halo painted under the text', async ({ page }) => {
+    test('the y labels sit in the left gutter and the zero-line words in the right margin, 4 px clear of the plot', async ({ page }) => {
       await openAt(page, width);
-      const halos = await visibleFrames(page).evaluateAll((frames) =>
-        frames.flatMap((f) =>
-          [...f.querySelectorAll('text[data-tick="y"], text[data-side]')].map((t) => {
-            const s = getComputedStyle(t);
-            return { stroke: s.stroke, width: s.strokeWidth, order: s.paintOrder.split(' ')[0] };
-          }),
-        ),
+      const result = await visibleFrames(page).evaluateAll((frames) =>
+        frames.map((f) => {
+          const plot = f.querySelector('svg[data-mark-layer]')!.getBoundingClientRect();
+          const frame = f.getBoundingClientRect();
+          const boxes = (sel: string) => [...f.querySelectorAll<SVGTextElement>(sel)].map((t) => t.getBoundingClientRect());
+          return {
+            id: f.closest('[data-specimen]')!.getAttribute('data-specimen'),
+            plotLeft: plot.left,
+            plotRight: plot.right,
+            frameLeft: frame.left,
+            frameRight: frame.right,
+            ticks: boxes('text[data-tick="y"]').map((r) => ({ left: r.left, right: r.right })),
+            words: boxes('text[data-side], text[data-zero-label]').map((r) => ({ left: r.left, right: r.right })),
+          };
+        }),
       );
-      // The static, narrow and wide specimens and the one-look specimen each draw "B higher" and "B lower".
-      expect(halos.length).toBeGreaterThan(6);
-      expect(new Set(halos.map((h) => JSON.stringify(h)))).toEqual(
-        new Set([JSON.stringify({ stroke: 'rgb(255, 255, 255)', width: '4px', order: 'stroke' })]),
-      );
+      expect(result.length).toBeGreaterThan(4);
+      for (const r of result) {
+        // The plot is the frame inset by the gutters, so the labels sit in the padding.
+        expect(r.plotLeft, r.id!).toBeGreaterThan(r.frameLeft);
+        for (const t of r.ticks) {
+          expect(t.right, `${r.id}: a y tick overlaps the plot`).toBeLessThanOrEqual(r.plotLeft - 4);
+          expect(t.left, `${r.id}: a y tick is clipped by the frame`).toBeGreaterThanOrEqual(r.frameLeft - 0.5);
+        }
+        for (const w of r.words) {
+          expect(w.left, `${r.id}: a zero-line word overlaps the plot`).toBeGreaterThanOrEqual(r.plotRight + 4);
+          expect(w.right, `${r.id}: a zero-line word is clipped by the frame`).toBeLessThanOrEqual(r.frameRight + 0.5);
+        }
+      }
       const sides = await visibleFrames(page).evaluateAll((frames) => frames.flatMap((f) => [...f.querySelectorAll('text[data-side]')]).length);
       expect(sides).toBe(8);
     });

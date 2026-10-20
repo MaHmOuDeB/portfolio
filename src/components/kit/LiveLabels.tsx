@@ -28,7 +28,7 @@ export function ProgressLine({
   return (
     <div>
       <progress
-        className="block h-2 w-64 max-w-full appearance-none overflow-hidden rounded-sm bg-line [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-line [&::-webkit-progress-value]:bg-accent"
+        className="block h-3 w-full appearance-none overflow-hidden rounded-sm border border-muted bg-bg [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-bg [&::-webkit-progress-value]:bg-accent"
         max={target}
         value={Math.min(nSmaller, target)}
         aria-labelledby={labelId}

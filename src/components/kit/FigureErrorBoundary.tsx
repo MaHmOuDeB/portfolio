@@ -21,11 +21,12 @@ import { DataTable, type TableData } from './DataTable';
 /** Chart kind without live axes, chart kind with live axes, diagram kind. */
 export type FallbackBody = 'static' | 'live' | 'diagram';
 
-// The fallback sentences. They say where the numbers are, without a status code.
-const SENTENCE: Record<FallbackBody, string> = {
-  static: 'This chart could not load. The numbers are in the table below.',
-  live: 'This chart could not load. The numbers for both groups are in the table below.',
-  diagram: 'This diagram could not load. The text around it describes the same steps.',
+// The fallback sentences. They say where the numbers are, without a status code. The first sentence
+// is the status, so it is set in warn and semibold (a word, with colour only repeating it).
+const SENTENCE: Record<FallbackBody, readonly [status: string, rest: string]> = {
+  static: ['This chart could not load.', ' The numbers are in the table below.'],
+  live: ['This chart could not load.', ' The numbers for both groups are in the table below.'],
+  diagram: ['This diagram could not load.', ' The text around it describes the same steps.'],
 };
 
 export type FigureErrorFallbackProps = {
@@ -75,7 +76,8 @@ export function FigureErrorFallback({ id, body, preview, table, tableCaption }: 
         </div>
       ) : null}
       <p ref={sentence} role="status" tabIndex={-1} className="mt-3 max-w-text text-base">
-        {SENTENCE[body]}
+        <span className="font-semibold text-warn">{SENTENCE[body][0]}</span>
+        {SENTENCE[body][1]}
       </p>
       {chart && table ? (
         <div className="mt-3">

@@ -84,10 +84,10 @@ describe('IntervalGlyph', () => {
     expect(Number(dot.r)).toBeCloseTo(6.4, 6);
   });
 
-  it('hollow variant: bar in line, dot outlined in muted with no fill', () => {
+  it('hollow variant: bar and caps in muted (line is 1.2:1), dot outlined in muted with no fill', () => {
     const html = renderToStaticMarkup(<IntervalGlyph variant="hollow" />);
     const bar = elements(html, 'rect').find((r) => r.height === '2');
-    expect(bar).toMatchObject({ fill: 'var(--color-line)' });
+    expect(bar).toMatchObject({ fill: 'var(--color-muted)' });
     const dot = first(html, 'circle');
     expect(dot).toMatchObject({ fill: 'none', stroke: 'var(--color-muted)' });
   });

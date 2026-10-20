@@ -51,10 +51,24 @@ describe('ConfidenceChart', () => {
     expect(squash(text(root))).toContain('Progress: 0 of 50 in the smaller group');
     expect(squash(text(root))).toContain('Estimates appear at 50 views per group, as the pre-registration says.');
     expect(frames(root)).toHaveLength(0);
-    // The hollow glyph: the bar in line, a hollow muted dot.
-    const dot = byTag(root, 'circle')[0]!;
-    expect(attr(dot, 'fill')).toBe('none');
+    // The hollow glyph on the difference axis: zero tick, B lower and B higher, the bar and the
+    // outlined dot in muted (a bar in line would be 1.2:1 against the page).
+    const row = withAttr(root, 'data-now-row')[0]!;
+    expect(attr(row, 'data-now-row')).toBe('collecting');
+    const glyph = withAttr(root, 'data-now-glyph')[0]!;
+    const bar = byTag(glyph, 'rect').find((r) => attr(r, 'height') === '3.2')!;
+    expect(attr(bar, 'fill')).toBe('var(--color-muted)');
+    const dot = byTag(glyph, 'circle')[0]!;
     expect(attr(dot, 'stroke')).toBe('var(--color-muted)');
+    const svg = byTag(row, 'svg')[0]!;
+    expect(withAttr(svg, 'data-now-zero')).toHaveLength(1);
+    expect(byTag(svg, 'text').map(text).map((t) => t.trim())).toEqual(['0', 'B lower', 'B higher']);
+    // The progress bar spans its container, not a fixed 256 px.
+    const progress = byTag(root, 'progress')[0]!;
+    expect(attr(progress, 'class')).toContain('w-full');
+    expect(attr(progress, 'class')).not.toContain('w-64');
+    // The empty track is visible: a muted border, not a line-coloured fill (1.2:1).
+    expect(attr(progress, 'class')).toContain('border-muted');
   });
 
   it('draws the band, its bounds, the running estimate and one ringed current estimate per frame', () => {
@@ -95,23 +109,28 @@ describe('ConfidenceChart', () => {
     const labels = withAttr(frame!, 'data-axis-label').map(text);
     expect(labels).toEqual(['B − A (percentage points)', 'Views per group']);
     const zero = withAttr(frame!, 'data-zero-tick')[0]!;
-    expect(text(byTag(zero, 'tspan')[0]!)).toBe('0');
-    expect(text(byTag(zero, 'tspan')[1]!)).toBe('no difference');
+    expect(text(zero)).toBe('0');
+    expect(withAttr(frame!, 'data-zero-label').map(text)).toEqual(['no difference']);
     const sides = withAttr(frame!, 'data-side').map(text);
     expect(sides).toEqual(['B higher', 'B lower']);
   });
 
-  it('never hides the current estimate under "B higher" or "B lower": a look at the cap near zero drops them', () => {
+  it('keeps "B higher", "B lower" and "no difference" in the margin, so no look can sit under them', () => {
     const atCap = liveFixture('inconclusive', 'enough-data', 'fresh');
-    for (const frame of frames(chart(atCap))) {
-      expect(withAttr(frame, 'data-side')).toHaveLength(0);
-      // The dot keeps a sliver of room at the end of the axis.
-      const dot = byTag(frame, 'circle').find((c) => attr(c, 'fill') === 'var(--color-series-2)')!;
-      expect(parseFloat(attr(dot, 'cx')!)).toBeLessThan(99);
+    const near = { ...atCap, series: [{ n: 176, lower: -3, upper: 8, estimate: 0.4 }] };
+    for (const snapshot of [atCap, near]) {
+      for (const frame of frames(chart(snapshot))) {
+        expect(withAttr(frame, 'data-side').map(text)).toEqual(['B higher', 'B lower']);
+        // Every word of the zero line starts right of the plot (x 100% plus a positive dx).
+        for (const t of [...withAttr(frame, 'data-side'), ...withAttr(frame, 'data-zero-label')]) {
+          expect(attr(t, 'x')).toBe('100%');
+          expect(Number(attr(t, 'dx'))).toBeGreaterThan(0);
+        }
+        // The dot keeps a sliver of room at the end of the axis.
+        const dot = byTag(frame, 'circle').find((c) => attr(c, 'fill') === 'var(--color-series-2)')!;
+        expect(parseFloat(attr(dot, 'cx')!)).toBeLessThan(99);
+      }
     }
-    // Far from zero, the dot leaves room for both.
-    const high = { ...atCap, series: [{ n: 176, lower: 20, upper: 60, estimate: 40 }] };
-    expect(withAttr(frames(chart(high, 'inconclusive'))[0]!, 'data-side').map(text)).toEqual(['B higher', 'B lower']);
   });
 
   it('marks the visitor\'s view as a muted x-axis tick labelled "your view"', () => {
@@ -219,6 +238,19 @@ describe('NowRow', () => {
     expect(attr(dot, 'stroke')).toBe('var(--color-bg)');
   });
 
+  it('paints the zero tick after the dot and reaches past the dot and its ring', () => {
+    const root = parse(renderToStaticMarkup(<NowRow domain={[-40, 60]} interval={{ lower: -12, upper: 31, estimate: 0 }} />));
+    const svg = byTag(root, 'svg')[0]!;
+    const order = svg.childNodes!.filter((n) => n.nodeName !== '#text').map((n) => (hasAttr(n, 'data-now-zero') ? 'zero' : n.nodeName));
+    expect(order.indexOf('zero')).toBeGreaterThan(order.indexOf('circle'));
+    const zero = withAttr(svg, 'data-now-zero')[0]!;
+    const dot = byTag(svg, 'circle')[0]!;
+    const reach = Number(attr(dot, 'r')) + 2; // the 4 px ring shows 2 px outside the fill
+    const cy = Number(attr(dot, 'cy'));
+    expect(cy - Number(attr(zero, 'y1'))).toBeGreaterThan(reach);
+    expect(Number(attr(zero, 'y2')) - cy).toBeGreaterThan(reach);
+  });
+
   it('gives a small interval the decimals its bounds need, never "−0 to +0"', () => {
     const html = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.04, upper: 0.03 }} />);
     expect(squash(text(parse(html)))).toContain('now: −0.04 to +0.03');
@@ -229,13 +261,16 @@ describe('NowRow', () => {
   });
 
   it('never prints a count above the target: both groups at 50 with no look yet', () => {
+    const paras = (root: Node) => byTag(root, 'p').map((p) => squash(text(p)));
     const row = (due?: boolean) =>
       parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z', due }} />));
     // A running test: the first estimate is due.
-    expect(squash(text(row(true)))).toBe('50 views per group are in; the first estimate appears at the next look.');
+    expect(paras(row(true))).toEqual(['50 views per group are in; the first estimate appears at the next look.']);
     // Otherwise (before data, which never has these counts) no promise of a look and no count.
-    expect(squash(text(row()))).toBe('Estimates appear at 50 views per group, as the pre-registration says.');
+    expect(paras(row())).toEqual(['Estimates appear at 50 views per group, as the pre-registration says.']);
     for (const root of [row(true), row()]) expect(byTag(root, 'progress')).toHaveLength(0);
+    // Both draw the collecting axis.
+    for (const root of [row(true), row()]) expect(withAttr(root, 'data-now-glyph')).toHaveLength(1);
   });
 });
 
@@ -352,7 +387,7 @@ describe('LiveStateBody', () => {
     const all = squash(text(stateBody(s)));
     expect(all).toContain('50 views per group are in; the first estimate appears at the next look.');
     expect(all).not.toMatch(/\d+ of 50/);
-    expect(squash(text(chart(s)))).toBe('50 views per group are in; the first estimate appears at the next look.');
+    expect(byTag(chart(s), 'p').map((p) => squash(text(p)))).toEqual(['50 views per group are in; the first estimate appears at the next look.']);
   });
 
   it('a verdict never prints a bound it calls above or below zero as "0"', () => {

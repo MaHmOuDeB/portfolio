@@ -13,23 +13,25 @@ type Props = {
   download?: boolean;
   /** Another site: a plain anchor with rel="noopener". */
   external?: boolean;
+  /** Tighter side padding (12 px, not 16), for a crowded row such as the phone header. */
+  compact?: boolean;
   children: ReactNode;
 };
 
 const BASE =
-  'inline-flex min-h-(--size-target) items-center justify-center gap-2 rounded-sm px-4 whitespace-nowrap text-sm font-medium transition-colors';
+  'inline-flex min-h-(--size-target) items-center justify-center gap-2 rounded-sm whitespace-nowrap text-sm font-medium transition-colors';
 const VARIANT = {
   primary: 'bg-ink text-bg hover:bg-muted focus-visible:bg-muted',
   secondary: 'border border-muted text-ink hover:bg-line focus-visible:bg-line',
 } as const;
 
 /** The class list of a button, for a real `<button>` that must look like a ButtonLink. */
-export function buttonClass(variant: keyof typeof VARIANT): string {
-  return cx(BASE, VARIANT[variant]);
+export function buttonClass(variant: keyof typeof VARIANT, compact = false): string {
+  return cx(BASE, compact ? 'px-3' : 'px-4', VARIANT[variant]);
 }
 
-export function ButtonLink({ href, variant, icon, download, external, children }: Props) {
-  const className = buttonClass(variant);
+export function ButtonLink({ href, variant, icon, download, external, compact, children }: Props) {
+  const className = buttonClass(variant, compact);
   const content = (
     <>
       {icon ? <Icon name={icon} /> : null}

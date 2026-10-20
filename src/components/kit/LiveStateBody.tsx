@@ -83,6 +83,11 @@ function Status({ tone, children }: { tone: 'ok' | 'warn'; children: string }) {
   return <span className={`font-semibold ${tone === 'ok' ? 'text-ok' : 'text-warn'}`}>{children}</span>;
 }
 
+/** The lead of a verdict, in semibold: the sentence after it is regular weight. */
+function Lead({ children }: { children: string }) {
+  return <span className="font-semibold">{children}</span>;
+}
+
 function NextStep({ snapshot }: { snapshot: LiveSnapshot }) {
   return snapshot.nextStep ? <> What I&apos;ll do now: {snapshot.nextStep}.</> : null;
 }
@@ -115,15 +120,15 @@ function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 
   if (body === 'ship-b') {
     return (
       <p className={P}>
-        Ship B. The lower end of the interval is above zero ({interval} points), the quick-exit guardrail is within its
-        limit, and the split check passed.
+        <Lead>Ship B.</Lead> The lower end of the interval is above zero ({interval} points), the quick-exit guardrail is
+        within its limit, and the split check passed.
       </p>
     );
   }
   if (body === 'stop-for-harm') {
     return (
       <p className={P}>
-        Stopped: B did worse. The upper end of the interval is below zero ({interval} points).
+        <Lead>Stopped: B did worse.</Lead> The upper end of the interval is below zero ({interval} points).
       </p>
     );
   }
@@ -134,7 +139,7 @@ function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 
   const ruledOut = ceilAt(given !== undefined && Number.isFinite(given) ? Math.max(clamp(given), reach) : reach, digits);
   return (
     <p className={P}>
-      Inconclusive at the six-month limit: the difference runs from {interval} points, so an effect larger than{' '}
+      <Lead>Inconclusive at the six-month limit:</Lead> the difference runs from {interval} points, so an effect larger than{' '}
       <Num refs={refs}>{formatNumber(ruledOut, digits)}</Num> points is ruled out.
       <NextStep snapshot={snapshot} />
     </p>
@@ -148,7 +153,7 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
   const paused =
     body === 'paused' && f.kind === 'paused' ? (
       <p className={`mb-4 ${P}`}>
-        Paused on <When iso={f.pausedOn} refs={refs} />: {f.reason}.
+        <Status tone="warn">Paused</Status> on <When iso={f.pausedOn} refs={refs} />: {f.reason}.
       </p>
     ) : null;
 

@@ -11,13 +11,14 @@ import { NavLinks } from './NavLinks';
 export function SiteHeader() {
   return (
     <header data-site-header="" className="z-(--z-header) border-b border-line bg-bg md:h-(--header-h)">
-      <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:h-full md:px-8">
+      <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8">
         <Link
           href="/"
           data-touch-target
           className="inline-flex min-h-(--size-target) items-center gap-2 text-sm font-semibold text-ink"
         >
-          <span className="shrink-0">
+          {/* The mark needs room a 375 px header does not have: it shows from xs (480 px) up. */}
+          <span className="hidden shrink-0 xs:block">
             <IntervalGlyph />
           </span>
           <span>{SITE.name.replace('El Bergui', 'El Bergui')}</span>
@@ -33,7 +34,7 @@ export function SiteHeader() {
             </ButtonLink>
           </div>
           <div className="md:hidden">
-            <ButtonLink href={CV_LINK.href} variant="secondary" download>
+            <ButtonLink href={CV_LINK.href} variant="secondary" download compact>
               {CV_LINK.label}
             </ButtonLink>
           </div>

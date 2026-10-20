@@ -1,9 +1,15 @@
 // The frame every chart is drawn in: grid, axes, tick labels, the zero line and one annotation.
 // Server-rendered SVG that fits any container width with or without JavaScript, because its text
 // is never scaled: the outer <svg> has no viewBox (one unit is one CSS pixel) and x positions are
-// percentages of the frame width. Only the marks sit in a stretched layer (MarkLayer), whose
+// percentages of the plot width. Only the marks sit in a stretched layer (MarkLayer), whose
 // strokes keep their width. Below sm (640 px) a separate narrow layout is drawn. Server-safe, no
 // hooks, so a client island can draw it too.
+//
+// Labels never sit on marks. The y tick numbers are in a left gutter, right-aligned and centred on
+// their gridline; the words of the zero line ("no difference", "B higher", "B lower") are in a right
+// margin, stacked on the zero line. Both margins are padding of the <svg> (a replaced element's
+// viewport is its content box), so the plot's percentages still run from 0 to 100% of the plot. The
+// y scale is snapped to half pixels, so a horizontal 1 px line is never blurred over two rows.
 import type { ReactNode } from 'react';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
 import { derivedAttr, type DerivedRef } from './Derived';
@@ -64,6 +70,15 @@ export type ChartFrameProps = {
   layout?: Layout;
 };
 
+// Horizontal room for the labels: the left gutter holds the longest y tick label, the right margin
+// the longest zero-line word. Text is in Inter at 13 px, so a digit is about 8.2 px and a letter
+// about 6.6 px; a label is never clipped, because a wider one only widens its margin.
+const DIGIT_PX = 8.2;
+const LETTER_PX = 6.6;
+const MARGIN_GAP = 8;
+/** The narrow layout stacks "no difference" on two lines to keep the plot wide. */
+const NARROW_ZERO_LINE = 8;
+
 // Vertical room around the plot, in px. The y-axis label sits on the first line and the top tick
 // label needs room above the top gridline; under the plot come the x ticks, then the x-axis label.
 const PLOT_TOP = 40;
@@ -73,20 +88,20 @@ const X_LABEL_BASELINE = 40;
 const BELOW_PLOT = 48;
 /** Tick labels and the zero labels sit this far above (or below) their line. */
 const LABEL_GAP = 4;
-/** Room a side label needs between the zero line and the plot edge. */
-const SIDE_LABEL_ROOM = 16;
-/** Gap between the zero tick "0" and its label. */
-const ZERO_LABEL_GAP = 6;
 
 const LABEL = 'text-xs fill-muted';
-// A 2 px bg halo keeps a label inside the plot (y ticks, the zero label, "B higher" and "B lower")
-// readable where a band or a line runs under it: muted on series-ghost alone is under AA.
-const TICK_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 // The annotation's halo is 3 px: half of a 6 px stroke painted under the fill.
 const NOTE_HALO = { stroke: 'var(--color-bg)', strokeWidth: '6px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 
 /** A 1 px line drawn on a pixel boundary looks sharp. */
 const crisp = (y: number) => Math.round(y - 0.5) + 0.5;
+
+/** The words of the zero line, in the order they stack: above, on the line, below. */
+function zeroWords(zero: string | undefined, layout: Layout): string[] {
+  if (!zero) return [];
+  const space = zero.indexOf(' ');
+  return layout === 'narrow' && space > 0 ? [`${zero.slice(0, space)} `, zero.slice(space + 1)] : [zero];
+}
 
 function inDomain(v: number, [a, b]: [number, number]): boolean {
   return Number.isFinite(v) && v >= Math.min(a, b) && v <= Math.max(a, b);
@@ -137,7 +152,8 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   const height = p.height[layout];
   const xFrac = linearFrac(p.x.domain);
   const yFrac = linearFrac(p.y.domain);
-  const ctx: PlotContext = { layout, height, xFrac, yPx: (v) => (1 - yFrac(v)) * height };
+  // Whole pixels: every y is the middle of a pixel row, so a 1 px horizontal stroke stays sharp.
+  const ctx: PlotContext = { layout, height, xFrac, yPx: (v) => crisp((1 - yFrac(v)) * height) };
 
   const xTick = derivedAttr(p.x.refs);
   const yTick = derivedAttr(p.y.refs);
@@ -149,6 +165,15 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   const yLabels = tickLabels('y', yTicks, p.y.format, hasZero);
   const xLabels = tickLabels('x', xTicks, p.x.format, false);
   const note = p.annotation?.(ctx);
+  const above = hasZero && p.y.aboveLabel && yHi > 0 ? p.y.aboveLabel : undefined;
+  const below = hasZero && p.y.belowLabel && yLo < 0 ? p.y.belowLabel : undefined;
+  const words = zeroWords(hasZero ? p.y.zeroLabel : undefined, layout);
+  const rightWords = [above, below, ...words].filter((w): w is string => !!w);
+  const left = Math.ceil(Math.max(...[...yLabels, hasZero ? p.y.format(0) : ''].map((l) => l.length)) * DIGIT_PX) + MARGIN_GAP;
+  const right = rightWords.length ? Math.ceil(Math.max(...rightWords.map((w) => w.trim().length)) * LETTER_PX) + MARGIN_GAP : 0;
+  const lineGap = words.length > 1 ? NARROW_ZERO_LINE : 0;
+  // The side words clear the zero label's block (one line, or two on a phone) by LABEL_GAP.
+  const sideOffset = (words.length > 1 ? NARROW_ZERO_LINE + 8 : 8) + LABEL_GAP + 2;
   const className = responsive ? (layout === 'narrow' ? 'block sm:hidden' : 'block max-sm:hidden') : 'block';
 
   return (
@@ -159,9 +184,10 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
       aria-label={p.ariaLabel}
       width="100%"
       height={PLOT_TOP + height + BELOW_PLOT}
-      className={className}
+      className={`${className} overflow-visible`}
+      style={{ paddingLeft: left, paddingRight: right }}
     >
-      <text data-axis-label="" className={LABEL} x={0} y={AXIS_LABEL_BASELINE}>
+      <text data-axis-label="" className={LABEL} x={-left} y={AXIS_LABEL_BASELINE}>
         {p.y.label}
       </text>
       <g transform={`translate(0 ${PLOT_TOP})`}>
@@ -174,32 +200,52 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
         {p.overlays?.(ctx)}
 
         {yTicks.map((v, i) => (
-          <text key={i} data-tick="y" {...yTick} className={LABEL} {...TICK_HALO} x={0} y={crisp(ctx.yPx(v)) - LABEL_GAP}>
+          <text
+            key={i}
+            data-tick="y"
+            {...yTick}
+            className={LABEL}
+            x={0}
+            dx={-MARGIN_GAP}
+            y={crisp(ctx.yPx(v))}
+            textAnchor="end"
+            dominantBaseline="middle"
+          >
             {yLabels[i]}
           </text>
         ))}
         {hasZero ? (
-          <text data-tick="y" data-zero-tick="" {...yTick} className={LABEL} {...TICK_HALO} x={0} y={zeroY - LABEL_GAP}>
-            <tspan>{p.y.format(0)}</tspan>
-            {p.y.zeroLabel ? <tspan dx={ZERO_LABEL_GAP}>{p.y.zeroLabel}</tspan> : null}
-          </text>
-        ) : null}
-        {hasZero && p.y.aboveLabel && yHi > 0 && zeroY >= SIDE_LABEL_ROOM ? (
-          <text data-side="above" className={LABEL} {...TICK_HALO} x="100%" y={zeroY - LABEL_GAP} textAnchor="end">
-            {p.y.aboveLabel}
-          </text>
-        ) : null}
-        {hasZero && p.y.belowLabel && yLo < 0 && height - zeroY >= SIDE_LABEL_ROOM ? (
           <text
-            data-side="below"
+            data-tick="y"
+            data-zero-tick=""
+            {...yTick}
             className={LABEL}
-            {...TICK_HALO}
-            x="100%"
-            y={zeroY + LABEL_GAP}
+            x={0}
+            dx={-MARGIN_GAP}
+            y={zeroY}
             textAnchor="end"
-            dominantBaseline="hanging"
+            dominantBaseline="middle"
           >
-            {p.y.belowLabel}
+            <tspan>{p.y.format(0)}</tspan>
+          </text>
+        ) : null}
+        {words.length > 0 ? (
+          <text data-zero-label="" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dominantBaseline="middle">
+            {words.map((w, i) => (
+              <tspan key={i} x="100%" dx={MARGIN_GAP} dy={i === 0 ? (words.length > 1 ? -lineGap : 0) : 2 * lineGap}>
+                {w}
+              </tspan>
+            ))}
+          </text>
+        ) : null}
+        {above ? (
+          <text data-side="above" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY - sideOffset}>
+            {above}
+          </text>
+        ) : null}
+        {below ? (
+          <text data-side="below" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY + sideOffset} dominantBaseline="hanging">
+            {below}
           </text>
         ) : null}
 

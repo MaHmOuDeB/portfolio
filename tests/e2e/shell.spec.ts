@@ -23,8 +23,43 @@ test('document shell: lang, JS flag and Inter features', async ({ page }) => {
     optical: getComputedStyle(document.documentElement).fontOpticalSizing,
   }));
   expect(styles.features).toContain('cv05');
-  expect(styles.features).toContain('tnum');
+  // Tabular figures widen the hyphen, so they are off on body text (see the next test).
+  expect(styles.features).not.toContain('tnum');
   expect(styles.optical).toBe('auto');
+});
+
+test('body text keeps a normal hyphen, full stop and space; numbers stay tabular', async ({ page }) => {
+  await page.goto('/kitchen-sink');
+  await page.evaluate(() => document.fonts.ready);
+  const widths = await page.evaluate(() => {
+    const measure = (features: string | null, text: string, attrs: Record<string, string> = {}) => {
+      const el = document.createElement('span');
+      el.style.cssText = 'font-size:100px;white-space:pre;position:absolute;visibility:hidden';
+      if (features) el.style.fontFeatureSettings = features;
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      el.textContent = text;
+      document.body.append(el);
+      const width = el.getBoundingClientRect().width;
+      el.remove();
+      return width;
+    };
+    return {
+      // Body text, as it is styled (no marker).
+      bodyHyphen: measure(null, 'a-a'),
+      cv05Hyphen: measure('"cv05"', 'a-a'),
+      tnumHyphen: measure('"cv05", "tnum"', 'a-a'),
+      // A marked number: a "1" and a "0" take the same width, a lining "1" would be narrower.
+      derivedOne: measure(null, '1', { 'data-derived': 'simulated' }),
+      derivedZero: measure(null, '0', { 'data-derived': 'simulated' }),
+      plainOne: measure(null, '1'),
+      plainZero: measure(null, '0'),
+    };
+  });
+  // The premise: the feature really does widen a hyphen in this font.
+  expect(widths.tnumHyphen).toBeGreaterThan(widths.cv05Hyphen + 5);
+  expect(widths.bodyHyphen).toBeCloseTo(widths.cv05Hyphen, 1);
+  expect(widths.derivedOne).toBeCloseTo(widths.derivedZero, 1);
+  expect(widths.plainOne).toBeLessThan(widths.plainZero);
 });
 
 test('favicon is the SVG icon', async ({ page, request }) => {
@@ -171,6 +206,23 @@ test.describe('site header', () => {
     expect(await headerTop(1024, 699)).toBeLessThan(-100);
     // A phone width, even when tall.
     expect(await headerTop(600, 900)).toBeLessThan(-100);
+  });
+
+  test('the phone header is one row at 375 and 390 px, with 44 px targets', async ({ page }) => {
+    test.skip(!isPhone(page), 'phone layout');
+    for (const width of [375, 390]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/');
+      const header = page.getByRole('banner');
+      const rows = await header.locator('a:visible, summary:visible').evaluateAll((els) => [...new Set(els.map((el) => Math.round(el.getBoundingClientRect().top)))]);
+      expect(rows, `${width} px: every header control sits on one row`).toHaveLength(1);
+      const height = await header.evaluate((el) => el.getBoundingClientRect().height);
+      expect(height).toBeLessThanOrEqual(66);
+      for (const h of await header.locator('[data-touch-target]:visible').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) {
+        expect(h).toBeGreaterThanOrEqual(44);
+      }
+      await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
+    }
   });
 
   test('interactive header controls are at least 44 px tall', async ({ page }) => {
