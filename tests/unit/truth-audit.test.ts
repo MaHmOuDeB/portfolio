@@ -278,3 +278,123 @@ describe('truth-audit CLI', () => {
     expect(r.stderr).toContain('no built pages');
   });
 });
+
+describe('auditHtml hardening', () => {
+  const denyHit = [{ route: '/', kind: 'denylisted', detail: 'deny-list term #1' }];
+
+  describe('head meta tags', () => {
+    it('reads only the text properties, so image and url metadata never false-positive', () => {
+      const head =
+        '<title>Page</title>' +
+        '<meta property="og:image" content="https://example.test/og-7.png?v=3">' +
+        '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">' +
+        '<meta property="og:url" content="https://example.test/2026/10"><meta property="og:type" content="website">' +
+        '<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://example.test/og-7.png">';
+      expect(auditHtml(page('<p>Hi.</p>', head), ctx())).toEqual([]);
+    });
+
+    it('still reads title, description and image alt text in both og: and twitter:', () => {
+      const head =
+        '<title>Page</title>' +
+        '<meta property="og:title" content="5 tests"><meta property="og:description" content="6 tests">' +
+        '<meta property="og:image:alt" content="7 bars"><meta name="twitter:title" content="8 tests">' +
+        '<meta name="twitter:description" content="9 tests"><meta name="twitter:image:alt" content="4 bars">' +
+        '<meta name="description" content="13 tests">';
+      expect(auditHtml(page('<p>Hi.</p>', head), ctx()).map((f) => f.detail)).toEqual([
+        '"5" in meta og:title',
+        '"6" in meta og:description',
+        '"7" in meta og:image:alt',
+        '"8" in meta twitter:title',
+        '"9" in meta twitter:description',
+        '"4" in meta twitter:image:alt',
+        '"13" in meta description',
+      ]);
+    });
+  });
+
+  describe('invisible characters', () => {
+    const term = 'Secret word';
+    const cases: [string, string][] = [
+      ['a zero-width space', 'Sec​ret word'],
+      ['a zero-width joiner', 'Secret‍ word'],
+      ['a word joiner', 'Secret wo⁠rd'],
+      ['a byte-order mark', '﻿Secret word'],
+      ['a soft hyphen', 'Secret&shy; word'],
+    ];
+    it.each(cases)('finds a term hidden by %s', (_name, text) => {
+      const findings = auditHtml(page(`<p>${text}</p>`), ctx({ denylist: [term] }));
+      expect(findings).toEqual(denyHit);
+    });
+
+    it('finds a term hidden in the raw html outside scanned text', () => {
+      const html = page('<p>Hi.</p><script>self.__next_f.push([1,"sec​ret­ word"])</script>');
+      expect(auditHtml(html, ctx({ denylist: [term] }))).toEqual(denyHit);
+    });
+
+    it('ignores invisible characters inside the term too', () => {
+      expect(auditHtml(page('<p>secret word</p>'), ctx({ denylist: ['Se​cret­ word'] }))).toEqual(denyHit);
+    });
+
+    it('redacts a term from other details even when the page hides it with invisible characters', () => {
+      const html = page('<p><data value="1" data-fact="sec​ret word.a.b">1</data></p>');
+      const findings = auditHtml(html, ctx({ denylist: [term] }));
+      expect(findings).toEqual([
+        { route: '/', kind: 'unknown-fact', detail: 'data-fact "[deny-list term #1].a.b"' },
+        { route: '/', kind: 'denylisted', detail: 'deny-list term #1' },
+      ]);
+      expect(JSON.stringify(findings).toLowerCase()).not.toContain('secret');
+    });
+  });
+
+  describe('banned phrases', () => {
+    const cases: [string, string, string][] = [
+      ['a space', 'An AI powered tool.', 'AI powered'],
+      ['a non-breaking hyphen (U+2011)', 'An AI‑powered tool.', 'AI‑powered'],
+      ['an en dash', 'An AI–powered tool.', 'AI–powered'],
+      ['a zero-width space inside', 'An AI​-powered tool.', 'AI-powered'],
+      ['a soft hyphen', 'An AI&shy;powered tool.', 'AIpowered'],
+      ['a soft hyphen inside another word', 'Very pass&shy;ionate.', 'passionate'],
+    ];
+    it.each(cases)('flags AI-powered written with %s', (_name, text, shown) => {
+      expect(auditHtml(page(`<p>${text}</p>`), ctx())).toEqual([
+        { route: '/', kind: 'banned-phrase', detail: `"${shown}" in text` },
+      ]);
+    });
+
+    it('does not flag unrelated words', () => {
+      expect(auditHtml(page('<p>Said the maid, powered by wind. Paid powered.</p>'), ctx())).toEqual([]);
+    });
+  });
+
+  describe('more attributes', () => {
+    it.each(['aria-description', 'aria-roledescription', 'placeholder'])('flags a stray number in %s', (name) => {
+      expect(auditHtml(page(`<div ${name}="Step 42 of those"></div>`), ctx())).toEqual([stray(`"42" in ${name}`)]);
+    });
+
+    it('flags a stray number in an input value', () => {
+      expect(auditHtml(page('<input type="number" value="20">'), ctx())).toEqual([stray('"20" in value')]);
+    });
+
+    it('covers an input value inside a data-derived element', () => {
+      const html = page('<div data-derived="simulated"><input type="number" value="20"></div>');
+      expect(auditHtml(html, ctx())).toEqual([]);
+    });
+
+    it('does not read the value attribute of other elements', () => {
+      expect(auditHtml(page('<data value="20">x</data><li value="3">y</li>'), ctx())).toEqual([]);
+    });
+
+    it('checks the deny-list in these attributes', () => {
+      const html = page('<input value="secret word"><p aria-description="secret word"></p>');
+      expect(auditHtml(html, ctx({ denylist: ['secret word'] }))).toEqual(denyHit);
+    });
+  });
+});
+
+describe('script exit handling', () => {
+  it.each(['truth-audit.ts', 'sync-sources.ts'])('%s sets process.exitCode instead of calling process.exit', (name) => {
+    const text = readFileSync(new URL(`../../scripts/${name}`, import.meta.url).pathname, 'utf8');
+    expect(text).not.toMatch(/process\.exit\(/);
+    expect(text).toMatch(/process\.exitCode =/);
+  });
+});
