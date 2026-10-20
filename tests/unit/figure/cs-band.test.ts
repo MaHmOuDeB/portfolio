@@ -304,8 +304,13 @@ describe('confidenceTable', () => {
   });
 
   it('shows no interval in low data or when the split check failed, but both groups\' counts', () => {
-    expect(confidenceTable({ ...BASE, nA: 12, nB: 14 }).rows).toEqual([[12, 14, 'Not shown yet', 'Not shown yet', 'Not shown yet']]);
-    expect(confidenceTable({ ...BASE, phase: 'srm-suppressed' }).rows).toEqual([[180, 176, 'Not shown', 'Not shown', 'Not shown']]);
+    const low = confidenceTable({ ...BASE, nA: 12, nB: 14 });
+    expect(low.columns).toEqual(['Views in A', 'Views in B', 'Interval']);
+    expect(low.rows).toEqual([[12, 14, 'Not shown yet']]);
+    expect(low.note).toBeUndefined();
+    const srm = confidenceTable({ ...BASE, phase: 'srm-suppressed' });
+    expect(srm.rows).toEqual([[180, 176, 'Not shown']]);
+    expect(srm.formats).toHaveLength(srm.columns.length);
     expect(confidenceTable({ ...BASE, nA: Number.NaN }).rows[0]![0]).toBe(0);
   });
 

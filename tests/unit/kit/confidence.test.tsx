@@ -299,6 +299,38 @@ describe('LiveStateBody', () => {
     expect(paragraphs(root)).toContain('Leaving within 5 seconds, B − A: −3.2 to +6.4 points; limit +10.');
   });
 
+  it('the A/B phase with enough data says when it started and that no difference is ruled out yet', () => {
+    const p = paragraphs(body('ab', 'enough-data'));
+    expect(p[0]).toBe('A/B started 15.09. The interval still includes zero, so no difference is ruled out yet.');
+    // An interval away from zero in a running test does not claim that.
+    const away = { ...liveFixture('ab', 'enough-data', 'fresh'), series: [{ n: 176, lower: 3, upper: 40, estimate: 20 }] };
+    expect(paragraphs(stateBody(away))[0]).toBe('A/B started 15.09. The test is still running.');
+  });
+
+  it('labels the interval by what it is: now while running, final once decided, last under a pause', () => {
+    const label = (s: LiveSnapshot) => squash(text(byTag(stateBody(s), 'p').find((p) => /^(now|final|last):/.test(squash(text(p))))!)).split(':')[0];
+    expect(label(liveFixture('ab', 'enough-data', 'fresh'))).toBe('now');
+    expect(label(liveFixture('calibration', 'enough-data', 'fresh'))).toBe('now');
+    for (const phase of ['ship-b', 'stop-for-harm', 'inconclusive'] as const) expect(label(liveFixture(phase, 'enough-data', 'fresh')), phase).toBe('final');
+    expect(label(liveFixture('ab', 'enough-data', 'paused'))).toBe('last');
+  });
+
+  it('under a pause the pause is said first, in warn, with no verdict under it', () => {
+    const root = body('ship-b', 'enough-data', 'paused');
+    const warn = find(root, (n) => (attr(n, 'class') ?? '').includes('text-warn'))[0]!;
+    expect(text(warn)).toBe('Paused');
+    expect(paragraphs(root)[0]).toBe('Paused on 14.10: a fictional tracking fault is being fixed.');
+    expect(squash(text(root))).not.toContain('Ship B.');
+  });
+
+  it('semibold leads for the verdicts', () => {
+    for (const phase of ['ship-b', 'stop-for-harm', 'inconclusive'] as const) {
+      const root = body(phase, 'enough-data');
+      const lead = find(root, (n) => n.nodeName === 'span' && (attr(n, 'class') ?? '') === 'font-semibold')[0]!;
+      expect(text(lead), phase).toMatch(/^(Ship B\.|Stopped: B did worse\.|Inconclusive at the six-month limit:)$/);
+    }
+  });
+
   it('calibration with enough data names the phase and the passed split check', () => {
     const p = paragraphs(body('calibration', 'enough-data'));
     expect(p[0]).toBe('Calibrating: both groups see the same page.');
@@ -351,10 +383,22 @@ describe('LiveStateBody', () => {
               const s: LiveSnapshot = { ...base, nA, nB, series: series ?? base.series };
               const root = stateBody(s);
               const all = squash(text(root));
-              const p = paragraphs(root).filter((t) => !t.startsWith('Paused on') && !t.startsWith('now:') && !t.startsWith('Leaving'));
-              expect(p.length, all).toBeGreaterThan(0);
+              const p = paragraphs(root).filter(
+                (t) => !t.startsWith('Paused on') && !t.startsWith('now:') && !t.startsWith('final:') && !t.startsWith('last:') && !t.startsWith('Leaving'),
+              );
               expect(all).not.toMatch(running);
               const interval = kind === 'valid' && amount !== 'below';
+              if (fresh === 'paused') {
+                // The pause is the state: it is said first, and no verdict stands under it.
+                expect(paragraphs(root)[0], all).toMatch(/^Paused on \d\d\.\d\d: /);
+                expect(p, all).toEqual([]);
+                expect(all).not.toMatch(/Ship B\.|Stopped: B did worse|Inconclusive at the six-month limit/);
+                expect(frames(root)).toHaveLength(interval ? 2 : 0);
+                if (interval) expect(squash(text(root))).toContain('last:');
+                else expect(withAttr(root, 'data-now-row')).toHaveLength(0);
+                return;
+              }
+              expect(p.length, all).toBeGreaterThan(0);
               if (interval) {
                 expect(frames(root)).toHaveLength(2);
                 expect(p[0]).toMatch(/^(Ship B\.|Stopped: B did worse\.|Inconclusive at the six-month limit: the difference runs from)/);

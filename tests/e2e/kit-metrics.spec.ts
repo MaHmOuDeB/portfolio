@@ -181,3 +181,42 @@ for (const path of REFLOW_PAGES) {
     });
   }
 }
+
+test.describe('control row', () => {
+  test('@matrix the segmented control is one 44 px target tall and lines up with the slider and Reset', async ({ page }, testInfo) => {
+    await page.goto('/kitchen-sink');
+    await waitForIslands(page);
+    const demo = page.locator('[data-specimen="controls--demo"]');
+    const metrics = await demo.evaluate((el) => {
+      const box = (node: Element) => node.getBoundingClientRect();
+      const fieldset = el.querySelector('fieldset')!;
+      const group = box(fieldset.querySelector('div')!);
+      const reset = box(el.querySelector('button')!);
+      return {
+        group: { top: group.top, bottom: group.bottom, height: group.height },
+        reset: { bottom: reset.bottom, height: reset.height, width: reset.width },
+        sliderLabelTop: box(el.querySelector('[data-slider] label')!).top,
+        legendTop: box(fieldset.querySelector('legend')!).top,
+        fieldsetWidth: box(fieldset).width,
+        parentWidth: box(fieldset.parentElement!).width,
+        labels: [...el.querySelectorAll('label[data-segment]')].map((l) => box(l).height),
+      };
+    });
+    for (const h of metrics.labels) expect(h, testInfo.project.name).toBeGreaterThanOrEqual(44);
+    if ((page.viewportSize()?.width ?? 0) < 480) {
+      // Stacked: the options and Reset take the full width of the column.
+      expect(metrics.fieldsetWidth).toBeGreaterThan(metrics.parentWidth - 2);
+    } else {
+      expect(metrics.group.height).toBeCloseTo(44, 0);
+      expect(metrics.reset.height).toBeCloseTo(44, 0);
+      // Controls that share a row line up: the legends sit on one line, and the group and Reset share
+      // a bottom edge. (At tablet width the row wraps, and a control on its own row has no partner.)
+      if (Math.abs(metrics.legendTop - metrics.sliderLabelTop) < 40) {
+        expect(Math.abs(metrics.legendTop - metrics.sliderLabelTop)).toBeLessThan(1.5);
+      }
+      if (Math.abs(metrics.group.bottom - metrics.reset.bottom) < 40) {
+        expect(Math.abs(metrics.group.bottom - metrics.reset.bottom)).toBeLessThan(1.5);
+      }
+    }
+  });
+});

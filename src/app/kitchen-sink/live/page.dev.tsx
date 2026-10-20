@@ -53,13 +53,14 @@ function cannotOccur(phase: LivePhase, data: DataAmount): string | undefined {
   return undefined;
 }
 
-const TITLE = 'The difference between the groups, so far.';
+// One title for every state (only the body changes), so it never says "so far" over a decided test.
+const TITLE = 'The difference between the groups.';
 const SIMULATED = derivedAttr(SINK_REFS);
 const CAPTION = (
   <>
-    Fictional counts for the kitchen sink, not this site&apos;s experiment. The band is the{' '}
+    Fictional counts for the kitchen sink, not this site&apos;s experiment. When a band is shown, it is the{' '}
     <span {...SIMULATED}>95%</span> confidence sequence of B − A in percentage points, narrowed at each look and never
-    widened, and projected to the six-month cap.
+    widened; while a test runs, it is projected to the six-month cap.
   </>
 );
 

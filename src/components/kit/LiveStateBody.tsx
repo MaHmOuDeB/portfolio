@@ -173,11 +173,24 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
       );
       break;
     case 'calibration':
-    case 'ab':
+    case 'ab': {
+      const model = confidenceModel(snapshot);
       content = (
         <>
           {own === 'calibration' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
-          <p className={`${own === 'calibration' ? 'mt-2 ' : ''}text-sm`}>
+          {own === 'ab' ? (
+            <p className={P}>
+              {snapshot.abStartedOn ? (
+                <>
+                  A/B started <When iso={snapshot.abStartedOn} refs={refs} />.{' '}
+                </>
+              ) : null}
+              {model && !model.includesZero
+                ? 'The test is still running.'
+                : 'The interval still includes zero, so no difference is ruled out yet.'}
+            </p>
+          ) : null}
+          <p className="mt-2 text-sm">
             <Status tone="ok">SRM passed</Status>
           </p>
           <div className="mt-4">{chart}</div>
@@ -185,13 +198,15 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
         </>
       );
       break;
+    }
     case 'ship-b':
     case 'stop-for-harm':
     case 'inconclusive':
       content = (
         <>
-          <Outcome body={own} snapshot={snapshot} refs={refs} />
-          <div className="mt-4">{chart}</div>
+          {/* Under a pause the pause is the state, so no verdict is stated; the frozen chart stays. */}
+          {body === 'paused' ? null : <Outcome body={own} snapshot={snapshot} refs={refs} />}
+          <div className={body === 'paused' ? '' : 'mt-4'}>{chart}</div>
           {confidenceModel(snapshot) ? <Guardrail snapshot={snapshot} refs={refs} /> : null}
         </>
       );

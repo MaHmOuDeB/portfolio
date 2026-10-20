@@ -2,8 +2,9 @@
 // Figure, the interactive demo twice (URL ids `demo` and `demo-b`, loaded on intent), the forced
 // no-JS and error states, a client island that throws, and a diagram. All data is fictional: a
 // hypothetical sign-up page. The live phases are on /kitchen-sink/live.
+import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { PRESETS } from '../_demo/DemoControls';
+import { PRESETS, REFS } from '../_demo/DemoControls';
 import { DemoFigure } from '../_demo/DemoFigure';
 import { DemoChart, DemoFigureView, demoModel, demoTable } from '../_demo/demo-view';
 import { InertDemoControls } from '../_demo/islands';
@@ -13,8 +14,16 @@ import { Specimen } from './Specimen';
 const PRESET = PRESETS.default;
 const MODEL = demoModel(PRESET);
 const STATIC_TITLE = 'A rise of two points takes thousands of visitors per group to detect.';
-const STATIC_CAPTION =
-  "A hypothetical sign-up page, not a real test, at its preset baseline and power. Sample sizes from Cohen's h for a two-sided test.";
+const SIMULATED = derivedAttr(REFS);
+// The preset's values are said, so a still view or a shared link needs no control to read them.
+const STATIC_CAPTION = (
+  <>
+    A hypothetical sign-up page, not a real test, at its preset baseline conversion of{' '}
+    <span {...SIMULATED}>{Math.round(PRESET.baseline * 100)}%</span> and power of{' '}
+    <span {...SIMULATED}>{Math.round(Number(PRESET.power) * 100)}%</span>. Sample sizes from Cohen&apos;s h for a
+    two-sided test.
+  </>
+);
 
 function StaticFigure({ id, error }: { id: string; error?: boolean }) {
   return (

@@ -21,6 +21,11 @@ export type SliderProps = {
   onCommit?: (value: number) => void;
   /** aria-valuetext, e.g. "20 looks". */
   valueText: (value: number) => string;
+  /**
+   * A short visible reading of the value beside the number input, such as "10%" for a share typed as
+   * 0.1, so the number never stands without its unit. It sits under the root's data-derived marker.
+   */
+  readout?: (value: number) => string;
   /** Accessible name of the number input; default `${label}, exact value`. */
   numberLabel?: string;
   /** Where the value comes from, for data-derived on the root: it covers the numbers in aria-valuetext. */
@@ -41,6 +46,7 @@ export function Slider({
   onChange,
   onCommit,
   valueText,
+  readout,
   numberLabel,
   refs,
   disabled,
@@ -145,6 +151,11 @@ export function Slider({
             if (event.key === 'Enter') applyDraft();
           }}
         />
+        {readout ? (
+          <span data-slider-readout="" className="min-w-10 text-sm text-muted">
+            {readout(current)}
+          </span>
+        ) : null}
       </div>
     </div>
   );

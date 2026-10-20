@@ -47,6 +47,7 @@ export function DemoControls({ id, values, onBaseline, onBaselineCommit, onPower
           onChange={onBaseline}
           onCommit={onBaselineCommit}
           valueText={baselineText}
+          readout={(v) => `${Math.round(v * 100)}%`}
           refs={REFS}
         />
       </div>

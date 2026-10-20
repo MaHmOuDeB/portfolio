@@ -21,6 +21,11 @@ type Props = {
   interval?: { lower: number; upper: number; estimate?: number };
   /** Draws the collecting form instead. `due`: the test is running, so a next look will come. */
   collecting?: { nSmaller: number; plannedEnd: string; due?: boolean };
+  /**
+   * What the interval is: "now" while the test runs, "final" once it is decided (the interval does not
+   * move any more), "last" while it is paused (frozen at the last look).
+   */
+  label?: 'now' | 'final' | 'last';
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
   refs?: readonly DerivedRef[];
 };
@@ -114,7 +119,7 @@ function Collecting({
   );
 }
 
-export function NowRow({ domain, interval, collecting, refs = ['live'] }: Props) {
+export function NowRow({ domain, interval, collecting, label = 'now', refs = ['live'] }: Props) {
   if (collecting) return <Collecting {...collecting} refs={refs} />;
   if (!interval) return null;
   const lower = Math.min(interval.lower, interval.upper);
@@ -127,7 +132,7 @@ export function NowRow({ domain, interval, collecting, refs = ['live'] }: Props)
   return (
     <div data-now-row="interval" className="mt-4">
       <p className="text-sm font-semibold">
-        now: <span {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
+        {label}: <span {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
       </p>
       <svg aria-hidden="true" focusable="false" width="100%" height={ROW_HEIGHT} className="mt-1 block overflow-visible">
         <line x1={0} x2="100%" y1={MID + 0.5} y2={MID + 0.5} className="stroke-line" />

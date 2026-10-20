@@ -45,6 +45,18 @@ const looks = (overrides: Partial<SliderProps> = {}) =>
   );
 
 describe('Slider', () => {
+  it('can show a visible readout with the unit beside the number input, inside the marker', () => {
+    const root = looks({ min: 0.05, max: 0.5, step: 0.01, value: 0.1, readout: (v) => `${Math.round(v * 100)}%` });
+    const readout = find(root, (n) => hasAttr(n, 'data-slider-readout'))[0]!;
+    expect(text(readout)).toBe('10%');
+    // It is inside the Slider root, whose data-derived covers it.
+    const rootEl = find(root, (n) => hasAttr(n, 'data-slider'))[0]!;
+    expect(find(rootEl, (n) => n === readout)).toHaveLength(1);
+    expect(attr(rootEl, 'data-derived')).toBe('simulated');
+    // No readout, no extra element.
+    expect(find(looks(), (n) => hasAttr(n, 'data-slider-readout'))).toHaveLength(0);
+  });
+
   it('is a native range input named by a visible label, with a spoken value', () => {
     const root = looks();
     const range = input(root, 'range');

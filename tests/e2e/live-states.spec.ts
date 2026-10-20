@@ -114,3 +114,79 @@ test.describe('live Figure states', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+test.describe('live Figure states: what the words and numbers claim', () => {
+  const spec = (page: import('@playwright/test').Page, id: string) => page.locator(`[data-specimen="${id}"]`);
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/kitchen-sink/live');
+  });
+
+  test('the split-check examples really are unbalanced, and say which counts failed', async ({ page }) => {
+    const srm = spec(page, 'live--srm-suppressed--enough-data--fresh--default');
+    await expect(srm).toContainText('SRM failed');
+    await expect(srm).toContainText('Views so far: 212 in A, 148 in B, where the design expects an even split.');
+    // The calibration that stopped for the same reason shows the counts it stopped at.
+    await expect(spec(page, 'live--aa-failed--enough-data--fresh--default')).toContainText('Views when it stopped: 212 in A, 148 in B.');
+    // A balanced run says nothing of the kind.
+    await expect(spec(page, 'live--ab--enough-data--fresh--default')).not.toContainText('SRM failed');
+  });
+
+  test('before data there are no views: zero of 50', async ({ page }) => {
+    await expect(spec(page, 'live--before-data--low-data--fresh--default')).toContainText('Progress: 0 of 50 in the smaller group');
+  });
+
+  test('a decided test never says "so far" or "now:", and its chart keeps "B higher" and "B lower"', async ({ page }) => {
+    for (const phase of ['inconclusive', 'ship-b', 'stop-for-harm']) {
+      const s = spec(page, `live--${phase}--enough-data--fresh--default`);
+      await expect(s, phase).not.toContainText('so far');
+      // The Now row's label ("What I'll do now:" in the sentence is another thing).
+      await expect(s.locator('[data-now-row] p'), phase).toHaveText(/^final: /);
+      await expect(s.locator('svg[data-chart-frame]:visible text[data-side="above"]'), phase).toHaveText('B higher');
+      await expect(s.locator('svg[data-chart-frame]:visible text[data-side="below"]'), phase).toHaveText('B lower');
+    }
+  });
+
+  test('a running A/B test with enough data says when it started and that nothing is ruled out yet', async ({ page }) => {
+    await expect(spec(page, 'live--ab--enough-data--fresh--default')).toContainText(
+      'A/B started 15.09. The interval still includes zero, so no difference is ruled out yet.',
+    );
+  });
+
+  test('under a pause the pause is said first and no verdict stands under it', async ({ page }) => {
+    const s = spec(page, 'live--ship-b--enough-data--paused--default');
+    await expect(s).toContainText('Paused on 14.10');
+    await expect(s).not.toContainText('Ship B.');
+    await expect(s).toContainText('last:');
+    await expect(s.getByText('Paused', { exact: true })).toHaveCSS('color', 'rgb(176, 74, 0)');
+  });
+
+  test('the table agrees with the Now row, digit for digit', async ({ page }) => {
+    const s = spec(page, 'live--ab--enough-data--fresh--no-js');
+    const cells = await s.locator('tbody tr').last().locator('td').allTextContents();
+    expect(cells).toEqual(['180', '176', '−12', '+9', '+31']);
+    await expect(s.locator('[data-now-row="interval"] p')).toHaveText('now: −12 to +31');
+  });
+
+  test('the error state keeps the state in words and puts both groups in the table', async ({ page }) => {
+    const s = spec(page, 'live--srm-suppressed--enough-data--fresh--error');
+    await expect(s).toContainText('SRM failed');
+    await expect(s).toContainText('212 in A, 148 in B');
+    await expect(s.locator('thead th')).toHaveText(['Views in A', 'Views in B', 'Interval']);
+    await expect(s.locator('tbody td')).toHaveText(['212', '148', 'Not shown']);
+  });
+
+  test('a collecting row spans its column: the progress bar is as wide as the figure, and has a visible edge', async ({ page }) => {
+    const s = spec(page, 'live--ab--low-data--fresh--default');
+    const widths = await s.evaluate((el) => ({
+      progress: el.querySelector('progress')!.getBoundingClientRect().width,
+      axis: el.querySelector('[data-now-row] svg')!.getBoundingClientRect().width,
+    }));
+    expect(widths.progress).toBeGreaterThan(300);
+    expect(Math.abs(widths.progress - widths.axis)).toBeLessThan(1);
+    await expect(s.locator('progress')).toHaveCSS('border-top-color', 'rgb(110, 110, 115)');
+    // The zero tick, and "B lower" and "B higher", on the difference axis.
+    await expect(s.locator('[data-now-zero]')).toHaveCount(1);
+    await expect(s.locator('[data-now-row] svg text')).toHaveText(['0', 'B lower', 'B higher']);
+  });
+});

@@ -37,6 +37,13 @@ const LABEL_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 
 const ownBody = (snapshot: LiveSnapshot, body: FigureBody): FigureBody =>
   body === 'paused' || body === 'error' || body === 'default' ? contentBody(snapshot) : body;
 
+/** "now" while the test runs, "last" under a pause, "final" once decided: the interval is not live then. */
+function nowLabel(snapshot: LiveSnapshot, body: FigureBody): 'now' | 'final' | 'last' {
+  if (body === 'paused') return 'last';
+  const own = ownBody(snapshot, body);
+  return own === 'ship-b' || own === 'stop-for-harm' || own === 'inconclusive' ? 'final' : 'now';
+}
+
 /** What a body shows of the chart. */
 function shows(snapshot: LiveSnapshot, body: FigureBody): 'chart' | 'running' | 'collecting' | 'nothing' {
   const own = ownBody(snapshot, body);
@@ -188,7 +195,7 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
         marks={(ctx) => <Marks ctx={ctx} m={m} project={shown === 'running'} />}
         overlays={(ctx) => <Overlays ctx={ctx} m={m} />}
       />
-      <NowRow domain={m.y.domain} interval={m.current} refs={refs} />
+      <NowRow domain={m.y.domain} interval={m.current} label={nowLabel(snapshot, body)} refs={refs} />
     </div>
   );
 }

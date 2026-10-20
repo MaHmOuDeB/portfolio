@@ -243,7 +243,7 @@ const NOT_SHOWN = 'Not shown';
 
 /**
  * The table fallback: for each look, the views in both groups and the running interval; while the
- * interval is hidden, the current counts and no interval. A look that did not record its split
+ * interval is hidden, the current counts and one "Interval" cell that says it is not shown. A look that did not record its split
  * shows the smaller group's count in both columns. The interval columns follow the Now row's
  * digits rule for each row (intervalDigits), so the table and "now: −12 to +31" always agree.
  */
@@ -253,7 +253,13 @@ export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[] = [
   const formats: TableData['formats'] = ['count', 'count', 'signedPoints', 'signedPoints', 'signedPoints'];
   const hidden = s.phase === 'srm-suppressed' ? NOT_SHOWN : liveFigureState(s).live?.data === 'low-data' ? NOT_SHOWN_YET : null;
   if (hidden) {
-    return { columns, rows: [[safeCount(s.nA), safeCount(s.nB), hidden, hidden, hidden]], formats, note, refs };
+    // No interval to print, so one cell says so: three narrow columns fit a phone.
+    return {
+      columns: ['Views in A', 'Views in B', 'Interval'],
+      rows: [[safeCount(s.nA), safeCount(s.nB), hidden]],
+      formats: ['count', 'count', 'number'],
+      refs,
+    };
   }
   const shown = shownSeries(s);
   return {
