@@ -1,13 +1,13 @@
-// The kit's public surface: every component, helper and type a page may use, in one import.
+// The kit's main entry: every server-safe component, helper and type, in one import.
 //
 //   import { Figure, ChartFrame, Fact } from '@/components/kit';
 //
-// This file is NOT a client module and must never get a 'use client' directive: a Server Component
-// imports it, and a directive here would turn every export into a client reference. The client
-// components (FigureErrorBoundary, LoadOnIntent, ResetButton, Segmented, Slider, StepNav and the
-// useFigureParams hook) keep their directive in their own files; a bundler reads it there, so they
-// stay client modules when re-exported. The server-safe components render on the server and in an
-// island alike.
+// Nothing re-exported here is a client module, so importing one component (Callout, say) does not
+// ship the controls to the page. The client components, the error boundary and the
+// useFigureParams hook are in `@/components/kit/client`. The one server-safe component that uses a
+// client module is Figure (it wraps its chart in the per-Figure error boundary), and a page that
+// uses Figure needs that boundary anyway. Neither entry file has a 'use client' directive: that
+// would turn every export into a client reference.
 export { ButtonLink, buttonClass } from './ButtonLink';
 export { Callout } from './Callout';
 export {
@@ -25,24 +25,12 @@ export { DataTable, type ColumnFormat, type TableData } from './DataTable';
 export { Derived, derivedAttr, type DerivedRef } from './Derived';
 export { Fact } from './Fact';
 export { Figure, instantly, type FigureProps } from './Figure';
-export {
-  FigureErrorBoundary,
-  FigureErrorFallback,
-  type FallbackBody,
-  type FigureErrorFallbackProps,
-} from './FigureErrorBoundary';
 export { Icon, type IconName } from './Icon';
 export { IntervalGlyph } from './IntervalGlyph';
 export { ProgressLine, UpdatedLabel } from './LiveLabels';
 export { LiveStateBody } from './LiveStateBody';
-export { LoadOnIntent } from './LoadOnIntent';
 export { NowRow } from './NowRow';
 export { PhaseLabel, type TestNote } from './PhaseLabel';
 export { ProvenanceBadge, type Provenance } from './ProvenanceBadge';
-export { ResetButton } from './ResetButton';
-export { Segmented, type SegmentedProps } from './Segmented';
-export { Slider, type SliderProps } from './Slider';
 export { Stat } from './Stat';
-export { StepNav, type StepNavProps } from './StepNav';
 export { TextLink } from './TextLink';
-export { useFigureParams } from './useFigureParams';

@@ -58,7 +58,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | Path | What lives there |
 |---|---|
 | `src/app` | Routes (App Router). `kitchen-sink/**/page.dev.tsx` is built only with `KITCHEN_SINK=1`. |
-| `src/components/kit` | The Figure kit (frozen). `src/components/kit/index.ts` is its one import path. |
+| `src/components/kit` | The Figure kit (frozen). `src/components/kit/index.ts` is the import path for server-safe components, `src/components/kit/client.ts` for the client ones. |
 | `src/components/shell` | Site header, navigation, footer, skip link and error message. |
 | `src/lib/stats` | The statistics (tested against `stats-ref`). |
 | `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time. |
@@ -82,7 +82,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | Leave these alone without a stated reason | Instead |
 |---|---|
 | `src/styles/tokens.css` | A change is a design-system change: update `docs/design/tokens.md` with it. |
-| `src/components/kit/**` | Frozen. A new component needs an inventory entry and its own PR. |
+| `src/components/kit/**` | Frozen. A new component needs its own PR and a row in the primitives catalogue below (and in `index.ts` or `client.ts`). |
 | `src/lib/stats/**` | Test-first against `stats-ref`. |
 | `*.generated.ts` and `stats-ref/reference.json` | Regenerate (`npm run sources:sync`, `npm run gen:obf`, `stats-ref/generate.py`), never hand-edit. |
 | `tests/e2e/__screenshots__/**` | CI only: the `update-baselines` label on a PR regenerates them in the Playwright container. |
@@ -111,9 +111,19 @@ Pages use plain static generation. ISR (`export const revalidate`, see
 
 ## Primitives catalogue
 
-Import from `@/components/kit`. The files marked client keep their `'use client'` directive; the
-index itself has none, so a Server Component can import it. Everything not marked client is
-server-safe and renders the same on the server and in an island.
+There are two import paths, so that a page using a server-safe component does not ship the
+controls' JavaScript:
+
+- `@/components/kit` (`index.ts`) re-exports only server-safe modules. None of them is a client
+  module, and none has a `'use client'` directive. The one that uses a client module is `Figure`
+  (it wraps its chart in the error boundary); a page that uses `Figure` needs that boundary anyway.
+- `@/components/kit/client` (`client.ts`) re-exports the client modules (marked client below): the
+  controls, the error boundary, `LoadOnIntent` and the `useFigureParams` hook. Each of those files
+  keeps its own `'use client'` directive.
+
+Every kit export is in exactly one of the two. Neither entry file has a directive of its own. Where
+a page needs the smallest possible bundle it can also import a component's file directly, such as
+`@/components/kit/Callout`.
 
 | Export | File | Role |
 |---|---|---|

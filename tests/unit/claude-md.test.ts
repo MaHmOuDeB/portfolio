@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CSS_RULES, SOURCE_RULES } from '../../scripts/design-lint.ts';
-import { kitExportNames } from './kit-exports';
+import { entryExportNames, kitExportNames } from './kit-exports';
 
 const ROOT = join(import.meta.dirname, '../..');
 const claudeMd = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
@@ -23,6 +23,13 @@ describe('CLAUDE.md', () => {
     const names = kitExportNames();
     expect(names.length).toBeGreaterThan(30);
     for (const name of names) expect(claudeMd, name).toContain(`\`${name}\``);
+  });
+
+  it('documents both kit entry points', () => {
+    expect(claudeMd).toContain('`@/components/kit`');
+    expect(claudeMd).toContain('`@/components/kit/client`');
+    expect(entryExportNames('client').length).toBeGreaterThan(5);
+    for (const name of entryExportNames('client')) expect(claudeMd, name).toContain(`\`${name}\``);
   });
 
   it('states the rules a contributor must not miss', () => {
