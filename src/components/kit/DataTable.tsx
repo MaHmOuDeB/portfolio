@@ -1,7 +1,7 @@
 // The table fallback for every chart. Server-rendered, so the numbers are readable without
 // JavaScript, by assistive technology and in print. Every cell carries data-derived with the refs
 // the caller names, so the truth audit knows where the numbers come from. Server-safe, no hooks.
-import { formatNumber, formatSignedNumber } from '@/lib/figure/format';
+import { formatNumber, formatSignedNumber, formatSignedPoints } from '@/lib/figure/format';
 import { derivedAttr, type DerivedRef } from './Derived';
 
 /**
@@ -10,10 +10,15 @@ import { derivedAttr, type DerivedRef } from './Derived';
  * - `count`: whole numbers.
  * - `points`: one decimal at most, no sign.
  * - `signedPoints`: one decimal at most with "+" or U+2212, and a bare "0" for zero.
+ * A table with `rowDigits` prints the `points` and `signedPoints` cells of row r with exactly that
+ * many decimals instead, so a row can follow the digits rule of the interval it belongs to.
  */
 export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints';
 
-function formatCell(v: number, format: ColumnFormat): string {
+function formatCell(v: number, format: ColumnFormat, digits?: number): string {
+  if (digits !== undefined && (format === 'points' || format === 'signedPoints')) {
+    return format === 'points' ? formatNumber(v, digits) : formatSignedPoints(v, digits);
+  }
   switch (format) {
     case 'count':
       return formatNumber(v, 0);
@@ -31,6 +36,10 @@ export type TableData = {
   rows: (string | number)[][];
   /** Optional, one entry per column; a column without an entry uses `number`. */
   formats?: ColumnFormat[];
+  /** Optional, one entry per row: the decimals of that row's `points` and `signedPoints` cells. */
+  rowDigits?: number[];
+  /** A line under the table, such as the unit of the columns. Plain words, no numbers. */
+  note?: string;
   /** Where the numbers come from; spread on every cell. Never empty. */
   refs: readonly DerivedRef[];
 };
@@ -50,37 +59,40 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
   }
   const numeric = table.columns.map((_, i) => table.rows.length > 0 && table.rows.every((r) => typeof r[i] === 'number'));
   return (
-    <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-caption`}>
-      <table className="w-full text-sm">
-        <caption id={`${id}-caption`} className="sr-only">
-          {caption}
-        </caption>
-        <thead>
-          <tr>
-            {table.columns.map((c, i) => (
-              <th
-                key={c}
-                scope="col"
-                className={`border-b border-line py-2 pr-4 font-semibold ${numeric[i] ? 'text-right' : 'text-left'}`}
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row, r) => (
-            <tr key={r}>
-              {row.map((v, i) => (
-                <td key={i} {...cell} className={`border-b border-line py-2 pr-4 ${numeric[i] ? 'text-right' : 'text-left'}`}>
-                  {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number') : v}
-                </td>
+    <>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-caption`}>
+        <table className="w-full text-sm">
+          <caption id={`${id}-caption`} className="sr-only">
+            {caption}
+          </caption>
+          <thead>
+            <tr>
+              {table.columns.map((c, i) => (
+                <th
+                  key={c}
+                  scope="col"
+                  className={`border-b border-line py-2 pr-4 font-semibold ${numeric[i] ? 'text-right' : 'text-left'}`}
+                >
+                  {c}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {table.rows.map((row, r) => (
+              <tr key={r}>
+                {row.map((v, i) => (
+                  <td key={i} {...cell} className={`border-b border-line py-2 pr-4 ${numeric[i] ? 'text-right' : 'text-left'}`}>
+                    {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number', table.rowDigits?.[r]) : v}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {table.note ? <p className="mt-2 text-xs text-muted">{table.note}</p> : null}
+    </>
   );
 }
 

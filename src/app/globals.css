@@ -64,14 +64,22 @@
   }
 
   /*
-   * From md up the header is sticky, so a focused element or an in-page anchor must not land
-   * behind it (WCAG 2.2 SC 2.4.11). Under md the header scrolls away and needs no offset. The
-   * media query repeats --breakpoint-md (48rem) because custom properties do not work in queries.
-   * In base, not unlayered: a utility or a page may still set its own scroll-padding.
+   * The header is sticky only where it is safe: from md up (48rem) and on a screen at least 700 px
+   * (43.75rem) tall. Below that height it would take more than a tenth of the screen, so it scrolls
+   * away like on a phone. While it is sticky, a focused element or an in-page anchor must not land
+   * behind it (WCAG 2.2 SC 2.4.11), so the scroll offset uses the same condition. It is one scroll-padding on
+   * the page rather than a scroll-margin on each Figure, because both would add up. The media query
+   * repeats the breakpoint because custom properties do not work in queries. In base, not
+   * unlayered: a utility or a page may still set its own scroll-padding.
    */
-  @media (width >= 48rem) {
+  @media (width >= 48rem) and (height >= 43.75rem) {
     html {
       scroll-padding-top: var(--header-h);
+    }
+
+    [data-site-header] {
+      position: sticky;
+      top: 0;
     }
   }
 }

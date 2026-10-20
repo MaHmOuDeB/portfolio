@@ -199,7 +199,8 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
           </p>
           <p className={`mt-2 ${P}`}>
             Views so far: <Derived value={safeCount(snapshot.nA)} unit="count" refs={refs} /> in A,{' '}
-            <Derived value={safeCount(snapshot.nB)} unit="count" refs={refs} /> in B.
+            <Derived value={safeCount(snapshot.nB)} unit="count" refs={refs} /> in B, where the design expects an even
+            split.
           </p>
         </>
       );
@@ -207,10 +208,16 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
     case 'aa-failed': {
       const a = snapshot.aaFailed;
       content = a ? (
-        <p className={P}>
-          Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}. Calibration restarts on{' '}
-          <When iso={a.restartsOn} refs={refs} />.
-        </p>
+        <>
+          <p className={P}>
+            Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}. Calibration restarts on{' '}
+            <When iso={a.restartsOn} refs={refs} />.
+          </p>
+          <p className={`mt-2 ${P}`}>
+            Views when it stopped: <Derived value={safeCount(snapshot.nA)} unit="count" refs={refs} /> in A,{' '}
+            <Derived value={safeCount(snapshot.nB)} unit="count" refs={refs} /> in B.
+          </p>
+        </>
       ) : (
         <p className={P}>Calibration stopped.</p>
       );

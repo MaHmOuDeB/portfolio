@@ -32,7 +32,21 @@ import {
  * One look at the experiment. `n` is the views in the smaller group; the rest are B − A in
  * PERCENTAGE POINTS (not proportions: convert a mixtureCs interval with csPointFromInterval).
  */
-export type CsPoint = { n: number; lower: number; upper: number; estimate: number };
+export type CsPoint = {
+  n: number;
+  lower: number;
+  upper: number;
+  estimate: number;
+  /** The views in each group at this look (the smaller of the two is `n`); the table prints them. */
+  nA?: number;
+  nB?: number;
+};
+
+/** The optional counts of a point, only when it has them, so equality on a plain point still holds. */
+const countsOf = (p: CsPoint): Pick<CsPoint, 'nA' | 'nB'> => ({
+  ...(p.nA !== undefined ? { nA: p.nA } : {}),
+  ...(p.nB !== undefined ? { nB: p.nB } : {}),
+});
 
 export type LiveSnapshot = {
   phase: LivePhase;
@@ -92,7 +106,7 @@ export function smallerGroup(s: Pick<LiveSnapshot, 'nA' | 'nB'>): number {
 export function runningIntersection(points: readonly CsPoint[]): CsPoint[] {
   const valid = points
     .filter((p) => ![p.n, p.lower, p.upper, p.estimate].some(Number.isNaN))
-    .map((p) => ({ n: p.n, lower: Math.min(p.lower, p.upper), upper: Math.max(p.lower, p.upper), estimate: p.estimate }))
+    .map((p) => ({ n: p.n, lower: Math.min(p.lower, p.upper), upper: Math.max(p.lower, p.upper), estimate: p.estimate, ...countsOf(p) }))
     .sort((a, b) => a.n - b.n);
   const out: CsPoint[] = [];
   for (const p of valid) {
@@ -108,7 +122,7 @@ export function runningIntersection(points: readonly CsPoint[]): CsPoint[] {
       lower = at;
       upper = at;
     }
-    out.push({ n: p.n, lower, upper, estimate: p.estimate });
+    out.push({ n: p.n, lower, upper, estimate: p.estimate, ...countsOf(p) });
   }
   return out;
 }
@@ -118,7 +132,7 @@ export function shownSeries(s: Pick<LiveSnapshot, 'series'>): CsPoint[] {
   const points = s.series
     .filter((p) => Number.isFinite(p.n) && p.n >= MIN_PER_GROUP && Number.isFinite(p.estimate))
     .filter((p) => !Number.isNaN(p.lower) && !Number.isNaN(p.upper))
-    .map((p) => ({ n: p.n, lower: clampPoints(p.lower), upper: clampPoints(p.upper), estimate: clampPoints(p.estimate) }));
+    .map((p) => ({ n: p.n, lower: clampPoints(p.lower), upper: clampPoints(p.upper), estimate: clampPoints(p.estimate), ...countsOf(p) }));
   return runningIntersection(points);
 }
 
@@ -227,15 +241,29 @@ export function csPointFromInterval(n: number, interval: { estimate: number; low
 const NOT_SHOWN_YET = 'Not shown yet';
 const NOT_SHOWN = 'Not shown';
 
-/** The table fallback: the running interval at each look, or the count and no interval while hidden. */
+/**
+ * The table fallback: for each look, the views in both groups and the running interval; while the
+ * interval is hidden, the current counts and no interval. A look that did not record its split
+ * shows the smaller group's count in both columns. The interval columns follow the Now row's
+ * digits rule for each row (intervalDigits), so the table and "now: −12 to +31" always agree.
+ */
 export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[] = ['live']): TableData {
-  const columns = ['Views per group', 'Lower (points)', 'Estimate (points)', 'Upper (points)'];
-  const formats: TableData['formats'] = ['count', 'signedPoints', 'signedPoints', 'signedPoints'];
+  const columns = ['Views in A', 'Views in B', 'Lower', 'Estimate', 'Upper'];
+  const note = 'Lower, estimate and upper are B − A in percentage points.';
+  const formats: TableData['formats'] = ['count', 'count', 'signedPoints', 'signedPoints', 'signedPoints'];
   const hidden = s.phase === 'srm-suppressed' ? NOT_SHOWN : liveFigureState(s).live?.data === 'low-data' ? NOT_SHOWN_YET : null;
-  const rows = hidden
-    ? [[smallerGroup(s), hidden, hidden, hidden]]
-    : shownSeries(s).map((p) => [p.n, p.lower, p.estimate, p.upper]);
-  return { columns, rows, formats, refs };
+  if (hidden) {
+    return { columns, rows: [[safeCount(s.nA), safeCount(s.nB), hidden, hidden, hidden]], formats, note, refs };
+  }
+  const shown = shownSeries(s);
+  return {
+    columns,
+    rows: shown.map((p) => [safeCount(p.nA ?? p.n), safeCount(p.nB ?? p.n), p.lower, p.estimate, p.upper]),
+    formats,
+    rowDigits: shown.map((p) => intervalDigits(p.lower, p.upper)),
+    note,
+    refs,
+  };
 }
 
 /** The decimals that print every multiple of the tick step exactly. */

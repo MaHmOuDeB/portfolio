@@ -284,22 +284,42 @@ describe('csPointFromInterval', () => {
 });
 
 describe('confidenceTable', () => {
-  it('lists the running interval per views per group, with live refs by default', () => {
+  it('lists both groups\' views and the running interval at each look, with live refs by default', () => {
     const t = confidenceTable(BASE);
-    expect(t.columns).toEqual(['Views per group', 'Lower (points)', 'Estimate (points)', 'Upper (points)']);
+    expect(t.columns).toEqual(['Views in A', 'Views in B', 'Lower', 'Estimate', 'Upper']);
+    // BASE has no recorded split, so each look shows the smaller group's count in both columns.
     expect(t.rows).toEqual([
-      [50, -76, 4, 84],
-      [176, -12.2, 9.4, 31],
+      [50, 50, -76, 4, 84],
+      [176, 176, -12.2, 9.4, 31],
     ]);
-    expect(t.formats).toEqual(['count', 'signedPoints', 'signedPoints', 'signedPoints']);
+    expect(t.formats).toEqual(['count', 'count', 'signedPoints', 'signedPoints', 'signedPoints']);
+    expect(t.note).toBe('Lower, estimate and upper are B − A in percentage points.');
     expect(t.refs).toEqual(['live']);
     expect(confidenceTable(BASE, ['simulated']).refs).toEqual(['simulated']);
   });
 
-  it('shows no interval in low data or when the split check failed', () => {
-    expect(confidenceTable({ ...BASE, nA: 12, nB: 14 }).rows).toEqual([[12, 'Not shown yet', 'Not shown yet', 'Not shown yet']]);
-    expect(confidenceTable({ ...BASE, phase: 'srm-suppressed' }).rows).toEqual([[176, 'Not shown', 'Not shown', 'Not shown']]);
+  it('uses the recorded split of each look', () => {
+    const s = { ...BASE, series: [{ n: 176, nA: 180, nB: 176, lower: -12.2, upper: 31, estimate: 9.4 }] };
+    expect(confidenceTable(s).rows).toEqual([[180, 176, -12.2, 9.4, 31]]);
+  });
+
+  it('shows no interval in low data or when the split check failed, but both groups\' counts', () => {
+    expect(confidenceTable({ ...BASE, nA: 12, nB: 14 }).rows).toEqual([[12, 14, 'Not shown yet', 'Not shown yet', 'Not shown yet']]);
+    expect(confidenceTable({ ...BASE, phase: 'srm-suppressed' }).rows).toEqual([[180, 176, 'Not shown', 'Not shown', 'Not shown']]);
     expect(confidenceTable({ ...BASE, nA: Number.NaN }).rows[0]![0]).toBe(0);
+  });
+
+  it('prints each row with the digits of its own interval, so the table agrees with the Now row', () => {
+    const t = confidenceTable(BASE);
+    expect(t.rowDigits).toEqual([0, 0]);
+    const last = t.rows[t.rows.length - 1]!;
+    const digits = t.rowDigits![t.rows.length - 1]!;
+    expect(digits).toBe(intervalDigits(-12.2, 31));
+    // "−12 to +31" in the Now row is the lower and upper cells of the table row.
+    expect(formatIntervalPoints(last[2] as number, last[4] as number)).toBe('−12 to +31');
+    // A narrow interval keeps one decimal in every cell of its row.
+    const narrow = { ...BASE, series: [{ n: 176, lower: 2.2, upper: 7.4, estimate: 4.8 }] };
+    expect(confidenceTable(narrow).rowDigits).toEqual([1]);
   });
 });
 

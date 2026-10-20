@@ -4,12 +4,11 @@
 // action and is covered by the interaction specs. Specimen ids name their axes:
 // live--{phase}--{data}--{freshness}--{runtime}.
 import type { Metadata } from 'next';
-import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { LiveStateBody } from '@/components/kit/LiveStateBody';
 import { TextLink } from '@/components/kit/TextLink';
-import { confidenceTable, contentBody, liveFigureState } from '@/lib/figure/cs-band';
+import { confidenceTable, liveFigureState } from '@/lib/figure/cs-band';
 import {
   DATA_AMOUNTS,
   LIVE_PHASES,
@@ -76,11 +75,12 @@ function LiveFigure({ id, phase, data, fresh, runtime }: { id: string; phase: Li
       provenance="simulated"
       table={confidenceTable(snapshot, SINK_REFS)}
       caption={CAPTION}
-      // The forced error shows the build-time chart: what the data calls for, never a hidden verdict.
-      // Elsewhere the server-rendered body is the preview, so the page carries each chart once.
+      // The forced error shows the build-time body: what the data calls for under every other axis
+      // (the pause, a failed split check with its counts), never a hidden verdict. Elsewhere the
+      // server-rendered body is the preview, so the page carries each chart once.
       preview={
         runtime === 'error' ? (
-          <ConfidenceChart id={`${id}-preview`} snapshot={snapshot} body={contentBody(snapshot)} refs={SINK_REFS} />
+          <LiveStateBody id={`${id}-preview`} snapshot={snapshot} body={resolveFigureBody(liveFigureState(snapshot))} refs={SINK_REFS} />
         ) : undefined
       }
     >

@@ -1,5 +1,6 @@
-// Wordmark, navigation and CV (PDF). From md up the full navigation shows and the header sticks;
-// under md the same list lives behind Menu and the header scrolls away.
+// Wordmark, navigation and CV (PDF). From md up the full navigation shows; under md the same list
+// lives behind Menu. The header sticks only where it is safe (globals.css): at least md wide and 700 px
+// tall. On a shorter screen it would take too much of the page, so it scrolls away there.
 import Link from 'next/link';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
@@ -9,7 +10,7 @@ import { NavLinks } from './NavLinks';
 
 export function SiteHeader() {
   return (
-    <header className="z-(--z-header) border-b border-line bg-bg md:sticky md:top-0 md:h-(--header-h)">
+    <header data-site-header="" className="z-(--z-header) border-b border-line bg-bg md:h-(--header-h)">
       <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:h-full md:px-8">
         <Link
           href="/"

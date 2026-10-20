@@ -149,18 +149,28 @@ test.describe('site header', () => {
     await context.close();
   });
 
-  test('sticky from md up, never under md', async ({ page }) => {
+  test('sticky from md up on a screen at least 700 px tall, never under md or on a shorter screen', async ({ page }) => {
+    test.skip(isPhone(page), 'the viewports below set their own size');
     await page.goto('/');
     await page.evaluate(() => {
       const filler = document.createElement('div');
       filler.style.height = '3000px';
       document.getElementById('main')?.append(filler);
     });
-    await page.mouse.wheel(0, 1000);
-    await page.waitForFunction(() => window.scrollY >= 900);
-    const top = await page.getByRole('banner').evaluate((el) => el.getBoundingClientRect().top);
-    if (isPhone(page)) expect(top).toBeLessThan(-100);
-    else expect(top).toBe(0);
+    const headerTop = async (width: number, height: number) => {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.mouse.wheel(0, 1000);
+      await page.waitForFunction(() => window.scrollY >= 900);
+      return page.getByRole('banner').evaluate((el) => el.getBoundingClientRect().top);
+    };
+    expect(await headerTop(1024, 700)).toBe(0);
+    expect(await headerTop(1440, 900)).toBe(0);
+    // The screen-share size (1024 by 576): the header would take 11% of the screen, so it scrolls away.
+    expect(await headerTop(1024, 576)).toBeLessThan(-100);
+    expect(await headerTop(1024, 699)).toBeLessThan(-100);
+    // A phone width, even when tall.
+    expect(await headerTop(600, 900)).toBeLessThan(-100);
   });
 
   test('interactive header controls are at least 44 px tall', async ({ page }) => {
@@ -223,6 +233,7 @@ test('axe finds no violations with the phone Menu open', async ({ page }) => {
 
 test('the sticky header never covers an in-page anchor target', async ({ page }) => {
   test.skip(isPhone(page), 'the header is sticky from md up only');
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/');
   await page.evaluate(() => {
     const main = document.getElementById('main');
@@ -250,6 +261,15 @@ test('the sticky header never covers an in-page anchor target', async ({ page })
   }));
   expect(header).toBe(64);
   expect(top).toBeGreaterThanOrEqual(header);
+});
+
+test('a Figure linked by its id lands below the sticky header', async ({ page }) => {
+  test.skip(isPhone(page), 'the header is sticky from md up only');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/kitchen-sink/live#live--ab--enough-data--fresh--default');
+  await page.waitForFunction(() => window.scrollY > 500);
+  const top = await page.locator('[data-figure="live--ab--enough-data--fresh--default"]').evaluate((el) => el.getBoundingClientRect().top);
+  expect(top).toBeGreaterThanOrEqual(64);
 });
 
 test.describe('not found page', () => {

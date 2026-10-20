@@ -246,8 +246,9 @@ describe('LiveStateBody', () => {
 
   it('low data in the A/B phase: "A/B started" first, then the collecting row and no chart', () => {
     const root = body('ab', 'low-data');
-    expect(paragraphs(root)[0]).toBe('A/B started 01.10.');
-    expect(squash(text(root))).toContain('Progress: 12 of 50 in the smaller group. Planned end: 01.12.');
+    expect(paragraphs(root)[0]).toBe('A/B started 15.09.');
+    // The six-month cap after the start: 15.03, not two months later.
+    expect(squash(text(root))).toContain('Progress: 12 of 50 in the smaller group. Planned end: 15.03.');
     expect(frames(root)).toHaveLength(0);
   });
 
@@ -380,7 +381,7 @@ describe('LiveStateBody', () => {
     expect(text(warn)).toBe('SRM failed');
     expect(paragraphs(root)).toEqual([
       'SRM failed. The split check failed, so no verdict is shown.',
-      'Views so far: 180 in A, 176 in B.',
+      'Views so far: 212 in A, 148 in B, where the design expects an even split.',
     ]);
     expect(squash(text(root))).not.toContain('now:');
     expect(frames(root)).toHaveLength(0);
@@ -388,7 +389,8 @@ describe('LiveStateBody', () => {
 
   it('A/A failed: its sentence with both dates', () => {
     expect(paragraphs(body('aa-failed', 'enough-data'))).toEqual([
-      'Calibration stopped on 20.09: the split check failed. Calibration restarts on 27.09.',
+      'Calibration stopped on 13.10: the split check failed. Calibration restarts on 20.10.',
+      'Views when it stopped: 212 in A, 148 in B.',
     ]);
   });
 

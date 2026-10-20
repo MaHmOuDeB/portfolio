@@ -17,8 +17,22 @@ const SLOW_PAGE_TIMEOUT = 240_000;
  * a Figure between its server preview and its interactive form.
  */
 async function settled(page: Page): Promise<void> {
+  // The sticky header would cover the top of any element a shot scrolls into view, so every capture
+  // is taken with it in the flow. Transitions are off too; Playwright's `animations: 'disabled'`
+  // finishes running ones, this stops new ones starting.
+  await page.addStyleTag({
+    content: '[data-site-header]{position:static !important} *,*::before,*::after{transition:none !important}',
+  });
   await page.evaluate(() => document.fonts.ready);
   await waitForIslands(page);
+  // The JavaScript flag is on, so the JS-only parts (the table disclosure) are in place.
+  await expect(page.locator('html')).toHaveAttribute('data-js', '');
+}
+
+/** A specimen whose view has the folded table: every one except the no-JS and error runtimes. */
+async function expectDisclosure(page: Page, id: string): Promise<void> {
+  if (/--(?:no-js|error)$/.test(id)) return;
+  await expect(page.locator(`[data-specimen="${id}"] summary`).first()).toBeVisible();
 }
 
 async function specimenIds(page: Page): Promise<string[]> {
@@ -49,6 +63,7 @@ test.describe('@visual @matrix visual baselines', () => {
     const ids = await specimenIds(page);
     expect(ids.length, 'specimens found').toBe(144);
     for (const id of ids) {
+      await expectDisclosure(page, id);
       await expect(page.locator(`[data-specimen="${id}"]`)).toHaveScreenshot(`${id}.png`);
     }
   });
