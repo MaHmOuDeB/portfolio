@@ -125,8 +125,11 @@ describe('Slider', () => {
     expect(auditHtml(page(markup), ctx)).toEqual([]);
     const unmarked = markup.replace(' data-derived="simulated"', '');
     expect(unmarked).not.toContain('data-derived');
+    // The range input and the number input each hold the value too.
     expect(auditHtml(page(unmarked), ctx)).toEqual([
       { route: '/lab', kind: 'stray-number', detail: '"20" in aria-valuetext' },
+      { route: '/lab', kind: 'stray-number', detail: '"20" in value' },
+      { route: '/lab', kind: 'stray-number', detail: '"20" in value' },
     ]);
   });
 

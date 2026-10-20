@@ -151,8 +151,11 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
         const value = attrs.get(name);
         if (value !== undefined) scan(value, name, covered ? 'marked' : 'none');
       }
-      // An input's value is text the visitor sees (the other elements' value is not).
-      const inputValue = el.tagName === 'input' ? attrs.get('value') : undefined;
+      // An input's value is text the visitor sees (the other elements' value is not). A hidden input
+      // is form plumbing, such as the JSON React puts in a form action's fields; the raw-HTML
+      // deny-list pass still covers its text.
+      const isInput = el.tagName === 'input' && attrs.get('type')?.toLowerCase() !== 'hidden';
+      const inputValue = isInput ? attrs.get('value') : undefined;
       if (inputValue !== undefined) scan(inputValue, 'value', covered ? 'marked' : 'none');
       const label = el.tagName === 'meta' ? metaLabel(attrs) : undefined;
       const content = attrs.get('content');

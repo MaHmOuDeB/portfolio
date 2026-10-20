@@ -380,6 +380,15 @@ describe('auditHtml hardening', () => {
       expect(auditHtml(html, ctx())).toEqual([]);
     });
 
+    it('skips hidden inputs, whose value is form plumbing (React form actions hold JSON with digits)', () => {
+      const hidden = '<input type="hidden" name="$ACTION_REF_1" value="{&quot;id&quot;:&quot;40a1&quot;,&quot;bound&quot;:2}">';
+      expect(auditHtml(page(hidden), ctx())).toEqual([]);
+      expect(auditHtml(page('<input type="HIDDEN" value="20">'), ctx())).toEqual([]);
+      // A visible input with digits and no marker still reports; a marked one does not.
+      expect(auditHtml(page('<input type="text" value="20">'), ctx())).toEqual([stray('"20" in value')]);
+      expect(auditHtml(page('<div data-derived="live"><input type="text" value="20"></div>'), ctx())).toEqual([]);
+    });
+
     it('does not read the value attribute of other elements', () => {
       expect(auditHtml(page('<data value="20">x</data><li value="3">y</li>'), ctx())).toEqual([]);
     });
