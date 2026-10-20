@@ -121,12 +121,13 @@ characters.
 | (none) | under 480 px | Segmented options stack as a radio list. |
 | `xs` | 480 px | Segmented options sit in one row. |
 | `sm` | 640 px | `ChartFrame` uses its wide layout; below 640 px it redraws a narrow layout. |
-| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation and becomes sticky; the sticky chart sits beside the steps, offset by `header-h`. |
+| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall; the sticky chart sits beside the steps, offset by `header-h`. |
 | `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
 | `xl` | 1440 px | Content stays at `container-page`; only the margins grow. |
 
 The screen-share size (1024 by 576) sits exactly on `lg`, so it gets the `lg` layout; it is a test
-target, not a breakpoint. The chart is sticky only on screens at least 600 px tall (a height
+target, not a breakpoint; the header scrolls away there (below 700 px of height it would take more
+than a tenth of the screen), and in-page anchors only reserve room for it while it sticks. The chart is sticky only on screens at least 600 px tall (a height
 query).
 
 ## Layers
@@ -134,7 +135,7 @@ query).
 | Token | Value | Use |
 |---|---|---|
 | `z-chart` | 10 | the sticky scroll-moment chart |
-| `z-header` | 20 | `SiteHeader`, sticky from `md` |
+| `z-header` | 20 | `SiteHeader`, sticky from `md` on screens at least 700 px tall |
 | `z-menu` | 30 | the phone Menu panel |
 
 Use them as `z-(--z-chart)`. Nothing else sets a z-index.

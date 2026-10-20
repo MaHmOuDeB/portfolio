@@ -170,6 +170,10 @@ a page needs the smallest possible bundle it can also import a component's file 
   has a phase, an amount of data and a freshness. The state matrix, with its order of precedence,
   is `src/lib/figure/states.ts`, and the kitchen sink shows every state.
 - **Presets are always meaningful.** The default view is a real case, never an empty one.
+- **Chart labels never sit on marks.** `ChartFrame` puts the y tick numbers in a left gutter and the
+  zero-line words ("no difference", "B higher", "B lower") in a right margin, both inside the SVG's
+  padding, and snaps the y scale to half pixels. Collecting states draw the Now row on the same
+  difference axis with a hollow glyph.
 - **Chart text.** Tick labels are `text-xs` (13 px) and annotations `text-sm` (15 px) semibold
   with a `bg` halo. No `<text>` inside an SVG that has a `viewBox`. At most two series; `series-2`
   only for the current estimate, and every `series-2` dot has a 2 px `bg` ring.
