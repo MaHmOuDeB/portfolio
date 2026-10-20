@@ -160,6 +160,7 @@ utility can override it.
 ## Not allowed (enforced by the design lint)
 
 Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and animations (they do
-not exist); `uppercase` combined with letter spacing; the arrow character in content; monospace
-outside code blocks; `fade-up` classes; hover movement (`hover:translate`, `hover:scale`); dark
-mode.
+not exist); any `text-transform: uppercase`; the arrow character, the middle dot and emoji in
+content; monospace outside code blocks; `@keyframes` other than the scroll moment's; `fade-up`,
+`animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`); dark
+mode. The rule ids are listed in `CLAUDE.md`.
