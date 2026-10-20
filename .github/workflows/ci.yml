@@ -1,9 +1,10 @@
 name: CI
 
 on:
-  # `labeled` re-runs the checks when the `update-baselines` label is added (see the e2e job).
+  # `labeled` and `unlabeled` re-run the checks when the `update-baselines` label is added or removed
+  # (see the e2e job): removing it must re-run CI in the normal mode, where a wrong baseline fails.
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -105,7 +106,8 @@ jobs:
     env:
       # The `update-baselines` label on the PR regenerates every visual baseline in this container.
       # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
-      # diffs are: remove the label (and commit the reviewed baselines) before merging.
+      # diffs are: remove the label (and commit the reviewed baselines) before merging. Removing it
+      # re-runs CI, where a missing or different baseline fails (updateSnapshots is 'none' in CI).
       UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

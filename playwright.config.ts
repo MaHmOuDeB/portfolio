@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { updateSnapshotsMode } from './tests/e2e/snapshot-mode';
 
 const PORT = 3123;
 
@@ -9,7 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Baselines are generated only in the CI container; a label on the PR regenerates them.
-  updateSnapshots: process.env.UPDATE_BASELINES === '1' ? 'all' : 'missing',
+  updateSnapshots: updateSnapshotsMode(process.env),
   expect: {
     toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: 'disabled', caret: 'hide' },
   },
