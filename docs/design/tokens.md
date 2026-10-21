@@ -82,7 +82,9 @@ stop, the colon and the space, so "kitchen-sink" would read "kitchen - sink". Th
 tick label, a numeric table cell, an interval, a step count, a readout), never on a container that
 holds a sentence: `data-derived` and `data-fact` only say where a number comes from, and a marked
 container that is not itself a number says `cv05` outright, so a number still lines up and prose
-keeps its normal hyphen and spaces. Weights used: `font-weight-regular` 400,
+keeps its normal hyphen and spaces. These elements also set `text-rendering: geometricPrecision`:
+Linux Chromium rounds each glyph advance to a whole pixel, so without it a "1" and a "0" differ by
+up to a pixel and a column of figures drifts. Weights used: `font-weight-regular` 400,
 `font-weight-medium` 500, `font-weight-semibold` 600. Code blocks only use `font-code`, which
 `--default-mono-font-family` also makes the default for `code`, `kbd`, `samp` and `pre`.
 

@@ -229,8 +229,20 @@ test('@matrix a table fits a 375 px column without scrolling sideways', async ({
   const scrolls = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('[role="region"]')]
       .filter((el) => el.querySelector('table') && el.checkVisibility())
-      .map((el) => ({ id: el.closest('[data-specimen]')?.getAttribute('data-specimen') ?? el.id, over: el.scrollWidth - el.clientWidth })),
+      .map((el) => {
+        const table = el.querySelector('table')!;
+        const id = el.closest('[data-specimen]')?.getAttribute('data-specimen') ?? el.id;
+        const over = el.scrollWidth - el.clientWidth;
+        // The narrowest the table can be (every cell as tight as it wraps), against the column: the
+        // spare room absorbs the platforms' different text widths (Linux rounds glyph advances).
+        const before = table.style.width;
+        table.style.width = 'min-content';
+        const spare = el.clientWidth - table.getBoundingClientRect().width;
+        table.style.width = before;
+        return { id, over, spare };
+      }),
   );
   expect(scrolls.length).toBeGreaterThan(0);
   expect(scrolls.filter((s) => s.over > 0)).toEqual([]);
+  expect(scrolls.filter((s) => s.spare < 4), 'a table needs 4 px to spare at its tightest').toEqual([]);
 });

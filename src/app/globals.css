@@ -78,6 +78,13 @@
   output,
   input[type="number"] {
     font-feature-settings: "cv05", "tnum";
+
+    /*
+     * Linux Chromium rounds each glyph advance to a whole pixel (hinting), so a tabular "1" and "0"
+     * differ by up to 1 px each and "111" is 3 px wider than "000" at 15 px. geometricPrecision keeps
+     * the font's own fractional advances, so a column of figures lines up on every platform.
+     */
+    text-rendering: geometricprecision;
   }
 
   [data-derived]:not([data-num], data, time) {

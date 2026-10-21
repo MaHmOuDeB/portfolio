@@ -73,7 +73,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
                 <th
                   key={c}
                   scope="col"
-                  className={`border-b border-line py-2 pr-4 last:pr-0 font-semibold ${align(i)}`}
+                  className={`border-b border-line py-2 pr-3 last:pr-0 font-semibold ${align(i)}`}
                 >
                   {c}
                 </th>
@@ -84,7 +84,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
             {table.rows.map((row, r) => (
               <tr key={r}>
                 {row.map((v, i) => (
-                  <td key={i} {...cell} {...(typeof v === 'number' ? { 'data-num': '' } : {})} className={`border-b border-line py-2 pr-4 last:pr-0 whitespace-nowrap ${align(i)}`}>
+                  <td key={i} {...cell} {...(typeof v === 'number' ? { 'data-num': '' } : {})} className={`border-b border-line py-2 pr-3 last:pr-0 whitespace-nowrap ${align(i)}`}>
                     {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number', table.rowDigits?.[r]) : v}
                   </td>
                 ))}
