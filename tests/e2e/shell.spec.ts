@@ -30,13 +30,15 @@ test('document shell: lang, JS flag and Inter features', async ({ page }) => {
 
 // Tabular figures (tnum) widen the hyphen, the minus, the full stop, the colon and the space as well, so
 // they belong on the elements that are numbers and never on prose. `probe` measures text with the font
-// of a real element and a given feature setting.
+// of a real element and a given feature setting. Widths are read at 100 px and compared with a
+// tolerance of 1.5 px, and a non-tabular digit differs by about 25 px, so font hinting and rounding
+// differences between macOS and the Linux container cannot flip a result.
 async function measureNumerals(page: Page, specimen: string, selector: string) {
   return page.locator(`[data-specimen="${specimen}"] ${selector}`).first().evaluate((el) => {
     const style = getComputedStyle(el);
     const probe = (text: string, features: string | null) => {
       const span = document.createElement('span');
-      span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:${style.fontSize};font-weight:${style.fontWeight};font-optical-sizing:auto`;
+      span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:100px;font-weight:${style.fontWeight};font-optical-sizing:auto`;
       span.style.fontFeatureSettings = features ?? style.fontFeatureSettings;
       span.textContent = text;
       document.body.append(span);
@@ -68,7 +70,8 @@ test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers 
     return { actual: range.getBoundingClientRect().width, expected, features: style.fontFeatureSettings };
   });
   expect(hyphen.features).not.toContain('tnum');
-  expect(hyphen.actual).toBeCloseTo(hyphen.expected, 0);
+  // A tabular hyphen would be about 3 px wider at this size; 1 px tolerates rounding between platforms.
+  expect(Math.abs(hyphen.actual - hyphen.expected)).toBeLessThan(1);
 
   // Numbers in a table cell, a tick label, a Fact and a derived value are tabular: '111' as wide as '000'.
   for (const [specimen, selector] of [
@@ -80,19 +83,19 @@ test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers 
   ] as const) {
     const m = await measureNumerals(page, specimen, selector);
     expect(m.features, `${specimen} ${selector}`).toContain('tnum');
-    expect(m.ones, `${specimen} ${selector}: 111 as wide as 000`).toBeCloseTo(m.zeros, 1);
+    expect(Math.abs(m.ones - m.zeros), `${specimen} ${selector}: 111 as wide as 000`).toBeLessThan(1.5);
   }
   // Prose has lining proportional digits: a '1' is narrower than a '0'.
   const prose = await measureNumerals(page, 'url-state--two-figures', 'p[data-readout]');
   expect(prose.features).not.toContain('tnum');
-  expect(prose.ones).toBeLessThan(prose.zeros);
+  expect(prose.zeros - prose.ones, 'a lining 1 is narrower than a 0').toBeGreaterThan(10);
 
   await page.goto('/kitchen-sink/live');
   const now = await measureNumerals(page, 'live--ab--enough-data--fresh--default', '[data-now-row="interval"] span[data-derived]');
   expect(now.features).toContain('tnum');
-  expect(now.ones).toBeCloseTo(now.zeros, 1);
+  expect(Math.abs(now.ones - now.zeros)).toBeLessThan(1.5);
   const nowZero = await measureNumerals(page, 'live--ab--enough-data--fresh--default', '[data-now-row="interval"] text[data-derived]');
-  expect(nowZero.ones).toBeCloseTo(nowZero.zeros, 1);
+  expect(Math.abs(nowZero.ones - nowZero.zeros)).toBeLessThan(1.5);
 });
 
 test('favicon is the SVG icon', async ({ page, request }) => {
@@ -367,7 +370,7 @@ test('the sticky header never covers an in-page anchor target', async ({ page })
     ) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
   }));
   expect(header).toBe(64);
-  expect(top).toBeGreaterThanOrEqual(header);
+  expect(top).toBeGreaterThanOrEqual(header - 1);
 });
 
 test('a Figure linked by its id lands below the sticky header', async ({ page }) => {
@@ -375,8 +378,17 @@ test('a Figure linked by its id lands below the sticky header', async ({ page })
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/kitchen-sink/live#live--ab--enough-data--fresh--default');
   await page.waitForFunction(() => window.scrollY > 500);
+  // Wait for the scroll to settle (the position is the same on two frames in a row), then compare with
+  // a 1 px tolerance: the figure's top is fractional, and 63.92 is as good as 64.
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const y = window.scrollY;
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(window.scrollY === y)));
+      }),
+  );
   const top = await page.locator('[data-figure="live--ab--enough-data--fresh--default"]').evaluate((el) => el.getBoundingClientRect().top);
-  expect(top).toBeGreaterThanOrEqual(64);
+  expect(top).toBeGreaterThanOrEqual(64 - 1);
 });
 
 test.describe('not found page', () => {

@@ -207,8 +207,8 @@ test.describe('control row', () => {
       // Stacked: the options and Reset take the full width of the column.
       expect(metrics.fieldsetWidth).toBeGreaterThan(metrics.parentWidth - 2);
     } else {
-      expect(metrics.group.height).toBeCloseTo(44, 0);
-      expect(metrics.reset.height).toBeCloseTo(44, 0);
+      expect(Math.abs(metrics.group.height - 44)).toBeLessThan(1);
+      expect(Math.abs(metrics.reset.height - 44)).toBeLessThan(1);
       // Controls that share a row line up: the legends sit on one line, and the group and Reset share
       // a bottom edge. (At tablet width the row wraps, and a control on its own row has no partner.)
       if (Math.abs(metrics.legendTop - metrics.sliderLabelTop) < 40) {

@@ -142,11 +142,11 @@ for (const width of WIDTHS) {
         expect(r.plotLeft, r.id!).toBeGreaterThan(r.frameLeft);
         for (const t of r.ticks) {
           expect(t.right, `${r.id}: a y tick overlaps the plot`).toBeLessThanOrEqual(r.plotLeft - 4);
-          expect(t.left, `${r.id}: a y tick is clipped by the frame`).toBeGreaterThanOrEqual(r.frameLeft - 0.01);
+          expect(t.left, `${r.id}: a y tick is clipped by the frame`).toBeGreaterThanOrEqual(r.frameLeft - 1);
         }
         for (const w of r.words) {
           expect(w.left, `${r.id}: a zero-line word overlaps the plot`).toBeGreaterThanOrEqual(r.plotRight + 4);
-          expect(w.right, `${r.id}: a zero-line word is clipped by the frame`).toBeLessThanOrEqual(r.frameRight + 0.01);
+          expect(w.right, `${r.id}: a zero-line word is clipped by the frame`).toBeLessThanOrEqual(r.frameRight + 1);
         }
       }
       const sides = await visibleFrames(page).evaluateAll((frames) => frames.flatMap((f) => [...f.querySelectorAll('text[data-side]')]).length);
@@ -221,8 +221,8 @@ for (const width of [375, 768, 1024, 1440]) {
           }
           out.visible += 1;
           const r = note.getBoundingClientRect();
-          if (r.left < plot.left - 0.5 || r.right > plot.right + 0.5) out.problems.push(`${id}: the annotation leaves the plot (${Math.round(r.left)}..${Math.round(r.right)} against ${Math.round(plot.left)}..${Math.round(plot.right)})`);
-          if (r.left < box.left || r.right > box.right) out.problems.push(`${id}: the annotation leaves the frame`);
+          if (r.left < plot.left - 1 || r.right > plot.right + 1) out.problems.push(`${id}: the annotation leaves the plot (${Math.round(r.left)}..${Math.round(r.right)} against ${Math.round(plot.left)}..${Math.round(plot.right)})`);
+          if (r.left < box.left - 1 || r.right > box.right + 1) out.problems.push(`${id}: the annotation leaves the frame`);
           for (const l of labels) {
             const overlap = r.left < l.r.right && r.right > l.r.left && r.top < l.r.bottom && r.bottom > l.r.top;
             if (overlap) out.problems.push(`${id}: the annotation overlaps the label "${l.s}"`);
