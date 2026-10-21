@@ -10,6 +10,12 @@
 // margin, stacked on the zero line. Both margins are padding of the <svg> (a replaced element's
 // viewport is its content box), so the plot's percentages still run from 0 to 100% of the plot. The
 // y scale is snapped to half pixels, so a horizontal 1 px line is never blurred over two rows.
+//
+// The annotation is guarded against the plot's width. Text is not measured on the server and the chart
+// is as wide as its column, so the frame states, per layout, the narrowest column its annotation fits
+// in (its estimated width against the room on its side of the anchor, plus the margins) and a container
+// query hides it below that. The finding is still in the chart's accessible name, the Figure's title and
+// its result line; a hidden annotation never lands on a tick, a margin word or a mark, or outside the frame.
 import type { ReactNode } from 'react';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
 import { derivedAttr, type DerivedRef } from './Derived';
@@ -73,9 +79,12 @@ export type ChartFrameProps = {
 // Horizontal room for the labels: the left gutter holds the longest y tick label, the right margin
 // the longest zero-line word. Text is in Inter at 13 px, so a digit is about 8.2 px and a letter
 // about 6.6 px; a label is never clipped, because a wider one only widens its margin.
-const DIGIT_PX = 8.2;
+const DIGIT_PX = 8.4;
 const LETTER_PX = 6.6;
 const MARGIN_GAP = 8;
+/** Semibold text-sm (15 px) in Inter: a conservative width per character, and the gap kept clear at the plot edge. */
+const NOTE_LETTER_PX = 7.9;
+const NOTE_EDGE_GAP = 8;
 /** The narrow layout stacks "no difference" on two lines to keep the plot wide. */
 const NARROW_ZERO_LINE = 8;
 
@@ -93,8 +102,22 @@ const LABEL = 'text-xs fill-muted';
 // The annotation's halo is 3 px: half of a 6 px stroke painted under the fill.
 const NOTE_HALO = { stroke: 'var(--color-bg)', strokeWidth: '6px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
 
+/** An id as it sits inside a double-quoted CSS attribute selector. */
+const cssString = (v: string) => v.replace(/["\\\n]/g, '\\$&');
+
 /** A 1 px line drawn on a pixel boundary looks sharp. */
 const crisp = (y: number) => Math.round(y - 0.5) + 0.5;
+
+/**
+ * The narrowest container, in px, whose plot holds the annotation: its estimated width plus the edge
+ * gap must fit in the share of the plot on its side of the anchor (the text grows left from an "end"
+ * anchor and right from a "start" one). Infinity when the anchor leaves no room at all.
+ */
+function annotationMinWidth(note: Pick<Annotation, 'text' | 'anchor'>, frac: number, left: number, right: number): number {
+  const room = note.anchor === 'end' ? frac : 1 - frac;
+  if (!(room > 0)) return Number.POSITIVE_INFINITY;
+  return left + right + Math.ceil((note.text.length * NOTE_LETTER_PX + NOTE_EDGE_GAP) / room);
+}
 
 /** The words of the zero line, in the order they stack: above, on the line, below. */
 function zeroWords(zero: string | undefined, layout: Layout): string[] {
@@ -175,116 +198,124 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   // The side words clear the zero label's block (one line, or two on a phone) by LABEL_GAP.
   const sideOffset = (words.length > 1 ? NARROW_ZERO_LINE + 8 : 8) + LABEL_GAP + 2;
   const className = responsive ? (layout === 'narrow' ? 'block sm:hidden' : 'block max-sm:hidden') : 'block';
+  const noteMin = note ? annotationMinWidth(note, xFrac(note.x), left, right) : 0;
+  // Below that width the annotation is hidden (display: none), per chart and layout.
+  const hideNote = Number.isFinite(noteMin)
+    ? `@container (width < ${noteMin}px){[data-chart="${cssString(p.id)}"] svg[data-layout="${layout}"] [data-annotation]{display:none}}`
+    : `[data-chart="${cssString(p.id)}"] svg[data-layout="${layout}"] [data-annotation]{display:none}`;
 
   return (
-    <svg
-      data-chart-frame=""
-      data-layout={layout}
-      role="img"
-      aria-label={p.ariaLabel}
-      width="100%"
-      height={PLOT_TOP + height + BELOW_PLOT}
-      className={`${className} overflow-visible`}
-      style={{ paddingLeft: left, paddingRight: right }}
-    >
-      <text data-axis-label="" className={LABEL} x={-left} y={AXIS_LABEL_BASELINE}>
-        {p.y.label}
-      </text>
-      <g transform={`translate(0 ${PLOT_TOP})`}>
-        {yTicks.map((v, i) => (
-          <line key={i} data-grid="" x1={0} x2="100%" y1={crisp(ctx.yPx(v))} y2={crisp(ctx.yPx(v))} className="stroke-line" />
-        ))}
-        <line data-baseline="" x1={0} x2="100%" y1={crisp(height)} y2={crisp(height)} className="stroke-line" />
-        <MarkLayer height={height}>{p.marks(ctx)}</MarkLayer>
-        {hasZero ? <line data-zero-line="" x1={0} x2="100%" y1={zeroY} y2={zeroY} className="stroke-ink" /> : null}
-        {p.overlays?.(ctx)}
-
-        {yTicks.map((v, i) => (
-          <text
-            key={i}
-            data-tick="y"
-            data-num=""
-            {...yTick}
-            className={LABEL}
-            x={0}
-            dx={-MARGIN_GAP}
-            y={crisp(ctx.yPx(v))}
-            textAnchor="end"
-            dominantBaseline="middle"
-          >
-            {yLabels[i]}
-          </text>
-        ))}
-        {hasZero ? (
-          <text
-            data-tick="y"
-            data-zero-tick=""
-            data-num=""
-            {...yTick}
-            className={LABEL}
-            x={0}
-            dx={-MARGIN_GAP}
-            y={zeroY}
-            textAnchor="end"
-            dominantBaseline="middle"
-          >
-            <tspan>{p.y.format(0)}</tspan>
-          </text>
-        ) : null}
-        {words.length > 0 ? (
-          <text data-zero-label="" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dominantBaseline="middle">
-            {words.map((w, i) => (
-              <tspan key={i} x="100%" dx={MARGIN_GAP} dy={i === 0 ? (words.length > 1 ? -lineGap : 0) : 2 * lineGap}>
-                {w}
-              </tspan>
-            ))}
-          </text>
-        ) : null}
-        {above ? (
-          <text data-side="above" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY - sideOffset}>
-            {above}
-          </text>
-        ) : null}
-        {below ? (
-          <text data-side="below" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY + sideOffset} dominantBaseline="hanging">
-            {below}
-          </text>
-        ) : null}
-
-        {xTicks.map((v, i) => (
-          <text
-            key={i}
-            data-tick="x"
-            data-num=""
-            {...xTick}
-            className={LABEL}
-            x={pct(xFrac(v))}
-            y={height + X_TICK_BASELINE}
-            textAnchor={xAnchor(i, xTicks.length, xFrac(v))}
-          >
-            {xLabels[i]}
-          </text>
-        ))}
-        <text data-axis-label="" className={LABEL} x="100%" y={height + X_LABEL_BASELINE} textAnchor="end">
-          {p.x.label}
+    <>
+      <svg
+        data-chart-frame=""
+        data-layout={layout}
+        role="img"
+        aria-label={p.ariaLabel}
+        width="100%"
+        height={PLOT_TOP + height + BELOW_PLOT}
+        className={`${className} overflow-visible`}
+        style={{ paddingLeft: left, paddingRight: right }}
+      >
+        <text data-axis-label="" className={LABEL} x={-left} y={AXIS_LABEL_BASELINE}>
+          {p.y.label}
         </text>
-
-        {note ? (
-          <text
-            data-annotation=""
-            {...(note.refs ? derivedAttr(note.refs) : {})}
-            className="text-sm font-semibold fill-ink"
-            {...NOTE_HALO}
-            x={pct(xFrac(note.x))}
-            y={ctx.yPx(note.y)}
-            textAnchor={note.anchor}
-            dominantBaseline="middle"
-          >
-            {note.text}
+        <g transform={`translate(0 ${PLOT_TOP})`}>
+          {yTicks.map((v, i) => (
+            <line key={i} data-grid="" x1={0} x2="100%" y1={crisp(ctx.yPx(v))} y2={crisp(ctx.yPx(v))} className="stroke-line" />
+          ))}
+          <line data-baseline="" x1={0} x2="100%" y1={crisp(height)} y2={crisp(height)} className="stroke-line" />
+          <MarkLayer height={height}>{p.marks(ctx)}</MarkLayer>
+          {hasZero ? <line data-zero-line="" x1={0} x2="100%" y1={zeroY} y2={zeroY} className="stroke-ink" /> : null}
+          {p.overlays?.(ctx)}
+  
+          {yTicks.map((v, i) => (
+            <text
+              key={i}
+              data-tick="y"
+              data-num=""
+              {...yTick}
+              className={LABEL}
+              x={0}
+              dx={-MARGIN_GAP}
+              y={crisp(ctx.yPx(v))}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              {yLabels[i]}
+            </text>
+          ))}
+          {hasZero ? (
+            <text
+              data-tick="y"
+              data-zero-tick=""
+              data-num=""
+              {...yTick}
+              className={LABEL}
+              x={0}
+              dx={-MARGIN_GAP}
+              y={zeroY}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              <tspan>{p.y.format(0)}</tspan>
+            </text>
+          ) : null}
+          {words.length > 0 ? (
+            <text data-zero-label="" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dominantBaseline="middle">
+              {words.map((w, i) => (
+                <tspan key={i} x="100%" dx={MARGIN_GAP} dy={i === 0 ? (words.length > 1 ? -lineGap : 0) : 2 * lineGap}>
+                  {w}
+                </tspan>
+              ))}
+            </text>
+          ) : null}
+          {above ? (
+            <text data-side="above" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY - sideOffset}>
+              {above}
+            </text>
+          ) : null}
+          {below ? (
+            <text data-side="below" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY + sideOffset} dominantBaseline="hanging">
+              {below}
+            </text>
+          ) : null}
+  
+          {xTicks.map((v, i) => (
+            <text
+              key={i}
+              data-tick="x"
+              data-num=""
+              {...xTick}
+              className={LABEL}
+              x={pct(xFrac(v))}
+              y={height + X_TICK_BASELINE}
+              textAnchor={xAnchor(i, xTicks.length, xFrac(v))}
+            >
+              {xLabels[i]}
+            </text>
+          ))}
+          <text data-axis-label="" className={LABEL} x="100%" y={height + X_LABEL_BASELINE} textAnchor="end">
+            {p.x.label}
           </text>
-        ) : null}
-      </g>
-    </svg>
+  
+          {note ? (
+            <text
+              data-annotation=""
+              {...(note.refs ? derivedAttr(note.refs) : {})}
+              className="text-sm font-semibold fill-ink"
+              {...NOTE_HALO}
+              x={pct(xFrac(note.x))}
+              y={ctx.yPx(note.y)}
+              textAnchor={note.anchor}
+              dominantBaseline="middle"
+            >
+              {note.text}
+            </text>
+          ) : null}
+        </g>
+      </svg>
+      {note && noteMin > 0 ? <style>{hideNote}</style> : null}
+    </>
   );
 }
 
@@ -296,7 +327,7 @@ export function ChartFrame(p: ChartFrameProps) {
   }
   const layouts: Layout[] = p.layout ? [p.layout] : ['narrow', 'wide'];
   return (
-    <div data-chart={p.id} className="w-full">
+    <div data-chart={p.id} className="w-full" style={{ containerType: 'inline-size' }}>
       {layouts.map((layout) => (
         <Frame key={layout} p={p} layout={layout} responsive={!p.layout} />
       ))}

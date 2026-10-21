@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { expectNoA11yViolations, test } from './fixtures';
+import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 
 // The ChartFrame specimens on the kitchen sink (fictional data). The Playwright web server builds
 // with KITCHEN_SINK=1. Each check runs at the narrowest and the widest size of the matrix.
@@ -121,7 +121,8 @@ for (const width of WIDTHS) {
       await openAt(page, width);
       const result = await visibleFrames(page).evaluateAll((frames) =>
         frames.map((f) => {
-          const plot = f.querySelector('svg[data-mark-layer]')!.getBoundingClientRect();
+          // The baseline runs the whole width of the plot (a nested svg's own box is its content's, not its viewport).
+          const plot = f.querySelector('line[data-baseline]')!.getBoundingClientRect();
           const frame = f.getBoundingClientRect();
           const boxes = (sel: string) => [...f.querySelectorAll<SVGTextElement>(sel)].map((t) => t.getBoundingClientRect());
           return {
@@ -141,11 +142,11 @@ for (const width of WIDTHS) {
         expect(r.plotLeft, r.id!).toBeGreaterThan(r.frameLeft);
         for (const t of r.ticks) {
           expect(t.right, `${r.id}: a y tick overlaps the plot`).toBeLessThanOrEqual(r.plotLeft - 4);
-          expect(t.left, `${r.id}: a y tick is clipped by the frame`).toBeGreaterThanOrEqual(r.frameLeft - 0.5);
+          expect(t.left, `${r.id}: a y tick is clipped by the frame`).toBeGreaterThanOrEqual(r.frameLeft - 0.01);
         }
         for (const w of r.words) {
           expect(w.left, `${r.id}: a zero-line word overlaps the plot`).toBeGreaterThanOrEqual(r.plotRight + 4);
-          expect(w.right, `${r.id}: a zero-line word is clipped by the frame`).toBeLessThanOrEqual(r.frameRight + 0.5);
+          expect(w.right, `${r.id}: a zero-line word is clipped by the frame`).toBeLessThanOrEqual(r.frameRight + 0.01);
         }
       }
       const sides = await visibleFrames(page).evaluateAll((frames) => frames.flatMap((f) => [...f.querySelectorAll('text[data-side]')]).length);
@@ -195,3 +196,59 @@ test('the chart is drawn without JavaScript', async ({ browser }) => {
   await expect(frame.locator('text[data-annotation]')).toBeVisible();
   await context.close();
 });
+
+// Every chart on the kitchen sink at the four widths of the matrix: a visible annotation stays inside the
+// plot (so it cannot reach a tick, a margin word or leave the frame) and sits on no label and no mark. An
+// annotation that does not fit its plot is hidden (ChartFrame's container query), never squeezed in.
+for (const width of [375, 768, 1024, 1440]) {
+  test(`@matrix every annotation fits its plot at ${width} px or is hidden`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'the viewport is set here, so one project covers it');
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/kitchen-sink');
+    await waitForIslands(page);
+    const report = await page.evaluate(() => {
+      const out = { visible: 0, hidden: 0, problems: [] as string[] };
+      for (const frame of document.querySelectorAll<SVGSVGElement>('svg[data-chart-frame]')) {
+        if (!frame.checkVisibility()) continue; // the other layout of a responsive chart
+        const id = frame.closest('[data-specimen]')?.getAttribute('data-specimen') ?? '(figure)';
+        const plot = frame.querySelector('line[data-baseline]')!.getBoundingClientRect();
+        const box = frame.getBoundingClientRect();
+        const labels = [...frame.querySelectorAll<SVGTextElement>('text:not([data-annotation])')].map((t) => ({ r: t.getBoundingClientRect(), s: (t.textContent ?? '').trim() }));
+        for (const note of frame.querySelectorAll<SVGTextElement>('text[data-annotation]')) {
+          if (getComputedStyle(note).display === 'none') {
+            out.hidden += 1;
+            continue;
+          }
+          out.visible += 1;
+          const r = note.getBoundingClientRect();
+          if (r.left < plot.left - 0.5 || r.right > plot.right + 0.5) out.problems.push(`${id}: the annotation leaves the plot (${Math.round(r.left)}..${Math.round(r.right)} against ${Math.round(plot.left)}..${Math.round(plot.right)})`);
+          if (r.left < box.left || r.right > box.right) out.problems.push(`${id}: the annotation leaves the frame`);
+          for (const l of labels) {
+            const overlap = r.left < l.r.right && r.right > l.r.left && r.top < l.r.bottom && r.bottom > l.r.top;
+            if (overlap) out.problems.push(`${id}: the annotation overlaps the label "${l.s}"`);
+          }
+          for (const mark of frame.querySelectorAll<SVGGeometryElement>('[data-mark]')) {
+            const ctm = mark.getScreenCTM()!;
+            const style = getComputedStyle(mark);
+            if (style.stroke !== 'none') {
+              const length = mark.getTotalLength();
+              const steps = Math.max(200, Math.ceil(length * 2));
+              for (let i = 0; i <= steps; i++) {
+                const p = mark.getPointAtLength((length * i) / steps).matrixTransform(ctm);
+                if (p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom) {
+                  out.problems.push(`${id}: the annotation sits on a stroke`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      return out;
+    });
+    expect(report.problems).toEqual([]);
+    expect(report.visible, 'some annotation is drawn').toBeGreaterThan(0);
+    // Room enough from the tablet width up: nothing is hidden there.
+    if (width >= 1024) expect(report.hidden).toBe(0);
+  });
+}

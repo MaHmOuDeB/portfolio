@@ -58,8 +58,8 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
     throw new Error('a table needs one format per column');
   }
   const numeric = table.columns.map((_, i) => table.rows.length > 0 && table.rows.every((r) => typeof r[i] === 'number'));
-  // The first column names the row, so it reads left-aligned; the numbers after it line up on the right.
-  const align = (i: number) => (i > 0 && numeric[i] ? 'text-right' : 'text-left');
+  // Names read left-aligned and numbers line up on the right, in every column alike.
+  const align = (i: number) => (numeric[i] ? 'text-right' : 'text-left');
   return (
     <>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-caption`}>
@@ -73,7 +73,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
                 <th
                   key={c}
                   scope="col"
-                  className={`border-b border-line py-2 pr-4 font-semibold ${align(i)}`}
+                  className={`border-b border-line py-2 pr-4 last:pr-0 font-semibold ${align(i)}`}
                 >
                   {c}
                 </th>
@@ -84,7 +84,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
             {table.rows.map((row, r) => (
               <tr key={r}>
                 {row.map((v, i) => (
-                  <td key={i} {...cell} {...(typeof v === 'number' ? { 'data-num': '' } : {})} className={`border-b border-line py-2 pr-4 whitespace-nowrap ${align(i)}`}>
+                  <td key={i} {...cell} {...(typeof v === 'number' ? { 'data-num': '' } : {})} className={`border-b border-line py-2 pr-4 last:pr-0 whitespace-nowrap ${align(i)}`}>
                     {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number', table.rowDigits?.[r]) : v}
                   </td>
                 ))}

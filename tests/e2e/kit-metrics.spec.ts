@@ -220,3 +220,17 @@ test.describe('control row', () => {
     }
   });
 });
+
+test('@matrix a table fits a 375 px column without scrolling sideways', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'the viewport is set here, so one project covers it');
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto('/kitchen-sink');
+  await waitForIslands(page);
+  const scrolls = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('[role="region"]')]
+      .filter((el) => el.querySelector('table') && el.checkVisibility())
+      .map((el) => ({ id: el.closest('[data-specimen]')?.getAttribute('data-specimen') ?? el.id, over: el.scrollWidth - el.clientWidth })),
+  );
+  expect(scrolls.length).toBeGreaterThan(0);
+  expect(scrolls.filter((s) => s.over > 0)).toEqual([]);
+});

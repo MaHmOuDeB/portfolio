@@ -254,6 +254,47 @@ describe('ChartFrame', () => {
     expect(notes.map((n) => attr(n, 'text-anchor'))).toEqual(['start', 'end']);
   });
 
+  describe('the annotation is guarded against a narrow plot', () => {
+    const rules = (props: Partial<ChartFrameProps> = {}) => {
+      const html = renderToStaticMarkup(<ChartFrame {...FIXTURE} {...props} />);
+      return [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]!);
+    };
+    const padding = (html: string, layout: string) => {
+      const style = new RegExp(`data-layout="${layout}"[^>]*style="padding-left:(\\d+)px;padding-right:(\\d+)px"`).exec(html)!;
+      return Number(style[1]) + Number(style[2]);
+    };
+
+    it('hides it, per layout, below the container width its text needs', () => {
+      const html = renderToStaticMarkup(<ChartFrame {...FIXTURE} />);
+      const [narrow, wide] = rules();
+      // "The estimate settles" (20 characters), start-anchored at 48% in the narrow layout, end-anchored in the wide one.
+      const need = (anchorRoom: number, layout: string) =>
+        padding(html, layout) + Math.ceil((20 * 7.9 + 8) / anchorRoom);
+      expect(narrow).toBe(
+        `@container (width < ${need(1 - 0.48, 'narrow')}px){[data-chart="${FIXTURE.id}"] svg[data-layout="narrow"] [data-annotation]{display:none}}`,
+      );
+      expect(wide).toBe(
+        `@container (width < ${need(0.48, 'wide')}px){[data-chart="${FIXTURE.id}"] svg[data-layout="wide"] [data-annotation]{display:none}}`,
+      );
+    });
+
+    it('needs a wider column for a longer text, and none at all for a chart without an annotation', () => {
+      const min = (text: string) => Number(/width < (\d+)px/.exec(rules({ annotation: () => ({ x: 250, y: 30, text, anchor: 'end' }) })[1]!)![1]);
+      expect(min('The interval narrows as views grow')).toBeGreaterThan(min('The interval narrows'));
+      expect(rules({ annotation: undefined })).toEqual([]);
+    });
+
+    it('hides it always when its anchor leaves no room on its side', () => {
+      const [rule] = rules({ annotation: () => ({ x: 0, y: 30, text: 'Nowhere to go', anchor: 'end' }) });
+      expect(rule).toBe(`[data-chart="${FIXTURE.id}"] svg[data-layout="narrow"] [data-annotation]{display:none}`);
+    });
+
+    it('makes the chart a container, so the query measures its own column', () => {
+      const html = renderToStaticMarkup(<ChartFrame {...FIXTURE} />);
+      expect(html).toContain('style="container-type:inline-size"');
+    });
+  });
+
   it('marks a number in the annotation only when given refs', () => {
     const root = render({
       annotation: () => ({ x: 120, y: -14, text: 'A rise of five points', anchor: 'start', refs: ['simulated'] }),
