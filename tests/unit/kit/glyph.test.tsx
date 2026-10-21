@@ -75,6 +75,21 @@ describe('IntervalGlyph', () => {
     expect(Number(dot.cx)).toBeCloseTo(0.62 * 48, 6);
   });
 
+  it('the 28 px phone variant of the header keeps the construction: bar, two end caps, a dot with its halo', () => {
+    const html = renderToStaticMarkup(<IntervalGlyph length={28} />);
+    expect(first(html, 'svg')).toMatchObject({ width: '28', height: '10', viewBox: '0 0 28 10' });
+    const rects = elements(html, 'rect');
+    expect(rects).toHaveLength(3);
+    // The caps sit at the two ends, the bar spans the length.
+    expect(rects.filter((r) => r.height === '8').map((r) => Number(r.x))).toEqual([0, 28 - 1.5]);
+    expect(rects.find((r) => r.height === '2')).toMatchObject({ x: '0', width: '28' });
+    const dot = first(html, 'circle');
+    expect(dot).toMatchObject({ r: '4', fill: 'var(--color-series-2)', stroke: 'var(--color-bg)', 'stroke-width': '2', 'paint-order': 'stroke' });
+    // The dot and its halo stay inside the glyph.
+    expect(Number(dot.cx) - 4 - 1).toBeGreaterThan(0);
+    expect(Number(dot.cx) + 4 + 1).toBeLessThan(28);
+  });
+
   it('places the dot at estimateAt of the length and scales to the large size', () => {
     const html = renderToStaticMarkup(<IntervalGlyph size="large" length={96} estimateAt={0.25} />);
     const svg = first(html, 'svg');

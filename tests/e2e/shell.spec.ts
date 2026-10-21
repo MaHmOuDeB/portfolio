@@ -222,7 +222,29 @@ test.describe('site header', () => {
         expect(h).toBeGreaterThanOrEqual(44);
       }
       await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
+      // The signature stays: the 28 px variant, the same construction (bar, two caps, a dot).
+      const glyph = header.locator('[data-header-glyph]:visible svg');
+      await expect(glyph).toHaveCount(1);
+      expect(await glyph.evaluate((el) => el.getBoundingClientRect().width)).toBeCloseTo(28, 0);
+      expect(await glyph.locator('rect').count()).toBe(3);
+      expect(await glyph.locator('circle').count()).toBe(1);
     }
+  });
+
+  test('the header keeps its glyph at 320 px (it wraps to two rows, nothing is cut off) and shows the full one from 480', async ({ page }) => {
+    test.skip(!isPhone(page), 'phone layout');
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    await expect(header.locator('[data-header-glyph]:visible svg')).toHaveCount(1);
+    const fits = await header.locator('a:visible, summary:visible').evaluateAll((els) =>
+      els.every((el) => el.getBoundingClientRect().left >= 0 && el.getBoundingClientRect().right <= document.documentElement.clientWidth),
+    );
+    expect(fits).toBe(true);
+    await page.setViewportSize({ width: 480, height: 800 });
+    const wide = header.locator('[data-header-glyph]:visible svg');
+    await expect(wide).toHaveCount(1);
+    expect(await wide.evaluate((el) => el.getBoundingClientRect().width)).toBeCloseTo(48, 0);
   });
 
   test('interactive header controls are at least 44 px tall', async ({ page }) => {

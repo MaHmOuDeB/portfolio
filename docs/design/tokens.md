@@ -118,8 +118,8 @@ characters.
 
 | Name | Width | What changes at and above it |
 |---|---|---|
-| (none) | under 480 px | Segmented options stack as a radio list. |
-| `xs` | 480 px | Segmented options sit in one row. |
+| (none) | under 480 px | Segmented options stack as a radio list. The header's glyph is a 28 by 10 px variant of the 48 by 10 px mark (same bar, end caps and dot with its halo), and Menu is a word without its icon, so the header stays on one row at 375 and 390 px. |
+| `xs` | 480 px | Segmented options sit in one row. The header shows the 48 px glyph and the Menu icon. |
 | `sm` | 640 px | `ChartFrame` uses its wide layout; below 640 px it redraws a narrow layout. |
 | `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall; the sticky chart sits beside the steps, offset by `header-h`. |
 | `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
