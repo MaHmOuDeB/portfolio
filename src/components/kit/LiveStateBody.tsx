@@ -178,7 +178,8 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
       content = (
         <>
           {own === 'calibration' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
-          {own === 'ab' ? (
+          {/* Only a test that is running says so; under a pause the pause sentence stands alone. */}
+          {own === 'ab' && body !== 'paused' ? (
             <p className={P}>
               {snapshot.abStartedOn ? (
                 <>

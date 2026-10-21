@@ -101,6 +101,21 @@ const BLINDED = (c: Counts): CsPoint[] => [
   { n: Math.min(c.nA, c.nB), nA: c.nA, nB: c.nB, lower: -90, upper: 88, estimate: -1 },
 ];
 
+/**
+ * A paused A/B run whose interval lies above zero (+3 to +40) while its quick-exit guardrail is
+ * breached (the interval of B − A is +8 to +14 against a limit of +10), so no rule has held. Not part
+ * of the sink's 144 specimens: the tests use it to check that a pause never says the run goes on.
+ */
+export function pausedAbAboveZeroFixture(): LiveSnapshot {
+  const base = liveFixture('ab', 'enough-data', 'paused');
+  const last = base.series[base.series.length - 1]!;
+  return {
+    ...base,
+    series: [...base.series.slice(0, -1), { ...last, lower: 3, upper: 40, estimate: 21 }],
+    guardrail: { lower: 8, upper: 14, limit: 10 },
+  };
+}
+
 export function liveFixture(phase: LivePhase, data: DataAmount, freshness: FreshnessKind): LiveSnapshot {
   const counts = countsFor(phase, data);
   return {

@@ -3,7 +3,7 @@ import { parseFragment } from 'parse5';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
-import { liveFixture, FRESHNESS_KINDS } from '@/app/kitchen-sink/_parts/live-fixtures';
+import { liveFixture, FRESHNESS_KINDS, pausedAbAboveZeroFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
 import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import { LiveStateBody } from '@/components/kit/LiveStateBody';
 import { NowRow } from '@/components/kit/NowRow';
@@ -313,6 +313,19 @@ describe('LiveStateBody', () => {
     expect(label(liveFixture('calibration', 'enough-data', 'fresh'))).toBe('now');
     for (const phase of ['ship-b', 'stop-for-harm', 'inconclusive'] as const) expect(label(liveFixture(phase, 'enough-data', 'fresh')), phase).toBe('final');
     expect(label(liveFixture('ab', 'enough-data', 'paused'))).toBe('last');
+  });
+
+  it('under a pause nothing says the test is running, even with an interval away from zero', () => {
+    const root = stateBody(pausedAbAboveZeroFixture());
+    const all = squash(text(root));
+    expect(paragraphs(root)[0]).toBe('Paused on 14.10: a fictional tracking fault is being fixed.');
+    expect(all).not.toMatch(/still running|still includes zero|ruled out yet|A\/B started/);
+    // The interval is not a verdict either: no sentence claims the lower end is above zero.
+    expect(all).not.toMatch(/Ship B|above zero/);
+    expect(all).toContain('last: +3 to +37');
+    // The same snapshot running (not paused) does say it.
+    const running = stateBody({ ...pausedAbAboveZeroFixture(), freshness: { kind: 'fresh' } });
+    expect(paragraphs(running)[0]).toBe('A/B started 15.09. The test is still running.');
   });
 
   it('under a pause the pause is said first, in warn, with no verdict under it', () => {
