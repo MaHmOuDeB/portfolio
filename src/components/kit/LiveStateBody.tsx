@@ -47,7 +47,11 @@ const GUARDRAIL_SECONDS = 5;
 const P = 'max-w-text text-base';
 
 function Num({ refs, children }: { refs: readonly DerivedRef[]; children: ReactNode }) {
-  return <span {...derivedAttr(refs)}>{children}</span>;
+  return (
+    <span data-num="" {...derivedAttr(refs)}>
+      {children}
+    </span>
+  );
 }
 
 function When({ iso, refs }: { iso: string; refs: readonly DerivedRef[] }) {

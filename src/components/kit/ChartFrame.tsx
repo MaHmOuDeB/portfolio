@@ -203,6 +203,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <text
             key={i}
             data-tick="y"
+            data-num=""
             {...yTick}
             className={LABEL}
             x={0}
@@ -218,6 +219,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <text
             data-tick="y"
             data-zero-tick=""
+            data-num=""
             {...yTick}
             className={LABEL}
             x={0}
@@ -253,6 +255,7 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <text
             key={i}
             data-tick="x"
+            data-num=""
             {...xTick}
             className={LABEL}
             x={pct(xFrac(v))}

@@ -64,13 +64,24 @@
   }
 
   /*
-   * Tabular figures only where numbers are. Inter's tnum feature also gives the hyphen, the minus,
-   * the full stop, the colon and the space the width of a digit, so on body text it spaces
-   * "kitchen-sink" out. Facts, derived numbers, table cells, dates, form values and progress carry
-   * it; a component that prints a number in other markup adds data-tabular.
+   * Tabular figures only on the elements that ARE numbers. Inter's tnum feature also gives the hyphen,
+   * the minus, the full stop, the colon and the space the width of a digit, so on prose it spaces
+   * "two-sided" out. The leaf elements carry it: <data> (a Fact or a Derived), <time>, a form value,
+   * and anything marked data-num (a tick label, a numeric table cell, an interval, a readout).
+   * data-derived and data-fact only say where a number comes from, and a container that carries them
+   * may hold a whole sentence, so a marked container that is not itself a number says cv05 outright,
+   * whatever it inherits.
    */
-  :is([data-fact], [data-derived], [data-tabular], td, th, time, data, output, input, progress) {
+  [data-num],
+  data,
+  time,
+  output,
+  input[type="number"] {
     font-feature-settings: "cv05", "tnum";
+  }
+
+  [data-derived]:not([data-num], data, time) {
+    font-feature-settings: "cv05";
   }
 
   /*

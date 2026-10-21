@@ -66,7 +66,7 @@ function CollectingAxis({ refs }: { refs: readonly DerivedRef[] }) {
         </g>
       </svg>
       <line data-now-zero="" x1="50%" x2="50%" y1={ZERO_TICK.top} y2={ZERO_TICK.bottom} className="stroke-ink" />
-      <text {...derivedAttr(refs)} x="50%" y={ZERO_LABEL_BASELINE} textAnchor="middle" className="text-xs fill-muted">
+      <text data-num="" {...derivedAttr(refs)} x="50%" y={ZERO_LABEL_BASELINE} textAnchor="middle" className="text-xs fill-muted">
         0
       </text>
       <text x={0} y={ZERO_LABEL_BASELINE} textAnchor="start" className="text-xs fill-muted">
@@ -132,7 +132,7 @@ export function NowRow({ domain, interval, collecting, label = 'now', refs = ['l
   return (
     <div data-now-row="interval" className="mt-4">
       <p className="text-sm font-semibold">
-        {label}: <span {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
+        {label}: <span data-num="" {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
       </p>
       <svg aria-hidden="true" focusable="false" width="100%" height={ROW_HEIGHT} className="mt-1 block overflow-visible">
         <line x1={0} x2="100%" y1={MID + 0.5} y2={MID + 0.5} className="stroke-line" />
@@ -161,6 +161,7 @@ export function NowRow({ domain, interval, collecting, label = 'now', refs = ['l
           <>
             <line data-now-zero="" x1={pct(zero)} x2={pct(zero)} y1={ZERO_TICK.top} y2={ZERO_TICK.bottom} className="stroke-ink" />
             <text
+              data-num=""
               {...derivedAttr(refs)}
               x={pct(zero)}
               y={ZERO_LABEL_BASELINE}

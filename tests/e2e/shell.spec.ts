@@ -28,38 +28,71 @@ test('document shell: lang, JS flag and Inter features', async ({ page }) => {
   expect(styles.optical).toBe('auto');
 });
 
-test('body text keeps a normal hyphen, full stop and space; numbers stay tabular', async ({ page }) => {
-  await page.goto('/kitchen-sink');
-  await page.evaluate(() => document.fonts.ready);
-  const widths = await page.evaluate(() => {
-    const measure = (features: string | null, text: string, attrs: Record<string, string> = {}) => {
-      const el = document.createElement('span');
-      el.style.cssText = 'font-size:100px;white-space:pre;position:absolute;visibility:hidden';
-      if (features) el.style.fontFeatureSettings = features;
-      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-      el.textContent = text;
-      document.body.append(el);
-      const width = el.getBoundingClientRect().width;
-      el.remove();
+// Tabular figures (tnum) widen the hyphen, the minus, the full stop, the colon and the space as well, so
+// they belong on the elements that are numbers and never on prose. `probe` measures text with the font
+// of a real element and a given feature setting.
+async function measureNumerals(page: Page, specimen: string, selector: string) {
+  return page.locator(`[data-specimen="${specimen}"] ${selector}`).first().evaluate((el) => {
+    const style = getComputedStyle(el);
+    const probe = (text: string, features: string | null) => {
+      const span = document.createElement('span');
+      span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:${style.fontSize};font-weight:${style.fontWeight};font-optical-sizing:auto`;
+      span.style.fontFeatureSettings = features ?? style.fontFeatureSettings;
+      span.textContent = text;
+      document.body.append(span);
+      const width = span.getBoundingClientRect().width;
+      span.remove();
       return width;
     };
-    return {
-      // Body text, as it is styled (no marker).
-      bodyHyphen: measure(null, 'a-a'),
-      cv05Hyphen: measure('"cv05"', 'a-a'),
-      tnumHyphen: measure('"cv05", "tnum"', 'a-a'),
-      // A marked number: a "1" and a "0" take the same width, a lining "1" would be narrower.
-      derivedOne: measure(null, '1', { 'data-derived': 'simulated' }),
-      derivedZero: measure(null, '0', { 'data-derived': 'simulated' }),
-      plainOne: measure(null, '1'),
-      plainZero: measure(null, '0'),
-    };
+    return { ones: probe('111', null), zeros: probe('000', null), features: style.fontFeatureSettings };
   });
-  // The premise: the feature really does widen a hyphen in this font.
-  expect(widths.tnumHyphen).toBeGreaterThan(widths.cv05Hyphen + 5);
-  expect(widths.bodyHyphen).toBeCloseTo(widths.cv05Hyphen, 1);
-  expect(widths.derivedOne).toBeCloseTo(widths.derivedZero, 1);
-  expect(widths.plainOne).toBeLessThan(widths.plainZero);
+}
+
+test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers stay tabular', async ({ page }) => {
+  await page.goto('/kitchen-sink');
+  await page.evaluate(() => document.fonts.ready);
+  // A real paragraph that carries data-derived (the URL-state readout) and says "two-sided".
+  const hyphen = await page.locator('[data-specimen="url-state--two-figures"] p[data-readout][data-derived]').first().evaluate((p) => {
+    const node = [...p.childNodes].find((n) => n.nodeType === 3 && /two-sided/.test(n.textContent ?? ''))!;
+    const at = (node.textContent ?? '').indexOf('two-sided');
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + 'two-sided'.length);
+    const style = getComputedStyle(p);
+    const probe = document.createElement('span');
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:${style.fontSize};font-weight:${style.fontWeight};font-feature-settings:"cv05"`;
+    probe.textContent = 'two-sided';
+    document.body.append(probe);
+    const expected = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { actual: range.getBoundingClientRect().width, expected, features: style.fontFeatureSettings };
+  });
+  expect(hyphen.features).not.toContain('tnum');
+  expect(hyphen.actual).toBeCloseTo(hyphen.expected, 0);
+
+  // Numbers in a table cell, a tick label, a Fact and a derived value are tabular: '111' as wide as '000'.
+  for (const [specimen, selector] of [
+    ['table--open', 'td[data-num]'],
+    ['chartframe--static', 'svg[data-chart-frame] text[data-tick="y"]'],
+    ['chartframe--static', 'svg[data-chart-frame] text[data-tick="x"]'],
+    ['stat--derived', 'data[data-derived]'],
+    ['fact--inline', 'data[data-fact]'],
+  ] as const) {
+    const m = await measureNumerals(page, specimen, selector);
+    expect(m.features, `${specimen} ${selector}`).toContain('tnum');
+    expect(m.ones, `${specimen} ${selector}: 111 as wide as 000`).toBeCloseTo(m.zeros, 1);
+  }
+  // Prose has lining proportional digits: a '1' is narrower than a '0'.
+  const prose = await measureNumerals(page, 'url-state--two-figures', 'p[data-readout]');
+  expect(prose.features).not.toContain('tnum');
+  expect(prose.ones).toBeLessThan(prose.zeros);
+
+  await page.goto('/kitchen-sink/live');
+  const now = await measureNumerals(page, 'live--ab--enough-data--fresh--default', '[data-now-row="interval"] span[data-derived]');
+  expect(now.features).toContain('tnum');
+  expect(now.ones).toBeCloseTo(now.zeros, 1);
+  const nowZero = await measureNumerals(page, 'live--ab--enough-data--fresh--default', '[data-now-row="interval"] text[data-derived]');
+  expect(nowZero.ones).toBeCloseTo(nowZero.zeros, 1);
 });
 
 test('favicon is the SVG icon', async ({ page, request }) => {

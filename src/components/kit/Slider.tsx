@@ -152,7 +152,7 @@ export function Slider({
           }}
         />
         {readout ? (
-          <span data-slider-readout="" className="min-w-10 text-sm text-muted">
+          <span data-slider-readout="" data-num="" className="min-w-10 text-sm text-muted">
             {readout(current)}
           </span>
         ) : null}
