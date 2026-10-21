@@ -180,7 +180,9 @@ export function DemoFigureView({
         <>
           A hypothetical sign-up page, not a real test: the visitors each group needs before a rise in its sign-up
           rate is likely to show. Sample sizes from Cohen&apos;s h for a two-sided test at a significance level of{' '}
-          <span {...SIMULATED}>{ALPHA}</span>.
+          <span {...SIMULATED}>{ALPHA}</span>, a baseline conversion of{' '}
+          <span {...SIMULATED}>{Math.round(values.baseline * 100)}%</span> and a power of{' '}
+          <span {...SIMULATED}>{Math.round(Number(values.power) * 100)}%</span>.
         </>
       }
     >
