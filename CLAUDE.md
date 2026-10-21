@@ -43,6 +43,7 @@ Next code.
 | `npm run check` | The local gate: typecheck, ESLint, Stylelint, unit tests and `lint:design:src`. Run it before every push. |
 | `npm run test` | Vitest unit tests (`tests/unit`). `npm run test:cov` adds the coverage gate on `src/lib/stats`. |
 | `npm run test:e2e` | Playwright (`tests/e2e`). It builds with `KITCHEN_SINK=1` and serves on port 3123, so rebuild without the flag afterwards. Visual tests are skipped locally. |
+| `npm run test:e2e:docker` | The same Playwright suite inside the image the CI e2e job uses (needs Docker): the repository is mounted read-only and copied to a volume, `npm ci` installs the Linux modules there, and it runs with `CI=true`. Use it to reproduce a failure that appears only in CI, for example `npm run test:e2e:docker -- tests/e2e/shell.spec.ts --project=desktop-chromium`. Visual baselines are missing there too, so add `--grep-invert @visual`. |
 | `npm run lint:design` | The design lint over the source and the built CSS (run `npm run build` first). |
 | `npm run lint:design:src` | The design lint over the source only (part of `npm run check`). |
 | `npm run gen:obf` | Regenerates `src/lib/stats/obf-constants.generated.ts`. |
@@ -172,7 +173,8 @@ a page needs the smallest possible bundle it can also import a component's file 
 - **Presets are always meaningful.** The default view is a real case, never an empty one.
 - **Tabular figures are per element.** `tnum` also widens the hyphen, full stop, colon and space,
   so it is on exactly `[data-num]`, `data`, `time`, `output` and `input[type="number"]`
-  (`globals.css`). Put `data-num` on an element that is a number (a tick, a numeric table cell, an
+  (`globals.css`), with `text-rendering: geometricPrecision` there, because Linux Chromium rounds
+  glyph advances to whole pixels and would otherwise misalign a column of figures. Put `data-num` on an element that is a number (a tick, a numeric table cell, an
   interval, a count), never on a paragraph that merely contains one; `data-derived` marks a source,
   not a number.
 - **Chart labels never sit on marks.** `ChartFrame` puts the y tick numbers in a left gutter and the

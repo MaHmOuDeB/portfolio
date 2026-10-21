@@ -38,7 +38,7 @@ async function measureNumerals(page: Page, specimen: string, selector: string) {
     const style = getComputedStyle(el);
     const probe = (text: string, features: string | null) => {
       const span = document.createElement('span');
-      span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:100px;font-weight:${style.fontWeight};font-optical-sizing:auto`;
+      span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${style.fontFamily};font-size:100px;font-weight:${style.fontWeight};font-optical-sizing:auto;text-rendering:${style.textRendering}`;
       span.style.fontFeatureSettings = features ?? style.fontFeatureSettings;
       span.textContent = text;
       document.body.append(span);
@@ -46,13 +46,16 @@ async function measureNumerals(page: Page, specimen: string, selector: string) {
       span.remove();
       return width;
     };
-    return { ones: probe('111', null), zeros: probe('000', null), features: style.fontFeatureSettings };
+    return { ones: probe('111', null), zeros: probe('000', null), features: style.fontFeatureSettings, rendering: style.textRendering };
   });
 }
 
 test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers stay tabular', async ({ page }) => {
   await page.goto('/kitchen-sink');
   await page.evaluate(() => document.fonts.ready);
+  // The URL-state Figures render their server view first and the client replaces it once it has read the
+  // URL; measure the settled one, not a node that is about to be swapped out.
+  await expect(page.locator('[data-specimen="url-state--two-figures"] [data-state-from="url"]').first()).toBeVisible();
   // A real paragraph that carries data-derived (the URL-state readout) and says "two-sided".
   const hyphen = await page.locator('[data-specimen="url-state--two-figures"] p[data-readout][data-derived]').first().evaluate((p) => {
     const node = [...p.childNodes].find((n) => n.nodeType === 3 && /two-sided/.test(n.textContent ?? ''))!;
@@ -71,7 +74,7 @@ test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers 
   });
   expect(hyphen.features).not.toContain('tnum');
   // A tabular hyphen would be about 3 px wider at this size; 1 px tolerates rounding between platforms.
-  expect(Math.abs(hyphen.actual - hyphen.expected)).toBeLessThan(1);
+  expect(Math.abs(hyphen.actual - hyphen.expected), JSON.stringify(hyphen)).toBeLessThan(1);
 
   // Numbers in a table cell, a tick label, a Fact and a derived value are tabular: '111' as wide as '000'.
   for (const [specimen, selector] of [
@@ -83,7 +86,9 @@ test('prose keeps a normal hyphen even inside a data-derived paragraph; numbers 
   ] as const) {
     const m = await measureNumerals(page, specimen, selector);
     expect(m.features, `${specimen} ${selector}`).toContain('tnum');
-    expect(Math.abs(m.ones - m.zeros), `${specimen} ${selector}: 111 as wide as 000`).toBeLessThan(1.5);
+    // Linux rounds glyph advances unless the text is rendered with geometric precision.
+    expect(m.rendering.toLowerCase(), `${specimen} ${selector}`).toBe('geometricprecision');
+    expect(Math.abs(m.ones - m.zeros), `${specimen} ${selector}: 111 as wide as 000 ${JSON.stringify(m)}`).toBeLessThan(1.5);
   }
   // Prose has lining proportional digits: a '1' is narrower than a '0'.
   const prose = await measureNumerals(page, 'url-state--two-figures', 'p[data-readout]');
