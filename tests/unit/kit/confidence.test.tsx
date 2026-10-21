@@ -341,6 +341,29 @@ describe('LiveStateBody', () => {
     expect(paragraphs(running)[0]).toBe('A/B started 15.09. The test is still running.');
   });
 
+  it('under a pause a calibration does not say it is running either', () => {
+    for (const data of ['low-data', 'enough-data'] as const) {
+      const root = body('calibration', data, 'paused');
+      expect(paragraphs(root)[0], data).toMatch(/^Paused on 14\.10: /);
+      expect(squash(text(root)), data).not.toContain('Calibrating');
+      // Running, the same snapshot does say it.
+      expect(paragraphs(body('calibration', data, 'fresh'))[0], data).toBe('Calibrating: both groups see the same page.');
+    }
+  });
+
+  it('under a pause the chart is named by its last interval, with no running claim and no digit', () => {
+    const label = (s: LiveSnapshot) => attr(frames(chart(s))[0]!, 'aria-label')!;
+    for (const s of [liveFixture('ab', 'enough-data', 'paused'), pausedAbAboveZeroFixture(), liveFixture('ship-b', 'enough-data', 'paused'), liveFixture('calibration', 'enough-data', 'paused')]) {
+      const l = label(s);
+      expect(l, l).toMatch(/the last interval (includes zero|lies above zero|lies below zero)$/);
+      expect(l).not.toMatch(/\d|still|ruled out|current|final|B higher|B lower/);
+    }
+    expect(label(pausedAbAboveZeroFixture())).toContain('lies above zero');
+    expect(label(liveFixture('calibration', 'enough-data', 'paused'))).toContain('the two identical groups');
+    // Running, the wording is unchanged.
+    expect(label(liveFixture('ab', 'enough-data', 'fresh'))).toContain('the current interval still includes zero');
+  });
+
   it('under a pause the pause is said first, in warn, with no verdict under it', () => {
     const root = body('ship-b', 'enough-data', 'paused');
     const warn = find(root, (n) => (attr(n, 'class') ?? '').includes('text-warn'))[0]!;

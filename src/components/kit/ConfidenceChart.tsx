@@ -55,9 +55,16 @@ function shows(snapshot: LiveSnapshot, body: FigureBody): 'chart' | 'running' | 
 /**
  * The finding in words, without a digit. Calibration (A/A) compares two identical groups, so it
  * names no group as higher; a decided test speaks of its final interval, a running one of the
- * current interval and what is not ruled out yet.
+ * current interval and what is not ruled out yet. Under a pause (`paused`) the interval is the last one
+ * before it, as the Now row's "last:" says, and no sentence claims the test is running or names a group
+ * as higher or lower.
  */
-function ariaLabel(m: ConfidenceModel, own: FigureBody): string {
+function ariaLabel(m: ConfidenceModel, own: FigureBody, paused: boolean): string {
+  if (paused) {
+    const where = m.includesZero ? 'includes zero' : m.current.lower > 0 ? 'lies above zero' : 'lies below zero';
+    const groups = own === 'calibration' ? 'the two identical groups' : 'the groups, B minus A,';
+    return `The difference between ${groups} as views per group grew until the pause: the last interval ${where}`;
+  }
   if (own === 'calibration') {
     const where = m.includesZero ? 'the current interval includes zero' : 'the current interval does not include zero';
     return `The difference between the two identical groups as views per group grow: ${where}`;
@@ -179,7 +186,7 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
     <div data-confidence-chart={id}>
       <ChartFrame
         id={`${id}-chart`}
-        ariaLabel={ariaLabel(m, ownBody(snapshot, body))}
+        ariaLabel={ariaLabel(m, ownBody(snapshot, body), body === 'paused')}
         layout={layout}
         x={{ ...m.x, label: 'Views per group', refs }}
         y={{

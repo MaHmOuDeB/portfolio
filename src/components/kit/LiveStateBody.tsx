@@ -171,7 +171,9 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
               A/B started <When iso={snapshot.abStartedOn} refs={refs} />.
             </p>
           ) : null}
-          {snapshot.phase === 'calibration' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
+          {snapshot.phase === 'calibration' && body !== 'paused' ? (
+            <p className={P}>Calibrating: both groups see the same page.</p>
+          ) : null}
           {chart}
         </>
       );
@@ -181,7 +183,8 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
       const model = confidenceModel(snapshot);
       content = (
         <>
-          {own === 'calibration' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
+          {/* Only a test that is running says so; under a pause the pause sentence stands alone. */}
+          {own === 'calibration' && body !== 'paused' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
           {/* Only a test that is running says so; under a pause the pause sentence stands alone. */}
           {own === 'ab' && body !== 'paused' ? (
             <p className={P}>
