@@ -41,11 +41,14 @@ describe('live fixtures', () => {
     expect(FRESHNESS_KINDS).toContain('paused');
   });
 
-  it('never put the "your view" tick after the last look, nor a look past the current counts', () => {
+  it('count the visitor\'s own view after the last look (the beacon returns after the snapshot), inside the cap, and never put a look past the current counts', () => {
     for (const { phase, data, s } of all) {
       const shown = shownSeries(s);
       const last = shown[shown.length - 1];
-      if (s.yourViewN !== undefined) expect(s.yourViewN, `${phase} ${data}`).toBeLessThanOrEqual(last!.n);
+      if (s.yourViewN !== undefined) {
+        expect(s.yourViewN, `${phase} ${data}`).toBeGreaterThanOrEqual(last!.n);
+        expect(s.yourViewN, `${phase} ${data}`).toBeLessThanOrEqual(s.capPerArm);
+      }
       for (const p of shown) {
         expect(p.n, `${phase} ${data}`).toBeLessThanOrEqual(Math.min(s.nA, s.nB));
         expect(p.nA!, `${phase} ${data}`).toBeLessThanOrEqual(s.nA);

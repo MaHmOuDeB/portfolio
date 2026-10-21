@@ -56,7 +56,10 @@ export type LiveSnapshot = {
   /** ISO date-time with an offset, like every timestamp below. */
   plannedEnd: string;
   abStartedOn?: string;
-  /** The views per group when this visitor's view was counted. */
+  /**
+   * The views per group when this visitor's view was counted. The beacon counts it after the snapshot,
+   * so it is at or beyond the last look's count; the chart clamps one past the end of the axis to the edge.
+   */
   yourViewN?: number;
   /** "Leaving within 5 seconds": the interval of B − A against its limit, in points. */
   guardrail?: { lower: number; upper: number; limit: number };
@@ -345,7 +348,8 @@ export function confidenceModel(s: LiveSnapshot): ConfidenceModel | null {
     x: axis([0, xMax], X_TICKS, false),
     y: axis(yDomain, Y_TICKS, true),
     projection,
-    yourViewN: view !== undefined && Number.isFinite(view) && view >= 0 && view <= xMax ? view : undefined,
+    // A count past the end of the axis is drawn at the edge, where its label sits inside the plot.
+    yourViewN: view !== undefined && Number.isFinite(view) && view >= 0 ? Math.min(view, xMax) : undefined,
     includesZero: current.lower <= 0 && current.upper >= 0,
   };
 }

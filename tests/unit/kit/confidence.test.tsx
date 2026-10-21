@@ -141,6 +141,19 @@ describe('ConfidenceChart', () => {
     expect(withAttr(frames(chart({ ...AB, yourViewN: undefined }))[0]!, 'data-your-view')).toHaveLength(0);
   });
 
+  it('draws the visitor\'s own view beyond the last look, and clamps one past the axis to the edge with its label inside', () => {
+    // The fixture's own view (184) is just after the last look (176): to its right, inside the cap.
+    const [frame] = frames(chart(AB));
+    const x = (f: Node) => parseFloat(attr(byTag(withAttr(f, 'data-your-view')[0]!, 'line')[0]!, 'x1')!);
+    const lastLook = parseFloat(attr(byTag(frame!, 'circle').find((c) => attr(c, 'fill') === 'var(--color-series-2)')!, 'cx')!);
+    expect(x(frame!)).toBeGreaterThan(lastLook);
+    // Far past the end of the axis: drawn at the right edge, its label anchored to end there.
+    const [far] = frames(chart({ ...AB, yourViewN: 100_000 }));
+    const view = withAttr(far!, 'data-your-view')[0]!;
+    expect(attr(byTag(view, 'line')[0]!, 'x1')).toBe('100%');
+    expect(attr(byTag(view, 'text')[0]!, 'text-anchor')).toBe('end');
+  });
+
   it('states the current interval in words, without a digit, and whether it includes zero', () => {
     const label = (s: LiveSnapshot) => attr(frames(chart(s))[0]!, 'aria-label')!;
     expect(label(AB)).toMatch(/includes zero/);
