@@ -117,7 +117,7 @@ describe('ConfidenceChart', () => {
 
   it('keeps "B higher", "B lower" and "no difference" in the margin, so no look can sit under them', () => {
     const atCap = liveFixture('inconclusive', 'enough-data', 'fresh');
-    const near = { ...atCap, series: [{ n: 176, lower: -3, upper: 8, estimate: 0.4 }] };
+    const near = { ...atCap, series: [{ n: 176, nA: 176, nB: 176, lower: -3, upper: 8, estimate: 0.4 }] };
     for (const snapshot of [atCap, near]) {
       for (const frame of frames(chart(snapshot))) {
         expect(withAttr(frame, 'data-side').map(text)).toEqual(['B higher', 'B lower']);
@@ -154,7 +154,7 @@ describe('ConfidenceChart', () => {
     const aa = label(liveFixture('calibration', 'enough-data', 'fresh'));
     expect(aa).toMatch(/identical groups/);
     expect(aa).not.toMatch(/B higher|B lower|\byet\b/);
-    expect(label({ ...liveFixture('calibration', 'enough-data', 'fresh'), series: [{ n: 100, lower: 2, upper: 9, estimate: 5 }] })).toMatch(
+    expect(label({ ...liveFixture('calibration', 'enough-data', 'fresh'), series: [{ n: 100, nA: 100, nB: 100, lower: 2, upper: 9, estimate: 5 }] })).toMatch(
       /does not include zero/,
     );
     for (const s of [inconclusive, aa]) expect(s).not.toMatch(/\d/);
@@ -177,7 +177,7 @@ describe('ConfidenceChart', () => {
     // Mostly plausible values, so most runs draw a chart; the rest is anything a broken store sends.
     const views = fc.oneof({ arbitrary: fc.integer({ min: 50, max: 5000 }), weight: 6 }, fc.double({ min: 49, max: 51 }), wild);
     const points = fc.oneof(fc.double({ min: -150, max: 150, noNaN: true }), fc.double({ min: -0.05, max: 0.05, noNaN: true }), wild);
-    const point = fc.record({ n: views, lower: points, upper: points, estimate: points });
+    const point = fc.record({ n: views, nA: views, nB: views, lower: points, upper: points, estimate: points });
     const freshness = fc.constantFrom<Freshness>(
       { kind: 'fresh' },
       { kind: 'stale', updatedAt: '2026-10-15T21:40:00Z', renderedAt: '2026-10-16T08:00:00Z' },
@@ -303,7 +303,7 @@ describe('LiveStateBody', () => {
     const p = paragraphs(body('ab', 'enough-data'));
     expect(p[0]).toBe('A/B started 15.09. The interval still includes zero, so no difference is ruled out yet.');
     // An interval away from zero in a running test does not claim that.
-    const away = { ...liveFixture('ab', 'enough-data', 'fresh'), series: [{ n: 176, lower: 3, upper: 40, estimate: 20 }] };
+    const away = { ...liveFixture('ab', 'enough-data', 'fresh'), series: [{ n: 176, nA: 176, nB: 176, lower: 3, upper: 40, estimate: 20 }] };
     expect(paragraphs(stateBody(away))[0]).toBe('A/B started 15.09. The test is still running.');
   });
 
@@ -369,7 +369,7 @@ describe('LiveStateBody', () => {
 
   describe('a decided state never reads as running and is never empty', () => {
     const DECIDED = ['inconclusive', 'ship-b', 'stop-for-harm'] as const;
-    const NAN = { n: Number.NaN, lower: Number.NaN, upper: Number.NaN, estimate: Number.NaN };
+    const NAN = { n: Number.NaN, nA: Number.NaN, nB: Number.NaN, lower: Number.NaN, upper: Number.NaN, estimate: Number.NaN };
     const seriesKinds = { valid: undefined, empty: [], 'all-NaN': [NAN, { ...NAN, n: 100 }, { ...NAN, n: 176, lower: 1 }] };
     const counts = { below: [12, 14], at: [50, 50], above: [180, 176] } as const;
     const NEXT = "What I'll do now: keep page A and test a bolder change.";
@@ -435,11 +435,11 @@ describe('LiveStateBody', () => {
   });
 
   it('a verdict never prints a bound it calls above or below zero as "0"', () => {
-    const ship = { ...liveFixture('ship-b', 'enough-data', 'fresh'), series: [{ n: 176, lower: 0.3, upper: 26.3, estimate: 13 }] };
+    const ship = { ...liveFixture('ship-b', 'enough-data', 'fresh'), series: [{ n: 176, nA: 176, nB: 176, lower: 0.3, upper: 26.3, estimate: 13 }] };
     expect(paragraphs(stateBody(ship))[0]).toContain('(+0.3 to +26.3 points)');
-    const harm = { ...liveFixture('stop-for-harm', 'enough-data', 'fresh'), series: [{ n: 176, lower: -26.3, upper: -0.4, estimate: -13 }] };
+    const harm = { ...liveFixture('stop-for-harm', 'enough-data', 'fresh'), series: [{ n: 176, nA: 176, nB: 176, lower: -26.3, upper: -0.4, estimate: -13 }] };
     expect(paragraphs(stateBody(harm))[0]).toContain('(−26.3 to −0.4 points)');
-    const tiny = { ...ship, series: [{ n: 176, lower: 0.0001, upper: 20, estimate: 10 }] };
+    const tiny = { ...ship, series: [{ n: 176, nA: 176, nB: 176, lower: 0.0001, upper: 20, estimate: 10 }] };
     expect(paragraphs(stateBody(tiny))[0]).toContain('(+0.001 to +20.000 points)');
   });
 
@@ -450,7 +450,7 @@ describe('LiveStateBody', () => {
     expect(first({ ...base, ruledOutAbove: 5 })).toContain('an effect larger than 22 points is ruled out');
     expect(first({ ...base, ruledOutAbove: 30 })).toContain('an effect larger than 30 points is ruled out');
     // 22.4 must not print 22: an effect of 22.2 is not ruled out.
-    const reach = { ...base, series: [{ n: 176, lower: -14, upper: 22.4, estimate: 4 }] };
+    const reach = { ...base, series: [{ n: 176, nA: 176, nB: 176, lower: -14, upper: 22.4, estimate: 4 }] };
     expect(first(reach)).toContain('from −14 to +22 points, so an effect larger than 23 points is ruled out');
   });
 

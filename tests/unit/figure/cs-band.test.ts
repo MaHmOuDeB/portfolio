@@ -28,32 +28,34 @@ const BASE: LiveSnapshot = {
   nA: 180,
   nB: 176,
   series: [
-    { n: 50, lower: -76, upper: 84, estimate: 4 },
-    { n: 176, lower: -12.2, upper: 31, estimate: 9.4 },
+    { n: 50, nA: 52, nB: 50, lower: -76, upper: 84, estimate: 4 },
+    { n: 176, nA: 180, nB: 176, lower: -12.2, upper: 31, estimate: 9.4 },
   ],
   capPerArm: 230,
   projectedHalfWidthAtCap: 12,
   plannedEnd: '2026-12-01T10:00:00Z',
 };
 
-const point = fc.record({
-  n: fc.integer({ min: 0, max: 5000 }),
-  lower: fc.double({ min: -150, max: 150, noNaN: true }),
-  upper: fc.double({ min: -150, max: 150, noNaN: true }),
-  estimate: fc.double({ min: -150, max: 150, noNaN: true }),
-});
+const point = fc
+  .record({
+    n: fc.integer({ min: 0, max: 5000 }),
+    lower: fc.double({ min: -150, max: 150, noNaN: true }),
+    upper: fc.double({ min: -150, max: 150, noNaN: true }),
+    estimate: fc.double({ min: -150, max: 150, noNaN: true }),
+  })
+  .map((p) => ({ ...p, nA: p.n, nB: p.n }));
 // Anything a broken store could send, NaN and the infinities included.
 const wild = fc.oneof(fc.double(), fc.constantFrom(Number.NaN, Infinity, -Infinity, -0, 0, 1e308, -1e308));
-const wildPoint = fc.record({ n: wild, lower: wild, upper: wild, estimate: wild });
+const wildPoint = fc.record({ n: wild, nA: wild, nB: wild, lower: wild, upper: wild, estimate: wild });
 const clampPts = (v: number) => Math.min(MAX_POINTS, Math.max(-MAX_POINTS, v));
 
 describe('runningIntersection', () => {
   it('sorts by views and keeps the tightest bounds so far', () => {
     const out = runningIntersection([
-      { n: 100, lower: -20, upper: 40, estimate: 10 },
-      { n: 50, lower: -60, upper: 80, estimate: 10 },
+      { n: 100, nA: 100, nB: 100, lower: -20, upper: 40, estimate: 10 },
+      { n: 50, nA: 50, nB: 50, lower: -60, upper: 80, estimate: 10 },
       // The band would grow back here.
-      { n: 150, lower: -30, upper: 50, estimate: 10 },
+      { n: 150, nA: 150, nB: 150, lower: -30, upper: 50, estimate: 10 },
     ]);
     expect(out.map((p) => p.n)).toEqual([50, 100, 150]);
     expect(out.map((p) => [p.lower, p.upper])).toEqual([
@@ -82,19 +84,19 @@ describe('runningIntersection', () => {
 
   it('collapses to a point inside the last band when the bounds cross, and stays monotone', () => {
     const out = runningIntersection([
-      { n: 50, lower: -10, upper: 5, estimate: 0 },
-      { n: 100, lower: 6, upper: 20, estimate: 13 },
+      { n: 50, nA: 50, nB: 50, lower: -10, upper: 5, estimate: 0 },
+      { n: 100, nA: 100, nB: 100, lower: 6, upper: 20, estimate: 13 },
     ]);
     expect(out[1]).toMatchObject({ lower: 5, upper: 5, estimate: 13 });
   });
 
   it('drops points that are not numbers and swaps inverted bounds', () => {
     const out = runningIntersection([
-      { n: Number.NaN, lower: 0, upper: 1, estimate: 0 },
-      { n: 60, lower: 30, upper: -30, estimate: 2 },
-      { n: 70, lower: Number.NaN, upper: 1, estimate: 0 },
+      { n: Number.NaN, nA: Number.NaN, nB: Number.NaN, lower: 0, upper: 1, estimate: 0 },
+      { n: 60, nA: 60, nB: 60, lower: 30, upper: -30, estimate: 2 },
+      { n: 70, nA: 70, nB: 70, lower: Number.NaN, upper: 1, estimate: 0 },
     ]);
-    expect(out).toEqual([{ n: 60, lower: -30, upper: 30, estimate: 2 }]);
+    expect(out).toEqual([{ n: 60, nA: 60, nB: 60, lower: -30, upper: 30, estimate: 2 }]);
   });
 });
 
@@ -102,27 +104,27 @@ describe('confidenceYDomain', () => {
   const contains = (d: [number, number], v: number) => d[0] <= v && v <= d[1];
 
   it('holds a first interval ±80 points wide and zero', () => {
-    const d = confidenceYDomain([{ n: 50, lower: -80, upper: 85, estimate: 2 }], 10);
+    const d = confidenceYDomain([{ n: 50, nA: 50, nB: 50, lower: -80, upper: 85, estimate: 2 }], 10);
     expect(contains(d, -80) && contains(d, 85) && contains(d, 0)).toBe(true);
   });
 
   it('holds zero when every bound is above it', () => {
-    const d = confidenceYDomain([{ n: 300, lower: 4, upper: 9, estimate: 6 }], 2);
+    const d = confidenceYDomain([{ n: 300, nA: 300, nB: 300, lower: 4, upper: 9, estimate: 6 }], 2);
     expect(contains(d, 0)).toBe(true);
     expect(contains(d, 9)).toBe(true);
   });
 
   it('holds the last estimate ± the projected half-width, even outside the band', () => {
-    const d = confidenceYDomain([{ n: 120, lower: 20, upper: 25, estimate: 30 }], 40);
+    const d = confidenceYDomain([{ n: 120, nA: 120, nB: 120, lower: 20, upper: 25, estimate: 30 }], 40);
     expect(contains(d, -10) && contains(d, 70)).toBe(true);
   });
 
   it('pads, rounds to nice values and is never zero-width', () => {
-    const d = confidenceYDomain([{ n: 60, lower: 0, upper: 0, estimate: 0 }], 0);
+    const d = confidenceYDomain([{ n: 60, nA: 60, nB: 60, lower: 0, upper: 0, estimate: 0 }], 0);
     expect(d[0]).toBeLessThan(0);
     expect(d[1]).toBeGreaterThan(0);
     expect(confidenceYDomain([], Number.NaN)[1]).toBeGreaterThan(0);
-    const wide = confidenceYDomain([{ n: 50, lower: -80, upper: 80, estimate: 0 }], 0);
+    const wide = confidenceYDomain([{ n: 50, nA: 50, nB: 50, lower: -80, upper: 80, estimate: 0 }], 0);
     // 10% padding: the bounds never touch the frame edge.
     expect(wide[0]).toBeLessThan(-80);
     expect(wide[1]).toBeGreaterThan(80);
@@ -171,7 +173,7 @@ describe('liveFigureState', () => {
   });
 
   it('hides the estimate below 50 per group: enough counts but no point at 50 or more is low data', () => {
-    const s = { ...BASE, series: [{ n: MIN_PER_GROUP - 1, lower: -9, upper: 9, estimate: 0 }] };
+    const s = { ...BASE, series: [{ n: MIN_PER_GROUP - 1, nA: MIN_PER_GROUP - 1, nB: MIN_PER_GROUP - 1, lower: -9, upper: 9, estimate: 0 }] };
     expect(shownSeries(s)).toEqual([]);
     expect(liveFigureState(s).live?.data).toBe('low-data');
   });
@@ -189,13 +191,13 @@ describe('shownSeries', () => {
     const out = shownSeries({
       ...BASE,
       series: [
-        { n: 80, lower: -20, upper: 30, estimate: 40 },
-        { n: 50, lower: -Infinity, upper: 1e9, estimate: 2 },
+        { n: 80, nA: 80, nB: 80, lower: -20, upper: 30, estimate: 40 },
+        { n: 50, nA: 50, nB: 50, lower: -Infinity, upper: 1e9, estimate: 2 },
       ],
     });
     expect(out).toEqual([
-      { n: 50, lower: -100, upper: 100, estimate: 2 },
-      { n: 80, lower: -20, upper: 30, estimate: 40 },
+      { n: 50, nA: 50, nB: 50, lower: -100, upper: 100, estimate: 2 },
+      { n: 80, nA: 80, nB: 80, lower: -20, upper: 30, estimate: 40 },
     ]);
   });
 });
@@ -268,8 +270,9 @@ describe('csPointFromInterval', () => {
   it('turns a mixtureCs interval in proportions into percentage points (a reference case)', () => {
     // stats-ref: 0 of 100 in A, 5 of 100 in B.
     const c = ref.mixtureCs.find((r) => r.xA === 0 && r.nA === 100 && r.xB === 5 && r.nB === 100)!;
-    const p = csPointFromInterval(100, mixtureCs(c, { tau2: c.tau2, alpha: c.alpha }));
+    const p = csPointFromInterval({ nA: 100, nB: 100 }, mixtureCs(c, { tau2: c.tau2, alpha: c.alpha }));
     expect(p.n).toBe(100);
+    expect([p.nA, p.nB]).toEqual([100, 100]);
     expect(p.estimate).toBeCloseTo(5, 9);
     expect(p.lower).toBeCloseTo(c.lower * 100, 9);
     expect(p.upper).toBeCloseTo(c.upper * 100, 9);
@@ -278,8 +281,16 @@ describe('csPointFromInterval', () => {
   });
 
   it('clamps the unclamped half-width of a tiny sample to ±100 points', () => {
-    const p = csPointFromInterval(1, { estimate: 0, lower: -15.7, upper: 15.7 });
-    expect(p).toEqual({ n: 1, estimate: 0, lower: -100, upper: 100 });
+    const p = csPointFromInterval({ nA: 1, nB: 1 }, { estimate: 0, lower: -15.7, upper: 15.7 });
+    expect(p).toEqual({ n: 1, nA: 1, nB: 1, estimate: 0, lower: -100, upper: 100 });
+  });
+
+  it('takes the split of the look, and n is the smaller group', () => {
+    const p = csPointFromInterval({ nA: 180, nB: 176 }, { estimate: 0.1, lower: -0.1, upper: 0.3 });
+    expect([p.n, p.nA, p.nB]).toEqual([176, 180, 176]);
+    // A split is part of the call: a bare count no longer type-checks.
+    // @ts-expect-error the split of the look is required
+    csPointFromInterval(100, { estimate: 0, lower: -1, upper: 1 });
   });
 });
 
@@ -287,10 +298,9 @@ describe('confidenceTable', () => {
   it('lists both groups\' views and the running interval at each look, with live refs by default', () => {
     const t = confidenceTable(BASE);
     expect(t.columns).toEqual(['Views in A', 'Views in B', 'Lower', 'Estimate', 'Upper']);
-    // BASE has no recorded split, so each look shows the smaller group's count in both columns.
     expect(t.rows).toEqual([
-      [50, 50, -76, 4, 84],
-      [176, 176, -12.2, 9.4, 31],
+      [52, 50, -76, 4, 84],
+      [180, 176, -12.2, 9.4, 31],
     ]);
     expect(t.formats).toEqual(['count', 'count', 'signedPoints', 'signedPoints', 'signedPoints']);
     expect(t.note).toBe('Lower, estimate and upper are B − A in percentage points.');
@@ -298,9 +308,22 @@ describe('confidenceTable', () => {
     expect(confidenceTable(BASE, ['simulated']).refs).toEqual(['simulated']);
   });
 
-  it('uses the recorded split of each look', () => {
-    const s = { ...BASE, series: [{ n: 176, nA: 180, nB: 176, lower: -12.2, upper: 31, estimate: 9.4 }] };
-    expect(confidenceTable(s).rows).toEqual([[180, 176, -12.2, 9.4, 31]]);
+  it('prints the recorded split of each look, never one count for both groups', () => {
+    expect(confidenceTable(BASE).rows).toEqual([
+      [52, 50, -76, 4, 84],
+      [180, 176, -12.2, 9.4, 31],
+    ]);
+  });
+
+  it('never invents a count: a look with a missing split says "Not recorded"', () => {
+    // @ts-expect-error a look must record both counts; live data is untrusted, so the table copes anyway
+    const lookWithoutSplit: CsPoint = { n: 176, lower: -12.2, upper: 31, estimate: 9.4 };
+    const t = confidenceTable({ ...BASE, series: [lookWithoutSplit, { ...lookWithoutSplit, n: 150, nA: Number.NaN, nB: 150 }] });
+    expect(t.rows).toEqual([
+      ['Not recorded', 150, -12.2, 9.4, 31],
+      ['Not recorded', 'Not recorded', -12.2, 9.4, 31],
+    ]);
+    expect(JSON.stringify(t.rows)).not.toContain('176');
   });
 
   it('shows no interval in low data or when the split check failed, but both groups\' counts', () => {
@@ -323,7 +346,7 @@ describe('confidenceTable', () => {
     // "−12 to +31" in the Now row is the lower and upper cells of the table row.
     expect(formatIntervalPoints(last[2] as number, last[4] as number)).toBe('−12 to +31');
     // A narrow interval keeps one decimal in every cell of its row.
-    const narrow = { ...BASE, series: [{ n: 176, lower: 2.2, upper: 7.4, estimate: 4.8 }] };
+    const narrow = { ...BASE, series: [{ n: 176, nA: 176, nB: 176, lower: 2.2, upper: 7.4, estimate: 4.8 }] };
     expect(confidenceTable(narrow).rowDigits).toEqual([1]);
   });
 });
@@ -332,7 +355,7 @@ describe('confidenceModel', () => {
   it('runs the x-axis to the cap and projects the band there, narrowing to estimate ± half-width', () => {
     const m = confidenceModel(BASE)!;
     expect(m.x.domain).toEqual([0, 230]);
-    expect(m.current).toEqual({ n: 176, lower: -12.2, upper: 31, estimate: 9.4 });
+    expect(m.current).toEqual({ n: 176, nA: 180, nB: 176, lower: -12.2, upper: 31, estimate: 9.4 });
     expect(m.projection).toMatchObject({ fromN: 176, toN: 230, fromLower: -12.2, fromUpper: 31 });
     expect(m.projection!.toLower).toBeCloseTo(-2.6, 9);
     expect(m.projection!.toUpper).toBeCloseTo(21.4, 9);
@@ -340,7 +363,7 @@ describe('confidenceModel', () => {
   });
 
   it('keeps the projection inside the last band when the estimate lies outside it', () => {
-    const m = confidenceModel({ ...BASE, series: [{ n: 100, lower: 5, upper: 10, estimate: 30 }], projectedHalfWidthAtCap: 3 })!;
+    const m = confidenceModel({ ...BASE, series: [{ n: 100, nA: 100, nB: 100, lower: 5, upper: 10, estimate: 30 }], projectedHalfWidthAtCap: 3 })!;
     expect(m.projection).toMatchObject({ toLower: 7, toUpper: 10 });
   });
 

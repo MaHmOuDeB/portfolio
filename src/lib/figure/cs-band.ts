@@ -33,20 +33,15 @@ import {
  * PERCENTAGE POINTS (not proportions: convert a mixtureCs interval with csPointFromInterval).
  */
 export type CsPoint = {
+  /** The views in the smaller group at this look: min(nA, nB). */
   n: number;
+  /** The views in each group at this look. The table prints them, so a look always records both. */
+  nA: number;
+  nB: number;
   lower: number;
   upper: number;
   estimate: number;
-  /** The views in each group at this look (the smaller of the two is `n`); the table prints them. */
-  nA?: number;
-  nB?: number;
 };
-
-/** The optional counts of a point, only when it has them, so equality on a plain point still holds. */
-const countsOf = (p: CsPoint): Pick<CsPoint, 'nA' | 'nB'> => ({
-  ...(p.nA !== undefined ? { nA: p.nA } : {}),
-  ...(p.nB !== undefined ? { nB: p.nB } : {}),
-});
 
 export type LiveSnapshot = {
   phase: LivePhase;
@@ -106,7 +101,7 @@ export function smallerGroup(s: Pick<LiveSnapshot, 'nA' | 'nB'>): number {
 export function runningIntersection(points: readonly CsPoint[]): CsPoint[] {
   const valid = points
     .filter((p) => ![p.n, p.lower, p.upper, p.estimate].some(Number.isNaN))
-    .map((p) => ({ n: p.n, lower: Math.min(p.lower, p.upper), upper: Math.max(p.lower, p.upper), estimate: p.estimate, ...countsOf(p) }))
+    .map((p) => ({ n: p.n, lower: Math.min(p.lower, p.upper), upper: Math.max(p.lower, p.upper), estimate: p.estimate, nA: p.nA, nB: p.nB }))
     .sort((a, b) => a.n - b.n);
   const out: CsPoint[] = [];
   for (const p of valid) {
@@ -122,7 +117,7 @@ export function runningIntersection(points: readonly CsPoint[]): CsPoint[] {
       lower = at;
       upper = at;
     }
-    out.push({ n: p.n, lower, upper, estimate: p.estimate, ...countsOf(p) });
+    out.push({ n: p.n, nA: p.nA, nB: p.nB, lower, upper, estimate: p.estimate });
   }
   return out;
 }
@@ -132,7 +127,7 @@ export function shownSeries(s: Pick<LiveSnapshot, 'series'>): CsPoint[] {
   const points = s.series
     .filter((p) => Number.isFinite(p.n) && p.n >= MIN_PER_GROUP && Number.isFinite(p.estimate))
     .filter((p) => !Number.isNaN(p.lower) && !Number.isNaN(p.upper))
-    .map((p) => ({ n: p.n, lower: clampPoints(p.lower), upper: clampPoints(p.upper), estimate: clampPoints(p.estimate), ...countsOf(p) }));
+    .map((p) => ({ n: p.n, lower: clampPoints(p.lower), upper: clampPoints(p.upper), estimate: clampPoints(p.estimate), nA: p.nA, nB: p.nB }));
   return runningIntersection(points);
 }
 
@@ -226,12 +221,17 @@ export function formatIntervalPoints(lower: number, upper: number, o: { awayFrom
  * The CsPoint the chart consumes, from a confidence-sequence interval of `mixtureCs`
  * (src/lib/stats), which is in PROPORTIONS: estimate = xB/nB − xA/nA and an unclamped half-width.
  * The point is in PERCENTAGE POINTS (×100), each value clamped to ±100 points (a tiny sample's
- * half-width can be far wider than a difference of proportions can be). `n` is the views in the
- * smaller group at that look.
+ * half-width can be far wider than a difference of proportions can be). `views` is the split at
+ * that look; `n`, the views in the smaller group, comes from it.
  */
-export function csPointFromInterval(n: number, interval: { estimate: number; lower: number; upper: number }): CsPoint {
+export function csPointFromInterval(
+  views: { nA: number; nB: number },
+  interval: { estimate: number; lower: number; upper: number },
+): CsPoint {
   return {
-    n,
+    n: Math.min(safeCount(views.nA), safeCount(views.nB)),
+    nA: views.nA,
+    nB: views.nB,
     estimate: clampPoints(interval.estimate * 100),
     lower: clampPoints(interval.lower * 100),
     upper: clampPoints(interval.upper * 100),
@@ -240,11 +240,16 @@ export function csPointFromInterval(n: number, interval: { estimate: number; low
 
 const NOT_SHOWN_YET = 'Not shown yet';
 const NOT_SHOWN = 'Not shown';
+const NOT_RECORDED = 'Not recorded';
+
+/** A recorded count as the table prints it; anything that is not a count says so instead of reading as 0. */
+const recorded = (n: number): number | string => (Number.isFinite(n) && n >= 0 ? Math.floor(n) : NOT_RECORDED);
 
 /**
  * The table fallback: for each look, the views in both groups and the running interval; while the
- * interval is hidden, the current counts and one "Interval" cell that says it is not shown. A look that did not record its split
- * shows the smaller group's count in both columns. The interval columns follow the Now row's
+ * interval is hidden, the current counts and one "Interval" cell that says it is not shown. A look
+ * whose split is missing or not a count says "Not recorded": the table never invents a count. The
+ * interval columns follow the Now row's
  * digits rule for each row (intervalDigits), so the table and "now: −12 to +31" always agree.
  */
 export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[] = ['live']): TableData {
@@ -264,7 +269,7 @@ export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[] = [
   const shown = shownSeries(s);
   return {
     columns,
-    rows: shown.map((p) => [safeCount(p.nA ?? p.n), safeCount(p.nB ?? p.n), p.lower, p.estimate, p.upper]),
+    rows: shown.map((p) => [recorded(p.nA), recorded(p.nB), p.lower, p.estimate, p.upper]),
     formats,
     rowDigits: shown.map((p) => intervalDigits(p.lower, p.upper)),
     note,
