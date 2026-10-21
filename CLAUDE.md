@@ -170,6 +170,11 @@ a page needs the smallest possible bundle it can also import a component's file 
   has a phase, an amount of data and a freshness. The state matrix, with its order of precedence,
   is `src/lib/figure/states.ts`, and the kitchen sink shows every state.
 - **Presets are always meaningful.** The default view is a real case, never an empty one.
+- **Tabular figures are per element.** `tnum` also widens the hyphen, full stop, colon and space,
+  so it is on exactly `[data-num]`, `data`, `time`, `output` and `input[type="number"]`
+  (`globals.css`). Put `data-num` on an element that is a number (a tick, a numeric table cell, an
+  interval, a count), never on a paragraph that merely contains one; `data-derived` marks a source,
+  not a number.
 - **Chart labels never sit on marks.** `ChartFrame` puts the y tick numbers in a left gutter and the
   zero-line words ("no difference", "B higher", "B lower") in a right margin, both inside the SVG's
   padding, and snaps the y scale to half pixels. Collecting states draw the Now row on the same

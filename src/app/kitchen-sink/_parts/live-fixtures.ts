@@ -102,7 +102,7 @@ const BLINDED = (c: Counts): CsPoint[] => [
 ];
 
 /**
- * A paused A/B run whose interval lies above zero (+3 to +40) while its quick-exit guardrail is
+ * A paused A/B run whose interval lies above zero (+3 to +37 once the band is intersected) while its quick-exit guardrail is
  * breached (the interval of B − A is +8 to +14 against a limit of +10), so no rule has held. Not part
  * of the sink's 144 specimens: the tests use it to check that a pause never says the run goes on.
  */

@@ -65,7 +65,7 @@ export function StepNav({ current, total, onChange, label, refs }: StepNavProps)
       >
         Previous
       </button>
-      <span data-step-count {...marker} className="min-w-[5ch] text-center text-sm">
+      <span data-step-count data-num="" {...marker} className="min-w-[5ch] text-center text-sm">
         {stepLabel(at.current, at.total)}
       </span>
       <button

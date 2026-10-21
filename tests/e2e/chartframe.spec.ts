@@ -13,6 +13,7 @@ const SPECIMENS = [
   'chartframe--all-equal',
 ];
 const WIDTHS = [375, 1440] as const;
+const SLOW_PAGE_TIMEOUT = 90_000;
 
 async function openAt(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
@@ -173,6 +174,8 @@ for (const width of WIDTHS) {
     });
 
     test('has no accessibility violations', async ({ page }) => {
+      // The axe scan of the whole sink takes about 10 s alone and 40 s in WebKit when every worker is busy.
+      test.setTimeout(SLOW_PAGE_TIMEOUT);
       await openAt(page, width);
       await expectNoA11yViolations(page);
     });
@@ -238,6 +241,18 @@ for (const width of [375, 768, 1024, 1440]) {
                 if (p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom) {
                   out.problems.push(`${id}: the annotation sits on a stroke`);
                   break;
+                }
+              }
+            }
+            // A fill (the band) with no stroke of its own: a 2 px grid over the annotation, in the mark's coordinates.
+            if (style.fill !== 'none') {
+              const inverse = ctm.inverse();
+              search: for (let x = r.left; x <= r.right; x += 2) {
+                for (let y = r.top; y <= r.bottom; y += 2) {
+                  if (mark.isPointInFill(new DOMPoint(x, y).matrixTransform(inverse))) {
+                    out.problems.push(`${id}: the annotation sits on a filled area`);
+                    break search;
+                  }
                 }
               }
             }

@@ -38,6 +38,8 @@ describe('StepNav', () => {
     expect(buttons(root).map(text)).toEqual(['Previous', 'Next']);
     const count = find(root, (n) => hasAttr(n, 'data-step-count'))[0]!;
     expect(text(count)).toBe('3 of 5');
+    // The count is a number, so it is tabular; its own marker says so.
+    expect(hasAttr(count, 'data-num')).toBe(true);
     const order = find(navEl!, (n) => n.nodeName === 'button' || hasAttr(n, 'data-step-count')).map((n) =>
       n.nodeName === 'button' ? text(n) : 'count',
     );

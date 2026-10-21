@@ -330,6 +330,8 @@ test.describe('kitchen sink Figures', () => {
   });
 
   test('axe finds no violations with the islands loaded and a fallback showing', async ({ page }) => {
+    // About 10 s alone and 40 s in WebKit when every worker is busy.
+    test.setTimeout(90_000);
     watchErrors(page, [THROWN]);
     await page.goto('/kitchen-sink');
     await ready(page, 'demo');

@@ -77,8 +77,12 @@ auto` is set on `html`. `font-sans` is the only text family; its feature setting
 (`--font-sans--font-feature-settings`) is `cv05` (lowercase l with a tail, so "El" never reads as
 "EI"). Tabular figures (`tnum`) are not on body text: the feature also widens the hyphen, the full
 stop, the colon and the space, so "kitchen-sink" would read "kitchen - sink". They are turned on in
-`globals.css` for the elements that hold numbers (facts, derived numbers, table cells, dates, form
-values, progress), so a number still lines up. Weights used: `font-weight-regular` 400,
+`globals.css` for exactly these elements: `[data-num]`, `data` (a Fact or a derived number), `time`,
+`output` and `input[type="number"]`. The `data-num` marker goes on an element that IS a number (a
+tick label, a numeric table cell, an interval, a step count, a readout), never on a container that
+holds a sentence: `data-derived` and `data-fact` only say where a number comes from, and a marked
+container that is not itself a number says `cv05` outright, so a number still lines up and prose
+keeps its normal hyphen and spaces. Weights used: `font-weight-regular` 400,
 `font-weight-medium` 500, `font-weight-semibold` 600. Code blocks only use `font-code`, which
 `--default-mono-font-family` also makes the default for `code`, `kbd`, `samp` and `pre`.
 

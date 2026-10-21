@@ -6,8 +6,6 @@ const PORT = 3123;
 export default defineConfig({
   testDir: 'tests/e2e',
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
-  // The axe scans of the kitchen sink take about 10 s alone and 40 s in WebKit when every worker is busy.
-  timeout: 60_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

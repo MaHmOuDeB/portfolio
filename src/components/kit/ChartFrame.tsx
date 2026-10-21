@@ -227,7 +227,6 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <MarkLayer height={height}>{p.marks(ctx)}</MarkLayer>
           {hasZero ? <line data-zero-line="" x1={0} x2="100%" y1={zeroY} y2={zeroY} className="stroke-ink" /> : null}
           {p.overlays?.(ctx)}
-  
           {yTicks.map((v, i) => (
             <text
               key={i}
@@ -279,7 +278,6 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
               {below}
             </text>
           ) : null}
-  
           {xTicks.map((v, i) => (
             <text
               key={i}
@@ -297,7 +295,6 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           <text data-axis-label="" className={LABEL} x="100%" y={height + X_LABEL_BASELINE} textAnchor="end">
             {p.x.label}
           </text>
-  
           {note ? (
             <text
               data-annotation=""
