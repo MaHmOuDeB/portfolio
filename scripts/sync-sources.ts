@@ -231,10 +231,12 @@ async function main(args: string[]): Promise<number> {
 
 if (process.argv[1]?.endsWith('sync-sources.ts')) {
   main(process.argv.slice(2)).then(
-    (code) => process.exit(code),
+    (code) => {
+      process.exitCode = code;
+    },
     (e: unknown) => {
       console.error((e as Error).message);
-      process.exit(1);
+      process.exitCode = 1;
     },
   );
 }

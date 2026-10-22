@@ -1,0 +1,7 @@
+.font-code { font-family: var(--font-code); } /* expect */
+.label { font-family: ui-monospace, Menlo, monospace; } /* expect */
+pre, .eyebrow { font-family: var(--default-mono-font-family); } /* expect */
+.font-\[Menlo\] { font-family: Menlo; } /* expect */
+.font-\[\'SF_Mono\'\,Menlo\] { font-family: 'SF Mono', Menlo; } /* expect */
+.font-\[JetBrains_Mono\] { font-family: JetBrains_Mono; } /* expect */
+.x { font-family: "Fira Code", "Courier New"; } /* expect */

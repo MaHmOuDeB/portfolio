@@ -81,6 +81,11 @@ jobs:
         run: |
           if [ "$LAUNCHED" = "true" ]; then target_flag=--prod; else target_flag=--target=preview; fi
           npx --no-install vercel build "$target_flag" --token="$VERCEL_TOKEN"
+      # The deploy builds on a fresh checkout with the pulled Vercel project environment, so a
+      # KITCHEN_SINK variable set in the Vercel project would put the dev-only route into the
+      # deployed build. `vercel build` leaves Next's output in .next, where the check reads it.
+      - name: Check the build has no kitchen sink
+        run: npm run assert:no-kitchen-sink
       - name: Deploy
         id: deploy
         env:

@@ -1,0 +1,4 @@
+.panel {
+  @apply bg-[#fff] text-ink; /* expect */
+  color: #1d1d1f; /* expect */
+}

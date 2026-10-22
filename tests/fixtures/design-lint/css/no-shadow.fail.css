@@ -1,0 +1,5 @@
+.shadow-\[0_1px_2px_black\] { box-shadow: 0 1px 2px black; } /* expect */
+.card { &:hover { box-shadow: var(--tw-shadow); } } /* expect */
+.drop-shadow-\[0_1px_1px_black\] { filter: blur(1px) drop-shadow(0 1px 1px black); } /* expect */
+.text-shadow-\[0_1px_0_black\] { text-shadow: 0 1px 0 black; } /* expect */
+.drop-shadow-sm { --tw-drop-shadow-size: drop-shadow(0 1px 1px var(--tw-drop-shadow-color, black)); } /* expect */

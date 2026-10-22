@@ -1,8 +1,8 @@
 export default function Home() {
   return (
-    <main>
+    <div className="py-section">
       <h1>Mahmoud El Bergui</h1>
       <p>Portfolio in progress.</p>
-    </main>
+    </div>
   );
 }

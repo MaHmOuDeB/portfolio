@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # `labeled` and `unlabeled` re-run the checks when the `update-baselines` label is added or removed
+  # (see the e2e job): removing it must re-run CI in the normal mode, where a wrong baseline fails.
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -73,6 +76,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Check the build has no kitchen sink
+        run: npm run assert:no-kitchen-sink
+      - run: npm run lint:design
+      # Fails if TRUTH_DENYLIST is missing; findings name a deny-list term only by its index, so
+      # the public log never holds a term. The secret is not exposed to pull requests from forks,
+      # where the audit fails with "TRUTH_DENYLIST missing in CI".
+      - name: Truth audit
+        run: npm run truth:audit
+        env:
+          TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}
       - name: Upload build output
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -90,6 +103,12 @@ jobs:
     timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
+    env:
+      # The `update-baselines` label on the PR regenerates every visual baseline in this container.
+      # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
+      # diffs are: remove the label (and commit the reviewed baselines) before merging. Removing it
+      # re-runs CI, where a missing or different baseline fails (updateSnapshots is 'none' in CI).
+      UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,6 +131,16 @@ jobs:
           path: reports/e2e.json
           if-no-files-found: error
           retention-days: 14
+      # Visual baselines, to download, review and commit (never generate them on a Mac). Only the
+      # screenshots folder is uploaded, never test-results/ or traces.
+      - name: Upload visual baselines
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+          if-no-files-found: warn
+          retention-days: 7
 
   lhci:
     name: Lighthouse CI
@@ -133,6 +162,11 @@ jobs:
       - run: npm ci
       # Runs against a local `next start` (see lighthouserc.json), which has no protection, so no
       # LHCI_EXTRA_HEADERS is set and no secret can end up in the uploaded reports.
+      # LCP is asserted on the best of 5 runs ("optimistic"); the category scores stay on the median.
+      # On localhost the framework chunks sometimes start evaluating before the first frame is
+      # presented, and Lantern then charges all of their download to LCP: a random outlier of about
+      # +500 ms that base main hits too. A real regression raises every run, so the best run still
+      # fails; tests/unit/lighthouserc.test.ts pins this shape.
       - run: npm run lhci
       - name: Upload Lighthouse reports
         if: ${{ !cancelled() }}

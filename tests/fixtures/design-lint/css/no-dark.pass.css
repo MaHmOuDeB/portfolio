@@ -1,0 +1,4 @@
+:root { color-scheme: light; }
+@media (prefers-reduced-motion: reduce) { :root { --duration-fast: 0s; } }
+@media (prefers-color-scheme: light) { .print-only { display: none; } }
+.text-darkest { color: var(--color-ink); }

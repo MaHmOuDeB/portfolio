@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { FACTS, FACT_DISPLAYS } from '../src/lib/facts/facts.generated.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
-import { ALLOW } from './truth-audit.allow.ts';
+import { ALLOW, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
 export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase';
 export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
@@ -25,9 +25,17 @@ export type AuditContext = {
 };
 
 const NUMBER = /\d[\d.,]*/g;
-const BANNED = /\bAI-powered\b|\bpassionate\b|\brockstar\b/gi;
+// Characters that render as nothing: zero-width space, non-joiner and joiner, word joiner, byte-order
+// mark and soft hyphen. They are stripped before matching, so they cannot split a word.
+const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
+const stripInvisible = (s: string) => s.replace(INVISIBLE, '');
+// "AI-powered" with a space or any hyphen or dash between the words (U+2010 to U+2015, minus sign).
+const BANNED = /\bAI[\s\-\u2010-\u2015\u2212]*powered\b|\bpassionate\b|\brockstar\b/gi;
 const SKIPPED = new Set(['script', 'style', 'template']);
-const SCANNED_ATTRS = ['aria-label', 'aria-valuetext', 'alt', 'title', 'placeholder'];
+const SCANNED_ATTRS = ['aria-label', 'aria-valuetext', 'aria-description', 'aria-roledescription', 'alt', 'title', 'placeholder'];
+// The meta tags whose content is text a visitor or a link preview shows; og:image, og:url and the
+// like carry URLs and sizes, whose digits are not claims.
+const META_TEXT = new Set(['description', 'og:title', 'og:description', 'og:image:alt', 'twitter:title', 'twitter:description', 'twitter:image:alt']);
 const DERIVED_KEYWORDS = new Set(['simulated', 'live', 'build', ...SOURCE_IDS.map((id) => `source:${id}`)]);
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const ALLOW_GLOBAL = ALLOW.map((a) => ({
@@ -59,14 +67,17 @@ function allowSpans(text: string, route: string): Span[] {
   );
 }
 
-// Deny-list matching ignores case and treats any run of whitespace (U+00A0 included) as one space.
-const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, ' ');
+// Deny-list matching ignores case and invisible characters, and treats any run of whitespace
+// (U+00A0 included) as one space.
+const normalize = (s: string) => stripInvisible(s).toLowerCase().replace(/\s+/g, ' ');
 
 function redact(detail: string, denylist: readonly string[]): string {
   return denylist.reduce((out, term, i) => {
     const t = normalize(term).trim();
     if (t === '') return out;
-    const pattern = new RegExp(escapeRegExp(t).replaceAll(' ', '\\s+'), 'gi');
+    // The page may hide the term with invisible characters, so they are allowed between its letters.
+    const gap = '[\\u200B-\\u200D\\u2060\\uFEFF\\u00AD]*';
+    const pattern = new RegExp([...t].map((c) => (c === ' ' ? '\\s+' : escapeRegExp(c))).join(gap), 'gi');
     return out.replace(pattern, `[deny-list term #${i + 1}]`);
   }, detail);
 }
@@ -75,9 +86,7 @@ function redact(detail: string, denylist: readonly string[]): string {
 function metaLabel(attrs: ReadonlyMap<string, string>): string | undefined {
   const name = attrs.get('name')?.toLowerCase();
   const property = attrs.get('property')?.toLowerCase();
-  if (name === 'description' || name?.startsWith('twitter:')) return name;
-  if (property?.startsWith('og:')) return property;
-  return undefined;
+  return [name, property].find((label) => label !== undefined && META_TEXT.has(label));
 }
 
 export function auditHtml(html: string, ctx: AuditContext): Finding[] {
@@ -97,7 +106,7 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   // The deny-list check runs before the early return for marked text.
   const scan = (text: string, where: string, cover: Cover) => {
     checkDenylist(text);
-    for (const m of text.matchAll(BANNED)) add('banned-phrase', `"${m[0]}" in ${where}`);
+    for (const m of stripInvisible(text).matchAll(BANNED)) add('banned-phrase', `"${m[0]}" in ${where}`);
     if (cover === 'marked') return;
     for (const m of text.matchAll(NUMBER)) {
       const token = m[0].replace(/[.,]+$/, '');
@@ -105,6 +114,7 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
       const end = start + token.length;
       if (cover === 'display' && contains(displaySpans(text, ctx.factDisplays), start, end)) continue;
       if (contains(allowSpans(text, ctx.route), start, end)) continue;
+      if (FRAMEWORK_ROUTES.includes(ctx.route)) continue;
       add('stray-number', `"${token}" in ${where}`);
     }
   };
@@ -141,6 +151,12 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
         const value = attrs.get(name);
         if (value !== undefined) scan(value, name, covered ? 'marked' : 'none');
       }
+      // An input's value is text the visitor sees (the other elements' value is not). A hidden input
+      // is form plumbing, such as the JSON React puts in a form action's fields; the raw-HTML
+      // deny-list pass still covers its text.
+      const isInput = el.tagName === 'input' && attrs.get('type')?.toLowerCase() !== 'hidden';
+      const inputValue = isInput ? attrs.get('value') : undefined;
+      if (inputValue !== undefined) scan(inputValue, 'value', covered ? 'marked' : 'none');
       const label = el.tagName === 'meta' ? metaLabel(attrs) : undefined;
       const content = attrs.get('content');
       if (label !== undefined && content !== undefined) scan(content, `meta ${label}`, 'display');
@@ -203,4 +219,4 @@ function main(): number {
   return 0;
 }
 
-if (process.argv[1]?.endsWith('truth-audit.ts')) process.exit(main());
+if (process.argv[1]?.endsWith('truth-audit.ts')) process.exitCode = main();

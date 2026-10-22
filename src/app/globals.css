@@ -1,1 +1,179 @@
-@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Lint fixtures and docs must never reach the compiled CSS. */
+@source not "../../tests";
+@source not "../../scripts";
+@source not "../../stats-ref";
+@source not "../../docs";
+@source not "../../*.md";
+
+@layer components {
+  /*
+   * The Slider's range input (components/kit/Slider.tsx): the native track is transparent, the
+   * drawn track sits under it. Thumb: a 20 px ink circle with a 2 px bg ring, drawn as a border
+   * because shadows are banned. The runnable track is as tall as the thumb, so it needs no offset.
+   */
+  [data-kit-range]::-webkit-slider-runnable-track {
+    height: calc(var(--spacing) * 5);
+    background: transparent;
+  }
+
+  [data-kit-range]::-moz-range-track {
+    height: calc(var(--spacing) * 5);
+    background: transparent;
+  }
+
+  [data-kit-range]::-webkit-slider-thumb {
+    appearance: none;
+    box-sizing: border-box;
+    width: calc(var(--spacing) * 5);
+    height: calc(var(--spacing) * 5);
+    border: 2px solid var(--color-bg);
+    border-radius: 50%;
+    background: var(--color-ink);
+  }
+
+  [data-kit-range]::-moz-range-thumb {
+    box-sizing: border-box;
+    width: calc(var(--spacing) * 5);
+    height: calc(var(--spacing) * 5);
+    border: 2px solid var(--color-bg);
+    border-radius: 50%;
+    background: var(--color-ink);
+  }
+
+  [data-kit-range]:disabled::-webkit-slider-thumb {
+    background: var(--color-muted);
+  }
+
+  [data-kit-range]:disabled::-moz-range-thumb {
+    background: var(--color-muted);
+  }
+
+  /* Segmented: the radio is visually hidden, so its label carries the focus ring. */
+  label[data-segment]:has(:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+
+  /*
+   * Tabular figures only on the elements that ARE numbers. Inter's tnum feature also gives the hyphen,
+   * the minus, the full stop, the colon and the space the width of a digit, so on prose it spaces
+   * "two-sided" out. The leaf elements carry it: <data> (a Fact or a Derived), <time>, a form value,
+   * and anything marked data-num (a tick label, a numeric table cell, an interval, a readout).
+   * data-derived and data-fact only say where a number comes from, and a container that carries them
+   * may hold a whole sentence, so a marked container that is not itself a number says cv05 outright,
+   * whatever it inherits.
+   */
+  [data-num],
+  data,
+  time,
+  output,
+  input[type="number"] {
+    font-feature-settings: "cv05", "tnum";
+
+    /*
+     * Linux Chromium rounds each glyph advance to a whole pixel (hinting), so a tabular "1" and "0"
+     * differ by up to 1 px each and "111" is 3 px wider than "000" at 15 px. geometricPrecision keeps
+     * the font's own fractional advances, so a column of figures lines up on every platform.
+     */
+    text-rendering: geometricprecision;
+  }
+
+  [data-derived]:not([data-num], data, time) {
+    font-feature-settings: "cv05";
+  }
+
+  /*
+   * The header is sticky only where it is safe: from md up (48rem) and on a screen at least 700 px
+   * (43.75rem) tall. Below that height it would take more than a tenth of the screen, so it scrolls
+   * away like on a phone. While it is sticky, a focused element or an in-page anchor must not land
+   * behind it (WCAG 2.2 SC 2.4.11), so the scroll offset uses the same condition. It is one scroll-padding on
+   * the page rather than a scroll-margin on each Figure, because both would add up. The media query
+   * repeats the breakpoint because custom properties do not work in queries. In base, not
+   * unlayered: a utility or a page may still set its own scroll-padding.
+   */
+  @media (width >= 48rem) and (height >= 43.75rem) {
+    html {
+      scroll-padding-top: var(--header-h);
+    }
+
+    [data-site-header] {
+      position: sticky;
+      top: 0;
+    }
+  }
+}
+
+/*
+ * Outside any @layer on purpose: unlayered CSS beats every layer, so a utility on the same element
+ * (flex, duration-*) can never undo these. <html data-js> is set by the inline script in the root layout.
+ */
+html[data-js] [data-nojs-only] {
+  display: none;
+}
+
+html:not([data-js]) [data-js-only] {
+  display: none;
+}
+
+/*
+ * While a slider is dragged, marks follow the pointer without easing; while a Figure resets
+ * (data-instant, set by instantly() in components/kit/Figure.tsx) the preset lands at once.
+ */
+:is([data-dragging], [data-instant]) [data-mark] {
+  transition: none;
+}
+
+/*
+ * A Figure whose boundary caught an error shows its fallback (preview, sentence, open table): its
+ * controls, result line and own tables would act on a chart that is gone.
+ */
+[data-figure]:has([data-figure-fallback]) :is([data-figure-controls], [data-figure-result], [data-figure-tables]) {
+  display: none;
+}
+
+/*
+ * An island that failed to load (LoadOnIntent) falls back to its preview in the no-JS form:
+ * JS-only parts hide, no-JS parts come back with the display their utilities give them.
+ */
+html[data-js] [data-island="failed"] [data-js-only] {
+  display: none;
+}
+
+html[data-js] [data-island="failed"] [data-nojs-only] {
+  display: revert-layer;
+}
+
+/*
+ * Forced colours (Windows high contrast). Unlayered, so the bg utilities cannot undo them. The
+ * selected segment's ink fill is dropped there, so a Highlight border names it; the slider keeps a
+ * visible thumb and a Highlight active track.
+ */
+@media (forced-colors: active) {
+  label[data-segment]:has(:checked) {
+    border: 2px solid Highlight;
+  }
+
+  [data-slider-fill] {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  [data-kit-range]::-webkit-slider-thumb {
+    border-color: Canvas;
+    background: CanvasText;
+  }
+
+  [data-kit-range]::-moz-range-thumb {
+    border-color: Canvas;
+    background: CanvasText;
+  }
+}
