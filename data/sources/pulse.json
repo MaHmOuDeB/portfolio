@@ -1,0 +1,100 @@
+{
+ "_meta": {
+  "dataset": null,
+  "engine": {},
+  "generator": "hand-written; checked by scripts/site-export.test.mjs",
+  "inputs": [
+   {
+    "path": "src/lib/analytics.ts",
+    "rows": null,
+    "sha256": "7135b663a7ae6ed1bb99d82109e9af1ccd87c6e514ac43f6b2a34fb28986e099"
+   }
+  ],
+  "provenance": "none",
+  "schema": "pulse/1",
+  "source": "pulse"
+ },
+ "facts": {
+  "events.count": {
+   "decimals": 0,
+   "from": "src/lib/analytics.ts#amplitude.track",
+   "label": "Tracked events in the taxonomy",
+   "unit": "count",
+   "value": 7
+  },
+  "identity.user_properties": {
+   "decimals": 0,
+   "from": "src/lib/analytics.ts#identifyDemoUser",
+   "label": "User properties set on identify",
+   "unit": "count",
+   "value": 4
+  }
+ },
+ "tables": {
+  "events": [
+   {
+    "fires_when": "App loads",
+    "name": "Viewed Dashboard",
+    "properties": [
+     "prompt_version"
+    ],
+    "question": "Activation — did the user reach the core screen this session?"
+   },
+   {
+    "fires_when": "Channel filter changed",
+    "name": "Applied Filter",
+    "properties": [
+     "filter_type",
+     "value"
+    ],
+    "question": "Which segments do users actually care about slicing by?"
+   },
+   {
+    "fires_when": "7d / 30d / 90d toggle changed",
+    "name": "Changed Date Range",
+    "properties": [
+     "range"
+    ],
+    "question": "Do users default to recent data or trend-watch over longer windows?"
+   },
+   {
+    "fires_when": "\"Detail\" clicked on a chart",
+    "name": "Viewed Chart Detail",
+    "properties": [
+     "chart"
+    ],
+    "question": "Feature engagement — which chart drives deeper investigation?"
+   },
+   {
+    "fires_when": "\"Export CSV\" clicked",
+    "name": "Exported Report",
+    "properties": [
+     "format"
+    ],
+    "question": "Conversion to an outside-the-product action — a strong intent signal."
+   },
+   {
+    "fires_when": "A filter combination is saved",
+    "name": "Saved View",
+    "properties": [
+     "view_name"
+    ],
+    "question": "Retention driver — saving a view predicts the user will come back."
+   },
+   {
+    "fires_when": "A saved view is selected",
+    "name": "Loaded Saved View",
+    "properties": [
+     "view_name"
+    ],
+    "question": "Confirms saved views are actually reused, not just created once."
+   }
+  ],
+  "user_properties": [
+   "role",
+   "plan",
+   "company_size",
+   "signup_date"
+  ]
+ }
+}
