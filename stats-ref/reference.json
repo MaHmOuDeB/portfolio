@@ -85,6 +85,135 @@
    "power": 0.8
   }
  ],
+ "detectableEffectCs": [
+  {
+   "alpha": 0.05,
+   "baseline": 0.1,
+   "mde": 0.134662242971,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.00656957444965
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.150427661547,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.2,
+   "mde": 0.161713088994,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.0116792434661
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.3,
+   "mde": 0.175199177764,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.0153290070492
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.160822896841,
+   "nPerArm": 200,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.141810222223,
+   "nPerArm": 250,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.377460446798,
+   "nPerArm": 50,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.0685079481224,
+   "nPerArm": 1000,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.1,
+   "baseline": 0.15,
+   "mde": 0.138923064751,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.00752346567706
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "mde": 0.169278925559,
+   "nPerArm": 225,
+   "power": 0.9,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.5,
+   "mde": 0.176950475516,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.0182488179157
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.9,
+   "mde": 0.0843123107127,
+   "nPerArm": 225,
+   "power": 0.8,
+   "tau2": 0.00656957444965
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.1,
+   "mde": 0.882106334668,
+   "nPerArm": 5,
+   "power": 0.8,
+   "tau2": 0.00656957444965
+  }
+ ],
+ "detectableEffectCsUndetectable": [
+  {
+   "alpha": 0.05,
+   "baseline": 0.15,
+   "nPerArm": 5,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.5,
+   "nPerArm": 2,
+   "power": 0.8,
+   "tau2": 0.0182488179157
+  },
+  {
+   "alpha": 0.05,
+   "baseline": 0.85,
+   "nPerArm": 20,
+   "power": 0.8,
+   "tau2": 0.00930689713701
+  }
+ ],
  "meta": {
   "numpy": "2.5.3",
   "python": "3.12",

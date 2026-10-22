@@ -12,6 +12,8 @@ describe('stats reference data', () => {
 describe('stats reference data structure', () => {
   const topLevel = [
     'detectableEffect',
+    'detectableEffectCs',
+    'detectableEffectCsUndetectable',
     'meta',
     'mixtureCs',
     'mixtureRatio',
