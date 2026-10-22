@@ -5,11 +5,15 @@ const VARS = [
   'KV_REST_API_URL',
   'KV_REST_API_TOKEN',
   'KV_REST_API_READ_ONLY_TOKEN',
-  'EDGE_CONFIG',
+  'GLOBAL_CONFIG',
   'INTERNAL_TRAFFIC_SECRET',
   'EXCLUDE_TOKEN',
   'RATELIMIT_HMAC_KEY',
   'VERCEL_ENV',
+  'VERCEL_PROJECT_PRODUCTION_URL',
+  'VERCEL_URL',
+  'VERCEL_GIT_COMMIT_SHA',
+  'EXPERIMENT_FAKE_STORE',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -40,6 +44,10 @@ describe('serverEnv', () => {
       excludeToken: undefined,
       ratelimitHmacKey: undefined,
       vercelEnv: 'development',
+      productionHost: undefined,
+      deploymentHost: undefined,
+      gitCommit: undefined,
+      fakeStore: false,
     });
   });
 
@@ -47,10 +55,14 @@ describe('serverEnv', () => {
     process.env.KV_REST_API_URL = 'test-value-url';
     process.env.KV_REST_API_TOKEN = 'test-value-token';
     process.env.KV_REST_API_READ_ONLY_TOKEN = 'test-value-ro';
-    process.env.EDGE_CONFIG = 'test-value-edge';
+    process.env.GLOBAL_CONFIG = 'test-value-edge';
     process.env.INTERNAL_TRAFFIC_SECRET = 'test-value-internal';
     process.env.EXCLUDE_TOKEN = 'test-value-exclude';
     process.env.RATELIMIT_HMAC_KEY = 'test-value-hmac';
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'test-value-prod-host';
+    process.env.VERCEL_URL = 'test-value-deploy-host';
+    process.env.VERCEL_GIT_COMMIT_SHA = 'test-value-sha';
+    process.env.EXPERIMENT_FAKE_STORE = '1';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -60,6 +72,10 @@ describe('serverEnv', () => {
       excludeToken: 'test-value-exclude',
       ratelimitHmacKey: 'test-value-hmac',
       vercelEnv: 'development',
+      productionHost: 'test-value-prod-host',
+      deploymentHost: 'test-value-deploy-host',
+      gitCommit: 'test-value-sha',
+      fakeStore: true,
     });
   });
 
@@ -78,6 +94,26 @@ describe('serverEnv', () => {
     expect(serverEnv().vercelEnv).toBe('production');
     process.env.VERCEL_ENV = 'development';
     expect(serverEnv().vercelEnv).toBe('development');
+  });
+
+  it('reads EXPERIMENT_FAKE_STORE as true only for the string 1', () => {
+    process.env.EXPERIMENT_FAKE_STORE = '1';
+    expect(serverEnv().fakeStore).toBe(true);
+    process.env.EXPERIMENT_FAKE_STORE = 'true';
+    expect(serverEnv().fakeStore).toBe(false);
+    process.env.EXPERIMENT_FAKE_STORE = '0';
+    expect(serverEnv().fakeStore).toBe(false);
+    process.env.EXPERIMENT_FAKE_STORE = '';
+    expect(serverEnv().fakeStore).toBe(false);
+  });
+
+  it('no longer reads EDGE_CONFIG', () => {
+    process.env.EDGE_CONFIG = 'test-value-old';
+    try {
+      expect(serverEnv().edgeConfig).toBeUndefined();
+    } finally {
+      delete process.env.EDGE_CONFIG;
+    }
   });
 
   it('maps an unknown VERCEL_ENV to development', () => {

@@ -8,6 +8,7 @@
     "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-obf-constants.ts --check && npm run sources:sync -- --check",
     "build": "next build",
     "assert:no-kitchen-sink": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assert-no-kitchen-sink.ts",
+    "prereg:hash": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prereg-hash.ts",
     "truth:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/truth-audit.ts",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",

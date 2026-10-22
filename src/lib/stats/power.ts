@@ -3,7 +3,7 @@
  * sample can detect, and the test duration. Two-sided test, equal allocation, Cohen's h
  * (the arcsine-square-root effect size), so the formulas are closed form and need no iteration.
  */
-import { normalQuantile } from './normal';
+import { normalQuantile } from './normal.ts';
 
 /** Whether the minimum detectable effect is a difference in rates or a ratio to the baseline. */
 export type MdeType = 'absolute' | 'relative';

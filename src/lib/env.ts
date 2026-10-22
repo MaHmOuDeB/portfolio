@@ -9,6 +9,10 @@ export interface ServerEnv {
   excludeToken?: string;
   ratelimitHmacKey?: string;
   vercelEnv: VercelEnv;
+  productionHost?: string;
+  deploymentHost?: string;
+  gitCommit?: string;
+  fakeStore: boolean;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -29,10 +33,14 @@ export function serverEnv(): ServerEnv {
     kvUrl: nonEmpty(process.env.KV_REST_API_URL),
     kvToken: nonEmpty(process.env.KV_REST_API_TOKEN),
     kvReadOnlyToken: nonEmpty(process.env.KV_REST_API_READ_ONLY_TOKEN),
-    edgeConfig: nonEmpty(process.env.EDGE_CONFIG),
+    edgeConfig: nonEmpty(process.env.GLOBAL_CONFIG),
     internalTrafficSecret: nonEmpty(process.env.INTERNAL_TRAFFIC_SECRET),
     excludeToken: nonEmpty(process.env.EXCLUDE_TOKEN),
     ratelimitHmacKey: nonEmpty(process.env.RATELIMIT_HMAC_KEY),
     vercelEnv: toVercelEnv(nonEmpty(process.env.VERCEL_ENV)),
+    productionHost: nonEmpty(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+    deploymentHost: nonEmpty(process.env.VERCEL_URL),
+    gitCommit: nonEmpty(process.env.VERCEL_GIT_COMMIT_SHA),
+    fakeStore: process.env.EXPERIMENT_FAKE_STORE === '1',
   };
 }
