@@ -62,6 +62,23 @@ jobs:
         working-directory: stats-ref
         run: uv run --locked check_reference.py reference.json "$RUNNER_TEMP/reference.fresh.json"
 
+  sources-remote:
+    name: Pinned sources exist on GitHub
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Fetches each pinned export from raw.githubusercontent.com and compares its sha256 with
+      # sources.lock.json, so a commit that exists only on a laptop, or was force-pushed away, fails.
+      - run: npm run sources:sync -- --verify-remote
+
   build:
     name: Production build
     runs-on: ubuntu-24.04

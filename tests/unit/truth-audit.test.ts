@@ -2,12 +2,16 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/index.ts';
+import { FACTS } from '../../src/lib/facts/index.ts';
 import { auditHtml, routeOf, type AuditContext, type Finding } from '../../scripts/truth-audit.ts';
 
 const FIXTURES = new URL('../fixtures/truth-audit/', import.meta.url).pathname;
 const SCRIPT = new URL('../../scripts/truth-audit.ts', import.meta.url).pathname;
 const fixture = (name: string) => readFileSync(join(FIXTURES, `${name}.html`), 'utf8');
+
+// A fixed list, not the generated FACT_DISPLAYS: the generated list grows with every vendored source,
+// and a small stray number in a test (4, 5, 7) would start to match a real fact display and pass.
+const FACT_DISPLAYS = ['11', '20', '20+', '25+', '270+', '3', '85%'];
 
 const ctx = (over: Partial<AuditContext> = {}): AuditContext => ({
   route: '/',

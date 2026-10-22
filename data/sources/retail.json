@@ -1,0 +1,316 @@
+{
+ "_meta": {
+  "dataset": {
+   "licence": "CC BY 4.0",
+   "name": "UCI Online Retail II",
+   "url": "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
+  },
+  "engine": {
+   "duckdb": "1.4.0",
+   "python": "3.12"
+  },
+  "generator": "src/export_site.py",
+  "inputs": [
+   {
+    "path": "data/online_retail_II.xlsx",
+    "rows": 1067371,
+    "sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980"
+   }
+  ],
+  "provenance": "public-data",
+  "schema": "retail/1",
+  "source": "retail"
+ },
+ "facts": {
+  "returns.rate_2010_clean": {
+   "decimals": 1,
+   "from": "tables/monthly/returns_gbp_clean",
+   "label": "Returns as a share of sales, January to November 2010, with the rule",
+   "unit": "share",
+   "value": 0.0209
+  },
+  "returns.rate_2010_raw": {
+   "decimals": 1,
+   "from": "tables/monthly/returns_gbp_raw",
+   "label": "Returns as a share of sales, January to November 2010, without the rule",
+   "unit": "share",
+   "value": 0.0285
+  },
+  "returns.rate_2011_clean": {
+   "decimals": 1,
+   "from": "tables/monthly/returns_gbp_clean",
+   "label": "Returns as a share of sales, January to November 2011, with the rule",
+   "unit": "share",
+   "value": 0.0217
+  },
+  "returns.rate_2011_raw": {
+   "decimals": 1,
+   "from": "tables/monthly/returns_gbp_raw",
+   "label": "Returns as a share of sales, January to November 2011, without the rule",
+   "unit": "share",
+   "value": 0.0368
+  },
+  "returns.yoy_growth_clean": {
+   "decimals": 0,
+   "from": "tables/monthly/returns_gbp_clean",
+   "label": "Growth in returns, January to November 2011 against the same months of 2010, with the 24-hour rule",
+   "unit": "share",
+   "value": 0.0239
+  },
+  "returns.yoy_growth_raw": {
+   "decimals": 0,
+   "from": "tables/monthly/returns_gbp_raw",
+   "label": "Growth in returns, January to November 2011 against the same months of 2010, without the 24-hour rule",
+   "unit": "share",
+   "value": 0.2903
+  },
+  "revenue.inflation_share": {
+   "decimals": 0,
+   "from": "tables/monthly/sales_gbp_raw",
+   "label": "How much the reversed orders inflate revenue over the whole period",
+   "unit": "share",
+   "value": 0.0239
+  },
+  "revenue.yoy_growth_clean": {
+   "decimals": 0,
+   "from": "tables/monthly/sales_gbp_clean",
+   "label": "Growth in revenue, January to November 2011 against the same months of 2010, with the rule",
+   "unit": "share",
+   "value": -0.0134
+  },
+  "reversal.january_gbp": {
+   "decimals": 0,
+   "from": "tables/largest_reversals/1/value_gbp",
+   "label": "Value of the reversed order placed and cancelled in January 2011",
+   "scale": "k",
+   "unit": "gbp",
+   "value": 77184
+  },
+  "reversal.largest_gbp": {
+   "decimals": 0,
+   "from": "tables/largest_reversals/0/value_gbp",
+   "label": "Value of the largest reversed order",
+   "scale": "k",
+   "unit": "gbp",
+   "value": 168470
+  }
+ },
+ "tables": {
+  "largest_reversals": [
+   {
+    "date": "2011-12-09",
+    "value_gbp": 168470
+   },
+   {
+    "date": "2011-01-18",
+    "value_gbp": 77184
+   },
+   {
+    "date": "2011-06-10",
+    "value_gbp": 38970
+   }
+  ],
+  "monthly": [
+   {
+    "month": "2009-12",
+    "partial": false,
+    "returns_gbp_clean": 15091,
+    "returns_gbp_raw": 19338,
+    "sales_gbp_clean": 678066,
+    "sales_gbp_raw": 681066
+   },
+   {
+    "month": "2010-01",
+    "partial": false,
+    "returns_gbp_clean": 6993,
+    "returns_gbp_raw": 7323,
+    "sales_gbp_clean": 534885,
+    "sales_gbp_raw": 535229
+   },
+   {
+    "month": "2010-02",
+    "partial": false,
+    "returns_gbp_clean": 11138,
+    "returns_gbp_raw": 12037,
+    "sales_gbp_clean": 498623,
+    "sales_gbp_raw": 499750
+   },
+   {
+    "month": "2010-03",
+    "partial": false,
+    "returns_gbp_clean": 8279,
+    "returns_gbp_raw": 9564,
+    "sales_gbp_clean": 667289,
+    "sales_gbp_raw": 668577
+   },
+   {
+    "month": "2010-04",
+    "partial": false,
+    "returns_gbp_clean": 8021,
+    "returns_gbp_raw": 9959,
+    "sales_gbp_clean": 585180,
+    "sales_gbp_raw": 587754
+   },
+   {
+    "month": "2010-05",
+    "partial": false,
+    "returns_gbp_clean": 22558,
+    "returns_gbp_raw": 37087,
+    "sales_gbp_clean": 579961,
+    "sales_gbp_raw": 594887
+   },
+   {
+    "month": "2010-06",
+    "partial": false,
+    "returns_gbp_clean": 12624,
+    "returns_gbp_raw": 26272,
+    "sales_gbp_clean": 617736,
+    "sales_gbp_raw": 631505
+   },
+   {
+    "month": "2010-07",
+    "partial": false,
+    "returns_gbp_clean": 11133,
+    "returns_gbp_raw": 17005,
+    "sales_gbp_clean": 574649,
+    "sales_gbp_raw": 583389
+   },
+   {
+    "month": "2010-08",
+    "partial": false,
+    "returns_gbp_clean": 9705,
+    "returns_gbp_raw": 12324,
+    "sales_gbp_clean": 593895,
+    "sales_gbp_raw": 596579
+   },
+   {
+    "month": "2010-09",
+    "partial": false,
+    "returns_gbp_clean": 21457,
+    "returns_gbp_raw": 27448,
+    "sales_gbp_clean": 802206,
+    "sales_gbp_raw": 808145
+   },
+   {
+    "month": "2010-10",
+    "partial": false,
+    "returns_gbp_clean": 17344,
+    "returns_gbp_raw": 25331,
+    "sales_gbp_clean": 1006866,
+    "sales_gbp_raw": 1015125
+   },
+   {
+    "month": "2010-11",
+    "partial": false,
+    "returns_gbp_clean": 29751,
+    "returns_gbp_raw": 34920,
+    "sales_gbp_clean": 1156280,
+    "sales_gbp_raw": 1161854
+   },
+   {
+    "month": "2010-12",
+    "partial": false,
+    "returns_gbp_clean": 19548,
+    "returns_gbp_raw": 24009,
+    "sales_gbp_clean": 872487,
+    "sales_gbp_raw": 877014
+   },
+   {
+    "month": "2011-01",
+    "partial": false,
+    "returns_gbp_clean": 11758,
+    "returns_gbp_raw": 91254,
+    "sales_gbp_clean": 484452,
+    "sales_gbp_raw": 564027
+   },
+   {
+    "month": "2011-02",
+    "partial": false,
+    "returns_gbp_clean": 8148,
+    "returns_gbp_raw": 8316,
+    "sales_gbp_clean": 443137,
+    "sales_gbp_raw": 443346
+   },
+   {
+    "month": "2011-03",
+    "partial": false,
+    "returns_gbp_clean": 7286,
+    "returns_gbp_raw": 10036,
+    "sales_gbp_clean": 581149,
+    "sales_gbp_raw": 584563
+   },
+   {
+    "month": "2011-04",
+    "partial": false,
+    "returns_gbp_clean": 31611,
+    "returns_gbp_raw": 33314,
+    "sales_gbp_clean": 453456,
+    "sales_gbp_raw": 455267
+   },
+   {
+    "month": "2011-05",
+    "partial": false,
+    "returns_gbp_clean": 8742,
+    "returns_gbp_raw": 8928,
+    "sales_gbp_clean": 660295,
+    "sales_gbp_raw": 660482
+   },
+   {
+    "month": "2011-06",
+    "partial": false,
+    "returns_gbp_clean": 10557,
+    "returns_gbp_raw": 12653,
+    "sales_gbp_clean": 613350,
+    "sales_gbp_raw": 654433
+   },
+   {
+    "month": "2011-07",
+    "partial": false,
+    "returns_gbp_clean": 9927,
+    "returns_gbp_raw": 11391,
+    "sales_gbp_clean": 591220,
+    "sales_gbp_raw": 592732
+   },
+   {
+    "month": "2011-08",
+    "partial": false,
+    "returns_gbp_clean": 18365,
+    "returns_gbp_raw": 22912,
+    "sales_gbp_clean": 632219,
+    "sales_gbp_raw": 636807
+   },
+   {
+    "month": "2011-09",
+    "partial": false,
+    "returns_gbp_clean": 12466,
+    "returns_gbp_raw": 17008,
+    "sales_gbp_clean": 936102,
+    "sales_gbp_raw": 940901
+   },
+   {
+    "month": "2011-10",
+    "partial": false,
+    "returns_gbp_clean": 30306,
+    "returns_gbp_raw": 43663,
+    "sales_gbp_clean": 989836,
+    "sales_gbp_raw": 1005643
+   },
+   {
+    "month": "2011-11",
+    "partial": false,
+    "returns_gbp_clean": 13639,
+    "returns_gbp_raw": 23451,
+    "sales_gbp_clean": 1130369,
+    "sales_gbp_raw": 1142146
+   },
+   {
+    "month": "2011-12",
+    "partial": true,
+    "returns_gbp_clean": 5104,
+    "returns_gbp_raw": 174111,
+    "sales_gbp_clean": 344208,
+    "sales_gbp_raw": 513230
+   }
+  ]
+ }
+}

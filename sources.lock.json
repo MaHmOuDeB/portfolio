@@ -1,4 +1,33 @@
 {
-  "sources": {},
+  "sources": {
+    "pulse": {
+      "commit": "41b0404ab2d476bbec465285a1a0fa9890f111e0",
+      "path": "reports/site/pulse.json",
+      "repo": "MaHmOuDeB/amplitude-demo",
+      "schema": "pulse/1",
+      "sha256": "93221805aff76954987978e3e266f26ff5b1e565cccc50640ce360a5f426fb85"
+    },
+    "retail": {
+      "commit": "73dc12a52d81e8459b99335a01db00c72d799f59",
+      "path": "reports/site/retail.json",
+      "repo": "MaHmOuDeB/retail-kpi-dashboard",
+      "schema": "retail/1",
+      "sha256": "f2385d31de53783822331d18d3fe49ae8a57d09ba4d77c2fb12ce020bd6bd02d"
+    },
+    "retention": {
+      "commit": "20cfb1376af28e19f6988283be39b45ded5afe22",
+      "path": "reports/site/retention.json",
+      "repo": "MaHmOuDeB/customer-retention-rfm",
+      "schema": "retention/1",
+      "sha256": "db9ac1651c6ad7f50bc6fd77d967ac53aaa6de0ee2c55a17a21e9d6c583f0e23"
+    },
+    "weather": {
+      "commit": "ee51b0f3baee1c7839f8451d4ed627487189736e",
+      "path": "reports/site/weather.json",
+      "repo": "MaHmOuDeB/weather-sql-pipeline",
+      "schema": "weather/1",
+      "sha256": "61bdd4b68b197bc9f22cf9a78799a923e1ce0288f5aaed687e137f98410f819f"
+    }
+  },
   "version": 1
 }
