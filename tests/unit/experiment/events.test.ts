@@ -6,6 +6,7 @@ import {
   MAX_EVENTS,
   PREREQUISITES,
   REJECT_REASONS,
+  isNamespace,
   parseBeaconBatch,
   type BeaconBatch,
 } from '@/lib/experiment/events';
@@ -33,6 +34,15 @@ describe('the event vocabulary', () => {
       card: ['entry', 'inview'],
       secondary: ['entry', 'inview'],
     });
+  });
+});
+
+describe('isNamespace', () => {
+  it('accepts 1 to 32 of a-z, 0-9, dot and hyphen, except rl', () => {
+    expect(isNamespace('aa-v1')).toBe(true);
+    expect(isNamespace('aa-v1.1')).toBe(true);
+    expect(isNamespace('a'.repeat(32))).toBe(true);
+    for (const ns of ['', 'a'.repeat(33), 'AA', 'aa:v1', 'aa v1', 'rl']) expect(isNamespace(ns)).toBe(false);
   });
 });
 
@@ -84,6 +94,10 @@ describe('parseBeaconBatch', () => {
     ['an ns over 32 characters', body(valid({ ns: 'a'.repeat(33) }))],
     ['an ns with an uppercase letter', body(valid({ ns: 'AA-v1' }))],
     ['an ns with a colon', body(valid({ ns: 'aa:v1' }))],
+    ["the ns 'rl', which would share the rate keys' prefix", body(valid({ ns: 'rl' }))],
+    ['an entry that is not first', body(valid({ events: [{ type: 'inview' }, { type: 'entry' }] }))],
+    ['a repeated type', body(valid({ events: [{ type: 'entry' }, { type: 'inview' }, { type: 'inview' }] }))],
+    ['a repeated entry', body(valid({ events: [{ type: 'entry' }, { type: 'entry' }] }))],
     ['reject on a non-entry item', body(valid({ events: [{ type: 'entry' }, { type: 'inview', reject: 'bot' }] }))],
     ['an unknown reject', body(valid({ events: [{ type: 'entry', reject: 'internal' }] }))],
     ['an entry with reject that is not the only item', body(valid({ events: [{ type: 'entry', reject: 'forced' }, { type: 'inview' }] }))],
@@ -100,7 +114,10 @@ describe('parseBeaconBatch', () => {
       ns: fc.stringMatching(/^[a-z0-9.-]{1,32}$/),
       pv: fc.uuid({ version: 4 }),
       arm: fc.constantFrom('a' as const, 'b' as const),
-      events: fc.array(fc.record({ type: fc.constantFrom(...EVENT_TYPES) }), { minLength: 1, maxLength: 7 }),
+      // Each type at most once, and an entry, when present, first: the order the sender writes.
+      events: fc
+        .shuffledSubarray([...EVENT_TYPES], { minLength: 1 })
+        .map((types) => [...types].sort((x, y) => Number(y === 'entry') - Number(x === 'entry')).map((type) => ({ type }))),
     });
     fc.assert(
       fc.property(batch, (b: BeaconBatch) => {

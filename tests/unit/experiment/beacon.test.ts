@@ -177,18 +177,35 @@ describe('createSender', () => {
     expect(types(h.calls[2])).toEqual(['engaged']);
   });
 
-  it('stops when a later group is refused or fails, since what follows could be an orphan', async () => {
-    for (const outcome of [{ ok: false, reason: 'rate_limited' } as const, null]) {
-      const h = await confirmedEntry();
-      h.sender.enqueue('inview');
-      h.sender.enqueue('card');
-      h.calls[1]!.resolve(outcome);
-      await settle();
-      h.sender.enqueue('engaged');
-      h.sender.flush();
-      await settle();
-      expect(h.calls).toHaveLength(2);
-    }
+  it('ends when a later group is refused', async () => {
+    const h = await confirmedEntry();
+    h.sender.enqueue('inview');
+    h.sender.enqueue('card');
+    h.calls[1]!.resolve({ ok: false, reason: 'rate_limited' });
+    await settle();
+    h.sender.enqueue('engaged');
+    h.sender.flush();
+    await settle();
+    expect(h.calls).toHaveLength(2);
+  });
+
+  it.each<[string, (c: Call) => void]>([
+    ['null', (c) => c.resolve(null)],
+    ['a rejected post', (c) => c.reject(new Error('offline'))],
+  ])('after a later group fails (%s), sends no more fetches and flush re-sends it first, in order', async (_name, fail) => {
+    const h = await confirmedEntry();
+    h.sender.enqueue('inview');
+    h.sender.enqueue('card');
+    fail(h.calls[1]!);
+    await settle();
+    h.sender.enqueue('engaged');
+    h.sender.enqueue('inview');
+    await settle();
+    expect(h.calls).toHaveLength(2);
+    h.sender.flush();
+    expect(h.calls).toHaveLength(3);
+    expect(h.calls[2]!.mode).toBe('beacon');
+    expect(types(h.calls[2])).toEqual(['inview', 'card', 'engaged']);
   });
 
   it('flush posts every unconfirmed item, in-flight ones included, as one ordered beacon batch', async () => {

@@ -15,6 +15,16 @@ export type EntrySignals = {
   restoredFromCache: boolean;
   forced: boolean;
   webdriver: boolean;
+  /**
+   * True when this document has already mounted a view: a soft navigation back to / (Back, the
+   * wordmark) keeps the first load's navigation entry, path and referrer, so only this tells the
+   * second view apart. The beacon component sets it from a module-level variable (JS heap, never
+   * Web Storage), which survives soft navigations and resets on a hard load:
+   *
+   *   let viewedInThisDocument = false;
+   *   // on mount: const prior = viewedInThisDocument; viewedInThisDocument = true;
+   */
+  priorViewInDocument: boolean;
 };
 
 function sameOrigin(referrer: string, origin: string): boolean {
@@ -28,6 +38,7 @@ function sameOrigin(referrer: string, origin: string): boolean {
 
 function isFreshEntry(s: EntrySignals): boolean {
   return (
+    !s.priorViewInDocument &&
     s.navigationType === 'navigate' &&
     s.entryPath === '/' &&
     !s.prerendered &&
@@ -38,8 +49,9 @@ function isFreshEntry(s: EntrySignals): boolean {
 
 /**
  * Opt-out first (a GPC or DNT view sends nothing at all), then the client rejects in attribution
- * order (bot, forced, not_entry), then the entry rules: a fresh navigation to / from outside the
- * site, neither prerendered nor restored from the back/forward cache.
+ * order (bot, forced, not_entry), then the entry rules: the document's first view, a fresh
+ * navigation to / from outside the site, neither prerendered nor restored from the back/forward
+ * cache.
  */
 export function classifyEntry(s: EntrySignals): 'entry' | 'opt_out' | ClientReject {
   if (s.optOut) return 'opt_out';

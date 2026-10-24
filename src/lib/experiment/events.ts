@@ -46,10 +46,17 @@ export type BeaconResponse =
   | { ok: false; reason: Refusal };
 
 const NAMESPACE = /^[a-z0-9.-]{1,32}$/;
+/** 'rl' would share the `exp:rl:` prefix of the rate-limit keys. */
+const RESERVED_NAMESPACES = ['rl'];
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const BATCH_KEYS = ['arm', 'events', 'ns', 'pv', 'v'];
 
 const encoder = new TextEncoder();
+
+/** 1 to 32 of a-z, 0-9, dot and hyphen, and not a reserved key prefix. */
+export function isNamespace(ns: string): boolean {
+  return NAMESPACE.test(ns) && !RESERVED_NAMESPACES.includes(ns);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -74,8 +81,8 @@ function parseItem(value: unknown): BeaconItem | null {
 
 /**
  * Reads a request body as a batch, or gives null. The byte length is checked before parsing. A
- * reject rides only on an entry that is the only item. The result is a fresh object that holds
- * only the known fields.
+ * reject rides only on an entry that is the only item; no type repeats; an entry, when present,
+ * is first. The result is a fresh object that holds only the known fields.
  */
 export function parseBeaconBatch(body: string): BeaconBatch | null {
   if (encoder.encode(body).length > MAX_BODY_BYTES) return null;
@@ -88,7 +95,7 @@ export function parseBeaconBatch(body: string): BeaconBatch | null {
   if (!isRecord(value) || !hasOnlyKeys(value, BATCH_KEYS, BATCH_KEYS)) return null;
   const { v, ns, pv, arm, events } = value;
   if (v !== 1) return null;
-  if (typeof ns !== 'string' || !NAMESPACE.test(ns)) return null;
+  if (typeof ns !== 'string' || !isNamespace(ns)) return null;
   if (typeof pv !== 'string' || !UUID_V4.test(pv)) return null;
   if (!includes(ARMS, arm)) return null;
   if (!Array.isArray(events) || events.length < 1 || events.length > MAX_EVENTS) return null;
@@ -99,5 +106,8 @@ export function parseBeaconBatch(body: string): BeaconBatch | null {
     items.push(item);
   }
   if (items.some((i) => i.reject !== undefined) && items.length !== 1) return null;
+  // The sender never repeats a type and always sends the entry first; the route relies on both.
+  if (new Set(items.map((i) => i.type)).size !== items.length) return null;
+  if (items.findIndex((i) => i.type === 'entry') > 0) return null;
   return { v: 1, ns, pv, arm, events: items };
 }

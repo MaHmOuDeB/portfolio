@@ -42,8 +42,9 @@ export type Sender = {
 /**
  * One view's ordered event stream.
  * - The entry is posted alone, with fetch, at once; nothing else is posted until it resolves ok.
- * - A refused or failed entry drops everything after it. So does a refused or failed later group,
- *   because what follows it could arrive without its prerequisite.
+ * - A refused or failed entry drops everything after it. A refused later group ends the sender.
+ *   A failed later group (null) stops the fetches and is kept, with everything after it, for
+ *   flush() to re-send in order, so nothing arrives without its prerequisite.
  * - A client reject posts that single item and stops.
  * - Each type is posted at most once. Posts are serialised: groups that wait for an in-flight post
  *   go together, in order, in the next one.
@@ -68,6 +69,8 @@ export function createSender(o: {
   const enqueued = new Set<EventType>();
   let inFlight: EventType[] = [];
   let waiting: EventType[] = [];
+  let entryConfirmed = false;
+  let stalled = false;
   let finished = false;
 
   const send = (types: EventType[]): void => {
@@ -79,20 +82,29 @@ export function createSender(o: {
       )
       .then((r) => {
         if (finished) return;
-        if (r === null || !r.ok) {
-          finished = true;
+        if (r !== null && r.ok) {
           inFlight = [];
-          waiting = [];
+          entryConfirmed = true;
+          drain();
+          o.onCounted?.(r);
           return;
         }
+        if (r === null && entryConfirmed) {
+          // A transient failure (the server may even have counted it): hold the group, in front,
+          // for flush() to re-send in order, and send no more fetches.
+          waiting = [...inFlight, ...waiting];
+          inFlight = [];
+          stalled = true;
+          return;
+        }
+        finished = true;
         inFlight = [];
-        drain();
-        o.onCounted?.(r);
+        waiting = [];
       });
   };
 
   const drain = (): void => {
-    if (finished || inFlight.length > 0 || waiting.length === 0) return;
+    if (finished || stalled || inFlight.length > 0 || waiting.length === 0) return;
     const next = waiting;
     waiting = [];
     send(next);

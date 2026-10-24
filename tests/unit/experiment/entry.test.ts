@@ -10,6 +10,7 @@ const CLEAN: EntrySignals = {
   restoredFromCache: false,
   forced: false,
   webdriver: false,
+  priorViewInDocument: false,
 };
 const PROBLEMS: Partial<EntrySignals> = {
   navigationType: 'reload',
@@ -19,6 +20,7 @@ const PROBLEMS: Partial<EntrySignals> = {
   restoredFromCache: true,
   forced: true,
   webdriver: true,
+  priorViewInDocument: true,
 };
 
 describe('classifyEntry', () => {
@@ -35,10 +37,13 @@ describe('classifyEntry', () => {
     ['an entry path of /privacy (a soft navigation to /)', { entryPath: '/privacy' }, 'not_entry'],
     ['an unknown entry path', { entryPath: undefined }, 'not_entry'],
     ['navigation type undefined', { navigationType: undefined }, 'not_entry'],
+    ['a second view in the same document (soft navigation back to /)', { priorViewInDocument: true }, 'not_entry'],
     ['a forced group', { forced: true }, 'forced'],
     ['a webdriver browser', { webdriver: true }, 'bot'],
     ['webdriver and forced (bot comes first)', { webdriver: true, forced: true }, 'bot'],
     ['forced and a reload (forced comes before not_entry)', { forced: true, navigationType: 'reload' }, 'forced'],
+    ['forced and a prior view (forced comes before not_entry)', { forced: true, priorViewInDocument: true }, 'forced'],
+    ['webdriver and a prior view (bot comes first)', { webdriver: true, priorViewInDocument: true }, 'bot'],
   ])('%s', (_name, change, expected) => {
     expect(classifyEntry({ ...CLEAN, ...change })).toBe(expected);
   });

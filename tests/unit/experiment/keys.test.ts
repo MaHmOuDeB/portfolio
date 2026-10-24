@@ -1,5 +1,6 @@
 import fc from 'fast-check';
-import { EVENT_TYPES, REJECT_REASONS } from '@/lib/experiment/events';
+import { EXPERIMENT } from '@/experiment.values';
+import { EVENT_TYPES, REJECT_REASONS, isNamespace } from '@/lib/experiment/events';
 import { fieldName, ipBucket, keys, parseField, type CounterField } from '@/lib/experiment/keys';
 
 const PV = '3f2b8c1e-9a4d-4b6f-8e2a-1c5d7f9b0a3e';
@@ -11,6 +12,19 @@ describe('keys', () => {
     expect(keys.rate('0f1e2d', 29_000_000)).toBe('exp:rl:0f1e2d:29000000');
     expect(keys.ceiling('aa-v1', '2026-10-25')).toBe('exp:aa-v1:ceil:2026-10-25');
     expect(keys.closed('aa-v1')).toBe('exp:aa-v1:closed');
+  });
+
+  it("the configured namespace is valid and is not 'rl', the rate keys' prefix", () => {
+    expect(isNamespace(EXPERIMENT.namespace)).toBe(true);
+    expect(EXPERIMENT.namespace).not.toBe('rl');
+    expect(keys.counters(EXPERIMENT.namespace).startsWith('exp:rl')).toBe(false);
+  });
+
+  it('refuses a raw address bucket as a rate key: the bucket must be hashed first (type check)', () => {
+    const bucket = ipBucket('203.0.113.7')!;
+    // @ts-expect-error an IpBucket is the raw address; keys.rate takes its HMAC
+    expect(keys.rate(bucket, 1)).toBe('exp:rl:203.0.113.7:1');
+    expect(keys.rate('0f1e2d' as string, 1)).toBe('exp:rl:0f1e2d:1');
   });
 });
 
@@ -66,6 +80,11 @@ describe('fieldName and parseField', () => {
 });
 
 describe('ipBucket', () => {
+  it('uses the pre-registered IPv6 prefix of 64 bits', () => {
+    expect(EXPERIMENT.rateLimit.ipv6PrefixBits).toBe(64);
+    expect(ipBucket('2001:db8:1:2:3:4:5:6')?.endsWith(`/${EXPERIMENT.rateLimit.ipv6PrefixBits}`)).toBe(true);
+  });
+
   it('keeps an IPv4 address whole', () => {
     expect(ipBucket('203.0.113.7')).toBe('203.0.113.7');
   });
