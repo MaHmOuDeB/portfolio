@@ -1,0 +1,308 @@
+import { createHmac } from 'node:crypto';
+import { EVENT_TYPES, REJECT_REASONS, type EventType } from '@/lib/experiment/events';
+import { ipBucket, keys } from '@/lib/experiment/keys';
+import { createMemoryRedis } from '@/lib/experiment/memory-redis';
+import {
+  CorruptCounters,
+  countDailyEntry,
+  rateLimit,
+  readClosed,
+  readCounters,
+  recordEvent,
+  recordRejection,
+  writeClosed,
+} from '@/lib/experiment/store';
+
+const NS = 'aa-v1';
+const PV = '3f2b8c1e-9a4d-4b6f-8e2a-1c5d7f9b0a3e';
+const PV2 = '7c1d2e3f-4a5b-4c6d-9e7f-8a9b0c1d2e3f';
+const DAY = '2026-11-20';
+const TTL = 1800;
+
+function setup(start = 0) {
+  let t = start;
+  const redis = createMemoryRedis({ now: () => t });
+  return { redis, at: (seconds: number) => (t = start + seconds * 1000) };
+}
+
+const ev = (type: EventType, pv = PV, arm: 'a' | 'b' = 'a', day = DAY) => ({ ns: NS, pv, arm, type, day, ttlSeconds: TTL });
+
+describe('recordEvent', () => {
+  it('an entry counts once; the same view again is a duplicate; a second view gives total 2', async () => {
+    const { redis } = setup();
+    await expect(recordEvent(redis, ev('entry'))).resolves.toEqual({ outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 });
+    await expect(recordEvent(redis, ev('entry'))).resolves.toEqual({ outcome: 'duplicate' });
+    await expect(recordEvent(redis, ev('entry', PV2))).resolves.toEqual({ outcome: 'counted', arm: 'a', total: 2, dayTotal: 2 });
+    const hash = await redis.command(['HGETALL', keys.counters(NS)]);
+    expect(hash).toEqual(['t:a:entry', '2', `d:${DAY}:a:entry`, '2']);
+  });
+
+  it('dayTotal counts per day while total counts across days', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry', PV, 'b', '2026-11-20'));
+    await expect(recordEvent(redis, ev('entry', PV2, 'b', '2026-11-21'))).resolves.toEqual({
+      outcome: 'counted',
+      arm: 'b',
+      total: 2,
+      dayTotal: 1,
+    });
+  });
+
+  it('inview without an entry is an orphan, and counts after the entry', async () => {
+    const { redis } = setup();
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
+    await recordEvent(redis, ev('entry'));
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 });
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'duplicate' });
+  });
+
+  it('an orphan writes no claim, so the event can still count once its prerequisite arrives', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('inview'));
+    expect(redis.entries()).toEqual([]);
+  });
+
+  it('card without inview is an orphan', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    await expect(recordEvent(redis, ev('card'))).resolves.toEqual({ outcome: 'orphan' });
+    await recordEvent(redis, ev('inview'));
+    await expect(recordEvent(redis, ev('card'))).resolves.toMatchObject({ outcome: 'counted', total: 1 });
+  });
+
+  it('card with an arm other than the entry arm is an orphan', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry', PV, 'a'));
+    await recordEvent(redis, ev('inview', PV, 'a'));
+    await expect(recordEvent(redis, ev('card', PV, 'b'))).resolves.toEqual({ outcome: 'orphan' });
+    await expect(recordEvent(redis, ev('inview', PV, 'b'))).resolves.toEqual({ outcome: 'orphan' });
+  });
+
+  it('every claim of a view expires no later than 1,800 s after its entry claim was written', async () => {
+    const { redis, at } = setup(1_763_629_200_000);
+    at(0);
+    await recordEvent(redis, ev('entry'));
+    at(1799);
+    await expect(recordEvent(redis, ev('inview'))).resolves.toMatchObject({ outcome: 'counted' });
+    at(1799.9);
+    await expect(recordEvent(redis, ev('card'))).resolves.toMatchObject({ outcome: 'counted' });
+    const claims = redis.entries().filter((e) => e.key.includes(PV));
+    expect(claims.map((e) => e.key).sort()).toEqual(
+      [keys.claim(NS, PV, 'card'), keys.claim(NS, PV, 'entry'), keys.claim(NS, PV, 'inview')].sort(),
+    );
+    for (const c of claims) expect(c.expiresAt).toBe(1_763_629_200_000 + 1_800_000);
+    at(1800.001);
+    expect(redis.entries().filter((e) => e.key.includes(PV))).toEqual([]);
+  });
+
+  it('after 1,801 s a late card is an orphan', async () => {
+    const { redis, at } = setup();
+    at(0);
+    await recordEvent(redis, ev('entry'));
+    at(10);
+    await recordEvent(redis, ev('inview'));
+    at(1801);
+    await expect(recordEvent(redis, ev('card'))).resolves.toEqual({ outcome: 'orphan' });
+    expect(redis.entries().filter((e) => e.key.includes(PV))).toEqual([]);
+  });
+
+  it('an entry claim without an expiry makes later events orphans, so no claim is ever written without one', async () => {
+    const { redis } = setup();
+    await redis.command(['SET', keys.claim(NS, PV, 'entry'), 'a']);
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
+    expect(redis.entries().map((e) => e.key)).toEqual([keys.claim(NS, PV, 'entry')]);
+  });
+
+  it('every key a view writes has an expiry', async () => {
+    const { redis } = setup();
+    for (const type of ['entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'] as const) {
+      await recordEvent(redis, ev(type));
+    }
+    const claims = redis.entries().filter((e) => e.key !== keys.counters(NS));
+    expect(claims).toHaveLength(EVENT_TYPES.length);
+    for (const c of claims) expect(c.expiresAt).toBe(1_800_000);
+  });
+});
+
+describe('readCounters', () => {
+  it('returns the day rows ascending and the totals, and the day sums equal the totals', async () => {
+    const { redis } = setup();
+    let n = 0;
+    const view = async (arm: 'a' | 'b', day: string, types: EventType[]) => {
+      const pv = `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+      for (const type of ['entry' as const, ...types]) await recordEvent(redis, ev(type, pv, arm, day));
+    };
+    await view('b', '2026-11-21', ['inview', 'card']);
+    await view('a', '2026-11-20', ['inview']);
+    await view('a', '2026-11-21', ['engaged', 'cv']);
+    await view('b', '2026-11-20', ['inview', 'secondary', 'contact']);
+    await recordRejection(redis, { ns: NS, reason: 'bot', day: '2026-11-20' });
+    await recordRejection(redis, { ns: NS, reason: 'bot', day: '2026-11-21' });
+    await recordRejection(redis, { ns: NS, reason: 'not_entry', day: '2026-11-21' });
+
+    const rows = await readCounters(redis, NS);
+    expect(rows.days.map((d) => d.day)).toEqual(['2026-11-20', '2026-11-21']);
+    expect(rows.totals.a.entry).toBe(2);
+    expect(rows.totals.b).toEqual({ entry: 2, inview: 2, engaged: 0, card: 1, secondary: 1, cv: 0, contact: 1 });
+    for (const arm of ['a', 'b'] as const) {
+      for (const type of EVENT_TYPES) {
+        expect(rows.days.reduce((s, d) => s + d[arm][type], 0)).toBe(rows.totals[arm][type]);
+      }
+    }
+    expect(rows.rejections.bot).toBe(2);
+    expect(rows.rejectionsByDay).toEqual({ '2026-11-20': { bot: 1 }, '2026-11-21': { bot: 1, not_entry: 1 } });
+  });
+
+  it('rejections has every reason, 0 when unset; an empty namespace reads as zeros', async () => {
+    const { redis } = setup();
+    const rows = await readCounters(redis, NS);
+    expect(Object.keys(rows.rejections).sort()).toEqual([...REJECT_REASONS].sort());
+    expect(Object.values(rows.rejections).every((v) => v === 0)).toBe(true);
+    expect(rows.days).toEqual([]);
+    expect(rows.rejectionsByDay).toEqual({});
+    expect(Object.values(rows.totals.a).every((v) => v === 0)).toBe(true);
+  });
+
+  it.each(['x', '-1', '1.5', '', '01', '1e3', '9007199254740993'])('a counter holding %j throws CorruptCounters', async (value) => {
+    const r = { command: async () => ['t:a:entry', value], pipeline: async () => [], transaction: async () => [] };
+    await expect(readCounters(r, NS)).rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it.each([
+    ['not an array', { a: 1 }],
+    ['an odd-length array', ['t:a:entry']],
+    ['a non-string field', [1, '1']],
+  ])('a reply that is %s throws CorruptCounters', async (_name, reply) => {
+    const r = { command: async () => reply, pipeline: async () => [], transaction: async () => [] };
+    await expect(readCounters(r, NS)).rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it('an unknown field is ignored', async () => {
+    const { redis } = setup();
+    await redis.command(['HINCRBY', keys.counters(NS), 't:a:entry', 3]);
+    await redis.command(['HINCRBY', keys.counters(NS), 'weird:field', 9]);
+    await redis.command(['HINCRBY', keys.counters(NS), 't:c:entry', 9]);
+    const rows = await readCounters(redis, NS);
+    expect(rows.totals.a.entry).toBe(3);
+  });
+});
+
+describe('rateLimit', () => {
+  const HASH = createHmac('sha256', 'test-hmac-key').update('203.0.113.7').digest('hex');
+  const input = (minute: number) => ({ bucketHash: HASH, minute, limit: 30, ttlSeconds: 120 });
+
+  async function everyRateKeyHasAShortTtl(redis: ReturnType<typeof createMemoryRedis>) {
+    const rateKeys = redis.entries().filter((e) => e.key.startsWith('exp:rl:'));
+    expect(rateKeys.length).toBeGreaterThan(0);
+    for (const e of rateKeys) {
+      const pttl = (await redis.command(['PTTL', e.key])) as number;
+      expect(pttl).toBeGreaterThanOrEqual(1);
+      expect(pttl).toBeLessThanOrEqual(120_000);
+    }
+  }
+
+  it('calls 1 to 30 are ok, 31 is limited-first, 32 limited; a new minute resets; every rate key has a TTL', async () => {
+    const { redis, at } = setup();
+    for (let i = 1; i <= 30; i++) {
+      at(i);
+      await expect(rateLimit(redis, input(1))).resolves.toBe('ok');
+      await everyRateKeyHasAShortTtl(redis);
+    }
+    await expect(rateLimit(redis, input(1))).resolves.toBe('limited-first');
+    await everyRateKeyHasAShortTtl(redis);
+    await expect(rateLimit(redis, input(1))).resolves.toBe('limited');
+    await everyRateKeyHasAShortTtl(redis);
+    at(60);
+    await expect(rateLimit(redis, input(2))).resolves.toBe('ok');
+    await everyRateKeyHasAShortTtl(redis);
+  });
+
+  it('runs INCR and EXPIRE NX in one transaction (atomic), never as separate commands', async () => {
+    const { redis } = setup();
+    const transaction = vi.spyOn(redis, 'transaction');
+    const command = vi.spyOn(redis, 'command');
+    const pipeline = vi.spyOn(redis, 'pipeline');
+    await rateLimit(redis, input(1));
+    expect(transaction).toHaveBeenCalledWith([
+      ['INCR', keys.rate(HASH, 1)],
+      ['EXPIRE', keys.rate(HASH, 1), 120, 'NX'],
+    ]);
+    expect(command).not.toHaveBeenCalled();
+    expect(pipeline).not.toHaveBeenCalled();
+  });
+
+  it('refuses a raw address bucket at run time (and at the type level)', async () => {
+    const { redis } = setup();
+    for (const ip of ['203.0.113.7', '2001:db8:1:2::1']) {
+      const bucket = ipBucket(ip)!;
+      // @ts-expect-error an IpBucket is the raw address; rateLimit takes its HMAC
+      await expect(rateLimit(redis, { ...input(1), bucketHash: bucket })).rejects.toBeInstanceOf(TypeError);
+    }
+    await expect(rateLimit(redis, { ...input(1), bucketHash: 'local' })).rejects.toBeInstanceOf(TypeError);
+    expect(redis.entries()).toEqual([]);
+  });
+
+  it('after a rate-limited request, no key, field or value in the store contains the address', async () => {
+    const { redis } = setup();
+    const ips = ['203.0.113.7', '2001:db8:1:2::1'];
+    for (const ip of ips) {
+      const bucketHash = createHmac('sha256', 'test-hmac-key').update(ipBucket(ip)!).digest('hex');
+      let outcome = 'ok';
+      while (outcome !== 'limited-first') outcome = await rateLimit(redis, { bucketHash, minute: 1, limit: 30, ttlSeconds: 120 });
+      await recordRejection(redis, { ns: NS, reason: 'rate_limited', day: DAY });
+    }
+    const dump = JSON.stringify(redis.entries());
+    for (const ip of ips) {
+      expect(dump).not.toContain(ip);
+      expect(dump).not.toContain(ipBucket(ip)!);
+    }
+    expect(dump).not.toContain('2001:db8');
+    expect(dump).not.toContain('203.0.113');
+  });
+});
+
+describe('countDailyEntry', () => {
+  it('with ceiling 3 gives ok, ok, ok, ceiling-first, ceiling, and the day key expires after 2 days', async () => {
+    const { redis } = setup();
+    const out = [];
+    for (let i = 0; i < 5; i++) out.push(await countDailyEntry(redis, { ns: NS, day: DAY, ceiling: 3 }));
+    expect(out).toEqual(['ok', 'ok', 'ok', 'ceiling-first', 'ceiling']);
+    await expect(redis.command(['PTTL', keys.ceiling(NS, DAY)])).resolves.toBe(172_800_000);
+  });
+
+  it('a new day starts at 0', async () => {
+    const { redis } = setup();
+    await countDailyEntry(redis, { ns: NS, day: DAY, ceiling: 1 });
+    await expect(countDailyEntry(redis, { ns: NS, day: DAY, ceiling: 1 })).resolves.toBe('ceiling-first');
+    await expect(countDailyEntry(redis, { ns: NS, day: '2026-11-21', ceiling: 1 })).resolves.toBe('ok');
+  });
+});
+
+describe('recordRejection', () => {
+  it('increments the total and the day field', async () => {
+    const { redis } = setup();
+    await recordRejection(redis, { ns: NS, reason: 'ceiling', day: DAY });
+    await recordRejection(redis, { ns: NS, reason: 'ceiling', day: DAY });
+    await expect(redis.command(['HGETALL', keys.counters(NS)])).resolves.toEqual(['r:ceiling', '2', `rd:${DAY}:ceiling`, '2']);
+  });
+});
+
+describe('the closed marker', () => {
+  it('writeClosed succeeds once with no expiry, and readClosed returns the marker', async () => {
+    const { redis } = setup();
+    await expect(readClosed(redis, NS)).resolves.toBeNull();
+    await expect(writeClosed(redis, NS, { kind: 'decision', day: DAY })).resolves.toBe(true);
+    await expect(writeClosed(redis, NS, { kind: 'aa-failed', day: '2026-11-21' })).resolves.toBe(false);
+    await expect(readClosed(redis, NS)).resolves.toEqual({ kind: 'decision', day: DAY });
+    await expect(redis.command(['PTTL', keys.closed(NS)])).resolves.toBe(-1);
+  });
+
+  it.each(['not json', '{"kind":"other","day":"2026-11-20"}', '{"kind":"decision","day":"20.11"}', '[]'])(
+    'a malformed marker %j throws CorruptCounters (fail closed: never read as "open")',
+    async (value) => {
+      const { redis } = setup();
+      await redis.command(['SET', keys.closed(NS), value]);
+      await expect(readClosed(redis, NS)).rejects.toBeInstanceOf(CorruptCounters);
+    },
+  );
+});
