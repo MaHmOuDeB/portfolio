@@ -5,6 +5,7 @@ import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats
 import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, type ExperimentConfig } from '../../../src/experiment.config';
 import { HEADLINES, type HeadlinePart } from '../../../content/experiment/headlines';
 import { preregHash } from '../../../scripts/prereg-hash';
+import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA } from './budget';
 
 const ROOT = join(import.meta.dirname, '../../..');
 
@@ -30,7 +31,7 @@ describe('EXPERIMENT', () => {
       cardsInView: { visibleShare: 0.5, dwellMs: 1000, cardClickCounts: true },
       pvTtlSeconds: 1800,
       rateLimit: { perMinute: 30, keyTtlSeconds: 120, ipv6PrefixBits: 64 },
-      dailyEntryCeiling: 500,
+      dailyEntryCeiling: 200,
       flagsCacheSeconds: 45,
       revalidateSeconds: 300,
       staleAfterMinutes: 15,
@@ -43,6 +44,17 @@ describe('EXPERIMENT', () => {
     expect(EXPERIMENT.calibration.startedOn).toBeNull();
     expect(EXPERIMENT.ab.startedOn).toBeNull();
     expect(EXPERIMENT.phase).toBe('calibration');
+  });
+});
+
+describe('the daily ceiling and the command quota', () => {
+  it('a month of full views at the ceiling uses under half the free command quota', () => {
+    // 200 views x 39 commands x 30 days = 234,000 of 500,000: about 266,000 a month stay for page
+    // reads (about 26,000) and rejected or rate-limited traffic (2 to 6 commands a request).
+    const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
+    expect(atCeiling).toBe(234_000);
+    expect(atCeiling).toBeLessThan(MONTHLY_COMMAND_QUOTA / 2);
+    expect(MONTHLY_COMMAND_QUOTA - atCeiling).toBeGreaterThanOrEqual(250_000);
   });
 });
 
@@ -160,7 +172,7 @@ describe('docs/experiment/prereg.md', () => {
       '+10 percentage points', '5 seconds', 'half of the cards area', '1 second', 'clicks a featured card',
       '30 minutes', 'completed Berlin day', 'first decision is final', 'Global Privacy Control',
       'Do Not Track', 'views, not people', '390 to 470', 'aa-v1.1', 'prereg-final', 'prereg-v1.1',
-      'Threat model', '500', `Pre-registration hash: ${preregHash()}`,
+      'Threat model', 'At most 200 counted entry views per Berlin day', `Pre-registration hash: ${preregHash()}`,
     ];
     for (const phrase of required) expect(doc, phrase).toContain(phrase);
   });

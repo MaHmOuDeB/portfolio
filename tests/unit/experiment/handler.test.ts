@@ -9,6 +9,7 @@ import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
 import { RedisUnavailable, type RedisRest } from '@/lib/experiment/redis-rest';
 import { writeClosed } from '@/lib/experiment/store';
+import { COMMANDS_PER_FULL_VIEW } from './budget';
 
 const sdk = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@vercel/edge-config', () => ({
@@ -357,12 +358,17 @@ describe('7. address and rate limit', () => {
     expect(r.status).toBe(429);
   });
 
-  it('only entry batches are rate limited: a later batch past the limit still counts', async () => {
+  it('every batch is rate limited, later batches too: one past the limit is 429 and writes nothing', async () => {
     const s = setup();
     await s.post(body(['entry'], { pv: pvOf(1) }));
-    for (let n = 2; n <= 31; n++) await s.post(body(['entry'], { pv: pvOf(n) }));
+    for (let n = 2; n <= 30; n++) await s.post(body(['entry'], { pv: pvOf(n) }));
     const r = await s.post(body(['inview'], { pv: pvOf(1) }));
-    expect(r.json).toEqual(ok([['inview', 'counted']], { viewN: 1 }));
+    expect(r).toMatchObject({ status: 429, text: '' });
+    expect((await s.hash())['t:a:inview']).toBeUndefined();
+    // rate_limited counts excluded entry views, so a limited later batch records no rejection.
+    expect((await s.hash())['r:rate_limited']).toBeUndefined();
+    s.advance(60_000);
+    expect((await s.post(body(['inview'], { pv: pvOf(1) }))).json).toEqual(ok([['inview', 'counted']], { viewN: 1 }));
   });
 
   it('production with no address header gives misconfigured, with no write', async () => {
@@ -716,22 +722,22 @@ describe('the command budget', () => {
     return { each, total: each.reduce((a, b) => a + b, 0), s };
   }
 
-  it('a full 7-event view in 4 requests costs 33 commands', async () => {
+  it(`a full 7-event view in 4 requests costs ${COMMANDS_PER_FULL_VIEW} commands`, async () => {
     const { each, total } = await measure([{ events: ['entry'] }, { events: ['inview'] }, { events: ['engaged'] }, { events: ['card', 'secondary', 'cv', 'contact'] }]);
-    expect(each).toEqual([9, 5, 5, 14]);
-    expect(total).toBe(33);
+    expect(each).toEqual([9, 7, 7, 16]);
+    expect(total).toBe(COMMANDS_PER_FULL_VIEW);
   });
 
-  it('a full view in one flush costs 28; in 7 single requests, 39', async () => {
+  it('a full view in one flush costs 28; in 7 single requests, 51', async () => {
     const all: EventType[] = ['entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'];
     expect((await measure([{ events: all }])).total).toBe(28);
-    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(39);
+    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(51);
   });
 
-  it('a bot-refused entry costs 6; a re-sent one 4; its later batch 2', async () => {
+  it('a bot-refused entry costs 6; a re-sent one 4; its later batch 4', async () => {
     const bot = { 'user-agent': 'Googlebot/2.1' };
     const { each } = await measure([{ events: ['entry'], headers: bot }, { events: ['entry'], headers: bot }, { events: ['inview', 'card'] }]);
-    expect(each).toEqual([6, 4, 2]);
+    expect(each).toEqual([6, 4, 4]);
   });
 
   it('a rate-limited entry costs 2 (4 for the first, which records the rejection); a refusal before the store costs 0', async () => {

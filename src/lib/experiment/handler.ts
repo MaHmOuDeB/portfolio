@@ -12,8 +12,8 @@
 //   5. A page from another namespace (open across a phase switch): stale-namespace.
 //   6. Before the calibration (or A/B) start: not-started; the A/B at its planned end: ended.
 //   7. Address and rate limit, before any Edge Config read: the bucket is the HMAC of the IPv4
-//      address or IPv6 /64, never the address. Only a batch with an entry is limited: a later
-//      batch counts nothing without a counted entry and costs no more to serve than to refuse.
+//      address or IPv6 /64, never the address. Every batch counts against the limit, so a flood
+//      of any kind is cut off at 2 commands a request (the store's free quota is finite).
 //   8. The closed marker (read with the view's claims): ended.
 //   9. Flags: paused or malformed: paused. A read error is logged and counting goes on.
 //  10. The entry: claimed first (a re-sent entry records nothing), then bot, internal, self and a
@@ -122,7 +122,12 @@ function ownOrigin(request: Request): string {
   return host ? `${url.protocol}//${host.toLowerCase()}` : url.origin;
 }
 
-/** x-real-ip, else the first x-forwarded-for entry; both are set by Vercel's edge. */
+/**
+ * x-real-ip, else the first x-forwarded-for entry. Vercel's edge overwrites x-forwarded-for with the
+ * client's address (documented); that x-real-ip always carries the same address on Vercel is
+ * assumed, not verified. Under `next start` both are client-controlled, which matters only outside
+ * production, where nothing is written except to the loopback fake.
+ */
 function clientAddress(request: Request): string | null {
   const real = request.headers.get('x-real-ip')?.trim();
   if (real) return real;
@@ -204,21 +209,20 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     const [first, ...rest] = batch.events;
     const entry = first!.type === 'entry' ? first! : null;
     const later: EventType[] = (entry === null ? batch.events : rest).map((e) => e.type);
-    if (entry !== null) {
-      const key = env.ratelimitHmacKey ?? (localKey ??= randomBytes(32));
-      const bucketHash = createHmac('sha256', key).update(bucket).digest('hex');
-      const limit = await rateLimit(write, {
-        bucketHash,
-        minute: Math.floor(nowMs / 60_000),
-        limit: config.rateLimit.perMinute,
-        ttlSeconds: config.rateLimit.keyTtlSeconds,
-      });
-      if (limit === 'limited-first') {
-        await recordRejection(write, { ns: batch.ns, reason: 'rate_limited', day });
-        throw new Stop(429, null, 'rejected', 'rate_limited');
-      }
-      if (limit === 'limited') throw new Stop(429, null, 'refused', 'rate_limited');
+    const key = env.ratelimitHmacKey ?? (localKey ??= randomBytes(32));
+    const bucketHash = createHmac('sha256', key).update(bucket).digest('hex');
+    const limit = await rateLimit(write, {
+      bucketHash,
+      minute: Math.floor(nowMs / 60_000),
+      limit: config.rateLimit.perMinute,
+      ttlSeconds: config.rateLimit.keyTtlSeconds,
+    });
+    // rate_limited counts excluded entry views, so only a batch that carries an entry records it.
+    if (limit === 'limited-first' && entry !== null) {
+      await recordRejection(write, { ns: batch.ns, reason: 'rate_limited', day });
+      throw new Stop(429, null, 'rejected', 'rate_limited');
     }
+    if (limit !== 'ok') throw new Stop(429, null, 'refused', 'rate_limited');
 
     // 8. Closed (read together with the view's claims).
     const view = await readView(write, { ns: batch.ns, pv: batch.pv, closed: true, expiry: entry === null });

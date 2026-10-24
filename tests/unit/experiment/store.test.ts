@@ -144,7 +144,7 @@ describe('claimEntry and countEntry (claim first, then check, then count)', () =
       await recordRejection(redis, { ns: NS, reason: 'bot', day: DAY });
       return 'bot';
     }
-    const ceiling = await countDailyEntry(redis, { ns: NS, day: DAY, ceiling: o.ceiling ?? 500 });
+    const ceiling = await countDailyEntry(redis, { ns: NS, day: DAY, ceiling: o.ceiling ?? 200 });
     if (ceiling !== 'ok') {
       if (ceiling === 'ceiling-first') await recordRejection(redis, { ns: NS, reason: 'ceiling', day: DAY });
       return 'ceiling';

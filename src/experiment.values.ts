@@ -42,8 +42,8 @@ export const EXPERIMENT = {
   pvTtlSeconds: 1800,
   // 30 events a minute per IPv4 address or IPv6 /64; the key expires after 120 seconds.
   rateLimit: { perMinute: 30, keyTtlSeconds: 120, ipv6PrefixBits: 64 },
-  // At most 500 counted entry views per Berlin day.
-  dailyEntryCeiling: 500,
+  // At most 200 counted entry views per Berlin day.
+  dailyEntryCeiling: 200,
   // How long the route caches the pause flag.
   flagsCacheSeconds: 45,
   // Pages regenerate every 5 minutes; the client calls data stale after 15.

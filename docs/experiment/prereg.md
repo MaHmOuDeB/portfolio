@@ -151,8 +151,9 @@ view once and in order. A click counts for its view only inside that window.
 
 ## The daily ceiling
 
-At most 500 counted entry views per completed Berlin day. After that the reason is "ceiling" and
-nothing more is counted that day. That is about 100 times the traffic I expect.
+At most 200 counted entry views per Berlin day. After that the reason is "ceiling" and nothing
+more is counted that day. That is about 50 times the traffic I expect, and low enough that a month
+at the ceiling uses under half of the store's free monthly command allowance.
 
 ## Expected detectable effect
 
@@ -197,4 +198,4 @@ For `prereg-v1.1` after a failed A/A the edits are: `prereg: { version: 'v1.1', 
 'prereg-v1.1' }`, `namespace: 'aa-v1.1'`, `calibration.startedOn` set to the restart, any
 corrected design value, and a new hash in this page with the reason.
 
-Pre-registration hash: b5bbae18474cedb760bc78d4b676ba8891db52ee179e16eeed995ee861d5bfcb
+Pre-registration hash: e21dedcac7a27fffb92d9bb1f46d580ff5fe75ea28ea2d012903369493d51c39
