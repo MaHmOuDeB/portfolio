@@ -4,22 +4,27 @@
 // expiry except the counter hash and the closed marker, which hold no per-visitor data.
 //
 // An entry is claimed BEFORE it is checked, so a re-sent entry records nothing twice. The event
-// route (POST /api/e) calls, in this order, for a batch whose first item is the entry:
-//   1. claimEntry: SET claim '-' NX EX ttl. 'duplicate' -> stop: record no rejection row, no
-//      daily-ceiling increment and no count (the item's outcome is 'duplicate').
-//   2. The entry checks: bot, internal, self, a client reject. The first that applies ->
+// route (POST /api/e) calls, in this order, for one batch (one view's events, entry first):
+//   1. rateLimit, for a batch that carries an entry.
+//   2. readView: one MGET of the closed marker and every claim of the view (plus, for a batch
+//      without an entry, PEXPIRETIME of the entry claim in the same pipeline). A closed marker
+//      stops the batch.
+//   3. For the entry: claimEntry: SET claim '-' NX EX ttl. 'duplicate' -> record no rejection
+//      row, no daily-ceiling increment and no count (the item's outcome is 'duplicate').
+//   4. The entry checks: bot, internal, self, a client reject. The first that applies ->
 //      recordRejection(reason) and stop.
-//   3. countDailyEntry: 'ceiling-first' -> recordRejection('ceiling'); 'ceiling-first' and
+//   5. countDailyEntry: 'ceiling-first' -> recordRejection('ceiling'); 'ceiling-first' and
 //      'ceiling' -> stop.
-//   4. countEntry: one MULTI that increments the total and day fields and promotes the claim from
-//      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 1).
-//   5. recordEvent for each later item, in order.
+//   6. countEntry: one MULTI that increments the total and day fields and promotes the claim from
+//      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 3).
+//   7. recordLater for the batch's later items, in order: their claims in one pipeline, their
+//      counts in one transaction.
 // A claim left at '-' (a rejected, ceiling-refused or crashed entry) equals no arm, so the view's
 // later events are 'orphan' and nothing is counted for a view whose entry was not.
 import type { Arm } from '../../experiment.values.ts';
 import { EVENT_TYPES, PREREQUISITES, REJECT_REASONS, type EventType, type RejectReason } from './events.ts';
 import { fieldName, keys, parseField, type IpBucket } from './keys.ts';
-import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
+import { RedisUnavailable, type RedisCommand, type RedisRest } from './redis-rest.ts';
 
 export type RecordResult =
   | { outcome: 'counted'; arm: Arm; total: number; dayTotal: number }
@@ -74,34 +79,137 @@ export async function claimEntry(r: RedisRest, i: { ns: string; pv: string; ttlS
 /**
  * Counts a claimed entry and promotes its claim to the arm, in one MULTI/EXEC. KEEPTTL keeps the
  * expiry claimEntry set, so every key of the view still dies at most ttl after the view opened.
+ * With `withExpiry` the same transaction also reads the claim's absolute expiry (PEXPIRETIME), for
+ * the batch's later items.
  */
 export async function countEntry(
   r: RedisRest,
-  i: { ns: string; pv: string; arm: Arm; day: string },
-): Promise<Extract<RecordResult, { outcome: 'counted' }>> {
+  i: { ns: string; pv: string; arm: Arm; day: string; withExpiry?: boolean },
+): Promise<Extract<RecordResult, { outcome: 'counted' }> & { expiresAt?: number }> {
   const counters = keys.counters(i.ns);
-  const [total, dayTotal, promoted] = await r.transaction([
+  const claim = keys.claim(i.ns, i.pv, 'entry');
+  const replies = await r.transaction([
     ['HINCRBY', counters, fieldName({ kind: 'total', arm: i.arm, metric: 'entry' }), 1],
     ['HINCRBY', counters, fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: 'entry' }), 1],
-    ['SET', keys.claim(i.ns, i.pv, 'entry'), i.arm, 'XX', 'KEEPTTL'],
+    ['SET', claim, i.arm, 'XX', 'KEEPTTL'],
+    ...(i.withExpiry ? [['PEXPIRETIME', claim] as const] : []),
   ]);
+  const [total, dayTotal, promoted] = replies;
   // null: the claim expired between claimEntry and here; the entry still counts, its later events
   // are orphans.
   if (promoted !== 'OK' && promoted !== null) throw new RedisUnavailable('SET returned an unexpected reply');
-  return { outcome: 'counted', arm: i.arm, total: int(total, 'HINCRBY'), dayTotal: int(dayTotal, 'HINCRBY') };
+  const counted = { outcome: 'counted' as const, arm: i.arm, total: int(total, 'HINCRBY'), dayTotal: int(dayTotal, 'HINCRBY') };
+  return i.withExpiry ? { ...counted, expiresAt: promoted === null ? -2 : int(replies[3], 'PEXPIRETIME') } : counted;
 }
 
 /**
- * Counts one event of one view, at most once.
- * - An entry is claimEntry then countEntry with no checks between (the event route runs its checks
- *   between the two; see the header).
- * - A later event:
- *   1. reads its prerequisites' claims and the entry claim's absolute expiry. A missing claim, a
- *      pending entry claim ('-') or a claim of another group gives `orphan`. So does an entry claim
- *      without an expiry: a later claim is never written without one.
- *   2. claims with `SET NX PXAT <entry expiry>`, so every key of a view is gone when the entry
- *      claim is (at most ttl after the view opened). A null reply means `duplicate`.
- *   3. increments the total and the day field in one transaction.
+ * What the store holds for one view, read once per batch: the closed marker (when asked), the raw
+ * value of each existing claim, and (when asked) the entry claim's absolute expiry in ms (-2: no
+ * claim, -1: no expiry; null: not read).
+ */
+export type ViewSnapshot = {
+  closed: ClosedMarker | null;
+  claims: Partial<Record<EventType, string>>;
+  entryExpiry: number | null;
+};
+
+/** One MGET of the closed marker and the view's claims; with `expiry`, plus PEXPIRETIME in one pipeline. */
+export async function readView(r: RedisRest, i: { ns: string; pv: string; closed: boolean; expiry: boolean }): Promise<ViewSnapshot> {
+  const claimKeys = EVENT_TYPES.map((t) => keys.claim(i.ns, i.pv, t));
+  const mget: RedisCommand = ['MGET', ...(i.closed ? [keys.closed(i.ns)] : []), ...claimKeys];
+  let values: unknown;
+  let expiry: unknown = null;
+  if (i.expiry) [values, expiry] = await r.pipeline([mget, ['PEXPIRETIME', keys.claim(i.ns, i.pv, 'entry')]]);
+  else values = await r.command(mget);
+  const expected = claimKeys.length + (i.closed ? 1 : 0);
+  if (!Array.isArray(values) || values.length !== expected) throw new RedisUnavailable('MGET returned an unexpected reply');
+  const rest = i.closed ? values.slice(1) : values;
+  const claims: ViewSnapshot['claims'] = {};
+  EVENT_TYPES.forEach((t, k) => {
+    const v: unknown = rest[k];
+    if (v === null) return;
+    if (typeof v !== 'string') throw new RedisUnavailable('MGET returned an unexpected reply');
+    claims[t] = v;
+  });
+  return {
+    closed: i.closed ? parseClosed(values[0]) : null,
+    claims,
+    entryExpiry: i.expiry ? int(expiry, 'PEXPIRETIME') : null,
+  };
+}
+
+/** The entry claim's absolute expiry in ms (-2: no claim, -1: no expiry). */
+export async function readEntryExpiry(r: RedisRest, i: { ns: string; pv: string }): Promise<number> {
+  return int(await r.command(['PEXPIRETIME', keys.claim(i.ns, i.pv, 'entry')]), 'PEXPIRETIME');
+}
+
+/**
+ * Counts a batch's later items (not the entry) against one snapshot, in order, each at most once.
+ * - An item is an orphan unless the entry claim holds this arm (a pending '-', a missing claim or
+ *   another group's claim never does), the entry claim has an expiry, and each prerequisite is
+ *   claimed for this arm in the snapshot or is an earlier, non-orphan item of this batch.
+ * - An item already claimed in the snapshot is a duplicate, with no write.
+ * - The rest are claimed in one pipeline (`SET NX PXAT <entry expiry>`, so every key of a view is
+ *   gone when the entry claim is); a null reply is a duplicate. The claimed items are then counted
+ *   (total and day field) in one transaction. A crash between the two loses events, never counts
+ *   one twice.
+ * `counted` names items counted earlier in this request (the batch's entry).
+ */
+export async function recordLater(
+  r: RedisRest,
+  i: { ns: string; pv: string; arm: Arm; day: string; view: ViewSnapshot; items: EventType[]; counted?: readonly EventType[] },
+): Promise<{ type: EventType; result: RecordResult }[]> {
+  const satisfied = new Set<EventType>(i.counted ?? []);
+  for (const [type, value] of Object.entries(i.view.claims) as [EventType, string][]) {
+    if (value === i.arm) satisfied.add(type);
+  }
+  const expiry = i.view.entryExpiry;
+  // A pending entry claim equals no arm, so a view whose entry was not counted counts nothing.
+  const live = (i.arm as string) !== PENDING && satisfied.has('entry') && expiry !== null && expiry > 0;
+  const results = new Map<EventType, RecordResult>();
+  const toClaim: EventType[] = [];
+  for (const type of i.items) {
+    if (!live || !PREREQUISITES[type].every((p) => satisfied.has(p))) {
+      results.set(type, { outcome: 'orphan' });
+      continue;
+    }
+    if (i.view.claims[type] !== undefined) {
+      results.set(type, { outcome: 'duplicate' });
+    } else {
+      toClaim.push(type);
+    }
+    satisfied.add(type);
+  }
+  if (toClaim.length > 0) {
+    const sets = await r.pipeline(toClaim.map((type) => ['SET', keys.claim(i.ns, i.pv, type), i.arm, 'NX', 'PXAT', expiry!]));
+    const claimed = toClaim.filter((type, k) => {
+      if (sets[k] === null) {
+        results.set(type, { outcome: 'duplicate' });
+        return false;
+      }
+      if (sets[k] !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
+      return true;
+    });
+    if (claimed.length > 0) {
+      const counters = keys.counters(i.ns);
+      const counts = await r.transaction(
+        claimed.flatMap((type): RedisCommand[] => [
+          ['HINCRBY', counters, fieldName({ kind: 'total', arm: i.arm, metric: type }), 1],
+          ['HINCRBY', counters, fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: type }), 1],
+        ]),
+      );
+      claimed.forEach((type, k) => {
+        results.set(type, { outcome: 'counted', arm: i.arm, total: int(counts[2 * k], 'HINCRBY'), dayTotal: int(counts[2 * k + 1], 'HINCRBY') });
+      });
+    }
+  }
+  return i.items.map((type) => ({ type, result: results.get(type)! }));
+}
+
+/**
+ * Counts one event of one view, at most once: an entry is claimEntry then countEntry with no checks
+ * between (the event route runs its checks between the two; see the header); a later event is
+ * readView then recordLater for that one item.
  */
 export async function recordEvent(
   r: RedisRest,
@@ -109,28 +217,12 @@ export async function recordEvent(
 ): Promise<RecordResult> {
   if (i.type === 'entry') {
     if ((await claimEntry(r, i)) === 'duplicate') return { outcome: 'duplicate' };
-    return countEntry(r, i);
+    const { outcome, arm, total, dayTotal } = await countEntry(r, i);
+    return { outcome, arm, total, dayTotal };
   }
-  const claim = (type: EventType) => keys.claim(i.ns, i.pv, type);
-  const prerequisites = PREREQUISITES[i.type];
-  const [values, entryExpiry] = await r.pipeline([
-    ['MGET', ...prerequisites.map(claim)],
-    ['PEXPIRETIME', claim('entry')],
-  ]);
-  if (!Array.isArray(values) || values.length !== prerequisites.length) throw new RedisUnavailable('MGET returned an unexpected reply');
-  // A pending entry claim equals no arm, so a view whose entry was not counted counts nothing.
-  if ((i.arm as string) === PENDING || !values.every((v) => v === i.arm)) return { outcome: 'orphan' };
-  const at = int(entryExpiry, 'PEXPIRETIME');
-  // -2: the entry claim expired since the MGET; -1: it has no expiry.
-  if (at <= 0) return { outcome: 'orphan' };
-  const set = await r.command(['SET', claim(i.type), i.arm, 'NX', 'PXAT', at]);
-  if (set === null) return { outcome: 'duplicate' };
-  if (set !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
-  const [total, dayTotal] = await increment(r, keys.counters(i.ns), [
-    fieldName({ kind: 'total', arm: i.arm, metric: i.type }),
-    fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: i.type }),
-  ]);
-  return { outcome: 'counted', arm: i.arm, total, dayTotal };
+  const view = await readView(r, { ns: i.ns, pv: i.pv, closed: false, expiry: true });
+  const [only] = await recordLater(r, { ns: i.ns, pv: i.pv, arm: i.arm, day: i.day, view, items: [i.type] });
+  return only!.result;
 }
 
 /** Counts one excluded entry view under its reason, in total and for the day. */
@@ -164,26 +256,36 @@ export async function rateLimit<T extends string>(
   return n === i.limit + 1 ? 'limited-first' : 'limited';
 }
 
-/** One counted entry view against the day's ceiling: `ceiling + 1` gives `ceiling-first`. */
-export async function countDailyEntry(
+/**
+ * One entry view, past its checks, against the day's ceiling: `ceiling + 1` gives `ceiling-first`.
+ * `n` is the day's count across both groups, so `n === 1` marks the day's first entry.
+ */
+export async function countDailyEntryN(
   r: RedisRest,
   i: { ns: string; day: string; ceiling: number },
-): Promise<'ok' | 'ceiling-first' | 'ceiling'> {
+): Promise<{ verdict: 'ok' | 'ceiling-first' | 'ceiling'; n: number }> {
   const key = keys.ceiling(i.ns, i.day);
   const [count] = await r.transaction([
     ['INCR', key],
     ['EXPIRE', key, CEILING_TTL_SECONDS, 'NX'],
   ]);
   const n = int(count, 'INCR');
-  if (n <= i.ceiling) return 'ok';
-  return n === i.ceiling + 1 ? 'ceiling-first' : 'ceiling';
+  const verdict = n <= i.ceiling ? 'ok' : n === i.ceiling + 1 ? 'ceiling-first' : 'ceiling';
+  return { verdict, n };
+}
+
+/** countDailyEntryN's verdict alone. */
+export async function countDailyEntry(
+  r: RedisRest,
+  i: { ns: string; day: string; ceiling: number },
+): Promise<'ok' | 'ceiling-first' | 'ceiling'> {
+  return (await countDailyEntryN(r, i)).verdict;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The closed marker, or null. A malformed marker throws: it is never read as "still open". */
-export async function readClosed(r: RedisRest, ns: string): Promise<ClosedMarker | null> {
-  const raw = await r.command(['GET', keys.closed(ns)]);
+/** A raw closed-marker value (a GET or MGET reply), or null. A malformed marker throws. */
+function parseClosed(raw: unknown): ClosedMarker | null {
   if (raw === null) return null;
   let value: unknown = null;
   try {
@@ -196,6 +298,11 @@ export async function readClosed(r: RedisRest, ns: string): Promise<ClosedMarker
     if ((kind === 'decision' || kind === 'aa-failed') && typeof day === 'string' && DAY.test(day)) return { kind, day };
   }
   throw new CorruptCounters('closed marker');
+}
+
+/** The closed marker, or null. A malformed marker throws: it is never read as "still open". */
+export async function readClosed(r: RedisRest, ns: string): Promise<ClosedMarker | null> {
+  return parseClosed(await r.command(['GET', keys.closed(ns)]));
 }
 
 /** Writes the closed marker once (SET NX, no expiry); false when one already exists. */

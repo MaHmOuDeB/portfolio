@@ -7,11 +7,14 @@ import {
   CorruptCounters,
   claimEntry,
   countDailyEntry,
+  countDailyEntryN,
   countEntry,
   rateLimit,
   readClosed,
   readCounters,
+  readView,
   recordEvent,
+  recordLater,
   recordRejection,
   writeClosed,
 } from '@/lib/experiment/store';
@@ -426,4 +429,118 @@ describe('the closed marker', () => {
       await expect(readClosed(redis, NS)).rejects.toBeInstanceOf(CorruptCounters);
     },
   );
+});
+
+describe('readView and recordLater (one snapshot read per batch)', () => {
+  it('readView reads the closed marker and every claim of the view in one MGET', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    await recordEvent(redis, ev('inview'));
+    const command = vi.spyOn(redis, 'command');
+    const pipeline = vi.spyOn(redis, 'pipeline');
+    const view = await readView(redis, { ns: NS, pv: PV, closed: true, expiry: false });
+    expect(view).toEqual({ closed: null, claims: { entry: 'a', inview: 'a' }, entryExpiry: null });
+    expect(command).toHaveBeenCalledTimes(1);
+    expect(command.mock.calls[0]![0]).toEqual(['MGET', keys.closed(NS), ...EVENT_TYPES.map((t) => keys.claim(NS, PV, t))]);
+    expect(pipeline).not.toHaveBeenCalled();
+  });
+
+  it('readView with expiry adds PEXPIRETIME of the entry claim in the same pipeline', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    const pipeline = vi.spyOn(redis, 'pipeline');
+    await expect(readView(redis, { ns: NS, pv: PV, closed: false, expiry: true })).resolves.toEqual({
+      closed: null,
+      claims: { entry: 'a' },
+      entryExpiry: 1_800_000,
+    });
+    expect(pipeline).toHaveBeenCalledTimes(1);
+    expect(pipeline.mock.calls[0]![0]).toHaveLength(2);
+  });
+
+  it('readView parses the closed marker and fails closed on a corrupt one', async () => {
+    const { redis } = setup();
+    await writeClosed(redis, NS, { kind: 'decision', day: DAY });
+    await expect(readView(redis, { ns: NS, pv: PV, closed: true, expiry: false })).resolves.toMatchObject({ closed: { kind: 'decision', day: DAY } });
+    const other = setup().redis;
+    await other.command(['SET', keys.closed(NS), 'open']);
+    await expect(readView(other, { ns: NS, pv: PV, closed: true, expiry: false })).rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it('recordLater counts a batch in order: claims in one pipeline, counts in one transaction', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
+    const pipeline = vi.spyOn(redis, 'pipeline');
+    const transaction = vi.spyOn(redis, 'transaction');
+    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card', 'cv'] });
+    expect(results).toEqual([
+      { type: 'inview', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
+      { type: 'card', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
+      { type: 'cv', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
+    ]);
+    expect(pipeline).toHaveBeenCalledTimes(1);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(transaction.mock.calls[0]![0]).toHaveLength(6);
+  });
+
+  it('an item whose prerequisite is neither claimed nor earlier in the batch is an orphan and writes nothing', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
+    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['card', 'engaged'] });
+    expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
+      ['card', 'orphan'],
+      ['engaged', 'counted'],
+    ]);
+    expect(redis.entries().some((e) => e.key === keys.claim(NS, PV, 'card'))).toBe(false);
+  });
+
+  it('an item already claimed in the snapshot is a duplicate without a write', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    await recordEvent(redis, ev('inview'));
+    const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
+    const pipeline = vi.spyOn(redis, 'pipeline');
+    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview'] });
+    expect(results).toEqual([{ type: 'inview', result: { outcome: 'duplicate' } }]);
+    expect(pipeline).not.toHaveBeenCalled();
+  });
+
+  it('a pending, missing, foreign or expiry-less entry claim makes every item an orphan', async () => {
+    for (const claims of [{}, { entry: '-' }, { entry: 'b' }] as const) {
+      const { redis } = setup();
+      const results = await recordLater(redis, {
+        ns: NS, pv: PV, arm: 'a', day: DAY, view: { closed: null, claims, entryExpiry: 1_800_000 }, items: ['inview'],
+      });
+      expect(results).toEqual([{ type: 'inview', result: { outcome: 'orphan' } }]);
+      expect(redis.entries()).toEqual([]);
+    }
+    const { redis } = setup();
+    for (const entryExpiry of [null, -1, -2]) {
+      const results = await recordLater(redis, {
+        ns: NS, pv: PV, arm: 'a', day: DAY, view: { closed: null, claims: { entry: 'a' }, entryExpiry }, items: ['inview'],
+      });
+      expect(results).toEqual([{ type: 'inview', result: { outcome: 'orphan' } }]);
+    }
+  });
+
+  it('countEntry with expiry returns the entry claim’s absolute expiry in the same transaction', async () => {
+    const { redis } = setup();
+    await claimEntry(redis, { ns: NS, pv: PV, ttlSeconds: TTL });
+    const transaction = vi.spyOn(redis, 'transaction');
+    await expect(countEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, withExpiry: true })).resolves.toEqual({
+      outcome: 'counted', arm: 'a', total: 1, dayTotal: 1, expiresAt: 1_800_000,
+    });
+    expect(transaction.mock.calls[0]![0]).toHaveLength(4);
+  });
+});
+
+describe('countDailyEntryN', () => {
+  it('gives the day count across groups with the verdict', async () => {
+    const { redis } = setup();
+    await expect(countDailyEntryN(redis, { ns: NS, day: DAY, ceiling: 1 })).resolves.toEqual({ verdict: 'ok', n: 1 });
+    await expect(countDailyEntryN(redis, { ns: NS, day: DAY, ceiling: 1 })).resolves.toEqual({ verdict: 'ceiling-first', n: 2 });
+    await expect(countDailyEntryN(redis, { ns: NS, day: DAY, ceiling: 1 })).resolves.toEqual({ verdict: 'ceiling', n: 3 });
+  });
 });
