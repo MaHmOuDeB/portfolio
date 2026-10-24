@@ -31,13 +31,13 @@ describe('live fixtures', () => {
     expect(months(ab.abStartedOn!, ab.plannedEnd)).toBeGreaterThan(5.9);
     expect(months(ab.abStartedOn!, ab.plannedEnd)).toBeLessThan(6.1);
     const failed = liveFixture('aa-failed', 'enough-data', 'fresh').aaFailed!;
-    expect(Date.parse(failed.restartsOn)).toBeGreaterThan(Date.parse(failed.on));
+    expect(Date.parse(failed.restartsOn!)).toBeGreaterThan(Date.parse(failed.on));
     const paused = FRESHNESS.paused;
     if (paused.kind !== 'paused') throw new Error('expected a pause');
     // The pause began after the A/B start and after the A/A failure, and the A/A restart is later still.
     expect(Date.parse(paused.pausedOn)).toBeGreaterThan(Date.parse(ab.abStartedOn!));
     expect(Date.parse(paused.pausedOn)).toBeGreaterThan(Date.parse(failed.on));
-    expect(Date.parse(failed.restartsOn)).toBeGreaterThan(Date.parse(paused.pausedOn));
+    expect(Date.parse(failed.restartsOn!)).toBeGreaterThan(Date.parse(paused.pausedOn));
     expect(FRESHNESS_KINDS).toContain('paused');
   });
 

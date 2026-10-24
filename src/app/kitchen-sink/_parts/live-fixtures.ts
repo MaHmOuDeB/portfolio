@@ -127,6 +127,8 @@ export function liveFixture(phase: LivePhase, data: DataAmount, freshness: Fresh
     capPerArm: phase === 'inconclusive' && data === 'enough-data' ? 176 : 230,
     projectedHalfWidthAtCap: 12,
     plannedEnd: PLANNED_END[phase],
+    // Before data, calibrating and a restarted calibration can end no sooner than this; the A/B has a fixed end.
+    plannedEndKind: phase === 'before-data' || phase === 'calibration' || phase === 'aa-failed' ? 'earliest' : 'fixed',
     abStartedOn: phase === 'ab' ? '2026-09-15T08:00:00Z' : undefined,
     // Counted when the beacon returned, after the last look (176 per group): a little beyond it.
     yourViewN: phase === 'ab' && data === 'enough-data' ? 184 : undefined,

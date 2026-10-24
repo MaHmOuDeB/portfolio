@@ -20,14 +20,14 @@ type Props = {
   /** The current interval; the dot sits at `estimate`, or mid-interval without one. */
   interval?: { lower: number; upper: number; estimate?: number };
   /** Draws the collecting form instead. `due`: the test is running, so a next look will come. */
-  collecting?: { nSmaller: number; plannedEnd: string; due?: boolean };
+  collecting?: { nSmaller: number; plannedEnd: string; plannedEndKind: 'fixed' | 'earliest'; due?: boolean };
   /**
    * What the interval is: "now" while the test runs, "final" once it is decided (the interval does not
    * move any more), "last" while it is paused (frozen at the last look).
    */
   label?: 'now' | 'final' | 'last';
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
-  refs?: readonly DerivedRef[];
+  refs: readonly DerivedRef[];
 };
 
 const G = glyphGeometry('large');
@@ -82,11 +82,13 @@ function CollectingAxis({ refs }: { refs: readonly DerivedRef[] }) {
 function Collecting({
   nSmaller,
   plannedEnd,
+  plannedEndKind,
   due,
   refs,
 }: {
   nSmaller: number;
   plannedEnd: string;
+  plannedEndKind: 'fixed' | 'earliest';
   due?: boolean;
   refs: readonly DerivedRef[];
 }) {
@@ -113,13 +115,13 @@ function Collecting({
       <CollectingAxis refs={refs} />
       {rule}
       <div className="mt-2">
-        <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} refs={refs} />
+        <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} plannedEndKind={plannedEndKind} refs={refs} />
       </div>
     </div>
   );
 }
 
-export function NowRow({ domain, interval, collecting, label = 'now', refs = ['live'] }: Props) {
+export function NowRow({ domain, interval, collecting, label = 'now', refs }: Props) {
   if (collecting) return <Collecting {...collecting} refs={refs} />;
   if (!interval) return null;
   const lower = Math.min(interval.lower, interval.upper);

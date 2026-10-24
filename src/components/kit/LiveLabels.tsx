@@ -4,12 +4,12 @@ import { useId } from 'react';
 import { berlinDate, updatedLabel } from '@/lib/figure/time';
 import { Derived, derivedAttr, type DerivedRef } from './Derived';
 
-type Refs = { /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */ refs?: readonly DerivedRef[] };
+type Refs = { /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */ refs: readonly DerivedRef[] };
 
 export function UpdatedLabel({
   updatedAt,
   renderedAt,
-  refs = ['live'],
+  refs,
 }: { updatedAt: string; renderedAt: string } & Refs) {
   return (
     <time dateTime={updatedAt} className="text-xs text-muted" {...derivedAttr(refs)}>
@@ -22,8 +22,15 @@ export function ProgressLine({
   nSmaller,
   target,
   plannedEnd,
-  refs = ['live'],
-}: { nSmaller: number; target: number; plannedEnd: string } & Refs) {
+  plannedEndKind,
+  refs,
+}: {
+  nSmaller: number;
+  target: number;
+  plannedEnd: string;
+  /** 'earliest' during the calibration: the run can end no sooner than this. */
+  plannedEndKind: 'fixed' | 'earliest';
+} & Refs) {
   const labelId = useId();
   return (
     <div>
@@ -38,7 +45,7 @@ export function ProgressLine({
           Progress: <Derived value={nSmaller} unit="count" refs={refs} /> of{' '}
           <Derived value={target} unit="count" refs={refs} /> in the smaller group
         </span>
-        . Planned end:{' '}
+        . {plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end'}:{' '}
         <time dateTime={plannedEnd} {...derivedAttr(refs)}>
           {berlinDate(plannedEnd)}
         </time>

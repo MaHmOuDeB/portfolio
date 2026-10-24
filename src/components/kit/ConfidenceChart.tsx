@@ -23,7 +23,7 @@ type Props = {
   snapshot: LiveSnapshot;
   body: FigureBody;
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
-  refs?: readonly DerivedRef[];
+  refs: readonly DerivedRef[];
   /** One layout only (tests); omit for responsive. */
   layout?: Layout;
 };
@@ -163,7 +163,7 @@ function Overlays({ ctx, m }: { ctx: PlotContext; m: ConfidenceModel }) {
   );
 }
 
-export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }: Props) {
+export function ConfidenceChart({ id, snapshot, body, refs, layout }: Props) {
   const shown = shows(snapshot, body);
   if (shown === 'nothing') return null;
   const m = shown === 'chart' || shown === 'running' ? confidenceModel(snapshot) : null;
@@ -176,7 +176,7 @@ export function ConfidenceChart({ id, snapshot, body, refs = ['live'], layout }:
       <div data-confidence-chart={id}>
         <NowRow
           domain={[-1, 1]}
-          collecting={{ nSmaller: smallerGroup(snapshot), plannedEnd: snapshot.plannedEnd, due }}
+          collecting={{ nSmaller: smallerGroup(snapshot), plannedEnd: snapshot.plannedEnd, plannedEndKind: snapshot.plannedEndKind, due }}
           refs={refs}
         />
       </div>

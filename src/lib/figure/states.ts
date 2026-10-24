@@ -14,6 +14,8 @@
 //      enough data it cannot occur and resolves to `low-data` too.
 // Runtime `no-js` and freshness `stale` are modifiers: they never set the body.
 
+import { EXPERIMENT } from '@/experiment.config';
+
 /** Forced runtimes, for the kitchen sink and tests. `interacting` is live: data-dragging and focus. */
 export type FigureRuntime = 'default' | 'no-js' | 'error';
 export type LivePhase =
@@ -45,8 +47,8 @@ export type FigureBody =
   | 'calibration'
   | 'ab';
 
-/** Views the smaller group needs before an estimate is shown. */
-export const MIN_PER_GROUP = 50;
+/** Views the smaller group needs before an estimate is shown: the pre-registered value. */
+export const MIN_PER_GROUP: number = EXPERIMENT.minPerGroup;
 
 export const LIVE_PHASES: readonly LivePhase[] = [
   'before-data',

@@ -102,12 +102,13 @@ export function StaticSection() {
       <Specimen
         id="progress--states"
         title="Progress line"
-        note="A native progress element that names the group it counts: empty, part way and complete."
+        note="A native progress element that names the group it counts: empty, part way and complete, then the earliest end while calibrating."
       >
         <div className="grid gap-6">
-          <ProgressLine nSmaller={0} target={50} plannedEnd={PLANNED_END} refs={REFS} />
-          <ProgressLine nSmaller={12} target={50} plannedEnd={PLANNED_END} refs={REFS} />
-          <ProgressLine nSmaller={50} target={50} plannedEnd={PLANNED_END} refs={REFS} />
+          <ProgressLine nSmaller={0} target={50} plannedEnd={PLANNED_END} plannedEndKind="fixed" refs={REFS} />
+          <ProgressLine nSmaller={12} target={50} plannedEnd={PLANNED_END} plannedEndKind="fixed" refs={REFS} />
+          <ProgressLine nSmaller={50} target={50} plannedEnd={PLANNED_END} plannedEndKind="fixed" refs={REFS} />
+          <ProgressLine nSmaller={30} target={50} plannedEnd={PLANNED_END} plannedEndKind="earliest" refs={REFS} />
         </div>
       </Specimen>
     </>

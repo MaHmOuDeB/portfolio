@@ -82,9 +82,12 @@ test.describe('kitchen sink', () => {
     ]);
 
     const bars = page.locator('[data-specimen="progress--states"] progress');
-    await expect(bars).toHaveCount(3);
+    await expect(bars).toHaveCount(4);
     await expect(page.getByRole('progressbar', { name: 'Progress: 0 of 50 in the smaller group' })).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Progress: 12 of 50 in the smaller group' })).toBeVisible();
+    // The last line is a calibrating test: its end is the earliest, not a planned one.
+    await expect(page.getByRole('progressbar', { name: 'Progress: 30 of 50 in the smaller group' })).toBeVisible();
+    await expect(page.locator('[data-specimen="progress--states"]')).toContainText('Earliest end: 15.11.');
   });
 
   test('says that its data is fictional', async ({ page }) => {
