@@ -14,7 +14,7 @@
 //      enough data it cannot occur and resolves to `low-data` too.
 // Runtime `no-js` and freshness `stale` are modifiers: they never set the body.
 
-import { EXPERIMENT } from '@/experiment.config';
+import { EXPERIMENT } from '@/experiment.values';
 
 /** Forced runtimes, for the kitchen sink and tests. `interacting` is live: data-dragging and focus. */
 export type FigureRuntime = 'default' | 'no-js' | 'error';

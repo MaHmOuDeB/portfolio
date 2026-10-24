@@ -1,4 +1,4 @@
-// Plan 06 Task 3: the live kit components take their refs explicitly (a live component that forgot
+// The live kit components take their refs explicitly (a live component that forgot
 // them would silently claim 'live'), and the pre-registered values come from the config.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { ProgressLine, UpdatedLabel } from '@/components/kit/LiveLabels';
 import { LiveStateBody } from '@/components/kit/LiveStateBody';
 import { NowRow } from '@/components/kit/NowRow';
 import { PhaseLabel } from '@/components/kit/PhaseLabel';
-import { EXPERIMENT } from '@/experiment.config';
+import { EXPERIMENT } from '@/experiment.values';
 import { confidenceTable, liveFigureState, type LiveSnapshot } from '@/lib/figure/cs-band';
 import { MIN_PER_GROUP, resolveFigureBody } from '@/lib/figure/states';
 

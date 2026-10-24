@@ -28,7 +28,7 @@ import {
   type LiveSnapshot,
 } from '@/lib/figure/cs-band';
 import { formatNumber, formatSignedNumber } from '@/lib/figure/format';
-import { EXPERIMENT } from '@/experiment.config';
+import { EXPERIMENT } from '@/experiment.values';
 import { MIN_PER_GROUP, type FigureBody } from '@/lib/figure/states';
 import { berlinDate } from '@/lib/figure/time';
 import { ConfidenceChart } from './ConfidenceChart';

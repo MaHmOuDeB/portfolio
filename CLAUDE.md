@@ -97,8 +97,8 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 - Computed, simulated and live numbers carry `data-derived`, always written with
   `derivedAttr(refs)` (or the `Derived` component) and never empty. Refs are fact ids,
   `source:<id>`, `simulated`, `live` or `build`. The truth audit reports an empty or unknown ref.
-- Kit components that print numbers take their refs from the caller. Live components use
-  `['live']`, kitchen-sink demos `['simulated']`.
+- Kit components that print numbers take their refs from the caller, and `refs` is required on the
+  live components (no default). Live components use `['live']`, kitchen-sink demos `['simulated']`.
 - Prose lives in MDX under `content/`.
 - Negative numbers use the true minus sign (U+2212). Zero prints "0", never "+0" or "-0". Every
   "±" names its level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
