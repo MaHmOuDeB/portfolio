@@ -76,6 +76,8 @@ export function createRedisRest(o: {
           method: 'POST',
           headers: { Authorization: `Bearer ${o.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          // A redirect would re-send the body (key names, per-view ids) to another host.
+          redirect: 'error',
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(timeoutMs)]),
         });
       } catch {

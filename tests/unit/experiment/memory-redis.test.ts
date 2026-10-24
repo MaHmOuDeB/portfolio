@@ -51,6 +51,27 @@ describe('createMemoryRedis', () => {
     expect(r.entries()).toEqual([]);
   });
 
+  it('SET XX writes only an existing key, and KEEPTTL keeps its expiry', async () => {
+    const c = clock(0);
+    const r = createMemoryRedis({ now: c.now });
+    await expect(r.command(['SET', 'k', 'b', 'XX', 'KEEPTTL'])).resolves.toBeNull();
+    await expect(r.command(['GET', 'k'])).resolves.toBeNull();
+    await r.command(['SET', 'k', '-', 'NX', 'EX', 1800]);
+    c.advance(10_000);
+    await expect(r.command(['SET', 'k', 'a', 'XX', 'KEEPTTL'])).resolves.toBe('OK');
+    await expect(r.command(['GET', 'k'])).resolves.toBe('a');
+    await expect(r.command(['PEXPIRETIME', 'k'])).resolves.toBe(1_800_000);
+    await expect(r.command(['SET', 'k', 'c', 'XX'])).resolves.toBe('OK');
+    await expect(r.command(['PEXPIRETIME', 'k'])).resolves.toBe(-1);
+  });
+
+  it('SET NX with XX, or KEEPTTL with an expiry, is a syntax error', async () => {
+    const r = createMemoryRedis();
+    await expect(r.command(['SET', 'k', 'a', 'NX', 'XX'])).rejects.toBeInstanceOf(RedisUnavailable);
+    await expect(r.command(['SET', 'k', 'a', 'KEEPTTL', 'EX', 1])).rejects.toBeInstanceOf(RedisUnavailable);
+    await expect(r.command(['SET', 'k', 'a', 'PXAT', 99_999_999_999, 'KEEPTTL'])).rejects.toBeInstanceOf(RedisUnavailable);
+  });
+
   it('SET with both EX and PXAT, or a non-positive expiry, is a syntax error', async () => {
     const r = createMemoryRedis();
     await expect(r.command(['SET', 'k', 'a', 'EX', 1, 'PXAT', 2])).rejects.toBeInstanceOf(RedisUnavailable);

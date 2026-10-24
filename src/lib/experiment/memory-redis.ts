@@ -1,4 +1,5 @@
-// An in-memory Redis with exactly the commands the experiment store uses, answering as the Upstash
+// An in-memory Redis with exactly the commands the experiment store uses (SET takes NX, XX, EX,
+// PXAT and KEEPTTL), answering as the Upstash
 // REST API does (JSON results, `{error}` replies). Unit tests use it directly; scripts/fake-upstash.ts
 // serves it over HTTP so the e2e run goes through the real REST client. Any other command throws.
 import { unwrap, type RedisCommand, type RedisRest } from './redis-rest.ts';
@@ -65,23 +66,29 @@ export function createMemoryRedis(o: { now?: () => number } = {}): MemoryRedis {
   function set(args: string[]): Reply {
     const [key, value, ...options] = args;
     if (key === undefined || value === undefined) return arity('SET');
-    let nx = false;
+    let condition: 'NX' | 'XX' | null = null;
     let expiresAt: number | null = null;
-    let expirySet = false;
+    // One of EX, PXAT or KEEPTTL at most.
+    let expiryOption: 'EX' | 'PXAT' | 'KEEPTTL' | null = null;
     for (let i = 0; i < options.length; i++) {
       const option = options[i]!.toUpperCase();
-      if (option === 'NX' && !nx) {
-        nx = true;
-      } else if ((option === 'EX' || option === 'PXAT') && !expirySet) {
+      if ((option === 'NX' || option === 'XX') && condition === null) {
+        condition = option;
+      } else if ((option === 'EX' || option === 'PXAT') && expiryOption === null) {
         const n = integer(options[++i]);
         if (n === null || n <= 0) return error('ERR invalid expire time in set');
         expiresAt = option === 'EX' ? now() + n * 1000 : n;
-        expirySet = true;
+        expiryOption = option;
+      } else if (option === 'KEEPTTL' && expiryOption === null) {
+        expiryOption = option;
       } else {
         return error(SYNTAX);
       }
     }
-    if (nx && slot(key) !== undefined) return result(null);
+    const existing = slot(key);
+    if (condition === 'NX' && existing !== undefined) return result(null);
+    if (condition === 'XX' && existing === undefined) return result(null);
+    if (expiryOption === 'KEEPTTL') expiresAt = existing?.expiresAt ?? null;
     data.delete(key);
     // A PXAT in the past is accepted and the key is gone at once, as in Redis.
     if (expiresAt === null || now() < expiresAt) data.set(key, { value, expiresAt });

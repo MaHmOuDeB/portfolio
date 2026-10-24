@@ -44,6 +44,9 @@ describe('startFakeUpstash', () => {
       ]),
     ).resolves.toEqual([1, 2]);
     await expect(redis.command(['HGETALL', `${k}:h`])).resolves.toEqual(['t:a:entry', '2']);
+    await expect(redis.command(['SET', k, 'b', 'XX', 'KEEPTTL'])).resolves.toBe('OK');
+    await expect(redis.command(['GET', k])).resolves.toBe('b');
+    expect((await redis.command(['PTTL', k])) as number).toBeGreaterThan(1_790_000);
   });
 
   it('keeps its data on the globalThis store, so every server in the process shares it', async () => {

@@ -2,9 +2,12 @@ import { createHmac } from 'node:crypto';
 import { EVENT_TYPES, REJECT_REASONS, type EventType } from '@/lib/experiment/events';
 import { ipBucket, keys } from '@/lib/experiment/keys';
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
+import { RedisUnavailable } from '@/lib/experiment/redis-rest';
 import {
   CorruptCounters,
+  claimEntry,
   countDailyEntry,
+  countEntry,
   rateLimit,
   readClosed,
   readCounters,
@@ -121,6 +124,117 @@ describe('recordEvent', () => {
     const claims = redis.entries().filter((e) => e.key !== keys.counters(NS));
     expect(claims).toHaveLength(EVENT_TYPES.length);
     for (const c of claims) expect(c.expiresAt).toBe(1_800_000);
+  });
+});
+
+describe('claimEntry and countEntry (claim first, then check, then count)', () => {
+  const claimInput = (pv = PV) => ({ ns: NS, pv, ttlSeconds: TTL });
+
+  /** The order the event route uses for one entry: claim; stop on duplicate; checks; a rejection row or countEntry. */
+  async function handleEntry(
+    redis: ReturnType<typeof createMemoryRedis>,
+    o: { pv?: string; bot?: boolean; ceiling?: number } = {},
+  ): Promise<string> {
+    const pv = o.pv ?? PV;
+    if ((await claimEntry(redis, claimInput(pv))) === 'duplicate') return 'duplicate';
+    if (o.bot === true) {
+      await recordRejection(redis, { ns: NS, reason: 'bot', day: DAY });
+      return 'bot';
+    }
+    const ceiling = await countDailyEntry(redis, { ns: NS, day: DAY, ceiling: o.ceiling ?? 500 });
+    if (ceiling !== 'ok') {
+      if (ceiling === 'ceiling-first') await recordRejection(redis, { ns: NS, reason: 'ceiling', day: DAY });
+      return 'ceiling';
+    }
+    const counted = await countEntry(redis, { ns: NS, pv, arm: 'a', day: DAY });
+    return counted.outcome;
+  }
+
+  const hash = async (redis: ReturnType<typeof createMemoryRedis>) =>
+    Object.fromEntries(
+      ((await redis.command(['HGETALL', keys.counters(NS)])) as string[]).flatMap((v, i, a) => (i % 2 === 0 ? [[v, a[i + 1]]] : [])),
+    ) as Record<string, string>;
+
+  it('claimEntry writes a pending claim with the view TTL, then gives duplicate', async () => {
+    const { redis } = setup();
+    await expect(claimEntry(redis, claimInput())).resolves.toBe('claimed');
+    await expect(claimEntry(redis, claimInput())).resolves.toBe('duplicate');
+    expect(redis.entries()).toEqual([{ key: keys.claim(NS, PV, 'entry'), value: '-', expiresAt: 1_800_000 }]);
+  });
+
+  it('a bot entry sent twice records r:bot once', async () => {
+    const { redis } = setup();
+    await expect(handleEntry(redis, { bot: true })).resolves.toBe('bot');
+    await expect(handleEntry(redis, { bot: true })).resolves.toBe('duplicate');
+    expect(await hash(redis)).toEqual({ 'r:bot': '1', [`rd:${DAY}:bot`]: '1' });
+  });
+
+  it('a counted entry sent twice increments the daily ceiling once', async () => {
+    const { redis } = setup();
+    await expect(handleEntry(redis)).resolves.toBe('counted');
+    await expect(handleEntry(redis)).resolves.toBe('duplicate');
+    await expect(redis.command(['GET', keys.ceiling(NS, DAY)])).resolves.toBe('1');
+    expect(await hash(redis)).toEqual({ 't:a:entry': '1', [`d:${DAY}:a:entry`]: '1' });
+  });
+
+  it('a bot entry followed by inview is an orphan', async () => {
+    const { redis } = setup();
+    await handleEntry(redis, { bot: true });
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
+    await expect(recordEvent(redis, ev('engaged'))).resolves.toEqual({ outcome: 'orphan' });
+  });
+
+  it('a ceiling-refused entry followed by inview is an orphan', async () => {
+    const { redis } = setup();
+    await expect(handleEntry(redis, { pv: PV2, ceiling: 1 })).resolves.toBe('counted');
+    await expect(handleEntry(redis, { ceiling: 1 })).resolves.toBe('ceiling');
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
+    await expect(recordEvent(redis, ev('inview', PV2))).resolves.toMatchObject({ outcome: 'counted' });
+  });
+
+  it('a claimed entry that never got counted (a crash) leaves its later events orphans', async () => {
+    const { redis } = setup();
+    await claimEntry(redis, claimInput());
+    await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
+    // A pending claim with arm '-' can never satisfy the arm check, whatever the batch arm.
+    await expect(recordEvent(redis, { ...ev('inview'), arm: '-' as 'a' })).resolves.toEqual({ outcome: 'orphan' });
+    expect(redis.entries().map((e) => e.key)).toEqual([keys.claim(NS, PV, 'entry')]);
+  });
+
+  it('the promoted claim holds the arm and keeps its original PEXPIRETIME', async () => {
+    const { redis, at } = setup();
+    at(0);
+    await claimEntry(redis, claimInput());
+    at(10);
+    await expect(countEntry(redis, { ns: NS, pv: PV, arm: 'b', day: DAY })).resolves.toEqual({
+      outcome: 'counted',
+      arm: 'b',
+      total: 1,
+      dayTotal: 1,
+    });
+    await expect(redis.command(['GET', keys.claim(NS, PV, 'entry')])).resolves.toBe('b');
+    await expect(redis.command(['PEXPIRETIME', keys.claim(NS, PV, 'entry')])).resolves.toBe(1_800_000);
+    at(20);
+    await expect(recordEvent(redis, { ...ev('inview'), arm: 'b' })).resolves.toMatchObject({ outcome: 'counted' });
+  });
+
+  it('countEntry counts and promotes in one transaction', async () => {
+    const { redis } = setup();
+    await claimEntry(redis, claimInput());
+    const transaction = vi.spyOn(redis, 'transaction');
+    const command = vi.spyOn(redis, 'command');
+    await countEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY });
+    expect(transaction).toHaveBeenCalledWith([
+      ['HINCRBY', keys.counters(NS), 't:a:entry', 1],
+      ['HINCRBY', keys.counters(NS), `d:${DAY}:a:entry`, 1],
+      ['SET', keys.claim(NS, PV, 'entry'), 'a', 'XX', 'KEEPTTL'],
+    ]);
+    expect(command).not.toHaveBeenCalled();
+  });
+
+  it('an unexpected reply to the claim throws RedisUnavailable', async () => {
+    const r = { command: async () => 'QUEUED', pipeline: async () => [], transaction: async () => [] };
+    await expect(claimEntry(r, claimInput())).rejects.toBeInstanceOf(RedisUnavailable);
   });
 });
 
@@ -295,6 +409,13 @@ describe('the closed marker', () => {
     await expect(writeClosed(redis, NS, { kind: 'aa-failed', day: '2026-11-21' })).resolves.toBe(false);
     await expect(readClosed(redis, NS)).resolves.toEqual({ kind: 'decision', day: DAY });
     await expect(redis.command(['PTTL', keys.closed(NS)])).resolves.toBe(-1);
+  });
+
+  it('writeClosed throws RedisUnavailable on a reply that is neither OK nor null', async () => {
+    for (const reply of ['QUEUED', 1, undefined, { result: 'OK' }]) {
+      const r = { command: async () => reply, pipeline: async () => [], transaction: async () => [] };
+      await expect(writeClosed(r, NS, { kind: 'decision', day: DAY })).rejects.toBeInstanceOf(RedisUnavailable);
+    }
   });
 
   it.each(['not json', '{"kind":"other","day":"2026-11-20"}', '{"kind":"decision","day":"20.11"}', '[]'])(

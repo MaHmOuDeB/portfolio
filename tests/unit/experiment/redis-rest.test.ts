@@ -166,6 +166,17 @@ describe('createRedisRest', () => {
     }
   });
 
+  it('refuses redirects, so a body is never re-sent to another host', async () => {
+    const { calls, fetch } = recordingFetch((call) =>
+      call.url.endsWith('/pipeline') || call.url.endsWith('/multi-exec') ? json([{ result: 1 }]) : json({ result: 1 }),
+    );
+    const redis = createRedisRest({ url: URL_, token: TOKEN, fetch });
+    await redis.command(['INCR', 'k']);
+    await redis.pipeline([['INCR', 'k']]);
+    await redis.transaction([['INCR', 'k']]);
+    for (const c of calls) expect(c.init.redirect).toBe('error');
+  });
+
   it('uses the global fetch at call time when none is given', async () => {
     const { calls, fetch } = recordingFetch(() => json({ result: 'PONG' }));
     const redis = createRedisRest({ url: URL_, token: TOKEN });

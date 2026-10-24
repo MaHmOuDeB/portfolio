@@ -2,6 +2,20 @@
 // ceiling and the closed marker. Server only. There is no Lua: each step is ordered so that a crash
 // between steps can only lose an event, never count one twice. Every key this module writes has an
 // expiry except the counter hash and the closed marker, which hold no per-visitor data.
+//
+// An entry is claimed BEFORE it is checked, so a re-sent entry records nothing twice. The event
+// route (POST /api/e) calls, in this order, for a batch whose first item is the entry:
+//   1. claimEntry: SET claim '-' NX EX ttl. 'duplicate' -> stop: record no rejection row, no
+//      daily-ceiling increment and no count (the item's outcome is 'duplicate').
+//   2. The entry checks: bot, internal, self, a client reject. The first that applies ->
+//      recordRejection(reason) and stop.
+//   3. countDailyEntry: 'ceiling-first' -> recordRejection('ceiling'); 'ceiling-first' and
+//      'ceiling' -> stop.
+//   4. countEntry: one MULTI that increments the total and day fields and promotes the claim from
+//      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 1).
+//   5. recordEvent for each later item, in order.
+// A claim left at '-' (a rejected, ceiling-refused or crashed entry) equals no arm, so the view's
+// later events are 'orphan' and nothing is counted for a view whose entry was not.
 import type { Arm } from '../../experiment.values.ts';
 import { EVENT_TYPES, PREREQUISITES, REJECT_REASONS, type EventType, type RejectReason } from './events.ts';
 import { fieldName, keys, parseField, type IpBucket } from './keys.ts';
@@ -46,38 +60,70 @@ async function increment(r: RedisRest, counters: string, fields: [string, string
   return [int(first, 'HINCRBY'), int(second, 'HINCRBY')];
 }
 
+/** The value of an entry claim that has not been counted (yet); no arm equals it. */
+const PENDING = '-';
+
+/** Claims a view's entry before any check. 'duplicate' means a re-sent entry: record nothing. */
+export async function claimEntry(r: RedisRest, i: { ns: string; pv: string; ttlSeconds: number }): Promise<'claimed' | 'duplicate'> {
+  const reply = await r.command(['SET', keys.claim(i.ns, i.pv, 'entry'), PENDING, 'NX', 'EX', i.ttlSeconds]);
+  if (reply === null) return 'duplicate';
+  if (reply !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
+  return 'claimed';
+}
+
+/**
+ * Counts a claimed entry and promotes its claim to the arm, in one MULTI/EXEC. KEEPTTL keeps the
+ * expiry claimEntry set, so every key of the view still dies at most ttl after the view opened.
+ */
+export async function countEntry(
+  r: RedisRest,
+  i: { ns: string; pv: string; arm: Arm; day: string },
+): Promise<Extract<RecordResult, { outcome: 'counted' }>> {
+  const counters = keys.counters(i.ns);
+  const [total, dayTotal, promoted] = await r.transaction([
+    ['HINCRBY', counters, fieldName({ kind: 'total', arm: i.arm, metric: 'entry' }), 1],
+    ['HINCRBY', counters, fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: 'entry' }), 1],
+    ['SET', keys.claim(i.ns, i.pv, 'entry'), i.arm, 'XX', 'KEEPTTL'],
+  ]);
+  // null: the claim expired between claimEntry and here; the entry still counts, its later events
+  // are orphans.
+  if (promoted !== 'OK' && promoted !== null) throw new RedisUnavailable('SET returned an unexpected reply');
+  return { outcome: 'counted', arm: i.arm, total: int(total, 'HINCRBY'), dayTotal: int(dayTotal, 'HINCRBY') };
+}
+
 /**
  * Counts one event of one view, at most once.
- * 1. A later event reads its prerequisites' claims and the entry claim's absolute expiry. A missing
- *    claim, or a claim of another group, gives `orphan`. So does an entry claim without an expiry:
- *    a later claim is never written without one.
- * 2. The claim: an entry gets `SET NX EX ttl`; a later event `SET NX PXAT <entry expiry>`, so every
- *    key of a view is gone when the entry claim is (at most ttl after the view opened). A null
- *    reply means the claim exists: `duplicate`.
- * 3. One transaction increments the total and the day field.
+ * - An entry is claimEntry then countEntry with no checks between (the event route runs its checks
+ *   between the two; see the header).
+ * - A later event:
+ *   1. reads its prerequisites' claims and the entry claim's absolute expiry. A missing claim, a
+ *      pending entry claim ('-') or a claim of another group gives `orphan`. So does an entry claim
+ *      without an expiry: a later claim is never written without one.
+ *   2. claims with `SET NX PXAT <entry expiry>`, so every key of a view is gone when the entry
+ *      claim is (at most ttl after the view opened). A null reply means `duplicate`.
+ *   3. increments the total and the day field in one transaction.
  */
 export async function recordEvent(
   r: RedisRest,
   i: { ns: string; pv: string; arm: Arm; type: EventType; day: string; ttlSeconds: number },
 ): Promise<RecordResult> {
-  const claim = (type: EventType) => keys.claim(i.ns, i.pv, type);
-  let expiry: ['EX' | 'PXAT', number];
   if (i.type === 'entry') {
-    expiry = ['EX', i.ttlSeconds];
-  } else {
-    const prerequisites = PREREQUISITES[i.type];
-    const [values, entryExpiry] = await r.pipeline([
-      ['MGET', ...prerequisites.map(claim)],
-      ['PEXPIRETIME', claim('entry')],
-    ]);
-    if (!Array.isArray(values) || values.length !== prerequisites.length) throw new RedisUnavailable('MGET returned an unexpected reply');
-    if (!values.every((v) => v === i.arm)) return { outcome: 'orphan' };
-    const at = int(entryExpiry, 'PEXPIRETIME');
-    // -2: the entry claim expired since the MGET; -1: it has no expiry.
-    if (at <= 0) return { outcome: 'orphan' };
-    expiry = ['PXAT', at];
+    if ((await claimEntry(r, i)) === 'duplicate') return { outcome: 'duplicate' };
+    return countEntry(r, i);
   }
-  const set = await r.command(['SET', claim(i.type), i.arm, 'NX', ...expiry]);
+  const claim = (type: EventType) => keys.claim(i.ns, i.pv, type);
+  const prerequisites = PREREQUISITES[i.type];
+  const [values, entryExpiry] = await r.pipeline([
+    ['MGET', ...prerequisites.map(claim)],
+    ['PEXPIRETIME', claim('entry')],
+  ]);
+  if (!Array.isArray(values) || values.length !== prerequisites.length) throw new RedisUnavailable('MGET returned an unexpected reply');
+  // A pending entry claim equals no arm, so a view whose entry was not counted counts nothing.
+  if ((i.arm as string) === PENDING || !values.every((v) => v === i.arm)) return { outcome: 'orphan' };
+  const at = int(entryExpiry, 'PEXPIRETIME');
+  // -2: the entry claim expired since the MGET; -1: it has no expiry.
+  if (at <= 0) return { outcome: 'orphan' };
+  const set = await r.command(['SET', claim(i.type), i.arm, 'NX', 'PXAT', at]);
   if (set === null) return { outcome: 'duplicate' };
   if (set !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
   const [total, dayTotal] = await increment(r, keys.counters(i.ns), [
@@ -155,7 +201,9 @@ export async function readClosed(r: RedisRest, ns: string): Promise<ClosedMarker
 /** Writes the closed marker once (SET NX, no expiry); false when one already exists. */
 export async function writeClosed(r: RedisRest, ns: string, m: ClosedMarker): Promise<boolean> {
   const reply = await r.command(['SET', keys.closed(ns), JSON.stringify({ kind: m.kind, day: m.day }), 'NX']);
-  return reply === 'OK';
+  if (reply === null) return false;
+  if (reply !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
+  return true;
 }
 
 const COUNT = /^(0|[1-9]\d*)$/;
