@@ -299,8 +299,11 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     // - Accepted residual: the entry's own day comes from this function's clock at step 6, the
     //   claim's from the store's clock after the rate limit, the view read and the flags read (tens
     //   of ms, more on a cold flags read, plus clock skew). A view whose entry falls in that window
-    //   at midnight splits across two days; that only matters next to a left-out ceiling day, where
-    //   its later events become uncounted, never wrongly counted.
+    //   at midnight splits across two days. That only matters next to a left-out ceiling day. With
+    //   this clock ahead, the entry lands on the later day and its events on the left-out one, where
+    //   they are lost. With this clock behind, the entry lands on the left-out day and its events on
+    //   the next, which then holds an analysed view (or a click) without its entry, and at worst a
+    //   data fault. Both need a ceiling day and an entry within that window of midnight; accepted.
     let viewN: number | undefined;
     if (later.length > 0) {
       const entryDay =

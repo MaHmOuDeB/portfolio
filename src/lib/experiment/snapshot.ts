@@ -96,16 +96,19 @@ export type ExperimentSnapshot = {
   frozenAt: string | null;
   funnel: Funnel;
   srm: {
-    /** At the last look analysed: the suppressing or deciding look once there is one. */
+    /** At the flagged look the outcome rests on, else at the last look reported. */
     assignment: SrmResult | null;
     analysed: SrmResult | null;
     /**
-     * The first flagged look up to the end of the analysis; a flag after a decision is only
-     * `afterDecision`. When the analysis is held, the first flag at or after the fault.
+     * The flagged look the outcome rests on: the A/B's suppressing look (when held, the first flag
+     * at or after the fault), or the A/A's failing look when it failed on the split. A flag after an
+     * A/B decision is only `afterDecision`; a flag after an A/A failure is not picked up.
      */
     firstFlaggedOn: string | null;
     /** Which split failed at `firstFlaggedOn`: entry views, analysed views, or both. */
     flaggedBase: 'entry' | 'analysed' | 'both' | null;
+    /** The cumulative counts of that look, for the sentence that names the failed split. */
+    flaggedLook: Look | null;
     afterDecision: boolean;
   };
   blinded: boolean;
@@ -213,7 +216,9 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   const nowMs = Date.parse(i.now);
   const ab = config.phase === 'ab';
   const end = plannedEnd(config, i.start);
-  const endMs = ab && end.kind === 'fixed' ? Date.parse(end.at) : null;
+  // The A/B's end as the analysis reads it: a request that passed the route's end check just before
+  // the end can still write for a moment after it, so the end gets the same margin as a day.
+  const endMs = ab && end.kind === 'fixed' ? Date.parse(end.at) + LOOK_MARGIN_MS : null;
   /** A day is completed once its views can add nothing more to its row. */
   const completedAt = (day: string) => {
     const at = Date.parse(berlinStartOfDay(dayPlus(day, 1))) + config.pvTtlSeconds * 1000 + LOOK_MARGIN_MS;
@@ -282,8 +287,11 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   }
 
   // The walks. A decision or an A/A failure freezes the analysis at its look; in the A/B an SRM
-  // flag freezes it too (suppressed). A data fault holds it at the last clean look before the fault.
+  // flag freezes it too (suppressed). A data fault holds it at the last clean look before the fault,
+  // and so does a deciding, failing or suppressing look that is itself faulty: it keeps its outcome,
+  // but its counts and intervals are not reported.
   const margin = config.guardrail.marginPp / 100;
+  const faulty = (s: Step) => !s.consistent || s.conflict;
   let frozen: number | null = null;
   let suppressedAt: number | null = null;
   let heldAt: number | null = null;
@@ -293,14 +301,9 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   const faultOf = (s: Step): Held => ({ on: s.look.day, reason: s.consistent ? 'band-conflict' : 'inconsistent-counts' });
   for (const [k, s] of steps.entries()) {
     if (ab) {
-      if (s.flagged) {
-        suppressedAt = k;
-        break;
-      }
-      if (!s.consistent || s.conflict) {
-        [heldAt, held] = [k, faultOf(s)];
-        break;
-      }
+      if (s.flagged) suppressedAt = k;
+      if (faulty(s)) [heldAt, held] = [k, faultOf(s)];
+      if (suppressedAt !== null || heldAt !== null) break;
       if (!s.evaluated || s.primary === null) continue;
       if (s.primary.lower > 0 && s.guardrail !== null && s.guardrail.upper < margin) decision = 'ship-b';
       else if (s.primary.upper < 0) decision = 'stop-for-harm';
@@ -310,29 +313,37 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
       }
     } else {
       if (s.flagged) failed = { day: s.look.day, reason: 'srm' };
-      else if (!s.consistent) {
-        [heldAt, held] = [k, faultOf(s)];
-        failed = { day: s.look.day, reason: 'data-fault' };
-      } else if (s.evaluated && ((s.own !== null && excludesZero(s.own)) || (s.primary !== null && excludesZero(s.primary)))) {
+      else if (!s.consistent) failed = { day: s.look.day, reason: 'data-fault' };
+      else if (s.evaluated && ((s.own !== null && excludesZero(s.own)) || (s.primary !== null && excludesZero(s.primary)))) {
         failed = { day: s.look.day, reason: 'interval-excludes-zero' };
-      } else if (s.conflict) {
-        // A conflict of the guardrail band alone: the primary still contains 0.
-        [heldAt, held] = [k, faultOf(s)];
-        failed = { day: s.look.day, reason: 'data-fault' };
-      }
+      } else if (s.conflict) failed = { day: s.look.day, reason: 'data-fault' }; // the guardrail band alone
       if (failed !== null) {
         frozen = k;
+        if (faulty(s)) [heldAt, held] = [k, faultOf(s)];
         break;
       }
     }
   }
-  // The analysis ends at the deciding, failing or suppressing look, or just before a fault.
+  // The analysis reported: up to the deciding, failing or suppressing look, or just before a fault.
   const heldStep = heldAt;
-  const analysisSteps = heldStep !== null ? steps.slice(0, heldStep) : (frozen ?? suppressedAt) !== null ? steps.slice(0, (frozen ?? suppressedAt)! + 1) : steps;
+  const stopStep = frozen ?? suppressedAt;
+  const analysisSteps = heldStep !== null ? steps.slice(0, heldStep) : stopStep !== null ? steps.slice(0, stopStep + 1) : steps;
   const last = analysisSteps[analysisSteps.length - 1];
   const frozenAt = frozen === null ? null : steps[frozen]!.look.day;
-  // Held: a flag at or after the fault still suppresses the verdict (never "SRM passed" beside it).
-  const flaggedStep = heldStep !== null ? steps.slice(heldStep).find((s) => s.flagged) : analysisSteps.find((s) => s.flagged);
+  // The flag the outcome rests on. In the A/B: the suppressing look, or (when held) the first flag
+  // at or after the fault, which still suppresses the verdict, so "SRM passed" is never shown beside
+  // a flag. In the A/A: the failing look when it failed on the split. Flags after an A/B decision
+  // are only `afterDecision`; flags after an A/A failure are not picked up.
+  const flaggedStep: Step | undefined = ab
+    ? suppressedAt !== null
+      ? steps[suppressedAt]
+      : heldStep !== null
+        ? steps.slice(heldStep).find((s) => s.flagged)
+        : undefined
+    : failed?.reason === 'srm'
+      ? steps[frozen!]
+      : undefined;
+  const suppressed = ab && flaggedStep !== undefined;
   const firstFlagged = flaggedStep?.look.day ?? null;
   const flaggedBase = flaggedStep
     ? flaggedStep.assignment?.flagged && flaggedStep.analysed?.flagged
@@ -341,13 +352,16 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
         ? 'entry'
         : 'analysed'
     : null;
-  const faultSteps = heldStep !== null ? steps.slice(0, heldStep + 1) : analysisSteps;
+  const faultSteps = steps.slice(0, (heldStep ?? stopStep ?? steps.length - 1) + 1);
   const bandConflictOn = faultSteps.find((s) => s.conflict)?.look.day ?? null;
   const inconsistentOn = faultSteps.find((s) => !s.consistent)?.look.day ?? null;
 
-  // The counts the analysis stands on: the last look analysed once it has ended, else the analysable totals.
-  const ended = heldStep !== null || frozen !== null || suppressedAt !== null;
+  // The counts the analysis stands on: the last look reported once it has ended, else the
+  // analysable totals.
+  const ended = heldStep !== null || stopStep !== null;
   const basis: Counts2 = !ended ? analysable : last !== undefined ? last.look : { a: zeros(), b: zeros() };
+  // A suppressed verdict shows the split that failed (its body draws no chart).
+  const shown: Counts2 = suppressed ? flaggedStep!.look : basis;
   const blinded = smaller(basis) < minPerGroup;
   const primary = blinded ? null : (last?.primary ?? null);
   const guardrail = blinded ? null : (last?.guardrail ?? null);
@@ -363,9 +377,10 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
     const earliest = dayPlus(berlinDay(i.start), minDays - 1);
     const candidate = reached === undefined ? null : reached > earliest ? reached : earliest;
     const evaluatedOn = candidate !== null && isCompleted(candidate) ? candidate : null;
-    // Any flag at all, even after the calibration failed, means the split check did not pass.
-    const srmPassed = !steps.some((s) => s.flagged);
-    const intervalContainsZero = primary === null ? null : !excludesZero(primary);
+    // Up to the end of the calibration: a flag before it would have failed it.
+    const srmPassed = firstFlagged === null;
+    const intervalContainsZero =
+      failed?.reason === 'interval-excludes-zero' ? false : primary === null ? null : !excludesZero(primary);
     const clean = held === null && bandConflictOn === null && inconsistentOn === null;
     calibration = {
       days: berlinDaysBetween(i.start, i.now),
@@ -386,7 +401,7 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   let phase: LivePhase;
   if (!ab && !counted) phase = 'before-data';
   else if (failed !== null || aaFlag !== null) phase = 'aa-failed';
-  else if (suppressedAt !== null || (heldStep !== null && flaggedStep !== undefined)) phase = 'srm-suppressed';
+  else if (suppressed) phase = 'srm-suppressed';
   else if (decision !== null) phase = decision;
   else if (endMs !== null && nowMs >= endMs) phase = 'inconclusive';
   else phase = config.phase;
@@ -398,8 +413,8 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   const live: LiveSnapshot = {
     phase,
     freshness,
-    nA: basis.a.inview,
-    nB: basis.b.inview,
+    nA: shown.a.inview,
+    nB: shown.b.inview,
     series,
     capPerArm: config.capPerArm,
     projectedHalfWidthAtCap: projected,
@@ -453,11 +468,12 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
     frozenAt,
     funnel: { beaconsReceived, botFiltered: beaconsReceived - excluded.bot - excluded.internal, entryViews, analysed: current.a.inview + current.b.inview, excluded },
     srm: {
-      assignment: last?.assignment ?? null,
-      analysed: last?.analysed ?? null,
+      assignment: (flaggedStep ?? last)?.assignment ?? null,
+      analysed: (flaggedStep ?? last)?.analysed ?? null,
       firstFlaggedOn: firstFlagged,
       flaggedBase,
-      afterDecision: frozen !== null && steps.slice(frozen + 1).some((s) => s.flagged),
+      flaggedLook: flaggedStep?.look ?? null,
+      afterDecision: decision !== null && frozen !== null && steps.slice(frozen + 1).some((s) => s.flagged),
     },
     blinded,
     primary,

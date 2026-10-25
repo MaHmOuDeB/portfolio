@@ -83,9 +83,9 @@ by the beacon.
 
 A look is the cumulative count at the end of each completed Berlin day, from 50 per group. A
 view's later events count on the day of its entry, so a day's look is read 30 minutes after the
-following midnight, once its views' later events can no longer arrive (at the planned end, at
-once, because counting stops there). The page's counts are current; its interval and verdict
-change once a day. A partial day never decides anything.
+following midnight, once its views' later events can no longer arrive (at the planned end, a
+minute after it, because counting stops there). The page's counts are current; its interval and
+verdict change once a day. A partial day never decides anything.
 
 ## The decision rule
 
@@ -103,8 +103,8 @@ interval as the range of effects consistent with the data.
 A look is a data fault when either interval (card clicks or quick exits) does not overlap its
 running band, or when its cumulative counts break an event's dependency: for example more card
 clicks than analysed views, more analysed views than entry views, or more engaged views than entry
-views. The analysis then stops at the last clean look before the fault, and nothing after it is
-reported. There is no resume, because resuming after seeing the data would be a choice made after
+views. The analysis then stops at the last clean look before the fault, and nothing from the
+fault on is reported; a faulty look that also fails the split check or the A/A keeps that outcome. There is no resume, because resuming after seeing the data would be a choice made after
 the fact:
 
 - in the A/A, a data fault fails the calibration, so it also blocks the switch to the A/B, and the

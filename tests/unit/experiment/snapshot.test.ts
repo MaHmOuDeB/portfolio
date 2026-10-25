@@ -81,7 +81,7 @@ describe('empty counters in calibration', () => {
     expect(s.status).toBe('before-data');
     expect(s.live.phase).toBe('before-data');
     expect([s.live.nA, s.live.nB]).toEqual([0, 0]);
-    expect(s.srm).toEqual({ assignment: null, analysed: null, firstFlaggedOn: null, flaggedBase: null, afterDecision: false });
+    expect(s.srm).toEqual({ assignment: null, analysed: null, firstFlaggedOn: null, flaggedBase: null, flaggedLook: null, afterDecision: false });
     expect(s.bandConflictOn).toBeNull();
     expect(s.inconsistentOn).toBeNull();
     expect(s.blinded).toBe(true);
@@ -222,11 +222,12 @@ describe('the A/B decision', () => {
     expect(closingMarker(s)).toEqual({ kind: 'decision', day: D1 });
   });
 
-  it('is inconclusive at the planned end, and still running one minute before', () => {
+  it('is inconclusive a minute after the planned end (its last writes can land), and still running before', () => {
     const days = [row(D1, grp(60, 6), grp(60, 7))];
-    expect(build(days, { now: '2027-06-01T00:00:00+02:00', config: AB }).live.phase).toBe('inconclusive');
+    expect(build(days, { now: '2027-06-01T00:01:00+02:00', config: AB }).live.phase).toBe('inconclusive');
+    expect(build(days, { now: '2027-06-01T00:00:59+02:00', config: AB }).live.phase).toBe('ab');
     expect(build(days, { now: '2027-05-31T23:59:00+02:00', config: AB }).live.phase).toBe('ab');
-    expect(closingMarker(build(days, { now: '2027-06-01T00:00:00+02:00', config: AB }))).toBeNull();
+    expect(closingMarker(build(days, { now: '2027-06-01T00:01:00+02:00', config: AB }))).toBeNull();
   });
 
   it('ignores rows dated before the A/B start', () => {
@@ -319,11 +320,29 @@ describe('a data fault', () => {
     expect(q1.live.phase).toBe('srm-suppressed');
     expect(q1.srm.firstFlaggedOn).toBe(D3);
     expect(q1.srm.flaggedBase).toBe('both');
-    expect([q1.live.nA, q1.live.nB]).toEqual([50, 50]);
+    // The counts beside "SRM failed" are the split that failed (the body draws no chart); the
+    // looks, series and interval stay at the last clean look.
+    expect([q1.live.nA, q1.live.nB]).toEqual([400, 1200]);
+    expect(q1.srm.analysed!.flagged).toBe(true);
+    expect(q1.srm.flaggedLook!.day).toBe(D3);
+    expect([q1.srm.flaggedLook!.a.entry, q1.srm.flaggedLook!.b.entry]).toEqual([700, 1500]);
+    expect(q1.looks.map((l) => l.day)).toEqual([D1]);
+    expect(q1.live.series.map((p) => p.n)).toEqual([50]);
+  });
+
+  it('does not report a look that is both faulty and suppressing', () => {
+    // The conflict and the SRM flag on the same look: 100 against 900 analysed views on 02.12.
+    const q1b = build([probe[0]!, row(D2, grp(50, 35, { entry: 150, engaged: 100 }), grp(850, 24, { entry: 1350, engaged: 900 }))], { now: noon(D4), config: AB });
+    expect(q1b.held?.on).toBe(D2);
+    expect(q1b.live.phase).toBe('srm-suppressed');
+    expect(q1b.looks.map((l) => l.day)).toEqual([D1]);
+    expect(q1b.live.series.map((p) => p.n)).toEqual([50]);
+    expect(q1b.srm.firstFlaggedOn).toBe(D2);
+    expect([q1b.live.nA, q1b.live.nB]).toEqual([100, 900]);
   });
 
   it('reports the last clean interval at the cap', () => {
-    const p2 = build(probe, { now: '2027-06-01T00:00:00+02:00', config: AB });
+    const p2 = build(probe, { now: '2027-06-01T00:01:00+02:00', config: AB });
     expect(p2.live.phase).toBe('inconclusive');
     expect(p2.held).toEqual({ on: D2, reason: 'band-conflict' });
     const own = mixtureCs({ xA: 5, nA: 50, xB: 33, nB: 50 }, { tau2: TAU2.primary });
@@ -341,6 +360,12 @@ describe('a data fault', () => {
     expect(a.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'interval-excludes-zero' });
     expect(a.calibration!.ready).toBe(false);
     expect(closingMarker(a)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
+    // The failing look is also a conflict: it keeps its reason, but its counts and intervals are
+    // not reported, and the check agrees with the reason.
+    expect(a.held).toEqual({ on: '2026-11-04', reason: 'band-conflict' });
+    expect(a.looks.map((l) => l.day)).toEqual(['2026-11-03']);
+    expect(a.calibration!.intervalContainsZero).toBe(false);
+    expect([a.live.nA, a.live.nB]).toEqual([50, 50]);
   });
 
   it('fails the A/A on inconsistent counts, whatever comes after', () => {
@@ -353,7 +378,10 @@ describe('a data fault', () => {
     expect(q2.inconsistentOn).toBe('2026-11-04');
     expect(q2.live.phase).toBe('aa-failed');
     expect(q2.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'data-fault' });
-    expect(q2.calibration!.srmPassed).toBe(false);
+    // The later 160 against 460 comes after the failure: it is not picked up.
+    expect(q2.calibration!.srmPassed).toBe(true);
+    expect(q2.srm.firstFlaggedOn).toBeNull();
+    expect(q2.srm.afterDecision).toBe(false);
     expect(q2.calibration!.ready).toBe(false);
     expect(q2.live.aaFailed).toEqual({ on: berlinStartOfDay('2026-11-04'), reason: 'the counts failed a consistency check' });
     expect([q2.live.nA, q2.live.nB]).toEqual([10, 10]);
@@ -389,9 +417,10 @@ describe('when a day is read', () => {
     expect(build(days, { now: '2026-12-02T00:31:00+01:00', config: AB }).looks.map((l) => l.day)).toEqual([D1]);
   });
 
-  it('at the planned end at once, because counting stops there', () => {
+  it('a minute after the planned end, because counting stops there', () => {
     const last = [row('2027-05-31', grp(60, 6), grp(60, 9))];
-    const s = build(last, { now: '2027-06-01T00:00:00+02:00', config: AB });
+    expect(build(last, { now: '2027-06-01T00:00:59+02:00', config: AB }).looks).toEqual([]);
+    const s = build(last, { now: '2027-06-01T00:01:00+02:00', config: AB });
     expect(s.looks.map((l) => l.day)).toEqual(['2027-05-31']);
     expect(s.live.phase).toBe('inconclusive');
   });
@@ -774,7 +803,7 @@ describe('invariants (property)', () => {
         if (first.frozenAt === null) return;
         decided += 1;
         const later = make([...rows, ...extra], { now: noon('2027-01-05'), config: cfg(ab) });
-        const pick = (s: ExperimentSnapshot) => [s.live.phase, s.frozenAt, s.held, s.looks, s.primary, s.guardrail, s.live.series, s.live.nA, s.live.nB, closingMarker(s)];
+        const pick = (s: ExperimentSnapshot) => [s.live.phase, s.frozenAt, s.held, { ...s.srm, afterDecision: null }, s.calibration?.srmPassed, s.calibration?.intervalContainsZero, s.looks, s.primary, s.guardrail, s.live.series, s.live.nA, s.live.nB, closingMarker(s)];
         expect(pick(later)).toEqual(pick(first));
       }),
       { numRuns: 400 },
