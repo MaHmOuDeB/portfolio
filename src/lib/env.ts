@@ -13,6 +13,11 @@ export interface ServerEnv {
   deploymentHost?: string;
   gitCommit?: string;
   fakeStore: boolean;
+  /**
+   * VERCEL=1: running on Vercel. Vercel always sets VERCEL_ENV too, so on Vercel a development
+   * VERCEL_ENV (or none) is a misconfiguration, never a reason to show the no-credentials fixture.
+   */
+  onVercel?: boolean;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -42,5 +47,6 @@ export function serverEnv(): ServerEnv {
     deploymentHost: nonEmpty(process.env.VERCEL_URL),
     gitCommit: nonEmpty(process.env.VERCEL_GIT_COMMIT_SHA),
     fakeStore: process.env.EXPERIMENT_FAKE_STORE === '1',
+    onVercel: process.env.VERCEL === '1',
   };
 }

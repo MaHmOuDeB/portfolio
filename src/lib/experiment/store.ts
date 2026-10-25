@@ -33,7 +33,11 @@ export type RecordResult =
   | { outcome: 'duplicate' }
   | { outcome: 'orphan' };
 
-export type ClosedMarker = { kind: 'decision' | 'aa-failed'; day: string };
+/**
+ * Why counting stopped: the first decision, a failed calibration (by rule or by the flag), or an
+ * A/B held at a data fault (it is stopped there and never resumed).
+ */
+export type ClosedMarker = { kind: 'decision' | 'aa-failed' | 'held'; day: string };
 export type GroupCounts = Record<EventType, number>;
 export type DayCounts = { day: string; a: GroupCounts; b: GroupCounts };
 export type CounterRows = {
@@ -329,7 +333,7 @@ function parseClosed(raw: unknown): ClosedMarker | null {
   }
   if (typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 2) {
     const { kind, day } = value as Record<string, unknown>;
-    if ((kind === 'decision' || kind === 'aa-failed') && typeof day === 'string' && DAY.test(day)) return { kind, day };
+    if ((kind === 'decision' || kind === 'aa-failed' || kind === 'held') && typeof day === 'string' && DAY.test(day)) return { kind, day };
   }
   throw new CorruptCounters('closed marker');
 }

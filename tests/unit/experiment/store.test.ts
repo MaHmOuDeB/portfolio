@@ -414,6 +414,12 @@ describe('the closed marker', () => {
     await expect(redis.command(['PTTL', keys.closed(NS)])).resolves.toBe(-1);
   });
 
+  it('reads a held marker (an A/B stopped at a data fault)', async () => {
+    const { redis } = setup();
+    await expect(writeClosed(redis, NS, { kind: 'held', day: DAY })).resolves.toBe(true);
+    await expect(readClosed(redis, NS)).resolves.toEqual({ kind: 'held', day: DAY });
+  });
+
   it('writeClosed throws RedisUnavailable on a reply that is neither OK nor null', async () => {
     for (const reply of ['QUEUED', 1, undefined, { result: 'OK' }]) {
       const r = { command: async () => reply, pipeline: async () => [], transaction: async () => [] };

@@ -287,7 +287,8 @@ describe('a data fault', () => {
     expect(s.live.phase).toBe('ab');
     expect(s.frozenAt).toBeNull();
     expect(s.live.decidedOn).toBeUndefined();
-    expect(closingMarker(s)).toBeNull();
+    // The test is stopped at the fault, so counting stops too.
+    expect(closingMarker(s)).toEqual({ kind: 'held', day: D2 });
   });
 
   // Look 1: 10% against 66% of 50 (band about +0.29 to +0.83), quick exits 20% against 40% (upper
@@ -304,7 +305,7 @@ describe('a data fault', () => {
     expect(p.held).toEqual({ on: D2, reason: 'band-conflict' });
     expect(p.live.phase).toBe('ab');
     expect(p.frozenAt).toBeNull();
-    expect(closingMarker(p)).toBeNull();
+    expect(closingMarker(p)).toEqual({ kind: 'held', day: D2 });
     const clean = row(D3, grp(300, 40, { entry: 600, engaged: 420 }), grp(300, 40, { entry: 600, engaged: 420 }));
     const later = build([...probe, clean], { now: noon('2026-12-05'), config: AB });
     expect(later.frozenAt).toBeNull();
@@ -531,13 +532,13 @@ describe('the A/A failure', () => {
     expect(s.live.aaFailed).toBeUndefined();
   });
 
-  it('follows the flag alone without writing a closing marker', () => {
+  it('follows the flag alone, and closes on the day the flag was set', () => {
     const flags: ExperimentFlags = { paused: null, aaFailed: { on: '2026-11-06T09:00:00+01:00', reason: 'a beacon fault' }, malformed: false };
     const s = build([row('2026-11-04', grp(10, 1), grp(10, 1))], { now: '2026-11-06T10:00:00+01:00', flags });
     expect(s.live.phase).toBe('aa-failed');
     expect(s.live.aaFailed).toEqual({ on: '2026-11-06T09:00:00+01:00', reason: 'a beacon fault' });
     expect(s.calibration!.failed).toBeNull();
-    expect(closingMarker(s)).toBeNull();
+    expect(closingMarker(s)).toEqual({ kind: 'aa-failed', day: '2026-11-06' });
   });
 });
 

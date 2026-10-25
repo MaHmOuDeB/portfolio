@@ -1,22 +1,52 @@
-// The event route's production wiring. Server only. Writes go through storeAccess, which gives a
-// write client only in production with the write token (or the loopback fake in development), so
-// anything else fails closed as not-production.
+// The production wiring of the event route and of the closing check. Server only. Writes go
+// through storeAccess, which gives a write client only in production with the write token (or the
+// loopback fake in development), so anything else fails closed as not-production.
+import { after } from 'next/server';
+import { EXPERIMENT, calibrationStart } from '../../experiment.config.ts';
 import { serverEnv } from '../env.ts';
 import { storeAccess } from './access.ts';
+import { closeIfDecided } from './close.ts';
 import { ownerCookieValid } from './exclude.ts';
-import { readFlags } from './flags.ts';
+import { NO_FLAGS, readFlags } from './flags.ts';
 import type { EventDeps } from './handler.ts';
+
+const log = (line: object) => console.log(JSON.stringify(line));
+
+/**
+ * Runs a task after the response (or the prerender) is finished. Outside a request scope, where
+ * `after` throws, the task runs on its own; a task here never throws and is safe to repeat.
+ */
+export function later(task: () => Promise<unknown>): void {
+  const safe = () => task().catch(() => {});
+  try {
+    after(safe);
+  } catch {
+    void safe();
+  }
+}
 
 export function eventDeps(): EventDeps {
   const env = serverEnv();
+  const write = storeAccess(env).write;
+  const start = calibrationStart(EXPERIMENT, env.vercelEnv);
   return {
     env,
-    write: storeAccess(env).write,
+    write,
     flags: () => readFlags(env, 'route'),
     now: () => new Date(),
     // One JSON line per request; LogLine holds categories only.
-    log: (line) => console.log(JSON.stringify(line)),
+    log,
     // The owner's exclusion cookie (set through /exclude) marks a view as self.
     ownerCookieValid: (cookieHeader) => ownerCookieValid(cookieHeader, env.excludeToken),
+    // The day's first counted entry runs the closing check after the response. It runs before the
+    // day that just ended is a look (00:31), so it closes only on earlier looks; the read path
+    // closes on that day (see close.ts).
+    onNewDay: (ns) => {
+      if (write === null || start === null) return;
+      later(async () => {
+        const flags = await readFlags(env, 'route').catch(() => NO_FLAGS);
+        await closeIfDecided({ write, ns, config: EXPERIMENT, start, now: new Date().toISOString(), log, flags });
+      });
+    },
   };
 }

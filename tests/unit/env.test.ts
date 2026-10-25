@@ -14,6 +14,7 @@ const VARS = [
   'VERCEL_URL',
   'VERCEL_GIT_COMMIT_SHA',
   'EXPERIMENT_FAKE_STORE',
+  'VERCEL',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -48,6 +49,7 @@ describe('serverEnv', () => {
       deploymentHost: undefined,
       gitCommit: undefined,
       fakeStore: false,
+      onVercel: false,
     });
   });
 
@@ -63,6 +65,7 @@ describe('serverEnv', () => {
     process.env.VERCEL_URL = 'test-value-deploy-host';
     process.env.VERCEL_GIT_COMMIT_SHA = 'test-value-sha';
     process.env.EXPERIMENT_FAKE_STORE = '1';
+    process.env.VERCEL = '1';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -76,6 +79,7 @@ describe('serverEnv', () => {
       deploymentHost: 'test-value-deploy-host',
       gitCommit: 'test-value-sha',
       fakeStore: true,
+      onVercel: true,
     });
   });
 
@@ -114,6 +118,15 @@ describe('serverEnv', () => {
     } finally {
       delete process.env.EDGE_CONFIG;
     }
+  });
+
+  it('reads VERCEL as onVercel only for the string 1', () => {
+    process.env.VERCEL = '1';
+    expect(serverEnv().onVercel).toBe(true);
+    process.env.VERCEL = 'true';
+    expect(serverEnv().onVercel).toBe(false);
+    delete process.env.VERCEL;
+    expect(serverEnv().onVercel).toBe(false);
   });
 
   it('maps an unknown VERCEL_ENV to development', () => {

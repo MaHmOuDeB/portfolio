@@ -495,9 +495,19 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
   };
 }
 
-/** The closed marker the counters call for (the first decision or an A/A failure by rule), or null. */
+/**
+ * The closed marker the snapshot calls for, or null. Each one ends something that never resumes, so
+ * counting more would only feed numbers nothing reports:
+ * - the first decision;
+ * - an A/A failure by rule, at its look;
+ * - an A/B held at a data fault (the test is stopped there), at the fault's day;
+ * - an A/A failed by the flag alone, on the flag's Berlin day (the calibration restarts in a new
+ *   namespace, so this one is finished).
+ */
 export function closingMarker(s: ExperimentSnapshot): ClosedMarker | null {
   if ((s.status === 'ship-b' || s.status === 'stop-for-harm') && s.frozenAt !== null) return { kind: 'decision', day: s.frozenAt };
   if (s.calibration?.failed) return { kind: 'aa-failed', day: s.calibration.failed.day };
+  if (s.configPhase === 'ab' && s.held !== null) return { kind: 'held', day: s.held.on };
+  if (s.status === 'aa-failed' && s.live.aaFailed) return { kind: 'aa-failed', day: berlinDay(s.live.aaFailed.on) };
   return null;
 }
