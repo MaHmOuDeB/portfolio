@@ -1,9 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_EXCLUDE_TOKEN } from './tests/e2e/constants';
 import { updateSnapshotsMode } from './tests/e2e/snapshot-mode';
 
 const PORT = 3123;
-// Not a secret: it only unlocks the exclusion cookie of the throwaway server Playwright starts.
-const E2E_EXCLUDE_TOKEN = 'e2e-exclude-token-0f3a9c1d';
 
 export default defineConfig({
   testDir: 'tests/e2e',

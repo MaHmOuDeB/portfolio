@@ -60,6 +60,26 @@ describe('handleExclude', () => {
     expect((await handleExclude(post({ t: TOKEN }, { 'sec-fetch-site': 'same-origin' }), ENV)).status).toBe(204);
   });
 
+  it('treats a token shorter than 32 characters as not set', async () => {
+    const short = 'x'.repeat(31);
+    const env: ServerEnv = { ...ENV, excludeToken: short };
+    for (const request of [post({ t: short }), del()]) {
+      const res = await handleExclude(request, env);
+      expect(res.status).toBe(404);
+      expect(res.headers.get('set-cookie')).toBeNull();
+    }
+    expect((await handleExclude(post({ t: 'x'.repeat(32) }), { ...ENV, excludeToken: 'x'.repeat(32) })).status).toBe(204);
+  });
+
+  it('without Sec-Fetch-Site, allows no Origin or this site\'s own Origin and refuses another', async () => {
+    const own = 'https://portfolio.example';
+    expect((await handleExclude(post({ t: TOKEN }, { origin: own }), ENV)).status).toBe(204);
+    expect((await handleExclude(post({ t: TOKEN }, { origin: 'https://evil.example' }), ENV)).status).toBe(403);
+    expect((await handleExclude(post({ t: TOKEN }, { origin: 'null' }), ENV)).status).toBe(403);
+    expect((await handleExclude(del({ origin: 'https://evil.example' }), ENV)).status).toBe(403);
+    expect((await handleExclude(del({ origin: own }), ENV)).status).toBe(204);
+  });
+
   it('sets exactly the owner cookie for the right token', async () => {
     const res = await handleExclude(post({ t: TOKEN }), ENV);
     expect(res.status).toBe(204);
@@ -125,6 +145,11 @@ describe('ownerCookieValue and ownerCookieValid', () => {
     expect(ownerCookieValid(`${OWNER_COOKIE}=${v}`, '')).toBe(false);
     expect(ownerCookieValid(`${OWNER_COOKIE}=${ownerCookieValue('')}`, '')).toBe(false);
     expect(ownerCookieValid(';;;=;==', TOKEN)).toBe(false);
+  });
+
+  it('rejects every cookie when the token is shorter than 32 characters', () => {
+    const short = 'x'.repeat(31);
+    expect(ownerCookieValid(`${OWNER_COOKIE}=${ownerCookieValue(short)}`, short)).toBe(false);
   });
 });
 

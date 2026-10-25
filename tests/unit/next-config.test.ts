@@ -55,16 +55,17 @@ describe('next.config', () => {
     const valueOf = (entry: { headers: { key: string; value: string }[] } | undefined, key: string) =>
       entry?.headers.find((h) => h.key === key)?.value;
 
-    it('sends the four baseline headers on every route in a production build', async () => {
+    it('sends the baseline headers on every route in a production build', async () => {
       const rules = await headersFor('production');
       const all = rules.find((r) => r.source === '/:path*');
       expect(all?.headers.map((h) => h.key).sort()).toEqual(
-        ['Content-Security-Policy', 'Permissions-Policy', 'Referrer-Policy', 'X-Content-Type-Options'].sort(),
+        ['Content-Security-Policy', 'Cross-Origin-Opener-Policy', 'Permissions-Policy', 'Referrer-Policy', 'X-Content-Type-Options'].sort(),
       );
       expect(valueOf(all, 'Content-Security-Policy')).toBe(CSP);
       expect(valueOf(all, 'X-Content-Type-Options')).toBe('nosniff');
       expect(valueOf(all, 'Referrer-Policy')).toBe('strict-origin-when-cross-origin');
-      expect(valueOf(all, 'Permissions-Policy')).toBe('camera=(), microphone=(), geolocation=(), interest-cohort=()');
+      expect(valueOf(all, 'Permissions-Policy')).toBe('camera=(), microphone=(), geolocation=()');
+      expect(valueOf(all, 'Cross-Origin-Opener-Policy')).toBe('same-origin');
     });
 
     it('sends no referrer and no cache from /exclude, after the site-wide rule so it wins', async () => {

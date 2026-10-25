@@ -13,6 +13,10 @@ export const OWNER_COOKIE = 'exp-self';
 
 const MAX_AGE = 31_536_000; // one year, in seconds
 const MAX_BODY_BYTES = 1024;
+// A shorter token is treated as not set: online guessing is bounded only by its entropy.
+const MIN_TOKEN_LENGTH = 32;
+
+const usable = (token: string | undefined): token is string => token !== undefined && token.length >= MIN_TOKEN_LENGTH;
 const COOKIE_ATTRIBUTES = 'Path=/api/e; HttpOnly; Secure; SameSite=Strict';
 
 /** HMAC-SHA256 of the message 'self' under the exclusion token, in hex. */
@@ -22,7 +26,7 @@ export function ownerCookieValue(excludeToken: string): string {
 
 /** True only for a cookie header that carries the exact owner cookie. Never throws. */
 export function ownerCookieValid(cookieHeader: string | null, excludeToken: string | undefined): boolean {
-  if (excludeToken === undefined || excludeToken === '' || cookieHeader === null || cookieHeader === '') return false;
+  if (!usable(excludeToken) || cookieHeader === null || cookieHeader === '') return false;
   const expected = ownerCookieValue(excludeToken);
   let valid = false;
   for (const part of cookieHeader.split(';')) {
@@ -77,11 +81,17 @@ async function readToken(request: Request): Promise<{ token: string } | { status
  */
 export async function handleExclude(request: Request, env: ServerEnv): Promise<Response> {
   const token = env.excludeToken;
-  if (token === undefined || token === '') return respond(404);
+  if (!usable(token)) return respond(404);
 
-  // Only this site's own page may ask. A browser that sends the header must say same-origin.
+  // Only this site's own page may ask. A browser that sends Sec-Fetch-Site must say same-origin.
+  // One that does not (an older Safari) is allowed only when it sends no Origin or this site's own.
   const site = request.headers.get('sec-fetch-site');
-  if (site !== null && site !== 'same-origin') return respond(403);
+  if (site !== null) {
+    if (site !== 'same-origin') return respond(403);
+  } else {
+    const origin = request.headers.get('origin');
+    if (origin !== null && origin !== new URL(request.url).origin) return respond(403);
+  }
 
   if (request.method === 'DELETE') return respond(204, `${OWNER_COOKIE}=; ${COOKIE_ATTRIBUTES}; Max-Age=0`);
   if (request.method !== 'POST') return respond(405);
