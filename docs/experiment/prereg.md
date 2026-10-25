@@ -180,6 +180,9 @@ add identifiers. The defences are:
 - detection: daily counts of rejected events and the SRM check;
 - a pause switch.
 
+A flood from one source can use up a day's entry ceiling; any Berlin day that reached the ceiling
+is flagged and does not feed a look's decision until reviewed.
+
 A pause shows on pages within about 10 minutes and stops counting at once.
 
 ## Phase switch procedure

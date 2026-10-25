@@ -69,6 +69,13 @@ export class FlagsUnavailable extends Error {
   }
 }
 
+/**
+ * A hung Edge Config must not hang every beacon: past this, the route treats the read as an error
+ * (and counts on). A page render gets longer, then throws.
+ */
+const ROUTE_TIMEOUT_MS = 500;
+const PAGE_TIMEOUT_MS = 5000;
+
 /** Route mode: the last good read per connection string, kept for flagsCacheSeconds. */
 const routeCache = new Map<string, { at: number; flags: ExperimentFlags }>();
 
@@ -76,7 +83,7 @@ const routeCache = new Map<string, { at: number; flags: ExperimentFlags }>();
  * The flags. Without GLOBAL_CONFIG: NO_FLAGS, and the SDK is never called.
  * - 'page' (build and ISR): `{ cache: 'force-cache' }`, so the read joins the page's data cache.
  * - 'route' (the event route): the SDK's default no-store fetch, behind an in-process cache of
- *   flagsCacheSeconds. Read errors are not cached.
+ *   flagsCacheSeconds. Read errors (and reads over 500 ms) are not cached.
  */
 export async function readFlags(env: ServerEnv, mode: 'page' | 'route', now: () => number = Date.now): Promise<ExperimentFlags> {
   if (env.edgeConfig === undefined) return NO_FLAGS;
@@ -86,12 +93,21 @@ export async function readFlags(env: ServerEnv, mode: 'page' | 'route', now: () 
     if (hit !== undefined && now() - hit.at < EXPERIMENT.flagsCacheSeconds * 1000) return hit.flags;
   }
   let item: unknown;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const client = createClient(env.edgeConfig, mode === 'page' ? { cache: 'force-cache' } : undefined);
-    item = await client.get(ITEM_KEY);
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new FlagsUnavailable()), mode === 'route' ? ROUTE_TIMEOUT_MS : PAGE_TIMEOUT_MS);
+    });
+    const read = client.get(ITEM_KEY);
+    // A read that loses the race must not surface as an unhandled rejection.
+    read.catch(() => {});
+    item = await Promise.race([read, timeout]);
   } catch {
     // The cause is dropped on purpose: it can carry the connection string and its token.
     throw new FlagsUnavailable();
+  } finally {
+    clearTimeout(timer);
   }
   const flags = parseFlags(item);
   if (mode === 'route') routeCache.set(key, { at: now(), flags });

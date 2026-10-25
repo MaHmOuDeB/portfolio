@@ -7,7 +7,7 @@ import { handleEvent, type EventDeps, type LogLine } from '@/lib/experiment/hand
 import { INTERNAL_MESSAGE } from '@/lib/experiment/internal';
 import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
-import { RedisUnavailable, type RedisRest } from '@/lib/experiment/redis-rest';
+import { RedisUnavailable, type RedisCommand, type RedisRest } from '@/lib/experiment/redis-rest';
 import { writeClosed } from '@/lib/experiment/store';
 import { COMMANDS_PER_FULL_VIEW } from './budget';
 
@@ -371,6 +371,20 @@ describe('7. address and rate limit', () => {
     expect((await s.post(body(['inview'], { pv: pvOf(1) }))).json).toEqual(ok([['inview', 'counted']], { viewN: 1 }));
   });
 
+  it('the first x-forwarded-for entry is read before x-real-ip: rotating a fake x-real-ip does not escape the limit', async () => {
+    const s = setup();
+    for (let n = 1; n <= 30; n++) {
+      expect((await s.post(body(['entry'], { pv: pvOf(n) }), { 'x-forwarded-for': IP, 'x-real-ip': `198.51.100.${n}` })).status).toBe(200);
+    }
+    expect((await s.post(body(['entry'], { pv: pvOf(31) }), { 'x-forwarded-for': IP, 'x-real-ip': '198.51.100.31' })).status).toBe(429);
+  });
+
+  it('the rate limit runs before the flags read: 30 accepted and 2 limited requests read the flags 30 times', async () => {
+    const s = setup();
+    for (let n = 1; n <= 32; n++) await s.post(body(['entry'], { pv: pvOf(n) }));
+    expect(s.flagCalls()).toBe(30);
+  });
+
   it('production with no address header gives misconfigured, with no write', async () => {
     const s = setup();
     for (const headers of [{ 'x-real-ip': null }, { 'x-real-ip': 'not-an-address' }]) {
@@ -631,6 +645,90 @@ describe('11. record', () => {
   });
 });
 
+describe('a prerequisite is never satisfied by a claim that was not counted', () => {
+  /** The memory store, whose counting transaction for later events fails while `failing` is true. */
+  function flaky(redis: MemoryRedis, failing: { on: boolean }): RedisRest {
+    const countsLaterEvents = (cs: RedisCommand[]) => cs.some((c) => c[0] === 'HINCRBY' && !String(c[2]).endsWith(':entry'));
+    return {
+      command: (c) => redis.command(c),
+      pipeline: (cs) => redis.pipeline(cs),
+      transaction: async (cs) => {
+        if (failing.on && countsLaterEvents(cs)) throw new RedisUnavailable('transaction failed (HTTP 500)');
+        return redis.transaction(cs);
+      },
+    };
+  }
+
+  it('[inview] fails at its counting transaction (503); the flush re-sends [inview, card]: card is not counted without inview', async () => {
+    const failing = { on: false };
+    const s = setup({ write: (redis) => flaky(redis, failing) });
+    await s.post(body(['entry']));
+    failing.on = true;
+    expect((await s.post(body(['inview']))).status).toBe(503);
+    failing.on = false;
+    const r = await s.post(body(['inview', 'card']));
+    expect(r.json).toEqual(
+      ok([
+        ['inview', 'duplicate'],
+        ['card', 'orphan'],
+      ]),
+    );
+    const hash = await s.hash();
+    expect(hash['t:a:card']).toBeUndefined();
+    expect(hash['t:a:inview']).toBeUndefined();
+  });
+
+  it('[inview, card] failing together counts neither; the re-sent pair counts neither either (lost, never wrong)', async () => {
+    const failing = { on: false };
+    const s = setup({ write: (redis) => flaky(redis, failing) });
+    await s.post(body(['entry']));
+    failing.on = true;
+    expect((await s.post(body(['inview', 'card', 'secondary']))).status).toBe(503);
+    failing.on = false;
+    await s.post(body(['inview', 'card', 'secondary']));
+    const hash = await s.hash();
+    for (const t of ['inview', 'card', 'secondary']) expect(hash[`t:a:${t}`]).toBeUndefined();
+  });
+
+  it('a counted inview is promoted to the arm in the counting transaction and keeps the entry expiry', async () => {
+    const s = setup();
+    await s.post(body(['entry']));
+    await s.post(body(['inview']));
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'inview')])).resolves.toBe('a');
+    await expect(s.redis.command(['PEXPIRETIME', keys.claim(NS, PV, 'inview')])).resolves.toBe(Date.parse(NOW) + 1_800_000);
+    expect((await s.post(body(['card']))).json).toEqual(ok([['card', 'counted']]));
+  });
+
+  it('a re-sent [entry, inview] whose entry was promoted after the snapshot reads the fresh entry claim', async () => {
+    // The original [entry] completes between this request's snapshot and its claim.
+    let promoted = false;
+    const s = setup({
+      write: (redis) => ({
+        command: async (c) => {
+          if (!promoted && c[0] === 'SET' && c[1] === keys.claim(NS, PV, 'entry')) {
+            promoted = true;
+            await redis.command(['SET', keys.claim(NS, PV, 'entry'), '-', 'NX', 'EX', 1800]);
+            await redis.command(['SET', keys.claim(NS, PV, 'entry'), 'a', 'XX', 'KEEPTTL']);
+          }
+          return redis.command(c);
+        },
+        pipeline: (cs) => redis.pipeline(cs),
+        transaction: (cs) => redis.transaction(cs),
+      }),
+    });
+    const r = await s.post(body(['entry', 'inview']));
+    expect(r.json).toEqual(
+      ok(
+        [
+          ['entry', 'duplicate'],
+          ['inview', 'counted'],
+        ],
+        { viewN: 1 },
+      ),
+    );
+  });
+});
+
 describe('12. errors', () => {
   it('a store whose transaction throws gives 503 unavailable, logged, nothing retried', async () => {
     let calls = 0;
@@ -724,14 +822,14 @@ describe('the command budget', () => {
 
   it(`a full 7-event view in 4 requests costs ${COMMANDS_PER_FULL_VIEW} commands`, async () => {
     const { each, total } = await measure([{ events: ['entry'] }, { events: ['inview'] }, { events: ['engaged'] }, { events: ['card', 'secondary', 'cv', 'contact'] }]);
-    expect(each).toEqual([9, 7, 7, 16]);
+    expect(each).toEqual([9, 8, 7, 16]);
     expect(total).toBe(COMMANDS_PER_FULL_VIEW);
   });
 
-  it('a full view in one flush costs 28; in 7 single requests, 51', async () => {
+  it('a full view in one flush costs 29; in 7 single requests, 52', async () => {
     const all: EventType[] = ['entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'];
-    expect((await measure([{ events: all }])).total).toBe(28);
-    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(51);
+    expect((await measure([{ events: all }])).total).toBe(29);
+    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(52);
   });
 
   it('a bot-refused entry costs 6; a re-sent one 4; its later batch 4', async () => {

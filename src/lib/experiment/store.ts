@@ -5,7 +5,7 @@
 //
 // An entry is claimed BEFORE it is checked, so a re-sent entry records nothing twice. The event
 // route (POST /api/e) calls, in this order, for one batch (one view's events, entry first):
-//   1. rateLimit, for a batch that carries an entry.
+//   1. rateLimit, for every batch.
 //   2. readView: one MGET of the closed marker and every claim of the view (plus, for a batch
 //      without an entry, PEXPIRETIME of the entry claim in the same pipeline). A closed marker
 //      stops the batch.
@@ -19,8 +19,10 @@
 //      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 3).
 //   7. recordLater for the batch's later items, in order: their claims in one pipeline, their
 //      counts in one transaction.
-// A claim left at '-' (a rejected, ceiling-refused or crashed entry) equals no arm, so the view's
-// later events are 'orphan' and nothing is counted for a view whose entry was not.
+// A claim that other events depend on (the entry, and inview for card and secondary) is written as
+// '-' and promoted to the arm only inside the transaction that counts it. A claim left at '-' (a
+// rejected, ceiling-refused or failed event) equals no arm, so an event that needs it is 'orphan':
+// nothing is ever counted on top of an event that was not.
 import type { Arm } from '../../experiment.values.ts';
 import { EVENT_TYPES, PREREQUISITES, REJECT_REASONS, type EventType, type RejectReason } from './events.ts';
 import { fieldName, keys, parseField, type IpBucket } from './keys.ts';
@@ -138,69 +140,101 @@ export async function readView(r: RedisRest, i: { ns: string; pv: string; closed
   };
 }
 
-/** The entry claim's absolute expiry in ms (-2: no claim, -1: no expiry). */
-export async function readEntryExpiry(r: RedisRest, i: { ns: string; pv: string }): Promise<number> {
-  return int(await r.command(['PEXPIRETIME', keys.claim(i.ns, i.pv, 'entry')]), 'PEXPIRETIME');
+/**
+ * The entry claim's current value and absolute expiry, in one pipeline: for a re-sent entry whose
+ * snapshot was read before the original request promoted it.
+ */
+export async function readEntryClaim(r: RedisRest, i: { ns: string; pv: string }): Promise<{ value: string | null; expiry: number }> {
+  const claim = keys.claim(i.ns, i.pv, 'entry');
+  const [value, expiry] = await r.pipeline([
+    ['GET', claim],
+    ['PEXPIRETIME', claim],
+  ]);
+  if (value !== null && typeof value !== 'string') throw new RedisUnavailable('GET returned an unexpected reply');
+  return { value, expiry: int(expiry, 'PEXPIRETIME') };
 }
+
+/** The later types other events depend on (inview): claimed as '-', promoted when counted. */
+const PREREQUISITE_TYPES: ReadonlySet<EventType> = new Set(
+  Object.values(PREREQUISITES)
+    .flat()
+    .filter((t) => t !== 'entry'),
+);
 
 /**
  * Counts a batch's later items (not the entry) against one snapshot, in order, each at most once.
  * - An item is an orphan unless the entry claim holds this arm (a pending '-', a missing claim or
  *   another group's claim never does), the entry claim has an expiry, and each prerequisite is
- *   claimed for this arm in the snapshot or is an earlier, non-orphan item of this batch.
+ *   claimed for this arm in the snapshot or is an earlier item of this batch that counts now.
  * - An item already claimed in the snapshot is a duplicate, with no write.
  * - The rest are claimed in one pipeline (`SET NX PXAT <entry expiry>`, so every key of a view is
- *   gone when the entry claim is); a null reply is a duplicate. The claimed items are then counted
- *   (total and day field) in one transaction. A crash between the two loses events, never counts
- *   one twice.
+ *   gone when the entry claim is); a null reply is a duplicate. A prerequisite type is claimed as
+ *   '-'. An item whose in-batch prerequisite got a null reply is an orphan (its own claim stays,
+ *   so it is lost, never counted on an uncounted prerequisite).
+ * - The items that count are counted (total and day field) in one transaction, which also promotes
+ *   each prerequisite claim from '-' to the arm (SET XX KEEPTTL). If that transaction fails, every
+ *   prerequisite claim stays '-': its dependents can never count, and the events are lost, never
+ *   wrong.
  * `counted` names items counted earlier in this request (the batch's entry).
  */
 export async function recordLater(
   r: RedisRest,
   i: { ns: string; pv: string; arm: Arm; day: string; view: ViewSnapshot; items: EventType[]; counted?: readonly EventType[] },
 ): Promise<{ type: EventType; result: RecordResult }[]> {
-  const satisfied = new Set<EventType>(i.counted ?? []);
+  const stored = new Set<EventType>(i.counted ?? []);
   for (const [type, value] of Object.entries(i.view.claims) as [EventType, string][]) {
-    if (value === i.arm) satisfied.add(type);
+    if (value === i.arm) stored.add(type);
   }
   const expiry = i.view.entryExpiry;
   // A pending entry claim equals no arm, so a view whose entry was not counted counts nothing.
-  const live = (i.arm as string) !== PENDING && satisfied.has('entry') && expiry !== null && expiry > 0;
+  const live = (i.arm as string) !== PENDING && stored.has('entry') && expiry !== null && expiry > 0;
   const results = new Map<EventType, RecordResult>();
+  const planned = new Set<EventType>();
   const toClaim: EventType[] = [];
   for (const type of i.items) {
-    if (!live || !PREREQUISITES[type].every((p) => satisfied.has(p))) {
+    if (!live || !PREREQUISITES[type].every((p) => stored.has(p) || planned.has(p))) {
       results.set(type, { outcome: 'orphan' });
-      continue;
-    }
-    if (i.view.claims[type] !== undefined) {
+    } else if (i.view.claims[type] !== undefined) {
       results.set(type, { outcome: 'duplicate' });
     } else {
       toClaim.push(type);
+      planned.add(type);
     }
-    satisfied.add(type);
   }
-  if (toClaim.length > 0) {
-    const sets = await r.pipeline(toClaim.map((type) => ['SET', keys.claim(i.ns, i.pv, type), i.arm, 'NX', 'PXAT', expiry!]));
-    const claimed = toClaim.filter((type, k) => {
-      if (sets[k] === null) {
-        results.set(type, { outcome: 'duplicate' });
-        return false;
-      }
-      if (sets[k] !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
-      return true;
-    });
-    if (claimed.length > 0) {
-      const counters = keys.counters(i.ns);
-      const counts = await r.transaction(
-        claimed.flatMap((type): RedisCommand[] => [
-          ['HINCRBY', counters, fieldName({ kind: 'total', arm: i.arm, metric: type }), 1],
-          ['HINCRBY', counters, fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: type }), 1],
-        ]),
+  if (toClaim.length === 0) return i.items.map((type) => ({ type, result: results.get(type)! }));
+
+  const claimValue = (type: EventType) => (PREREQUISITE_TYPES.has(type) ? PENDING : i.arm);
+  const sets = await r.pipeline(toClaim.map((type) => ['SET', keys.claim(i.ns, i.pv, type), claimValue(type), 'NX', 'PXAT', expiry!]));
+  const counting: EventType[] = [];
+  toClaim.forEach((type, k) => {
+    if (sets[k] !== null && sets[k] !== 'OK') throw new RedisUnavailable('SET returned an unexpected reply');
+    if (!PREREQUISITES[type].every((p) => stored.has(p) || counting.includes(p))) {
+      results.set(type, { outcome: 'orphan' });
+    } else if (sets[k] === null) {
+      results.set(type, { outcome: 'duplicate' });
+    } else {
+      counting.push(type);
+    }
+  });
+  if (counting.length > 0) {
+    const counters = keys.counters(i.ns);
+    const commands: RedisCommand[] = [];
+    const at = new Map<EventType, number>();
+    for (const type of counting) {
+      at.set(type, commands.length);
+      commands.push(
+        ['HINCRBY', counters, fieldName({ kind: 'total', arm: i.arm, metric: type }), 1],
+        ['HINCRBY', counters, fieldName({ kind: 'day', day: i.day, arm: i.arm, metric: type }), 1],
       );
-      claimed.forEach((type, k) => {
-        results.set(type, { outcome: 'counted', arm: i.arm, total: int(counts[2 * k], 'HINCRBY'), dayTotal: int(counts[2 * k + 1], 'HINCRBY') });
-      });
+      if (PREREQUISITE_TYPES.has(type)) commands.push(['SET', keys.claim(i.ns, i.pv, type), i.arm, 'XX', 'KEEPTTL']);
+    }
+    const replies = await r.transaction(commands);
+    for (const type of counting) {
+      const k = at.get(type)!;
+      if (PREREQUISITE_TYPES.has(type) && replies[k + 2] !== 'OK' && replies[k + 2] !== null) {
+        throw new RedisUnavailable('SET returned an unexpected reply');
+      }
+      results.set(type, { outcome: 'counted', arm: i.arm, total: int(replies[k], 'HINCRBY'), dayTotal: int(replies[k + 1], 'HINCRBY') });
     }
   }
   return i.items.map((type) => ({ type, result: results.get(type)! }));

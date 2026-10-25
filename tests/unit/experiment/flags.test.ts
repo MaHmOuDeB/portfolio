@@ -14,7 +14,7 @@ vi.mock('@vercel/edge-config', () => ({
   },
 }));
 
-const { NO_FLAGS, parseFlags, readFlags } = await import('@/lib/experiment/flags');
+const { FlagsUnavailable, NO_FLAGS, parseFlags, readFlags } = await import('@/lib/experiment/flags');
 
 const PAUSED = { on: '2026-11-20T09:00:00+01:00', reason: 'a tracking fault is being fixed' };
 
@@ -149,5 +149,25 @@ describe('readFlags', () => {
   it('the source creates the client from env.edgeConfig', () => {
     const source = readFileSync(join(import.meta.dirname, '../../../src/lib/experiment/flags.ts'), 'utf8');
     expect(source).toContain('createClient(env.edgeConfig');
+  });
+});
+
+describe('readFlags timeout', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('route mode treats an Edge Config read that takes over 500 ms as a read error, and does not cache it', async () => {
+    vi.useFakeTimers();
+    sdk.get.mockImplementationOnce(() => new Promise(() => {})).mockResolvedValueOnce(undefined);
+    const e = env();
+    const pending = readFlags(e, 'route', () => 0);
+    const settled = expect(pending).rejects.toBeInstanceOf(FlagsUnavailable);
+    await vi.advanceTimersByTimeAsync(499);
+    let done = false;
+    void pending.catch(() => (done = true));
+    await Promise.resolve();
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    await settled;
+    await expect(readFlags(e, 'route', () => 1)).resolves.toEqual(NO_FLAGS);
   });
 });

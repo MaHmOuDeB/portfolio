@@ -481,7 +481,37 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
     ]);
     expect(pipeline).toHaveBeenCalledTimes(1);
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(transaction.mock.calls[0]![0]).toHaveLength(6);
+    // Two HINCRBY per item, plus the inview claim's promotion from '-' to the arm.
+    expect(transaction.mock.calls[0]![0]).toHaveLength(7);
+    expect(transaction.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'inview'), 'a', 'XX', 'KEEPTTL']);
+    expect(pipeline.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'PXAT', 1_800_000]);
+    expect(pipeline.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'card'), 'a', 'NX', 'PXAT', 1_800_000]);
+  });
+
+  it('a pending inview claim (claimed, never counted) is not a prerequisite: card is an orphan', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    await redis.command(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'EX', 100]);
+    const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
+    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
+    expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
+      ['inview', 'duplicate'],
+      ['card', 'orphan'],
+    ]);
+  });
+
+  it('an in-batch prerequisite whose claim is taken by another request makes its dependents orphans', async () => {
+    const { redis } = setup();
+    await recordEvent(redis, ev('entry'));
+    const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
+    // A concurrent request claims inview after this snapshot and has not counted it yet.
+    await redis.command(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'EX', 100]);
+    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
+    expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
+      ['inview', 'duplicate'],
+      ['card', 'orphan'],
+    ]);
+    expect((await redis.command(['HGETALL', keys.counters(NS)])) as string[]).not.toContain('t:a:card');
   });
 
   it('an item whose prerequisite is neither claimed nor earlier in the batch is an orphan and writes nothing', async () => {

@@ -37,7 +37,7 @@ import {
   countDailyEntryN,
   countEntry,
   rateLimit,
-  readEntryExpiry,
+  readEntryClaim,
   readView,
   recordLater,
   recordRejection,
@@ -123,16 +123,17 @@ function ownOrigin(request: Request): string {
 }
 
 /**
- * x-real-ip, else the first x-forwarded-for entry. Vercel's edge overwrites x-forwarded-for with the
- * client's address (documented); that x-real-ip always carries the same address on Vercel is
- * assumed, not verified. Under `next start` both are client-controlled, which matters only outside
- * production, where nothing is written except to the loopback fake.
+ * The first x-forwarded-for entry, else x-real-ip. Vercel documents that its edge overwrites
+ * x-forwarded-for with the client's address, so it is read first. That x-real-ip always carries
+ * the same address on Vercel is assumed, not verified, so it is only a fallback. Under
+ * `next start` both are client-controlled, which matters only outside production, where nothing is
+ * written except to the loopback fake.
  */
 function clientAddress(request: Request): string | null {
-  const real = request.headers.get('x-real-ip')?.trim();
-  if (real) return real;
   const first = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return first ? first : null;
+  if (first) return first;
+  const real = request.headers.get('x-real-ip')?.trim();
+  return real ? real : null;
 }
 
 function isStoreError(e: unknown): boolean {
@@ -217,7 +218,10 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
       limit: config.rateLimit.perMinute,
       ttlSeconds: config.rateLimit.keyTtlSeconds,
     });
-    // rate_limited counts excluded entry views, so only a batch that carries an entry records it.
+    // rate_limited is recorded once per bucket-minute, and only when the first limited batch of that
+    // minute carries an entry: it counts those batches, not every limited entry, and says nothing
+    // about a flood that sends its excess as later batches. The firewall rule and the rd: rows of
+    // the other reasons are the flood signals.
     if (limit === 'limited-first' && entry !== null) {
       await recordRejection(write, { ns: batch.ns, reason: 'rate_limited', day });
       throw new Stop(429, null, 'rejected', 'rate_limited');
@@ -241,11 +245,18 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     const results: { type: EventType; outcome: ItemOutcome }[] = [];
     const counted: EventType[] = [];
     let entryExpiry = view.entryExpiry;
+    let entryClaim = view.claims.entry ?? null;
     if (entry !== null) {
       const claim = await claimEntry(write, { ns: batch.ns, pv: batch.pv, ttlSeconds: config.pvTtlSeconds });
       if (claim === 'duplicate') {
         results.push({ type: 'entry', outcome: 'duplicate' });
-        if (later.length > 0) entryExpiry = await readEntryExpiry(write, batch);
+        if (later.length > 0) {
+          // The snapshot was read before this claim; the original request may have promoted the
+          // entry since. Re-read the claim and its expiry together.
+          const fresh = await readEntryClaim(write, batch);
+          entryClaim = fresh.value;
+          entryExpiry = fresh.expiry;
+        }
       } else {
         const reason: RejectReason | null = isBotUserAgent(request.headers.get('user-agent'))
           ? 'bot'
@@ -287,7 +298,7 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
         pv: batch.pv,
         arm: batch.arm,
         day,
-        view: { ...view, entryExpiry },
+        view: { ...view, claims: { ...view.claims, entry: entryClaim ?? undefined }, entryExpiry },
         items: later,
         counted,
       });
