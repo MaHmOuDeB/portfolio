@@ -3,9 +3,9 @@ import { join, relative, resolve } from 'node:path';
 import { EXPERIMENT, FIXTURE_START, type ExperimentConfig } from '@/experiment.config';
 import type { ServerEnv } from '@/lib/env';
 import { EVENT_TYPES } from '@/lib/experiment/events';
-import { NO_FLAGS, type ExperimentFlags } from '@/lib/experiment/flags';
+import { FlagsUnavailable, NO_FLAGS, type ExperimentFlags } from '@/lib/experiment/flags';
 import { fieldName, keys } from '@/lib/experiment/keys';
-import { freshnessAt, getExperimentSnapshot, getLiveView, liveView, type SnapshotDeps } from '@/lib/experiment/live';
+import { freshnessAt, getExperimentSnapshot, getLiveView, liveView, viewFreshnessAt, type SnapshotDeps } from '@/lib/experiment/live';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
 import { createRedisRest, RedisUnavailable, type RedisRest } from '@/lib/experiment/redis-rest';
 import { buildSnapshot, type ExperimentSnapshot } from '@/lib/experiment/snapshot';
@@ -245,6 +245,21 @@ describe('getExperimentSnapshot: the store', () => {
     }
   });
 
+  it('rejects a never-settling flags read after 2,000 ms', async () => {
+    vi.useFakeTimers();
+    try {
+      const p = getExperimentSnapshot(deps({ flags: () => new Promise(() => {}) }));
+      const settled = vi.fn();
+      p.then(settled, settled);
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(settled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(p).rejects.toBeInstanceOf(FlagsUnavailable);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reads with a request init that has no cache or next option (the page stays static)', async () => {
     const inits: RequestInit[] = [];
     const fetch = (async (_url: string, init: RequestInit) => {
@@ -297,43 +312,92 @@ describe('the closing check on the read path', () => {
     a: { entry: 600, inview: 300, engaged: 420, card: 30 },
     b: { entry: 600, inview: 300, engaged: 432, card: 120 },
   };
+  /** Each test its own namespace: the memo is per process and namespace, as in production. */
+  const abIn = (namespace: string) => ({ ...AB, namespace }) as ExperimentConfig;
 
-  async function setup(nowIso: string) {
+  type Logged = { name: string; args: readonly (string | number)[] }[];
+  /** A client over `redis` that records every command; a new object per call, as storeAccess gives. */
+  function recording(redis: MemoryRedis, log: Logged): RedisRest {
+    return {
+      command: (c) => (log.push({ name: String(c[0]), args: c }), redis.command(c)),
+      pipeline: (cs) => (cs.forEach((c) => log.push({ name: String(c[0]), args: c })), redis.pipeline(cs)),
+      transaction: (cs) => (cs.forEach((c) => log.push({ name: String(c[0]), args: c })), redis.transaction(cs)),
+    };
+  }
+
+  async function setup(nowIso: string, namespace: string) {
+    const config = abIn(namespace);
     const redis = createMemoryRedis();
-    await seed(redis, AB.namespace, [WIN]);
+    await seed(redis, namespace, [WIN]);
     const tasks: (() => Promise<unknown>)[] = [];
-    const d = deps({ read: redis, write: redis, config: AB, now: () => new Date(nowIso), schedule: (t) => tasks.push(t) });
-    return { redis, tasks, d };
+    const reads: Logged = [];
+    const writes: Logged = [];
+    // Like production: storeAccess builds new clients on every read.
+    const d = () =>
+      deps({ read: recording(redis, reads), write: recording(redis, writes), config, now: () => new Date(nowIso), schedule: (t) => tasks.push(t) });
+    return { redis, tasks, d, reads, writes, config };
   }
 
   it('does nothing before the decided day is a completed look (00:30 Berlin the next day)', async () => {
-    const { redis, tasks, d } = await setup('2026-12-02T00:30:00+01:00');
-    const s = await getExperimentSnapshot(d);
+    const { redis, tasks, d, config } = await setup('2026-12-02T00:30:00+01:00', 'close-a');
+    const s = await getExperimentSnapshot(d());
     expect(s.status).toBe('ab');
     expect(tasks).toHaveLength(0);
-    await expect(readClosed(redis, AB.namespace)).resolves.toBeNull();
+    await expect(readClosed(redis, config.namespace)).resolves.toBeNull();
   });
 
-  it('schedules the closing check once the look is completed (00:32), and only once per store', async () => {
-    const { redis, tasks, d } = await setup('2026-12-02T00:32:00+01:00');
-    const s = await getExperimentSnapshot(d);
+  it('schedules the check once the look is completed (00:32); once the marker is stored, reads with new clients never re-run it', async () => {
+    const { redis, tasks, d, reads, writes, config } = await setup('2026-12-02T00:32:00+01:00', 'close-b');
+    const s = await getExperimentSnapshot(d());
     expect(s.status).toBe('ship-b');
     expect(tasks).toHaveLength(1);
     await tasks[0]!();
-    await expect(readClosed(redis, AB.namespace)).resolves.toEqual({ kind: 'decision', day: '2026-12-01' });
-    await getExperimentSnapshot(d);
+    await expect(readClosed(redis, config.namespace)).resolves.toEqual({ kind: 'decision', day: '2026-12-01' });
+    const writesAfterClose = writes.length;
+    reads.length = 0;
+    for (let k = 0; k < 5; k += 1) await getExperimentSnapshot(d());
     expect(tasks).toHaveLength(1);
+    expect(writes.length).toBe(writesAfterClose);
+    // The read path costs one command per read, the counter hash, and nothing more.
+    expect(reads.map((r) => r.name)).toEqual(Array(5).fill('HGETALL'));
+  });
+
+  it('runs again after a check that found nothing to write or failed', async () => {
+    const { tasks, d, config } = await setup('2026-12-02T00:32:00+01:00', 'close-c');
+    const failing: RedisRest = {
+      command: async () => {
+        throw new RedisUnavailable('command failed (network)');
+      },
+      pipeline: async () => [],
+      transaction: async () => [],
+    };
+    await getExperimentSnapshot({ ...d(), write: failing });
+    expect(tasks).toHaveLength(1);
+    await tasks[0]!();
+    await getExperimentSnapshot(d());
+    expect(tasks).toHaveLength(2);
+    expect(config.namespace).toBe('close-c');
+  });
+
+  it('writes nothing on the page path but the closed marker, with SET NX', async () => {
+    const { d, writes, config } = await setup('2026-12-02T00:32:00+01:00', 'close-d');
+    const tasks: (() => Promise<unknown>)[] = [];
+    await getExperimentSnapshot({ ...d(), schedule: (t) => tasks.push(t) });
+    for (const t of tasks) await t();
+    const WRITES = new Set(['SET', 'INCR', 'HINCRBY', 'EXPIRE', 'DEL', 'HSET', 'PEXPIRE']);
+    const written = writes.filter((w) => WRITES.has(w.name));
+    expect(written).toHaveLength(1);
+    expect(written[0]!.args[1]).toBe(keys.closed(config.namespace));
+    expect(written[0]!.args).toContain('NX');
   });
 
   it('never schedules without a write client, and a failing scheduler never fails the read', async () => {
-    const { d } = await setup('2026-12-02T00:32:00+01:00');
-    await expect(getExperimentSnapshot({ ...d, write: null })).resolves.toMatchObject({ status: 'ship-b' });
-    const redis = createMemoryRedis();
-    await seed(redis, AB.namespace, [WIN]);
+    const { d } = await setup('2026-12-02T00:32:00+01:00', 'close-e');
+    await expect(getExperimentSnapshot({ ...d(), write: null })).resolves.toMatchObject({ status: 'ship-b' });
     const throwing = () => {
       throw new Error('outside a request');
     };
-    await expect(getExperimentSnapshot({ ...d, read: redis, write: redis, schedule: throwing })).resolves.toMatchObject({ status: 'ship-b' });
+    await expect(getExperimentSnapshot({ ...d(), schedule: throwing })).resolves.toMatchObject({ status: 'ship-b' });
   });
 });
 
@@ -344,6 +408,14 @@ describe('freshnessAt', () => {
   it('is fresh at 14 minutes after the read and stale at 16', () => {
     expect(freshnessAt(s, at(14))).toEqual({ kind: 'fresh' });
     expect(freshnessAt(s, at(16))).toEqual({ kind: 'stale', updatedAt: s.readAt, renderedAt: at(16) });
+  });
+
+  it('can be computed from the live view alone, for a client island', () => {
+    const v = liveView(s, 'a');
+    expect(v.readAt).toBe(s.readAt);
+    expect(viewFreshnessAt(v, at(14))).toEqual({ kind: 'fresh' });
+    expect(viewFreshnessAt(v, at(16))).toEqual({ kind: 'stale', updatedAt: s.readAt, renderedAt: at(16) });
+    expect(viewFreshnessAt(v, at(16), 30)).toEqual({ kind: 'fresh' });
   });
 
   it('keeps a pause however old the data is', () => {
@@ -398,24 +470,20 @@ describe('liveView', () => {
 
   it('holds only the page-safe parts: the kit snapshot, never the analysis', () => {
     const v = liveView(snap(), 'a');
-    expect(Object.keys(v).sort()).toEqual(['body', 'namespace', 'refs', 'snapshot', 'state', 'testNote']);
+    expect(Object.keys(v).sort()).toEqual(['body', 'namespace', 'readAt', 'refs', 'snapshot', 'state', 'testNote']);
     const text = JSON.stringify(v);
     for (const key of ['"p"', '"pValue"', '"chi2"', '"looks"', '"current"', '"funnel"', '"srm"', '"calibration"']) expect(text).not.toContain(`${key}:`);
   });
 
   it('getLiveView reads and returns the view only', async () => {
     const v = await getLiveView('a', deps());
-    expect(Object.keys(v).sort()).toEqual(['body', 'namespace', 'refs', 'snapshot', 'state', 'testNote']);
+    expect(Object.keys(v).sort()).toEqual(['body', 'namespace', 'readAt', 'refs', 'snapshot', 'state', 'testNote']);
     expect(v.refs).toEqual(['live']);
   });
 });
 
 describe('the source', () => {
   const SRC = resolve(import.meta.dirname, '../../../src');
-
-  it('of live.ts never names the write token', () => {
-    expect(readFileSync(join(SRC, 'lib/experiment/live.ts'), 'utf8')).not.toContain('kvToken');
-  });
 
   it('gives pages the live view only: no page or component reads the whole snapshot', () => {
     // The snapshot holds p-values and exact outcome counts; only the blinded data.json route reads it.

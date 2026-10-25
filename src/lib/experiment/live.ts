@@ -32,7 +32,8 @@ import { storeAccess, type StoreAccess } from './access.ts';
 import { closeIfDecided, errorCategory } from './close.ts';
 import { later } from './deps.ts';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from './events.ts';
-import { NO_FLAGS, readFlags, type ExperimentFlags } from './flags.ts';
+import { FlagsUnavailable, NO_FLAGS, readFlags, type ExperimentFlags } from './flags.ts';
+import { freshnessFrom } from './freshness.ts';
 import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
 import { buildSnapshot, closingMarker, type ExperimentSnapshot, type Held } from './snapshot.ts';
 import { readCounters, type CounterRows, type GroupCounts } from './store.ts';
@@ -50,6 +51,11 @@ export type SnapshotDeps = {
   write?: RedisRest | null;
   /** Runs the closing check after the response (`after` in Next). */
   schedule?: (task: () => Promise<unknown>) => void;
+  /**
+   * The namespaces whose closing check is under way or done in this process. Keyed by namespace,
+   * not by client: storeAccess builds a new client on every read.
+   */
+  closingSeen?: Set<string>;
 };
 
 export type LiveView = {
@@ -60,6 +66,8 @@ export type LiveView = {
   testNote: TestNote;
   /** Rendered into the page for the beacon, so a page open across a phase switch is refused. */
   namespace: string;
+  /** When the data was read (ISO), for the stale label at view time (viewFreshnessAt). */
+  readAt: string;
 };
 
 export const READ_TIMEOUT_MS = 2000;
@@ -94,13 +102,13 @@ const emptyCounters = (): CounterRows => ({
   totals: { a: zeros(), b: zeros() },
 });
 
-/** Write clients whose closing check is under way or done, per namespace: one check per process. */
-const closing = new WeakMap<RedisRest, Set<string>>();
+/** The namespaces whose closing check is under way or done: one check per process and namespace. */
+const closingSeen = new Set<string>();
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new RedisUnavailable(`read timed out after ${ms} ms`)), ms);
+    timer = setTimeout(() => reject(onTimeout()), ms);
   });
   // A read that loses the race must not surface as an unhandled rejection.
   p.catch(() => {});
@@ -120,6 +128,7 @@ function resolveDeps(d: Partial<SnapshotDeps>): Required<SnapshotDeps> {
     log: d.log ?? ((l) => console.log(JSON.stringify(l))),
     config: d.config ?? EXPERIMENT,
     schedule: d.schedule ?? later,
+    closingSeen: d.closingSeen ?? closingSeen,
   };
 }
 
@@ -139,10 +148,11 @@ function stoppedFreshness(s: ExperimentSnapshot, flags: ExperimentFlags): Freshn
  * A snapshot with no data: zero counts, and a paused freshness that gives the reason. Without a
  * start, its planned end is the earliest end if the calibration started now, a true lower bound.
  */
-function placeholder(config: ExperimentConfig, now: Date, start: string | null, reason: string): ExperimentSnapshot {
+function placeholder(config: ExperimentConfig, now: Date, start: string | null, why: 'not-started' | 'unreadable'): ExperimentSnapshot {
   const nowIso = now.toISOString();
   const s = buildSnapshot({ counters: emptyCounters(), flags: NO_FLAGS, now: nowIso, start: start ?? nowIso, source: 'unavailable', config });
-  return { ...s, live: { ...s.live, freshness: { kind: 'paused', pausedOn: nowIso, reason } } };
+  const reason = why === 'not-started' ? NOT_STARTED_REASON : UNAVAILABLE_REASON;
+  return { ...s, unavailable: why, live: { ...s.live, freshness: { kind: 'paused', pausedOn: nowIso, reason } } };
 }
 
 export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {}): Promise<ExperimentSnapshot> {
@@ -162,7 +172,7 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   const fail = (reason: string, e: unknown): ExperimentSnapshot => {
     logLine(building ? 'unavailable' : 'error', reason);
     // The configured start only: never the fixture's stand-in.
-    if (building) return placeholder(config, d.now(), config.calibration.startedOn, UNAVAILABLE_REASON);
+    if (building) return placeholder(config, d.now(), config.calibration.startedOn, 'unreadable');
     throw e;
   };
 
@@ -170,7 +180,7 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
     return fail('misconfigured', new Error('experiment environment misconfigured: VERCEL_ENV is not set on Vercel'));
   }
   // Only production can have no start (elsewhere FIXTURE_START stands in).
-  if (start === null) return placeholder(config, d.now(), null, NOT_STARTED_REASON);
+  if (start === null) return placeholder(config, d.now(), null, 'not-started');
   if (d.mode === 'none') {
     if (env.vercelEnv === 'production') return fail('not-configured', new Error('experiment store not configured'));
     return buildSnapshot({ counters: emptyCounters(), flags: NO_FLAGS, now: d.now().toISOString(), start, source: 'fixture', config });
@@ -181,7 +191,11 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   let counters: CounterRows;
   let flags: ExperimentFlags;
   try {
-    [counters, flags] = await Promise.all([withTimeout(readCounters(read, config.namespace), READ_TIMEOUT_MS), d.flags()]);
+    [counters, flags] = await Promise.all([
+      withTimeout(readCounters(read, config.namespace), READ_TIMEOUT_MS, () => new RedisUnavailable(`read timed out after ${READ_TIMEOUT_MS} ms`)),
+      // A hung Edge Config read must not hang the regeneration either.
+      withTimeout(d.flags(), READ_TIMEOUT_MS, () => new FlagsUnavailable()),
+    ]);
   } catch (e) {
     return fail(errorCategory(e), e);
   }
@@ -189,11 +203,11 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   const freshness = stoppedFreshness(built, flags);
   const s: ExperimentSnapshot = freshness === null ? built : { ...built, live: { ...built.live, freshness } };
 
-  // The closing check, once per write client and namespace in this process.
+  // The closing check, once per namespace in this process: after a marker is stored, a read costs
+  // nothing more (the memo is cleared only when the check found nothing to write or failed).
   const write = d.write;
   if (write !== null && closingMarker(s) !== null) {
-    const seen = closing.get(write) ?? new Set<string>();
-    closing.set(write, seen);
+    const seen = d.closingSeen;
     if (!seen.has(config.namespace)) {
       seen.add(config.namespace);
       try {
@@ -211,10 +225,8 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
 }
 
 /** A pause stays; data older than staleAfterMinutes is stale; otherwise fresh. */
-export function freshnessAt(s: ExperimentSnapshot, nowIso: string): Freshness {
-  if (s.live.freshness.kind === 'paused') return s.live.freshness;
-  const age = Date.parse(nowIso) - Date.parse(s.readAt);
-  return age > EXPERIMENT.staleAfterMinutes * 60_000 ? { kind: 'stale', updatedAt: s.readAt, renderedAt: nowIso } : { kind: 'fresh' };
+export function freshnessAt(s: ExperimentSnapshot, nowIso: string, config: ExperimentConfig = EXPERIMENT): Freshness {
+  return freshnessFrom({ readAt: s.readAt, freshness: s.live.freshness }, nowIso, config.staleAfterMinutes);
 }
 
 /** What a page renders for a reader in group `arm`: never the whole snapshot. */
@@ -226,10 +238,11 @@ export function liveView(s: ExperimentSnapshot, arm: Arm): LiveView {
       : s.status === 'before-data' || s.status === 'calibration' || s.status === 'aa-failed'
         ? { mode: 'calibration' }
         : { mode: 'ab', arm, nA: s.live.nA, nB: s.live.nB };
-  return { snapshot: s.live, refs: REFS[s.source], state, body: resolveFigureBody(state), testNote, namespace: s.namespace };
+  return { snapshot: s.live, refs: REFS[s.source], state, body: resolveFigureBody(state), testNote, namespace: s.namespace, readAt: s.readAt };
 }
 
 /** The live view of the current snapshot: the one entry point for pages. */
 export async function getLiveView(arm: Arm, deps: Partial<SnapshotDeps> = {}): Promise<LiveView> {
   return liveView(await getExperimentSnapshot(deps), arm);
 }
+export { viewFreshnessAt } from './freshness.ts';

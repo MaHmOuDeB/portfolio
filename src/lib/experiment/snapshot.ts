@@ -85,6 +85,8 @@ export type ExperimentSnapshot = {
    * a build could not read the store. Its counts are zero and its freshness says why.
    */
   source: 'store' | 'local' | 'fixture' | 'unavailable';
+  /** Why a placeholder has no data: set only when `source` is 'unavailable'. */
+  unavailable?: 'not-started' | 'unreadable';
   readAt: string;
   namespace: string;
   /** The configured phase (calibration or ab). */

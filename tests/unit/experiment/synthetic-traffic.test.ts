@@ -6,7 +6,7 @@ import { EXPERIMENT, type Arm, type ExperimentConfig } from '@/experiment.config
 import type { ServerEnv } from '@/lib/env';
 import { assignArm, isBotUserAgent } from '@/lib/experiment/assign';
 import { closeIfDecided } from '@/lib/experiment/close';
-import { REJECT_REASONS, type BeaconItem, type EventType, type RejectReason } from '@/lib/experiment/events';
+import { EVENT_TYPES, REJECT_REASONS, type BeaconItem, type EventType, type RejectReason } from '@/lib/experiment/events';
 import { NO_FLAGS } from '@/lib/experiment/flags';
 import { handleEvent, type EventDeps } from '@/lib/experiment/handler';
 import { INTERNAL_MESSAGE } from '@/lib/experiment/internal';
@@ -14,7 +14,8 @@ import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { buildSnapshot, type ExperimentSnapshot } from '@/lib/experiment/snapshot';
 import { readCounters } from '@/lib/experiment/store';
 import { berlinStartOfDay } from '@/lib/experiment/time';
-import { sfc32, srmTest, type Rng } from '@/lib/stats';
+import { binomial, sfc32, srmTest, type Rng } from '@/lib/stats';
+import type { DayCounts, GroupCounts } from '@/lib/experiment/store';
 
 const sdk = vi.hoisted(() => ({ get: vi.fn(async () => undefined) }));
 vi.mock('@vercel/edge-config', () => ({ createClient: () => ({ get: sdk.get }) }));
@@ -385,5 +386,44 @@ describe('an attack: one address flooding, then a forged-group flood over the da
     expect(s.status).toBe('calibration');
     // The flood is still in the current totals, where it would have failed the split check.
     expect(srmTest(s.current.a.entry, s.current.b.entry).p).toBeLessThan(EXPERIMENT.srmFlagP);
+  });
+});
+
+describe('the A/A rule on identical groups, over 200 seeds (the builder alone)', () => {
+  it('fails few of them: at most alpha plus three standard errors', () => {
+    // 14 completed days of about 30 entry views a day, every view split 50/50 and both groups with
+    // the same rates. A failure is any rule failure: the split check, the interval, or a data fault.
+    const config = cfg({ calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-02T00:00:00+01:00' } });
+    const runs = 200;
+    let failed = 0;
+    for (let seed = 1; seed <= runs; seed += 1) {
+      const rng = sfc32(seed);
+      const days: DayCounts[] = [];
+      for (let k = 0; k < 14; k += 1) {
+        const entries = binomial(rng, 60, 0.5);
+        const a = binomial(rng, entries, 0.5);
+        const group = (entry: number): GroupCounts => {
+          const inview = binomial(rng, entry, 0.6);
+          return { entry, inview, engaged: binomial(rng, entry, 0.7), card: binomial(rng, inview, 0.15), secondary: 0, cv: 0, contact: 0 };
+        };
+        days.push({ day: dayPlus('2026-11-02', k), a: group(a), b: group(entries - a) });
+      }
+      const sum = (arm: Arm) => Object.fromEntries(EVENT_TYPES.map((t) => [t, days.reduce((x, d) => x + d[arm][t], 0)])) as GroupCounts;
+      const totals = { a: sum('a'), b: sum('b') };
+      const rejections = Object.fromEntries(REJECT_REASONS.map((r) => [r, 0])) as Record<RejectReason, number>;
+      const s = buildSnapshot({
+        counters: { days, rejections, rejectionsByDay: {}, totals },
+        flags: NO_FLAGS,
+        now: '2026-11-17T12:00:00+01:00',
+        start: config.calibration.startedOn!,
+        source: 'store',
+        config,
+      });
+      if (s.calibration?.failed) failed += 1;
+    }
+    const share = failed / runs;
+    const bound = EXPERIMENT.alpha + 3 * Math.sqrt((EXPERIMENT.alpha * (1 - EXPERIMENT.alpha)) / runs);
+    console.info(`A/A false-fail rate over ${runs} seeds: ${failed}/${runs} (${share.toFixed(3)}), bound ${bound.toFixed(3)}`);
+    expect(share).toBeLessThanOrEqual(bound);
   });
 });

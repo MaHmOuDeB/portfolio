@@ -144,16 +144,85 @@ describe('toPublicData', () => {
     });
   });
 
-  it('shows the outcomes and the intervals once both groups have 50 analysed views', () => {
+  it('shows the look outcomes and the intervals once both groups have 50 analysed views', () => {
     const o = toPublicData(open, BUILD);
     expect(open.blinded).toBe(false);
     expect(o.looks[0]!.a.card).toBe(45);
-    expect(o.looks[0]!.a.cv).toBe('<5');
-    expect(o.looks[0]!.b.cv).toBe(0);
-    expect(o.current.b.card).toBe(51);
-    expect(o.itt).toEqual(open.itt);
+    expect(o.looks[0]!.b.engaged).toBe(252);
+    expect(o.itt).toEqual({ a: 45 / 300, b: 51 / 300 });
     expect(o.primary).toEqual(open.primary);
     expect(o.guardrail).toEqual(open.guardrail);
+  });
+
+  it('keeps current to exposures and CV and contact clicks out of every look while the test runs', () => {
+    const o = toPublicData(open, BUILD);
+    expect(Object.keys(o.current.a).sort()).toEqual(['entry', 'inview']);
+    expect(Object.keys(o.current.b).sort()).toEqual(['entry', 'inview']);
+    const found = keysOf(o);
+    expect(found).not.toContain('cv');
+    expect(found).not.toContain('contact');
+    expect(o.finalDescriptive).toBeNull();
+  });
+
+  it('gives CV and contact clicks as final totals once the test has ended', () => {
+    const won = make(
+      [
+        row('2026-12-01', { entry: 600, inview: 300, engaged: 420, card: 30, cv: 7, contact: 2 }, { entry: 600, inview: 300, engaged: 432, card: 120, cv: 0, contact: 9 }),
+        row('2026-12-02', { entry: 10, inview: 5, engaged: 5, cv: 3 }, { entry: 10, inview: 5, engaged: 5 }),
+      ],
+      { now: '2026-12-03T12:00:00+01:00' },
+    );
+    const w = toPublicData(won, BUILD);
+    expect(w.decision).toBe('ship-b');
+    expect(w.finalDescriptive).toEqual({ day: '2026-12-01', a: { cv: 7, contact: '<5' }, b: { cv: 0, contact: 9 } });
+    expect(w.looks.flatMap((l) => [Object.keys(l.a), Object.keys(l.b)]).flat()).not.toContain('cv');
+  });
+
+  it('publishes no sum of cells and no ratio beside a small cell, so no identity gives a "<5" back', () => {
+    // No totals: the funnel gives only its reasons, the calibration no analysed total.
+    expect(Object.keys(d.funnel)).toEqual(['excluded']);
+    const aa = toPublicData(make(SMALL, { now: '2026-12-03T12:00:00+01:00', config: { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: START } } as ExperimentConfig }), BUILD);
+    expect(aa.calibration).not.toBeNull();
+    expect(aa.calibration).not.toHaveProperty('analysed');
+    // The review's probe: with an analysed total, 14 - 10 gave back the "<5" of group A.
+    expect(d.current.a.inview).toBe('<5');
+    expect(keysOf(d.funnel)).not.toContain('analysed');
+    expect(keysOf(d)).not.toContain('entryViews');
+    expect(keysOf(d)).not.toContain('beaconsReceived');
+    expect(keysOf(d)).not.toContain('botFiltered');
+    // itt x entry gives the card count: withheld while a card cell is small, though unblinded.
+    const smallCard = make(
+      [row('2026-12-01', { entry: 300, inview: 300, engaged: 250, card: 3 }, { entry: 300, inview: 300, engaged: 250, card: 40 })],
+      { now: '2026-12-02T12:00:00+01:00' },
+    );
+    expect(smallCard.blinded).toBe(false);
+    const sc = toPublicData(smallCard, BUILD);
+    expect(sc.looks[0]!.a.card).toBe('<5');
+    expect(sc.itt).toBeNull();
+    // Wherever itt is given, itt x entry is a published number already.
+    const o = toPublicData(open, BUILD);
+    const last = o.looks[o.looks.length - 1]!;
+    for (const arm of ['a', 'b'] as const) {
+      expect(typeof last[arm].card).toBe('number');
+      expect(Math.round(o.itt![arm] * (last[arm].entry as number))).toBe(last[arm].card);
+    }
+  });
+
+  it('carries notes on what the counts can tell, and never calls them anonymous', () => {
+    expect(d.notes.length).toBeGreaterThan(0);
+    expect(d.notes.join(' ')).toMatch(/not anonymous/);
+    expect(d.notes.join(' ')).toMatch(/interval/);
+  });
+
+  it('publishes no decision for a placeholder, and says why it has no data', () => {
+    const after = buildSnapshot({ counters: counters([]), flags: NO_FLAGS, now: '2027-07-01T12:00:00+02:00', start: START, source: 'unavailable', config: AB });
+    expect(after.status).toBe('inconclusive');
+    const p = toPublicData({ ...after, unavailable: 'unreadable' }, BUILD);
+    expect(p.decision).toBeNull();
+    expect(p.unavailable).toBe('unreadable');
+    expect(p.finalDescriptive).toBeNull();
+    expect(toPublicData({ ...after, unavailable: 'not-started' }, BUILD).unavailable).toBe('not-started');
+    expect(d.unavailable).toBeNull();
   });
 
   it('gives the decision when the status is an outcome', () => {
