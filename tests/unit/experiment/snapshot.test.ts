@@ -265,7 +265,7 @@ describe('the first decision is final', () => {
   });
 });
 
-describe('an empty intersection', () => {
+describe('a data fault', () => {
   // Day 1: 10% against 30% of 50, an interval of about -0.07 to +0.47. Day 2 (cumulative 300):
   // 33% against 8%, an interval of about -0.35 to -0.15, wholly outside the band.
   const days = [
@@ -274,55 +274,140 @@ describe('an empty intersection', () => {
   ];
   const s = build(days, { now: noon(D3), config: AB });
 
-  it('keeps the previous band and records the day', () => {
+  it('holds the analysis at the last clean look on an empty intersection', () => {
     expect(s.bandConflictOn).toBe(D2);
-    const [first, last] = [s.live.series[0]!, s.live.series[1]!];
-    expect([last.lower, last.upper]).toEqual([first.lower, first.upper]);
-    expect(last.upper - last.lower).toBeGreaterThan(1);
-    expect(last.n).toBe(300);
-    expect(last.estimate).toBeGreaterThanOrEqual(last.lower);
-    expect(last.estimate).toBeLessThanOrEqual(last.upper);
-    expect(s.primary!.estimate).toBeGreaterThanOrEqual(s.primary!.lower);
-    expect(s.primary!.estimate).toBeLessThanOrEqual(s.primary!.upper);
-  });
-
-  it('decides nothing on the conflicting look', () => {
+    expect(s.held).toEqual({ on: D2, reason: 'band-conflict' });
+    expect(s.looks.map((l) => l.day)).toEqual([D1]);
+    expect(s.live.series.map((p) => p.n)).toEqual([50]);
+    expect([s.live.nA, s.live.nB]).toEqual([50, 50]);
+    // The frozen interval is the clean look's own, with its own estimate.
+    const own = mixtureCs({ xA: 5, nA: 50, xB: 15, nB: 50 }, { tau2: TAU2.primary });
+    expect(s.primary).toEqual({ estimate: own.estimate, lower: own.lower, upper: own.upper });
     expect(s.live.phase).toBe('ab');
     expect(s.frozenAt).toBeNull();
+    expect(s.live.decidedOn).toBeUndefined();
+    expect(closingMarker(s)).toBeNull();
   });
 
-  it('never ships B on a band that the current look lies wholly below', () => {
-    // Look 1: 10% against 66% of 50 (band about +0.29 to +0.83), quick exits 20% against 40% (upper
-    // about +0.51): no decision. Look 2, cumulative: 15% against 30% of 300 (about +0.05 to +0.25,
-    // below the band) and equal quick exits of 600 (upper about +0.08). The kept band alone would
-    // read as ship B.
-    const probe = [
-      row(D1, grp(50, 5, { entry: 50, engaged: 40 }), grp(50, 33, { entry: 50, engaged: 30 })),
-      row(D2, grp(250, 40, { entry: 550, engaged: 380 }), grp(250, 57, { entry: 550, engaged: 390 })),
-    ];
+  // Look 1: 10% against 66% of 50 (band about +0.29 to +0.83), quick exits 20% against 40% (upper
+  // about +0.51): no decision. Look 2, cumulative: 15% against 30% of 300 (about +0.05 to +0.25,
+  // below the band) and equal quick exits of 600 (upper about +0.08). The kept band alone would
+  // read as ship B.
+  const probe = [
+    row(D1, grp(50, 5, { entry: 50, engaged: 40 }), grp(50, 33, { entry: 50, engaged: 30 })),
+    row(D2, grp(250, 40, { entry: 550, engaged: 380 }), grp(250, 57, { entry: 550, engaged: 390 })),
+  ];
+
+  it('never ships B on a band that the current look lies wholly below, and does not resume', () => {
     const p = build(probe, { now: noon(D4), config: AB });
-    expect(p.guardrail!.upper).toBeLessThan(0.1);
-    expect(p.primary!.lower).toBeGreaterThan(0);
-    expect(p.bandConflictOn).toBe(D2);
+    expect(p.held).toEqual({ on: D2, reason: 'band-conflict' });
     expect(p.live.phase).toBe('ab');
     expect(p.frozenAt).toBeNull();
     expect(closingMarker(p)).toBeNull();
-    // A later clean look does not decide either: the walk stops at the conflict until reviewed.
-    const later = build([...probe, row(D3, grp(300, 40, { entry: 600, engaged: 420 }), grp(300, 40, { entry: 600, engaged: 420 }))], { now: noon('2026-12-05'), config: AB });
+    const clean = row(D3, grp(300, 40, { entry: 600, engaged: 420 }), grp(300, 40, { entry: 600, engaged: 420 }));
+    const later = build([...probe, clean], { now: noon('2026-12-05'), config: AB });
     expect(later.frozenAt).toBeNull();
-    expect(later.bandConflictOn).toBe(D2);
+    expect(later.held).toEqual({ on: D2, reason: 'band-conflict' });
+    expect(later.looks.map((l) => l.day)).toEqual([D1]);
+    expect(later.primary).toEqual(p.primary);
+  });
+
+  it('still suppresses the verdict on an SRM flag after the fault (never "SRM passed" beside a flag)', () => {
+    // The conflict on 02.12, then 100 against 900 analysed views on 03.12.
+    const q1 = build([...probe, row(D3, grp(100, 10), grp(900, 90))], { now: noon('2026-12-05'), config: AB });
+    expect(q1.held).toEqual({ on: D2, reason: 'band-conflict' });
+    expect(q1.live.phase).toBe('srm-suppressed');
+    expect(q1.srm.firstFlaggedOn).toBe(D3);
+    expect(q1.srm.flaggedBase).toBe('both');
+    expect([q1.live.nA, q1.live.nB]).toEqual([50, 50]);
+  });
+
+  it('reports the last clean interval at the cap', () => {
+    const p2 = build(probe, { now: '2027-06-01T00:00:00+02:00', config: AB });
+    expect(p2.live.phase).toBe('inconclusive');
+    expect(p2.held).toEqual({ on: D2, reason: 'band-conflict' });
+    const own = mixtureCs({ xA: 5, nA: 50, xB: 33, nB: 50 }, { tau2: TAU2.primary });
+    expect(p2.primary).toEqual({ estimate: own.estimate, lower: own.lower, upper: own.upper });
+    expect(p2.live.series).toHaveLength(1);
   });
 
   it('fails the A/A when the look\'s own interval excludes 0, even if the kept band does not', () => {
     // Day 1: 10% against 30% of 50; day 2 cumulative: 33% against 8% of 300 (about -0.35 to -0.15).
-    const s = build(
+    const a = build(
       [row('2026-11-03', grp(50, 5), grp(50, 15)), row('2026-11-04', grp(250, 95), grp(250, 10))],
       { now: '2026-11-06T08:00:00+01:00' },
     );
-    expect(s.live.phase).toBe('aa-failed');
-    expect(s.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'interval-excludes-zero' });
-    expect(s.calibration!.ready).toBe(false);
-    expect(closingMarker(s)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
+    expect(a.live.phase).toBe('aa-failed');
+    expect(a.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'interval-excludes-zero' });
+    expect(a.calibration!.ready).toBe(false);
+    expect(closingMarker(a)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
+  });
+
+  it('fails the A/A on inconsistent counts, whatever comes after', () => {
+    // 04.11: 20 card clicks in B with no analysed view; 05.11: 160 against 460 analysed views.
+    const q2 = build(
+      [row('2026-11-03', grp(10, 1), grp(10, 1)), row('2026-11-04', grp(0, 0), grp(0, 20)), row('2026-11-05', grp(150, 15), grp(450, 45))],
+      { now: '2026-11-07T08:00:00+01:00' },
+    );
+    expect(q2.held).toEqual({ on: '2026-11-04', reason: 'inconsistent-counts' });
+    expect(q2.inconsistentOn).toBe('2026-11-04');
+    expect(q2.live.phase).toBe('aa-failed');
+    expect(q2.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'data-fault' });
+    expect(q2.calibration!.srmPassed).toBe(false);
+    expect(q2.calibration!.ready).toBe(false);
+    expect(q2.live.aaFailed).toEqual({ on: berlinStartOfDay('2026-11-04'), reason: 'the counts failed a consistency check' });
+    expect([q2.live.nA, q2.live.nB]).toEqual([10, 10]);
+    expect(closingMarker(q2)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
+  });
+
+  it('fails the A/A on a guardrail conflict instead of calibrating forever', () => {
+    // 03.11: quick exits 50% in both groups of 60 (about -0.32 to +0.32); 04.11 cumulative: 10%
+    // against 70% of 600 (about +0.53 to +0.67), wholly outside. Then 20 clean days.
+    const clean = Array.from({ length: 20 }, (_, k) => row(dayPlus('2026-11-05', k), grp(10, 1), grp(10, 1)));
+    const q3 = build(
+      [
+        row('2026-11-03', grp(50, 5, { entry: 60, engaged: 30 }), grp(50, 5, { entry: 60, engaged: 30 })),
+        row('2026-11-04', grp(100, 10, { entry: 540, engaged: 510 }), grp(100, 10, { entry: 540, engaged: 150 })),
+        ...clean,
+      ],
+      { now: '2026-11-30T08:00:00+01:00' },
+    );
+    expect(q3.bandConflictOn).toBe('2026-11-04');
+    expect(q3.held).toEqual({ on: '2026-11-04', reason: 'band-conflict' });
+    expect(q3.live.phase).toBe('aa-failed');
+    expect(q3.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'data-fault' });
+    expect(q3.calibration!.ready).toBe(false);
+    expect(closingMarker(q3)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
+  });
+});
+
+describe('when a day is read', () => {
+  const days = [row(D1, grp(60, 6), grp(60, 9))];
+
+  it('only once its views can add nothing more: the id window plus a minute after midnight', () => {
+    expect(build(days, { now: '2026-12-02T00:30:59+01:00', config: AB }).looks).toEqual([]);
+    expect(build(days, { now: '2026-12-02T00:31:00+01:00', config: AB }).looks.map((l) => l.day)).toEqual([D1]);
+  });
+
+  it('at the planned end at once, because counting stops there', () => {
+    const last = [row('2027-05-31', grp(60, 6), grp(60, 9))];
+    const s = build(last, { now: '2027-06-01T00:00:00+02:00', config: AB });
+    expect(s.looks.map((l) => l.day)).toEqual(['2027-05-31']);
+    expect(s.live.phase).toBe('inconclusive');
+  });
+
+  it('is unmoved by late events written inside the window (property)', () => {
+    fc.assert(
+      fc.property(arbCase, fc.tuple(arbGroup, arbGroup), fc.integer({ min: 0, max: 30 * 60 }), ({ ab, rows }, late, seconds) => {
+        if (rows.length === 0) return;
+        const d = rows[rows.length - 1]!.day;
+        const now = new Date(Date.parse(berlinStartOfDay(dayPlus(d, 1))) + seconds * 1000).toISOString();
+        const bumped = rows.map((r, k) => (k === rows.length - 1 ? { day: r.day, a: sum(r.a, late[0]), b: sum(r.b, late[1]) } : r));
+        const pick = (s: ExperimentSnapshot) => [s.looks, s.frozenAt, s.held, s.primary, s.guardrail, s.live.series, s.srm.firstFlaggedOn, s.calibration?.failed];
+        expect(pick(make(bumped, { now, config: ab ? AB : EXPERIMENT }))).toEqual(pick(make(rows, { now, config: ab ? AB : EXPERIMENT })));
+      }),
+      { numRuns: 200 },
+    );
   });
 });
 
@@ -529,10 +614,12 @@ describe('the ceiling', () => {
     ];
     const s = build(days, { now: noon('2026-12-06'), config: AB, rejectionsByDay: { [D2]: { ceiling: 1 } } });
     expect(s.inconsistentOn).toBe(D3);
+    expect(s.held).toEqual({ on: D3, reason: 'inconsistent-counts' });
     expect(s.live.phase).toBe('ab');
     expect(s.frozenAt).toBeNull();
-    // The inconsistent look gets no interval.
-    expect(s.live.series.map((p) => p.n)).toEqual([60, 370]);
+    // Nothing from the fault on is reported, not even the clean-looking day after it.
+    expect(s.looks.map((l) => l.day)).toEqual([D1]);
+    expect(s.live.series.map((p) => p.n)).toEqual([60]);
   });
 });
 
@@ -623,6 +710,8 @@ const arbCase = fc.record({
   today: fc.tuple(arbGroup, arbGroup),
 });
 
+const sum = (x: GroupCounts, y: GroupCounts): GroupCounts => Object.fromEntries(EVENT_TYPES.map((t) => [t, x[t] + y[t]])) as GroupCounts;
+
 function dayPlus(day: string, k: number): string {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, d + k)).toISOString().slice(0, 10);
@@ -655,7 +744,8 @@ describe('invariants (property)', () => {
           }
         }
         if (s.blinded) expect([series.length, s.primary, s.guardrail, s.itt, s.live.guardrail]).toEqual([0, null, null, null, undefined]);
-        if (s.frozenAt !== null) expect(s.looks[s.looks.length - 1]!.day).toBe(s.frozenAt);
+        if (s.frozenAt !== null && s.held === null) expect(s.looks[s.looks.length - 1]!.day).toBe(s.frozenAt);
+        if (s.held !== null) for (const look of s.looks) expect(look.day < s.held.on).toBe(true);
         if (s.live.phase === 'ship-b' || s.live.phase === 'stop-for-harm') expect(closingMarker(s)).toEqual({ kind: 'decision', day: s.frozenAt });
       }),
       { numRuns: 300 },
@@ -684,7 +774,7 @@ describe('invariants (property)', () => {
         if (first.frozenAt === null) return;
         decided += 1;
         const later = make([...rows, ...extra], { now: noon('2027-01-05'), config: cfg(ab) });
-        const pick = (s: ExperimentSnapshot) => [s.live.phase, s.frozenAt, s.looks, s.primary, s.guardrail, s.live.series, s.live.nA, s.live.nB, closingMarker(s)];
+        const pick = (s: ExperimentSnapshot) => [s.live.phase, s.frozenAt, s.held, s.looks, s.primary, s.guardrail, s.live.series, s.live.nA, s.live.nB, closingMarker(s)];
         expect(pick(later)).toEqual(pick(first));
       }),
       { numRuns: 400 },

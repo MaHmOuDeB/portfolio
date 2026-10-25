@@ -294,6 +294,13 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     // before it expires, so its expiry dates it. Each day row then holds a click only with its own
     // view, and an analysis that leaves out a day (one that reached the ceiling) leaves out all of
     // that day's views' events. The expiry is read in the same requests as before: no extra command.
+    // - This assumes pvTtlSeconds is the TTL the claim was set with. It is pre-registered and a
+    //   phase change uses a fresh namespace, so it cannot change under a live view.
+    // - Accepted residual: the entry's own day comes from this function's clock at step 6, the
+    //   claim's from the store's clock after the rate limit, the view read and the flags read (tens
+    //   of ms, more on a cold flags read, plus clock skew). A view whose entry falls in that window
+    //   at midnight splits across two days; that only matters next to a left-out ceiling day, where
+    //   its later events become uncounted, never wrongly counted.
     let viewN: number | undefined;
     if (later.length > 0) {
       const entryDay =
