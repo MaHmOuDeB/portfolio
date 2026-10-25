@@ -17,8 +17,8 @@
 //      'ceiling' -> stop.
 //   6. countEntry: one MULTI that increments the total and day fields and promotes the claim from
 //      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 3).
-//   7. recordLater for the batch's later items, in order: their claims in one pipeline, their
-//      counts in one transaction.
+//   7. recordLater for the batch's later items, in order, on the entry's Berlin day: their claims
+//      in one pipeline, their counts in one transaction.
 // A claim that other events depend on (the entry, and inview for card and secondary) is written as
 // '-' and promoted to the arm only inside the transaction that counts it. A claim left at '-' (a
 // rejected, ceiling-refused or failed event) equals no arm, so an event that needs it is 'orphan':

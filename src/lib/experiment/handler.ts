@@ -19,7 +19,7 @@
 //  10. The entry: claimed first (a re-sent entry records nothing), then bot, internal, self and a
 //      client reject each record a rejection and stop; then the daily ceiling; then it counts. The
 //      day's first counted entry calls onNewDay.
-//  11. The later items, in order, against the same snapshot.
+//  11. The later items, in order, against the same snapshot, counted on their entry's Berlin day.
 //  12. A store error at any step: 503 unavailable, nothing retried.
 import { createHmac, randomBytes } from 'node:crypto';
 import { EXPERIMENT, calibrationStart, type ExperimentConfig } from '../../experiment.config.ts';
@@ -290,14 +290,21 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
       }
     }
 
-    // 11. Record the later items.
+    // 11. Record the later items, on their entry's Berlin day: the entry claim was set pvTtlSeconds
+    // before it expires, so its expiry dates it. Each day row then holds a click only with its own
+    // view, and an analysis that leaves out a day (one that reached the ceiling) leaves out all of
+    // that day's views' events. The expiry is read in the same requests as before: no extra command.
     let viewN: number | undefined;
     if (later.length > 0) {
+      const entryDay =
+        counted.includes('entry') || entryExpiry === null || entryExpiry <= 0
+          ? day
+          : berlinDay(new Date(entryExpiry - config.pvTtlSeconds * 1000).toISOString());
       const recorded = await recordLater(write, {
         ns: batch.ns,
         pv: batch.pv,
         arm: batch.arm,
-        day,
+        day: entryDay,
         view: { ...view, claims: { ...view.claims, entry: entryClaim ?? undefined }, entryExpiry },
         items: later,
         counted,

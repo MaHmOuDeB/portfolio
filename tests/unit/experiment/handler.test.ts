@@ -8,7 +8,8 @@ import { INTERNAL_MESSAGE } from '@/lib/experiment/internal';
 import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
 import { RedisUnavailable, type RedisCommand, type RedisRest } from '@/lib/experiment/redis-rest';
-import { writeClosed } from '@/lib/experiment/store';
+import { buildSnapshot } from '@/lib/experiment/snapshot';
+import { readCounters, writeClosed } from '@/lib/experiment/store';
 import { COMMANDS_PER_FULL_VIEW } from './budget';
 
 const sdk = vi.hoisted(() => ({ get: vi.fn() }));
@@ -642,6 +643,44 @@ describe('11. record', () => {
     const s = setup({ now: '2026-10-25T00:30:00Z', config: config({ calibration: { ...CONFIG.calibration, startedOn: '2026-10-01T00:00:00+02:00' } }) });
     await s.post(body(['entry']));
     expect(await s.hash()).toEqual({ 't:a:entry': '1', 'd:2026-10-25:a:entry': '1' });
+  });
+
+  it('a later event counts on its entry\'s Berlin day, not on the day it arrives', async () => {
+    // 23:50 in Berlin on 20 November; the clicks arrive at 00:10 on the 21st.
+    const s = setup({ now: '2026-11-20T22:50:00Z' });
+    await s.post(body(['entry']));
+    s.advance(20 * 60_000);
+    await s.post(body(['inview', 'card']));
+    expect(await s.hash()).toEqual({
+      't:a:entry': '1',
+      'd:2026-11-20:a:entry': '1',
+      't:a:inview': '1',
+      'd:2026-11-20:a:inview': '1',
+      't:a:card': '1',
+      'd:2026-11-20:a:card': '1',
+    });
+  });
+
+  it('forged B views that fill a day\'s ceiling cannot carry their clicks past midnight into the analysis', async () => {
+    const s = setup({ now: '2026-11-20T22:50:00Z', config: config({ dailyEntryCeiling: 3 }) });
+    for (let n = 1; n <= 4; n += 1) await s.post(body(['entry', 'inview'], { pv: pvOf(n), arm: 'b' }));
+    s.advance(20 * 60_000);
+    for (let n = 1; n <= 3; n += 1) await s.post(body(['card'], { pv: pvOf(n), arm: 'b' }));
+    const h = await s.hash();
+    expect(h['d:2026-11-20:b:card']).toBe('3');
+    expect(h['rd:2026-11-20:ceiling']).toBe('1');
+    expect(Object.keys(h).some((k) => k.startsWith('d:2026-11-21:'))).toBe(false);
+    const snap = buildSnapshot({
+      counters: await readCounters(s.redis, NS),
+      flags: NO_FLAGS,
+      now: '2026-11-22T12:00:00+01:00',
+      start: '2026-11-02T00:00:00+01:00',
+      source: 'local',
+    });
+    expect(snap.ceilingDays).toEqual(['2026-11-20']);
+    expect(snap.looks).toEqual([]);
+    expect(snap.inconsistentOn).toBeNull();
+    expect([snap.live.nA, snap.live.nB]).toEqual([0, 0]);
   });
 });
 
