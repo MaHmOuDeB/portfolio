@@ -8,17 +8,24 @@
 //   never in a look, so a partial day decides nothing. A look is evaluated once both groups have
 //   at least `minPerGroup` analysed views.
 // - A day that reached the daily ceiling (a `ceiling` rejection on that day) may hold a flood, so
-//   it feeds no look until it has been reviewed: its rows stay in the current totals and the
-//   funnel, and are left out of every look.
+//   it feeds nothing until it has been reviewed: its rows stay in `current` and the funnel, and are
+//   left out of every look and of every count shown next to the analysis.
+// - Data faults. A look whose cumulative counts break an event's dependency (more card clicks than
+//   analysed views, more analysed or engaged views than entries) is inconsistent: it gets no
+//   interval, and no decision is taken at or after it until it is reviewed. The event route counts
+//   a view's later events on its entry's day, so clean data never trips this.
 // - Intervals. The primary (card clicks of analysed views) and the guardrail (quick exits of entry
 //   views) each get the mixture confidence sequence, intersected over the evaluated looks. A look
-//   that would empty an intersection leaves the band as it was and records the day.
-// - SRM on entry and analysed views at every completed look; the first flag is sticky.
-// - The A/B decision walks the evaluated looks: an SRM flag stops it; otherwise the first look at
+//   whose interval does not overlap the running band (an empty intersection) leaves the band as it
+//   was, records the day, and is a data fault like the one above.
+// - SRM on entry and analysed views at every completed look. The first flag is sticky.
+// - The A/B decision walks the looks in order. An SRM flag stops it and freezes the analysis there
+//   (the verdict is suppressed); a data fault stops it without freezing. Otherwise the first look at
 //   which ship B or stop for harm holds is the decision, and the analysis freezes there. Later rows
 //   never change the looks, the interval or the counts shown; a later SRM flag is only a note.
-// - The A/A fails by rule at the first completed look with an SRM flag, or whose intersected
-//   interval excludes 0; the analysis freezes there too.
+// - The A/A fails by rule at the first completed look with an SRM flag, or at which either the
+//   look's own interval or the running band excludes 0; the analysis freezes there too. A data fault
+//   stops the walk.
 // - Blinding. While the smaller group has fewer than `minPerGroup` analysed views, no interval, no
 //   series and no outcome rate is given.
 // Zero exposures never reach the statistics: every call below is guarded by its own count check.
@@ -30,7 +37,7 @@ import { srmTest } from '../stats/proportions.ts';
 import { mixtureCs } from '../stats/sequential.ts';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from './events.ts';
 import type { ExperimentFlags } from './flags.ts';
-import type { ClosedMarker, CounterRows, DayCounts, GroupCounts } from './store.ts';
+import type { ClosedMarker, CounterRows, GroupCounts } from './store.ts';
 import { berlinDay, berlinDaysBetween, berlinStartOfDay, plannedEnd } from './time.ts';
 
 export type SrmResult = { chi2: number; p: number; flagged: boolean };
@@ -71,27 +78,41 @@ export type ExperimentSnapshot = {
   source: 'store' | 'local' | 'fixture';
   readAt: string;
   namespace: string;
-  /** The configured phase; the state the data puts it in is `live.phase`. */
-  phase: ExperimentPhase;
+  /** The configured phase (calibration or ab). */
+  configPhase: ExperimentPhase;
+  /** The state the data puts it in: `live.phase`. */
+  status: LivePhase;
   live: LiveSnapshot;
-  /** Completed days from the start day, up to the deciding look. */
+  /** Completed days from the start day, up to the deciding or suppressing look. */
   looks: Look[];
-  /** Totals now, today's partial row included. */
+  /** Totals now, today's partial row and left-out days included. */
   current: { a: GroupCounts; b: GroupCounts };
   /** The deciding look's day (a decision or an A/A failure). */
   frozenAt: string | null;
   funnel: Funnel;
-  srm: { assignment: SrmResult | null; analysed: SrmResult | null; firstFlaggedOn: string | null; afterDecision: boolean };
+  srm: {
+    /** At the last look analysed: the suppressing or deciding look once there is one. */
+    assignment: SrmResult | null;
+    analysed: SrmResult | null;
+    /** The first flagged look up to the end of the analysis; a flag after a decision is `afterDecision`. */
+    firstFlaggedOn: string | null;
+    /** Which split failed at `firstFlaggedOn`: entry views, analysed views, or both. */
+    flaggedBase: 'entry' | 'analysed' | 'both' | null;
+    afterDecision: boolean;
+  };
   blinded: boolean;
   /** The primary interval, intersected over the evaluated looks. */
   primary: Interval | null;
   guardrail: Interval | null;
+  /** The first look whose interval did not overlap the running band: no decision at or after it. */
   bandConflictOn: string | null;
+  /** The first look whose counts broke an event's dependency: no decision at or after it. */
+  inconsistentOn: string | null;
   /** Card clicks per entry view, descriptive. */
   itt: { a: number; b: number } | null;
   calibration: CalibrationCheck | null;
   detectable: DetectableCurve;
-  /** Days that reached the daily ceiling: they feed no look until reviewed. */
+  /** Days that reached the daily ceiling: they feed nothing until reviewed. */
   ceilingDays: string[];
 };
 
@@ -109,33 +130,37 @@ export type SnapshotInput = {
 const AA_WORDS = { srm: 'the split check failed', 'interval-excludes-zero': 'the two identical groups differed' } as const;
 const DETECTABLE_STEP = 25;
 
+type Counts2 = { a: GroupCounts; b: GroupCounts };
 const zeros = (): GroupCounts => Object.fromEntries(EVENT_TYPES.map((t) => [t, 0])) as GroupCounts;
 const copy = (g: GroupCounts): GroupCounts => ({ ...g });
 function add(into: GroupCounts, g: GroupCounts): void {
   for (const t of EVENT_TYPES) into[t] += g[t];
 }
-const smaller = (c: { a: GroupCounts; b: GroupCounts }) => Math.min(c.a.inview, c.b.inview);
+const smaller = (c: Counts2) => Math.min(c.a.inview, c.b.inview);
+const groupConsistent = (g: GroupCounts) => g.card <= g.inview && g.inview <= g.entry && g.engaged <= g.entry;
+const consistent = (c: Counts2) => groupConsistent(c.a) && groupConsistent(c.b);
+const excludesZero = (v: Interval) => v.lower > 0 || v.upper < 0;
 
-/** The interval of B − A for x of n in each group, or null when a group has no views. */
+/** The interval of B − A for x of n in each group; null when a group has no views. Counts must be consistent. */
 function cs(xA: number, nA: number, xB: number, nB: number, tau2: number, alpha: number): Interval | null {
   if (nA < 1 || nB < 1) return null;
-  // A day boundary can split an event from the one it depends on (a click just after midnight on
-  // the start day or after a left-out ceiling day), so a count is never allowed above its base.
-  const clip = (x: number, n: number) => Math.min(Math.max(x, 0), n);
-  const { estimate, lower, upper } = mixtureCs({ xA: clip(xA, nA), nA, xB: clip(xB, nB), nB }, { tau2, alpha });
+  const { estimate, lower, upper } = mixtureCs({ xA, nA, xB, nB }, { tau2, alpha });
   return { estimate, lower, upper };
 }
 
-const primaryCs = (c: { a: GroupCounts; b: GroupCounts }, alpha: number) => cs(c.a.card, c.a.inview, c.b.card, c.b.inview, TAU2.primary, alpha);
-const guardrailCs = (c: { a: GroupCounts; b: GroupCounts }, alpha: number) =>
+const primaryCs = (c: Counts2, alpha: number) => cs(c.a.card, c.a.inview, c.b.card, c.b.inview, TAU2.primary, alpha);
+const guardrailCs = (c: Counts2, alpha: number) =>
   cs(c.a.entry - c.a.engaged, c.a.entry, c.b.entry - c.b.engaged, c.b.entry, TAU2.guardrail, alpha);
 
-/** A running intersection: a look that would empty it keeps the band and reports the conflict. */
+/**
+ * A running intersection. A look that would empty it keeps the band and reports the conflict; the
+ * band's estimate is then the look's, held inside the band, so the band never contradicts itself.
+ */
 function intersect(band: Interval | null, next: Interval): { band: Interval; conflict: boolean } {
   if (band === null) return { band: next, conflict: false };
   const lower = Math.max(band.lower, next.lower);
   const upper = Math.min(band.upper, next.upper);
-  if (lower >= upper) return { band: { ...band, estimate: next.estimate }, conflict: true };
+  if (lower >= upper) return { band: { ...band, estimate: Math.min(band.upper, Math.max(band.lower, next.estimate)) }, conflict: true };
   return { band: { estimate: next.estimate, lower, upper }, conflict: false };
 }
 
@@ -154,9 +179,12 @@ function dayPlus(day: string, days: number): string {
 type Step = {
   look: Look;
   evaluated: boolean;
+  consistent: boolean;
   assignment: SrmResult | null;
   analysed: SrmResult | null;
   flagged: boolean;
+  /** This look's own primary interval. */
+  own: Interval | null;
   /** The bands intersected up to and including this look. */
   primary: Interval | null;
   guardrail: Interval | null;
@@ -182,31 +210,39 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
     .sort();
   const leftOut = new Set(ceilingDays);
 
-  const current = { a: zeros(), b: zeros() };
+  // `current` is everything counted; `analysable` leaves out the ceiling days.
+  const current: Counts2 = { a: zeros(), b: zeros() };
+  const analysable: Counts2 = { a: zeros(), b: zeros() };
   for (const d of rows) {
     add(current.a, d.a);
     add(current.b, d.b);
+    if (!leftOut.has(d.day)) {
+      add(analysable.a, d.a);
+      add(analysable.b, d.b);
+    }
   }
 
   // Every completed look, with its SRM and the bands so far.
   const steps: Step[] = [];
   {
-    const cum = { a: zeros(), b: zeros() };
+    const cum: Counts2 = { a: zeros(), b: zeros() };
     let primary: Interval | null = null;
     let guardrail: Interval | null = null;
-    const completed = rows.filter((d: DayCounts) => d.day < today && (endDay === null || d.day < endDay) && !leftOut.has(d.day));
+    const completed = rows.filter((d) => d.day < today && (endDay === null || d.day < endDay) && !leftOut.has(d.day));
     for (const d of completed) {
       add(cum.a, d.a);
       add(cum.b, d.b);
       const look: Look = { day: d.day, a: copy(cum.a), b: copy(cum.b) };
       const assignment = srm(look.a.entry, look.b.entry, config.srmFlagP);
       const analysed = srm(look.a.inview, look.b.inview, config.srmFlagP);
-      const evaluated = smaller(look) >= minPerGroup;
+      const ok = consistent(look);
+      const evaluated = ok && smaller(look) >= minPerGroup;
       let conflict = false;
+      let own: Interval | null = null;
       if (evaluated) {
-        const p = primaryCs(look, alpha);
-        if (p !== null) {
-          const r = intersect(primary, p);
+        own = primaryCs(look, alpha);
+        if (own !== null) {
+          const r = intersect(primary, own);
           primary = r.band;
           conflict ||= r.conflict;
         }
@@ -217,22 +253,25 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
           conflict ||= r.conflict;
         }
       }
-      steps.push({ look, evaluated, assignment, analysed, flagged: !!(assignment?.flagged || analysed?.flagged), primary, guardrail, conflict });
+      const flagged = !!(assignment?.flagged || analysed?.flagged);
+      steps.push({ look, evaluated, consistent: ok, assignment, analysed, flagged, own, primary, guardrail, conflict });
     }
   }
 
-  // The walks: the first decision (A/B) or the first rule failure (A/A) freezes the analysis.
+  // The walks. A decision or an A/A failure freezes the analysis at its look; in the A/B an SRM
+  // flag freezes it too (suppressed); a data fault only stops the walk.
   const margin = config.guardrail.marginPp / 100;
   let frozen: number | null = null;
+  let suppressedAt: number | null = null;
   let decision: 'ship-b' | 'stop-for-harm' | null = null;
   let failed: CalibrationCheck['failed'] = null;
-  let suppressed = false;
   for (const [k, s] of steps.entries()) {
     if (ab) {
       if (s.flagged) {
-        suppressed = true;
+        suppressedAt = k;
         break;
       }
+      if (!s.consistent || s.conflict) break;
       if (!s.evaluated || s.primary === null) continue;
       if (s.primary.lower > 0 && s.guardrail !== null && s.guardrail.upper < margin) decision = 'ship-b';
       else if (s.primary.upper < 0) decision = 'stop-for-harm';
@@ -242,27 +281,40 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
       }
     } else {
       if (s.flagged) failed = { day: s.look.day, reason: 'srm' };
-      else if (s.evaluated && s.primary !== null && (s.primary.lower > 0 || s.primary.upper < 0)) failed = { day: s.look.day, reason: 'interval-excludes-zero' };
+      else if (!s.consistent) break;
+      else if (s.evaluated && ((s.own !== null && excludesZero(s.own)) || (s.primary !== null && excludesZero(s.primary)))) {
+        failed = { day: s.look.day, reason: 'interval-excludes-zero' };
+      }
       if (failed !== null) {
         frozen = k;
         break;
       }
     }
   }
-  const analysisSteps = frozen === null ? steps : steps.slice(0, frozen + 1);
+  const stop = frozen ?? suppressedAt;
+  const analysisSteps = stop === null ? steps : steps.slice(0, stop + 1);
   const last = analysisSteps[analysisSteps.length - 1];
   const frozenAt = frozen === null ? null : steps[frozen]!.look.day;
-  const firstFlagged = steps.find((s) => s.flagged)?.look.day ?? null;
+  const flaggedStep = analysisSteps.find((s) => s.flagged);
+  const firstFlagged = flaggedStep?.look.day ?? null;
+  const flaggedBase = flaggedStep
+    ? flaggedStep.assignment?.flagged && flaggedStep.analysed?.flagged
+      ? 'both'
+      : flaggedStep.assignment?.flagged
+        ? 'entry'
+        : 'analysed'
+    : null;
+  const bandConflictOn = analysisSteps.find((s) => s.conflict)?.look.day ?? null;
+  const inconsistentOn = analysisSteps.find((s) => !s.consistent)?.look.day ?? null;
 
-  // The counts the analysis stands on: the deciding look once frozen, else the current totals.
-  const basis = frozen === null ? current : steps[frozen]!.look;
+  // The counts the analysis stands on: the deciding or suppressing look, else the analysable totals.
+  const basis: Counts2 = stop === null ? analysable : steps[stop]!.look;
   const blinded = smaller(basis) < minPerGroup;
   const primary = blinded ? null : (last?.primary ?? null);
   const guardrail = blinded ? null : (last?.guardrail ?? null);
   const series: CsPoint[] = blinded
     ? []
     : analysisSteps.filter((s) => s.evaluated && s.primary !== null).map((s) => csPointFromInterval({ nA: s.look.a.inview, nB: s.look.b.inview }, s.primary!));
-  const conflictStep = analysisSteps.find((s) => s.conflict);
 
   // The calibration check.
   let calibration: CalibrationCheck | null = null;
@@ -273,25 +325,28 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
     const candidate = reached === undefined ? null : reached > earliest ? reached : earliest;
     const evaluatedOn = candidate !== null && candidate < today ? candidate : null;
     const srmPassed = firstFlagged === null;
-    const intervalContainsZero = primary === null ? null : primary.lower <= 0 && primary.upper >= 0;
+    const intervalContainsZero = primary === null ? null : !excludesZero(primary);
+    const clean = bandConflictOn === null && inconsistentOn === null;
     calibration = {
       days: berlinDaysBetween(i.start, i.now),
       analysed: basis.a.inview + basis.b.inview,
       srmPassed,
       intervalContainsZero,
       evaluatedOn,
-      ready: evaluatedOn !== null && srmPassed && intervalContainsZero === true && failed === null,
+      ready: evaluatedOn !== null && srmPassed && intervalContainsZero === true && failed === null && clean,
       failed,
     };
   }
 
-  // The phase: the first that applies.
+  // The phase: the first that applies. The aaFailed flag counts only for the calibration it was set
+  // in: a flag dated before this calibration's start belongs to an earlier run and is ignored.
   const counted = current.a.entry + current.b.entry > 0;
-  const aaFlag = ab ? null : i.flags.aaFailed;
+  const flag = i.flags.aaFailed;
+  const aaFlag = !ab && flag !== null && Date.parse(flag.on) >= Date.parse(i.start) ? flag : null;
   let phase: LivePhase;
   if (!ab && !counted) phase = 'before-data';
   else if (failed !== null || aaFlag !== null) phase = 'aa-failed';
-  else if (suppressed) phase = 'srm-suppressed';
+  else if (suppressedAt !== null) phase = 'srm-suppressed';
   else if (decision !== null) phase = decision;
   else if (ab && end.kind === 'fixed' && Date.parse(i.now) >= Date.parse(end.at)) phase = 'inconclusive';
   else phase = config.phase;
@@ -334,8 +389,11 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
 
   const detect = (n: number) =>
     detectableEffectCs({ nPerArm: n, baseline: config.primary.planningBaseline, tau2: TAU2.primary, alpha, power: config.power });
+  const sizes: number[] = [];
+  for (let n = minPerGroup; n < config.capPerArm; n += DETECTABLE_STEP) sizes.push(n);
+  sizes.push(config.capPerArm);
   const points: DetectableCurve['points'] = [];
-  for (let n = minPerGroup; n <= config.capPerArm; n += DETECTABLE_STEP) {
+  for (const n of sizes) {
     const effect = detect(n);
     if (Number.isFinite(effect)) points.push({ nPerArm: n, effect });
   }
@@ -347,7 +405,8 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
     source: i.source,
     readAt: i.now,
     namespace: config.namespace,
-    phase: config.phase,
+    configPhase: config.phase,
+    status: phase,
     live,
     looks: analysisSteps.map((s) => s.look),
     current,
@@ -357,12 +416,14 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
       assignment: last?.assignment ?? null,
       analysed: last?.analysed ?? null,
       firstFlaggedOn: firstFlagged,
+      flaggedBase,
       afterDecision: frozen !== null && steps.slice(frozen + 1).some((s) => s.flagged),
     },
     blinded,
     primary,
     guardrail,
-    bandConflictOn: conflictStep?.look.day ?? null,
+    bandConflictOn,
+    inconsistentOn,
     itt,
     calibration,
     detectable: {
@@ -379,7 +440,7 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
 
 /** The closed marker the counters call for (the first decision or an A/A failure by rule), or null. */
 export function closingMarker(s: ExperimentSnapshot): ClosedMarker | null {
-  if ((s.live.phase === 'ship-b' || s.live.phase === 'stop-for-harm') && s.frozenAt !== null) return { kind: 'decision', day: s.frozenAt };
+  if ((s.status === 'ship-b' || s.status === 'stop-for-harm') && s.frozenAt !== null) return { kind: 'decision', day: s.frozenAt };
   if (s.calibration?.failed) return { kind: 'aa-failed', day: s.calibration.failed.day };
   return null;
 }

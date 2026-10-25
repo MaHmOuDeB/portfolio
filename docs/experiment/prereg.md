@@ -98,6 +98,10 @@ holds is the decision. Counting stops at that look and later looks change nothin
 after the decision is reported as a note. If neither holds by the cap, I report the final
 interval as the range of effects consistent with the data.
 
+A look whose interval does not overlap the running band, or whose cumulative counts break an
+event's dependency (more card clicks than analysed views), is treated as a data fault: no decision
+is taken at or after it until I have reviewed it.
+
 ## The guardrail disclosure
 
 The guardrail is two-sided by design, and it asks for evidence that B does not hurt, not just an
@@ -124,8 +128,9 @@ false flag over the whole run is about 1% to 3%; I disclose it rather than hide 
 ### The A/A failure rule
 
 The A/A fails if there is an SRM flag at any completed-day look, or if the A/A interval excludes
-0. An A/A detects instrumentation faults, not small biases; the synthetic-traffic and end-to-end
-tests are the main evidence that the instrumentation works. If the A/A fails, I stop, fix the
+0: either that look's own interval or the running band. An A/A detects instrumentation faults,
+not small biases; the synthetic-traffic and end-to-end tests are the main evidence that the
+instrumentation works. If the A/A fails, I stop, fix the
 cause, tag `prereg-v1.1` with the reason, and restart in namespace `aa-v1.1`.
 
 ## Exclusions and the SRM base
@@ -181,7 +186,9 @@ add identifiers. The defences are:
 - a pause switch.
 
 A flood from one source can use up a day's entry ceiling; any Berlin day that reached the ceiling
-is flagged and does not feed a look's decision until reviewed.
+is flagged and does not feed a look's decision until reviewed. A view's later events, such as a
+click after midnight, count on the day of its entry, so leaving a day out leaves out all of its
+views' events.
 
 A pause shows on pages within about 10 minutes and stops counting at once.
 

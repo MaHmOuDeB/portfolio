@@ -77,10 +77,13 @@ describe('empty counters in calibration', () => {
   const s = build([], { now: '2026-11-20T12:00:00+01:00' });
 
   it('is before data, blinded, with no counts and no split check', () => {
-    expect(s.phase).toBe('calibration');
+    expect(s.configPhase).toBe('calibration');
+    expect(s.status).toBe('before-data');
     expect(s.live.phase).toBe('before-data');
     expect([s.live.nA, s.live.nB]).toEqual([0, 0]);
-    expect(s.srm).toEqual({ assignment: null, analysed: null, firstFlaggedOn: null, afterDecision: false });
+    expect(s.srm).toEqual({ assignment: null, analysed: null, firstFlaggedOn: null, flaggedBase: null, afterDecision: false });
+    expect(s.bandConflictOn).toBeNull();
+    expect(s.inconsistentOn).toBeNull();
     expect(s.blinded).toBe(true);
     expect(s.live.series).toEqual([]);
     expect(s.looks).toEqual([]);
@@ -188,7 +191,8 @@ describe('the A/B decision', () => {
     expect(s.guardrail!.upper).toBeLessThan(0.1);
     expect(s.primary!.lower).toBeGreaterThan(0);
     expect(s.live.phase).toBe('ship-b');
-    expect(s.phase).toBe('ab');
+    expect(s.configPhase).toBe('ab');
+    expect(s.status).toBe('ship-b');
     expect(s.frozenAt).toBe(D1);
     expect(s.live.decidedOn).toBe(berlinStartOfDay(D1));
     expect(s.live.abStartedOn).toBe(AB_START);
@@ -251,7 +255,9 @@ describe('the first decision is final', () => {
 
   it('notes the later SRM flag and changes nothing else', () => {
     expect(s.srm.afterDecision).toBe(true);
-    expect(s.srm.firstFlaggedOn).toBe(D2);
+    // A flag after the decision is only that note: the split at the decision passed.
+    expect(s.srm.firstFlaggedOn).toBeNull();
+    expect(s.srm.analysed!.flagged).toBe(false);
     expect(closingMarker(s)).toEqual({ kind: 'decision', day: D1 });
     // The current totals and the funnel still count everything that was counted.
     expect(s.current.a.inview).toBe(700);
@@ -274,11 +280,49 @@ describe('an empty intersection', () => {
     expect([last.lower, last.upper]).toEqual([first.lower, first.upper]);
     expect(last.upper - last.lower).toBeGreaterThan(1);
     expect(last.n).toBe(300);
+    expect(last.estimate).toBeGreaterThanOrEqual(last.lower);
+    expect(last.estimate).toBeLessThanOrEqual(last.upper);
+    expect(s.primary!.estimate).toBeGreaterThanOrEqual(s.primary!.lower);
+    expect(s.primary!.estimate).toBeLessThanOrEqual(s.primary!.upper);
   });
 
   it('decides nothing on the conflicting look', () => {
     expect(s.live.phase).toBe('ab');
     expect(s.frozenAt).toBeNull();
+  });
+
+  it('never ships B on a band that the current look lies wholly below', () => {
+    // Look 1: 10% against 66% of 50 (band about +0.29 to +0.83), quick exits 20% against 40% (upper
+    // about +0.51): no decision. Look 2, cumulative: 15% against 30% of 300 (about +0.05 to +0.25,
+    // below the band) and equal quick exits of 600 (upper about +0.08). The kept band alone would
+    // read as ship B.
+    const probe = [
+      row(D1, grp(50, 5, { entry: 50, engaged: 40 }), grp(50, 33, { entry: 50, engaged: 30 })),
+      row(D2, grp(250, 40, { entry: 550, engaged: 380 }), grp(250, 57, { entry: 550, engaged: 390 })),
+    ];
+    const p = build(probe, { now: noon(D4), config: AB });
+    expect(p.guardrail!.upper).toBeLessThan(0.1);
+    expect(p.primary!.lower).toBeGreaterThan(0);
+    expect(p.bandConflictOn).toBe(D2);
+    expect(p.live.phase).toBe('ab');
+    expect(p.frozenAt).toBeNull();
+    expect(closingMarker(p)).toBeNull();
+    // A later clean look does not decide either: the walk stops at the conflict until reviewed.
+    const later = build([...probe, row(D3, grp(300, 40, { entry: 600, engaged: 420 }), grp(300, 40, { entry: 600, engaged: 420 }))], { now: noon('2026-12-05'), config: AB });
+    expect(later.frozenAt).toBeNull();
+    expect(later.bandConflictOn).toBe(D2);
+  });
+
+  it('fails the A/A when the look\'s own interval excludes 0, even if the kept band does not', () => {
+    // Day 1: 10% against 30% of 50; day 2 cumulative: 33% against 8% of 300 (about -0.35 to -0.15).
+    const s = build(
+      [row('2026-11-03', grp(50, 5), grp(50, 15)), row('2026-11-04', grp(250, 95), grp(250, 10))],
+      { now: '2026-11-06T08:00:00+01:00' },
+    );
+    expect(s.live.phase).toBe('aa-failed');
+    expect(s.calibration!.failed).toEqual({ day: '2026-11-04', reason: 'interval-excludes-zero' });
+    expect(s.calibration!.ready).toBe(false);
+    expect(closingMarker(s)).toEqual({ kind: 'aa-failed', day: '2026-11-04' });
   });
 });
 
@@ -294,11 +338,27 @@ describe('SRM before a decision', () => {
       now: noon(D4),
       config: AB,
     });
-    expect(s2.srm.analysed!.flagged).toBe(false);
     expect(s2.live.phase).toBe('srm-suppressed');
     expect(s2.srm.firstFlaggedOn).toBe(D1);
     expect(s2.frozenAt).toBeNull();
     expect(closingMarker(s2)).toBeNull();
+    // The analysis and the split report freeze at the flagged look.
+    expect(s2.srm.analysed!.flagged).toBe(true);
+    expect(s2.srm.assignment!.flagged).toBe(true);
+    expect(s2.srm.flaggedBase).toBe('both');
+    expect(s2.looks.map((l) => l.day)).toEqual([D1]);
+    expect([s2.live.nA, s2.live.nB]).toEqual([30, 70]);
+  });
+
+  it('names the base that failed, and shows the counts of the flagged look', () => {
+    // 25 against 75 entries, 20 analysed views in each group: the entry split fails.
+    const s = build([row(D1, grp(20, 2, { entry: 25 }), grp(20, 2, { entry: 75 })), row(D2, grp(40, 4), grp(40, 4))], { now: noon(D3), config: AB });
+    expect(s.live.phase).toBe('srm-suppressed');
+    expect(s.srm.flaggedBase).toBe('entry');
+    expect(s.srm.analysed!.flagged).toBe(false);
+    expect(s.srm.assignment!.flagged).toBe(true);
+    expect(s.looks.at(-1)!.a.entry).toBe(25);
+    expect([s.live.nA, s.live.nB]).toEqual([20, 20]);
   });
 
   it('ignores a flag that is only in today\'s partial row', () => {
@@ -344,6 +404,17 @@ describe('the A/A failure', () => {
     const s = build([SPLIT], { now: '2026-11-06T10:00:00+01:00', flags });
     expect(s.live.aaFailed).toEqual({ on: berlinStartOfDay('2026-11-05'), reason: 'a beacon fault in one group', restartsOn: '2026-11-20T00:00:00+01:00' });
     expect(closingMarker(s)).toEqual({ kind: 'aa-failed', day: '2026-11-05' });
+  });
+
+  it('ignores a flag dated before this calibration\'s start (an earlier run)', () => {
+    const flags: ExperimentFlags = {
+      paused: null,
+      aaFailed: { on: '2026-11-01T23:59:00+01:00', reason: 'an old fault', restartsOn: '2026-11-02T00:00:00+01:00' },
+      malformed: false,
+    };
+    const s = build([row('2026-11-04', grp(10, 1), grp(10, 1))], { now: '2026-11-06T10:00:00+01:00', flags });
+    expect(s.live.phase).toBe('calibration');
+    expect(s.live.aaFailed).toBeUndefined();
   });
 
   it('follows the flag alone without writing a closing marker', () => {
@@ -431,6 +502,38 @@ describe('the ceiling', () => {
     expect(s.current.b.card).toBe(126);
     expect(s.funnel.excluded.ceiling).toBe(3);
   });
+
+  it('leaves the day out of the counts shown next to the analysis too', () => {
+    // 180 per group, then a ceiling day with 6 against 206 analysed views. Showing 186 against 386
+    // next to "SRM passed" (computed without that day) would contradict itself.
+    const s = build(
+      [row('2026-11-03', grp(180, 27), grp(180, 27)), row('2026-11-04', grp(6, 1), grp(206, 60))],
+      { now: '2026-11-06T08:00:00+01:00', rejectionsByDay: { '2026-11-04': { ceiling: 1 } } },
+    );
+    expect([s.live.nA, s.live.nB]).toEqual([180, 180]);
+    expect(s.srm.analysed!.flagged).toBe(false);
+    expect(s.calibration!.analysed).toBe(360);
+    expect(s.itt).toEqual({ a: 27 / 180, b: 27 / 180 });
+    expect([s.current.a.inview, s.current.b.inview]).toEqual([186, 386]);
+    expect(s.funnel.analysed).toBe(572);
+  });
+
+  it('flags a look whose clicks outrun their views, and decides nothing from it on', () => {
+    // Clicks counted on the day after a left-out day, without the views they belong to: cumulative
+    // card clicks in B exceed B's analysed views.
+    const days = [
+      row(D1, grp(60, 9, { entry: 120, engaged: 100 }), grp(60, 9, { entry: 120, engaged: 100 })),
+      row(D2, grp(0, 0), grp(200, 0, { entry: 200 })),
+      row(D3, grp(10, 1, { entry: 20, engaged: 18 }), grp(10, 80, { entry: 20, engaged: 18 })),
+      row(D4, WIN_A, WIN_B),
+    ];
+    const s = build(days, { now: noon('2026-12-06'), config: AB, rejectionsByDay: { [D2]: { ceiling: 1 } } });
+    expect(s.inconsistentOn).toBe(D3);
+    expect(s.live.phase).toBe('ab');
+    expect(s.frozenAt).toBeNull();
+    // The inconsistent look gets no interval.
+    expect(s.live.series.map((p) => p.n)).toEqual([60, 370]);
+  });
 });
 
 describe('the intention-to-treat rate', () => {
@@ -458,6 +561,11 @@ describe('the detectable curve', () => {
       if (k > 0) expect(p.effect).toBeLessThan(d.points[k - 1]!.effect);
     }
     expect(d.atCurrent).toBeNull();
+  });
+
+  it('ends at the cap itself', () => {
+    const s = build([], { now: '2026-11-04T08:00:00+01:00', config: { ...EXPERIMENT, capPerArm: 230 } as unknown as ExperimentConfig });
+    expect(s.detectable.points.map((p) => p.nPerArm)).toEqual([50, 75, 100, 125, 150, 175, 200, 225, 230]);
   });
 
   it('gives the effect at the smaller analysed group', () => {
@@ -610,6 +718,30 @@ describe('a seeded A/A simulation', () => {
     }
     // About 2.5% with this seed, in line with the 1% to 3% expected from repeated split checks.
     expect(failed / runs).toBeLessThan(0.06);
+    expect(failed / runs).toBeGreaterThan(0.005);
+  });
+
+  it('fails a broken instrument that loses 30% of B\'s analysed views', () => {
+    // About 40 entry views a day: B's cards area is seen 42% of the time against A's 60%.
+    const rng = sfc32(20261103);
+    let failed = 0;
+    const runs = 100;
+    for (let run = 0; run < runs; run += 1) {
+      const rows: DayCounts[] = [];
+      for (let k = 0; k < 30; k += 1) {
+        const entries = binomial(rng, 80, 0.5);
+        const a = binomial(rng, entries, 0.5);
+        const group = (entry: number, seen: number): G => {
+          const inview = binomial(rng, entry, seen);
+          return { entry, inview, engaged: binomial(rng, entry, 0.6), card: binomial(rng, inview, 0.15) };
+        };
+        rows.push(row(dayPlus('2026-11-02', k), group(a, 0.6), group(entries - a, 0.42)));
+      }
+      const s = buildSnapshot({ counters: counters(rows), flags: NO_FLAGS, now: '2026-12-02T12:00:00+01:00', start: START, source: 'fixture' });
+      if (s.calibration!.failed !== null) failed += 1;
+    }
+    // 89 of 100 with this seed.
+    expect(failed / runs).toBeGreaterThan(0.8);
   });
 });
 
