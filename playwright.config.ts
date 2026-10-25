@@ -57,6 +57,9 @@ export default defineConfig({
         KITCHEN_SINK: '1',
         EXCLUDE_TOKEN: E2E_EXCLUDE_TOKEN,
         EXPERIMENT_FAKE_STORE: '1',
+        // A secret inherited from the shell would make every counted visit "internal" (the fixture
+        // sends x-internal whenever it is set), so the server never has one here.
+        INTERNAL_TRAFFIC_SECRET: '',
         KV_REST_API_URL: E2E_FAKE_UPSTASH_URL,
         ...STORE_ENV,
       },

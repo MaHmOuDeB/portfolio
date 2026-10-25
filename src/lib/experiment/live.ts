@@ -24,7 +24,7 @@
 // only the published data route reads it, through the blinded toPublicData.
 import type { DerivedRef } from '@/components/kit/Derived';
 import type { TestNote } from '@/components/kit/PhaseLabel';
-import { EXPERIMENT, calibrationStart, type Arm, type ExperimentConfig } from '../../experiment.config.ts';
+import { EXPERIMENT, calibrationStart, notStartedAt, type Arm, type ExperimentConfig } from '../../experiment.config.ts';
 import { serverEnv, type ServerEnv } from '../env.ts';
 import { liveFigureState, type LiveSnapshot } from '../figure/cs-band.ts';
 import { resolveFigureBody, type FigureBody, type FigureState, type Freshness } from '../figure/states.ts';
@@ -64,7 +64,8 @@ export type LiveView = {
   refs: readonly DerivedRef[];
   state: FigureState;
   body: FigureBody;
-  testNote: TestNote;
+  /** The one-sentence test note; null before the start, when there is no running test to describe. */
+  testNote: TestNote | null;
   /** Rendered into the page for the beacon, so a page open across a phase switch is refused. */
   namespace: string;
   /** When the data was read (ISO), for the stale label at view time (viewFreshnessAt). */
@@ -180,8 +181,9 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   if (env.onVercel === true && env.vercelEnv === 'development') {
     return fail('misconfigured', new Error('experiment environment misconfigured: VERCEL_ENV is not set on Vercel'));
   }
-  // Only production can have no start (elsewhere FIXTURE_START stands in).
-  if (start === null) return placeholder(config, d.now(), null, 'not-started');
+  // Before the start instant (the event route's rule): nothing is counted, so nothing is read. Only
+  // production can have no start (elsewhere FIXTURE_START stands in).
+  if (start === null || notStartedAt(config, env.vercelEnv, d.now().getTime())) return placeholder(config, d.now(), start, 'not-started');
   if (d.mode === 'none') {
     if (env.vercelEnv === 'production') return fail('not-configured', new Error('experiment store not configured'));
     return buildSnapshot({ counters: emptyCounters(), flags: NO_FLAGS, now: d.now().toISOString(), start, source: 'fixture', config });
@@ -233,12 +235,11 @@ export function freshnessAt(s: ExperimentSnapshot, nowIso: string, config: Exper
 /** What a page renders for a reader in group `arm`: never the whole snapshot. */
 export function liveView(s: ExperimentSnapshot, arm: Arm): LiveView {
   const state = liveFigureState(s.live);
-  const testNote: TestNote =
-    s.live.freshness.kind === 'paused'
-      ? { mode: 'paused' }
-      : s.status === 'before-data' || s.status === 'calibration' || s.status === 'aa-failed'
-        ? { mode: 'calibration' }
-        : { mode: 'ab', arm, nA: s.live.nA, nB: s.live.nB };
+  let testNote: TestNote | null;
+  if (s.unavailable === 'not-started') testNote = null;
+  else if (s.live.freshness.kind === 'paused') testNote = { mode: 'paused' };
+  else if (s.status === 'before-data' || s.status === 'calibration' || s.status === 'aa-failed') testNote = { mode: 'calibration' };
+  else testNote = { mode: 'ab', arm, nA: s.live.nA, nB: s.live.nB };
   return { snapshot: s.live, refs: REFS[s.source], state, body: resolveFigureBody(state), testNote, namespace: s.namespace, readAt: s.readAt };
 }
 

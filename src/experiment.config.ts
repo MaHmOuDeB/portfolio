@@ -21,3 +21,15 @@ export const TAU2 = {
 export function calibrationStart(config: ExperimentConfig, vercelEnv: VercelEnv): string | null {
   return config.calibration.startedOn ?? (vercelEnv === 'production' ? null : FIXTURE_START);
 }
+
+/**
+ * True while nothing can be counted yet: no calibration start, before the start instant, or, in the
+ * A/B, no A/B start or before it. The event route refuses every event as not-started under this
+ * rule, and pages say nothing about a running experiment under the same rule.
+ */
+export function notStartedAt(config: ExperimentConfig, vercelEnv: VercelEnv, nowMs: number): boolean {
+  const start = calibrationStart(config, vercelEnv);
+  if (start === null || nowMs < Date.parse(start)) return true;
+  return config.phase === 'ab' && (config.ab.startedOn === null || nowMs < Date.parse(config.ab.startedOn));
+}
+

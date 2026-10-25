@@ -7,7 +7,9 @@
 //   redirected there with a 308, so every counted view comes from the origin the event route allows.
 // - A direct request for /v/* is rewritten to /v/_, a group that does not exist; with dynamicParams
 //   off, that is the site's own 404 page. ISR revalidation requests carry x-prerender-revalidate and
-//   skip the proxy (the matcher's `missing`), so the static pages still regenerate.
+//   skip the proxy (the matcher's `missing`), so the static pages still regenerate. The condition is
+//   only that the header exists, so any client that sends it gets the group page directly. That
+//   view cannot count: the beacon counts only a document whose first load was /.
 // - It logs nothing and sets no cookie.
 import { NextResponse, type NextRequest } from 'next/server';
 import { serverEnv } from './lib/env.ts';

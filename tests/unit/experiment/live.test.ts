@@ -64,7 +64,7 @@ const snap = (o: Partial<Parameters<typeof buildSnapshot>[0]> = {}): ExperimentS
   buildSnapshot({ counters: EMPTY, flags: NO_FLAGS, now: NOW.toISOString(), start: START, source: 'store', config: CALIBRATION, ...o });
 
 /** No fixture numbers: no fixture start or end, zero counts, and a freshness that says why. */
-function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: ExperimentConfig = EXPERIMENT) {
+function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: ExperimentConfig = EXPERIMENT, note: unknown = { mode: 'paused' }) {
   expect(s.source).toBe('unavailable');
   expect(s.live.plannedEnd).not.toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
   expect(s.live.plannedEnd).toBe(plannedEnd(config, config.calibration.startedOn ?? NOW.toISOString()).at);
@@ -72,11 +72,12 @@ function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: 
   expect(s.live.series).toEqual([]);
   expect(s.live.freshness).toMatchObject({ kind: 'paused', reason: expect.stringMatching(reason) });
   expect(liveView(s, 'a').refs).toEqual(['build']);
-  expect(liveView(s, 'a').testNote).toEqual({ mode: 'paused' });
+  expect(liveView(s, 'a').testNote).toEqual(note);
 }
 function expectNotStarted(s: ExperimentSnapshot) {
-  // The earliest end if it started now: a true lower bound, not the fixture's date.
-  expectHonestPlaceholder(s, /not started/);
+  // The earliest end if it started now: a true lower bound, not the fixture's date. No test note:
+  // there is no running test to describe.
+  expectHonestPlaceholder(s, /not started/, EXPERIMENT, null);
   expect(s.status).toBe('before-data');
 }
 
@@ -501,3 +502,44 @@ describe('the source', () => {
     expect(FORBIDDEN.test("import { getExperimentSnapshot } from '@/lib/experiment/live'")).toBe(true);
   });
 });
+
+describe('before the start instant (the event route\'s rule)', () => {
+  const at = (startedOn: string): ExperimentConfig =>
+    ({ ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn } }) as ExperimentConfig;
+  const read = { command: async () => [], pipeline: async () => [], transaction: async () => [] };
+
+  it('production with no start: no test note', async () => {
+    const v = await getLiveView('a', deps({ env: PRODUCTION, mode: 'store', read, config: EXPERIMENT }));
+    expect(v.testNote).toBeNull();
+  });
+
+  it('production with a start still in the future: the not-started snapshot and no test note, without reading', async () => {
+    let reads = 0;
+    const counting = { ...read, command: async () => (reads++, []), pipeline: async () => (reads++, []) };
+    const config = at('2026-12-01T00:00:00+01:00');
+    const s = await getExperimentSnapshot(deps({ env: PRODUCTION, mode: 'store', read: counting, config }));
+    expect(s.unavailable).toBe('not-started');
+    expect(s.live.plannedEnd).toBe(plannedEnd(config, config.calibration.startedOn!).at);
+    expect(liveView(s, 'b').testNote).toBeNull();
+    expect(reads).toBe(0);
+  });
+
+  it('outside production before the fixture start: the not-started snapshot and no test note', async () => {
+    const s = await getExperimentSnapshot(deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT, now: () => new Date('2026-10-25T12:00:00+02:00') }));
+    expect(s.unavailable).toBe('not-started');
+    expect(liveView(s, 'a').testNote).toBeNull();
+  });
+
+  it('after the start: the calibration note', async () => {
+    const v = await getLiveView('a', deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT }));
+    expect(v.testNote).toEqual({ mode: 'calibration' });
+  });
+
+  it('the A/B before its own start: not started, no test note', async () => {
+    const ab = { ...EXPERIMENT, phase: 'ab', calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-02T00:00:00+01:00' }, ab: { ...EXPERIMENT.ab, startedOn: '2026-12-01T00:00:00+01:00' } } as ExperimentConfig;
+    const s = await getExperimentSnapshot(deps({ env: PRODUCTION, mode: 'store', read, config: ab }));
+    expect(s.unavailable).toBe('not-started');
+    expect(liveView(s, 'a').testNote).toBeNull();
+  });
+});
+

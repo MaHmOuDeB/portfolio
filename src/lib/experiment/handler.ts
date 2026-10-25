@@ -22,7 +22,7 @@
 //  11. The later items, in order, against the same snapshot, counted on their entry's Berlin day.
 //  12. A store error at any step: 503 unavailable, nothing retried.
 import { createHmac, randomBytes } from 'node:crypto';
-import { EXPERIMENT, calibrationStart, type ExperimentConfig } from '../../experiment.config.ts';
+import { EXPERIMENT, calibrationStart, notStartedAt, type ExperimentConfig } from '../../experiment.config.ts';
 import type { ServerEnv } from '../env.ts';
 import { isBotUserAgent } from './assign.ts';
 import { readCapped } from './body.ts';
@@ -192,12 +192,9 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     // 6. Start and end.
     const now = deps.now();
     const nowMs = now.getTime();
-    const start = calibrationStart(config, env.vercelEnv);
-    if (start === null || nowMs < Date.parse(start)) throw refuse('not-started');
-    if (config.phase === 'ab') {
-      if (config.ab.startedOn === null || nowMs < Date.parse(config.ab.startedOn)) throw refuse('not-started');
-      if (nowMs >= Date.parse(plannedEnd(config, start).at)) throw refuse('ended');
-    }
+    if (notStartedAt(config, env.vercelEnv, nowMs)) throw refuse('not-started');
+    const start = calibrationStart(config, env.vercelEnv)!;
+    if (config.phase === 'ab' && nowMs >= Date.parse(plannedEnd(config, start).at)) throw refuse('ended');
 
     // 7. Address and rate limit.
     const production = env.vercelEnv === 'production';

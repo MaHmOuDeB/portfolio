@@ -18,6 +18,12 @@ type Behaviour = {
   hsts: string | null;
   /** Status of the k-th POST to /api/e (1-based). */
   post: (k: number) => { status: number; body?: unknown };
+  /** Cache-Control of `/`. */
+  cacheControl: string;
+  /** Status and age of `/` for the k-th request of a group after the 310 s wait (0-based). */
+  afterWait: (arm: 'a' | 'b', k: number) => { status: number; age: number };
+  /** A redirect for every request, or none. */
+  redirectTo: string | null;
 };
 
 const GOOD: Behaviour = {
@@ -27,6 +33,10 @@ const GOOD: Behaviour = {
   directStatus: 404,
   hsts: 'max-age=63072000',
   post: (k) => (k <= 30 ? { status: 200, body: { ok: true, arm: 'a', results: [{ type: 'inview', outcome: 'orphan' }] } } : { status: 429 }),
+  cacheControl: 'public, max-age=0, must-revalidate',
+  // The first copy after the wait is stale (and starts the regeneration); the next ones are new.
+  afterWait: (_arm, k) => ({ status: 200, age: k === 0 ? 340 : 3 }),
+  redirectTo: null,
 };
 
 const SECURITY = {
@@ -42,16 +52,36 @@ let base: string;
 let behaviour: Behaviour = GOOD;
 let seenBypass: (string | undefined)[] = [];
 let counters = { root: 0, data: 0, post: 0 };
+let waited = false;
+let afterWaitByArm = { a: 0, b: 0 };
 
 function handle(req: IncomingMessage, res: ServerResponse): void {
   seenBypass.push(req.headers['x-vercel-protection-bypass'] as string | undefined);
   const path = new URL(req.url ?? '/', 'http://x').pathname;
+  if (behaviour.redirectTo !== null) {
+    res.writeHead(307, { location: behaviour.redirectTo });
+    res.end();
+    return;
+  }
   if (req.method === 'GET' && path === '/') {
     const i = counters.root++;
     const arm = behaviour.arm(i);
-    const headers: Record<string, string> = { ...SECURITY, 'x-arm': arm, 'x-vercel-cache': behaviour.cache(i, arm), 'content-type': 'text/html' };
+    const headers: Record<string, string> = {
+      ...SECURITY,
+      'x-arm': arm,
+      'x-vercel-cache': behaviour.cache(i, arm),
+      'content-type': 'text/html',
+      'cache-control': behaviour.cacheControl,
+      age: '120',
+    };
     if (behaviour.hsts !== null) headers['strict-transport-security'] = behaviour.hsts;
-    res.writeHead(200, headers);
+    let status = 200;
+    if (waited) {
+      const after = behaviour.afterWait(arm, afterWaitByArm[arm]++);
+      status = after.status;
+      headers.age = String(after.age);
+    }
+    res.writeHead(status, headers);
     res.end('<h1>Mahmoud El Bergui</h1>');
     return;
   }
@@ -88,6 +118,8 @@ beforeEach(() => {
   behaviour = GOOD;
   seenBypass = [];
   counters = { root: 0, data: 0, post: 0 };
+  waited = false;
+  afterWaitByArm = { a: 0, b: 0 };
 });
 
 async function run(argv: string[], env: Record<string, string | undefined> = { VERCEL_AUTOMATION_BYPASS_SECRET: SECRET }) {
@@ -98,6 +130,7 @@ async function run(argv: string[], env: Record<string, string | undefined> = { V
     out: (l) => lines.push(l),
     sleep: async (ms) => {
       slept.push(ms);
+      if (ms >= 310_000) waited = true;
     },
     now: () => Date.UTC(2026, 10, 3, 11, 0, 5),
   });
@@ -193,7 +226,37 @@ describe('preview-check', () => {
     behaviour = { ...GOOD, post: () => ({ status: 200, body: { ok: true, arm: 'a', results: [] } }) };
     expect((await run([base, '--only', 'pause'])).out).toMatch(/^pause: FAIL/m);
   });
+
+  it('fails split on a Cache-Control a shared cache may store', async () => {
+    for (const cacheControl of ['s-maxage=300, stale-while-revalidate=31535700', 'public, max-age=60']) {
+      behaviour = { ...GOOD, cacheControl };
+      const r = await run([base, '--only', 'split']);
+      expect(r.out, cacheControl).toMatch(/^split: FAIL.*shared cache/m);
+    }
+    behaviour = { ...GOOD, cacheControl: 'private, max-age=60' };
+    expect((await run([base, '--only', 'split'])).out).toMatch(/^split: PASS/m);
+  });
+
+  it('fails isr when one group page never serves a copy younger than 300 s after the wait', async () => {
+    behaviour = { ...GOOD, afterWait: (arm, k) => ({ status: 200, age: arm === 'b' ? 340 + k : k === 0 ? 340 : 3 }) };
+    const r = await run([base, '--only', 'isr']);
+    expect(r.out).toMatch(/^isr: FAIL.*group b never served a copy younger than 300 s/m);
+  });
+
+  it('fails isr when / is a 404 after the wait', async () => {
+    behaviour = { ...GOOD, afterWait: () => ({ status: 404, age: 0 }) };
+    const r = await run([base, '--only', 'isr']);
+    expect(r.out).toMatch(/^isr: FAIL.*\/ answered 404 after the wait/m);
+  });
+
+  it('never follows a redirect, so the secret stays on the deployment', async () => {
+    behaviour = { ...GOOD, redirectTo: 'http://127.0.0.1:9/login' };
+    const r = await run([base, '--only', 'headers']);
+    expect(r.out).toMatch(/^headers: FAIL.*redirected \(307\)/m);
+    expect(r.out).not.toContain(SECRET);
+  });
 });
+
 
 describe('preview-check CLI (Node type stripping)', () => {
   it('runs as a script and exits 2 without a URL', () => {

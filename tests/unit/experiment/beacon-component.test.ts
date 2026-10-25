@@ -30,11 +30,16 @@ describe('ExperimentBeacon source', () => {
 
   it('honours Global Privacy Control and Do Not Track before anything else', () => {
     expect(code).toMatch(/globalPrivacyControl === true \|\| n\.doNotTrack === '1'/);
-    expect(code).toMatch(/if \(verdict === 'opt_out'\) return;/);
+    expect(code).toMatch(/if \(verdict === 'opt_out'\) return \(\) => \{\};/);
   });
 
   it('keeps the document-view flag in module memory', () => {
     expect(code).toMatch(/^let viewedInThisDocument = false;$/m);
     expect(code).toMatch(/const priorViewInDocument = viewedInThisDocument;\s+viewedInThisDocument = true;/);
+  });
+
+  it('waits for prerenderingchange before a prerendered page sends anything', () => {
+    expect(code).toMatch(/if \(doc\.prerendering !== true\) return startView\(arm, ns\);/);
+    expect(code).toMatch(/addEventListener\('prerenderingchange', activate, \{ once: true \}\)/);
   });
 });

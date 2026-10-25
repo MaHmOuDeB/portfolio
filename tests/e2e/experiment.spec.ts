@@ -183,8 +183,15 @@ test.describe('the entry rules', () => {
 
   test('loading another page, whose header prefetches /, sends nothing', async ({ page, extraHTTPHeaders }) => {
     const sent = await visitor(page, extraHTTPHeaders, { counted: true });
+    const prefetches: string[] = [];
+    page.on('request', (r) => {
+      const url = new URL(r.url());
+      if (url.pathname === '/' && (url.searchParams.has('_rsc') || r.headers()['next-router-prefetch'] !== undefined)) prefetches.push(r.url());
+    });
     await page.goto('/privacy');
     await page.waitForLoadState('networkidle');
+    // The header's wordmark link really prefetched / (else this test would prove nothing).
+    await expect.poll(() => prefetches.length).toBeGreaterThan(0);
     await page.waitForTimeout(2000);
     expect(sent).toEqual([]);
   });
@@ -196,6 +203,8 @@ test.describe('a counted visit', () => {
     await cardsBelowTheFold(page);
     await page.goto('/');
     const entry = await countedEntry(page, sent);
+    // This run's clock is after the start, so the test note shows (before the start it does not).
+    await expect(page.getByText('This site runs a live experiment on its own visitors.')).toBeVisible();
     await page.locator(CARDS).scrollIntoViewIfNeeded();
     await page.waitForTimeout(1200);
     await expect

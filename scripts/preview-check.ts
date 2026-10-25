@@ -7,13 +7,16 @@
 // Checks (the default is split, isr and headers; spoof and pause are production checks and run only
 // when named with --only):
 // - split: 200 GETs of / with a desktop Chrome user agent reach both groups, the split passes the
-//   sample-ratio check, no response sets a cookie, and no single group takes every cache hit.
-// - isr: data.json's readAt advances after more than 300 s (the proxy does not block regeneration),
-//   and a direct /v/a is the 404 page.
+//   sample-ratio check, no response sets a cookie or a Cache-Control a shared cache may store, and
+//   no single group takes every cache hit.
+// - isr: a direct /v/a is the 404 page; after more than 300 s, each group's page served through /
+//   is a copy younger than 300 s (the proxy does not block its regeneration), and data.json's readAt
+//   advances.
 // - headers: the security headers, HSTS included, are on /.
 // - spoof: 31 event batches from one client with a rotated fake address: the 31st is rate-limited.
 // - pause: after the pause flag is set, the event route answers "paused" within a minute.
-// The bypass secret is sent as x-vercel-protection-bypass and never printed. Exit code: 0 when every
+// The bypass secret is sent as x-vercel-protection-bypass and never printed; no request follows a
+// redirect, so it never reaches another host. Exit code: 0 when every
 // check passed, 1 when one failed, 2 for a usage error.
 import { randomUUID } from 'node:crypto';
 import { srmTest } from '../src/lib/stats/proportions.ts';
@@ -22,6 +25,8 @@ const CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.
 const SPLIT_REQUESTS = 200;
 const ISR_WAIT_MS = 310_000;
 const ISR_RETRIES = 6;
+const ISR_PAGE_REQUESTS = 60;
+const REVALIDATE_SECONDS = 300;
 const RATE_LIMIT = 30;
 const PAUSE_POLL_MS = 5_000;
 const PAUSE_WITHIN_MS = 60_000;
@@ -56,10 +61,11 @@ async function split(get: Get): Promise<Result> {
   const vary = new Set<string>();
   const problems: string[] = [];
   for (let i = 0; i < SPLIT_REQUESTS; i++) {
-    const res = await get('/', { headers: { 'user-agent': CHROME }, redirect: 'manual' });
+    const res = await get('/', { headers: { 'user-agent': CHROME } });
     await res.arrayBuffer();
     const arm = res.headers.get('x-arm');
     if (res.status !== 200) problems.push(`status ${res.status}`);
+    if (shareable(res.headers.get('cache-control'))) problems.push('a shared cache may store / (one group for everyone behind it)');
     if (res.headers.get('set-cookie') !== null) problems.push('a response set a cookie');
     if (arm !== 'a' && arm !== 'b') {
       problems.push('a response had no x-arm');
@@ -79,6 +85,18 @@ async function split(get: Get): Promise<Result> {
   return { ok: true, detail: `${counts}; srm p ${srm.p.toPrecision(2)}` };
 }
 
+/**
+ * True when a cache between the visitor and Vercel may store `/` and serve one group to everyone
+ * behind it: `s-maxage`, or `public` with a positive `max-age`. Vercel sends
+ * `public, max-age=0, must-revalidate`, which no shared cache may reuse without asking.
+ */
+export function shareable(cacheControl: string | null): boolean {
+  const cc = (cacheControl ?? '').toLowerCase();
+  if (/(^|[,\s])s-maxage\s*=/.test(cc)) return true;
+  const maxAge = /(^|[,\s])max-age\s*=\s*(\d+)/.exec(cc);
+  return /(^|[,\s])public($|[,\s])/.test(cc) && maxAge !== null && Number(maxAge[2]) > 0;
+}
+
 async function readAt(get: Get): Promise<{ readAt: string; cache: string }> {
   const res = await get('/experiment/data.json');
   if (res.status !== 200) throw new Error(`data.json status ${res.status}`);
@@ -87,23 +105,58 @@ async function readAt(get: Get): Promise<{ readAt: string; cache: string }> {
   return { readAt: body.readAt, cache: res.headers.get('x-vercel-cache') ?? res.headers.get('x-nextjs-cache') ?? '(none)' };
 }
 
+type PageSeen = { status: number; age: number | null; cache: string };
+
+/**
+ * After the revalidation window, each group's page must regenerate. The proxy is what could stop it
+ * (a revalidation request rewritten to the 404), so this reads the group pages through `/`, the way
+ * visitors do: GETs of `/` until each group has been seen at least twice, every one a 200, and each
+ * group with a response whose `age` is under the window (a copy made after the wait). A stale copy
+ * that never resets, or a 404, fails.
+ */
+async function pagesRegenerate(get: Get, deps: CheckDeps): Promise<Result> {
+  const seen: Record<'a' | 'b', PageSeen[]> = { a: [], b: [] };
+  const fresh = (arm: 'a' | 'b') => seen[arm].some((p) => p.age !== null && p.age < REVALIDATE_SECONDS);
+  const done = () => (['a', 'b'] as const).every((arm) => seen[arm].length >= 2 && fresh(arm));
+  for (let i = 0; i < ISR_PAGE_REQUESTS && !done(); i++) {
+    const res = await get('/', { headers: { 'user-agent': CHROME } });
+    await res.arrayBuffer();
+    if (res.status !== 200) return { ok: false, detail: `/ answered ${res.status} after the wait (a group page may have been replaced by the 404)` };
+    const arm = res.headers.get('x-arm');
+    if (arm !== 'a' && arm !== 'b') return { ok: false, detail: 'a response of / had no x-arm' };
+    const age = res.headers.get('age');
+    seen[arm].push({ status: res.status, age: age !== null && /^\d+$/.test(age.trim()) ? Number(age) : null, cache: res.headers.get('x-vercel-cache') ?? '(none)' });
+    if (i > 0 && i % 4 === 0) await deps.sleep(2_000);
+  }
+  const summary = (arm: 'a' | 'b') => `${arm}: ${seen[arm].map((p) => `${p.cache}/${p.age ?? '-'}`).join(' ') || 'never seen'}`;
+  const detail = `cache/age ${summary('a')}; ${summary('b')}`;
+  const stuck = (['a', 'b'] as const).filter((arm) => !fresh(arm) || seen[arm].length < 2);
+  if (stuck.length > 0) {
+    return { ok: false, detail: `group ${stuck.join(' and ')} never served a copy younger than ${REVALIDATE_SECONDS} s: its page did not regenerate (is the proxy matching the revalidation request?) (${detail})` };
+  }
+  return { ok: true, detail };
+}
+
 async function isr(get: Get, deps: CheckDeps): Promise<Result> {
-  const direct = await get('/v/a', { redirect: 'manual' });
+  const direct = await get('/v/a');
   await direct.arrayBuffer();
   if (direct.status !== 404) return { ok: false, detail: `a direct /v/a answered ${direct.status}, not 404` };
   const first = await readAt(get);
   deps.out(`isr: waiting ${ISR_WAIT_MS / 1000} s for the 300 s revalidation window`);
   await deps.sleep(ISR_WAIT_MS);
-  // The first read after the window serves the stale file and starts the regeneration.
+  const pages = await pagesRegenerate(get, deps);
+  if (!pages.ok) return pages;
+  // A second signal: data.json, which the proxy never matches, regenerates too. The first read after
+  // the window serves the stale file and starts the regeneration.
   await readAt(get);
   for (let attempt = 0; attempt < ISR_RETRIES; attempt++) {
     const next = await readAt(get);
     if (Date.parse(next.readAt) > Date.parse(first.readAt)) {
-      return { ok: true, detail: `readAt ${first.readAt} then ${next.readAt} (cache ${next.cache}); /v/a is 404` };
+      return { ok: true, detail: `pages ${pages.detail}; data.json readAt ${first.readAt} then ${next.readAt} (cache ${next.cache}); /v/a is 404` };
     }
     await deps.sleep(5_000);
   }
-  return { ok: false, detail: `readAt stayed at ${first.readAt}: regeneration did not run (is the proxy matching the revalidation request?)` };
+  return { ok: false, detail: `data.json readAt stayed at ${first.readAt}: its regeneration did not run (pages ${pages.detail})` };
 }
 
 // The policy itself is checked for its two key directives below.
@@ -116,7 +169,7 @@ const SECURITY_HEADERS: [string, RegExp][] = [
 ];
 
 async function headers(get: Get): Promise<Result> {
-  const res = await get('/', { headers: { 'user-agent': CHROME }, redirect: 'manual' });
+  const res = await get('/', { headers: { 'user-agent': CHROME } });
   await res.arrayBuffer();
   const missing = SECURITY_HEADERS.filter(([name, pattern]) => !pattern.test(res.headers.get(name) ?? '')).map(([name]) => name);
   const csp = res.headers.get('content-security-policy') ?? '';
@@ -195,10 +248,17 @@ export async function main(argv: string[], partial: Partial<CheckDeps> = {}): Pr
 
   const secret = deps.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   if (secret === undefined || secret === '') deps.out('preview-check: VERCEL_AUTOMATION_BYPASS_SECRET is not set; a protected deployment will answer 401');
-  const get: Get = (path, init = {}) => {
+  // Never follows a redirect: fetch keeps custom headers on a redirect to another host, and the
+  // bypass secret must reach only the deployment. A redirect is a failure of the check.
+  const get: Get = async (path, init = {}) => {
     const h = new Headers(init.headers);
     if (secret) h.set('x-vercel-protection-bypass', secret);
-    return deps.fetch(new URL(path, base), { ...init, headers: h });
+    const res = await deps.fetch(new URL(path, base), { ...init, headers: h, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400) {
+      await res.arrayBuffer().catch(() => {});
+      throw new Error(`${path} redirected (${res.status}); run the check against the URL it points to`);
+    }
+    return res;
   };
 
   let failed = false;
