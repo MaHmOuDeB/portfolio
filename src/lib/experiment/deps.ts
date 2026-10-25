@@ -3,6 +3,7 @@
 // anything else fails closed as not-production.
 import { serverEnv } from '../env.ts';
 import { storeAccess } from './access.ts';
+import { ownerCookieValid } from './exclude.ts';
 import { readFlags } from './flags.ts';
 import type { EventDeps } from './handler.ts';
 
@@ -15,7 +16,7 @@ export function eventDeps(): EventDeps {
     now: () => new Date(),
     // One JSON line per request; LogLine holds categories only.
     log: (line) => console.log(JSON.stringify(line)),
-    // The owner's exclusion cookie is not wired yet: nobody is excluded as self.
-    ownerCookieValid: () => false,
+    // The owner's exclusion cookie (set through /exclude) marks a view as self.
+    ownerCookieValid: (cookieHeader) => ownerCookieValid(cookieHeader, env.excludeToken),
   };
 }

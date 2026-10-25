@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import { updateSnapshotsMode } from './tests/e2e/snapshot-mode';
 
 const PORT = 3123;
+// Not a secret: it only unlocks the exclusion cookie of the throwaway server Playwright starts.
+const E2E_EXCLUDE_TOKEN = 'e2e-exclude-token-0f3a9c1d';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -25,7 +27,8 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 180_000,
     // The only build that includes the dev-only kitchen sink. The production build never does.
-    env: { KITCHEN_SINK: '1' },
+    // A throwaway owner token, so the exclusion flow can be exercised end to end.
+    env: { KITCHEN_SINK: '1', EXCLUDE_TOKEN: E2E_EXCLUDE_TOKEN },
   },
   projects: [
     {
