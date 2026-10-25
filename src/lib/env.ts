@@ -23,10 +23,22 @@ export interface ServerEnv {
    * it starts the workers that prerender. A build never fails on experiment data.
    */
   buildPhase?: boolean;
+  /**
+   * EXPERIMENT_CLOCK_OFFSET_MS: a test clock for the e2e run, in milliseconds added to the server's
+   * time. Only the loopback fake store outside production honours it (lib/experiment/clock.ts).
+   */
+  clockOffsetMs?: number;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
   return value === undefined || value === '' ? undefined : value;
+}
+
+/** A whole number of milliseconds, or undefined for anything else. */
+function integerMs(value: string | undefined): number | undefined {
+  if (value === undefined || !/^-?\d+$/.test(value)) return undefined;
+  const n = Number(value);
+  return Number.isSafeInteger(n) ? n : undefined;
 }
 
 function toVercelEnv(value: string | undefined): VercelEnv {
@@ -54,5 +66,6 @@ export function serverEnv(): ServerEnv {
     fakeStore: process.env.EXPERIMENT_FAKE_STORE === '1',
     onVercel: process.env.VERCEL === '1',
     buildPhase: process.env.NEXT_PHASE === 'phase-production-build',
+    clockOffsetMs: integerMs(nonEmpty(process.env.EXPERIMENT_CLOCK_OFFSET_MS)),
   };
 }

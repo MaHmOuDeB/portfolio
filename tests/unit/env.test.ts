@@ -16,6 +16,7 @@ const VARS = [
   'EXPERIMENT_FAKE_STORE',
   'VERCEL',
   'NEXT_PHASE',
+  'EXPERIMENT_CLOCK_OFFSET_MS',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -52,6 +53,7 @@ describe('serverEnv', () => {
       fakeStore: false,
       onVercel: false,
       buildPhase: false,
+      clockOffsetMs: undefined,
     });
   });
 
@@ -69,6 +71,7 @@ describe('serverEnv', () => {
     process.env.EXPERIMENT_FAKE_STORE = '1';
     process.env.VERCEL = '1';
     process.env.NEXT_PHASE = 'phase-production-build';
+    process.env.EXPERIMENT_CLOCK_OFFSET_MS = '-3600000';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -84,7 +87,17 @@ describe('serverEnv', () => {
       fakeStore: true,
       onVercel: true,
       buildPhase: true,
+      clockOffsetMs: -3_600_000,
     });
+  });
+
+  it('reads EXPERIMENT_CLOCK_OFFSET_MS only as a whole number of milliseconds', () => {
+    for (const bad of ['1.5', '1e6', 'soon', ' 5', '99999999999999999999']) {
+      process.env.EXPERIMENT_CLOCK_OFFSET_MS = bad;
+      expect(serverEnv().clockOffsetMs, bad).toBeUndefined();
+    }
+    process.env.EXPERIMENT_CLOCK_OFFSET_MS = '86400000';
+    expect(serverEnv().clockOffsetMs).toBe(86_400_000);
   });
 
   it('treats empty strings as unset', () => {

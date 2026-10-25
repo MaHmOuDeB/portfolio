@@ -13,7 +13,7 @@ export type StoreAccess = { mode: 'store' | 'local' | 'none'; read: RedisRest | 
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost'];
 
 /** True only when the URL's host is exactly 127.0.0.1 or localhost. */
-function isLoopback(url: string): boolean {
+export function isLoopback(url: string): boolean {
   try {
     const u = new URL(url);
     return (u.protocol === 'http:' || u.protocol === 'https:') && LOOPBACK_HOSTS.includes(u.hostname);

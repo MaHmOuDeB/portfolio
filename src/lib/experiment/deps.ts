@@ -5,6 +5,7 @@ import { after } from 'next/server';
 import { EXPERIMENT, calibrationStart } from '../../experiment.config.ts';
 import { serverEnv } from '../env.ts';
 import { storeAccess } from './access.ts';
+import { serverNow } from './clock.ts';
 import { closeIfDecided } from './close.ts';
 import { ownerCookieValid } from './exclude.ts';
 import { NO_FLAGS, readFlags } from './flags.ts';
@@ -33,7 +34,7 @@ export function eventDeps(): EventDeps {
     env,
     write,
     flags: () => readFlags(env, 'route'),
-    now: () => new Date(),
+    now: () => serverNow(env),
     // One JSON line per request; LogLine holds categories only.
     log,
     // The owner's exclusion cookie (set through /exclude) marks a view as self.
@@ -45,7 +46,7 @@ export function eventDeps(): EventDeps {
       if (write === null || start === null) return;
       later(async () => {
         const flags = await readFlags(env, 'route').catch(() => NO_FLAGS);
-        await closeIfDecided({ write, ns, config: EXPERIMENT, start, now: new Date().toISOString(), log, flags });
+        await closeIfDecided({ write, ns, config: EXPERIMENT, start, now: serverNow(env).toISOString(), log, flags });
       });
     },
   };

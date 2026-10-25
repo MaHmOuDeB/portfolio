@@ -42,7 +42,7 @@ Next code.
 | `npm run build` | Production build. `prebuild` first checks the obfuscated constants and the vendored sources. |
 | `npm run check` | The local gate: typecheck, ESLint, Stylelint, unit tests and `lint:design:src`. Run it before every push. |
 | `npm run test` | Vitest unit tests (`tests/unit`). `npm run test:cov` adds the coverage gate on `src/lib/stats`. |
-| `npm run test:e2e` | Playwright (`tests/e2e`). It builds with `KITCHEN_SINK=1` and serves on port 3123, so rebuild without the flag afterwards. Visual tests are skipped locally. |
+| `npm run test:e2e` | Playwright (`tests/e2e`). It builds with `KITCHEN_SINK=1` and serves on port 3123, so rebuild without the flag afterwards. It also starts a local fake of the experiment store on port 8079 (`scripts/fake-upstash.ts`) and runs both servers on a test clock after the experiment's fixture start. Visual tests are skipped locally. |
 | `npm run test:e2e:docker` | The same Playwright suite inside the image the CI e2e job uses (needs Docker): the repository is mounted read-only and copied to a volume, `npm ci` installs the Linux modules there, and it runs with `CI=true`. Use it to reproduce a failure that appears only in CI, for example `npm run test:e2e:docker -- tests/e2e/shell.spec.ts --project=desktop-chromium`. Visual baselines are missing there too, so add `--grep-invert @visual`. |
 | `npm run lint:design` | The design lint over the source and the built CSS (run `npm run build` first). |
 | `npm run lint:design:src` | The design lint over the source only (part of `npm run check`). |

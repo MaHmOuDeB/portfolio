@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { fakeUpstashStore, startFakeUpstash } from '../../../scripts/fake-upstash';
+import { clockOffsetFrom, fakeUpstashStore, startFakeUpstash } from '../../../scripts/fake-upstash';
 import { RedisUnavailable, createRedisRest } from '@/lib/experiment/redis-rest';
 
 const ROOT = join(import.meta.dirname, '../../..');
@@ -162,4 +162,29 @@ describe('the fake-upstash CLI (Node type stripping)', () => {
     expect(await exitCode(run(['--port', String(port)], { ...tokens, VERCEL_ENV: 'production' }))).not.toBe(0);
     expect(await exitCode(run(['--port', String(port)], { KV_REST_API_TOKEN: 'cli-write' }))).not.toBe(0);
   }, 20_000);
+
+  it('runs its clock EXPERIMENT_CLOCK_OFFSET_MS ahead, so expiries agree with the e2e server', async () => {
+    const port = await freePort();
+    const offset = 3 * 86_400_000;
+    const child = run(['--port', String(port)], { ...tokens, EXPERIMENT_CLOCK_OFFSET_MS: String(offset) });
+    try {
+      expect(await exitCode(run(['--wait', String(port)], {}))).toBe(0);
+      const redis = createRedisRest({ url: `http://127.0.0.1:${port}`, token: 'cli-write' });
+      await redis.command(['SET', 'k', 'v', 'PXAT', Date.now() + offset + 60_000]);
+      const ttl = (await redis.command(['PTTL', 'k'])) as number;
+      expect(ttl).toBeGreaterThan(50_000);
+      expect(ttl).toBeLessThanOrEqual(60_000);
+    } finally {
+      child.kill();
+    }
+  }, 20_000);
+});
+
+describe('clockOffsetFrom', () => {
+  it('reads whole milliseconds, 0 when unset, and throws on anything else', () => {
+    expect(clockOffsetFrom(undefined)).toBe(0);
+    expect(clockOffsetFrom('')).toBe(0);
+    expect(clockOffsetFrom('-5000')).toBe(-5000);
+    for (const bad of ['1.5', 'soon', '1e3']) expect(() => clockOffsetFrom(bad), bad).toThrow();
+  });
 });

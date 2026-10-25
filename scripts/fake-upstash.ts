@@ -4,7 +4,9 @@
 // read-only token refuses write commands (403). Never used in production.
 //
 //   node scripts/fake-upstash.ts --port 8079   serve; tokens from KV_REST_API_TOKEN and
-//                                              KV_REST_API_READ_ONLY_TOKEN
+//                                              KV_REST_API_READ_ONLY_TOKEN, and the test clock
+//                                              from EXPERIMENT_CLOCK_OFFSET_MS (the same offset the
+//                                              e2e Next server runs with, so expiries agree)
 //   node scripts/fake-upstash.ts --wait 8079   exit 0 once http://127.0.0.1:8079/health answers
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -17,11 +19,22 @@ const MAX_BODY_BYTES = 1_000_000;
 
 type Command = (string | number)[];
 
-/** The one store of this process, on globalThis so every importer shares it. */
-export function fakeUpstashStore(): MemoryRedis {
+/**
+ * The one store of this process, on globalThis so every importer shares it. `now` (the store's
+ * clock) applies when the first call creates it.
+ */
+export function fakeUpstashStore(now?: () => number): MemoryRedis {
   const g = globalThis as Record<symbol, unknown>;
-  g[STORE] ??= createMemoryRedis();
+  g[STORE] ??= createMemoryRedis(now === undefined ? {} : { now });
   return g[STORE] as MemoryRedis;
+}
+
+/** EXPERIMENT_CLOCK_OFFSET_MS as whole milliseconds; 0 when unset; anything else throws. */
+export function clockOffsetFrom(value: string | undefined): number {
+  if (value === undefined || value === '') return 0;
+  const n = /^-?\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(n)) throw new Error('EXPERIMENT_CLOCK_OFFSET_MS must be a whole number of milliseconds');
+  return n;
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {
@@ -56,11 +69,13 @@ export async function startFakeUpstash(o: {
   port: number;
   token: string;
   readOnlyToken: string;
+  /** The store's clock (ms); the real one by default. */
+  now?: () => number;
 }): Promise<{ url: string; address(): AddressInfo; close(): Promise<void> }> {
   if (o.token === '' || o.readOnlyToken === '' || o.token === o.readOnlyToken) {
     throw new Error('fake-upstash needs two different, non-empty tokens');
   }
-  const store = fakeUpstashStore();
+  const store = fakeUpstashStore(o.now);
   const exec = (c: Command): Reply => (store.supports(c) ? store.exec(c) : { error: `ERR unknown command '${nameOf(c)}'` });
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -156,7 +171,8 @@ async function main(argv: string[]): Promise<number> {
   if (process.env.VERCEL_ENV === 'production') throw new Error('fake-upstash never runs in production');
   const token = process.env.KV_REST_API_TOKEN ?? '';
   const readOnlyToken = process.env.KV_REST_API_READ_ONLY_TOKEN ?? '';
-  const server = await startFakeUpstash({ port: portArg(value), token, readOnlyToken });
+  const offset = clockOffsetFrom(process.env.EXPERIMENT_CLOCK_OFFSET_MS);
+  const server = await startFakeUpstash({ port: portArg(value), token, readOnlyToken, now: () => Date.now() + offset });
   console.log(`fake upstash listening on ${server.url}`);
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.once(signal, () => void server.close().then(() => process.exit(0)));

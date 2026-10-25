@@ -29,6 +29,7 @@ import { serverEnv, type ServerEnv } from '../env.ts';
 import { liveFigureState, type LiveSnapshot } from '../figure/cs-band.ts';
 import { resolveFigureBody, type FigureBody, type FigureState, type Freshness } from '../figure/states.ts';
 import { storeAccess, type StoreAccess } from './access.ts';
+import { serverNow } from './clock.ts';
 import { closeIfDecided, errorCategory } from './close.ts';
 import { later } from './deps.ts';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from './events.ts';
@@ -124,7 +125,7 @@ function resolveDeps(d: Partial<SnapshotDeps>): Required<SnapshotDeps> {
     mode: d.mode ?? access!.mode,
     write: d.write !== undefined ? d.write : access!.write,
     flags: d.flags ?? (() => readFlags(env, 'page')),
-    now: d.now ?? (() => new Date()),
+    now: d.now ?? (() => serverNow(env)),
     log: d.log ?? ((l) => console.log(JSON.stringify(l))),
     config: d.config ?? EXPERIMENT,
     schedule: d.schedule ?? later,

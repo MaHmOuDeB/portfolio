@@ -1,8 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
-import { E2E_EXCLUDE_TOKEN } from './tests/e2e/constants';
+import {
+  E2E_EXCLUDE_TOKEN,
+  E2E_FAKE_UPSTASH_PORT,
+  E2E_FAKE_UPSTASH_URL,
+  E2E_KV_READ_TOKEN,
+  E2E_KV_WRITE_TOKEN,
+  e2eClockOffsetMs,
+} from './tests/e2e/constants';
 import { updateSnapshotsMode } from './tests/e2e/snapshot-mode';
 
 const PORT = 3123;
+
+// The fake store's tokens, and one clock offset for both servers (computed once, in the main process
+// that starts them), so the fake's expiries and the route's Berlin days agree.
+const STORE_ENV = {
+  KV_REST_API_TOKEN: E2E_KV_WRITE_TOKEN,
+  KV_REST_API_READ_ONLY_TOKEN: E2E_KV_READ_TOKEN,
+  EXPERIMENT_CLOCK_OFFSET_MS: String(e2eClockOffsetMs()),
+};
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -20,15 +35,33 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
   },
-  webServer: {
-    command: `npm run build && npx next start -p ${PORT}`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: false,
-    timeout: 180_000,
-    // The only build that includes the dev-only kitchen sink. The production build never does.
-    // A throwaway owner token, so the exclusion flow can be exercised end to end.
-    env: { KITCHEN_SINK: '1', EXCLUDE_TOKEN: E2E_EXCLUDE_TOKEN },
-  },
+  webServer: [
+    {
+      // The local fake of the Upstash REST API, on 127.0.0.1 only.
+      command: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/fake-upstash.ts --port ${E2E_FAKE_UPSTASH_PORT}`,
+      url: `${E2E_FAKE_UPSTASH_URL}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: STORE_ENV,
+    },
+    {
+      // The build reads the store too (the static pages), so it waits for the fake first.
+      command: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/fake-upstash.ts --wait ${E2E_FAKE_UPSTASH_PORT} && npm run build && npx next start -p ${PORT}`,
+      url: `http://localhost:${PORT}`,
+      reuseExistingServer: false,
+      timeout: 180_000,
+      // The only build that includes the dev-only kitchen sink. The production build never does.
+      // A throwaway owner token, so the exclusion flow can be exercised end to end. Writes go to the
+      // loopback fake only (EXPERIMENT_FAKE_STORE outside production).
+      env: {
+        KITCHEN_SINK: '1',
+        EXCLUDE_TOKEN: E2E_EXCLUDE_TOKEN,
+        EXPERIMENT_FAKE_STORE: '1',
+        KV_REST_API_URL: E2E_FAKE_UPSTASH_URL,
+        ...STORE_ENV,
+      },
+    },
+  ],
   projects: [
     {
       name: 'desktop-chromium',
