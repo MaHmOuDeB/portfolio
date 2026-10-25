@@ -80,7 +80,11 @@ export type DetectableCurve = {
 };
 export type ExperimentSnapshot = {
   schema: 1;
-  source: 'store' | 'local' | 'fixture';
+  /**
+   * 'unavailable': a placeholder with no data, when the experiment has not started in production or
+   * a build could not read the store. Its counts are zero and its freshness says why.
+   */
+  source: 'store' | 'local' | 'fixture' | 'unavailable';
   readAt: string;
   namespace: string;
   /** The configured phase (calibration or ab). */

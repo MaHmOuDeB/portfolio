@@ -63,6 +63,80 @@ const EMPTY: CounterRows = {
 const snap = (o: Partial<Parameters<typeof buildSnapshot>[0]> = {}): ExperimentSnapshot =>
   buildSnapshot({ counters: EMPTY, flags: NO_FLAGS, now: NOW.toISOString(), start: START, source: 'store', config: CALIBRATION, ...o });
 
+/** No fixture numbers: no fixture start or end, zero counts, and a freshness that says why. */
+function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: ExperimentConfig = EXPERIMENT) {
+  expect(s.source).toBe('unavailable');
+  expect(s.live.plannedEnd).not.toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
+  expect(s.live.plannedEnd).toBe(plannedEnd(config, config.calibration.startedOn ?? NOW.toISOString()).at);
+  expect([s.live.nA, s.live.nB, s.funnel.entryViews, s.funnel.beaconsReceived]).toEqual([0, 0, 0, 0]);
+  expect(s.live.series).toEqual([]);
+  expect(s.live.freshness).toMatchObject({ kind: 'paused', reason: expect.stringMatching(reason) });
+  expect(liveView(s, 'a').refs).toEqual(['build']);
+  expect(liveView(s, 'a').testNote).toEqual({ mode: 'paused' });
+}
+function expectNotStarted(s: ExperimentSnapshot) {
+  // The earliest end if it started now: a true lower bound, not the fixture's date.
+  expectHonestPlaceholder(s, /not started/);
+  expect(s.status).toBe('before-data');
+}
+
+describe('getExperimentSnapshot: during next build', () => {
+  const BUILD_PRODUCTION: ServerEnv = { ...PRODUCTION, buildPhase: true };
+  // A launch date other than the fixture's, so a fixture date would show.
+  const LAUNCHED: ExperimentConfig = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-09T00:00:00+01:00' } } as ExperimentConfig;
+
+  it('never throws in production without a store: the honest placeholder, no fixture numbers', async () => {
+    const lines: object[] = [];
+    const s = await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, mode: 'none', read: null, config: LAUNCHED, log: (l) => lines.push(l) }));
+    expectHonestPlaceholder(s, /could not be read/, LAUNCHED);
+    expect(s.status).toBe('before-data');
+    expect(lines).toEqual([expect.objectContaining({ evt: 'snapshot', outcome: 'unavailable', reason: 'not-configured' })]);
+  });
+
+  it('gives the not-started snapshot in production before the start is set', async () => {
+    expectNotStarted(await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, mode: 'none', read: null, config: EXPERIMENT })));
+  });
+
+  it('never throws on a failed read: the placeholder, logged as a category', async () => {
+    const lines: object[] = [];
+    const failing: RedisRest = {
+      command: async () => {
+        throw new RedisUnavailable('command failed (network)');
+      },
+      pipeline: async () => [],
+      transaction: async () => [],
+    };
+    const s = await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, read: failing, config: LAUNCHED, log: (l) => lines.push(l) }));
+    expectHonestPlaceholder(s, /could not be read/, LAUNCHED);
+    expect(lines).toEqual([expect.objectContaining({ outcome: 'unavailable', reason: 'store-unavailable' })]);
+  });
+
+  it('on Vercel without a VERCEL_ENV gives the placeholder, never the fixture', async () => {
+    const env: ServerEnv = { vercelEnv: 'development', fakeStore: false, onVercel: true, buildPhase: true };
+    const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT, log: () => {} });
+    expectHonestPlaceholder(s, /could not be read/);
+    const launched = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: LAUNCHED, log: () => {} });
+    expectHonestPlaceholder(launched, /could not be read/, LAUNCHED);
+  });
+
+  it('still reads a configured store, so a build after launch carries the real counts', async () => {
+    const redis = createMemoryRedis();
+    await seed(redis, CALIBRATION.namespace, [{ day: '2026-11-03', a: { entry: 4, inview: 3 }, b: { entry: 5, inview: 2 } }]);
+    const s = await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, read: redis }));
+    expect(s.source).toBe('store');
+    expect(s.current.a.entry).toBe(4);
+  });
+
+  it('leaves development and previews on the fixture', async () => {
+    for (const vercelEnv of ['development', 'preview'] as const) {
+      const env: ServerEnv = { vercelEnv, fakeStore: false, buildPhase: true };
+      const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT });
+      expect(s.source).toBe('fixture');
+      expect(s.live.plannedEnd).toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
+    }
+  });
+});
+
 describe('getExperimentSnapshot: no store', () => {
   it('in development gives the fixture: before data, with the planned end from FIXTURE_START', async () => {
     const s = await getExperimentSnapshot({ env: DEV, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT });
@@ -85,8 +159,16 @@ describe('getExperimentSnapshot: no store', () => {
     await expect(getExperimentSnapshot(deps({ mode: 'none', read: null }))).rejects.toThrow('experiment store not configured');
   });
 
-  it('in production rejects before the calibration start is set', async () => {
-    await expect(getExperimentSnapshot(deps({ config: EXPERIMENT }))).rejects.toThrow(/start/);
+  it('in production with the store configured but no start gives the not-started snapshot, without reading', async () => {
+    const read = createMemoryRedis();
+    const command = vi.spyOn(read, 'command');
+    const s = await getExperimentSnapshot(deps({ read, config: EXPERIMENT }));
+    expect(command).not.toHaveBeenCalled();
+    expectNotStarted(s);
+  });
+
+  it('in production without credentials and no start gives the same not-started snapshot', async () => {
+    expectNotStarted(await getExperimentSnapshot(deps({ mode: 'none', read: null, config: EXPERIMENT })));
   });
 
   it('on Vercel with VERCEL_ENV missing or development rejects instead of showing the fixture', async () => {

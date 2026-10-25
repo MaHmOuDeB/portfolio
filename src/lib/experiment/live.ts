@@ -1,14 +1,22 @@
 // The experiment as pages read it: the snapshot from the store (or the no-credentials fixture), its
 // freshness, and the live view a page renders. Server only.
 //
-// Reading policy (build and ISR):
-// - On Vercel, VERCEL_ENV is always set: a development (or missing) one there is a misconfigured
-//   deployment, and it throws rather than show the fixture.
-// - No store: in production it throws; elsewhere it is the deterministic "before data" fixture.
-// - Production before the calibration start is set: it throws.
-// - Otherwise it reads the counters (bounded at 2,000 ms) and the flags. A failed read is logged
-//   as a category (never a token, a host or a message) and thrown; it never falls back to the
-//   fixture. An error during regeneration keeps the last good page.
+// Reading policy. Nothing here ever shows fixture numbers in production, and a build never fails on
+// experiment data (main deploys on merge, before and after launch):
+// - Production before the calibration start is set: the not-started snapshot (a true state: the
+//   event route counts nothing before the start), at build and at run time, with no store read.
+//   The launch check blocks launch while the start is unset.
+// - During `next build` (NEXT_PHASE=phase-production-build), anything that would throw below gives
+//   the "unavailable" placeholder instead: zero counts, no fixture date, and a paused freshness that
+//   says the counts could not be read. The first regeneration after the build replaces it.
+// - At run time (ISR regeneration):
+//   - on Vercel, VERCEL_ENV is always set: a development (or missing) one there is a misconfigured
+//     deployment, and it throws rather than show the fixture;
+//   - no store: in production it throws; elsewhere it is the deterministic "before data" fixture;
+//   - otherwise it reads the counters (bounded at 2,000 ms) and the flags. A failed read is logged
+//     as a category (never a token, a host or a message) and thrown; it never falls back to the
+//     fixture. An error thrown while revalidating keeps serving the last successfully generated
+//     page, and the next request retries (the Next ISR guide, "Handling uncaught exceptions").
 // - Reads never set `cache: 'no-store'` (the REST client sets no cache option and page-mode flags
 //   use the data cache), so pages that read here stay static and regenerate on their interval.
 //
@@ -67,7 +75,16 @@ const HELD_REASON: Record<Held['reason'], string> = {
   'inconsistent-counts': 'the counts failed a consistency check, so the test stopped at the last clean look',
 };
 
-const REFS: Record<ExperimentSnapshot['source'], readonly DerivedRef[]> = { store: ['live'], local: ['simulated'], fixture: ['build'] };
+const NOT_STARTED_REASON = 'the experiment has not started yet, so nothing is counted';
+const UNAVAILABLE_REASON = 'the live counts could not be read when this page was built, so they show at the next update';
+
+const REFS: Record<ExperimentSnapshot['source'], readonly DerivedRef[]> = {
+  store: ['live'],
+  local: ['simulated'],
+  fixture: ['build'],
+  // Zero counts and dates set when the page was built or regenerated, not read from the store.
+  unavailable: ['build'],
+};
 
 const zeros = (): GroupCounts => Object.fromEntries(EVENT_TYPES.map((t) => [t, 0])) as GroupCounts;
 const emptyCounters = (): CounterRows => ({
@@ -118,30 +135,46 @@ function stoppedFreshness(s: ExperimentSnapshot, flags: ExperimentFlags): Freshn
   return null;
 }
 
+/**
+ * A snapshot with no data: zero counts, and a paused freshness that gives the reason. Without a
+ * start, its planned end is the earliest end if the calibration started now, a true lower bound.
+ */
+function placeholder(config: ExperimentConfig, now: Date, start: string | null, reason: string): ExperimentSnapshot {
+  const nowIso = now.toISOString();
+  const s = buildSnapshot({ counters: emptyCounters(), flags: NO_FLAGS, now: nowIso, start: start ?? nowIso, source: 'unavailable', config });
+  return { ...s, live: { ...s.live, freshness: { kind: 'paused', pausedOn: nowIso, reason } } };
+}
+
 export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {}): Promise<ExperimentSnapshot> {
   const d = resolveDeps(partial);
   const { env, config } = d;
+  const building = env.buildPhase === true;
   const started = Date.now();
-  const fail = (reason: string, e: unknown): never => {
+  const logLine = (outcome: 'error' | 'unavailable', reason: string) => {
     try {
-      d.log({ evt: 'snapshot', outcome: 'error', reason, ms: Math.max(0, Date.now() - started) });
+      d.log({ evt: 'snapshot', outcome, reason, ms: Math.max(0, Date.now() - started) });
     } catch {
-      // A failing logger never hides the error.
+      // A failing logger never hides the outcome.
     }
+  };
+  const start = calibrationStart(config, env.vercelEnv);
+  /** At run time: log and throw. During a build: log and give the placeholder. */
+  const fail = (reason: string, e: unknown): ExperimentSnapshot => {
+    logLine(building ? 'unavailable' : 'error', reason);
+    // The configured start only: never the fixture's stand-in.
+    if (building) return placeholder(config, d.now(), config.calibration.startedOn, UNAVAILABLE_REASON);
     throw e;
   };
 
   if (env.onVercel === true && env.vercelEnv === 'development') {
     return fail('misconfigured', new Error('experiment environment misconfigured: VERCEL_ENV is not set on Vercel'));
   }
+  // Only production can have no start (elsewhere FIXTURE_START stands in).
+  if (start === null) return placeholder(config, d.now(), null, NOT_STARTED_REASON);
   if (d.mode === 'none') {
     if (env.vercelEnv === 'production') return fail('not-configured', new Error('experiment store not configured'));
-    // Outside production calibrationStart always gives a start (FIXTURE_START at the latest).
-    const start = calibrationStart(config, env.vercelEnv)!;
     return buildSnapshot({ counters: emptyCounters(), flags: NO_FLAGS, now: d.now().toISOString(), start, source: 'fixture', config });
   }
-  const start = calibrationStart(config, env.vercelEnv);
-  if (start === null) return fail('not-started', new Error('experiment calibration start not set'));
   const read = d.read;
   if (read === null) return fail('not-configured', new Error('experiment store not configured'));
 
@@ -152,7 +185,7 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   } catch (e) {
     return fail(errorCategory(e), e);
   }
-  const built = buildSnapshot({ counters, flags, now: d.now().toISOString(), start, source: d.mode, config });
+  const built = buildSnapshot({ counters, flags, now: d.now().toISOString(), start, source: d.mode === 'local' ? 'local' : 'store', config });
   const freshness = stoppedFreshness(built, flags);
   const s: ExperimentSnapshot = freshness === null ? built : { ...built, live: { ...built.live, freshness } };
 

@@ -18,6 +18,11 @@ export interface ServerEnv {
    * VERCEL_ENV (or none) is a misconfiguration, never a reason to show the no-credentials fixture.
    */
   onVercel?: boolean;
+  /**
+   * NEXT_PHASE=phase-production-build: inside `next build` (static generation), which sets it before
+   * it starts the workers that prerender. A build never fails on experiment data.
+   */
+  buildPhase?: boolean;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -48,5 +53,6 @@ export function serverEnv(): ServerEnv {
     gitCommit: nonEmpty(process.env.VERCEL_GIT_COMMIT_SHA),
     fakeStore: process.env.EXPERIMENT_FAKE_STORE === '1',
     onVercel: process.env.VERCEL === '1',
+    buildPhase: process.env.NEXT_PHASE === 'phase-production-build',
   };
 }

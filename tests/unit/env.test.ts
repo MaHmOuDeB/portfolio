@@ -15,6 +15,7 @@ const VARS = [
   'VERCEL_GIT_COMMIT_SHA',
   'EXPERIMENT_FAKE_STORE',
   'VERCEL',
+  'NEXT_PHASE',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -50,6 +51,7 @@ describe('serverEnv', () => {
       gitCommit: undefined,
       fakeStore: false,
       onVercel: false,
+      buildPhase: false,
     });
   });
 
@@ -66,6 +68,7 @@ describe('serverEnv', () => {
     process.env.VERCEL_GIT_COMMIT_SHA = 'test-value-sha';
     process.env.EXPERIMENT_FAKE_STORE = '1';
     process.env.VERCEL = '1';
+    process.env.NEXT_PHASE = 'phase-production-build';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -80,6 +83,7 @@ describe('serverEnv', () => {
       gitCommit: 'test-value-sha',
       fakeStore: true,
       onVercel: true,
+      buildPhase: true,
     });
   });
 
@@ -127,6 +131,13 @@ describe('serverEnv', () => {
     expect(serverEnv().onVercel).toBe(false);
     delete process.env.VERCEL;
     expect(serverEnv().onVercel).toBe(false);
+  });
+
+  it('reads NEXT_PHASE as the build phase only for phase-production-build', () => {
+    process.env.NEXT_PHASE = 'phase-production-build';
+    expect(serverEnv().buildPhase).toBe(true);
+    process.env.NEXT_PHASE = 'phase-production-server';
+    expect(serverEnv().buildPhase).toBe(false);
   });
 
   it('maps an unknown VERCEL_ENV to development', () => {
