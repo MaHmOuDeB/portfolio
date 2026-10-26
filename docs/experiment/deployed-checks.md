@@ -15,7 +15,8 @@ behaviour exists only on the platform, so it can only be checked on a deployment
 ## Running the script
 
 The script reads the deployment protection bypass from the environment and sends it as the
-`x-vercel-protection-bypass` header. It never prints the value. Set it in your own shell and never
+`x-vercel-protection-bypass` header, only over `https` (or to this machine). It never prints the
+value. Set it in your own shell and never
 paste it anywhere else:
 
 ```sh
@@ -30,8 +31,8 @@ check prints `PASS` or `FAIL` with its counts, and the exit code is non-zero if 
 
 | Check | What it does | What a FAIL means |
 |---|---|---|
-| `split` | 200 GETs of `/` with a desktop Chrome user agent. Both groups must appear, the split must pass the sample-ratio check, no response may set a cookie, no response may carry a `Cache-Control` that a shared cache may store (`s-maxage`, or `public` with a `max-age` above 0; Vercel sends `public, max-age=0, must-revalidate`), and no single group may take every `x-vercel-cache: HIT`. It also prints the `Cache-Control` and `Vary` values it saw. | A cache is serving, or may serve, one group's page for `/` to everyone behind it, which would bias the experiment. |
-| `isr` | A direct `/v/a` must be the 404 page. After a 310 s wait it GETs `/` until each group has been seen at least twice: every response must be a 200, and each group must serve a copy whose `age` is under 300 s (one made after the wait). Then `readAt` in `/experiment/data.json` must have advanced too. | If a group never serves a young copy, or `/` turns into a 404, that group's page did not regenerate. The likely cause is that the proxy also matches Vercel's revalidation request for `/v/a` or `/v/b`. The matcher exempts requests that carry `x-prerender-revalidate`; find the header Vercel actually sends (Vercel's ISR documentation), fix the matcher and run the check again. If only `data.json` fails, regeneration itself is broken, not the proxy. |
+| `split` | 200 GETs of `/` with a desktop Chrome user agent. Both groups must appear, the split must pass the sample-ratio check, no response may set a cookie, no response may carry a `Cache-Control` that a shared cache may store (not `private`, `no-store` or `no-cache`, and any of `s-maxage`, a `max-age` above 0, or `public` without `max-age`; Vercel sends `public, max-age=0, must-revalidate`), and no single group may take every `x-vercel-cache: HIT`. It also prints the `Cache-Control` and `Vary` values it saw. | A cache is serving, or may serve, one group's page for `/` to everyone behind it, which would bias the experiment. |
+| `isr` | A direct `/v/a` must be the 404 page. Before the wait it GETs `/` until both groups have appeared once. After a 310 s wait it GETs `/` until each group has been seen at least twice: every response must be a 200, and each group must serve a copy whose `age` is under 300 s and whose `x-vercel-cache` is `HIT` or `REVALIDATED` (a copy of the cached page made after the wait; a `MISS` or `PRERENDER` copy does not count). Then `readAt` in `/experiment/data.json` must have advanced too. | If a group never serves a young copy, or `/` turns into a 404, that group's page did not regenerate. The likely cause is that the proxy also matches Vercel's revalidation request for `/v/a` or `/v/b`. The matcher exempts requests that carry `x-prerender-revalidate`; find the header Vercel actually sends (Vercel's ISR documentation), fix the matcher and run the check again. If only `data.json` fails, regeneration itself is broken, not the proxy. |
 | `headers` | `/` must carry the CSP (`connect-src 'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Strict-Transport-Security`. It prints the region part of `x-vercel-id`. | A header is missing on the platform. Run it against the custom domain as well, because HSTS has to be on the canonical host. |
 
 ### Production checks
@@ -71,7 +72,23 @@ Record each result, and the date, in the log below.
   `"reason":"misconfigured"` and keeps its last good page. Check that no such line appears.
 - **HSTS on the custom domain.** Run `--only headers` against the canonical URL.
 
+## Checks recorded by hand before launch
+
+Two launch conditions have no script. Record each in the log with the check name below and `PASS`
+once it holds (the steps are in [runbook.md](runbook.md)):
+
+- **`firewall`**: a Vercel Firewall rate-limit rule covers both `/api/e` and `/api/exclude`. The
+  in-code limit cannot bound what rejected requests cost the store, so this rule is a launch
+  blocker.
+- **`domains`**: every other domain of the project (the `*.vercel.app` alias included, where Vercel
+  allows it) redirects to the canonical domain at the domain level, so a visit through an alias is
+  never counted as a fresh entry.
+
 ## Log
+
+`npm run launch:check` reads this table. A row counts when its date is written as `YYYY-MM-DD`
+and its result is `PASS`. Before launch it needs a `PASS` row for each of `split`, `isr`,
+`headers` (run against the canonical domain), `firewall` and `domains`.
 
 | Date | Deployment | Check | Result | Notes |
 |---|---|---|---|---|

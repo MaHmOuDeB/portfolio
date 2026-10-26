@@ -173,8 +173,10 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   /** At run time: log and throw. During a build: log and give the placeholder. */
   const fail = (reason: string, e: unknown): ExperimentSnapshot => {
     logLine(building ? 'unavailable' : 'error', reason);
-    // The configured start only: never the fixture's stand-in.
-    if (building) return placeholder(config, d.now(), config.calibration.startedOn, 'unreadable');
+    // The configured start only: never the fixture's stand-in. Before the start is set nothing is
+    // counted, so the true placeholder is not-started (no test note), never "could not be read",
+    // whose paused freshness would say the experiment is paused before it has ever run.
+    if (building) return placeholder(config, d.now(), config.calibration.startedOn, config.calibration.startedOn === null ? 'not-started' : 'unreadable');
     throw e;
   };
 

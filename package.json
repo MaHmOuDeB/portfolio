@@ -9,6 +9,8 @@
     "build": "next build",
     "assert:no-kitchen-sink": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assert-no-kitchen-sink.ts",
     "experiment:preview-check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-check.ts",
+    "experiment:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/experiment-check.ts",
+    "launch:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/launch-check.ts",
     "prereg:hash": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prereg-hash.ts",
     "truth:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/truth-audit.ts",
     "start": "next start",

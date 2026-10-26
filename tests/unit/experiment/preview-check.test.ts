@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { main } from '../../../scripts/preview-check.ts';
+import { main, shareable } from '../../../scripts/preview-check.ts';
 
 const SECRET = 'bypass-value-that-must-never-be-printed-7f3a';
 
@@ -20,8 +20,8 @@ type Behaviour = {
   post: (k: number) => { status: number; body?: unknown };
   /** Cache-Control of `/`. */
   cacheControl: string;
-  /** Status and age of `/` for the k-th request of a group after the 310 s wait (0-based). */
-  afterWait: (arm: 'a' | 'b', k: number) => { status: number; age: number };
+  /** Status, age and (optionally) x-vercel-cache of `/` for the k-th request of a group after the 310 s wait (0-based). */
+  afterWait: (arm: 'a' | 'b', k: number) => { status: number; age: number; cache?: string };
   /** A redirect for every request, or none. */
   redirectTo: string | null;
 };
@@ -80,6 +80,7 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
       const after = behaviour.afterWait(arm, afterWaitByArm[arm]++);
       status = after.status;
       headers.age = String(after.age);
+      if (after.cache !== undefined) headers['x-vercel-cache'] = after.cache;
     }
     res.writeHead(status, headers);
     res.end('<h1>Mahmoud El Bergui</h1>');
@@ -249,6 +250,62 @@ describe('preview-check', () => {
     expect(r.out).toMatch(/^isr: FAIL.*\/ answered 404 after the wait/m);
   });
 
+  it('isr counts a young copy only when x-vercel-cache is HIT or REVALIDATED', async () => {
+    // A MISS or PRERENDER copy can have a fresh age without the ISR entry having regenerated.
+    for (const cache of ['MISS', 'PRERENDER', 'BYPASS']) {
+      afterWaitByArm = { a: 0, b: 0 };
+      waited = false;
+      behaviour = { ...GOOD, afterWait: (_arm, k) => ({ status: 200, age: k === 0 ? 340 : 3, cache }) };
+      const r = await run([base, '--only', 'isr']);
+      expect(r.out, cache).toMatch(/^isr: FAIL.*never served a copy younger than 300 s/m);
+    }
+    for (const cache of ['HIT', 'REVALIDATED']) {
+      afterWaitByArm = { a: 0, b: 0 };
+      waited = false;
+      counters = { root: 0, data: 0, post: 0 };
+      behaviour = { ...GOOD, afterWait: (_arm, k) => ({ status: 200, age: k === 0 ? 340 : 3, cache: k === 0 ? 'STALE' : cache }) };
+      const r = await run([base, '--only', 'isr']);
+      expect(r.out, cache).toMatch(/^isr: PASS/m);
+    }
+  });
+
+  it('isr sees both groups through / before the 310 s wait, and fails when one never appears', async () => {
+    const r = await run([base, '--only', 'isr']);
+    expect(r.out).toMatch(/^isr: PASS/m);
+    // The requests of / made before the wait reached both groups.
+    expect(counters.root).toBeGreaterThanOrEqual(2);
+    behaviour = { ...GOOD, arm: (i) => (waited && i % 2 === 1 ? 'b' : 'a') };
+    counters = { root: 0, data: 0, post: 0 };
+    waited = false;
+    afterWaitByArm = { a: 0, b: 0 };
+    const one = await run([base, '--only', 'isr']);
+    expect(one.out).toMatch(/^isr: FAIL.*before the wait.*group b/m);
+    expect(one.slept.some((ms) => ms >= 310_000)).toBe(false);
+  });
+
+  it('sends the bypass secret only over https or to a loopback host', async () => {
+    const seen: { url: string; bypass: string | null }[] = [];
+    const fake: typeof fetch = async (input, init) => {
+      seen.push({ url: String(input), bypass: new Headers(init?.headers).get('x-vercel-protection-bypass') });
+      return new Response('', { status: 200, headers: SECURITY });
+    };
+    const lines: string[] = [];
+    const deps = { env: { VERCEL_AUTOMATION_BYPASS_SECRET: SECRET }, out: (l: string) => lines.push(l), sleep: async () => {}, now: () => 0, fetch: fake };
+    await main(['http://portfolio.example', '--only', 'headers'], deps);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((s) => s.bypass === null)).toBe(true);
+    expect(lines.join('\n')).toMatch(/not sending the bypass secret over plain http/);
+    expect(lines.join('\n')).not.toContain(SECRET);
+    seen.length = 0;
+    await main(['https://portfolio.example', '--only', 'headers'], deps);
+    expect(seen.every((s) => s.bypass === SECRET)).toBe(true);
+    for (const local of ['http://localhost:3123', 'http://127.0.0.1:3123', 'http://[::1]:3123']) {
+      seen.length = 0;
+      await main([local, '--only', 'headers'], deps);
+      expect(seen.every((s) => s.bypass === SECRET), local).toBe(true);
+    }
+  });
+
   it('never follows a redirect, so the secret stays on the deployment', async () => {
     behaviour = { ...GOOD, redirectTo: 'http://127.0.0.1:9/login' };
     const r = await run([base, '--only', 'headers']);
@@ -263,5 +320,19 @@ describe('preview-check CLI (Node type stripping)', () => {
     const r = spawnSync(process.execPath, ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', 'scripts/preview-check.ts'], { encoding: 'utf8' });
     expect(r.status).toBe(2);
     expect(r.stdout).toMatch(/a deployment URL is required/);
+  });
+});
+
+describe('shareable', () => {
+  it('is true for anything a shared cache may store and reuse', () => {
+    for (const cc of ['s-maxage=300', 'public, max-age=60', 'max-age=60', 'public', 'public, must-revalidate']) {
+      expect(shareable(cc), cc).toBe(true);
+    }
+  });
+
+  it('is false for what a shared cache may not reuse without asking', () => {
+    for (const cc of [null, '', 'public, max-age=0, must-revalidate', 'private, max-age=60', 'no-store', 'public, no-store', 'no-cache', 'max-age=0', 'public, max-age=60, private']) {
+      expect(shareable(cc), String(cc)).toBe(false);
+    }
   });
 });

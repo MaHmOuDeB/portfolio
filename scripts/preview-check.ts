@@ -9,14 +9,15 @@
 // - split: 200 GETs of / with a desktop Chrome user agent reach both groups, the split passes the
 //   sample-ratio check, no response sets a cookie or a Cache-Control a shared cache may store, and
 //   no single group takes every cache hit.
-// - isr: a direct /v/a is the 404 page; after more than 300 s, each group's page served through /
-//   is a copy younger than 300 s (the proxy does not block its regeneration), and data.json's readAt
-//   advances.
+// - isr: a direct /v/a is the 404 page; both groups are seen through / before the wait; after more
+//   than 300 s, each group's page served through / is a copy of the ISR entry (x-vercel-cache HIT or
+//   REVALIDATED) younger than 300 s (the proxy does not block its regeneration), and data.json's
+//   readAt advances.
 // - headers: the security headers, HSTS included, are on /.
 // - spoof: 31 event batches from one client with a rotated fake address: the 31st is rate-limited.
 // - pause: after the pause flag is set, the event route answers "paused" within a minute.
-// The bypass secret is sent as x-vercel-protection-bypass and never printed; no request follows a
-// redirect, so it never reaches another host. Exit code: 0 when every
+// The bypass secret is sent as x-vercel-protection-bypass, only over https or to a loopback host, and
+// never printed; no request follows a redirect, so it never reaches another host. Exit code: 0 when every
 // check passed, 1 when one failed, 2 for a usage error.
 import { randomUUID } from 'node:crypto';
 import { srmTest } from '../src/lib/stats/proportions.ts';
@@ -87,14 +88,18 @@ async function split(get: Get): Promise<Result> {
 
 /**
  * True when a cache between the visitor and Vercel may store `/` and serve one group to everyone
- * behind it: `s-maxage`, or `public` with a positive `max-age`. Vercel sends
- * `public, max-age=0, must-revalidate`, which no shared cache may reuse without asking.
+ * behind it (RFC 9111): never with `private`, `no-store` or `no-cache`; otherwise `s-maxage`, a
+ * `max-age` above 0 (with or without `public`), or `public` without `max-age` (heuristic freshness).
+ * Vercel sends `public, max-age=0, must-revalidate`, which no shared cache may reuse without asking.
  */
 export function shareable(cacheControl: string | null): boolean {
   const cc = (cacheControl ?? '').toLowerCase();
-  if (/(^|[,\s])s-maxage\s*=/.test(cc)) return true;
+  const has = (directive: string) => new RegExp(`(^|[,\\s])${directive}($|[,\\s=])`).test(cc);
+  if (has('private') || has('no-store') || has('no-cache')) return false;
+  if (has('s-maxage')) return true;
   const maxAge = /(^|[,\s])max-age\s*=\s*(\d+)/.exec(cc);
-  return /(^|[,\s])public($|[,\s])/.test(cc) && maxAge !== null && Number(maxAge[2]) > 0;
+  if (maxAge !== null) return Number(maxAge[2]) > 0;
+  return has('public');
 }
 
 async function readAt(get: Get): Promise<{ readAt: string; cache: string }> {
@@ -107,16 +112,22 @@ async function readAt(get: Get): Promise<{ readAt: string; cache: string }> {
 
 type PageSeen = { status: number; age: number | null; cache: string };
 
+/** A copy made from the ISR entry: only these cache statuses make its `age` the entry's age. */
+const ISR_CACHE_STATUSES = ['HIT', 'REVALIDATED'];
+
 /**
  * After the revalidation window, each group's page must regenerate. The proxy is what could stop it
  * (a revalidation request rewritten to the 404), so this reads the group pages through `/`, the way
  * visitors do: GETs of `/` until each group has been seen at least twice, every one a 200, and each
- * group with a response whose `age` is under the window (a copy made after the wait). A stale copy
- * that never resets, or a 404, fails.
+ * group with a response whose `age` is under the window and whose `x-vercel-cache` is HIT or
+ * REVALIDATED (a copy of the ISR entry made after the wait). A MISS or PRERENDER copy can carry a
+ * fresh age without the entry having regenerated, so it does not count. A stale copy that never
+ * resets, or a 404, fails.
  */
 async function pagesRegenerate(get: Get, deps: CheckDeps): Promise<Result> {
   const seen: Record<'a' | 'b', PageSeen[]> = { a: [], b: [] };
-  const fresh = (arm: 'a' | 'b') => seen[arm].some((p) => p.age !== null && p.age < REVALIDATE_SECONDS);
+  const fresh = (arm: 'a' | 'b') =>
+    seen[arm].some((p) => p.age !== null && p.age < REVALIDATE_SECONDS && ISR_CACHE_STATUSES.includes(p.cache.toUpperCase()));
   const done = () => (['a', 'b'] as const).every((arm) => seen[arm].length >= 2 && fresh(arm));
   for (let i = 0; i < ISR_PAGE_REQUESTS && !done(); i++) {
     const res = await get('/', { headers: { 'user-agent': CHROME } });
@@ -132,15 +143,34 @@ async function pagesRegenerate(get: Get, deps: CheckDeps): Promise<Result> {
   const detail = `cache/age ${summary('a')}; ${summary('b')}`;
   const stuck = (['a', 'b'] as const).filter((arm) => !fresh(arm) || seen[arm].length < 2);
   if (stuck.length > 0) {
-    return { ok: false, detail: `group ${stuck.join(' and ')} never served a copy younger than ${REVALIDATE_SECONDS} s: its page did not regenerate (is the proxy matching the revalidation request?) (${detail})` };
+    return { ok: false, detail: `group ${stuck.join(' and ')} never served a copy younger than ${REVALIDATE_SECONDS} s from the ISR cache (HIT or REVALIDATED): its page did not regenerate (is the proxy matching the revalidation request?) (${detail})` };
   }
   return { ok: true, detail };
+}
+
+/**
+ * Before the wait, both group pages are requested through `/` at least once, so each has a cached
+ * copy in this region whose regeneration the check can then see. Fails if a group never appears.
+ */
+async function bothGroupsSeen(get: Get): Promise<Result> {
+  const seen = { a: 0, b: 0 };
+  for (let i = 0; i < ISR_PAGE_REQUESTS && (seen.a === 0 || seen.b === 0); i++) {
+    const res = await get('/', { headers: { 'user-agent': CHROME } });
+    await res.arrayBuffer();
+    const arm = res.headers.get('x-arm');
+    if (arm === 'a' || arm === 'b') seen[arm] += 1;
+  }
+  const missing = (['a', 'b'] as const).filter((arm) => seen[arm] === 0);
+  if (missing.length > 0) return { ok: false, detail: `before the wait, group ${missing.join(' and ')} never appeared in ${ISR_PAGE_REQUESTS} requests of / (a 50/50 draw should show both)` };
+  return { ok: true, detail: `before the wait: a ${seen.a}, b ${seen.b}` };
 }
 
 async function isr(get: Get, deps: CheckDeps): Promise<Result> {
   const direct = await get('/v/a');
   await direct.arrayBuffer();
   if (direct.status !== 404) return { ok: false, detail: `a direct /v/a answered ${direct.status}, not 404` };
+  const warm = await bothGroupsSeen(get);
+  if (!warm.ok) return warm;
   const first = await readAt(get);
   deps.out(`isr: waiting ${ISR_WAIT_MS / 1000} s for the 300 s revalidation window`);
   await deps.sleep(ISR_WAIT_MS);
@@ -246,8 +276,13 @@ export async function main(argv: string[], partial: Partial<CheckDeps> = {}): Pr
     checks = named as Check[];
   }
 
-  const secret = deps.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-  if (secret === undefined || secret === '') deps.out('preview-check: VERCEL_AUTOMATION_BYPASS_SECRET is not set; a protected deployment will answer 401');
+  const given = deps.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  // The secret goes only over https, or to this machine (the tests' fake server is plain http).
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(base.hostname);
+  const safeChannel = base.protocol === 'https:' || loopback;
+  if (given === undefined || given === '') deps.out('preview-check: VERCEL_AUTOMATION_BYPASS_SECRET is not set; a protected deployment will answer 401');
+  else if (!safeChannel) deps.out('preview-check: not sending the bypass secret over plain http to another host; use the https URL');
+  const secret = safeChannel ? given : undefined;
   // Never follows a redirect: fetch keeps custom headers on a redirect to another host, and the
   // bypass secret must reach only the deployment. A redirect is a failure of the check.
   const get: Get = async (path, init = {}) => {
@@ -280,7 +315,7 @@ export async function main(argv: string[], partial: Partial<CheckDeps> = {}): Pr
       result = { ok: false, detail: e instanceof Error ? e.message : 'error' };
     }
     const line = `${check}: ${result.ok ? 'PASS' : 'FAIL'} (${result.detail})`;
-    deps.out(secret ? line.split(secret).join('[secret]') : line);
+    deps.out(given ? line.split(given).join('[secret]') : line);
     failed ||= !result.ok;
   }
   return failed ? 1 : 0;

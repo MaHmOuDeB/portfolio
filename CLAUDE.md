@@ -50,6 +50,8 @@ Next code.
 | `npm run sources:sync` | Vendors the pinned source exports and regenerates `src/lib/facts/facts.generated.ts`. |
 | `npm run truth:audit` | The truth audit over a finished build (CI runs it on the build job). |
 | `npm run assert:no-kitchen-sink` | Fails if the build contains a kitchen-sink route. CI runs it after `npm run build`, and the deploy workflow after `vercel build`. |
+| `npm run experiment:check -- --url <origin>` | Prints the live experiment's state from `<origin>/experiment/data.json`. `--storage` (with the production variables in the environment) checks the read-only store token and the Edge Config connection, printing two status lines and never a value. |
+| `npm run launch:check` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks, secrets by name, the `prereg-v1` tag). Run `npm run build` first. See `docs/experiment/runbook.md`. |
 
 Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:meta`,
 `npm run lhci` and `npm run links`.
@@ -65,7 +67,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time. |
 | `src/lib/facts` | The `<Fact>` data, formatters and checked lookup. |
 | `src/styles/tokens.css` | The design tokens. |
-| `content/` | MDX content (pages written as data; not created yet). |
+| `content/` | Content as data: the privacy notice (`content/privacy.ts`) and the frozen experiment headlines. MDX pages come later. |
 | `data/sources/` and `sources.lock.json` | Vendored source exports, written by `scripts/sync-sources.ts`. |
 | `scripts/` | Build, audit and lint tooling, run with Node's type stripping. |
 | `tests/unit`, `tests/e2e` | Vitest and Playwright. Visual baselines are `tests/e2e/__screenshots__/**`. |

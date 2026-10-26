@@ -2,9 +2,18 @@
 // match of the pattern, run over the whole text, contains it. `routes` limits an entry to those
 // routes; without it the entry applies everywhere. There are no status-code entries: the not-found
 // and error pages show no status code as text.
+import { CONTACT } from '../src/lib/site.ts';
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export const ALLOW: readonly { pattern: RegExp; routes?: readonly string[]; reason: string }[] = [
   { pattern: /(?<![\d.,])\b20(0[89]|[12]\d|30)\b(?![.,]\d)/, reason: 'year' },
   { pattern: /\b[ABC][12]\b/, reason: 'CEFR level' },
+  // The privacy notice cites the law by article and section number; a citation is not a claim.
+  { pattern: /\bArt\. \d+(?:\(\d+\))*(?:\([a-z]\))?/, routes: ['/privacy'], reason: 'GDPR article citation' },
+  { pattern: /§\d+\(\d+\) No\. \d+ TDDDG/, routes: ['/privacy'], reason: 'TDDDG section citation' },
+  { pattern: /\bIPv[46]\b/, routes: ['/privacy'], reason: 'protocol name' },
+  { pattern: new RegExp(escapeRegExp(CONTACT.email)), routes: ['/privacy'], reason: 'the contact email address' },
 ];
 
 // Routes the site does not author. The stray-number check is skipped on them; the deny-list, banned
