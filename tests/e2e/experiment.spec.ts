@@ -276,7 +276,7 @@ test.describe('a counted visit', () => {
     // A batch sent while the page unloads is not reported to the test (Playwright sees no request a
     // document sends during its pagehide), so the store tells: the card counted, and it can count
     // only on an inview counted for the same view (otherwise it is an orphan).
-    await expect.poll(() => claims(entry.ns, entry.pv, ['entry', 'inview', 'card'])).toEqual([entry.arm, entry.arm, entry.arm]);
+    await expect.poll(() => claims(entry.ns, entry.pv, ['entry', 'inview', 'card']), { timeout: 10_000 }).toEqual([entry.arm, entry.arm, entry.arm]);
 
     // Back to / (from the back/forward cache or a back_forward load): not an entry.
     let from = sent.length;

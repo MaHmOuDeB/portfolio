@@ -133,6 +133,16 @@ describe('"The home page\'s script sends a random id made for that view, the gro
   });
 });
 
+describe('"It notices presses of a mouse button or a finger, scrolling, key presses and touches."', () => {
+  it('the beacon listens for exactly those interactions (update the page with them)', () => {
+    const beacon = readFileSync(join(ROOT, 'src/components/experiment/ExperimentBeacon.tsx'), 'utf8');
+    expect(beacon).toContain("const INTERACTIONS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;");
+    // The page's own address (?variant=, the navigation entry) and a clicked link's address are read.
+    expect(beacon).toMatch(/window\.location\.search/);
+    expect(beacon).toMatch(/clickEvents\(target\.href/);
+  });
+});
+
 describe('"The site\'s functions run in Frankfurt."', () => {
   it('vercel.json pins every function to fra1', () => {
     const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')) as { regions?: string[] };

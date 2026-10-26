@@ -99,7 +99,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           'If the view cannot count, the script sends one message instead, which says why: an automated browser, a group chosen through the page address, or not a fresh visit from outside the site.',
         ],
         [
-          'The referring site and the address of a link you click stay in your browser. What the server keeps is tallies per day and per group. It stores no page address, referring site, IP address or browser type. It keeps the per-view id only to count each view once, and deletes it from the database at most ',
+          "The script does not send the referring site or the address of a link you click (your browser sends the page address and the referring page with each request, see 'Your IP address and browser type'). What the server keeps is tallies per day and per group. It stores no page address, referring site, IP address or browser type. It keeps the per-view id only to count each view once, and deletes it from the database at most ",
           PV_MINUTES,
           ' minutes after your browser first sent it.',
         ],
@@ -110,7 +110,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       heading: 'What the script reads in your browser',
       paragraphs: [
         [
-          'To decide whether a view counts, the script reads how the page was opened, the referring page, whether the page and the cards are visible, whether the browser is automated, and whether your browser sends Global Privacy Control or Do Not Track. To know whether you interacted, it notices clicks on links, scrolling, key presses and touches. It sends only the outcome.',
+          "To decide whether a view counts, the script reads how the page was opened, the page's own address, the referring page, whether the page and the cards are visible, whether the browser is automated, and whether your browser sends Global Privacy Control or Do Not Track. To know whether you interacted, it notices presses of a mouse button or a finger, scrolling, key presses and touches. When you click a link, it reads the link's address, to know which kind of link it was. It sends only the outcome.",
         ],
         ['If your browser sends Global Privacy Control or Do Not Track, the page sends no experiment data at all.'],
         ['I consider this part of showing you the page, and I ask no consent. Nothing is stored on your device.'],
@@ -158,7 +158,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         [
           "Upstash, Inc., USA, runs the counter database, which is stored in Frankfurt. Upstash's published data processing terms rely on the EU-US Data Privacy Framework, with the standard contractual clauses as a fallback.",
         ],
-        ['Google LLC, USA, holds the emails you send me, in Gmail. Google states that Google LLC is certified under the EU-US Data Privacy Framework.'],
+        ['Google provides my email (Gmail); Google states that Google LLC, USA, is certified under the EU-US Data Privacy Framework.'],
         [
           'No third-party analytics, advertising or social-media service runs on this site, and nothing loads from another site. The only measurement is the experiment’s own counts described above. The links to LinkedIn and GitHub take you to those sites, under their own terms.',
         ],
@@ -174,11 +174,11 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         [
           'The counts, including those of earlier rounds of the experiment, are kept as its public record. They are published on this site at /experiment/data.json as aggregated daily counts with no identifiers, added up over time, and any count above zero and below ',
           n(EXPERIMENT.smallCellBelow),
-          ' is shown as "less than ',
+          ' is shown as "<',
           n(EXPERIMENT.smallCellBelow),
           '". Clicks on the CV and on contact links are published only as final totals, after the experiment ends.',
         ],
-        ['Edge Config holds no personal data: only whether the experiment is paused, and why.'],
+        ['Edge Config holds no personal data: only whether the experiment is paused or its calibration failed, with a short reason and date.'],
         [{ launchPlaceholder: 'upstash-backups' }],
       ],
     },
@@ -187,6 +187,9 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       paragraphs: [
         [
           'You have the right to access (Art. 15 GDPR), rectification (Art. 16 GDPR), erasure (Art. 17 GDPR), restriction (Art. 18 GDPR), portability (Art. 20 GDPR) and objection (Art. 21 GDPR). You can also complain to a supervisory authority (Art. 77 GDPR), for example the Berlin Commissioner for Data Protection and Freedom of Information.',
+        ],
+        [
+          'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise email me.',
         ],
         [
           'I cannot tell which counts come from you, so there is nothing about you to look up (Art. 11(2) GDPR). To stop your views being counted, have your browser send Global Privacy Control or Do Not Track.',

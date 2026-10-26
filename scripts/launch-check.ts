@@ -2,15 +2,17 @@
 // 1 while any is. It is NOT part of `npm run check` or CI (before launch it fails by design); run it
 // by hand before the launch commit and before promoting the deployment that starts the experiment.
 //
-//   npm run build && npm run launch:check
+//   npm run build && npm run launch:check -- --canonical <canonical domain>
 //
 // Conditions:
 // - the calibration start (EXPERIMENT.calibration.startedOn) is set;
 // - every provider fact the privacy page states is verified (content/privacy.ts, LAUNCH_FACTS), and
 //   no built page carries a launch placeholder;
-// - the deployed checks (docs/experiment/deployed-checks.md, the log table) are recorded as PASS;
+// - the deployed checks (docs/experiment/deployed-checks.md, the log table) are recorded as PASS,
+//   and the `headers` PASS was run against the canonical domain (--canonical);
 // - the secrets exist, by name: in Vercel's production environment and in the GitHub repository;
-// - the prereg-v1 tag exists and its pre-registration hash is the design's current hash.
+// - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
+//   hash.
 //
 // It reads secret NAMES only: the Vercel CLI is never asked for JSON (which would include values),
 // and no command output is printed. It needs `npx vercel login` and `gh auth login` on this machine.
@@ -70,16 +72,32 @@ function defaults(): LaunchDeps {
   };
 }
 
-/** The checks recorded as PASS in the log table (Date | Deployment | Check | Result | Notes). */
-export function passedChecks(log: string): Set<string> {
-  const passed = new Set<string>();
+/** The host of a Deployment cell: a URL or a bare host, lower case; null if it is neither. */
+function hostOf(cell: string): string | null {
+  const bare = cell.replace(/`/g, '').trim();
+  if (bare === '') return null;
+  try {
+    return new URL(/^https?:\/\//.test(bare) ? bare : `https://${bare}`).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** The checks recorded as PASS in the log table (Date | Deployment | Check | Result | Notes), each with the hosts it passed on. */
+export function passedChecks(log: string): Map<string, Set<string>> {
+  const passed = new Map<string, Set<string>>();
   const at = log.indexOf('## Log');
   for (const line of (at === -1 ? '' : log.slice(at)).split('\n')) {
     const cells = line.split('|').map((c) => c.trim());
     // ['', date, deployment, check, result, notes, '']
     if (cells.length < 6) continue;
-    const [, date, , check, result] = cells;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date ?? '') && result?.toUpperCase() === 'PASS' && check) passed.add(check.replace(/`/g, '').toLowerCase());
+    const [, date, deployment, check, result] = cells;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '') || result?.toUpperCase() !== 'PASS' || !check) continue;
+    const name = check.replace(/`/g, '').toLowerCase();
+    const hosts = passed.get(name) ?? new Set<string>();
+    const host = hostOf(deployment ?? '');
+    if (host !== null) hosts.add(host);
+    passed.set(name, hosts);
   }
   return passed;
 }
@@ -89,9 +107,11 @@ function names(stdout: string): Set<string> {
   return new Set([...stdout.matchAll(/^\s*([A-Z][A-Z0-9_]{2,})\b/gm)].map((m) => m[1]!));
 }
 
-export function main(_argv: string[], partial: Partial<LaunchDeps> = {}): number {
+export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number {
   const d: LaunchDeps = { ...defaults(), ...partial };
   const unmet: string[] = [];
+  const at = argv.indexOf('--canonical');
+  const canonical = at === -1 ? null : hostOf(argv[at + 1] ?? '');
 
   // The start.
   if (d.config.calibration.startedOn === null) unmet.push('the calibration start is not set (EXPERIMENT.calibration.startedOn in src/experiment.values.ts)');
@@ -106,6 +126,12 @@ export function main(_argv: string[], partial: Partial<LaunchDeps> = {}): number
   const passed = passedChecks(d.deployedChecksLog);
   for (const check of REQUIRED_LOG_CHECKS) {
     if (!passed.has(check)) unmet.push(`deployed check not recorded as passed: ${check} (docs/experiment/deployed-checks.md, Log)`);
+  }
+  // HSTS must be on the canonical host, so only a headers PASS run there counts.
+  if (canonical === null) {
+    unmet.push('the canonical domain is not given (run npm run launch:check -- --canonical <domain>), so no headers PASS can count');
+  } else if (passed.has('headers') && !passed.get('headers')!.has(canonical)) {
+    unmet.push(`deployed check not recorded as passed on the canonical domain: headers (${canonical})`);
   }
 
   // The secrets, by name.
@@ -129,6 +155,10 @@ export function main(_argv: string[], partial: Partial<LaunchDeps> = {}): number
   if (tag.status !== 0) {
     unmet.push(`the ${PREREG_TAG} tag does not exist (tag the merge commit that carries docs/experiment/prereg.md)`);
   } else {
+    const remote = d.run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${PREREG_TAG}`]);
+    if (remote.status !== 0 || !remote.stdout.includes(`refs/tags/${PREREG_TAG}`)) {
+      unmet.push(`the ${PREREG_TAG} tag is not on origin (git push origin ${PREREG_TAG})`);
+    }
     const tagged = d.run('git', ['show', `${PREREG_TAG}:docs/experiment/prereg.md`]);
     const hash = /Pre-registration hash: ([0-9a-f]{64})/.exec(tagged.stdout)?.[1];
     if (tagged.status !== 0 || hash === undefined) unmet.push(`${PREREG_TAG} has no pre-registration hash in docs/experiment/prereg.md`);

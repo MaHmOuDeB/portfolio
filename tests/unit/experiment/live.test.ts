@@ -114,7 +114,7 @@ describe('getExperimentSnapshot: during next build', () => {
 
   it('on Vercel without a VERCEL_ENV gives the placeholder, never the fixture', async () => {
     const env: ServerEnv = { vercelEnv: 'development', fakeStore: false, onVercel: true, buildPhase: true };
-    // Before the start is set, a page built here must not say the experiment is paused (N4): the
+    // Before the start is set, a page built here must not say the experiment is paused: the
     // not-started placeholder, with no test note, never the "could not be read" one.
     const lines: object[] = [];
     const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT, log: (l) => lines.push(l) });

@@ -42,25 +42,31 @@ In Terminal, one line at a time. The value goes into a temporary file, from ther
 and the file is then deleted:
 
 ```sh
-openssl rand -hex 32 > /tmp/its.txt
-npx vercel env add INTERNAL_TRAFFIC_SECRET production --scope mahmoud-s-team < /tmp/its.txt
-gh secret set INTERNAL_TRAFFIC_SECRET --repo MaHmOuDeB/portfolio < /tmp/its.txt
-rm /tmp/its.txt
+umask 077
+its=$(mktemp)
+openssl rand -hex 32 > "$its"
+npx vercel env add INTERNAL_TRAFFIC_SECRET production --scope mahmoud-s-team < "$its"
+gh secret set INTERNAL_TRAFFIC_SECRET --repo MaHmOuDeB/portfolio < "$its"
+rm "$its"
 ```
+
+`umask 077` and `mktemp` make the file readable by my user only.
 
 ### `EXCLUDE_TOKEN` (I keep this one)
 
 ```sh
-openssl rand -hex 32 > /tmp/ex.txt
-npx vercel env add EXCLUDE_TOKEN production --scope mahmoud-s-team < /tmp/ex.txt
-open -e /tmp/ex.txt
+umask 077
+ex=$(mktemp)
+openssl rand -hex 32 > "$ex"
+npx vercel env add EXCLUDE_TOKEN production --scope mahmoud-s-team < "$ex"
+open -e "$ex"
 ```
 
 The last line opens the value in TextEdit. Copy it into my password manager as "portfolio exclude
 token", close TextEdit without saving changes, then delete the file:
 
 ```sh
-rm /tmp/ex.txt
+rm "$ex"
 ```
 
 ### `VERCEL_AUTOMATION_BYPASS_SECRET`
@@ -100,9 +106,11 @@ so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the onl
 2. **Configure** (top right), then **+ New Rule**.
 3. Name: `Rate limit the API`.
 4. **If**: `Request Path`, `Starts with`, `/api/`.
-5. **Then**: `Rate Limit`. If a pricing dialog appears, read it and select **Continue**.
+5. **Then**: `Rate Limit`. If a pricing dialog appears, read it and select **Continue**. If the
+   dialog asks for a payment method or a plan upgrade, stop: that is a purchase, and I decide it
+   separately.
 6. Strategy: **Fixed Window**. Time Window: `10m` (the longest Hobby allows). Request Limit: `40`.
-   Key: **IP**. A real visit to the home page sends at most 4 requests, so this allows about ten
+   Key: **IP**. A real visit to the home page usually sends 3 to 6 requests, so this allows several
    home-page visits in ten minutes from one address, and stops a flood after 40 requests. A
    shorter window would let a flood through at a steadier rate, and each request it lets through
    costs the database.
@@ -161,7 +169,7 @@ In Terminal:
 
 ```sh
 npm run build
-npm run launch:check
+npm run launch:check -- --canonical <canonical domain>
 ```
 
 It prints one `unmet:` line for each launch condition that is not met yet, and ends with "all
@@ -171,9 +179,10 @@ launch conditions met" once none is left. It checks:
   the launch commit);
 - every provider fact the privacy page states is confirmed, and no page shows a "Not confirmed yet"
   note;
-- the deployed checks `split`, `isr`, `headers`, `firewall` and `domains` are recorded as `PASS`;
+- the deployed checks `split`, `isr`, `headers`, `firewall` and `domains` are recorded as `PASS`,
+  and the `headers` row was run against the canonical domain;
 - the secrets of step 1 exist (it reads their names only);
-- the `prereg-v1` tag exists and matches the current design.
+- the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
 

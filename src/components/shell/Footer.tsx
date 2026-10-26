@@ -1,4 +1,5 @@
-// Contact and privacy. Visible labels only: the address itself is never printed.
+// Contact and privacy. Visible labels only: the email address is printed only on /privacy (the
+// controller's contact), never in the footer.
 import { TextLink } from '@/components/kit/TextLink';
 import { CONTACT, PRIVACY_HREF } from '@/lib/site';
 

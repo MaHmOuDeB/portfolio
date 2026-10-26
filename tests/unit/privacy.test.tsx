@@ -144,6 +144,29 @@ describe('the privacy page', () => {
     expect(sectionText('Changes')).toContain(`${d}.${m}.${y}`);
   });
 
+  it('presents the right to object in its own paragraph, with how to use it', () => {
+    const rights = all.find((el) => el.tagName === 'section' && all.some((h) => h.tagName === 'h2' && text(h) === 'Your rights' && el.childNodes.includes(h)))!;
+    const objection = elements(rights).filter((el) => el.tagName === 'p' && /object at any time/.test(text(el)));
+    expect(objection).toHaveLength(1);
+    expect(text(objection[0]!)).toMatch(/Art\. 6\(1\)\(f\) GDPR \(Art\. 21 GDPR\)/);
+    expect(text(objection[0]!)).toMatch(/Global Privacy Control or Do Not Track; otherwise email me/);
+    expect(text(objection[0]!)).not.toMatch(/Art\. 15/);
+  });
+
+  it('says what the script reads as the code does, and never that the referrer stays in the browser', () => {
+    const reads = sectionText('What the script reads in your browser');
+    for (const needle of ["the page's own address", 'presses of a mouse button or a finger', 'scrolling', 'key presses', 'touches', "reads the link's address"]) {
+      expect(reads, needle).toContain(needle);
+    }
+    expect(reads).not.toMatch(/clicks on links/);
+    expect(pageText).not.toMatch(/stay in your browser/);
+    expect(sectionText('What a page view sends')).toContain('The script does not send the referring site or the address of a link you click');
+  });
+
+  it('quotes the published small-cell value exactly', () => {
+    expect(sectionText('How long')).toContain(`is shown as "<${EXPERIMENT.smallCellBelow}"`);
+  });
+
   it('has no arrow, middle dot or emoji in its copy', () => {
     expect(pageText).not.toMatch(/[←-⇿⟰-⟿⤀-⥿]|->|=>/);
     expect(pageText).not.toMatch(/[·•⋅‧]/);

@@ -88,7 +88,9 @@ once it holds (the steps are in [runbook.md](runbook.md)):
 
 `npm run launch:check` reads this table. A row counts when its date is written as `YYYY-MM-DD`
 and its result is `PASS`. Before launch it needs a `PASS` row for each of `split`, `isr`,
-`headers` (run against the canonical domain), `firewall` and `domains`.
+`headers`, `firewall` and `domains`. A `headers` row counts only when its Deployment cell is the
+canonical domain given as `npm run launch:check -- --canonical <domain>` (HSTS must be on that
+host).
 
 | Date | Deployment | Check | Result | Notes |
 |---|---|---|---|---|
