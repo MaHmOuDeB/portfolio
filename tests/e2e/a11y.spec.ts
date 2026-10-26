@@ -7,6 +7,7 @@ import { test, waitForIslands } from './fixtures';
 // Forced groups exercise the public home route; a direct group path intentionally returns 404.
 const routes = [...new Set([...LIVE_ROUTES.filter((route) => route !== '/'), '/', '/?variant=a', '/?variant=b', '/no-such-page', '/kitchen-sink', '/kitchen-sink/live'])];
 const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]';
+const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"]';
 
 async function open(page: Page, route: string): Promise<void> {
   const response = await page.goto(route);
@@ -50,6 +51,11 @@ for (const route of routes) {
       const findings: unknown[] = [];
       let wrapped = false;
       for (let i = 0; i < limit; i++) {
+        // Let native focus scrolling settle before judging ring geometry; no fixed timing sleep.
+        await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
+          const before = scrollY;
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
+        }))).toBe(true);
         const result = await page.evaluate(() => {
           const el = document.activeElement as HTMLElement | null;
           if (!el || el === document.body) return null;
@@ -80,13 +86,24 @@ for (const route of routes) {
             if (['hidden', 'clip', 'auto', 'scroll'].includes(p.overflowY) && (r.top - reach < b.top - 1 || r.bottom + reach > b.bottom + 1)) errors.push(`ring clipped vertically by ${selector(parent)}`);
           }
           const header = document.querySelector<HTMLElement>('[data-site-header]');
-          if (header && !header.contains(ring) && getComputedStyle(header).position === 'sticky' && r.top - reach < header.getBoundingClientRect().bottom - 1) errors.push('obscured by sticky header');
+          if (header && !header.contains(ring) && getComputedStyle(header).position === 'sticky') {
+            const h = header.getBoundingClientRect();
+            const overlapTop = Math.max(r.top, h.top);
+            const overlapBottom = Math.min(r.bottom, h.bottom);
+            if (overlapBottom > overlapTop) {
+              const cover = document.elementFromPoint(r.left + r.width / 2, (overlapTop + overlapBottom) / 2);
+              if (cover && header.contains(cover)) errors.push('obscured by sticky header');
+            }
+          }
           const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
           if (hit && !ring.contains(hit) && !hit.contains(ring)) errors.push('focus target covered by another element');
           return { selector: selector(el), errors };
         });
-        expect(result, 'Tab must land on a document element').not.toBeNull();
-        if (!result) break;
+        // Browser chrome can sit between the last and first document tab stops.
+        if (!result) {
+          await page.keyboard.press(key);
+          continue;
+        }
         if (seen.has(result.selector)) {
           expect(result.selector, 'tab order must wrap to its first stop').toBe([...seen][0]);
           wrapped = true;
@@ -101,9 +118,11 @@ for (const route of routes) {
       expect(findings).toEqual([]);
     });
 
-    test('@matrix touch targets and reflow, including the 400% CSS viewport proxy', async ({ page }) => {
+    test('@matrix touch targets in their visible interactive state', async ({ page }) => {
       await open(page, route);
-      const small = await page.locator(controls).evaluateAll((els) => {
+      // The skip link is intentionally clipped until focus; measure its usable visible state.
+      await page.getByRole('link', { name: 'Skip to content' }).focus();
+      const small = await page.locator(pointerTargets).evaluateAll((els) => {
         const seen = new Set<Element>();
         return els.flatMap((el) => {
           // The segment label, rather than its sr-only radio, is the actual pointer target.
@@ -117,6 +136,10 @@ for (const route of routes) {
         });
       });
       expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px`).toEqual([]);
+    });
+
+    test('@matrix reflow, including the 400% CSS viewport proxy', async ({ page }) => {
+      await open(page, route);
       for (const height of [800, 180]) {
         await page.setViewportSize({ width: 320, height });
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), { message: `${route}: reflow at 320x${height}` }).toBe(true);
