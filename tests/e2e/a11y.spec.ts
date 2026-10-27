@@ -16,6 +16,15 @@ async function open(page: Page, route: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
 }
 
+async function openMenu(page: Page): Promise<boolean> {
+  const menu = page.locator('[data-site-header] details');
+  if (!await menu.isVisible()) return false;
+  if (!await menu.evaluate((el) => (el as HTMLDetailsElement).open)) {
+    await menu.locator(':scope > summary').click();
+  }
+  return true;
+}
+
 for (const route of routes) {
   test.describe(`accessibility ${route}`, () => {
     test.setTimeout(120_000);
@@ -25,6 +34,11 @@ for (const route of routes) {
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('html')).toHaveAttribute('lang', /\S+/);
       for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+      const scan = () => new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+      const scans = [{ state: 'default', result: await scan() }];
+      if (await openMenu(page)) scans.push({ state: 'menu-open', result: await scan() });
+      await testInfo.attach('axe-findings', { body: JSON.stringify(scans, null, 2), contentType: 'application/json' });
       const navs = page.getByRole('navigation');
       expect(await navs.count()).toBeGreaterThan(0);
       // Additional Figure navigation is valid, but landmark names must distinguish navigation regions.
@@ -33,15 +47,12 @@ for (const route of routes) {
         return el.getAttribute('aria-label') ?? ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
       }));
       expect(new Set(names).size, 'navigation landmark names must not repeat').toBe(names.length);
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'])
-        .analyze();
+      const violations = scans.flatMap(({ state, result }) => result.violations.map(({ id, nodes }) => ({ state, id, selectors: nodes.map(({ target }) => target) })));
       testInfo.annotations.push({ type: 'axe-violations', description: String(violations.length) });
-      await testInfo.attach('axe-findings', { body: JSON.stringify(violations, null, 2), contentType: 'application/json' });
-      expect(violations.map(({ id, nodes }) => ({ id, selectors: nodes.map(({ target }) => target) }))).toEqual([]);
+      expect(violations).toEqual([]);
     });
 
-    test('@matrix keyboard rings, clipping and sticky-header obstruction', async ({ page, browserName }) => {
+    test('@matrix keyboard rings, clipping and sticky-header obstruction', async ({ page, browserName }, testInfo) => {
       await open(page, route);
       const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
       await page.keyboard.press(key);
@@ -50,69 +61,77 @@ for (const route of routes) {
       const seen = new Set<string>();
       const findings: unknown[] = [];
       let wrapped = false;
-      for (let i = 0; i < limit; i++) {
-        // Let native focus scrolling settle before judging ring geometry; no fixed timing sleep.
-        await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
-          const before = scrollY;
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
-        }))).toBe(true);
-        const result = await page.evaluate(() => {
-          const el = document.activeElement as HTMLElement | null;
-          if (!el || el === document.body) return null;
-          const selector = (node: Element): string => {
-            if (node.id) return `#${CSS.escape(node.id)}`;
-            const path: string[] = [];
-            for (let at: Element | null = node; at && at !== document.body; at = at.parentElement) {
-              const parent: Element | null = at.parentElement;
-              path.unshift(`${at.tagName.toLowerCase()}:nth-child(${parent ? [...parent.children].indexOf(at) + 1 : 1})`);
+      let repeated: string | null = null;
+      try {
+        for (let i = 0; i < limit; i++) {
+          // Let native focus scrolling settle before judging ring geometry; no fixed timing sleep.
+          await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
+            const before = scrollY;
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
+          }))).toBe(true);
+          const result = await page.evaluate(() => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el || el === document.body) return null;
+            const selector = (node: Element): string => {
+              if (node.id) return `#${CSS.escape(node.id)}`;
+              const path: string[] = [];
+              for (let at: Element | null = node; at && at !== document.body; at = at.parentElement) {
+                const parent: Element | null = at.parentElement;
+                path.unshift(`${at.tagName.toLowerCase()}:nth-child(${parent ? [...parent.children].indexOf(at) + 1 : 1})`);
+              }
+              return `body > ${path.join(' > ')}`;
+            };
+            // Visually hidden radios draw their keyboard ring on the actual segment label.
+            const ring = el.closest<HTMLElement>('label[data-segment]') ?? el;
+            const s = getComputedStyle(ring);
+            const r = ring.getBoundingClientRect();
+            const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0 && s.outlineColor !== 'rgba(0, 0, 0, 0)';
+            const shadow = s.boxShadow !== 'none' && s.boxShadow !== '';
+            const reach = outline ? Math.max(0, parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset)) : 0;
+            const errors: string[] = [];
+            if (!outline && !shadow) errors.push('no visible focus ring');
+            if (r.width <= 0 || r.height <= 0 || s.visibility === 'hidden' || s.opacity === '0') errors.push('invisible focus target');
+            if (r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('focus ring outside viewport');
+            for (let parent = ring.parentElement; parent; parent = parent.parentElement) {
+              const p = getComputedStyle(parent);
+              const b = parent.getBoundingClientRect();
+              if (['hidden', 'clip', 'auto', 'scroll'].includes(p.overflowX) && (r.left - reach < b.left - 1 || r.right + reach > b.right + 1)) errors.push(`ring clipped horizontally by ${selector(parent)}`);
+              if (['hidden', 'clip', 'auto', 'scroll'].includes(p.overflowY) && (r.top - reach < b.top - 1 || r.bottom + reach > b.bottom + 1)) errors.push(`ring clipped vertically by ${selector(parent)}`);
             }
-            return `body > ${path.join(' > ')}`;
-          };
-          // Visually hidden radios draw their keyboard ring on the actual segment label.
-          const ring = el.closest<HTMLElement>('label[data-segment]') ?? el;
-          const s = getComputedStyle(ring);
-          const r = ring.getBoundingClientRect();
-          const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0 && s.outlineColor !== 'rgba(0, 0, 0, 0)';
-          const shadow = s.boxShadow !== 'none' && s.boxShadow !== '';
-          const reach = outline ? Math.max(0, parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset)) : 0;
-          const errors: string[] = [];
-          if (!outline && !shadow) errors.push('no visible focus ring');
-          if (r.width <= 0 || r.height <= 0 || s.visibility === 'hidden' || s.opacity === '0') errors.push('invisible focus target');
-          if (r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('focus ring outside viewport');
-          for (let parent = ring.parentElement; parent; parent = parent.parentElement) {
-            const p = getComputedStyle(parent);
-            const b = parent.getBoundingClientRect();
-            if (['hidden', 'clip', 'auto', 'scroll'].includes(p.overflowX) && (r.left - reach < b.left - 1 || r.right + reach > b.right + 1)) errors.push(`ring clipped horizontally by ${selector(parent)}`);
-            if (['hidden', 'clip', 'auto', 'scroll'].includes(p.overflowY) && (r.top - reach < b.top - 1 || r.bottom + reach > b.bottom + 1)) errors.push(`ring clipped vertically by ${selector(parent)}`);
-          }
-          const header = document.querySelector<HTMLElement>('[data-site-header]');
-          if (header && !header.contains(ring) && getComputedStyle(header).position === 'sticky') {
-            const h = header.getBoundingClientRect();
-            const overlapTop = Math.max(r.top, h.top);
-            const overlapBottom = Math.min(r.bottom, h.bottom);
-            if (overlapBottom > overlapTop) {
-              const cover = document.elementFromPoint(r.left + r.width / 2, (overlapTop + overlapBottom) / 2);
-              if (cover && header.contains(cover)) errors.push('obscured by sticky header');
+            const header = document.querySelector<HTMLElement>('[data-site-header]');
+            if (header && !header.contains(ring) && getComputedStyle(header).position === 'sticky') {
+              const h = header.getBoundingClientRect();
+              const overlapTop = Math.max(r.top, h.top);
+              const overlapBottom = Math.min(r.bottom, h.bottom);
+              if (overlapBottom > overlapTop) {
+                const cover = document.elementFromPoint(r.left + r.width / 2, (overlapTop + overlapBottom) / 2);
+                if (cover && header.contains(cover)) errors.push('obscured by sticky header');
+              }
             }
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            if (hit && !ring.contains(hit) && !hit.contains(ring)) errors.push('focus target covered by another element');
+            return { selector: selector(el), errors };
+          });
+          // Browser chrome can sit between the last and first document tab stops.
+          if (!result) {
+            await page.keyboard.press(key);
+            continue;
           }
-          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-          if (hit && !ring.contains(hit) && !hit.contains(ring)) errors.push('focus target covered by another element');
-          return { selector: selector(el), errors };
-        });
-        // Browser chrome can sit between the last and first document tab stops.
-        if (!result) {
+          if (seen.has(result.selector)) {
+            repeated = result.selector;
+            wrapped = repeated === [...seen][0];
+            break;
+          }
+          seen.add(result.selector);
+          if (result.errors.length) findings.push({ route, ...result });
+          // Open the phone disclosure with its real keyboard action, then traverse its links too.
+          if (await page.locator('[data-site-header] details:not([open]) > summary:focus').count()) await page.keyboard.press('Space');
           await page.keyboard.press(key);
-          continue;
         }
-        if (seen.has(result.selector)) {
-          expect(result.selector, 'tab order must wrap to its first stop').toBe([...seen][0]);
-          wrapped = true;
-          break;
-        }
-        seen.add(result.selector);
-        if (result.errors.length) findings.push({ route, ...result });
-        await page.keyboard.press(key);
+      } finally {
+        await testInfo.attach('keyboard-findings', { body: JSON.stringify({ route, limit, visited: [...seen], wrapped, repeated, findings }, null, 2), contentType: 'application/json' });
       }
+      if (repeated !== null) expect(repeated, 'tab order must wrap to its first stop').toBe([...seen][0]);
       expect(wrapped, 'tab order must complete without trapping focus').toBe(true);
       expect(seen.size).toBeGreaterThan(1);
       expect(findings).toEqual([]);
@@ -122,7 +141,7 @@ for (const route of routes) {
       await open(page, route);
       // The skip link is intentionally clipped until focus; measure its usable visible state.
       await page.getByRole('link', { name: 'Skip to content' }).focus();
-      const small = await page.locator(pointerTargets).evaluateAll((els) => {
+      const collect = () => page.locator(pointerTargets).evaluateAll((els) => {
         const seen = new Set<Element>();
         return els.flatMap((el) => {
           // The segment label, rather than its sr-only radio, is the actual pointer target.
@@ -130,11 +149,21 @@ for (const route of routes) {
           const s = getComputedStyle(target);
           const r = target.getBoundingClientRect();
           if (seen.has(target) || r.width === 0 || r.height === 0 || s.display === 'none' || s.visibility === 'hidden' || target.closest('[inert]')) return [];
+          // Closed details content can retain rectangles despite not being rendered.
+          for (let ancestor: Element | null = target; ancestor; ancestor = ancestor.parentElement) {
+            if (ancestor instanceof HTMLDetailsElement && !ancestor.open && !ancestor.querySelector(':scope > summary')?.contains(target)) return [];
+          }
+          if (!target.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
           seen.add(target);
           if (r.width >= 44 && r.height >= 44) return [];
           return [{ tag: el.tagName, id: el.id, href: el.getAttribute('href'), name: el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 80), width: r.width, height: r.height }];
         });
       });
+      const small = (await collect()).map((target) => ({ state: 'default', ...target }));
+      if (await openMenu(page)) {
+        await page.getByRole('link', { name: 'Skip to content' }).focus();
+        small.push(...(await collect()).map((target) => ({ state: 'menu-open', ...target })));
+      }
       expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px`).toEqual([]);
     });
 
