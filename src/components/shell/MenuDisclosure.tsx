@@ -18,6 +18,18 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
     <details
       ref={details}
       className="relative md:hidden"
+      onBlur={(event) => {
+        const el = event.currentTarget;
+        const next = event.relatedTarget;
+        if (next instanceof Node) {
+          if (!el.contains(next)) el.open = false;
+          return;
+        }
+        // A blur with no destination can precede another focus move in the same turn.
+        queueMicrotask(() => {
+          if (el.isConnected && !el.contains(el.ownerDocument.activeElement)) el.open = false;
+        });
+      }}
       onKeyDown={(event) => {
         const el = details.current;
         if (event.key !== 'Escape' || !el?.open) return;
