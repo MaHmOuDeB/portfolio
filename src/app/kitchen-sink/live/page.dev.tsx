@@ -53,8 +53,10 @@ function cannotOccur(phase: LivePhase, data: DataAmount): string | undefined {
   return undefined;
 }
 
-// One title for every state (only the body changes), so it never says "so far" over a decided test.
-const TITLE = 'The difference between the groups.';
+// Context distinguishes every example and flows through the Figure's string title to its tables.
+function stateContext(phase: LivePhase, data: DataAmount, fresh: FreshnessKind, runtime: FigureRuntime): string {
+  return `${PHASES[phase].title}, ${DATA[data]}, ${FRESH[fresh]}, ${RUNTIME[runtime]}`;
+}
 const SIMULATED = derivedAttr(SINK_REFS);
 const CAPTION = (
   <>
@@ -71,7 +73,7 @@ function LiveFigure({ id, phase, data, fresh, runtime }: { id: string; phase: Li
     <Figure
       id={id}
       titleLevel={4}
-      title={TITLE}
+      title={`The difference between the groups. ${stateContext(phase, data, fresh, runtime)}`}
       state={state}
       provenance="simulated"
       table={confidenceTable(snapshot, SINK_REFS)}
@@ -103,7 +105,7 @@ function PhaseSection({ phase }: { phase: LivePhase }) {
           RUNTIMES.map((runtime) => {
             const id = `live--${phase}--${data}--${fresh}--${runtime}`;
             return (
-              <Specimen key={id} id={id} title={`${DATA[data]}, ${FRESH[fresh]}, ${RUNTIME[runtime]}`} note={cannotOccur(phase, data)}>
+              <Specimen key={id} id={id} title={stateContext(phase, data, fresh, runtime)} note={cannotOccur(phase, data)}>
                 <LiveFigure id={id} phase={phase} data={data} fresh={fresh} runtime={runtime} />
               </Specimen>
             );
