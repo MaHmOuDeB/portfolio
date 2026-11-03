@@ -333,7 +333,7 @@ function parseClosed(raw: unknown): ClosedMarker | null {
   }
   if (typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 2) {
     const { kind, day } = value as Record<string, unknown>;
-    if ((kind === 'decision' || kind === 'aa-failed' || kind === 'held') && typeof day === 'string' && DAY.test(day)) return { kind, day };
+    if ((kind === 'decision' || kind === 'aa-failed' || kind === 'held') && typeof day === 'string' && DAY.test(day) && Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day) return { kind, day };
   }
   throw new CorruptCounters('closed marker');
 }

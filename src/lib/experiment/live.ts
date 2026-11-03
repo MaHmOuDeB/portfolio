@@ -13,7 +13,7 @@
 //   - on Vercel, VERCEL_ENV is always set: a development (or missing) one there is a misconfigured
 //     deployment, and it throws rather than show the fixture;
 //   - no store: in production it throws; elsewhere it is the deterministic "before data" fixture;
-//   - otherwise it reads the counters (bounded at 2,000 ms) and the flags. A failed read is logged
+//   - otherwise it reads the counters, durable closure and flags (each bounded at 2,000 ms). A failed read is logged
 //     as a category (never a token, a host or a message) and thrown; it never falls back to the
 //     fixture. An error thrown while revalidating keeps serving the last successfully generated
 //     page, and the next request retries (the Next ISR guide, "Handling uncaught exceptions").
@@ -37,8 +37,8 @@ import { FlagsUnavailable, NO_FLAGS, readFlags, type ExperimentFlags } from './f
 import { freshnessFrom } from './freshness.ts';
 import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
 import { buildSnapshot, closingMarker, type ExperimentSnapshot, type Held } from './snapshot.ts';
-import { readCounters, type CounterRows, type GroupCounts } from './store.ts';
-import { berlinStartOfDay } from './time.ts';
+import { CorruptCounters, readClosed, readCounters, type ClosedMarker, type CounterRows, type GroupCounts } from './store.ts';
+import { berlinDay, berlinStartOfDay } from './time.ts';
 
 export type SnapshotDeps = {
   env: ServerEnv;
@@ -64,7 +64,7 @@ export type LiveView = {
   refs: readonly DerivedRef[];
   state: FigureState;
   body: FigureBody;
-  /** The one-sentence test note; null before the start, when there is no running test to describe. */
+  /** The one-sentence test note; null before the start or after a failed calibration. */
   testNote: TestNote | null;
   /** Rendered into the page for the beacon, so a page open across a phase switch is refused. */
   namespace: string;
@@ -146,6 +146,32 @@ function stoppedFreshness(s: ExperimentSnapshot, flags: ExperimentFlags): Freshn
   return null;
 }
 
+/** A kind/day marker is authority to stop, never authority to invent an A/B verdict. */
+function reconcileClosed(s: ExperimentSnapshot, closed: ClosedMarker | null): ExperimentSnapshot {
+  if (closed === null) return s;
+  const derived = closingMarker(s);
+  if (derived?.kind === closed.kind && derived.day === closed.day) {
+    // A matching current explanation is trustworthy, but durable A/A closure is never ready.
+    // Use the marker's day for terminal metadata in both matched and reconstructed failures.
+    return closed.kind === 'aa-failed' ? {
+      ...s, closed, frozenAt: closed.day,
+      calibration: s.calibration === null ? null : { ...s.calibration, ready: false },
+    } : { ...s, closed };
+  }
+  if (closed.kind !== 'aa-failed' || s.configPhase !== 'calibration' || derived !== null) {
+    throw new CorruptCounters('closed marker cannot be reconciled with analysis');
+  }
+  // The marker retained neither the original reason nor an instant within its Berlin day.
+  // Midnight is the existing day-only display convention, not a recovered closure timestamp.
+  return {
+    ...s, closed, status: 'aa-failed', frozenAt: closed.day,
+    calibration: s.calibration === null ? null : { ...s.calibration, ready: false },
+    live: { ...s.live, phase: 'aa-failed', aaFailed: {
+      on: berlinStartOfDay(closed.day), reason: 'a persisted calibration failure stopped this namespace; the original reason was not retained',
+    } },
+  };
+}
+
 /**
  * A snapshot with no data: zero counts, and a paused freshness that gives the reason. Without a
  * start, its planned end is the earliest end if the calibration started now, a true lower bound.
@@ -195,23 +221,30 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
 
   let counters: CounterRows;
   let flags: ExperimentFlags;
+  let closed: ClosedMarker | null;
+  let built: ExperimentSnapshot;
   try {
-    [counters, flags] = await Promise.all([
+    [counters, closed, flags] = await Promise.all([
       withTimeout(readCounters(read, config.namespace), READ_TIMEOUT_MS, () => new RedisUnavailable(`read timed out after ${READ_TIMEOUT_MS} ms`)),
+      withTimeout(readClosed(read, config.namespace), READ_TIMEOUT_MS, () => new RedisUnavailable(`read timed out after ${READ_TIMEOUT_MS} ms`)),
       // A hung Edge Config read must not hang the regeneration either.
       withTimeout(d.flags(), READ_TIMEOUT_MS, () => new FlagsUnavailable()),
     ]);
+    const now = d.now().toISOString();
+    if (closed !== null && (closed.day < berlinDay(start) || closed.day > berlinDay(now))) {
+      throw new CorruptCounters('closed marker outside experiment days');
+    }
+    built = reconcileClosed(buildSnapshot({ counters, flags, now, start, source: d.mode === 'local' ? 'local' : 'store', config }), closed);
   } catch (e) {
     return fail(errorCategory(e), e);
   }
-  const built = buildSnapshot({ counters, flags, now: d.now().toISOString(), start, source: d.mode === 'local' ? 'local' : 'store', config });
   const freshness = stoppedFreshness(built, flags);
   const s: ExperimentSnapshot = freshness === null ? built : { ...built, live: { ...built.live, freshness } };
 
-  // The closing check, once per namespace in this process: after a marker is stored, a read costs
-  // nothing more (the memo is cleared only when the check found nothing to write or failed).
+  // Always read durable closure, even in a warm process. A stored marker needs no closing task;
+  // the memo only suppresses duplicate outstanding checks before a marker becomes visible.
   const write = d.write;
-  if (write !== null && closingMarker(s) !== null) {
+  if (closed === null && write !== null && closingMarker(s) !== null) {
     const seen = d.closingSeen;
     if (!seen.has(config.namespace)) {
       seen.add(config.namespace);
@@ -238,9 +271,9 @@ export function freshnessAt(s: ExperimentSnapshot, nowIso: string, config: Exper
 export function liveView(s: ExperimentSnapshot, arm: Arm): LiveView {
   const state = liveFigureState(s.live);
   let testNote: TestNote | null;
-  if (s.unavailable === 'not-started') testNote = null;
+  if (s.unavailable === 'not-started' || s.status === 'aa-failed') testNote = null;
   else if (s.live.freshness.kind === 'paused') testNote = { mode: 'paused' };
-  else if (s.status === 'before-data' || s.status === 'calibration' || s.status === 'aa-failed') testNote = { mode: 'calibration' };
+  else if (s.status === 'before-data' || s.status === 'calibration') testNote = { mode: 'calibration' };
   else testNote = { mode: 'ab', arm, nA: s.live.nA, nB: s.live.nB };
   return { snapshot: s.live, refs: REFS[s.source], state, body: resolveFigureBody(state), testNote, namespace: s.namespace, readAt: s.readAt };
 }

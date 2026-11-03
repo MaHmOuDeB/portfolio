@@ -405,6 +405,14 @@ describe('recordRejection', () => {
 });
 
 describe('the closed marker', () => {
+  it.each(['2026-02-30', '2026-13-01', '2026-00-01', '2026-11-00'])(
+    'rejects impossible marker day %s in page and event reads', async (day) => {
+      const redis = createMemoryRedis();
+      await redis.command(['SET', keys.closed(NS), JSON.stringify({ kind: 'aa-failed', day })]);
+      await expect(readClosed(redis, NS)).rejects.toBeInstanceOf(CorruptCounters);
+      await expect(readView(redis, { ns: NS, pv: PV, closed: true, expiry: false })).rejects.toBeInstanceOf(CorruptCounters);
+    });
+
   it('writeClosed succeeds once with no expiry, and readClosed returns the marker', async () => {
     const { redis } = setup();
     await expect(readClosed(redis, NS)).resolves.toBeNull();

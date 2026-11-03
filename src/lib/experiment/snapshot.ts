@@ -80,6 +80,8 @@ export type DetectableCurve = {
 };
 export type ExperimentSnapshot = {
   schema: 1;
+  /** Validated durable closure read by the live reader; kind/day only, never a recovered verdict. */
+  closed?: ClosedMarker;
   /**
    * 'unavailable': a placeholder with no data, when the experiment has not started in production or
    * a build could not read the store. Its counts are zero and its freshness says why.
@@ -511,6 +513,7 @@ export function buildSnapshot(i: SnapshotInput): ExperimentSnapshot {
  *   namespace, so this one is finished).
  */
 export function closingMarker(s: ExperimentSnapshot): ClosedMarker | null {
+  if (s.closed) return s.closed;
   if ((s.status === 'ship-b' || s.status === 'stop-for-harm') && s.frozenAt !== null) return { kind: 'decision', day: s.frozenAt };
   if (s.calibration?.failed) return { kind: 'aa-failed', day: s.calibration.failed.day };
   if (s.configPhase === 'ab' && s.held !== null) return { kind: 'held', day: s.held.on };

@@ -6,10 +6,11 @@ import { EVENT_TYPES } from '@/lib/experiment/events';
 import { FlagsUnavailable, NO_FLAGS, type ExperimentFlags } from '@/lib/experiment/flags';
 import { fieldName, keys } from '@/lib/experiment/keys';
 import { freshnessAt, getExperimentSnapshot, getLiveView, liveView, viewFreshnessAt, type SnapshotDeps } from '@/lib/experiment/live';
+import { toPublicData } from '@/lib/experiment/public-data';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
 import { createRedisRest, RedisUnavailable, type RedisRest } from '@/lib/experiment/redis-rest';
-import { buildSnapshot, type ExperimentSnapshot } from '@/lib/experiment/snapshot';
-import { readClosed, type CounterRows, type GroupCounts } from '@/lib/experiment/store';
+import { buildSnapshot, closingMarker, type ExperimentSnapshot } from '@/lib/experiment/snapshot';
+import { CorruptCounters, readClosed, readView, type CounterRows, type GroupCounts } from '@/lib/experiment/store';
 import { berlinStartOfDay, plannedEnd } from '@/lib/experiment/time';
 
 const START = '2026-11-02T00:00:00+01:00';
@@ -269,7 +270,7 @@ describe('getExperimentSnapshot: the store', () => {
     const inits: RequestInit[] = [];
     const fetch = (async (_url: string, init: RequestInit) => {
       inits.push(init);
-      return new Response(JSON.stringify({ result: [] }), { status: 200 });
+      return new Response(JSON.stringify({ result: JSON.parse(String(init.body))[0] === 'GET' ? null : [] }), { status: 200 });
     }) as unknown as typeof globalThis.fetch;
     const read = createRedisRest({ url: 'https://store.example', token: 't', fetch });
     await getExperimentSnapshot(deps({ read }));
@@ -363,8 +364,8 @@ describe('the closing check on the read path', () => {
     for (let k = 0; k < 5; k += 1) await getExperimentSnapshot(d());
     expect(tasks).toHaveLength(1);
     expect(writes.length).toBe(writesAfterClose);
-    // The read path costs one command per read, the counter hash, and nothing more.
-    expect(reads.map((r) => r.name)).toEqual(Array(5).fill('HGETALL'));
+    // Each read checks durable closure as well as the counter hash, even with a warm memo.
+    expect(reads.map((r) => r.name)).toEqual(Array.from({ length: 5 }, () => ['HGETALL', 'GET']).flat());
   });
 
   it('runs again after a check that found nothing to write or failed', async () => {
@@ -445,7 +446,7 @@ describe('liveView', () => {
     expect(v.namespace).toBe(CALIBRATION.namespace);
   });
 
-  it('says calibration while calibrating and after a failed calibration', () => {
+  it('says calibration only while calibrating', () => {
     const rows = [{ day: '2026-11-03', a: counts({ entry: 4, inview: 3 }), b: counts({ entry: 5, inview: 2 }) }];
     const c = snap({ counters: { ...EMPTY, days: rows } });
     expect(c.status).toBe('calibration');
@@ -455,7 +456,9 @@ describe('liveView', () => {
       flags: { paused: null, aaFailed: { on: '2026-11-04T09:00:00+01:00', reason: 'a beacon fault' }, malformed: false },
     });
     expect(failed.status).toBe('aa-failed');
-    expect(liveView(failed, 'b').testNote).toEqual({ mode: 'calibration' });
+    expect(liveView(failed, 'b').testNote).toBeNull();
+    const pausedFailure = { ...failed, live: { ...failed.live, freshness: { kind: 'paused' as const, pausedOn: NOW.toISOString(), reason: 'checking' } } };
+    expect(liveView(pausedFailure, 'b').testNote).toBeNull();
   });
 
   it('names the group and the counts in the A/B, and says paused under a pause', () => {
@@ -547,3 +550,147 @@ describe('before the start instant (the event route\'s rule)', () => {
   });
 });
 
+
+
+describe('durable terminal state', () => {
+  it.each([false, true])('retains flag-only failure after flag removal (empty=%s), warm and cold', async (empty) => {
+    const redis = createMemoryRedis();
+    if (!empty) await seed(redis, CALIBRATION.namespace, [{ day: '2026-11-04', a: { entry: 1 }, b: { entry: 1 } }]);
+    const tasks: (() => Promise<unknown>)[] = [];
+    const seen = new Set<string>();
+    const d = deps({ read: redis, write: redis, closingSeen: seen, schedule: (t) => tasks.push(t),
+      flags: async () => ({ ...NO_FLAGS, aaFailed: { on: '2026-11-06T09:00:00+01:00', reason: 'a beacon fault' } }) });
+    // Empty-count closure is seeded directly: the existing closer requires a counted entry.
+    if (empty) await redis.command(['SET', keys.closed(CALIBRATION.namespace), JSON.stringify({ kind: 'aa-failed', day: '2026-11-06' })]);
+    else {
+      expect((await getExperimentSnapshot(d)).status).toBe('aa-failed');
+      expect(tasks).toHaveLength(1);
+      await tasks[0]!();
+    }
+    for (const closingSeen of [seen, new Set<string>()]) {
+      const s = await getExperimentSnapshot({ ...d, flags: async () => NO_FLAGS, closingSeen, write: null });
+      expect(s.status).toBe('aa-failed');
+      expect(s.frozenAt).toBe('2026-11-06');
+      expect(s.calibration?.ready).toBe(false);
+      expect(s.live.aaFailed).toMatchObject({ on: berlinStartOfDay('2026-11-06'), reason: expect.stringMatching(/persisted.*failure/) });
+      expect(s.live.aaFailed?.reason).not.toContain('beacon');
+      expect(liveView(s, 'a').body).toBe('aa-failed');
+      expect((await getLiveView('a', { ...d, flags: async () => NO_FLAGS, closingSeen, write: null })).testNote).toBeNull();
+      expect((await readView(redis, { ns: CALIBRATION.namespace, pv: 'new', closed: true, expiry: false })).closed)
+        .toEqual({ kind: 'aa-failed', day: '2026-11-06' });
+    }
+    expect(tasks).toHaveLength(empty ? 0 : 1);
+  });
+
+  it.each([
+    { retained: true, warm: true, readOnly: true },
+    { retained: true, warm: false, readOnly: true },
+    { retained: true, warm: true, readOnly: false },
+    { retained: true, warm: false, readOnly: false },
+    { retained: false, warm: true, readOnly: true },
+    { retained: false, warm: false, readOnly: true },
+    { retained: false, warm: true, readOnly: false },
+    { retained: false, warm: false, readOnly: false },
+  ])('keeps otherwise-ready durable A/A failure terminal: retained=$retained warm=$warm readOnly=$readOnly', async ({ retained, warm, readOnly }) => {
+    const redis = createMemoryRedis();
+    const group = { entry: 100, inview: 50, engaged: 70, card: 5 };
+    await seed(redis, CALIBRATION.namespace, [{ day: '2026-11-04', a: group, b: group }]);
+    const tasks: (() => Promise<unknown>)[] = [];
+    const seen = new Set<string>();
+    const d = deps({ read: redis, write: redis, closingSeen: seen, schedule: (task) => tasks.push(task) });
+    // Balanced data and elapsed time would be ready without permanent closure.
+    const ready = await getExperimentSnapshot(d);
+    expect(ready.calibration).toMatchObject({ ready: true, failed: null });
+    const flag = { on: '2026-11-06T09:00:00+01:00', reason: 'a beacon fault' };
+    const flags = { ...NO_FLAGS, aaFailed: flag };
+    expect((await getExperimentSnapshot({ ...d, flags: async () => flags })).status).toBe('aa-failed');
+    expect(tasks).toHaveLength(1);
+    await tasks[0]!();
+    const closed = { kind: 'aa-failed', day: '2026-11-06' };
+    expect(await readClosed(redis, CALIBRATION.namespace)).toEqual(closed);
+    const reading = { ...d, flags: async () => retained ? flags : NO_FLAGS,
+      closingSeen: warm ? seen : new Set<string>(), write: readOnly ? null : redis };
+    const s = await getExperimentSnapshot(reading);
+    expect(s.status).toBe('aa-failed');
+    expect(s.calibration).toMatchObject({ ready: false, failed: null });
+    expect(s.frozenAt).toBe('2026-11-06');
+    expect(s.closed).toEqual(closed);
+    expect(s.live.aaFailed).toEqual(retained ? flag : {
+      on: berlinStartOfDay('2026-11-06'), reason: expect.stringMatching(/persisted.*failure.*original reason was not retained/),
+    });
+    const published = toPublicData(s, { commit: null }, CALIBRATION);
+    expect(published.calibration).toMatchObject({ ready: false, failed: null });
+    expect(published.frozenAt).toBe('2026-11-06');
+    expect(published.decision).toBeNull();
+    expect(published).not.toHaveProperty('closed');
+    const view = await getLiveView('b', reading);
+    expect(view.body).toBe('aa-failed');
+    // Home renders PhaseLabel only for a non-null note, so this omits its visible and aria copy.
+    expect(view.testNote).toBeNull();
+    expect(tasks).toHaveLength(1);
+  });
+
+  it.each(['not-json', '{"kind":"other","day":"2026-11-06"}', '{"kind":"aa-failed","day":"2026-02-30"}'])(
+    'fails closed for malformed marker %s at runtime and build', async (raw) => {
+      const redis = createMemoryRedis();
+      await redis.command(['SET', keys.closed(CALIBRATION.namespace), raw]);
+      await expect(getExperimentSnapshot(deps({ read: redis }))).rejects.toBeInstanceOf(CorruptCounters);
+      const s = await getExperimentSnapshot(deps({ read: redis, env: { ...PRODUCTION, buildPhase: true } }));
+      expect(s.source).toBe('unavailable');
+      expect(s.unavailable).toBe('unreadable');
+      expect(s.live.freshness).toMatchObject({ kind: 'paused', reason: expect.stringMatching(/could not be read/) });
+      expect(s.current).toEqual({ a: counts(), b: counts() });
+    });
+
+  it.each(['decision', 'held', 'aa-failed'] as const)('never infers an A/B outcome from %s alone', async (kind) => {
+    const redis = createMemoryRedis();
+    await redis.command(['SET', keys.closed(AB.namespace), JSON.stringify({ kind, day: '2026-12-01' })]);
+    await expect(getExperimentSnapshot(deps({ read: redis, config: AB, now: () => new Date('2026-12-03T12:00:00+01:00') })))
+      .rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it.each([
+    { kind: 'decision', day: '2026-12-01', rows: [
+      { day: '2026-12-01', a: { entry: 600, inview: 300, engaged: 420, card: 30 }, b: { entry: 600, inview: 300, engaged: 432, card: 120 } },
+    ], status: 'ship-b' },
+    { kind: 'decision', day: '2026-12-01', rows: [
+      { day: '2026-12-01', a: { entry: 600, inview: 300, engaged: 432, card: 120 }, b: { entry: 600, inview: 300, engaged: 420, card: 30 } },
+    ], status: 'stop-for-harm' },
+    { kind: 'held', day: '2026-12-02', rows: [
+      { day: '2026-12-01', a: { entry: 60, inview: 50, engaged: 50, card: 5 }, b: { entry: 60, inview: 50, engaged: 50, card: 15 } },
+      { day: '2026-12-02', a: { entry: 340, inview: 250, engaged: 250, card: 95 }, b: { entry: 340, inview: 250, engaged: 250, card: 10 } },
+    ], status: 'ab' },
+  ])('preserves reconstructed $kind/$status and refuses a conflicting marker day', async ({ kind, day, rows, status }) => {
+    const redis = createMemoryRedis();
+    await seed(redis, AB.namespace, rows);
+    const d = deps({ read: redis, config: AB, now: () => new Date('2026-12-03T12:00:00+01:00') });
+    const before = await getExperimentSnapshot(d);
+    expect(before.status).toBe(status);
+    await redis.command(['SET', keys.closed(AB.namespace), JSON.stringify({ kind, day })]);
+    const after = await getExperimentSnapshot(d);
+    expect(after).toEqual({ ...before, closed: { kind, day } });
+    expect(closingMarker(after)).toEqual({ kind, day });
+    await redis.command(['SET', keys.closed(AB.namespace), JSON.stringify({ kind, day: '2026-12-03' })]);
+    await expect(getExperimentSnapshot(d)).rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it.each(['2026-11-01', '2026-11-21'])('refuses marker day %s outside the namespace lifetime', async (day) => {
+    const redis = createMemoryRedis();
+    await redis.command(['SET', keys.closed(CALIBRATION.namespace), JSON.stringify({ kind: 'aa-failed', day })]);
+    await expect(getExperimentSnapshot(deps({ read: redis }))).rejects.toBeInstanceOf(CorruptCounters);
+  });
+
+  it('bounds a hung marker read and rejects a failed marker read even with readable counters', async () => {
+    const redis = createMemoryRedis();
+    const read: RedisRest = { ...redis, command: (c) => c[0] === 'GET' ? Promise.reject(new RedisUnavailable('marker unavailable')) : redis.command(c) };
+    await expect(getExperimentSnapshot(deps({ read }))).rejects.toBeInstanceOf(RedisUnavailable);
+    vi.useFakeTimers();
+    try {
+      const hung: RedisRest = { ...redis, command: (c) => c[0] === 'GET' ? new Promise(() => {}) : redis.command(c) };
+      const p = getExperimentSnapshot(deps({ read: hung }));
+      const failure = expect(p).rejects.toBeInstanceOf(RedisUnavailable);
+      await vi.advanceTimersByTimeAsync(2000);
+      await failure;
+    } finally { vi.useRealTimers(); }
+  });
+});
