@@ -140,6 +140,50 @@ function isStoreError(e: unknown): boolean {
   return e instanceof RedisUnavailable || e instanceof CorruptCounters;
 }
 
+const PENDING_ENTRY_BUDGET_MS = 3_000;
+const PENDING_ENTRY_RETRY_DELAY_MS = 100;
+const PENDING_ENTRY_MAX_REREADS = 3;
+
+async function rereadPendingEntry(
+  read: () => ReturnType<typeof readEntryClaim>,
+  pending: Awaited<ReturnType<typeof readEntryClaim>>,
+  now: EventDeps['now'],
+  started: number,
+  ttlSeconds: number,
+): ReturnType<typeof readEntryClaim> {
+  const createdAt = pending.expiry - ttlSeconds * 1000;
+  const age = now().getTime() - createdAt;
+  if (pending.expiry <= 0 || age < 0) return pending;
+
+  const deadline = Math.min(started, performance.now() - age) + PENDING_ENTRY_BUDGET_MS;
+  const remaining = () => Math.min(
+    deadline - performance.now(),
+    createdAt + PENDING_ENTRY_BUDGET_MS - now().getTime(),
+    pending.expiry - now().getTime(),
+  );
+
+  for (let attempt = 0; attempt < PENDING_ENTRY_MAX_REREADS; attempt += 1) {
+    if (remaining() <= PENDING_ENTRY_RETRY_DELAY_MS) break;
+    await new Promise<void>((resolve) => setTimeout(resolve, PENDING_ENTRY_RETRY_DELAY_MS));
+    const budget = remaining();
+    if (budget <= 0) break;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeout = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), budget);
+      });
+      const fresh = await Promise.race([read(), timeout]);
+      // A missing or replaced claim cannot promote the pending claim we observed.
+      if (fresh === null || remaining() <= 0 || fresh.expiry !== pending.expiry) break;
+      if (fresh.value !== '-') return fresh;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return pending;
+}
+
 export async function handleEvent(request: Request, deps: EventDeps): Promise<Response> {
   const started = performance.now();
   const config = deps.config ?? EXPERIMENT;
@@ -250,7 +294,11 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
         if (later.length > 0) {
           // The snapshot was read before this claim; the original request may have promoted the
           // entry since. Re-read the claim and its expiry together.
-          const fresh = await readEntryClaim(write, batch);
+          const read = () => readEntryClaim(write, batch);
+          let fresh = await read();
+          if (fresh.value === '-') {
+            fresh = await rereadPendingEntry(read, fresh, deps.now, started, config.pvTtlSeconds);
+          }
           entryClaim = fresh.value;
           entryExpiry = fresh.expiry;
         }

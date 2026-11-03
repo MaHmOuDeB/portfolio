@@ -109,20 +109,42 @@ describe('createSender', () => {
     expect(h.calls[1]!.mode).toBe('fetch');
   });
 
-  it.each<[string, (c: Call) => void]>([
-    ['refused', (c) => c.resolve({ ok: false, reason: 'paused' })],
-    ['failed (null)', (c) => c.resolve(null)],
-    ['failed (a rejected post)', (c) => c.reject(new Error('offline'))],
-  ])('a %s entry drops everything after it, flush included', async (_name, settleEntry) => {
+  it('a refused entry drops everything after it, flush included', async () => {
     const h = harness();
     h.sender.enqueue('inview');
-    settleEntry(h.calls[0]!);
+    h.calls[0]!.resolve({ ok: false, reason: 'paused' });
     await settle();
     h.sender.enqueue('engaged');
     h.sender.flush();
     await settle();
     expect(h.calls).toHaveLength(1);
     expect(h.counted).toEqual([]);
+  });
+
+  it.each<[string, (c: Call) => void]>([
+    ['null', (c) => c.resolve(null)],
+    ['a rejected post', (c) => c.reject(new Error('offline'))],
+  ])('after the entry fails (%s), flush re-sends it once ahead of all queued events', async (_name, fail) => {
+    const h = harness();
+    h.sender.enqueue('engaged');
+    fail(h.calls[0]!);
+    await settle();
+    h.sender.enqueue('inview', 'card', 'inview');
+    await settle();
+    expect(h.calls).toHaveLength(1);
+    expect(h.counted).toEqual([]);
+
+    h.sender.flush();
+    h.sender.enqueue('contact');
+    h.sender.flush();
+    await settle();
+    expect(h.calls).toHaveLength(2);
+    expect(h.calls[1]!.mode).toBe('beacon');
+    expect(h.calls[1]!.batch).toEqual({
+      ...h.calls[0]!.batch,
+      events: [{ type: 'entry' }, { type: 'engaged' }, { type: 'inview' }, { type: 'card' }],
+    });
+    expect(h.ids()).toBe(1);
   });
 
   it.each<ClientReject>(['bot', 'forced', 'not_entry'])('a %s entry posts that single item and stops', async (reject) => {
@@ -154,6 +176,7 @@ describe('createSender', () => {
     h.sender.enqueue('entry');
     h.sender.enqueue('card');
     await settle();
+    h.sender.flush();
     expect(h.calls).toHaveLength(3);
   });
 
@@ -431,5 +454,22 @@ describe('createEngagement', () => {
     vi.advanceTimersByTime(60_000);
     e.interacted();
     expect(onEngaged).not.toHaveBeenCalled();
+  });
+});
+
+describe('entry replay lifetime', () => {
+  it.each([1799999, 1800000])('bounds ambiguous entry replay at %i ms', async (elapsed) => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    try {
+      const h = harness();
+      h.calls[0]!.resolve(null);
+      await settle();
+      h.sender.enqueue('inview', 'card');
+      clock.mockReturnValue(1000 + elapsed);
+      h.sender.flush();
+      expect(h.calls).toHaveLength(elapsed < 1800000 ? 2 : 1);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

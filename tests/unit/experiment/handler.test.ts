@@ -768,6 +768,148 @@ describe('a prerequisite is never satisfied by a claim that was not counted', ()
   });
 });
 
+describe('bounded rereads of a duplicate pending entry', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it.each(['a', 'b'] as const)('recovers an in-flight entry for arm %s', async (arm) => {
+    const atCeiling = Promise.withResolvers<void>();
+    const releaseEntry = Promise.withResolvers<void>();
+    const firstRead = Promise.withResolvers<void>();
+    const rereadTimes: number[] = [];
+    const s = setup({
+      write: (redis) => ({
+        ...redis,
+        async transaction(cs) {
+          if (cs[0]?.[1] === keys.ceiling(NS, DAY)) {
+            atCeiling.resolve();
+            await releaseEntry.promise;
+          }
+          return redis.transaction(cs);
+        },
+        async pipeline(cs) {
+          const values = await redis.pipeline(cs);
+          if (cs[0]?.[0] === 'GET' && cs[0][1] === keys.claim(NS, PV, 'entry')) {
+            rereadTimes.push(performance.now());
+            firstRead.resolve();
+          }
+          return values;
+        },
+      }),
+    });
+    const original = s.post(body(['entry'], { arm }));
+    await atCeiling.promise;
+    const flush = s.post(body(['entry', 'inview', 'card'], { arm }));
+    try {
+      await firstRead.promise;
+      await vi.advanceTimersByTimeAsync(99);
+      expect(rereadTimes).toEqual([0]);
+      releaseEntry.resolve();
+      expect((await original).json).toEqual(ok([['entry', 'counted']], { arm }));
+      s.advance(100);
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await flush).json).toEqual(
+        ok([['entry', 'duplicate'], ['inview', 'counted'], ['card', 'counted']], { arm, viewN: 1 }),
+      );
+      expect(rereadTimes).toEqual([0, 100]);
+      await expect(s.redis.pipeline(
+        (['entry', 'inview', 'engaged', 'card'] as const).map((type) => ['GET', keys.claim(NS, PV, type)]),
+      )).resolves.toEqual([arm, arm, null, arm]);
+      expect(await s.hash()).toMatchObject({
+        [`t:${arm}:entry`]: '1',
+        [`t:${arm}:inview`]: '1',
+        [`t:${arm}:card`]: '1',
+      });
+    } finally {
+      releaseEntry.resolve();
+      await original;
+    }
+  });
+
+  it('does not poll a young pending claim when pre-poll work uses the request budget', async () => {
+    const atFlags = Promise.withResolvers<void>();
+    const releaseFlags = Promise.withResolvers<void>();
+    const claim = keys.claim(NS, PV, 'entry');
+    const readTimes: number[] = [];
+    const s = setup({
+      flags: async () => {
+        atFlags.resolve();
+        await releaseFlags.promise;
+        return NO_FLAGS;
+      },
+      write: (redis) => ({
+        ...redis,
+        pipeline(cs) {
+          if (cs[0]?.[0] === 'GET' && cs[0][1] === claim) readTimes.push(performance.now());
+          return redis.pipeline(cs);
+        },
+      }),
+    });
+    const flush = s.post(body(['entry', 'inview', 'card']));
+    await atFlags.promise;
+    await vi.advanceTimersByTimeAsync(3_000);
+    s.advance(3_000);
+    await s.redis.command(['SET', claim, '-', 'NX', 'EX', CONFIG.pvTtlSeconds]);
+    releaseFlags.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    await s.redis.command(['SET', claim, 'a', 'XX', 'KEEPTTL']);
+    s.advance(300);
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect((await flush).json).toEqual(ok([['entry', 'duplicate'], ['inview', 'orphan'], ['card', 'orphan']]));
+    expect(readTimes).toEqual([3_000]);
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'card')])).resolves.toBeNull();
+  });
+
+  it.each([
+    ['recent refusal', 0, 3],
+    ['stale refusal', 3_000, 0],
+    ['insufficient claim age budget', 2_900, 0],
+    ['expired claim', 0, 1],
+    ['other arm', 0, 1],
+    ['slow reread', 0, 1],
+  ] as const)('keeps later items orphaned for %s', async (scenario, age, retries) => {
+    const firstRead = Promise.withResolvers<void>();
+    const delayedRead = Promise.withResolvers<void>();
+    const readTimes: number[] = [];
+    const s = setup({
+      write: (redis) => ({
+        ...redis,
+        async pipeline(cs) {
+          if (cs[0]?.[0] === 'GET' && cs[0][1] === keys.claim(NS, PV, 'entry')) {
+            readTimes.push(performance.now());
+            firstRead.resolve();
+            if (readTimes.length === 2 && (scenario === 'slow reread' || scenario === 'expired claim')) await delayedRead.promise;
+          }
+          return redis.pipeline(cs);
+        },
+      }),
+    });
+    const claim = keys.claim(NS, PV, 'entry');
+    expect((await s.post(body(['entry']), { 'user-agent': 'Googlebot/2.1' })).json)
+      .toEqual({ ok: false, reason: 'bot' });
+    s.advance(age);
+    const flush = s.post(body(['entry', 'inview', 'card']));
+    await firstRead.promise;
+    await vi.advanceTimersByTimeAsync(0);
+    if (scenario === 'expired claim') {
+      await vi.advanceTimersByTimeAsync(100);
+      s.advance(CONFIG.pvTtlSeconds * 1000);
+      delayedRead.resolve();
+    }
+    if (scenario === 'other arm') await s.redis.command(['SET', claim, 'b', 'XX', 'KEEPTTL']);
+    await vi.advanceTimersByTimeAsync(scenario === 'slow reread' ? 3_000 : 300);
+    expect((await flush).json).toEqual(ok([['entry', 'duplicate'], ['inview', 'orphan'], ['card', 'orphan']]));
+    expect(readTimes).toEqual(Array.from({ length: retries + 1 }, (_, n) => n * 100));
+    if (scenario === 'slow reread') {
+      await s.redis.command(['SET', claim, 'a', 'XX', 'KEEPTTL']);
+      delayedRead.resolve();
+    }
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'inview')])).resolves.toBeNull();
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'card')])).resolves.toBeNull();
+  });
+});
+
 describe('12. errors', () => {
   it('a store whose transaction throws gives 503 unavailable, logged, nothing retried', async () => {
     let calls = 0;

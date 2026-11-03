@@ -20,7 +20,7 @@ import { useEffect } from 'react';
 import { EXPERIMENT, type Arm } from '@/experiment.values';
 import { clickEvents, createDwell, createEngagement, createSender, type Sender } from '@/lib/experiment/beacon';
 import { classifyEntry, type EntrySignals } from '@/lib/experiment/entry';
-import type { BeaconBatch, BeaconResponse, ClientReject } from '@/lib/experiment/events';
+import { REJECT_REASONS, type BeaconBatch, type BeaconResponse, type ClientReject, type Refusal } from '@/lib/experiment/events';
 
 const ENDPOINT = '/api/e';
 const CARDS = '[data-experiment="cards"]';
@@ -42,18 +42,32 @@ const timers: Timers = {
   clearTimer: (h) => window.clearTimeout(h as number),
 };
 
-async function post(batch: BeaconBatch, mode: 'fetch' | 'beacon'): Promise<BeaconResponse | null> {
+const REFUSALS: readonly Refusal[] = [
+  ...REJECT_REASONS, 'paused', 'not-production', 'not-started', 'ended',
+  'stale-namespace', 'unavailable', 'misconfigured',
+];
+
+export async function post(batch: BeaconBatch, mode: 'fetch' | 'beacon'): Promise<BeaconResponse | null> {
   const body = JSON.stringify(batch);
   if (mode === 'beacon' && typeof navigator.sendBeacon === 'function') {
     if (navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'text/plain' }))) return null;
   }
+  let res: Response;
   try {
-    const res = await fetch(ENDPOINT, { method: 'POST', body, keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'text/plain' } });
-    if (!(res.headers.get('content-type') ?? '').includes('application/json')) return null;
-    return (await res.json()) as BeaconResponse;
+    res = await fetch(ENDPOINT, { method: 'POST', body, keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'text/plain' } });
   } catch {
     return null;
   }
+  const refused = res.status >= 400 && res.status < 500;
+  if (!refused && !res.ok) return null;
+
+  let reply: BeaconResponse | null = null;
+  if ((res.headers.get('content-type') ?? '').includes('application/json')) {
+    reply = await res.json().catch(() => null) as BeaconResponse | null;
+  }
+  if (reply?.ok === false && REFUSALS.includes(reply.reason)) return reply;
+  if (refused) return { ok: false, reason: res.status === 429 ? 'rate_limited' : 'unavailable' };
+  return reply?.ok === true ? reply : null;
 }
 
 function optedOut(): boolean {

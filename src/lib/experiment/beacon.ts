@@ -2,7 +2,7 @@
 // timers and the id source, and reports what it observes. It reads no storage.
 import { CONTACT } from '../site.ts';
 import { CLIENT_REJECTS, type BeaconBatch, type BeaconItem, type BeaconResponse, type ClientReject, type EventType } from './events.ts';
-import type { Arm } from '../../experiment.values.ts';
+import { EXPERIMENT, type Arm } from '../../experiment.values.ts';
 
 function bare(url: URL): string {
   return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
@@ -41,12 +41,12 @@ export type Sender = {
 
 /**
  * One view's ordered event stream.
- * - The entry is posted alone, with fetch, at once; nothing else is posted until it resolves ok.
- * - A refused or failed entry drops everything after it. A refused later group ends the sender.
- *   A failed later group (null) stops the fetches and is kept, with everything after it, for
+ * - The entry is posted alone, with fetch, at once; later fetches wait for its ok response.
+ * - An explicit refusal ends the sender and drops queued events.
+ *   Any failed group (null) stops the fetches and is kept, with everything after it, for
  *   flush() to re-send in order, so nothing arrives without its prerequisite.
  * - A client reject posts that single item and stops.
- * - Each type is posted at most once. Posts are serialised: groups that wait for an in-flight post
+ * - Each type is enqueued at most once. Fetches are serialised: groups that wait for an in-flight post
  *   go together, in order, in the next one.
  * - flush() posts every unconfirmed item, in-flight ones included, as one ordered beacon batch, and
  *   ends the sender. The server deduplicates, so nothing can arrive after something that needs it.
@@ -62,6 +62,9 @@ export function createSender(o: {
   if (o.entry !== 'entry' && !(CLIENT_REJECTS as readonly string[]).includes(o.entry)) {
     throw new TypeError(`a sender needs an entry or a client reject, got ${JSON.stringify(o.entry)}`);
   }
+  // The server starts the claim TTL after the first post. Starting here bounds the
+  // replay conservatively without requiring the original response or a server clock.
+  const replayUntil = Date.now() + EXPERIMENT.pvTtlSeconds * 1000;
   const pv = o.newId();
   const batch = (events: BeaconItem[]): BeaconBatch => ({ v: 1, ns: o.ns, pv, arm: o.arm, events });
   const items = (types: EventType[]): BeaconItem[] => types.map((type) => ({ type }));
@@ -69,7 +72,6 @@ export function createSender(o: {
   const enqueued = new Set<EventType>();
   let inFlight: EventType[] = [];
   let waiting: EventType[] = [];
-  let entryConfirmed = false;
   let stalled = false;
   let finished = false;
 
@@ -84,12 +86,11 @@ export function createSender(o: {
         if (finished) return;
         if (r !== null && r.ok) {
           inFlight = [];
-          entryConfirmed = true;
           drain();
           o.onCounted?.(r);
           return;
         }
-        if (r === null && entryConfirmed) {
+        if (r === null) {
           // A transient failure (the server may even have counted it): hold the group, in front,
           // for flush() to re-send in order, and send no more fetches.
           waiting = [...inFlight, ...waiting];
@@ -134,6 +135,7 @@ export function createSender(o: {
       const unconfirmed = [...inFlight, ...waiting];
       inFlight = [];
       waiting = [];
+      if (unconfirmed[0] === 'entry' && Date.now() >= replayUntil) return;
       if (unconfirmed.length > 0) o.post(batch(items(unconfirmed)), 'beacon').catch(() => null);
     },
   };
