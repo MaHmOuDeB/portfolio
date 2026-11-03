@@ -336,7 +336,9 @@ test.describe('kitchen sink Figures', () => {
     await page.goto('/kitchen-sink');
     await ready(page, 'demo');
     await ready(page, 'demo-b');
-    await pointAtThrower(page);
+    // This scan needs the fallback state. Pointer-triggered focus behavior has its own tests.
+    await page.mouse.move(2, 200);
+    await figure(page, 'thrower').getByRole('button', { name: 'Make this chart fail' }).press('Enter');
     await expect(figure(page, 'thrower').getByRole('status')).toBeVisible();
     await expectNoA11yViolations(page);
   });
