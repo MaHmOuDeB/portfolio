@@ -27,6 +27,10 @@ test('/privacy shows the contact email as a mailto link, and a placeholder only 
   await page.goto('/privacy');
   const mail = page.locator('main a[href^="mailto:"]');
   await expect(mail).toHaveCount(1);
+  await expect(mail).toHaveText(/^.+@.+$/);
+  const target = await mail.boundingBox();
+  expect(target?.width).toBeGreaterThanOrEqual(44);
+  expect(target?.height).toBeGreaterThanOrEqual(44);
   for (const note of await page.locator('[data-launch-placeholder]').all()) {
     await expect(note).toContainText('Not confirmed yet');
   }

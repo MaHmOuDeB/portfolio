@@ -17,10 +17,10 @@ function versionDate(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
-function Block({ block }: { block: PrivacyBlock }): ReactNode {
+function Block({ block, standalone }: { block: PrivacyBlock; standalone?: boolean }): ReactNode {
   if (typeof block === 'string') return block;
   if ('derived' in block) return <Derived value={block.derived} unit={block.unit} refs={['build']} />;
-  if ('link' in block) return <TextLink href={block.link.href}>{block.link.text}</TextLink>;
+  if ('link' in block) return <TextLink href={block.link.href} standalone={standalone}>{block.link.text}</TextLink>;
   if ('updatedOn' in block) {
     return (
       <time dateTime={PRIVACY.updatedOn} {...derivedAttr(['build'])}>
@@ -45,9 +45,11 @@ export default function PrivacyPage() {
         <section key={section.heading} className="mt-12">
           <h2 className="text-xl font-semibold">{section.heading}</h2>
           {section.paragraphs.map((paragraph, i) =>
-            paragraph.length === 1 && typeof paragraph[0] === 'object' && 'launchPlaceholder' in paragraph[0] ? (
+            paragraph.length === 1 &&
+            typeof paragraph[0] === 'object' &&
+            ('launchPlaceholder' in paragraph[0] || 'link' in paragraph[0]) ? (
               <div key={i} className="mt-4">
-                <Block block={paragraph[0]} />
+                <Block block={paragraph[0]} standalone />
               </div>
             ) : (
               <p key={i} className="mt-4">
