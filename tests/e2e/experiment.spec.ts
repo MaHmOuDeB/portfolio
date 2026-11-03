@@ -4,7 +4,6 @@
 // fixture start, so a visit can be counted. The fake has no reset and the tests run in parallel, so
 // nothing here asserts a global total: each test checks its own view (the beacon's own requests and
 // responses, and the view's claims in the store, read with the read-only token).
-import { randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Page, type Request } from '@playwright/test';
@@ -23,23 +22,13 @@ type Item = { type: string; reject?: string };
 type Batch = { v: 1; ns: string; pv: string; arm: 'a' | 'b'; events: Item[] };
 type Sent = { batch: Batch; request: Request; response: Promise<Record<string, unknown> | null> };
 
-/** A fake client address per test, so each test has its own rate-limit bucket. */
-function fakeAddress(): string {
-  return `198.18.${randomInt(0, 256)}.${randomInt(1, 255)}`;
-}
-
-function addressHeaders(ip: string): Record<string, string> {
-  // Under `next start` the client sends both; the route reads x-forwarded-for first.
-  return { 'x-forwarded-for': ip, 'x-real-ip': ip };
-}
-
 /**
  * Prepares a page as one visitor: its own address (merged with the fixture's x-internal), the
  * requests it sends to /api/e, and the experiment:counted events. `counted` turns navigator.webdriver
  * off, which the beacon otherwise reports as a bot.
  */
 async function visitor(page: Page, extra: Record<string, string> | undefined, o: { counted: boolean }): Promise<Sent[]> {
-  await page.setExtraHTTPHeaders({ ...extra, ...addressHeaders(fakeAddress()) });
+  await page.setExtraHTTPHeaders({ ...extra });
   if (o.counted) {
     await page.addInitScript(() => {
       Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true });
@@ -68,6 +57,31 @@ async function visitor(page: Page, extra: Record<string, string> | undefined, o:
     sent.push({ batch, request, response });
   });
   return sent;
+}
+
+/** Hold the engagement fetch result while leaving WebKit's native beacon transport intact. */
+async function holdWebKitEngagement(page: Page, view: string) {
+  let enter!: () => void;
+  let release!: () => void;
+  const entered = new Promise<void>((resolve) => { enter = resolve; });
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.exposeBinding('__holdEngagement', async () => {
+    enter();
+    await released;
+  });
+  await page.evaluate((pv) => {
+    const nativeFetch = window.fetch.bind(window);
+    const hold = (window as unknown as { __holdEngagement: () => Promise<void> }).__holdEngagement;
+    window.fetch = async (input, init) => {
+      const response = await nativeFetch(input, init);
+      if (input === '/api/e' && typeof init?.body === 'string') {
+        const body = JSON.parse(init.body) as Batch;
+        if (body.pv === pv && body.events.length === 1 && body.events[0]?.type === 'engaged') await hold();
+      }
+      return response;
+    };
+  }, view);
+  return { entered, release };
 }
 
 /** Puts the cards region below the fold with an area, without touching the DOM React hydrates. */
@@ -119,7 +133,7 @@ async function claims(ns: string, pv: string, types: string[]): Promise<unknown>
 
 test.describe('assignment', () => {
   test('GET / 200 times: both groups, no sample-ratio mismatch, x-arm on every response, no cookie', async ({ request, extraHTTPHeaders }) => {
-    const headers = { ...extraHTTPHeaders, ...addressHeaders(fakeAddress()), 'user-agent': CHROME };
+    const headers = { ...extraHTTPHeaders, 'user-agent': CHROME };
     const n = { a: 0, b: 0 };
     for (let i = 0; i < 200; i++) {
       const res = await request.get('/', { headers, maxRedirects: 0 });
@@ -260,6 +274,65 @@ test.describe('a counted visit', () => {
     expect(page.url()).toMatch(/\/$/);
     release();
     await page.waitForURL('**/privacy');
+  });
+
+  test('a forced pagehide beacon counts entry, engagement, inview and card despite a saturated fallback bucket', async ({
+    page, extraHTTPHeaders, baseURL, clientIdentity, clientNetwork,
+  }) => {
+    const sent = await visitor(page, extraHTTPHeaders, { counted: true });
+    await cardsBelowTheFold(page);
+    await page.goto('/');
+    const entry = await countedEntry(page, sent);
+    // Direct Node fetch deliberately bypasses Playwright's per-test transport.
+    let status = 0;
+    for (let attempt = 0; attempt < 2 && status !== 429; attempt++) {
+      for (let i = 0; i < 31; i++) {
+        const response = await fetch(new URL('/api/e', baseURL), {
+          method: 'POST', headers: { Origin: baseURL!, 'Content-Type': 'text/plain' }, body: JSON.stringify(entry),
+        });
+        status = response.status;
+        await response.arrayBuffer();
+      }
+    }
+    expect(status, 'the unaddressed fallback bucket must be saturated').toBe(429);
+    await addCard(page);
+    const isEngaged = (text: string) => {
+      const body = JSON.parse(text) as Batch;
+      return body.pv === entry.pv && body.events.map((e) => e.type).join(',') === 'engaged';
+    };
+    const gate = clientNetwork
+      ? clientNetwork.holdResponse(isEngaged)
+      : await holdWebKitEngagement(page, entry.pv);
+    try {
+      await page.mouse.wheel(0, 1);
+      await gate.entered;
+      const webkitUnload = clientNetwork ? undefined : page.waitForResponse((response) => {
+        const request = response.request();
+        return response.url() === new URL('/api/e', baseURL).href
+          && request.method() === 'POST' && request.resourceType() === 'beacon';
+      }, { timeout: 10_000 });
+      const [, , unload] = await Promise.all([
+        page.waitForURL('**/privacy'), page.locator('[data-experiment-click="card"]').click(), webkitUnload,
+      ]);
+      if (clientNetwork) {
+        await expect.poll(() => clientNetwork.events.some((event) => {
+          const body = JSON.parse(event.body) as Batch;
+          return body.pv === entry.pv && body.events.map((e) => e.type).join(',') === 'engaged,inview,card'
+            && event.address === clientIdentity && event.status === 200;
+        }), { timeout: 10_000 }).toBe(true);
+      }
+      if (unload) {
+        // WebKit exposes the beacon response and headers but omits the Blob from postData().
+        expect(unload.status()).toBe(200);
+        expect(await unload.request().allHeaders()).toMatchObject({
+          'x-forwarded-for': clientIdentity, 'x-real-ip': clientIdentity,
+        });
+      }
+      await expect.poll(() => claims(entry.ns, entry.pv, ['entry', 'inview', 'engaged', 'card']), { timeout: 10_000 })
+        .toEqual([entry.arm, entry.arm, entry.arm, entry.arm]);
+    } finally {
+      gate.release();
+    }
   });
 
   test('a card clicked as the page unloads still counts (the pagehide flush); back, the wordmark and a reload are not entries', async ({
