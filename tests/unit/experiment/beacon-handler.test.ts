@@ -6,6 +6,7 @@ import { NO_FLAGS } from '@/lib/experiment/flags';
 import { handleEvent, type EventDeps } from '@/lib/experiment/handler';
 import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
+import { ATOMIC_ENTRY_SCRIPT } from '@/lib/experiment/store';
 
 const now = Date.parse('2026-11-20T10:00:00Z');
 const ns = 'aa-v1';
@@ -28,6 +29,7 @@ describe('entry replay through the event handler', () => {
     const original = Promise.withResolvers<void>();
     const replay = Promise.withResolvers<BeaconResponse | null>();
     let initialResponse: Promise<BeaconResponse | null> | undefined;
+    let claimReads = 0;
     const deps: EventDeps = {
       env: {
         vercelEnv: 'production', fakeStore: false, productionHost: 'portfolio.example',
@@ -43,15 +45,15 @@ describe('entry replay through the event handler', () => {
       ownerCookieValid: () => state === 'refused' || state === 'lost refusal',
       write: {
         ...redis,
-        async transaction(commands) {
-          if (state === 'pending' && commands.some(([op, key]) => op === 'SET' && key === entryClaim)) {
+        async command(command) {
+          if (state === 'pending' && command[0] === 'EVAL' && command[1] === ATOMIC_ENTRY_SCRIPT) {
             atPromotion.resolve();
             await releasePromotion.promise;
           }
-          return redis.transaction(commands);
+          return redis.command(command);
         },
         async pipeline(commands) {
-          if (state === 'pending' && commands[0]?.[0] === 'GET' && commands[0][1] === entryClaim) {
+          if (state === 'pending' && commands[0]?.[0] === 'GET' && commands[0][1] === entryClaim && ++claimReads === 2) {
             releasePromotion.resolve();
             await original.promise;
           }
@@ -88,7 +90,11 @@ describe('entry replay through the event handler', () => {
 
     try {
       sender.enqueue('inview', 'card');
-      if (state === 'pending') await atPromotion.promise;
+      if (state === 'pending') {
+        await Promise.race([atPromotion.promise, original.promise.then(() => {
+          throw new Error('original entry completed before the finalizer was held');
+        })]);
+      }
       else {
         expect(await initialResponse).toEqual(state === 'refused' ? { ok: false, reason: 'self' } : null);
         await Promise.resolve();
@@ -107,6 +113,7 @@ describe('entry replay through the event handler', () => {
           ],
         });
       }
+      if (state === 'pending') expect(claimReads).toBe(2);
       const other = arm === 'a' ? 'b' : 'a';
       const fields = [arm, other].flatMap((a) => ['entry', 'inview', 'card'].map((metric) => `t:${a}:${metric}`));
       const flat = await redis.command(['HGETALL', keys.counters(ns)]) as string[];

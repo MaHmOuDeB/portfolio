@@ -1,28 +1,8 @@
-// The experiment's counters in Redis: per-view claims, the counter hash, the rate limit, the daily
-// ceiling and the closed marker. Server only. There is no Lua: each step is ordered so that a crash
-// between steps can only lose an event, never count one twice. Every key this module writes has an
-// expiry except the counter hash and the closed marker, which hold no per-visitor data.
-//
-// An entry is claimed BEFORE it is checked, so a re-sent entry records nothing twice. The event
-// route (POST /api/e) calls, in this order, for one batch (one view's events, entry first):
-//   1. rateLimit, for every batch.
-//   2. readView: one MGET of the closed marker and every claim of the view (plus, for a batch
-//      without an entry, PEXPIRETIME of the entry claim in the same pipeline). A closed marker
-//      stops the batch.
-//   3. For the entry: claimEntry: SET claim '-' NX EX ttl. 'duplicate' -> record no rejection
-//      row, no daily-ceiling increment and no count (the item's outcome is 'duplicate').
-//   4. The entry checks: bot, internal, self, a client reject. The first that applies ->
-//      recordRejection(reason) and stop.
-//   5. countDailyEntry: 'ceiling-first' -> recordRejection('ceiling'); 'ceiling-first' and
-//      'ceiling' -> stop.
-//   6. countEntry: one MULTI that increments the total and day fields and promotes the claim from
-//      '-' to the arm (SET XX KEEPTTL, so it keeps the expiry from step 3).
-//   7. recordLater for the batch's later items, in order, on the entry's Berlin day: their claims
-//      in one pipeline, their counts in one transaction.
-// A claim that other events depend on (the entry, and inview for card and secondary) is written as
-// '-' and promoted to the arm only inside the transaction that counts it. A claim left at '-' (a
-// rejected, ceiling-refused or failed event) equals no arm, so an event that needs it is 'orphan':
-// nothing is ever counted on top of an event that was not.
+// Server-side experiment counters and expiring per-view claims. The handler reserves the
+// entry before exclusion and ceiling checks, then finalizes with an owner-checked EVAL.
+// Later batches recheck live claims inside EVAL. The counter hash and closed marker hold
+// no per-visitor data.
+import { randomBytes } from 'node:crypto';
 import type { Arm } from '../../experiment.values.ts';
 import { EVENT_TYPES, PREREQUISITES, REJECT_REASONS, type EventType, type RejectReason } from './events.ts';
 import { fieldName, keys, parseField, type IpBucket } from './keys.ts';
@@ -244,22 +224,21 @@ export async function recordLater(
   return i.items.map((type) => ({ type, result: results.get(type)! }));
 }
 
-/**
- * Counts one event of one view, at most once: an entry is claimEntry then countEntry with no checks
- * between (the event route runs its checks between the two; see the header); a later event is
- * readView then recordLater for that one item.
- */
+/** Counts one event using the same ownership and expiry rules as the handler. */
 export async function recordEvent(
   r: RedisRest,
   i: { ns: string; pv: string; arm: Arm; type: EventType; day: string; ttlSeconds: number },
 ): Promise<RecordResult> {
   if (i.type === 'entry') {
-    if ((await claimEntry(r, i)) === 'duplicate') return { outcome: 'duplicate' };
-    const { outcome, arm, total, dayTotal } = await countEntry(r, i);
-    return { outcome, arm, total, dayTotal };
+    const owner = randomBytes(16).toString('hex');
+    if ((await reserveAtomicEntry(r, { ...i, owner })) === 'duplicate') return { outcome: 'duplicate' };
+    const result = await finalizeAtomicEntry(r, { ...i, owner });
+    if (result.outcome !== 'counted') return { outcome: result.outcome };
+    return { outcome: result.outcome, arm: result.arm, total: result.total, dayTotal: result.dayTotal };
   }
+  if (i.arm !== 'a' && i.arm !== 'b') return { outcome: 'orphan' };
   const view = await readView(r, { ns: i.ns, pv: i.pv, closed: false, expiry: true });
-  const [only] = await recordLater(r, { ns: i.ns, pv: i.pv, arm: i.arm, day: i.day, view, items: [i.type] });
+  const [only] = await recordAtomicLater(r, { ns: i.ns, pv: i.pv, arm: i.arm, day: i.day, view, items: [i.type] });
   return only!.result;
 }
 
@@ -395,4 +374,157 @@ export async function readCounters(r: RedisRest, ns: string): Promise<CounterRow
   }
   const sorted = [...days.values()].sort((x, y) => (x.day < y.day ? -1 : x.day > y.day ? 1 : 0));
   return { days: sorted, rejections, rejectionsByDay, totals };
+}
+
+// No runtime-error rollback is promised: pending claims are consumed before a single paired HSET.
+const ATOMIC_PREFLIGHT = `
+local types = {'entry','inview','engaged','card','secondary','cv','contact'}
+local index = {entry=1,inview=2,engaged=3,card=4,secondary=5,cv=6,contact=7}
+local arm, day = ARGV[1], ARGV[2]
+local function fail() error('ERR atomic store preflight') end
+if #KEYS ~= 9 or (arm ~= 'a' and arm ~= 'b') or not string.match(day or '', '^%d%d%d%d%-%d%d%-%d%d$') then fail() end
+local seenKeys = {}
+for _,k in ipairs(KEYS) do
+  if seenKeys[k] then fail() end
+  seenKeys[k] = true
+end
+local function safe(raw, increment)
+  if raw == false then raw = '0' end
+  if type(raw) ~= 'string' or not (raw == '0' or string.match(raw, '^[1-9]%d*$')) then fail() end
+  if #raw > 16 or (#raw == 16 and raw > '9007199254740991') then fail() end
+  local n = tonumber(raw)
+  if increment and n >= 9007199254740991 then fail() end
+  return n
+end
+local expiry = redis.call('PEXPIRETIME', KEYS[3])
+local clock = redis.call('TIME')
+local now = tonumber(clock[1])*1000 + math.floor(tonumber(clock[2])/1000)
+local closed = redis.call('GET',KEYS[2])
+local entry = redis.call('GET',KEYS[3])
+local live = expiry > now and expiry <= 9007199254740991 and closed == false
+local function fields(t)
+  return 't:'..arm..':'..t, 'd:'..day..':'..arm..':'..t
+end
+local function prepare(planned)
+  local names = {}
+  for _,t in ipairs(planned) do
+    local total, daily = fields(t)
+    names[#names+1], names[#names+2] = total, daily
+  end
+  if #names == 0 then return {}, {} end
+  local old = redis.call('HMGET',KEYS[1],unpack(names))
+  local write, counts = {}, {}
+  for i,t in ipairs(planned) do
+    local total = safe(old[i*2-1],true)+1
+    local daily = safe(old[i*2],true)+1
+    write[#write+1], write[#write+2] = names[i*2-1], string.format('%.0f',total)
+    write[#write+1], write[#write+2] = names[i*2], string.format('%.0f',daily)
+    counts[t] = {total,daily}
+  end
+  return write,counts
+end
+`;
+
+/** Exact script identities exported solely so the local fake can recognize the two contracts. */
+export const ATOMIC_ENTRY_SCRIPT = `-- portfolio-atomic-entry-v1\n${ATOMIC_PREFLIGHT}
+if #ARGV ~= 3 or not string.match(ARGV[3] or '', '^pending:[0-9a-f]+$') or #ARGV[3] ~= 40 then fail() end
+if not live then return {'orphan'} end
+if entry ~= ARGV[3] then return {'duplicate'} end
+local write,counts = prepare({'entry'})
+if not redis.call('SET',KEYS[3],'-','XX','KEEPTTL') then return {'orphan'} end
+redis.call('HSET',KEYS[1],unpack(write))
+if not redis.call('SET',KEYS[3],arm,'XX','KEEPTTL') then error('ERR atomic store promotion') end
+return {'counted',counts.entry[1],counts.entry[2],expiry}
+`;
+
+export const ATOMIC_LATER_SCRIPT = `-- portfolio-atomic-later-v1\n${ATOMIC_PREFLIGHT}
+if #ARGV < 4 or #ARGV > 9 then fail() end
+local expected = safe(ARGV[3],false)
+-- GET preserves WRONGTYPE for claims that MGET would report as missing.
+local values = {entry}
+for i=2,#types do values[i] = redis.call('GET',KEYS[i+2]) end
+local outcomes, planned, ready, seen = {}, {}, {}, {}
+for i,t in ipairs(types) do ready[t] = values[i] == arm end
+local valid = live and expiry == expected and entry == arm
+for i=4,#ARGV do
+  local t = ARGV[i]
+  if not index[t] or t == 'entry' or seen[t] then fail() end
+  seen[t] = true
+  if not valid or not ready.entry or ((t == 'card' or t == 'secondary') and not ready.inview) then
+    outcomes[#outcomes+1] = {t,'orphan'}
+  elseif values[index[t]] ~= false then
+    outcomes[#outcomes+1] = {t,'duplicate'}
+  else
+    outcomes[#outcomes+1] = {t,'counted'}
+    planned[#planned+1] = t
+    ready[t] = true
+  end
+end
+local write,counts = prepare(planned)
+for _,t in ipairs(planned) do
+  if not redis.call('SET',KEYS[index[t]+2],'-','NX','PXAT',expiry) then error('ERR atomic store ownership') end
+end
+if #write > 0 then redis.call('HSET',KEYS[1],unpack(write)) end
+for _,t in ipairs(planned) do
+  if not redis.call('SET',KEYS[index[t]+2],arm,'XX','KEEPTTL') then error('ERR atomic store promotion') end
+end
+for _,out in ipairs(outcomes) do
+  if out[2] == 'counted' then out[3],out[4] = counts[out[1]][1],counts[out[1]][2] end
+end
+return outcomes
+`;
+
+function atomicKeys(i: { ns: string; pv: string }): string[] {
+  return [keys.counters(i.ns), keys.closed(i.ns), ...EVENT_TYPES.map(t => keys.claim(i.ns, i.pv, t))];
+}
+function atomicInput(i: { arm: Arm; day: string }): void {
+  if ((i.arm !== 'a' && i.arm !== 'b') || !/^\d{4}-\d{2}-\d{2}$/.test(i.day)) throw new TypeError('invalid atomic input');
+}
+function ownerValue(owner: string): string {
+  if (!/^[0-9a-f]{32}$/.test(owner)) throw new TypeError('atomic reservation needs a 128-bit owner token');
+  return `pending:${owner}`;
+}
+
+/** Caller supplies a fresh random owner; never expose it in browser responses or logs. */
+export async function reserveAtomicEntry(r: RedisRest, i: { ns: string; pv: string; owner: string; ttlSeconds: number }): Promise<'claimed' | 'duplicate'> {
+  if (!Number.isSafeInteger(i.ttlSeconds) || i.ttlSeconds <= 0) throw new TypeError('invalid reservation TTL');
+  const reply = await r.command(['SET', keys.claim(i.ns, i.pv, 'entry'), ownerValue(i.owner), 'NX', 'EX', i.ttlSeconds]);
+  if (reply === 'OK') return 'claimed';
+  if (reply === null) return 'duplicate';
+  throw new RedisUnavailable('atomic reservation returned an unexpected reply');
+}
+
+/** No automatic retry on a timeout or unknown result. */
+export async function finalizeAtomicEntry(r: RedisRest, i: { ns: string; pv: string; arm: Arm; day: string; owner: string }): Promise<RecordResult & { expiresAt?: number }> {
+  atomicInput(i);
+  const reply = await r.command(['EVAL', ATOMIC_ENTRY_SCRIPT, 9, ...atomicKeys(i), i.arm, i.day, ownerValue(i.owner)]);
+  if (Array.isArray(reply)) {
+    if (reply.length === 1 && (reply[0] === 'orphan' || reply[0] === 'duplicate')) return { outcome: reply[0] };
+    if (reply.length === 4 && reply[0] === 'counted') {
+      const total = int(reply[1], 'atomic total'), dayTotal = int(reply[2], 'atomic day'), expiresAt = int(reply[3], 'atomic expiry');
+      if (total > 0 && dayTotal > 0 && expiresAt > 0) return { outcome: 'counted', arm: i.arm, total, dayTotal, expiresAt };
+    }
+  }
+  throw new RedisUnavailable('atomic entry returned an unexpected reply');
+}
+
+/** Snapshot expiry is a generation comparison only; Redis rechecks all liveness and ownership. */
+export async function recordAtomicLater(r: RedisRest, i: { ns: string; pv: string; arm: Arm; day: string; view: ViewSnapshot; items: EventType[] }): Promise<{ type: EventType; result: RecordResult }[]> {
+  atomicInput(i);
+  if (i.items.length > 6 || new Set(i.items).size !== i.items.length || i.items.some(t => t === 'entry' || !EVENT_TYPES.includes(t))) throw new TypeError('invalid atomic batch');
+  if (i.items.length === 0) return [];
+  if (!Number.isSafeInteger(i.view.entryExpiry) || i.view.entryExpiry! <= 0) return i.items.map(type => ({ type, result: { outcome: 'orphan' } }));
+  const reply = await r.command(['EVAL', ATOMIC_LATER_SCRIPT, 9, ...atomicKeys(i), i.arm, i.day, i.view.entryExpiry!, ...i.items]);
+  if (!Array.isArray(reply) || reply.length !== i.items.length) throw new RedisUnavailable('atomic batch returned an unexpected reply');
+  return reply.map((raw: unknown, k: number) => {
+    const type = i.items[k]!;
+    if (Array.isArray(raw) && raw[0] === type) {
+      if (raw.length === 2 && (raw[1] === 'orphan' || raw[1] === 'duplicate')) return { type, result: { outcome: raw[1] } as RecordResult };
+      if (raw.length === 4 && raw[1] === 'counted') {
+        const total = int(raw[2], 'atomic total'), dayTotal = int(raw[3], 'atomic day');
+        if (total > 0 && dayTotal > 0) return { type, result: { outcome: 'counted', arm: i.arm, total, dayTotal } as RecordResult };
+      }
+    }
+    throw new RedisUnavailable('atomic batch returned an unexpected item');
+  });
 }

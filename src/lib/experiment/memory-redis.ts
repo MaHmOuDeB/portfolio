@@ -1,10 +1,13 @@
 // An in-memory Redis with exactly the commands the experiment store uses (SET takes NX, XX, EX,
 // PXAT and KEEPTTL), answering as the Upstash
-// REST API does (JSON results, `{error}` replies). Unit tests use it directly; scripts/fake-upstash.ts
+// REST API does (JSON results, `{error}` replies). EVAL recognizes two exact prototype
+// contracts using a synchronous TypeScript MODEL, never by interpreting Lua. Unit tests use it directly; scripts/fake-upstash.ts
 // serves it over HTTP so the e2e run goes through the real REST client. Any other command throws.
+import { ATOMIC_ENTRY_SCRIPT, ATOMIC_LATER_SCRIPT } from './store.ts';
+import { EVENT_TYPES, PREREQUISITES, type EventType } from './events.ts';
 import { unwrap, type RedisCommand, type RedisRest } from './redis-rest.ts';
 
-export const MEMORY_COMMANDS = ['SET', 'GET', 'MGET', 'INCR', 'EXPIRE', 'PTTL', 'PEXPIRETIME', 'HINCRBY', 'HGETALL'] as const;
+export const MEMORY_COMMANDS = ['SET', 'GET', 'MGET', 'INCR', 'EXPIRE', 'PTTL', 'PEXPIRETIME', 'HINCRBY', 'HGETALL', 'TYPE', 'TIME', 'HMGET', 'HSET', 'EVAL'] as const;
 /** The commands a read-only token may run. */
 export const READ_COMMANDS: readonly string[] = ['GET', 'MGET', 'PTTL', 'PEXPIRETIME', 'HGETALL'];
 
@@ -49,8 +52,10 @@ const arity = (name: string) => error(`ERR wrong number of arguments for '${name
 
 const commandName = (c: RedisCommand): string => String(c[0] ?? '').toUpperCase();
 
-export function createMemoryRedis(o: { now?: () => number } = {}): MemoryRedis {
-  const now = o.now ?? Date.now;
+export function createMemoryRedis(o: { now?: () => number; /** Model-only tracing/fault injection before an internal command. */ atomicCommand?: (c: RedisCommand) => void } = {}): MemoryRedis {
+  const clock = o.now ?? Date.now;
+  let operationTime: number | null = null;
+  const now = () => operationTime ?? clock();
   const data = new Map<string, Slot>();
 
   /** The live slot of a key; an expired one is removed first. */
@@ -103,6 +108,35 @@ export function createMemoryRedis(o: { now?: () => number } = {}): MemoryRedis {
 
   function run(name: string, args: string[]): Reply {
     switch (name) {
+      case 'EVAL':
+        return atomicModel(args);
+      case 'TYPE': {
+        if (args.length !== 1) return arity(name);
+        const s = slot(args[0]!);
+        return result(s === undefined ? 'none' : typeof s.value === 'string' ? 'string' : 'hash');
+      }
+      case 'TIME': {
+        if (args.length !== 0) return arity(name);
+        const t = now();
+        return result([String(Math.floor(t / 1000)), String((t % 1000) * 1000)]);
+      }
+      case 'HMGET': {
+        if (args.length < 2) return arity(name);
+        const s = slot(args[0]!);
+        if (s !== undefined && typeof s.value === 'string') return error(WRONGTYPE);
+        const h = s?.value as Map<string, string> | undefined;
+        return result(args.slice(1).map(f => h?.get(f) ?? null));
+      }
+      case 'HSET': {
+        if (args.length < 3 || args.length % 2 !== 1) return arity(name);
+        let s = slot(args[0]!);
+        if (s !== undefined && typeof s.value === 'string') return error(WRONGTYPE);
+        if (s === undefined) { s = {value:new Map(),expiresAt:null}; data.set(args[0]!,s); }
+        const h = s.value as Map<string,string>;
+        let added = 0;
+        for (let i=1;i<args.length;i+=2) { if(!h.has(args[i]!)) added++; h.set(args[i]!,args[i+1]!); }
+        return result(added);
+      }
       case 'SET':
         return set(args);
       case 'GET': {
@@ -179,7 +213,88 @@ export function createMemoryRedis(o: { now?: () => number } = {}): MemoryRedis {
     }
   }
 
-  const supports = (c: RedisCommand) => (MEMORY_COMMANDS as readonly string[]).includes(commandName(c));
+  /** Exact two-contract MODEL, not a Lua interpreter or proof of script/backend conformance.
+   * A changed/unknown script is rejected. One frozen clock and synchronous execution model the
+   * intended isolation; every write still applies immediately, including before injected errors.
+   */
+  function atomicModel(args: string[]): Reply {
+    const [script, keyCount, ...rest] = args;
+    const entry = script === ATOMIC_ENTRY_SCRIPT;
+    if (!entry && script !== ATOMIC_LATER_SCRIPT) return error('ERR unsupported model script');
+    if (keyCount !== '9' || rest.length < 12) return error(SYNTAX);
+    const ks = rest.slice(0, 9), av = rest.slice(9);
+    const [arm, day, expected] = av;
+    const call = (name: string, ...a: (string | number)[]) => {
+      const c: RedisCommand = [name, ...a];
+      o.atomicCommand?.(c);
+      return unwrap(run(name, a.map(String)), 'atomic model command');
+    };
+    const invalid = () => { throw new Error('ERR atomic store preflight'); };
+    const safe = (raw: unknown, increment: boolean): number => {
+      if (raw === null) raw = '0';
+      if (typeof raw !== 'string' || !/^(0|[1-9][0-9]*)$/.test(raw)) return invalid();
+      const n = Number(raw);
+      if (!Number.isSafeInteger(n) || n < 0 || (increment && n >= Number.MAX_SAFE_INTEGER)) return invalid();
+      return n;
+    };
+    const previous = operationTime;
+    operationTime = clock();
+    try {
+      if ((arm !== 'a' && arm !== 'b') || !/^\d{4}-\d{2}-\d{2}$/.test(day ?? '') || new Set(ks).size !== 9) invalid();
+      const expiry = call('PEXPIRETIME', ks[2]!) as number;
+      const time = call('TIME') as string[];
+      const closed = call('GET', ks[1]!);
+      const entryValue = call('GET', ks[2]!);
+      const live = expiry > Number(time[0]) * 1000 + Math.floor(Number(time[1]) / 1000) && expiry <= Number.MAX_SAFE_INTEGER && closed === null;
+      let outcomes: (string | number)[][] = [];
+      const planned: EventType[] = [];
+      if (entry) {
+        if (av.length !== 3 || !/^pending:[0-9a-f]{32}$/.test(expected ?? '')) invalid();
+        if (!live) return result(['orphan']);
+        if (entryValue !== expected) return result(['duplicate']);
+        planned.push('entry');
+      } else {
+        if (av.length < 4 || av.length > 9) invalid();
+        const deadline = safe(expected, false);
+        const values = [entryValue, ...ks.slice(3).map(k => call('GET', k))];
+        const ready = new Set<EventType>(EVENT_TYPES.filter((_, i) => values[i] === arm));
+        const seen = new Set<string>();
+        const valid = live && expiry === deadline && entryValue === arm;
+        for (const raw of av.slice(3)) {
+          if (!(EVENT_TYPES as readonly string[]).includes(raw) || raw === 'entry' || seen.has(raw)) invalid();
+          seen.add(raw);
+          const t = raw as EventType;
+          if (!valid || !PREREQUISITES[t].every(p => ready.has(p))) outcomes.push([t, 'orphan']);
+          else if (values[EVENT_TYPES.indexOf(t)] !== null) outcomes.push([t, 'duplicate']);
+          else { outcomes.push([t, 'counted']); planned.push(t); ready.add(t); }
+        }
+      }
+      const fields = planned.flatMap(t => [`t:${arm}:${t}`, `d:${day}:${arm}:${t}`]);
+      const old = fields.length > 0 ? call('HMGET', ks[0]!, ...fields) as unknown[] : [];
+      const next = old.map(v => safe(v, true) + 1);
+      // All types, all arguments and all counter values have now been validated, before writes.
+      if (entry) { if (call('SET', ks[2]!, '-', 'XX', 'KEEPTTL') !== 'OK') return result(['orphan']); }
+      else for (const t of planned) {
+        if (call('SET', ks[EVENT_TYPES.indexOf(t) + 2]!, '-', 'NX', 'PXAT', expiry) !== 'OK') throw new Error('ERR atomic store ownership');
+      }
+      if (fields.length > 0) call('HSET', ks[0]!, ...fields.flatMap((f, i) => [f, String(next[i])]));
+      for (const t of planned) {
+        if (call('SET', ks[EVENT_TYPES.indexOf(t) + 2]!, arm!, 'XX', 'KEEPTTL') !== 'OK') throw new Error('ERR atomic store promotion');
+      }
+      if (entry) return result(['counted', next[0], next[1], expiry]);
+      outcomes = outcomes.map(out => {
+        const i = planned.indexOf(out[0] as EventType);
+        return i < 0 ? out : [...out, next[i * 2]!, next[i * 2 + 1]!];
+      });
+      return result(outcomes);
+    } catch {
+      return error('ERR atomic model operation failed');
+    } finally { operationTime = previous; }
+  }
+
+  const supports = (c: RedisCommand) => commandName(c) === 'EVAL'
+    ? c[1] === ATOMIC_ENTRY_SCRIPT || c[1] === ATOMIC_LATER_SCRIPT
+    : (MEMORY_COMMANDS as readonly string[]).includes(commandName(c));
 
   function exec(c: RedisCommand): Reply {
     const name = commandName(c);
@@ -204,7 +319,8 @@ export function createMemoryRedis(o: { now?: () => number } = {}): MemoryRedis {
     },
     async pipeline(cs) {
       // Like the REST client, an error item fails the whole call (the other commands still ran).
-      const replies = cs.map((c) => exec(c));
+      const replies: Reply[] = [];
+      for (const c of cs) { replies.push(exec(c)); await Promise.resolve(); }
       return replies.map((r, i) => unwrap(r, `pipeline item ${i}`));
     },
     async transaction(cs) {

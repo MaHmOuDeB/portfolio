@@ -9,8 +9,8 @@
 // - on the read path (getExperimentSnapshot), after the response, whenever the snapshot it built
 //   calls for a marker: the first page regeneration after 00:31 closes. Every counted entry comes
 //   from a visit to `/`, which regenerates the page once its 5 minutes are up;
-// - from the event route, after the day's first counted entry (`onNewDay`), which closes on any look
-//   completed before it (it runs before 00:31, so never on the day that just ended).
+// - from the event route, after the day's first granted ceiling slot (`onNewDay`), using the looks
+//   completed by the time the check runs. An explicit A/A failure flag can also close a namespace.
 // At the A/B's planned end the route refuses every event by itself, so no marker is needed there.
 // Writing is SET NX, so any number of checks writes the marker once. Server only.
 import type { ExperimentConfig } from '../../experiment.config.ts';

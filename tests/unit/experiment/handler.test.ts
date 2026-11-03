@@ -9,8 +9,7 @@ import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
 import { RedisUnavailable, type RedisCommand, type RedisRest } from '@/lib/experiment/redis-rest';
 import { buildSnapshot } from '@/lib/experiment/snapshot';
-import { readCounters, writeClosed } from '@/lib/experiment/store';
-import { COMMANDS_PER_FULL_VIEW } from './budget';
+import { ATOMIC_ENTRY_SCRIPT, ATOMIC_LATER_SCRIPT, readCounters, writeClosed } from '@/lib/experiment/store';
 
 const sdk = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@vercel/edge-config', () => ({
@@ -67,11 +66,12 @@ type Setup = {
   flags?: () => Promise<ExperimentFlags>;
   write?: (redis: MemoryRedis) => RedisRest | null;
   owner?: (cookie: string | null) => boolean;
+  atomicCommand?: (c: RedisCommand) => void;
 };
 
 function setup(o: Setup = {}) {
   let t = Date.parse(o.now ?? NOW);
-  const redis = createMemoryRedis({ now: () => t });
+  const redis = createMemoryRedis({ now: () => t, atomicCommand: o.atomicCommand });
   const logs: LogLine[] = [];
   const newDays: [string, string][] = [];
   let flagCalls = 0;
@@ -563,6 +563,87 @@ describe('10. the entry', () => {
 });
 
 describe('11. record', () => {
+  it('returns orphans when the entry reservation expires before finalization of a flush', async () => {
+    let expireFirst = true;
+    const s = setup({
+      write: (redis) => ({
+        ...redis,
+        async transaction(cs) {
+          const result = await redis.transaction(cs);
+          if (expireFirst && cs[0]?.[1] === keys.ceiling(NS, DAY)) s.advance(CONFIG.pvTtlSeconds * 1000);
+          return result;
+        },
+      }),
+    });
+    const r = await s.post(body(['entry', 'inview', 'card']));
+    expect(r.json).toEqual(ok([['entry', 'orphan'], ['inview', 'orphan'], ['card', 'orphan']]));
+    expect(await s.hash()).toEqual({});
+    expect(s.newDays).toEqual([[NS, DAY]]);
+    expireFirst = false;
+    expect((await s.post(body(['entry'], { pv: pvOf(2) }))).json).toEqual(ok([['entry', 'counted']]));
+    expect(await s.hash()).toEqual({ 't:a:entry': '1', [`d:${DAY}:a:entry`]: '1' });
+    expect(s.newDays).toEqual([[NS, DAY]]);
+  });
+
+  it.each(['entry', 'later'] as const)('replays a live batch after the %s EVAL commits but its reply is lost', async (lost) => {
+    let dropReply = true;
+    const s = setup({
+      write: (redis) => ({
+        ...redis,
+        async command(c) {
+          const result = await redis.command(c);
+          if (dropReply && c[0] === 'EVAL' && c[1] === (lost === 'entry' ? ATOMIC_ENTRY_SCRIPT : ATOMIC_LATER_SCRIPT)) {
+            dropReply = false;
+            throw new RedisUnavailable('lost reply');
+          }
+          return result;
+        },
+      }),
+    });
+    const pairs = (...events: EventType[]) => Object.fromEntries(
+      events.flatMap(type => [[`t:a:${type}`, '1'], [`d:${DAY}:a:${type}`, '1']]),
+    );
+    const flush = body(['entry', 'inview', 'card']);
+
+    expect(await s.post(flush)).toMatchObject({ status: 503, json: refused('unavailable') });
+    expect(await s.hash()).toEqual(lost === 'entry' ? pairs('entry') : pairs('entry', 'inview', 'card'));
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'entry')])).resolves.toBe('a');
+    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'inview')])).resolves.toBe(lost === 'entry' ? null : 'a');
+
+    const replay = lost === 'entry' ? 'counted' : 'duplicate';
+    expect((await s.post(flush)).json).toEqual(ok(
+      [['entry', 'duplicate'], ['inview', replay], ['card', replay]],
+      lost === 'entry' ? { viewN: 1 } : {},
+    ));
+    expect(await s.hash()).toEqual(pairs('entry', 'inview', 'card'));
+    expect((await s.post(body(['secondary']))).json).toEqual(ok([['secondary', 'counted']]));
+    expect(await s.hash()).toEqual(pairs('entry', 'inview', 'card', 'secondary'));
+    expect((await s.post(body(['entry'], { pv: pvOf(2) }))).json).toEqual(ok([['entry', 'counted']]));
+    expect(s.newDays).toEqual([[NS, DAY]]);
+  });
+
+  it.each([-1, 0, 1])('rechecks later expiry after the admission snapshot at offset %i ms', async (offset) => {
+    const s = setup({
+      write: (redis) => ({
+        ...redis,
+        async pipeline(cs) {
+          const result = await redis.pipeline(cs);
+          if (cs.some(c => c[0] === 'PEXPIRETIME')) s.advance(2);
+          return result;
+        },
+      }),
+    });
+    await s.post(body(['entry']));
+    s.advance(CONFIG.pvTtlSeconds * 1000 + offset - 2);
+    const outcome = offset < 0 ? 'counted' : 'orphan';
+    expect((await s.post(body(['inview', 'card']))).json).toEqual(
+      ok([['inview', outcome], ['card', outcome]], offset < 0 ? { viewN: 1 } : {}),
+    );
+    const hash = await s.hash();
+    expect(hash['t:a:entry']).toBe('1');
+    for (const type of ['inview', 'card']) expect(hash[`t:a:${type}`]).toBe(offset < 0 ? '1' : undefined);
+  });
+
   it('a batch [inview, card] after the entry counts both, in order, with viewN 1', async () => {
     const s = setup();
     await s.post(body(['entry']));
@@ -685,22 +766,15 @@ describe('11. record', () => {
 });
 
 describe('a prerequisite is never satisfied by a claim that was not counted', () => {
-  /** The memory store, whose counting transaction for later events fails while `failing` is true. */
-  function flaky(redis: MemoryRedis, failing: { on: boolean }): RedisRest {
-    const countsLaterEvents = (cs: RedisCommand[]) => cs.some((c) => c[0] === 'HINCRBY' && !String(c[2]).endsWith(':entry'));
-    return {
-      command: (c) => redis.command(c),
-      pipeline: (cs) => redis.pipeline(cs),
-      transaction: async (cs) => {
-        if (failing.on && countsLaterEvents(cs)) throw new RedisUnavailable('transaction failed (HTTP 500)');
-        return redis.transaction(cs);
-      },
+  function failCounterCommit(failing: { on: boolean }) {
+    return (command: RedisCommand) => {
+      if (failing.on && command[0] === 'HSET') throw new RedisUnavailable('counter commit failed');
     };
   }
 
-  it('[inview] fails at its counting transaction (503); the flush re-sends [inview, card]: card is not counted without inview', async () => {
+  it('[inview] fails before its counter commit (503); the flush re-sends [inview, card]: card is not counted without inview', async () => {
     const failing = { on: false };
-    const s = setup({ write: (redis) => flaky(redis, failing) });
+    const s = setup({ atomicCommand: failCounterCommit(failing) });
     await s.post(body(['entry']));
     failing.on = true;
     expect((await s.post(body(['inview']))).status).toBe(503);
@@ -719,7 +793,7 @@ describe('a prerequisite is never satisfied by a claim that was not counted', ()
 
   it('[inview, card] failing together counts neither; the re-sent pair counts neither either (lost, never wrong)', async () => {
     const failing = { on: false };
-    const s = setup({ write: (redis) => flaky(redis, failing) });
+    const s = setup({ atomicCommand: failCounterCommit(failing) });
     await s.post(body(['entry']));
     failing.on = true;
     expect((await s.post(body(['inview', 'card', 'secondary']))).status).toBe(503);
@@ -729,7 +803,7 @@ describe('a prerequisite is never satisfied by a claim that was not counted', ()
     for (const t of ['inview', 'card', 'secondary']) expect(hash[`t:a:${t}`]).toBeUndefined();
   });
 
-  it('a counted inview is promoted to the arm in the counting transaction and keeps the entry expiry', async () => {
+  it('a counted inview is promoted to the arm after its counter commit and keeps the entry expiry', async () => {
     const s = setup();
     await s.post(body(['entry']));
     await s.post(body(['inview']));
@@ -985,38 +1059,44 @@ function counting(redis: RedisRest) {
 describe('the command budget', () => {
   async function measure(batches: { events: EventType[] | Items; headers?: Record<string, string | null> }[], o: Setup = {}) {
     let meter: ReturnType<typeof counting> | undefined;
+    let inner = 0;
     const s = setup({
       ...o,
+      atomicCommand: () => { inner += 1; },
       write: (redis) => {
         meter = counting(redis);
         return meter.client;
       },
     });
     const each: number[] = [];
+    const innerEach: number[] = [];
     for (const b of batches) {
       meter!.reset();
+      inner = 0;
       await s.post(body(b.events), b.headers);
       each.push(meter!.count());
+      innerEach.push(inner);
     }
-    return { each, total: each.reduce((a, b) => a + b, 0), s };
+    return { each, innerEach, total: each.reduce((a, b) => a + b, 0), s };
   }
 
-  it(`a full 7-event view in 4 requests costs ${COMMANDS_PER_FULL_VIEW} commands`, async () => {
-    const { each, total } = await measure([{ events: ['entry'] }, { events: ['inview'] }, { events: ['engaged'] }, { events: ['card', 'secondary', 'cv', 'contact'] }]);
-    expect(each).toEqual([9, 8, 7, 16]);
-    expect(total).toBe(COMMANDS_PER_FULL_VIEW);
+  it('meters outer and inner commands separately for a full 7-event view in 4 requests', async () => {
+    const { each, innerEach, total } = await measure([{ events: ['entry'] }, { events: ['inview'] }, { events: ['engaged'] }, { events: ['card', 'secondary', 'cv', 'contact'] }]);
+    expect(each).toEqual([7, 5, 5, 5]);
+    expect(innerEach).toEqual([8, 14, 14, 20]);
+    expect(total + innerEach.reduce((a, b) => a + b, 0)).toBe(78);
   });
 
-  it('a full view in one flush costs 29; in 7 single requests, 52', async () => {
+  it('a full view in one flush costs 8 outer commands; in 7 single requests, 37', async () => {
     const all: EventType[] = ['entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'];
-    expect((await measure([{ events: all }])).total).toBe(29);
-    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(52);
+    expect((await measure([{ events: all }])).total).toBe(8);
+    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(37);
   });
 
-  it('a bot-refused entry costs 6; a re-sent one 4; its later batch 4', async () => {
+  it('a bot-refused entry costs 6; a re-sent one 4; its later batch 5', async () => {
     const bot = { 'user-agent': 'Googlebot/2.1' };
     const { each } = await measure([{ events: ['entry'], headers: bot }, { events: ['entry'], headers: bot }, { events: ['inview', 'card'] }]);
-    expect(each).toEqual([6, 4, 4]);
+    expect(each).toEqual([6, 4, 5]);
   });
 
   it('a rate-limited entry costs 2 (4 for the first, which records the rejection); a refusal before the store costs 0', async () => {

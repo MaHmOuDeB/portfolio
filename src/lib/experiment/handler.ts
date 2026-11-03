@@ -18,8 +18,8 @@
 //   9. Flags: paused or malformed: paused. A read error is logged and counting goes on.
 //  10. The entry: claimed first (a re-sent entry records nothing), then bot, internal, self and a
 //      client reject each record a rejection and stop; then the daily ceiling; then it counts. The
-//      day's first counted entry calls onNewDay.
-//  11. The later items, in order, against the same snapshot, counted on their entry's Berlin day.
+//      day's first granted ceiling slot calls onNewDay.
+//  11. The later items, in order, against authoritative claims, counted on their entry's Berlin day.
 //  12. A store error at any step: 503 unavailable, nothing retried.
 import { createHmac, randomBytes } from 'node:crypto';
 import { EXPERIMENT, calibrationStart, notStartedAt, type ExperimentConfig } from '../../experiment.config.ts';
@@ -33,14 +33,14 @@ import { ipBucket } from './keys.ts';
 import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
 import {
   CorruptCounters,
-  claimEntry,
   countDailyEntryN,
-  countEntry,
+  finalizeAtomicEntry,
   rateLimit,
   readEntryClaim,
   readView,
-  recordLater,
+  recordAtomicLater,
   recordRejection,
+  reserveAtomicEntry,
 } from './store.ts';
 import { berlinDay, plannedEnd } from './time.ts';
 
@@ -66,7 +66,7 @@ export type EventDeps = {
   config?: ExperimentConfig;
   /** True for the owner's exclusion cookie. */
   ownerCookieValid: (cookieHeader: string | null) => boolean;
-  /** Called after the first counted entry of a Berlin day. */
+  /** Called after finalization is attempted for the first granted ceiling slot of a Berlin day. */
   onNewDay?: (ns: string, day: string) => void;
 };
 
@@ -140,6 +140,10 @@ function isStoreError(e: unknown): boolean {
   return e instanceof RedisUnavailable || e instanceof CorruptCounters;
 }
 
+function isPendingEntry(value: string | null): boolean {
+  return value === '-' || (value !== null && /^pending:[0-9a-f]{32}$/.test(value));
+}
+
 const PENDING_ENTRY_BUDGET_MS = 3_000;
 const PENDING_ENTRY_RETRY_DELAY_MS = 100;
 const PENDING_ENTRY_MAX_REREADS = 3;
@@ -176,7 +180,7 @@ async function rereadPendingEntry(
       const fresh = await Promise.race([read(), timeout]);
       // A missing or replaced claim cannot promote the pending claim we observed.
       if (fresh === null || remaining() <= 0 || fresh.expiry !== pending.expiry) break;
-      if (fresh.value !== '-') return fresh;
+      if (!isPendingEntry(fresh.value)) return fresh;
     } finally {
       clearTimeout(timer);
     }
@@ -284,11 +288,11 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
 
     // 10. The entry.
     const results: { type: EventType; outcome: ItemOutcome }[] = [];
-    const counted: EventType[] = [];
+    let entryCounted = false;
     let entryExpiry = view.entryExpiry;
-    let entryClaim = view.claims.entry ?? null;
     if (entry !== null) {
-      const claim = await claimEntry(write, { ns: batch.ns, pv: batch.pv, ttlSeconds: config.pvTtlSeconds });
+      const owner = randomBytes(16).toString('hex');
+      const claim = await reserveAtomicEntry(write, { ns: batch.ns, pv: batch.pv, owner, ttlSeconds: config.pvTtlSeconds });
       if (claim === 'duplicate') {
         results.push({ type: 'entry', outcome: 'duplicate' });
         if (later.length > 0) {
@@ -296,11 +300,11 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
           // entry since. Re-read the claim and its expiry together.
           const read = () => readEntryClaim(write, batch);
           let fresh = await read();
-          if (fresh.value === '-') {
+          if (isPendingEntry(fresh.value)) {
             fresh = await rereadPendingEntry(read, fresh, deps.now, started, config.pvTtlSeconds);
           }
-          entryClaim = fresh.value;
-          entryExpiry = fresh.expiry;
+          // Only a promotion observed within Path B's budget can admit this duplicate flush.
+          entryExpiry = fresh.value === batch.arm ? fresh.expiry : null;
         }
       } else {
         const reason: RejectReason | null = isBotUserAgent(request.headers.get('user-agent'))
@@ -320,16 +324,19 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
           throw refuse('ceiling', 'rejected');
         }
         if (ceiling.verdict === 'ceiling') throw refuse('ceiling');
-        const c = await countEntry(write, { ns: batch.ns, pv: batch.pv, arm: batch.arm, day, withExpiry: later.length > 0 });
-        results.push({ type: 'entry', outcome: 'counted' });
-        counted.push('entry');
-        if (c.expiresAt !== undefined) entryExpiry = c.expiresAt;
-        // The day's first entry across both groups (the ceiling key counts both).
-        if (ceiling.n === 1) {
-          try {
-            deps.onNewDay?.(batch.ns, day);
-          } catch {
-            // The closing check runs on its own; it never fails the count.
+        try {
+          const c = await finalizeAtomicEntry(write, { ns: batch.ns, pv: batch.pv, arm: batch.arm, day, owner });
+          results.push({ type: 'entry', outcome: c.outcome });
+          entryCounted = c.outcome === 'counted';
+          entryExpiry = c.expiresAt ?? null;
+        } finally {
+          // Slot one triggers the best-effort closing check even if finalization fails.
+          if (ceiling.n === 1) {
+            try {
+              deps.onNewDay?.(batch.ns, day);
+            } catch {
+              // Scheduling the closing check must not affect the response.
+            }
           }
         }
       }
@@ -352,17 +359,16 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     let viewN: number | undefined;
     if (later.length > 0) {
       const entryDay =
-        counted.includes('entry') || entryExpiry === null || entryExpiry <= 0
+        entryCounted || entryExpiry === null || entryExpiry <= 0
           ? day
           : berlinDay(new Date(entryExpiry - config.pvTtlSeconds * 1000).toISOString());
-      const recorded = await recordLater(write, {
+      const recorded = await recordAtomicLater(write, {
         ns: batch.ns,
         pv: batch.pv,
         arm: batch.arm,
         day: entryDay,
-        view: { ...view, claims: { ...view.claims, entry: entryClaim ?? undefined }, entryExpiry },
+        view: { ...view, entryExpiry },
         items: later,
-        counted,
       });
       for (const { type, result } of recorded) {
         results.push({ type, outcome: result.outcome });

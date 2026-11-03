@@ -39,9 +39,8 @@ export function eventDeps(): EventDeps {
     log,
     // The owner's exclusion cookie (set through /exclude) marks a view as self.
     ownerCookieValid: (cookieHeader) => ownerCookieValid(cookieHeader, env.excludeToken),
-    // The day's first counted entry runs the closing check after the response. It runs before the
-    // day that just ended is a look (00:31), so it closes only on earlier looks; the read path
-    // closes on that day (see close.ts).
+    // The day's first granted ceiling slot schedules the closing check after the response.
+    // The snapshot determines which looks are complete when the check runs (see close.ts).
     onNewDay: (ns) => {
       if (write === null || start === null) return;
       later(async () => {

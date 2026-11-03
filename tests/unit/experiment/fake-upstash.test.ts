@@ -188,3 +188,17 @@ describe('clockOffsetFrom', () => {
     for (const bad of ['1.5', 'soon', '1e3']) expect(() => clockOffsetFrom(bad), bad).toThrow();
   });
 });
+
+it('transports exact atomic contracts as nested REST replies and refuses read-only EVAL', async () => {
+  const { reserveAtomicEntry, finalizeAtomicEntry, recordAtomicLater, readView, ATOMIC_ENTRY_SCRIPT } = await import('@/lib/experiment/store');
+  const redis = createRedisRest({ url: server.url, token: TOKEN });
+  const input = { ns: 'atomic-http', pv: randomUUID(), owner: '0123456789abcdef0123456789abcdef', arm: 'b' as const, day: '2026-11-01', ttlSeconds: 1800 };
+  await expect(reserveAtomicEntry(redis, input)).resolves.toBe('claimed');
+  await expect(finalizeAtomicEntry(redis, input)).resolves.toMatchObject({ outcome: 'counted', arm: 'b', total: 1, dayTotal: 1 });
+  const view = await readView(redis, { ...input, closed: true, expiry: true });
+  await expect(recordAtomicLater(redis, { ...input, view, items: ['inview', 'card'] })).resolves.toMatchObject([{ type: 'inview', result: { outcome: 'counted', total: 1 } }, { type: 'card', result: { outcome: 'counted', total: 1 } }]);
+  expect((await post('/', ['EVAL', ATOMIC_ENTRY_SCRIPT, 0], READ)).status).toBe(403);
+  const before = fakeUpstashStore().entries();
+  expect((await post('/', ['EVAL', 'return 1', 0], TOKEN)).status).toBe(400);
+  expect(fakeUpstashStore().entries()).toEqual(before);
+});

@@ -1,5 +1,5 @@
 // A local HTTP fake of the Upstash Redis REST API (`/`, `/pipeline`, `/multi-exec`, bearer tokens),
-// over the in-memory Redis. The e2e run points KV_REST_API_URL at it, so pages and the event route go
+// over the in-memory Redis. Its EVAL support is an exact-contract model, NOT a Lua runtime. The e2e run points KV_REST_API_URL at it, so pages and the event route go
 // through the real REST client and Next's real fetch path. It binds to 127.0.0.1 only, and the
 // read-only token refuses write commands (403). Never used in production.
 //
@@ -114,6 +114,12 @@ export async function startFakeUpstash(o: {
     if (path === '/multi-exec') {
       const unsupported = commands.find((c) => !store.supports(c));
       if (unsupported !== undefined) return send(res, 400, { error: `ERR unknown command '${nameOf(unsupported)}'` });
+    }
+    if (path === '/pipeline') {
+      const replies: Reply[] = [];
+      // Yield between commands: real pipelines permit other requests to interleave.
+      for (const c of commands) { replies.push(exec(c)); await new Promise<void>(resolve => setImmediate(resolve)); }
+      return send(res, 200, replies);
     }
     send(res, 200, commands.map(exec));
   }
