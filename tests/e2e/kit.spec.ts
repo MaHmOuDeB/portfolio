@@ -71,7 +71,7 @@ test.describe('kitchen sink', () => {
 
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).toContainText('you are in group B');
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).not.toContainText('views so far');
-    await expect(page.locator('[data-specimen="testnote--ab-counted"]')).toContainText('(212 views so far).');
+    await expect(page.locator('[data-specimen="testnote--ab-counted"]')).toContainText('There have been 212 views so far.');
     await expect(
       page.locator('[data-specimen="testnote--paused"]').getByRole('link', { name: 'See why the experiment is paused' }),
     ).toBeVisible();

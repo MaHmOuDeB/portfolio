@@ -159,10 +159,21 @@ describe('DataTable', () => {
 describe('PhaseLabel', () => {
   const href = '/live';
 
+  function resultsParagraph(html: string): Node {
+    const doc = parse(html);
+    expect(find(doc, 'a')).toHaveLength(1);
+    const siblings = doc.childNodes?.[0]?.childNodes ?? [];
+    expect(siblings.map(({ nodeName }) => nodeName)).toEqual(['p', 'a']);
+    const [paragraph, action] = siblings;
+    expect(attr(action!, 'href')).toBe(href);
+    expect(text(action!)).toBe('See the live results');
+    return paragraph!;
+  }
+
   it('ab with a small smaller group names the group and omits the view count', () => {
     const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 49, nB: 49 }} href={href} refs={REFS} />);
-    expect(plain(html)).toBe(
-      'This site runs an A/B test on its visitors, and you are in group B. See the live results.',
+    expect(text(resultsParagraph(html))).toBe(
+      'This site runs an A/B test on its visitors, and you are in group B.',
     );
     expect(html).not.toContain('views so far');
   });
@@ -172,10 +183,10 @@ describe('PhaseLabel', () => {
     expect(plain(html)).toContain('you are in group A.');
   });
 
-  it('ab with 50 in the smaller group ends with the total views, carried as derived', () => {
+  it('ab with 50 in the smaller group puts the derived total before the action', () => {
     const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 50, nB: 162 }} href={href} refs={REFS} />);
     expect(plain(html)).toContain('group B');
-    expect(plain(html).endsWith('(212 views so far).')).toBe(true);
+    expect(text(resultsParagraph(html))).toContain('There have been 212 views so far.');
     expect(html).toContain('<data value="212" data-derived="live">212</data>');
   });
 
@@ -197,17 +208,19 @@ describe('PhaseLabel', () => {
 
   it('calibration copy is verbatim', () => {
     const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href={href} refs={REFS} />);
-    expect(plain(html)).toBe(
-      'This site runs a live experiment on its own visitors. It is calibrating first, so everyone sees the same page. See the live results.',
+    expect(text(resultsParagraph(html))).toBe(
+      'This site runs a live experiment on its own visitors. It is calibrating first, so everyone sees the same page.',
     );
   });
 
-  it('paused copy is verbatim and the link has the long accessible name', () => {
+  it('paused copy is verbatim and the link has a descriptive visible label', () => {
     const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'paused' }} href={href} refs={REFS} />);
-    expect(plain(html)).toBe('The experiment on this site is paused. See why.');
-    const [a] = find(parse(html), 'a');
-    expect(attr(a!, 'aria-label')).toBe('See why the experiment is paused');
-    expect(text(a!)).toBe('See why');
+    const doc = parse(html);
+    expect(text(find(doc, 'p')[0]!)).toBe('The experiment on this site is paused.');
+    const links = find(doc, 'a');
+    expect(links).toHaveLength(1);
+    expect(attr(links[0]!, 'href')).toBe(href);
+    expect(text(links[0]!)).toBe('See why the experiment is paused');
   });
 
   it('is one paragraph in text-sm', () => {

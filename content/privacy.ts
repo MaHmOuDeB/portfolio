@@ -84,7 +84,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       heading: 'Who is responsible',
       paragraphs: [
         ['I am responsible for this site and for the data described here: ', SITE.name, ', ', SITE.city, '.'],
-        ['You can reach me at ', { link: { href: `mailto:${CONTACT.email}`, text: CONTACT.email } }, '.'],
+        [{ link: { href: `mailto:${CONTACT.email}`, text: CONTACT.email } }],
       ],
     },
     {

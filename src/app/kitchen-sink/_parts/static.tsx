@@ -79,14 +79,14 @@ export function StaticSection() {
       <Specimen
         id="testnote--ab-counted"
         title="Test note: A/B, counted"
-        note="Fifty or more in the smaller group, so the total views follow the link."
+        note="Fifty or more in the smaller group, so the total views appear before the link."
       >
         <PhaseLabel note={{ mode: 'ab', arm: 'a', nA: 162, nB: 50 }} href="/kitchen-sink" refs={REFS} />
       </Specimen>
       <Specimen id="testnote--calibration" title="Test note: calibration">
         <PhaseLabel note={{ mode: 'calibration' }} href="/kitchen-sink" refs={REFS} />
       </Specimen>
-      <Specimen id="testnote--paused" title="Test note: paused" note="The link's accessible name says what it explains.">
+      <Specimen id="testnote--paused" title="Test note: paused" note="The visible link label explains where it goes.">
         <PhaseLabel note={{ mode: 'paused' }} href="/kitchen-sink" refs={REFS} />
       </Specimen>
       <Specimen
