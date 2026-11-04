@@ -54,7 +54,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
       </summary>
       <nav
         aria-label="Menu"
-        className="absolute top-full right-0 z-(--z-menu) mt-2 min-w-48 rounded-md border border-line bg-bg px-4 py-2"
+        className="absolute top-full right-0 z-(--z-menu) mt-2 w-48 max-w-[calc(100vw_-_8*var(--spacing))] rounded-md border border-line bg-bg px-4 py-2"
       >
         {children}
       </nav>

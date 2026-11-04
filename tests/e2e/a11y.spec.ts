@@ -176,3 +176,35 @@ for (const route of routes) {
     });
   });
 }
+
+for (const route of ['/privacy', '/missing-a11y-page']) {
+  test(`accessibility ${route} reflows at 320 CSS px with enlarged root text`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(route);
+    const [before, after] = await page.evaluate(async () => {
+      const root = document.documentElement;
+      const initial = Number.parseFloat(getComputedStyle(root).fontSize);
+      root.style.setProperty('font-size', '200%', 'important');
+      await document.fonts.ready;
+      return [initial, Number.parseFloat(getComputedStyle(root).fontSize)];
+    });
+    expect(after).toBeCloseTo(before * 2);
+    const overflow = () => page.evaluate(() => {
+      const root = document.documentElement;
+      return root.scrollWidth - root.clientWidth;
+    });
+    await expect.poll(overflow, { message: `${route}, Menu closed` }).toBe(0);
+    const menu = page.locator('[data-site-header] details');
+    await menu.locator('summary').press('Enter');
+    await expect(menu).toHaveAttribute('open', '');
+    await expect.poll(overflow, { message: `${route}, Menu open` }).toBe(0);
+    const panel = menu.getByRole('navigation', { name: 'Menu' });
+    await expect(panel).toBeVisible();
+    const bounds = await panel.evaluate((el) => {
+      const { left, right } = el.getBoundingClientRect();
+      return { left, right, width: document.documentElement.clientWidth };
+    });
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(bounds.width);
+  });
+}

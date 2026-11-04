@@ -31,7 +31,7 @@ export function SiteHeader() {
           </span>
           <span>{SITE.name.replace('El Bergui', 'El Bergui')}</span>
         </Link>
-        <div className="ml-auto flex items-center gap-1 xs:gap-2 md:gap-6">
+        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1 xs:gap-2 md:gap-6">
           <nav aria-label="Main" className="hidden md:block">
             <NavLinks className="flex items-center gap-6" />
           </nav>

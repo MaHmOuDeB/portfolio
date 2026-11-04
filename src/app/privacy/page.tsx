@@ -52,7 +52,7 @@ export default function PrivacyPage() {
                 <Block block={paragraph[0]} standalone />
               </div>
             ) : (
-              <p key={i} className="mt-4">
+              <p key={i} className="mt-4 wrap-anywhere">
                 {paragraph.map((block, j) => (
                   <Fragment key={j}>
                     <Block block={block} />
