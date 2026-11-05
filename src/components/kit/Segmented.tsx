@@ -37,7 +37,7 @@ export function Segmented<V extends string>({ name, legend, options, value, onCh
               data-touch-target
               data-segment
               className={cx(
-                'relative inline-flex min-h-(--size-target) items-center gap-3 border px-4 text-sm font-medium whitespace-nowrap transition-colors max-xs:w-full max-xs:rounded-md xs:not-first:-ml-px xs:first:rounded-l-md xs:last:rounded-r-md',
+                'relative inline-flex min-h-(--size-target) items-center gap-3 border px-4 text-sm font-medium transition-colors max-xs:w-full max-xs:flex-wrap max-xs:rounded-md xs:whitespace-nowrap xs:not-first:-ml-px xs:first:rounded-l-md xs:last:rounded-r-md',
                 STATE[checked ? 'checked' : 'unchecked'][disabled ? 'disabled' : 'enabled'],
               )}
             >

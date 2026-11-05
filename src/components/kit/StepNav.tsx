@@ -48,7 +48,7 @@ export function StepNav({ current, total, onChange, label, refs }: StepNavProps)
       aria-label={label}
       data-js-only
       data-step-nav
-      className="relative inline-flex items-center gap-3"
+      className="relative inline-flex max-w-full flex-wrap items-center gap-3"
       onKeyDown={(e) => {
         const direction = stepDirection(e);
         if (direction === null) return;

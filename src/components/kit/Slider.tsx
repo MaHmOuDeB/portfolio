@@ -78,7 +78,7 @@ export function Slider({
       <label htmlFor={id} className="text-sm text-muted">
         {label}
       </label>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div data-touch-target className="relative flex min-h-(--size-target) min-w-32 flex-1 items-center">
           <div
             data-slider-track

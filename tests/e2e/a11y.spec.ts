@@ -177,10 +177,11 @@ for (const route of routes) {
   });
 }
 
-for (const route of ['/privacy', '/missing-a11y-page']) {
+for (const route of ['/privacy', '/missing-a11y-page', '/kitchen-sink']) {
   test(`accessibility ${route} reflows at 320 CSS px with enlarged root text`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(route);
+    if (route === '/kitchen-sink') await waitForIslands(page);
     const [before, after] = await page.evaluate(async () => {
       const root = document.documentElement;
       const initial = Number.parseFloat(getComputedStyle(root).fontSize);
