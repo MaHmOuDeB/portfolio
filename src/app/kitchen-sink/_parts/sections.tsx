@@ -82,7 +82,7 @@ export const SECTIONS: readonly SinkSection[] = [
       >
         <ul className="grid grid-cols-2 gap-4 xs:grid-cols-3">
           {(Object.keys(ICON_LABELS) as IconName[]).map((name) => (
-            <li key={name} className="flex items-center gap-2 text-sm">
+            <li key={name} className="flex flex-wrap items-center gap-2 text-sm wrap-anywhere">
               <Icon name={name} />
               {ICON_LABELS[name]}
             </li>
