@@ -69,3 +69,11 @@ test('Menu still closes on same-path link activation', async ({ page }) => {
   await expect(page).toHaveURL(/\/lab$/);
   await expect(menu).not.toHaveAttribute('open', '');
 });
+
+
+test('Menu pointer activation navigates to a different page after keyboard open', async ({ page }) => {
+  const { menu, links } = await openMenu(page);
+  await links.filter({ hasText: /^Lab$/ }).click();
+  await expect(page).toHaveURL(/\/lab$/);
+  await expect(menu).not.toHaveAttribute('open', '');
+});

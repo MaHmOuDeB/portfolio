@@ -8,17 +8,43 @@ import { Icon } from '@/components/kit/Icon';
 
 export function MenuDisclosure({ children }: { children: ReactNode }) {
   const details = useRef<HTMLDetailsElement>(null);
+  const linkPress = useRef<number | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
     if (details.current) details.current.open = false;
   }, [pathname]);
 
+  useEffect(() => {
+    const release = (event: PointerEvent) => {
+      if (linkPress.current !== event.pointerId) return;
+      linkPress.current = null;
+      const el = details.current;
+      const outside = !(event.target instanceof Node) || !el?.contains(event.target);
+      if (el && (outside || event.type === 'pointercancel') && !el.contains(el.ownerDocument.activeElement)) {
+        el.open = false;
+      }
+    };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
+    return () => {
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
+    };
+  }, []);
+
   return (
     <details
       ref={details}
       className="relative md:hidden"
+      onPointerDown={(event) => {
+        if (event.button === 0 && event.target instanceof Element && event.target.closest('a')) {
+          linkPress.current = event.pointerId;
+        }
+      }}
       onBlur={(event) => {
+        // WebKit can blur the summary without focusing the pressed link. Keep it clickable.
+        if (linkPress.current !== null) return;
         const el = event.currentTarget;
         const next = event.relatedTarget;
         if (next instanceof Node) {
@@ -27,7 +53,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
         }
         // A blur with no destination can precede another focus move in the same turn.
         queueMicrotask(() => {
-          if (el.isConnected && !el.contains(el.ownerDocument.activeElement)) el.open = false;
+          if (linkPress.current === null && el.isConnected && !el.contains(el.ownerDocument.activeElement)) el.open = false;
         });
       }}
       onKeyDown={(event) => {
