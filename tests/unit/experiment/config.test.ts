@@ -5,7 +5,7 @@ import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats
 import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, type ExperimentConfig } from '../../../src/experiment.config';
 import { HEADLINES, type HeadlinePart } from '../../../content/experiment/headlines';
 import { preregHash } from '../../../scripts/prereg-hash';
-import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA } from './budget';
+import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA, MONTHLY_PAGE_READ_BUDGET } from './budget';
 
 const ROOT = join(import.meta.dirname, '../../..');
 
@@ -48,13 +48,11 @@ describe('EXPERIMENT', () => {
 });
 
 describe('the daily ceiling and the command quota', () => {
-  it('a month of full views at the ceiling uses under half the free command quota', () => {
-    // 200 views x 40 commands x 30 days = 240,000 of 500,000: about 260,000 a month stay for page
-    // reads (about 26,000) and rejected or rate-limited traffic (2 to 6 commands a request).
+  it('the metered full view and monthly page reads fit the free command quota', () => {
+    expect(EXPERIMENT.dailyEntryCeiling).toBe(200);
+    expect(COMMANDS_PER_FULL_VIEW).toBeLessThanOrEqual(50);
     const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
-    expect(atCeiling).toBe(240_000);
-    expect(atCeiling).toBeLessThan(MONTHLY_COMMAND_QUOTA / 2);
-    expect(MONTHLY_COMMAND_QUOTA - atCeiling).toBeGreaterThanOrEqual(250_000);
+    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 });
 

@@ -1,4 +1,4 @@
-// Scratch prototype contract. The memory backend is a model, not a Lua interpreter.
+// Atomic store contract. The memory backend is a model, not a Lua interpreter.
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { keys } from '@/lib/experiment/keys';
 import { RedisUnavailable, type RedisRest } from '@/lib/experiment/redis-rest';
@@ -22,7 +22,7 @@ async function seeded(r: RedisRest, arm: 'a' | 'b' = 'a') {
 
 // Breaks caught: trusting an elapsed snapshot, unconditional increments, accepting a stolen
 // owner, exposing an uncounted prerequisite, or validating corruption after the first write.
-describe('atomic store prototype', () => {
+describe('atomic view claims', () => {
   for (const arm of ['a', 'b'] as const) for (const type of ['cv', 'inview'] as const) {
     it.each([-1, 0, 1])(`${arm}/${type}: authoritative expiry offset %i`, async offset => {
       const { r, at } = setup(); const view = await seeded(r, arm);
@@ -61,7 +61,7 @@ describe('atomic store prototype', () => {
   it('pending prerequisites cannot satisfy card even when the supplied snapshot says otherwise', async () => {
     const { r } = setup(); const view = await seeded(r);
     view.claims.inview = 'a';
-    await r.command(['SET', keys.claim(ns, pv, 'inview'), '-', 'EX', 100]);
+    await r.command(['SET', keys.claim(ns, pv, 'entry'), `a|${day}|2800000|-00000`, 'XX', 'KEEPTTL']);
     expect((await recordAtomicLater(r, { ...input, view, items: ['card'] }))[0]!.result.outcome).toBe('orphan');
   });
   it('two overlapping ordered batches commit each event once with paired totals', async () => {
@@ -107,6 +107,9 @@ describe('atomic store prototype', () => {
 describe('atomic preflight and unknown outcomes', () => {
   it.each(['counter', 'closed', 'entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'])('wrong type at %s is rejected with zero mutation', async name => {
     const { r } = setup(); const view = await seeded(r);
+    if (name !== 'entry' && name !== 'closed' && name !== 'counter') {
+      await r.command(['SET', keys.claim(ns, pv, 'entry'), 'a', 'XX', 'KEEPTTL']);
+    }
     if (name === 'counter') await r.command(['SET', keys.counters(ns), 'wrong']);
     else {
       const key = name === 'closed' ? keys.closed(ns) : keys.claim(ns, pv, name as 'entry');
@@ -129,7 +132,7 @@ describe('atomic preflight and unknown outcomes', () => {
       let fault = false;
       const r = createMemoryRedis({
         now: () => 1_000_000, atomicCommand: c => {
-          if (fault && (commit === 'before' ? c[0] === 'HSET' : c[0] === 'SET' && c[2] === 'a')) { fault = false; throw new Error('injected'); }
+          if (fault && (commit === 'before' ? c[0] === 'HSET' : c[0] === 'SET' && typeof c[2] === 'string' && /^a\|.*\|[01]+$/.test(c[2]))) { fault = false; throw new Error('injected'); }
         }
       });
       await reserveAtomicEntry(r, input); fault = true;
@@ -143,7 +146,7 @@ describe('atomic preflight and unknown outcomes', () => {
       let fault = false;
       const r = createMemoryRedis({
         now: () => 1_000_000, atomicCommand: c => {
-          if (fault && (commit === 'before' ? c[0] === 'HSET' : c[0] === 'SET' && c[2] === 'a')) { fault = false; throw new Error('injected'); }
+          if (fault && (commit === 'before' ? c[0] === 'HSET' : c[0] === 'SET' && typeof c[2] === 'string' && /^a\|.*\|[01]+$/.test(c[2]))) { fault = false; throw new Error('injected'); }
         }
       });
       const view = await seeded(r); fault = true;
@@ -199,6 +202,6 @@ it('meters internal commands separately from EVAL requests for both arms', async
       await recordAtomicLater(r, { ...input, arm, view, items: [...items] });
       perBatch.push(calls.length);
     }
-    expect(perBatch).toEqual([14, 14, 20]);
+    expect(perBatch).toEqual([7, 6, 6]);
   }
 });

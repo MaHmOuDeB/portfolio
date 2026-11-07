@@ -1,3 +1,4 @@
+import { readView } from '../../src/lib/experiment/store';
 // The live experiment in the browser, end to end: cookieless assignment in the proxy, the entry
 // rules, the beacon's ordered batches, and the static pages regenerating from the store. The server
 // writes to the local fake of the Upstash REST API (playwright.config.ts) and runs its clock after the
@@ -128,7 +129,8 @@ async function expectRefusedEntry(sent: Sent[], from: number, reason: string): P
 }
 
 async function claims(ns: string, pv: string, types: string[]): Promise<unknown> {
-  return read.command(['MGET', ...types.map((t) => keys.claim(ns, pv, t as 'entry'))]);
+  const view = await readView(read, { ns, pv, closed: false, expiry: false });
+  return types.map(type => view.claims[type as 'entry'] ?? null);
 }
 
 test.describe('assignment', () => {

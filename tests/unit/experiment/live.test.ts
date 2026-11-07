@@ -572,7 +572,7 @@ describe('durable terminal state', () => {
       expect(s.status).toBe('aa-failed');
       expect(s.frozenAt).toBe('2026-11-06');
       expect(s.calibration?.ready).toBe(false);
-      expect(s.live.aaFailed).toMatchObject({ on: berlinStartOfDay('2026-11-06'), reason: expect.stringMatching(/persisted.*failure/) });
+      expect(s.live.aaFailed).toMatchObject({ on: berlinStartOfDay('2026-11-06'), reason: 'I no longer have the note explaining why' });
       expect(s.live.aaFailed?.reason).not.toContain('beacon');
       expect(liveView(s, 'a').body).toBe('aa-failed');
       expect((await getLiveView('a', { ...d, flags: async () => NO_FLAGS, closingSeen, write: null })).testNote).toBeNull();
@@ -616,7 +616,7 @@ describe('durable terminal state', () => {
     expect(s.frozenAt).toBe('2026-11-06');
     expect(s.closed).toEqual(closed);
     expect(s.live.aaFailed).toEqual(retained ? flag : {
-      on: berlinStartOfDay('2026-11-06'), reason: expect.stringMatching(/persisted.*failure.*original reason was not retained/),
+      on: berlinStartOfDay('2026-11-06'), reason: 'I no longer have the note explaining why',
     });
     const published = toPublicData(s, { commit: null }, CALIBRATION);
     expect(published.calibration).toMatchObject({ ready: false, failed: null });
@@ -628,6 +628,19 @@ describe('durable terminal state', () => {
     // Home renders PhaseLabel only for a non-null note, so this omits its visible and aria copy.
     expect(view.testNote).toBeNull();
     expect(tasks).toHaveLength(1);
+  });
+
+  it('keeps the durable calibration stop day when the flag has a conflicting date', async () => {
+    const redis = createMemoryRedis();
+    const log = vi.fn();
+    await redis.command(['SET', keys.closed(CALIBRATION.namespace), JSON.stringify({ kind: 'aa-failed', day: '2026-11-06' })]);
+    const s = await getExperimentSnapshot(deps({ read: redis, log,
+      flags: async () => ({ ...NO_FLAGS, aaFailed: { on: '2026-11-07T09:00:00+01:00', reason: 'later flag text' } }),
+    }));
+    expect(s).toMatchObject({ status: 'aa-failed', frozenAt: '2026-11-06', closureMismatch: true });
+    expect(s.live.aaFailed).toEqual({ on: berlinStartOfDay('2026-11-06'), reason: 'I no longer have the note explaining why' });
+    expect(log).toHaveBeenCalledWith({ evt: 'snapshot', outcome: 'warning', reason: 'closure-mismatch', ms: expect.any(Number) });
+    expect(liveView(s, 'b').testNote).toBeNull();
   });
 
   it.each(['not-json', '{"kind":"other","day":"2026-11-06"}', '{"kind":"aa-failed","day":"2026-02-30"}'])(
@@ -645,8 +658,10 @@ describe('durable terminal state', () => {
   it.each(['decision', 'held', 'aa-failed'] as const)('never infers an A/B outcome from %s alone', async (kind) => {
     const redis = createMemoryRedis();
     await redis.command(['SET', keys.closed(AB.namespace), JSON.stringify({ kind, day: '2026-12-01' })]);
-    await expect(getExperimentSnapshot(deps({ read: redis, config: AB, now: () => new Date('2026-12-03T12:00:00+01:00') })))
-      .rejects.toBeInstanceOf(CorruptCounters);
+    const s = await getExperimentSnapshot(deps({ read: redis, config: AB, now: () => new Date('2026-12-03T12:00:00+01:00') }));
+    expect(s).toMatchObject({ closed: { kind, day: '2026-12-01' }, closureMismatch: true, frozenAt: '2026-12-01' });
+    expect(s.live.freshness.kind).toBe('paused');
+    expect(toPublicData(s, { commit: null }, AB)).toMatchObject({ decision: null, closureMismatch: true });
   });
 
   it.each([
@@ -660,7 +675,7 @@ describe('durable terminal state', () => {
       { day: '2026-12-01', a: { entry: 60, inview: 50, engaged: 50, card: 5 }, b: { entry: 60, inview: 50, engaged: 50, card: 15 } },
       { day: '2026-12-02', a: { entry: 340, inview: 250, engaged: 250, card: 95 }, b: { entry: 340, inview: 250, engaged: 250, card: 10 } },
     ], status: 'ab' },
-  ])('preserves reconstructed $kind/$status and refuses a conflicting marker day', async ({ kind, day, rows, status }) => {
+  ])('preserves reconstructed $kind/$status and surfaces a conflicting marker day', async ({ kind, day, rows, status }) => {
     const redis = createMemoryRedis();
     await seed(redis, AB.namespace, rows);
     const d = deps({ read: redis, config: AB, now: () => new Date('2026-12-03T12:00:00+01:00') });
@@ -671,7 +686,11 @@ describe('durable terminal state', () => {
     expect(after).toEqual({ ...before, closed: { kind, day } });
     expect(closingMarker(after)).toEqual({ kind, day });
     await redis.command(['SET', keys.closed(AB.namespace), JSON.stringify({ kind, day: '2026-12-03' })]);
-    await expect(getExperimentSnapshot(d)).rejects.toBeInstanceOf(CorruptCounters);
+    const log = vi.fn();
+    const mismatch = await getExperimentSnapshot({ ...d, log });
+    expect(mismatch).toMatchObject({ closed: { kind, day: '2026-12-03' }, closureMismatch: true, frozenAt: '2026-12-03' });
+    expect(toPublicData(mismatch, { commit: null }, AB).decision).toBeNull();
+    expect(log).toHaveBeenCalledWith({ evt: 'snapshot', outcome: 'warning', reason: 'closure-mismatch', ms: expect.any(Number) });
   });
 
   it.each(['2026-11-01', '2026-11-21'])('refuses marker day %s outside the namespace lifetime', async (day) => {

@@ -94,6 +94,7 @@ export type PublicData = {
   decision: 'ship-b' | 'stop-for-harm' | 'inconclusive' | null;
   decidedOn: string | null;
   frozenAt: string | null;
+  closureMismatch?: true;
   plannedEnd: string;
   plannedEndKind: 'fixed' | 'earliest';
   bandConflictOn: string | null;
@@ -223,6 +224,7 @@ export function toPublicData(s: ExperimentSnapshot, build: { commit: string | nu
     decision: !placeholder && (OUTCOME_PHASES as readonly string[]).includes(s.status) ? (s.status as PublicData['decision']) : null,
     decidedOn: s.live.decidedOn ?? null,
     frozenAt: s.frozenAt,
+    ...(s.closureMismatch ? { closureMismatch: true as const } : {}),
     plannedEnd: s.live.plannedEnd,
     plannedEndKind: s.live.plannedEndKind,
     bandConflictOn: s.bandConflictOn,

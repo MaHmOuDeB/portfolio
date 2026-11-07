@@ -147,10 +147,15 @@ function stoppedFreshness(s: ExperimentSnapshot, flags: ExperimentFlags): Freshn
 }
 
 /** A kind/day marker is authority to stop, never authority to invent an A/B verdict. */
-function reconcileClosed(s: ExperimentSnapshot, closed: ClosedMarker | null): ExperimentSnapshot {
+function reconcileClosed(
+  s: ExperimentSnapshot, closed: ClosedMarker | null, calibrationFlagDay: string | null,
+  unavailable: () => ExperimentSnapshot,
+): ExperimentSnapshot {
   if (closed === null) return s;
   const derived = closingMarker(s);
-  if (derived?.kind === closed.kind && derived.day === closed.day) {
+  const flagDisagrees = closed.kind === 'aa-failed' && s.configPhase === 'calibration'
+    && calibrationFlagDay !== null && calibrationFlagDay !== closed.day;
+  if (derived?.kind === closed.kind && derived.day === closed.day && !flagDisagrees) {
     // A matching current explanation is trustworthy, but durable A/A closure is never ready.
     // Use the marker's day for terminal metadata in both matched and reconstructed failures.
     return closed.kind === 'aa-failed' ? {
@@ -158,16 +163,21 @@ function reconcileClosed(s: ExperimentSnapshot, closed: ClosedMarker | null): Ex
       calibration: s.calibration === null ? null : { ...s.calibration, ready: false },
     } : { ...s, closed };
   }
-  if (closed.kind !== 'aa-failed' || s.configPhase !== 'calibration' || derived !== null) {
-    throw new CorruptCounters('closed marker cannot be reconciled with analysis');
+  const on = berlinStartOfDay(closed.day);
+  if (closed.kind !== 'aa-failed' || s.configPhase !== 'calibration') {
+    const fallback = unavailable();
+    return {
+      ...fallback, closed, closureMismatch: true, frozenAt: closed.day,
+      live: { ...fallback.live, freshness: { kind: 'paused', pausedOn: on, reason: 'I stopped counting and am checking the results' } },
+    };
   }
   // The marker retained neither the original reason nor an instant within its Berlin day.
   // Midnight is the existing day-only display convention, not a recovered closure timestamp.
   return {
-    ...s, closed, status: 'aa-failed', frozenAt: closed.day,
+    ...s, closed, ...(derived === null && !flagDisagrees ? {} : { closureMismatch: true as const }), status: 'aa-failed', frozenAt: closed.day,
     calibration: s.calibration === null ? null : { ...s.calibration, ready: false },
     live: { ...s.live, phase: 'aa-failed', aaFailed: {
-      on: berlinStartOfDay(closed.day), reason: 'a persisted calibration failure stopped this namespace; the original reason was not retained',
+      on, reason: 'I no longer have the note explaining why',
     } },
   };
 }
@@ -188,7 +198,7 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
   const { env, config } = d;
   const building = env.buildPhase === true;
   const started = Date.now();
-  const logLine = (outcome: 'error' | 'unavailable', reason: string) => {
+  const logLine = (outcome: 'error' | 'unavailable' | 'warning', reason: string) => {
     try {
       d.log({ evt: 'snapshot', outcome, reason, ms: Math.max(0, Date.now() - started) });
     } catch {
@@ -234,7 +244,11 @@ export async function getExperimentSnapshot(partial: Partial<SnapshotDeps> = {})
     if (closed !== null && (closed.day < berlinDay(start) || closed.day > berlinDay(now))) {
       throw new CorruptCounters('closed marker outside experiment days');
     }
-    built = reconcileClosed(buildSnapshot({ counters, flags, now, start, source: d.mode === 'local' ? 'local' : 'store', config }), closed);
+    const failure = flags.aaFailed;
+    const flagDay = failure !== null && Date.parse(failure.on) >= Date.parse(start) ? berlinDay(failure.on) : null;
+    built = reconcileClosed(buildSnapshot({ counters, flags, now, start, source: d.mode === 'local' ? 'local' : 'store', config }), closed, flagDay,
+      () => placeholder(config, new Date(now), start, 'unreadable'));
+    if (built.closureMismatch) logLine('warning', 'closure-mismatch');
   } catch (e) {
     return fail(errorCategory(e), e);
   }

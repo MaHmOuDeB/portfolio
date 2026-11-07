@@ -236,3 +236,13 @@ To pause counting, set the `experiment` item in Edge Config to
 `{"paused": {"on": "<now, with offset>", "reason": "<a short reason>"}}`. The reason is shown on the
 site: it must never name a person. Counting stops within a minute; pages show it within about ten
 minutes. Remove the `paused` entry to resume.
+
+
+### If the closure cannot be reproduced
+
+A snapshot log with category `closure-mismatch` and `closureMismatch: true` in
+`/experiment/data.json` mean the stored stop day or reason could not be corroborated.
+The recorded stop still controls counting. A conflicting A/B result is withheld while
+the discrepancy is investigated. Keep the original closed marker and calibration
+failure flag. Review the counters and the flag history before using a fresh namespace.
+See [Redis conformance](redis-conformance.md) for the staging checks.

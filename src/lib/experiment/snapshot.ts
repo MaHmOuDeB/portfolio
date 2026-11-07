@@ -82,6 +82,8 @@ export type ExperimentSnapshot = {
   schema: 1;
   /** Validated durable closure read by the live reader; kind/day only, never a recovered verdict. */
   closed?: ClosedMarker;
+  /** The stored closure could not be corroborated by current analysis. */
+  closureMismatch?: true;
   /**
    * 'unavailable': a placeholder with no data, when the experiment has not started in production or
    * a build could not read the store. Its counts are zero and its freshness says why.

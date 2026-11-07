@@ -13,8 +13,8 @@
 //   6. Before the calibration (or A/B) start: not-started; the A/B at its planned end: ended.
 //   7. Address and rate limit, before any Edge Config read: the bucket is the HMAC of the IPv4
 //      address or IPv6 /64, never the address. Every batch counts against the limit, so a flood
-//      of any kind is cut off at 2 commands a request (the store's free quota is finite).
-//   8. The closed marker (read with the view's claims): ended.
+//      of any kind is cut off after an atomic expiring increment (the store's free quota is finite).
+//   8. The closed marker: entries check before flags. Later batches check inside their write.
 //   9. Flags: paused or malformed: paused. A read error is logged and counting goes on.
 //  10. The entry: claimed first (a re-sent entry records nothing), then bot, internal, self and a
 //      client reject each record a rejection and stop; then the daily ceiling; then it counts. The
@@ -33,11 +33,12 @@ import { ipBucket } from './keys.ts';
 import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
 import {
   CorruptCounters,
+  CountingClosed,
   countDailyEntryN,
   finalizeAtomicEntry,
   rateLimit,
   readEntryClaim,
-  readView,
+  readClosed,
   recordAtomicLater,
   recordRejection,
   reserveAtomicEntry,
@@ -273,9 +274,8 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     }
     if (limit !== 'ok') throw new Stop(429, null, 'refused', 'rate_limited');
 
-    // 8. Closed (read together with the view's claims).
-    const view = await readView(write, { ns: batch.ns, pv: batch.pv, closed: true, expiry: entry === null });
-    if (view.closed !== null) throw refuse('ended');
+    // 8. Entries check closure before reservation. The later script checks it with the claims.
+    if (entry !== null && await readClosed(write, batch.ns) !== null) throw refuse('ended');
 
     // 9. Flags.
     let flags: ExperimentFlags | null = null;
@@ -284,12 +284,14 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     } catch {
       flagsError = true;
     }
-    if (flags !== null && (flags.paused !== null || flags.malformed)) throw refuse('paused');
+    if (flags !== null && (flags.paused !== null || flags.malformed)) {
+      if (entry === null && await readClosed(write, batch.ns) !== null) throw refuse('ended');
+      throw refuse('paused');
+    }
 
     // 10. The entry.
     const results: { type: EventType; outcome: ItemOutcome }[] = [];
-    let entryCounted = false;
-    let entryExpiry = view.entryExpiry;
+    let entryExpiry: number | null = null;
     if (entry !== null) {
       const owner = randomBytes(16).toString('hex');
       const claim = await reserveAtomicEntry(write, { ns: batch.ns, pv: batch.pv, owner, ttlSeconds: config.pvTtlSeconds });
@@ -303,7 +305,7 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
           if (isPendingEntry(fresh.value)) {
             fresh = await rereadPendingEntry(read, fresh, deps.now, started, config.pvTtlSeconds);
           }
-          // Only a promotion observed within Path B's budget can admit this duplicate flush.
+          // Only a promotion observed within the reread window can admit this duplicate flush.
           entryExpiry = fresh.value === batch.arm ? fresh.expiry : null;
         }
       } else {
@@ -327,7 +329,6 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
         try {
           const c = await finalizeAtomicEntry(write, { ns: batch.ns, pv: batch.pv, arm: batch.arm, day, owner });
           results.push({ type: 'entry', outcome: c.outcome });
-          entryCounted = c.outcome === 'counted';
           entryExpiry = c.expiresAt ?? null;
         } finally {
           // Slot one triggers the best-effort closing check even if finalization fails.
@@ -342,32 +343,17 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
       }
     }
 
-    // 11. Record the later items, on their entry's Berlin day: the entry claim was set pvTtlSeconds
-    // before it expires, so its expiry dates it. Each day row then holds a click only with its own
-    // view, and an analysis that leaves out a day (one that reached the ceiling) leaves out all of
-    // that day's views' events. The expiry is read in the same requests as before: no extra command.
-    // - This assumes pvTtlSeconds is the TTL the claim was set with. It is pre-registered and a
-    //   phase change uses a fresh namespace, so it cannot change under a live view.
-    // - Accepted residual: the entry's own day comes from this function's clock at step 6, the
-    //   claim's from the store's clock after the rate limit, the view read and the flags read (tens
-    //   of ms, more on a cold flags read, plus clock skew). A view whose entry falls in that window
-    //   at midnight splits across two days. That only matters next to a left-out ceiling day. With
-    //   this clock ahead, the entry lands on the later day and its events on the left-out one, where
-    //   they are lost. With this clock behind, the entry lands on the left-out day and its events on
-    //   the next, which then holds an analysed view (or a click) without its entry, and at worst a
-    //   data fault. Both need a ceiling day and an entry within that window of midnight; accepted.
+    // 11. Use the counted entry's Berlin day. A recovered or combined batch also supplies the
+    // exact deadline it observed, so a replacement reservation cannot admit its events.
     let viewN: number | undefined;
     if (later.length > 0) {
-      const entryDay =
-        entryCounted || entryExpiry === null || entryExpiry <= 0
-          ? day
-          : berlinDay(new Date(entryExpiry - config.pvTtlSeconds * 1000).toISOString());
       const recorded = await recordAtomicLater(write, {
         ns: batch.ns,
         pv: batch.pv,
         arm: batch.arm,
-        day: entryDay,
-        view: { ...view, entryExpiry },
+        day: entryExpiry === null ? day : berlinDay(new Date(entryExpiry - config.pvTtlSeconds * 1000).toISOString()),
+        ttlSeconds: config.pvTtlSeconds,
+        ...(entry === null ? {} : { view: { entryExpiry } }),
         items: later,
       });
       for (const { type, result } of recorded) {
@@ -380,6 +366,7 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     return finish(200, body, results.every((r) => r.outcome === 'counted') ? 'counted' : 'partial');
   } catch (e) {
     if (e instanceof Stop) return finish(e.status, e.body, e.outcome, e.reason);
+    if (e instanceof CountingClosed) return finish(200, { ok: false, reason: 'ended' }, 'refused', 'ended');
     // 12. The store failed (or a programming error): nothing is retried.
     if (isStoreError(e)) return finish(503, { ok: false, reason: 'unavailable' }, 'error', 'unavailable');
     return finish(500, { ok: false, reason: 'unavailable' }, 'error', 'internal');

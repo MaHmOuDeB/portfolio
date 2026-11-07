@@ -64,7 +64,7 @@ export function createSender(o: {
   }
   // The server starts the claim TTL after the first post. Starting here bounds the
   // replay conservatively without requiring the original response or a server clock.
-  const replayUntil = Date.now() + EXPERIMENT.pvTtlSeconds * 1000;
+  const replayUntil = performance.now() + EXPERIMENT.pvTtlSeconds * 1000;
   const pv = o.newId();
   const batch = (events: BeaconItem[]): BeaconBatch => ({ v: 1, ns: o.ns, pv, arm: o.arm, events });
   const items = (types: EventType[]): BeaconItem[] => types.map((type) => ({ type }));
@@ -135,7 +135,7 @@ export function createSender(o: {
       const unconfirmed = [...inFlight, ...waiting];
       inFlight = [];
       waiting = [];
-      if (unconfirmed[0] === 'entry' && Date.now() >= replayUntil) return;
+      if (unconfirmed[0] === 'entry' && performance.now() >= replayUntil) return;
       if (unconfirmed.length > 0) o.post(batch(items(unconfirmed)), 'beacon').catch(() => null);
     },
   };

@@ -5,21 +5,25 @@ import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { RedisUnavailable } from '@/lib/experiment/redis-rest';
 import {
   CorruptCounters,
-  claimEntry,
+  reserveAtomicEntry,
   countDailyEntry,
   countDailyEntryN,
-  countEntry,
+  finalizeAtomicEntry,
+  ATOMIC_ENTRY_SCRIPT,
+  ATOMIC_LATER_SCRIPT,
+  INCREMENT_EXPIRING_SCRIPT,
   rateLimit,
   readClosed,
   readCounters,
   readView,
   recordEvent,
-  recordLater,
+  recordAtomicLater,
   recordRejection,
   writeClosed,
 } from '@/lib/experiment/store';
 
 const NS = 'aa-v1';
+const OWNER = '0123456789abcdef0123456789abcdef';
 const PV = '3f2b8c1e-9a4d-4b6f-8e2a-1c5d7f9b0a3e';
 const PV2 = '7c1d2e3f-4a5b-4c6d-9e7f-8a9b0c1d2e3f';
 const DAY = '2026-11-20';
@@ -94,7 +98,7 @@ describe('recordEvent', () => {
     await expect(recordEvent(redis, ev('card'))).resolves.toMatchObject({ outcome: 'counted' });
     const claims = redis.entries().filter((e) => e.key.includes(PV));
     expect(claims.map((e) => e.key).sort()).toEqual(
-      [keys.claim(NS, PV, 'card'), keys.claim(NS, PV, 'entry'), keys.claim(NS, PV, 'inview')].sort(),
+      [keys.claim(NS, PV, 'entry')],
     );
     for (const c of claims) expect(c.expiresAt).toBe(1_763_629_200_000 + 1_800_000);
     at(1800.001);
@@ -125,21 +129,24 @@ describe('recordEvent', () => {
       await recordEvent(redis, ev(type));
     }
     const claims = redis.entries().filter((e) => e.key !== keys.counters(NS));
-    expect(claims).toHaveLength(EVENT_TYPES.length);
+    expect(claims).toHaveLength(1);
+    expect((await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true })).claims).toEqual(
+      Object.fromEntries(EVENT_TYPES.map(type => [type, 'a'])),
+    );
     for (const c of claims) expect(c.expiresAt).toBe(1_800_000);
   });
 });
 
-describe('claimEntry and countEntry (claim first, then check, then count)', () => {
-  const claimInput = (pv = PV) => ({ ns: NS, pv, ttlSeconds: TTL });
+describe('atomic entry reservation and finalization (claim first, then check, then count)', () => {
+  const claimInput = (pv = PV) => ({ ns: NS, pv, ttlSeconds: TTL, owner: OWNER });
 
-  /** The order the event route uses for one entry: claim; stop on duplicate; checks; a rejection row or countEntry. */
+  /** The order the event route uses for one entry: claim; stop on duplicate; checks; a rejection row or finalization. */
   async function handleEntry(
     redis: ReturnType<typeof createMemoryRedis>,
     o: { pv?: string; bot?: boolean; ceiling?: number } = {},
   ): Promise<string> {
     const pv = o.pv ?? PV;
-    if ((await claimEntry(redis, claimInput(pv))) === 'duplicate') return 'duplicate';
+    if ((await reserveAtomicEntry(redis, claimInput(pv))) === 'duplicate') return 'duplicate';
     if (o.bot === true) {
       await recordRejection(redis, { ns: NS, reason: 'bot', day: DAY });
       return 'bot';
@@ -149,7 +156,7 @@ describe('claimEntry and countEntry (claim first, then check, then count)', () =
       if (ceiling === 'ceiling-first') await recordRejection(redis, { ns: NS, reason: 'ceiling', day: DAY });
       return 'ceiling';
     }
-    const counted = await countEntry(redis, { ns: NS, pv, arm: 'a', day: DAY });
+    const counted = await finalizeAtomicEntry(redis, { ns: NS, pv, arm: 'a', day: DAY, owner: OWNER });
     return counted.outcome;
   }
 
@@ -158,11 +165,11 @@ describe('claimEntry and countEntry (claim first, then check, then count)', () =
       ((await redis.command(['HGETALL', keys.counters(NS)])) as string[]).flatMap((v, i, a) => (i % 2 === 0 ? [[v, a[i + 1]]] : [])),
     ) as Record<string, string>;
 
-  it('claimEntry writes a pending claim with the view TTL, then gives duplicate', async () => {
+  it('the reservation writes a pending claim with the view TTL, then gives duplicate', async () => {
     const { redis } = setup();
-    await expect(claimEntry(redis, claimInput())).resolves.toBe('claimed');
-    await expect(claimEntry(redis, claimInput())).resolves.toBe('duplicate');
-    expect(redis.entries()).toEqual([{ key: keys.claim(NS, PV, 'entry'), value: '-', expiresAt: 1_800_000 }]);
+    await expect(reserveAtomicEntry(redis, claimInput())).resolves.toBe('claimed');
+    await expect(reserveAtomicEntry(redis, claimInput())).resolves.toBe('duplicate');
+    expect(redis.entries()).toEqual([{ key: keys.claim(NS, PV, 'entry'), value: `pending:${OWNER}`, expiresAt: 1_800_000 }]);
   });
 
   it('a bot entry sent twice records r:bot once', async () => {
@@ -197,7 +204,7 @@ describe('claimEntry and countEntry (claim first, then check, then count)', () =
 
   it('a claimed entry that never got counted (a crash) leaves its later events orphans', async () => {
     const { redis } = setup();
-    await claimEntry(redis, claimInput());
+    await reserveAtomicEntry(redis, claimInput());
     await expect(recordEvent(redis, ev('inview'))).resolves.toEqual({ outcome: 'orphan' });
     // A pending claim with arm '-' can never satisfy the arm check, whatever the batch arm.
     await expect(recordEvent(redis, { ...ev('inview'), arm: '-' as 'a' })).resolves.toEqual({ outcome: 'orphan' });
@@ -207,37 +214,34 @@ describe('claimEntry and countEntry (claim first, then check, then count)', () =
   it('the promoted claim holds the arm and keeps its original PEXPIRETIME', async () => {
     const { redis, at } = setup();
     at(0);
-    await claimEntry(redis, claimInput());
+    await reserveAtomicEntry(redis, claimInput());
     at(10);
-    await expect(countEntry(redis, { ns: NS, pv: PV, arm: 'b', day: DAY })).resolves.toEqual({
+    await expect(finalizeAtomicEntry(redis, { ns: NS, pv: PV, arm: 'b', day: DAY, owner: OWNER })).resolves.toEqual({
       outcome: 'counted',
       arm: 'b',
       total: 1,
       dayTotal: 1,
+      expiresAt: 1_800_000,
     });
-    await expect(redis.command(['GET', keys.claim(NS, PV, 'entry')])).resolves.toBe('b');
+    expect((await readView(redis, { ns: NS, pv: PV, closed: false, expiry: false })).claims.entry).toBe('b');
     await expect(redis.command(['PEXPIRETIME', keys.claim(NS, PV, 'entry')])).resolves.toBe(1_800_000);
     at(20);
     await expect(recordEvent(redis, { ...ev('inview'), arm: 'b' })).resolves.toMatchObject({ outcome: 'counted' });
   });
 
-  it('countEntry counts and promotes in one transaction', async () => {
+  it('finalization promotes the entry and counts its pair within one script', async () => {
     const { redis } = setup();
-    await claimEntry(redis, claimInput());
-    const transaction = vi.spyOn(redis, 'transaction');
+    await reserveAtomicEntry(redis, claimInput());
     const command = vi.spyOn(redis, 'command');
-    await countEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY });
-    expect(transaction).toHaveBeenCalledWith([
-      ['HINCRBY', keys.counters(NS), 't:a:entry', 1],
-      ['HINCRBY', keys.counters(NS), `d:${DAY}:a:entry`, 1],
-      ['SET', keys.claim(NS, PV, 'entry'), 'a', 'XX', 'KEEPTTL'],
-    ]);
-    expect(command).not.toHaveBeenCalled();
+    await finalizeAtomicEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, owner: OWNER });
+    expect(command).toHaveBeenCalledTimes(1);
+    expect(command.mock.calls[0]![0].slice(0, 3)).toEqual(['EVAL', ATOMIC_ENTRY_SCRIPT, 9]);
+    expect(await hash(redis)).toEqual({ 't:a:entry': '1', [`d:${DAY}:a:entry`]: '1' });
   });
 
   it('an unexpected reply to the claim throws RedisUnavailable', async () => {
     const r = { command: async () => 'QUEUED', pipeline: async () => [], transaction: async () => [] };
-    await expect(claimEntry(r, claimInput())).rejects.toBeInstanceOf(RedisUnavailable);
+    await expect(reserveAtomicEntry(r, claimInput())).rejects.toBeInstanceOf(RedisUnavailable);
   });
 });
 
@@ -334,18 +338,11 @@ describe('rateLimit', () => {
     await everyRateKeyHasAShortTtl(redis);
   });
 
-  it('runs INCR and EXPIRE NX in one transaction (atomic), never as separate commands', async () => {
+  it('runs INCR and EXPIRE NX in one atomic script', async () => {
     const { redis } = setup();
-    const transaction = vi.spyOn(redis, 'transaction');
     const command = vi.spyOn(redis, 'command');
-    const pipeline = vi.spyOn(redis, 'pipeline');
     await rateLimit(redis, input(1));
-    expect(transaction).toHaveBeenCalledWith([
-      ['INCR', keys.rate(HASH, 1)],
-      ['EXPIRE', keys.rate(HASH, 1), 120, 'NX'],
-    ]);
-    expect(command).not.toHaveBeenCalled();
-    expect(pipeline).not.toHaveBeenCalled();
+    expect(command).toHaveBeenCalledExactlyOnceWith(['EVAL', INCREMENT_EXPIRING_SCRIPT, 1, keys.rate(HASH, 1), 120]);
   });
 
   it('refuses a raw address bucket at run time (and at the type level)', async () => {
@@ -445,7 +442,7 @@ describe('the closed marker', () => {
   );
 });
 
-describe('readView and recordLater (one snapshot read per batch)', () => {
+describe('view reads and atomic later batches', () => {
   it('readView reads the closed marker and every claim of the view in one MGET', async () => {
     const { redis } = setup();
     await recordEvent(redis, ev('entry'));
@@ -481,33 +478,27 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
     await expect(readView(other, { ns: NS, pv: PV, closed: true, expiry: false })).rejects.toBeInstanceOf(CorruptCounters);
   });
 
-  it('recordLater counts a batch in order: claims in one pipeline, counts in one transaction', async () => {
+  it('records a batch in order with one atomic script', async () => {
     const { redis } = setup();
     await recordEvent(redis, ev('entry'));
     const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
-    const pipeline = vi.spyOn(redis, 'pipeline');
-    const transaction = vi.spyOn(redis, 'transaction');
-    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card', 'cv'] });
+    const command = vi.spyOn(redis, 'command');
+    const results = await recordAtomicLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card', 'cv'] });
     expect(results).toEqual([
       { type: 'inview', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
       { type: 'card', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
       { type: 'cv', result: { outcome: 'counted', arm: 'a', total: 1, dayTotal: 1 } },
     ]);
-    expect(pipeline).toHaveBeenCalledTimes(1);
-    expect(transaction).toHaveBeenCalledTimes(1);
-    // Two HINCRBY per item, plus the inview claim's promotion from '-' to the arm.
-    expect(transaction.mock.calls[0]![0]).toHaveLength(7);
-    expect(transaction.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'inview'), 'a', 'XX', 'KEEPTTL']);
-    expect(pipeline.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'PXAT', 1_800_000]);
-    expect(pipeline.mock.calls[0]![0]).toContainEqual(['SET', keys.claim(NS, PV, 'card'), 'a', 'NX', 'PXAT', 1_800_000]);
+    expect(command).toHaveBeenCalledTimes(1);
+    expect(command.mock.calls[0]![0].slice(0, 3)).toEqual(['EVAL', ATOMIC_LATER_SCRIPT, 9]);
   });
 
   it('a pending inview claim (claimed, never counted) is not a prerequisite: card is an orphan', async () => {
     const { redis } = setup();
     await recordEvent(redis, ev('entry'));
-    await redis.command(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'EX', 100]);
+    await redis.command(['SET', keys.claim(NS, PV, 'entry'), `a|${DAY}|1800000|-00000`, 'XX', 'KEEPTTL']);
     const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
-    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
+    const results = await recordAtomicLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
     expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
       ['inview', 'duplicate'],
       ['card', 'orphan'],
@@ -519,8 +510,8 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
     await recordEvent(redis, ev('entry'));
     const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
     // A concurrent request claims inview after this snapshot and has not counted it yet.
-    await redis.command(['SET', keys.claim(NS, PV, 'inview'), '-', 'NX', 'EX', 100]);
-    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
+    await redis.command(['SET', keys.claim(NS, PV, 'entry'), `a|${DAY}|1800000|-00000`, 'XX', 'KEEPTTL']);
+    const results = await recordAtomicLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview', 'card'] });
     expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
       ['inview', 'duplicate'],
       ['card', 'orphan'],
@@ -532,7 +523,7 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
     const { redis } = setup();
     await recordEvent(redis, ev('entry'));
     const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
-    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['card', 'engaged'] });
+    const results = await recordAtomicLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['card', 'engaged'] });
     expect(results.map((r) => [r.type, r.result.outcome])).toEqual([
       ['card', 'orphan'],
       ['engaged', 'counted'],
@@ -546,7 +537,7 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
     await recordEvent(redis, ev('inview'));
     const view = await readView(redis, { ns: NS, pv: PV, closed: false, expiry: true });
     const pipeline = vi.spyOn(redis, 'pipeline');
-    const results = await recordLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview'] });
+    const results = await recordAtomicLater(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, view, items: ['inview'] });
     expect(results).toEqual([{ type: 'inview', result: { outcome: 'duplicate' } }]);
     expect(pipeline).not.toHaveBeenCalled();
   });
@@ -554,29 +545,29 @@ describe('readView and recordLater (one snapshot read per batch)', () => {
   it('a pending, missing, foreign or expiry-less entry claim makes every item an orphan', async () => {
     for (const claims of [{}, { entry: '-' }, { entry: 'b' }] as const) {
       const { redis } = setup();
-      const results = await recordLater(redis, {
-        ns: NS, pv: PV, arm: 'a', day: DAY, view: { closed: null, claims, entryExpiry: 1_800_000 }, items: ['inview'],
+      if ('entry' in claims && claims.entry !== undefined) await redis.command(['SET', keys.claim(NS, PV, 'entry'), claims.entry, 'EX', TTL]);
+      const before = redis.entries();
+      const results = await recordAtomicLater(redis, {
+        ns: NS, pv: PV, arm: 'a', day: DAY, view: { entryExpiry: 1_800_000 }, items: ['inview'],
       });
       expect(results).toEqual([{ type: 'inview', result: { outcome: 'orphan' } }]);
-      expect(redis.entries()).toEqual([]);
+      expect(redis.entries()).toEqual(before);
     }
     const { redis } = setup();
     for (const entryExpiry of [null, -1, -2]) {
-      const results = await recordLater(redis, {
-        ns: NS, pv: PV, arm: 'a', day: DAY, view: { closed: null, claims: { entry: 'a' }, entryExpiry }, items: ['inview'],
+      const results = await recordAtomicLater(redis, {
+        ns: NS, pv: PV, arm: 'a', day: DAY, view: { entryExpiry }, items: ['inview'],
       });
       expect(results).toEqual([{ type: 'inview', result: { outcome: 'orphan' } }]);
     }
   });
 
-  it('countEntry with expiry returns the entry claim’s absolute expiry in the same transaction', async () => {
+  it('finalization returns the original absolute expiry', async () => {
     const { redis } = setup();
-    await claimEntry(redis, { ns: NS, pv: PV, ttlSeconds: TTL });
-    const transaction = vi.spyOn(redis, 'transaction');
-    await expect(countEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, withExpiry: true })).resolves.toEqual({
+    await reserveAtomicEntry(redis, { ns: NS, pv: PV, ttlSeconds: TTL, owner: OWNER });
+    await expect(finalizeAtomicEntry(redis, { ns: NS, pv: PV, arm: 'a', day: DAY, owner: OWNER })).resolves.toEqual({
       outcome: 'counted', arm: 'a', total: 1, dayTotal: 1, expiresAt: 1_800_000,
     });
-    expect(transaction.mock.calls[0]![0]).toHaveLength(4);
   });
 });
 

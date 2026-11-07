@@ -1,3 +1,5 @@
+import { readView } from '@/lib/experiment/store';
+import { COMMANDS_PER_FULL_VIEW } from './budget';
 import { createHmac } from 'node:crypto';
 import type { ServerEnv } from '@/lib/env';
 import { EXPERIMENT, type ExperimentConfig } from '@/experiment.config';
@@ -568,9 +570,9 @@ describe('11. record', () => {
     const s = setup({
       write: (redis) => ({
         ...redis,
-        async transaction(cs) {
-          const result = await redis.transaction(cs);
-          if (expireFirst && cs[0]?.[1] === keys.ceiling(NS, DAY)) s.advance(CONFIG.pvTtlSeconds * 1000);
+        async command(c) {
+          const result = await redis.command(c);
+          if (expireFirst && c[0] === 'EVAL' && c[3] === keys.ceiling(NS, DAY)) s.advance(CONFIG.pvTtlSeconds * 1000);
           return result;
         },
       }),
@@ -607,8 +609,9 @@ describe('11. record', () => {
 
     expect(await s.post(flush)).toMatchObject({ status: 503, json: refused('unavailable') });
     expect(await s.hash()).toEqual(lost === 'entry' ? pairs('entry') : pairs('entry', 'inview', 'card'));
-    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'entry')])).resolves.toBe('a');
-    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'inview')])).resolves.toBe(lost === 'entry' ? null : 'a');
+    const { claims } = await readView(s.redis, { ns: NS, pv: PV, closed: false, expiry: false });
+    expect(claims.entry).toBe('a');
+    expect(claims.inview).toBe(lost === 'entry' ? undefined : 'a');
 
     const replay = lost === 'entry' ? 'counted' : 'duplicate';
     expect((await s.post(flush)).json).toEqual(ok(
@@ -622,14 +625,13 @@ describe('11. record', () => {
     expect(s.newDays).toEqual([[NS, DAY]]);
   });
 
-  it.each([-1, 0, 1])('rechecks later expiry after the admission snapshot at offset %i ms', async (offset) => {
+  it.each([-1, 0, 1])('checks later expiry at execution at offset %i ms', async (offset) => {
     const s = setup({
       write: (redis) => ({
         ...redis,
-        async pipeline(cs) {
-          const result = await redis.pipeline(cs);
-          if (cs.some(c => c[0] === 'PEXPIRETIME')) s.advance(2);
-          return result;
+        async command(c) {
+          if (c[0] === 'EVAL' && c[1] === ATOMIC_LATER_SCRIPT) s.advance(2);
+          return redis.command(c);
         },
       }),
     });
@@ -714,7 +716,9 @@ describe('11. record', () => {
     s.advance(29 * 60_000);
     await s.post(body(['inview', 'card']));
     const claims = s.redis.entries().filter((e) => e.key.includes(':pv:'));
-    expect(claims).toHaveLength(3);
+    expect(claims).toHaveLength(1);
+    expect((await readView(s.redis, { ns: NS, pv: PV, closed: false, expiry: false })).claims)
+      .toEqual({ entry: 'a', inview: 'a', card: 'a' });
     const entryExpiry = claims.find((e) => e.key.endsWith(':entry'))!.expiresAt;
     expect(entryExpiry).toBe(Date.parse(NOW) + 1_800_000);
     for (const c of claims) expect(c.expiresAt).toBe(entryExpiry);
@@ -807,8 +811,9 @@ describe('a prerequisite is never satisfied by a claim that was not counted', ()
     const s = setup();
     await s.post(body(['entry']));
     await s.post(body(['inview']));
-    await expect(s.redis.command(['GET', keys.claim(NS, PV, 'inview')])).resolves.toBe('a');
-    await expect(s.redis.command(['PEXPIRETIME', keys.claim(NS, PV, 'inview')])).resolves.toBe(Date.parse(NOW) + 1_800_000);
+    await expect(readView(s.redis, { ns: NS, pv: PV, closed: false, expiry: true })).resolves.toMatchObject({
+      claims: { entry: 'a', inview: 'a' }, entryExpiry: Date.parse(NOW) + 1_800_000,
+    });
     expect((await s.post(body(['card']))).json).toEqual(ok([['card', 'counted']]));
   });
 
@@ -854,12 +859,12 @@ describe('bounded rereads of a duplicate pending entry', () => {
     const s = setup({
       write: (redis) => ({
         ...redis,
-        async transaction(cs) {
-          if (cs[0]?.[1] === keys.ceiling(NS, DAY)) {
+        async command(c) {
+          if (c[0] === 'EVAL' && c[3] === keys.ceiling(NS, DAY)) {
             atCeiling.resolve();
             await releaseEntry.promise;
           }
-          return redis.transaction(cs);
+          return redis.command(c);
         },
         async pipeline(cs) {
           const values = await redis.pipeline(cs);
@@ -886,9 +891,9 @@ describe('bounded rereads of a duplicate pending entry', () => {
         ok([['entry', 'duplicate'], ['inview', 'counted'], ['card', 'counted']], { arm, viewN: 1 }),
       );
       expect(rereadTimes).toEqual([0, 100]);
-      await expect(s.redis.pipeline(
-        (['entry', 'inview', 'engaged', 'card'] as const).map((type) => ['GET', keys.claim(NS, PV, type)]),
-      )).resolves.toEqual([arm, arm, null, arm]);
+      await expect(readView(s.redis, { ns: NS, pv: PV, closed: false, expiry: false })).resolves.toMatchObject({
+        claims: { entry: arm, inview: arm, card: arm },
+      });
       expect(await s.hash()).toMatchObject({
         [`t:${arm}:entry`]: '1',
         [`t:${arm}:inview`]: '1',
@@ -985,15 +990,15 @@ describe('bounded rereads of a duplicate pending entry', () => {
 });
 
 describe('12. errors', () => {
-  it('a store whose transaction throws gives 503 unavailable, logged, nothing retried', async () => {
+  it('a store whose rate script throws gives 503 unavailable, logged, nothing retried', async () => {
     let calls = 0;
     const s = setup({
       write: (redis) => ({
-        command: (c) => redis.command(c),
+        transaction: (cs) => redis.transaction(cs),
         pipeline: (cs) => redis.pipeline(cs),
-        transaction: async () => {
+        command: async () => {
           calls += 1;
-          throw new RedisUnavailable('transaction failed (network)');
+          throw new RedisUnavailable('rate script failed (network)');
         },
       }),
     });
@@ -1042,7 +1047,7 @@ describe('logs', () => {
   });
 });
 
-/** Counts the Redis commands sent (each item of a pipeline or transaction is one command). */
+/** Counts the Redis commands sent, including MULTI and EXEC. */
 function counting(redis: RedisRest) {
   let n = 0;
   return {
@@ -1051,7 +1056,7 @@ function counting(redis: RedisRest) {
     client: {
       command: (c) => ((n += 1), redis.command(c)),
       pipeline: (cs) => ((n += cs.length), redis.pipeline(cs)),
-      transaction: (cs) => ((n += cs.length), redis.transaction(cs)),
+      transaction: (cs) => ((n += cs.length + 2), redis.transaction(cs)),
     } satisfies RedisRest,
   };
 }
@@ -1082,24 +1087,27 @@ describe('the command budget', () => {
 
   it('meters outer and inner commands separately for a full 7-event view in 4 requests', async () => {
     const { each, innerEach, total } = await measure([{ events: ['entry'] }, { events: ['inview'] }, { events: ['engaged'] }, { events: ['card', 'secondary', 'cv', 'contact'] }]);
-    expect(each).toEqual([7, 5, 5, 5]);
-    expect(innerEach).toEqual([8, 14, 14, 20]);
-    expect(total + innerEach.reduce((a, b) => a + b, 0)).toBe(78);
+    const cost = total + innerEach.reduce((a, b) => a + b, 0);
+    expect(each).toEqual([5, 2, 2, 2]);
+    expect(innerEach).toEqual([12, 9, 8, 8]);
+    expect(cost).toBe(COMMANDS_PER_FULL_VIEW);
   });
 
-  it('a full view in one flush costs 8 outer commands; in 7 single requests, 37', async () => {
+  it('meters a full view in one flush and in seven single requests', async () => {
     const all: EventType[] = ['entry', 'inview', 'engaged', 'card', 'secondary', 'cv', 'contact'];
-    expect((await measure([{ events: all }])).total).toBe(8);
-    expect((await measure(all.map((t) => ({ events: [t] })))).total).toBe(37);
+    const flush = await measure([{ events: all }]);
+    const fragmented = await measure(all.map((t) => ({ events: [t] })));
+    expect(flush.total + flush.innerEach.reduce((a, b) => a + b, 0)).toBe(25);
+    expect(fragmented.total + fragmented.innerEach.reduce((a, b) => a + b, 0)).toBe(78);
   });
 
-  it('a bot-refused entry costs 6; a re-sent one 4; its later batch 5', async () => {
+  it('meters a bot-refused entry, its repeat and its later orphan', async () => {
     const bot = { 'user-agent': 'Googlebot/2.1' };
-    const { each } = await measure([{ events: ['entry'], headers: bot }, { events: ['entry'], headers: bot }, { events: ['inview', 'card'] }]);
-    expect(each).toEqual([6, 4, 5]);
+    const { each, innerEach } = await measure([{ events: ['entry'], headers: bot }, { events: ['entry'], headers: bot }, { events: ['inview', 'card'] }]);
+    expect(each.map((n, i) => n + innerEach[i]!)).toEqual([9, 5, 12]);
   });
 
-  it('a rate-limited entry costs 2 (4 for the first, which records the rejection); a refusal before the store costs 0', async () => {
+  it('counts rate-limited requests, including the first rejection write, and pre-store refusals', async () => {
     const batches = Array.from({ length: 32 }, (_, i) => ({ events: [{ type: 'entry' as const, reject: 'not_entry' as const }], n: i }));
     let meter: ReturnType<typeof counting> | undefined;
     const s = setup({
@@ -1114,8 +1122,8 @@ describe('the command budget', () => {
       await s.post(body([{ type: 'entry', reject: 'not_entry' }], { pv: pvOf(i + 1) }));
       each.push(meter!.count());
     }
-    expect(each.slice(0, 30).every((n) => n === 6)).toBe(true);
-    expect(each.slice(30)).toEqual([4, 2]);
+    expect(each.slice(0, 30).every((n) => n === 7)).toBe(true);
+    expect(each.slice(30)).toEqual([5, 1]);
     meter!.reset();
     await s.post(body(['entry']), { origin: 'https://evil.example' });
     await s.post(body(['entry'], { ns: 'aa-v0' }));

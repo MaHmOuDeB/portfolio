@@ -459,17 +459,20 @@ describe('createEngagement', () => {
 
 describe('entry replay lifetime', () => {
   it.each([1799999, 1800000])('bounds ambiguous entry replay at %i ms', async (elapsed) => {
-    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    const wall = vi.spyOn(Date, 'now').mockReturnValue(1000);
     try {
       const h = harness();
       h.calls[0]!.resolve(null);
       await settle();
       h.sender.enqueue('inview', 'card');
+      wall.mockReturnValue(1);
       clock.mockReturnValue(1000 + elapsed);
       h.sender.flush();
       expect(h.calls).toHaveLength(elapsed < 1800000 ? 2 : 1);
     } finally {
       clock.mockRestore();
+      wall.mockRestore();
     }
   });
 });

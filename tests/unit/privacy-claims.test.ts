@@ -80,13 +80,19 @@ describe('"The per-view id is deleted from the database at most 30 minutes after
     const sent = s.now();
     await s.post(['entry']);
     s.advance((EXPERIMENT.pvTtlSeconds - 1) * 1000);
-    await s.post(['inview', 'card', 'cv']);
+    const later = await s.post(['inview', 'card', 'cv']);
+    expect(await later.json()).toMatchObject({
+      ok: true,
+      results: ['inview', 'card', 'cv'].map(type => ({ type, outcome: 'counted' })),
+    });
     const withId = s.redis.entries().filter((e) => e.key.includes(PV));
-    expect(withId.length).toBeGreaterThan(1);
+    expect(withId).toHaveLength(1);
     for (const e of withId) {
       expect(e.expiresAt, e.key).not.toBeNull();
       expect(e.expiresAt! - sent, e.key).toBeLessThanOrEqual(EXPERIMENT.pvTtlSeconds * 1000);
     }
+    s.advance(1000);
+    expect(s.redis.entries().filter(e => e.key.includes(PV))).toEqual([]);
     // No field of the lasting counters names the id.
     expect(JSON.stringify(s.redis.entries().filter((e) => e.expiresAt === null))).not.toContain(PV);
   });
