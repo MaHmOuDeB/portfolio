@@ -43,7 +43,7 @@ export function Segmented<V extends string>({ name, legend, options, value, onCh
             >
               <input
                 type="radio"
-                className="absolute inset-0 m-0 size-full opacity-0"
+                className="sr-only"
                 name={name}
                 value={option.value}
                 checked={checked}
