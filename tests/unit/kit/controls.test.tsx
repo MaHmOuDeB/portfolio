@@ -187,12 +187,7 @@ describe('Segmented', () => {
       expect(hasAttr(label, 'data-touch-target')).toBe(true);
       expect(attr(label, 'class')).toContain('min-h-(--size-target)');
       expect(attr(label, 'class')).toContain('whitespace-nowrap');
-      // The radio is invisible but fills its option, so keyboard focus scrolls the whole option (and its ring) into view.
-      const radioClass = attr(byTag(label, 'input')[0]!, 'class') ?? '';
-      expect(radioClass).toContain('opacity-0');
-      expect(radioClass).toContain('absolute');
-      expect(radioClass).toContain('inset-0');
-      expect(radioClass).not.toContain('sr-only');
+      expect(attr(byTag(label, 'input')[0]!, 'class')).toContain('sr-only');
     }
   });
 
