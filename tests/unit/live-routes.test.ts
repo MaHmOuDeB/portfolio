@@ -20,6 +20,20 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
   return routes;
 }
 
+/**
+ * The URL a visitor uses for a page. The home page is one static page per group under /v/[arm]: the
+ * proxy rewrites / to it and answers a direct /v/* with the 404 page, so it stands for /.
+ */
+function visitorRoute(route: string): string {
+  return route === '/v/[arm]' ? '/' : route;
+}
+
 test('LIVE_ROUTES lists exactly the pages that ship', () => {
-  expect([...LIVE_ROUTES].sort()).toEqual(pageRoutes(app).sort());
+  expect([...LIVE_ROUTES].sort()).toEqual(pageRoutes(app).map(visitorRoute).sort());
+});
+
+test('the home page is the per-group page, and no other page sits at /', () => {
+  const routes = pageRoutes(app);
+  expect(routes).toContain('/v/[arm]');
+  expect(routes).not.toContain('/');
 });

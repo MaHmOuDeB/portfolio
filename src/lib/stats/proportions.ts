@@ -6,8 +6,8 @@
  * `normalCdf` is accurate in the lower tail only, so every upper-tail or two-sided probability
  * here is written as `normalCdf(-x)`; that keeps tiny p-values free of cancellation.
  */
-import { normalCdf, normalQuantile } from './normal';
-import { checkAlpha, checkArm } from './validate';
+import { normalCdf, normalQuantile } from './normal.ts';
+import { checkAlpha, checkArm } from './validate.ts';
 
 /** Successes and trials for the two arms: A is the control, B is the treatment. */
 export type Counts = { xA: number; nA: number; xB: number; nB: number };

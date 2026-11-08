@@ -91,6 +91,11 @@
     font-feature-settings: "cv05";
   }
 
+  /* Leave room for the external focus outline when native scrolling aligns a control to the bottom. */
+  html {
+    scroll-padding-block-end: calc(var(--spacing) * 2);
+  }
+
   /*
    * The header is sticky only where it is safe: from md up (48rem) and on a screen at least 700 px
    * (43.75rem) tall. Below that height it would take more than a tenth of the screen, so it scrolls

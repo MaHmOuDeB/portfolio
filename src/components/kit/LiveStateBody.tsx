@@ -28,6 +28,7 @@ import {
   type LiveSnapshot,
 } from '@/lib/figure/cs-band';
 import { formatNumber, formatSignedNumber } from '@/lib/figure/format';
+import { EXPERIMENT } from '@/experiment.values';
 import { MIN_PER_GROUP, type FigureBody } from '@/lib/figure/states';
 import { berlinDate } from '@/lib/figure/time';
 import { ConfidenceChart } from './ConfidenceChart';
@@ -37,12 +38,13 @@ type Props = {
   snapshot: LiveSnapshot;
   body: FigureBody;
   /** The Figure's id, for the chart. */
-  id?: string;
-  refs?: readonly DerivedRef[];
+  id: string;
+  /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
+  refs: readonly DerivedRef[];
 };
 
 /** The quick-exit guardrail's window, from the pre-registration. */
-const GUARDRAIL_SECONDS = 5;
+const GUARDRAIL_SECONDS: number = EXPERIMENT.guardrail.quickExitSeconds;
 
 const P = 'max-w-text text-base';
 
@@ -150,7 +152,7 @@ function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 
   );
 }
 
-export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: Props) {
+export function LiveStateBody({ snapshot, body, id, refs }: Props) {
   const own = body === 'paused' || body === 'error' || body === 'default' ? contentBody(snapshot) : body;
   const chart = <ConfidenceChart id={id} snapshot={snapshot} body={body} refs={refs} />;
   const f = snapshot.freshness;
@@ -238,8 +240,13 @@ export function LiveStateBody({ snapshot, body, id = 'live', refs = ['live'] }: 
       content = a ? (
         <>
           <p className={P}>
-            Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}. Calibration restarts on{' '}
-            <When iso={a.restartsOn} refs={refs} />.
+            Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}.
+            {a.restartsOn ? (
+              <>
+                {' '}
+                Calibration restarts on <When iso={a.restartsOn} refs={refs} />.
+              </>
+            ) : null}
           </p>
           <p className={`mt-2 ${P}`}>
             Views when it stopped: <Derived value={safeCount(snapshot.nA)} unit="count" refs={refs} /> in A,{' '}

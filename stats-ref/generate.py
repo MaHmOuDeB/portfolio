@@ -442,6 +442,106 @@ def make_mixture_cs() -> list:
 
 
 # ---------------------------------------------------------------------------
+# detectable effect under the confidence sequence
+# ---------------------------------------------------------------------------
+
+DETECTABLE_EFFECT_CS_CASES = [
+    # (nPerArm, baseline, alpha, power, nTune, baselineTune); tau2 is tuned at (nTune, baselineTune).
+    (225, 0.10, 0.05, 0.8, 225, 0.10),
+    (225, 0.15, 0.05, 0.8, 225, 0.15),
+    (225, 0.20, 0.05, 0.8, 225, 0.20),
+    (225, 0.30, 0.05, 0.8, 225, 0.30),
+    (200, 0.15, 0.05, 0.8, 225, 0.15),
+    (250, 0.15, 0.05, 0.8, 225, 0.15),
+    (50, 0.15, 0.05, 0.8, 225, 0.15),
+    (1000, 0.15, 0.05, 0.8, 225, 0.15),
+    (225, 0.15, 0.10, 0.8, 225, 0.15),
+    (225, 0.15, 0.05, 0.9, 225, 0.15),
+    (225, 0.50, 0.05, 0.8, 225, 0.50),
+    (225, 0.90, 0.05, 0.8, 225, 0.90),
+    (5, 0.10, 0.05, 0.8, 225, 0.10),
+]
+
+# Cases with no rise up to 100% that the interval excludes 0 with the stated power.
+DETECTABLE_EFFECT_CS_UNDETECTABLE_CASES = [
+    (5, 0.15, 0.05, 0.8, 225, 0.15),
+    (2, 0.50, 0.05, 0.8, 225, 0.50),
+    (20, 0.85, 0.05, 0.8, 225, 0.85),
+]
+
+DETECTABLE_EFFECT_CS_GRID = 100_000
+
+
+def detectable_effect_cs(n: int, baseline: float, alpha: float, power: float, tau2: float):
+    """Smallest d in (0, 1 - baseline] with d - hw(V(d)) - z_{1-beta} sqrt(V(d)) >= 0, else None.
+
+    One look at n per arm, normal approximation, unpooled variance under the alternative; hw is the
+    half-width of the normal-mixture confidence sequence at variance V.
+    """
+    z_power = float(stats.norm.ppf(power))
+
+    def f(d: float) -> float:
+        p2 = baseline + d
+        v = (baseline * (1 - baseline) + p2 * (1 - p2)) / n
+        hw = math.sqrt(v * (1 + v / tau2) * (-2 * math.log(alpha) + math.log1p(tau2 / v)))
+        return d - hw - z_power * math.sqrt(v)
+
+    top = 1 - baseline
+    prev = 0.0
+    for i in range(1, DETECTABLE_EFFECT_CS_GRID + 1):
+        d = top * i / DETECTABLE_EFFECT_CS_GRID
+        if f(d) >= 0:
+            if f(prev) >= 0:
+                return prev  # only possible at the first step if f(0) >= 0, which cannot happen
+            return float(optimize.brentq(f, prev, d, xtol=1e-15, rtol=4 * np.finfo(float).eps))
+        prev = d
+    return None
+
+
+def cs_tau2(alpha: float, n_tune: int, baseline_tune: float) -> float:
+    return round12(optimal_ratio(alpha) * 2 * baseline_tune * (1 - baseline_tune) / n_tune)
+
+
+def make_detectable_effect_cs() -> list:
+    out = []
+    for n, baseline, alpha, power, n_tune, baseline_tune in DETECTABLE_EFFECT_CS_CASES:
+        tau2 = cs_tau2(alpha, n_tune, baseline_tune)
+        mde = detectable_effect_cs(n, baseline, alpha, power, tau2)
+        assert mde is not None, f"detectableEffectCs case has no root: n={n} baseline={baseline}"
+        out.append(
+            {
+                "alpha": alpha,
+                "baseline": baseline,
+                "mde": mde,
+                "nPerArm": n,
+                "power": power,
+                "tau2": tau2,
+            }
+        )
+    # Only the alpha 0.05, power 0.8 cases: other cases share (nPerArm, baseline).
+    by_key = {
+        (c["nPerArm"], c["baseline"]): c["mde"]
+        for c in out
+        if c["alpha"] == 0.05 and c["power"] == 0.8
+    }
+    # The roadmap's "about 13.5 points" (baseline 0.10) and the spec's "about 15" (baseline 0.15).
+    assert abs(by_key[(225, 0.10)] - 0.1347) < 1e-3, by_key[(225, 0.10)]
+    assert abs(by_key[(225, 0.15)] - 0.1504) < 1e-3, by_key[(225, 0.15)]
+    return out
+
+
+def make_detectable_effect_cs_undetectable() -> list:
+    out = []
+    for n, baseline, alpha, power, n_tune, baseline_tune in DETECTABLE_EFFECT_CS_UNDETECTABLE_CASES:
+        tau2 = cs_tau2(alpha, n_tune, baseline_tune)
+        assert detectable_effect_cs(n, baseline, alpha, power, tau2) is None, (n, baseline)
+        out.append(
+            {"alpha": alpha, "baseline": baseline, "nPerArm": n, "power": power, "tau2": tau2}
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # simulations
 # ---------------------------------------------------------------------------
 
@@ -587,6 +687,8 @@ def main(argv: list[str]) -> None:
     out = Path(argv[1]) if len(argv) > 1 else OUT
     reference = {
         "detectableEffect": make_detectable_effect(),
+        "detectableEffectCs": make_detectable_effect_cs(),
+        "detectableEffectCsUndetectable": make_detectable_effect_cs_undetectable(),
         "meta": make_meta(),
         "mixtureCs": make_mixture_cs(),
         "mixtureRatio": make_mixture_ratio(),

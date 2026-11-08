@@ -12,7 +12,7 @@ export default function NotFound() {
       <p className="mt-4">
         There is no page at this address. Check the address, or start from one of these pages.
       </p>
-      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 [&>a[href='/lab']]:min-w-(--size-target)">
         <ButtonLink href="/work" variant="primary">
           Work
         </ButtonLink>

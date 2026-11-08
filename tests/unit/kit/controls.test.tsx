@@ -187,7 +187,10 @@ describe('Segmented', () => {
       expect(hasAttr(label, 'data-touch-target')).toBe(true);
       expect(attr(label, 'class')).toContain('min-h-(--size-target)');
       expect(attr(label, 'class')).toContain('whitespace-nowrap');
+      // The radio is a 1px hidden element at the option's centre; its scroll margin makes keyboard focus
+      // scroll the whole 44px option and its ring into view instead of just that pixel.
       expect(attr(byTag(label, 'input')[0]!, 'class')).toContain('sr-only');
+      expect(attr(byTag(label, 'input')[0]!, 'class')).toContain('scroll-my-8');
     }
   });
 

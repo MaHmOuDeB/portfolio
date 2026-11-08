@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test as base } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { clientAddress, startClientProxy, type ClientProxy } from './client-proxy';
 
 const INTERNAL_MESSAGE = 'portfolio-internal-traffic';
 
@@ -11,9 +12,33 @@ function internalHeaders(): Record<string, string> {
   return { 'x-internal': createHmac('sha256', secret).update(INTERNAL_MESSAGE).digest('hex') };
 }
 
-// This fixture overrides extraHTTPHeaders wholesale, so a config-level use.extraHTTPHeaders would be clobbered.
-export const test = base.extend({
-  extraHTTPHeaders: internalHeaders(),
+// Allocation is unique within one runner invocation and its fresh fake-store lifecycle.
+let executionOrdinal = 0;
+export const test = base.extend<{ clientIdentity: string; clientNetwork: ClientProxy | undefined }>({
+  clientIdentity: async ({}, provide, testInfo) => {
+    const ordinal = ++executionOrdinal;
+    const address = clientAddress(testInfo.workerIndex, ordinal);
+    testInfo.annotations.push({ type: 'client-address', description: JSON.stringify({
+      address, workerIndex: testInfo.workerIndex, ordinal, testId: testInfo.testId,
+      project: testInfo.project.name, repeatEachIndex: testInfo.repeatEachIndex, retry: testInfo.retry,
+    }) });
+    await provide(address);
+  },
+  clientNetwork: async ({ baseURL, browserName, clientIdentity }, provide) => {
+    // WebKit sends unload beacons with the context headers. Its HTTP proxy path
+    // can send absolute-form subresource requests directly to Next's listener.
+    if (browserName === 'webkit') {
+      await provide(undefined);
+      return;
+    }
+    if (!baseURL) throw new Error('the client proxy requires baseURL');
+    const network = await startClientProxy(baseURL, clientIdentity, internalHeaders());
+    try { await provide(network); } finally { await network.close(); }
+  },
+  proxy: async ({ clientNetwork }, provide) => { await provide(clientNetwork && { server: clientNetwork.server }); },
+  extraHTTPHeaders: async ({ clientIdentity }, provide) => {
+    await provide({ ...internalHeaders(), 'x-forwarded-for': clientIdentity, 'x-real-ip': clientIdentity });
+  },
 });
 
 export async function expectNoA11yViolations(page: Page): Promise<void> {

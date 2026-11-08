@@ -3,10 +3,13 @@ import {
   SAMPLE_SIZE_FORMULA,
   cohensH,
   detectableEffect,
+  detectableEffectCs,
   durationWeeks,
   sampleSizePerArm,
   type PlanInput,
 } from '@/lib/stats/power';
+import { binomial, sfc32 } from '@/lib/stats/rng';
+import { mixtureCs, optimalTau2 } from '@/lib/stats/sequential';
 import { ref } from './reference';
 
 // Fixed seed: the property tests are deterministic in CI.
@@ -280,6 +283,108 @@ describe('detectableEffect', () => {
     const o = { baseline: 0.5, alpha: 0.05, power: 0.8 };
     expect(detectableEffect({ ...o, nPerArm: 5 })).toBe(Number.POSITIVE_INFINITY);
     expect(Number.isFinite(detectableEffect({ ...o, nPerArm: 10000 }))).toBe(true);
+  });
+});
+
+describe('detectableEffectCs', () => {
+  const tuned = (baseline: number, alpha = 0.05) =>
+    optimalTau2({ baseline, nCapPerArm: 225, alpha });
+
+  it('matches every detectableEffectCs reference case within 1e-9', () => {
+    expect(ref.detectableEffectCs.length).toBeGreaterThan(0);
+    for (const c of ref.detectableEffectCs) {
+      const d = detectableEffectCs(c);
+      expect(
+        Math.abs(d - c.mde),
+        `n=${c.nPerArm} baseline=${c.baseline} alpha=${c.alpha} power=${c.power}`,
+      ).toBeLessThanOrEqual(TOL);
+    }
+  });
+
+  it('returns Infinity for every undetectable reference case', () => {
+    expect(ref.detectableEffectCsUndetectable.length).toBeGreaterThan(0);
+    for (const c of ref.detectableEffectCsUndetectable) {
+      expect(detectableEffectCs(c), `n=${c.nPerArm} baseline=${c.baseline}`).toBe(
+        Number.POSITIVE_INFINITY,
+      );
+    }
+  });
+
+  it('needs about 45% more than the one-look effect at 225 per group', () => {
+    const o = { nPerArm: 225, baseline: 0.1, alpha: 0.05, power: 0.8 };
+    const ratio = detectableEffectCs({ ...o, tau2: tuned(0.1) }) / detectableEffect(o);
+    expect(ratio).toBeGreaterThanOrEqual(1.38);
+    expect(ratio).toBeLessThanOrEqual(1.5);
+  });
+
+  it('never increases with more views', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 50, max: 5000 }),
+        fc.integer({ min: 1, max: 2000 }),
+        fc.double({ min: 0.02, max: 0.6, noNaN: true }),
+        (n, k, baseline) => {
+          const o = { baseline, tau2: tuned(baseline), alpha: 0.05, power: 0.8 };
+          const atN = detectableEffectCs({ ...o, nPerArm: n });
+          const atMore = detectableEffectCs({ ...o, nPerArm: n + k });
+          return atMore <= atN + 1e-12;
+        },
+      ),
+      FC,
+    );
+  });
+
+  it('has about the stated power at the final look', () => {
+    const baseline = 0.15;
+    const tau2 = tuned(baseline);
+    const n = 225;
+    const d = detectableEffectCs({ nPerArm: n, baseline, tau2, alpha: 0.05, power: 0.8 });
+    const rng = sfc32(42);
+    const runs = 4000;
+    let detected = 0;
+    for (let i = 0; i < runs; i += 1) {
+      const xA = binomial(rng, n, baseline);
+      const xB = binomial(rng, n, baseline + d);
+      if (mixtureCs({ xA, nA: n, xB, nB: n }, { tau2 }).lower > 0) detected += 1;
+    }
+    const share = detected / runs;
+    expect(share).toBeGreaterThanOrEqual(0.75);
+    expect(share).toBeLessThanOrEqual(0.85);
+  });
+
+  it('stays finite and near zero for an astronomically large n, where tau2 / V overflows', () => {
+    const d = detectableEffectCs({
+      nPerArm: 1e308,
+      baseline: 0.15,
+      tau2: 1,
+      alpha: 0.05,
+      power: 0.8,
+    });
+    expect(Number.isFinite(d)).toBe(true);
+    expect(d).toBeGreaterThan(0);
+    expect(d).toBeLessThan(1e-12);
+  });
+
+  it('throws a RangeError naming the offending argument', () => {
+    const ok = { nPerArm: 225, baseline: 0.15, tau2: 0.0093, alpha: 0.05, power: 0.8 };
+    // Zero exposures, a fraction of a view, and non-finite counts.
+    for (const nPerArm of [0, 0.5, Number.NaN, Infinity]) {
+      expect(() => detectableEffectCs({ ...ok, nPerArm })).toThrow(RangeError);
+      expect(() => detectableEffectCs({ ...ok, nPerArm })).toThrow(/nPerArm/);
+    }
+    for (const tau2 of [0, -1, Number.NaN, Infinity]) {
+      expect(() => detectableEffectCs({ ...ok, tau2 })).toThrow(RangeError);
+      expect(() => detectableEffectCs({ ...ok, tau2 })).toThrow(/tau2/);
+    }
+    for (const baseline of [0, 1]) {
+      expect(() => detectableEffectCs({ ...ok, baseline })).toThrow(/baseline/);
+    }
+    for (const alpha of [0, 1]) {
+      expect(() => detectableEffectCs({ ...ok, alpha })).toThrow(/alpha/);
+    }
+    for (const power of [ok.alpha, 1]) {
+      expect(() => detectableEffectCs({ ...ok, power })).toThrow(/power/);
+    }
   });
 });
 

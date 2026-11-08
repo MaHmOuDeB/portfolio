@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FRESHNESS, FRESHNESS_KINDS, liveFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
 import { shownSeries } from '@/lib/figure/cs-band';
-import { DATA_AMOUNTS, LIVE_PHASES } from '@/lib/figure/states';
+import { DATA_AMOUNTS, LIVE_PHASES, type LivePhase } from '@/lib/figure/states';
 import { srmTest } from '@/lib/stats';
 
 // The sink's fictional snapshots must be possible ones: a reader who checks them finds no
@@ -31,13 +31,13 @@ describe('live fixtures', () => {
     expect(months(ab.abStartedOn!, ab.plannedEnd)).toBeGreaterThan(5.9);
     expect(months(ab.abStartedOn!, ab.plannedEnd)).toBeLessThan(6.1);
     const failed = liveFixture('aa-failed', 'enough-data', 'fresh').aaFailed!;
-    expect(Date.parse(failed.restartsOn)).toBeGreaterThan(Date.parse(failed.on));
+    expect(Date.parse(failed.restartsOn!)).toBeGreaterThan(Date.parse(failed.on));
     const paused = FRESHNESS.paused;
     if (paused.kind !== 'paused') throw new Error('expected a pause');
     // The pause began after the A/B start and after the A/A failure, and the A/A restart is later still.
     expect(Date.parse(paused.pausedOn)).toBeGreaterThan(Date.parse(ab.abStartedOn!));
     expect(Date.parse(paused.pausedOn)).toBeGreaterThan(Date.parse(failed.on));
-    expect(Date.parse(failed.restartsOn)).toBeGreaterThan(Date.parse(paused.pausedOn));
+    expect(Date.parse(failed.restartsOn!)).toBeGreaterThan(Date.parse(paused.pausedOn));
     expect(FRESHNESS_KINDS).toContain('paused');
   });
 
@@ -54,6 +54,19 @@ describe('live fixtures', () => {
         expect(p.nA!, `${phase} ${data}`).toBeLessThanOrEqual(s.nA);
         expect(p.nB!, `${phase} ${data}`).toBeLessThanOrEqual(s.nB);
         expect(Math.min(p.nA!, p.nB!)).toBe(p.n);
+      }
+    }
+  });
+});
+
+describe('plannedEndKind', () => {
+  it("is 'earliest' in before-data, calibration and aa-failed snapshots, and 'fixed' in every other", () => {
+    const calibrating = new Set<LivePhase>(['before-data', 'calibration', 'aa-failed']);
+    for (const phase of LIVE_PHASES) {
+      for (const data of DATA_AMOUNTS) {
+        for (const fresh of FRESHNESS_KINDS) {
+          expect(liveFixture(phase, data, fresh).plannedEndKind, `${phase} ${data} ${fresh}`).toBe(calibrating.has(phase) ? 'earliest' : 'fixed');
+        }
       }
     }
   });

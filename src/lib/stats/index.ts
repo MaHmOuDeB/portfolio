@@ -17,6 +17,7 @@ export {
   SAMPLE_SIZE_FORMULA,
   cohensH,
   detectableEffect,
+  detectableEffectCs,
   durationWeeks,
   sampleSizePerArm,
   type MdeType,

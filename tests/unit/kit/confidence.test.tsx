@@ -181,7 +181,7 @@ describe('ConfidenceChart', () => {
   });
 
   it('shows nothing that could leak a hidden verdict when the split check failed', () => {
-    expect(renderToStaticMarkup(<ConfidenceChart id="f" snapshot={AB} body="srm-suppressed" />)).toBe('');
+    expect(renderToStaticMarkup(<ConfidenceChart id="f" snapshot={AB} body="srm-suppressed" refs={['simulated']} />)).toBe('');
   });
 
   it('never throws for any valid live input, in any state', () => {
@@ -216,8 +216,8 @@ describe('ConfidenceChart', () => {
           const body = resolveFigureBody(liveFigureState(s, runtime));
           const html = renderToStaticMarkup(
             <>
-              <ConfidenceChart id="any" snapshot={s} body={body} />
-              <LiveStateBody id="any" snapshot={s} body={body} />
+              <ConfidenceChart id="any" snapshot={s} body={body} refs={['simulated']} />
+              <LiveStateBody id="any" snapshot={s} body={body} refs={['simulated']} />
             </>,
           );
           expect(html).not.toMatch(/NaN|Infinity|−0(?![.\d])|\+0(?![.\d])/);
@@ -233,7 +233,7 @@ describe('ConfidenceChart', () => {
 
 describe('NowRow', () => {
   it('draws the large glyph on a difference axis with a zero tick, placed by percentage', () => {
-    const root = parse(renderToStaticMarkup(<NowRow domain={[-40, 60]} interval={{ lower: -12, upper: 31, estimate: 9 }} />));
+    const root = parse(renderToStaticMarkup(<NowRow domain={[-40, 60]} interval={{ lower: -12, upper: 31, estimate: 9 }} refs={['live']} />));
     const svg = byTag(root, 'svg')[0]!;
     expect(attr(svg, 'aria-hidden')).toBe('true');
     expect(hasAttr(svg, 'viewBox')).toBe(false);
@@ -252,7 +252,7 @@ describe('NowRow', () => {
   });
 
   it('paints the zero tick after the dot and reaches past the dot and its ring', () => {
-    const root = parse(renderToStaticMarkup(<NowRow domain={[-40, 60]} interval={{ lower: -12, upper: 31, estimate: 0 }} />));
+    const root = parse(renderToStaticMarkup(<NowRow domain={[-40, 60]} interval={{ lower: -12, upper: 31, estimate: 0 }} refs={['live']} />));
     const svg = byTag(root, 'svg')[0]!;
     const order = svg.childNodes!.filter((n) => n.nodeName !== '#text').map((n) => (hasAttr(n, 'data-now-zero') ? 'zero' : n.nodeName));
     expect(order.indexOf('zero')).toBeGreaterThan(order.indexOf('circle'));
@@ -265,10 +265,10 @@ describe('NowRow', () => {
   });
 
   it('gives a small interval the decimals its bounds need, never "−0 to +0"', () => {
-    const html = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.04, upper: 0.03 }} />);
+    const html = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.04, upper: 0.03 }} refs={['live']} />);
     expect(squash(text(parse(html)))).toContain('now: −0.04 to +0.03');
     // Below the display floor a bound reads "0": the row claims no sign.
-    const floor = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.0001, upper: 0.0002 }} />);
+    const floor = renderToStaticMarkup(<NowRow domain={[-1, 1]} interval={{ lower: -0.0001, upper: 0.0002 }} refs={['live']} />);
     expect(squash(text(parse(floor)))).toContain('now: 0 to 0');
     expect(floor).not.toMatch(/−0 |\+0</);
   });
@@ -276,7 +276,7 @@ describe('NowRow', () => {
   it('never prints a count above the target: both groups at 50 with no look yet', () => {
     const paras = (root: Node) => byTag(root, 'p').map((p) => squash(text(p)));
     const row = (due?: boolean) =>
-      parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z', due }} />));
+      parse(renderToStaticMarkup(<NowRow domain={[-1, 1]} collecting={{ nSmaller: 180, plannedEnd: '2026-12-01T10:00:00Z', plannedEndKind: 'fixed', due }} refs={['simulated']} />));
     // A running test: the first estimate is due.
     expect(paras(row(true))).toEqual(['50 views per group are in; the first estimate appears at the next look.']);
     // Otherwise (before data, which never has these counts) no promise of a look and no count.

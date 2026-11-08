@@ -71,7 +71,7 @@ test.describe('kitchen sink', () => {
 
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).toContainText('you are in group B');
     await expect(page.locator('[data-specimen="testnote--ab-early"]')).not.toContainText('views so far');
-    await expect(page.locator('[data-specimen="testnote--ab-counted"]')).toContainText('(212 views so far).');
+    await expect(page.locator('[data-specimen="testnote--ab-counted"]')).toContainText('There have been 212 views so far.');
     await expect(
       page.locator('[data-specimen="testnote--paused"]').getByRole('link', { name: 'See why the experiment is paused' }),
     ).toBeVisible();
@@ -82,9 +82,12 @@ test.describe('kitchen sink', () => {
     ]);
 
     const bars = page.locator('[data-specimen="progress--states"] progress');
-    await expect(bars).toHaveCount(3);
+    await expect(bars).toHaveCount(4);
     await expect(page.getByRole('progressbar', { name: 'Progress: 0 of 50 in the smaller group' })).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Progress: 12 of 50 in the smaller group' })).toBeVisible();
+    // The last line is a calibrating test: its end is the earliest, not a planned one.
+    await expect(page.getByRole('progressbar', { name: 'Progress: 30 of 50 in the smaller group' })).toBeVisible();
+    await expect(page.locator('[data-specimen="progress--states"]')).toContainText('Earliest end: 15.11.');
   });
 
   test('says that its data is fictional', async ({ page }) => {

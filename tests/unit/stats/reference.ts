@@ -33,6 +33,23 @@ export type Reference = {
     power: number;
     mde: number;
   }[];
+  /** Smallest rise over `baseline` whose confidence-sequence interval at nPerArm excludes 0 with `power`. */
+  detectableEffectCs: {
+    nPerArm: number;
+    baseline: number;
+    tau2: number;
+    alpha: number;
+    power: number;
+    mde: number;
+  }[];
+  /** Cases with no such rise up to 100%: `detectableEffectCs` must return Infinity. */
+  detectableEffectCsUndetectable: {
+    nPerArm: number;
+    baseline: number;
+    tau2: number;
+    alpha: number;
+    power: number;
+  }[];
   mixtureRatio: { alpha: number; r: number }[];
   mixtureCs: {
     xA: number;

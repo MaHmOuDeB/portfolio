@@ -11,6 +11,8 @@ describe('ButtonLink', () => {
       </ButtonLink>,
     );
     expect(html).toContain('href="/lab"');
+    expect(html).toContain('inline-flex');
+    expect(html).toContain('items-center');
     expect(html).toContain('min-h-(--size-target)');
     expect(html).toContain('data-touch-target');
     expect(html).toContain('bg-ink text-bg');
@@ -61,7 +63,10 @@ describe('TextLink', () => {
         Privacy
       </TextLink>,
     );
-    expect(html).toContain('inline-flex min-h-(--size-target) items-center');
+    expect(html).toContain('inline-flex');
+    expect(html).toContain('items-center');
+    expect(html).toContain('min-h-(--size-target)');
+    expect(html).toContain('min-w-(--size-target)');
     expect(html).toContain('data-touch-target');
   });
 

@@ -18,7 +18,7 @@ describe('the table and the Now row agree', () => {
   it('for the current interval of every enough-data fixture', () => {
     for (const phase of ['ab', 'ship-b', 'stop-for-harm', 'inconclusive', 'calibration'] as const) {
       const s: LiveSnapshot = liveFixture(phase, 'enough-data', 'fresh');
-      const t = confidenceTable(s);
+      const t = confidenceTable(s, ['simulated']);
       const last = t.rows[t.rows.length - 1]!;
       const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={{ ...t, rows: [last], rowDigits: [t.rowDigits![t.rows.length - 1]!] }} mode="open" />);
       const printed = cells(html);

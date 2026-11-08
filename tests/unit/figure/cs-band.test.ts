@@ -34,6 +34,7 @@ const BASE: LiveSnapshot = {
   capPerArm: 230,
   projectedHalfWidthAtCap: 12,
   plannedEnd: '2026-12-01T10:00:00Z',
+  plannedEndKind: 'fixed',
 };
 
 const point = fc
@@ -296,7 +297,7 @@ describe('csPointFromInterval', () => {
 
 describe('confidenceTable', () => {
   it('lists both groups\' views and the running interval at each look, with live refs by default', () => {
-    const t = confidenceTable(BASE);
+    const t = confidenceTable(BASE, ['live']);
     expect(t.columns).toEqual(['Views in A', 'Views in B', 'Lower', 'Estimate', 'Upper']);
     expect(t.rows).toEqual([
       [52, 50, -76, 4, 84],
@@ -309,7 +310,7 @@ describe('confidenceTable', () => {
   });
 
   it('prints the recorded split of each look, never one count for both groups', () => {
-    expect(confidenceTable(BASE).rows).toEqual([
+    expect(confidenceTable(BASE, ['live']).rows).toEqual([
       [52, 50, -76, 4, 84],
       [180, 176, -12.2, 9.4, 31],
     ]);
@@ -318,7 +319,7 @@ describe('confidenceTable', () => {
   it('never invents a count: a look with a missing split says "Not recorded"', () => {
     // @ts-expect-error a look must record both counts; live data is untrusted, so the table copes anyway
     const lookWithoutSplit: CsPoint = { n: 176, lower: -12.2, upper: 31, estimate: 9.4 };
-    const t = confidenceTable({ ...BASE, series: [lookWithoutSplit, { ...lookWithoutSplit, n: 150, nA: Number.NaN, nB: 150 }] });
+    const t = confidenceTable({ ...BASE, series: [lookWithoutSplit, { ...lookWithoutSplit, n: 150, nA: Number.NaN, nB: 150 }] }, ['live']);
     expect(t.rows).toEqual([
       ['Not recorded', 150, -12.2, 9.4, 31],
       ['Not recorded', 'Not recorded', -12.2, 9.4, 31],
@@ -327,18 +328,18 @@ describe('confidenceTable', () => {
   });
 
   it('shows no interval in low data or when the split check failed, but both groups\' counts', () => {
-    const low = confidenceTable({ ...BASE, nA: 12, nB: 14 });
+    const low = confidenceTable({ ...BASE, nA: 12, nB: 14 }, ['live']);
     expect(low.columns).toEqual(['Views in A', 'Views in B', 'Interval']);
     expect(low.rows).toEqual([[12, 14, 'Not shown yet']]);
     expect(low.note).toBeUndefined();
-    const srm = confidenceTable({ ...BASE, phase: 'srm-suppressed' });
+    const srm = confidenceTable({ ...BASE, phase: 'srm-suppressed' }, ['live']);
     expect(srm.rows).toEqual([[180, 176, 'Not shown']]);
     expect(srm.formats).toHaveLength(srm.columns.length);
-    expect(confidenceTable({ ...BASE, nA: Number.NaN }).rows[0]![0]).toBe(0);
+    expect(confidenceTable({ ...BASE, nA: Number.NaN }, ['live']).rows[0]![0]).toBe(0);
   });
 
   it('prints each row with the digits of its own interval, so the table agrees with the Now row', () => {
-    const t = confidenceTable(BASE);
+    const t = confidenceTable(BASE, ['live']);
     expect(t.rowDigits).toEqual([0, 0]);
     const last = t.rows[t.rows.length - 1]!;
     const digits = t.rowDigits![t.rows.length - 1]!;
@@ -347,7 +348,7 @@ describe('confidenceTable', () => {
     expect(formatIntervalPoints(last[2] as number, last[4] as number)).toBe('−12 to +31');
     // A narrow interval keeps one decimal in every cell of its row.
     const narrow = { ...BASE, series: [{ n: 176, nA: 176, nB: 176, lower: 2.2, upper: 7.4, estimate: 4.8 }] };
-    expect(confidenceTable(narrow).rowDigits).toEqual([1]);
+    expect(confidenceTable(narrow, ['live']).rowDigits).toEqual([1]);
   });
 });
 

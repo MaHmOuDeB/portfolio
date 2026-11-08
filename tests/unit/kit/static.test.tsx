@@ -26,6 +26,7 @@ function find(node: Node, name: string): Node[] {
 }
 const attr = (n: Node, name: string) => n.attrs?.find((a) => a.name === name)?.value;
 const plain = (html: string) => text(parse(html));
+const REFS = ['live'] as const;
 
 describe('ProvenanceBadge', () => {
   it('prints exactly the three allowed words', () => {
@@ -158,28 +159,39 @@ describe('DataTable', () => {
 describe('PhaseLabel', () => {
   const href = '/live';
 
+  function resultsParagraph(html: string): Node {
+    const doc = parse(html);
+    expect(find(doc, 'a')).toHaveLength(1);
+    const siblings = doc.childNodes?.[0]?.childNodes ?? [];
+    expect(siblings.map(({ nodeName }) => nodeName)).toEqual(['p', 'a']);
+    const [paragraph, action] = siblings;
+    expect(attr(action!, 'href')).toBe(href);
+    expect(text(action!)).toBe('See the live results');
+    return paragraph!;
+  }
+
   it('ab with a small smaller group names the group and omits the view count', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 49, nB: 49 }} href={href} />);
-    expect(plain(html)).toBe(
-      'This site runs an A/B test on its visitors, and you are in group B. See the live results.',
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 49, nB: 49 }} href={href} refs={REFS} />);
+    expect(text(resultsParagraph(html))).toBe(
+      'This site runs an A/B test on its visitors, and you are in group B.',
     );
     expect(html).not.toContain('views so far');
   });
 
   it('ab names group A for arm a', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'a', nA: 3, nB: 4 }} href={href} />);
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'a', nA: 3, nB: 4 }} href={href} refs={REFS} />);
     expect(plain(html)).toContain('you are in group A.');
   });
 
-  it('ab with 50 in the smaller group ends with the total views, carried as derived', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 50, nB: 162 }} href={href} />);
+  it('ab with 50 in the smaller group puts the derived total before the action', () => {
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'b', nA: 50, nB: 162 }} href={href} refs={REFS} />);
     expect(plain(html)).toContain('group B');
-    expect(plain(html).endsWith('(212 views so far).')).toBe(true);
+    expect(text(resultsParagraph(html))).toContain('There have been 212 views so far.');
     expect(html).toContain('<data value="212" data-derived="live">212</data>');
   });
 
   it('uses the smaller of the two counts for the threshold, whichever arm it is', () => {
-    expect(plain(renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'a', nA: 162, nB: 49 }} href={href} />))).not.toContain(
+    expect(plain(renderToStaticMarkup(<PhaseLabel note={{ mode: 'ab', arm: 'a', nA: 162, nB: 49 }} href={href} refs={REFS} />))).not.toContain(
       'views so far',
     );
   });
@@ -195,22 +207,24 @@ describe('PhaseLabel', () => {
   });
 
   it('calibration copy is verbatim', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href={href} />);
-    expect(plain(html)).toBe(
-      'This site runs a live experiment on its own visitors. It is calibrating first, so everyone sees the same page. See the live results.',
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href={href} refs={REFS} />);
+    expect(text(resultsParagraph(html))).toBe(
+      'This site runs a live experiment on its own visitors. It is calibrating first, so everyone sees the same page.',
     );
   });
 
-  it('paused copy is verbatim and the link has the long accessible name', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'paused' }} href={href} />);
-    expect(plain(html)).toBe('The experiment on this site is paused. See why.');
-    const [a] = find(parse(html), 'a');
-    expect(attr(a!, 'aria-label')).toBe('See why the experiment is paused');
-    expect(text(a!)).toBe('See why');
+  it('paused copy is verbatim and the link has a descriptive visible label', () => {
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'paused' }} href={href} refs={REFS} />);
+    const doc = parse(html);
+    expect(text(find(doc, 'p')[0]!)).toBe('The experiment on this site is paused.');
+    const links = find(doc, 'a');
+    expect(links).toHaveLength(1);
+    expect(attr(links[0]!, 'href')).toBe(href);
+    expect(text(links[0]!)).toBe('See why the experiment is paused');
   });
 
   it('is one paragraph in text-sm', () => {
-    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href={href} />);
+    const html = renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href={href} refs={REFS} />);
     expect(find(parse(html), 'p')).toHaveLength(1);
     expect(html).toContain('text-sm');
   });
@@ -219,7 +233,7 @@ describe('PhaseLabel', () => {
 describe('UpdatedLabel', () => {
   it('renders the Berlin time inside a <time> with the original instant', () => {
     const html = renderToStaticMarkup(
-      <UpdatedLabel updatedAt="2026-07-01T12:05:00Z" renderedAt="2026-07-01T20:00:00Z" />,
+      <UpdatedLabel updatedAt="2026-07-01T12:05:00Z" renderedAt="2026-07-01T20:00:00Z" refs={REFS} />,
     );
     const [time] = find(parse(html), 'time');
     expect(attr(time!, 'datetime')).toBe('2026-07-01T12:05:00Z');
@@ -238,7 +252,7 @@ describe('UpdatedLabel', () => {
 
 describe('ProgressLine', () => {
   it('at zero renders value 0 and names the group it counts', () => {
-    const html = renderToStaticMarkup(<ProgressLine nSmaller={0} target={50} plannedEnd="2026-11-15T10:00:00Z" />);
+    const html = renderToStaticMarkup(<ProgressLine nSmaller={0} target={50} plannedEnd="2026-11-15T10:00:00Z" plannedEndKind="fixed" refs={REFS} />);
     const root = parse(html);
     const [progress] = find(root, 'progress');
     expect(attr(progress!, 'value')).toBe('0');
@@ -251,14 +265,14 @@ describe('ProgressLine', () => {
   });
 
   it('caps the value at the target and keeps the real count in the text', () => {
-    const html = renderToStaticMarkup(<ProgressLine nSmaller={70} target={50} plannedEnd="2026-11-15T10:00:00Z" />);
+    const html = renderToStaticMarkup(<ProgressLine nSmaller={70} target={50} plannedEnd="2026-11-15T10:00:00Z" plannedEndKind="fixed" refs={REFS} />);
     const [progress] = find(parse(html), 'progress');
     expect(attr(progress!, 'value')).toBe('50');
     expect(plain(html)).toContain('Progress: 70 of 50');
   });
 
   it('shows the planned end as dd.mm in Berlin time inside <time>', () => {
-    const html = renderToStaticMarkup(<ProgressLine nSmaller={12} target={50} plannedEnd="2026-10-24T22:30:00Z" />);
+    const html = renderToStaticMarkup(<ProgressLine nSmaller={12} target={50} plannedEnd="2026-10-24T22:30:00Z" plannedEndKind="fixed" refs={REFS} />);
     const [time] = find(parse(html), 'time');
     expect(attr(time!, 'datetime')).toBe('2026-10-24T22:30:00Z');
     expect(text(time!)).toBe('25.10');
@@ -267,7 +281,7 @@ describe('ProgressLine', () => {
 
   it('marks every number as derived with the caller refs', () => {
     const html = renderToStaticMarkup(
-      <ProgressLine nSmaller={12} target={50} plannedEnd="2026-11-15T10:00:00Z" refs={['simulated']} />,
+      <ProgressLine nSmaller={12} target={50} plannedEnd="2026-11-15T10:00:00Z" plannedEndKind="fixed" refs={['simulated']} />,
     );
     expect(html).toContain('<data value="12" data-derived="simulated">12</data>');
     expect(html).toContain('<data value="50" data-derived="simulated">50</data>');
@@ -277,8 +291,8 @@ describe('ProgressLine', () => {
   it('does not collide ids when two lines are on one page', () => {
     const html = renderToStaticMarkup(
       <>
-        <ProgressLine nSmaller={1} target={50} plannedEnd="2026-11-15T10:00:00Z" />
-        <ProgressLine nSmaller={2} target={50} plannedEnd="2026-11-15T10:00:00Z" />
+        <ProgressLine nSmaller={1} target={50} plannedEnd="2026-11-15T10:00:00Z" plannedEndKind="fixed" refs={REFS} />
+        <ProgressLine nSmaller={2} target={50} plannedEnd="2026-11-15T10:00:00Z" plannedEndKind="fixed" refs={REFS} />
       </>,
     );
     const ids = find(parse(html), 'span')

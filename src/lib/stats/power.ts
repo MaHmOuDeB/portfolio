@@ -3,7 +3,7 @@
  * sample can detect, and the test duration. Two-sided test, equal allocation, Cohen's h
  * (the arcsine-square-root effect size), so the formulas are closed form and need no iteration.
  */
-import { normalQuantile } from './normal';
+import { normalQuantile } from './normal.ts';
 
 /** Whether the minimum detectable effect is a difference in rates or a ratio to the baseline. */
 export type MdeType = 'absolute' | 'relative';
@@ -89,9 +89,9 @@ export function sampleSizePerArm(i: PlanInput): number {
  * given power: `h = (z₁₋α/₂ + z₁₋β)·√(2/n)`, `p2 = sin²(asin(√baseline) + h/2)`, result `p2 − baseline`.
  *
  * Assumes ONE look at the end with a z-test. A sequential design that uses the confidence
- * sequence needs a larger effect for the same power (about 40% larger at 225 per arm, alpha 0.05,
- * power 0.8: at baseline 0.1 roughly 13.5 percentage points instead of 9.2); a function for that
- * is planned separately.
+ * sequence needs a larger effect for the same power (about 45% larger at 225 per arm, alpha 0.05,
+ * power 0.8: at baseline 0.1 roughly 13.5 percentage points instead of 9.2); see
+ * `detectableEffectCs` for that.
  *
  * Returns `Infinity` when the sample is so small that no rise up to 100% is detectable, that is
  * when `asin(√baseline) + h/2 ≥ π/2` (the angle formula would otherwise wrap around and return a
@@ -118,6 +118,75 @@ export function detectableEffect(o: {
   const angle = Math.asin(Math.sqrt(o.baseline)) + h / 2;
   if (angle >= Math.PI / 2) return Number.POSITIVE_INFINITY;
   return Math.sin(angle) ** 2 - o.baseline;
+}
+
+const CS_GRID_STEPS = 10_000;
+const CS_BRACKET = 1e-13;
+
+/**
+ * Smallest absolute rise over `baseline` (a proportion) that the confidence sequence's interval at
+ * `nPerArm` per arm excludes 0 with probability `power`; `Infinity` if none up to `1 - baseline`.
+ *
+ * One look at `nPerArm`, normal approximation, unpooled variance under the alternative. With
+ * `p2 = baseline + d`, `V(d) = (baseline(1 - baseline) + p2(1 - p2)) / nPerArm` and
+ * `hw(V) = sqrt(V (1 + V / tau2) (-2 ln(alpha) + log1p(tau2 / V)))` (the half-width `mixtureCs`
+ * uses), the result is the smallest `d` in `(0, 1 - baseline]` with
+ * `f(d) = d - hw(V(d)) - z(power) sqrt(V(d)) >= 0`. The root is found on a 10,000-step grid, then
+ * bisected to a bracket under 1e-13. Earlier looks can only add detections, so the figure is
+ * conservative for "detected by n". `tau2` is the mixing variance the live analysis uses (see
+ * `optimalTau2`); at 225 per arm, alpha 0.05, power 0.8 the result is about 13.5 percentage points
+ * at baseline 0.10 and about 15.0 at baseline 0.15.
+ *
+ * `Infinity` does not survive `JSON.stringify` (it becomes `null`), so it must never reach
+ * published JSON; check for it first.
+ *
+ * @throws RangeError if `nPerArm` is not finite or below 1 (zero exposures cannot be analysed,
+ * like `mixtureCs`), `tau2` is not finite and positive, or `baseline`, `alpha` or `power` is out
+ * of range.
+ */
+export function detectableEffectCs(o: {
+  nPerArm: number;
+  baseline: number;
+  tau2: number;
+  alpha: number;
+  power: number;
+}): number {
+  const { nPerArm, baseline, tau2, alpha, power } = o;
+  if (!Number.isFinite(nPerArm) || nPerArm < 1) {
+    throw new RangeError(`nPerArm must be a finite number of at least 1, got ${nPerArm}`);
+  }
+  if (!(Number.isFinite(tau2) && tau2 > 0)) {
+    throw new RangeError(`tau2 must be finite and positive, got ${tau2}`);
+  }
+  checkRate(baseline, 'baseline');
+  checkAlphaPower(alpha, power);
+  const zPower = normalQuantile(power);
+  const logOneOverAlpha2 = -2 * Math.log(alpha);
+  const f = (d: number): number => {
+    const p2 = baseline + d;
+    const v = (baseline * (1 - baseline) + p2 * (1 - p2)) / nPerArm;
+    const ratio = tau2 / v;
+    const logRatio = Number.isFinite(ratio) ? Math.log1p(ratio) : Math.log(tau2) - Math.log(v);
+    const halfWidth = Math.sqrt(v * (1 + v / tau2) * (logOneOverAlpha2 + logRatio));
+    return d - halfWidth - zPower * Math.sqrt(v);
+  };
+  const top = 1 - baseline;
+  let previous = 0;
+  for (let i = 1; i <= CS_GRID_STEPS; i += 1) {
+    const d = (top * i) / CS_GRID_STEPS;
+    if (f(d) >= 0) {
+      let lo = previous;
+      let hi = d;
+      while (hi - lo >= CS_BRACKET) {
+        const mid = (lo + hi) / 2;
+        if (f(mid) >= 0) hi = mid;
+        else lo = mid;
+      }
+      return hi;
+    }
+    previous = d;
+  }
+  return Number.POSITIVE_INFINITY;
 }
 
 /**

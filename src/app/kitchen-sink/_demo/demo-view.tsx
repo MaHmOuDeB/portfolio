@@ -3,16 +3,17 @@
 // Shared: the server draws the preview and the forced-state specimens with it, and the island
 // (DemoInteractive) draws the live view with the same markup. Every number is marked 'simulated'.
 import { line } from 'd3-shape';
-import type { ReactNode } from 'react';
-import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
+import type { CSSProperties, ReactNode } from 'react';
+import { ChartFrame, MARK_UNITS, MarkLayer, type PlotContext } from '@/components/kit/ChartFrame';
 import type { TableData } from '@/components/kit/DataTable';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
-import { niceTicks, pct } from '@/lib/figure/scales';
+import { linearFrac, niceTicks, pct } from '@/lib/figure/scales';
 import type { FigureState } from '@/lib/figure/states';
 import { sampleSizePerArm } from '@/lib/stats';
 import { REFS, type DemoValues } from './DemoControls';
+import styles from './demo-chart.module.css';
 
 const ALPHA = 0.05;
 /** The rise the result line and the annotation name, in percentage points. */
@@ -92,45 +93,169 @@ function Current({ ctx, n }: { ctx: PlotContext; n: number }) {
   );
 }
 
-export function DemoChart({ id, model }: { id: string; model: DemoModel }) {
+const CHART_NAME = 'The visitors each group needs fall steeply as the rise to detect grows';
+const X_LABEL = 'Rise to detect (percentage points)';
+const Y_LABEL = 'Visitors per group';
+const X_DOMAIN: [number, number] = [0, RISE_MAX];
+const COMPACT_HEIGHT = 200;
+
+function CompactDemoChart({ id, model }: { id: string; model: DemoModel }) {
+  const yDomain: [number, number] = [0, model.top];
+  const yFrac = linearFrac(yDomain);
+  const ctx: PlotContext = {
+    layout: 'narrow',
+    height: COMPACT_HEIGHT,
+    xFrac: linearFrac(X_DOMAIN),
+    yPx: (v) => Math.round((1 - yFrac(v)) * COMPACT_HEIGHT - 0.5) + 0.5,
+  };
+  return (
+    <div className={styles.compact}>
+      <p data-demo-prose="" className="text-sm wrap-anywhere" {...SIMULATED}>
+        Highlighted point shows {resultSentence(model)}.
+      </p>
+      <p className={`${styles['scroll-hint']} text-xs text-muted wrap-anywhere`}>
+        Scroll the plot sideways. With the plot focused, use the left and right arrow keys.
+      </p>
+      <p data-demo-prose="" className="text-xs text-muted wrap-anywhere">{Y_LABEL}</p>
+      <div
+        id={`${id}-plot-scroll`}
+        data-demo-scroll=""
+        className={styles.scroll}
+        role="region"
+        aria-label="Sample size plot"
+        tabIndex={0}
+      >
+        <svg
+          role="img"
+          aria-label={CHART_NAME}
+          width="100%"
+          className={styles.plot}
+          style={{ '--plot-height': `${ctx.height}px` } as CSSProperties}
+        >
+          {niceTicks(yDomain, 2).map((v) => (
+            <g key={v}>
+              <line x1={0} x2="100%" y1={ctx.yPx(v)} y2={ctx.yPx(v)} className={v === 0 ? 'stroke-ink' : 'stroke-line'} />
+              <text
+                data-tick="y"
+                data-num=""
+                {...SIMULATED}
+                className="text-xs fill-muted"
+                x={0}
+                dx="-.6em"
+                y={ctx.yPx(v)}
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
+                {formatNumber(v, 0)}
+              </text>
+            </g>
+          ))}
+          <MarkLayer height={ctx.height}>
+            <Curve ctx={ctx} curve={model.curve} />
+          </MarkLayer>
+          <Current ctx={ctx} n={model.n} />
+          {[RISE, 5, RISE_MAX].map((v) => (
+            <text
+              key={v}
+              data-tick="x"
+              data-num=""
+              {...SIMULATED}
+              className="text-xs fill-muted"
+              x={pct(ctx.xFrac(v))}
+              y={ctx.height}
+              dy="1.4em"
+              textAnchor={v === RISE_MAX ? 'end' : 'middle'}
+            >
+              {formatNumber(v, 0)}
+            </text>
+          ))}
+        </svg>
+      </div>
+      <p data-demo-prose="" className="text-xs text-muted wrap-anywhere">{X_LABEL}</p>
+    </div>
+  );
+}
+
+function DefaultDemoChart({ id, model }: { id: string; model: DemoModel }) {
   // The axis starts at 0 though the curve starts at RISE_MIN, so the y tick labels at the left
   // edge sit clear of the curve's steep start.
-  const x: [number, number] = [0, RISE_MAX];
+  const x = X_DOMAIN;
   const riseTicks = (count: number) => niceTicks(x, count).filter((v) => v >= RISE_MIN);
   const y: [number, number] = [0, model.top];
+  // Match ChartFrame's current demo allocations at a 16px root, then let CSS scale the text rails.
+  const leftFor = (count: number) =>
+    Math.ceil(Math.max(...niceTicks(y, count).map((v) => formatNumber(v, 0).length)) * 8.4) + 8;
+  const narrowLeft = leftFor(3);
+  const wideLeft = leftFor(5);
+  const noteText = {
+    narrow: `${formatNumber(model.n, 0)} per group`,
+    wide: `${formatNumber(model.n, 0)} per group for a rise of ${RISE} points`,
+  };
+  const chartSelector = `[data-chart=${JSON.stringify(`${id}-chart`)}]`;
+  const annotationRules = (['narrow', 'wide'] as const).map((layout) => {
+    const left = layout === 'narrow' ? narrowLeft : wideLeft;
+    const text = noteText[layout];
+    const minimum = left + Math.ceil((text.length * 7.9 + 8) / (1 - (RISE + 0.4) / RISE_MAX));
+    return `@container demo-chart (width < ${minimum / 16}rem) { ${chartSelector} [data-layout="${layout}"] [data-annotation] { display: none; } }`;
+  });
   return (
-    <ChartFrame
-      id={`${id}-chart`}
-      ariaLabel="The visitors each group needs fall steeply as the rise to detect grows"
-      x={{
-        domain: x,
-        ticks: { narrow: riseTicks(5), wide: riseTicks(10) },
-        format: (v) => formatNumber(v, 0),
-        label: 'Rise to detect (percentage points)',
-        refs: REFS,
-      }}
-      y={{
-        domain: y,
-        ticks: { narrow: niceTicks(y, 3), wide: niceTicks(y, 5) },
-        format: (v) => formatNumber(v, 0),
-        label: 'Visitors per group',
-        refs: REFS,
-      }}
-      height={{ narrow: 200, wide: 260 }}
-      marks={(ctx) => <Curve ctx={ctx} curve={model.curve} />}
-      overlays={(ctx) => <Current ctx={ctx} n={model.n} />}
-      // Right of the point and a little above it: the curve falls away below the text.
-      annotation={(ctx) => ({
-        x: RISE + 0.4,
-        y: model.n + model.top * 0.08,
-        text:
-          ctx.layout === 'narrow'
-            ? `${formatNumber(model.n, 0)} per group`
-            : `${formatNumber(model.n, 0)} per group for a rise of ${RISE} points`,
-        anchor: 'start',
-        refs: REFS,
-      })}
-    />
+    <div
+      className={styles['font-budget']}
+      style={{
+        '--demo-narrow-left': `${narrowLeft / 16}rem`,
+        '--demo-narrow-left-px': `${narrowLeft}px`,
+        '--demo-wide-left': `${wideLeft / 16}rem`,
+        '--demo-wide-left-px': `${wideLeft}px`,
+      } as CSSProperties}
+    >
+      <ChartFrame
+        id={`${id}-chart`}
+        ariaLabel={CHART_NAME}
+        x={{
+          domain: x,
+          ticks: { narrow: riseTicks(5), wide: riseTicks(10) },
+          format: (v) => formatNumber(v, 0),
+          label: X_LABEL,
+          refs: REFS,
+        }}
+        y={{
+          domain: y,
+          ticks: { narrow: niceTicks(y, 3), wide: niceTicks(y, 5) },
+          format: (v) => formatNumber(v, 0),
+          label: Y_LABEL,
+          refs: REFS,
+        }}
+        height={{ narrow: 200, wide: 260 }}
+        marks={(ctx) => <Curve ctx={ctx} curve={model.curve} />}
+        overlays={(ctx) => <Current ctx={ctx} n={model.n} />}
+        // Right of the point and a little above it: the curve falls away below the text.
+        annotation={(ctx) => ({
+          x: RISE + 0.4,
+          y: model.n + model.top * 0.08,
+          text: noteText[ctx.layout],
+          anchor: 'start',
+          refs: REFS,
+        })}
+      />
+      <style>{annotationRules.join('\n')}</style>
+    </div>
+  );
+}
+
+export function DemoChart({ id, model, presetPreview }: { id: string; model: DemoModel; presetPreview?: boolean }) {
+  return (
+    <div className={styles.chart}>
+      {presetPreview ? (
+        <p data-demo-preset="" className="text-sm wrap-anywhere" {...SIMULATED}>
+          Preset plot at {Math.round(model.values.baseline * 100)}% baseline conversion and{' '}
+          {Math.round(Number(model.values.power) * 100)}% power.
+        </p>
+      ) : null}
+      <div className={styles.default}>
+        <DefaultDemoChart id={id} model={model} />
+      </div>
+      <CompactDemoChart id={id} model={model} />
+    </div>
   );
 }
 
@@ -173,7 +298,15 @@ export function DemoFigureView({
       provenance="simulated"
       table={demoTable(model)}
       controls={controls}
-      preview={preview}
+      preview={preview ? (
+        <>
+          {preview}
+          <p data-demo-current-inputs="" className="mt-3 text-sm wrap-anywhere" {...SIMULATED}>
+            Table for current inputs of {Math.round(model.values.baseline * 100)}% baseline conversion and{' '}
+            {Math.round(Number(model.values.power) * 100)}% power. Its values can differ from the preset plot above.
+          </p>
+        </>
+      ) : undefined}
       result={<span {...SIMULATED}>{resultSentence(model)}</span>}
       announcement={announcement}
       caption={

@@ -7,7 +7,7 @@ import { Icon, type IconName } from './Icon';
 
 type Props = {
   href: string;
-  /** On its own line or in a row of links: at least 44 px tall. */
+  /** On its own line or in a row of links: at least 44 × 44 CSS px. */
   standalone?: boolean;
   /** Another site: rel="noopener" and the external icon (unless `icon` already marks the link). */
   external?: boolean;
@@ -19,7 +19,7 @@ type Props = {
 };
 
 const BASE = 'text-muted underline decoration-muted hover:text-ink focus-visible:text-ink';
-const STANDALONE = 'inline-flex min-h-(--size-target) items-center gap-2';
+const STANDALONE = 'inline-flex min-h-(--size-target) min-w-(--size-target) max-w-full items-center gap-2 wrap-anywhere';
 
 export function TextLink({ href, standalone, external, icon, children, 'aria-label': ariaLabel }: Props) {
   const className = cx(BASE, standalone && STANDALONE);

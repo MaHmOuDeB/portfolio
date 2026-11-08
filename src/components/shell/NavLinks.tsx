@@ -21,7 +21,7 @@ export function NavLinks({ className }: { className?: string }) {
               aria-current={current ? 'page' : undefined}
               data-touch-target
               className={cx(
-                'inline-flex min-h-(--size-target) items-center text-sm font-medium transition-colors hover:text-ink focus-visible:text-ink',
+                'inline-flex min-h-(--size-target) min-w-(--size-target) items-center text-sm font-medium transition-colors hover:text-ink focus-visible:text-ink',
                 current ? 'text-ink' : 'text-muted',
               )}
             >

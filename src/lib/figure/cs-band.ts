@@ -55,6 +55,13 @@ export type LiveSnapshot = {
   projectedHalfWidthAtCap: number;
   /** ISO date-time with an offset, like every timestamp below. */
   plannedEnd: string;
+  /**
+   * 'fixed': the A/B's planned end (its start plus the cap). 'earliest': during the calibration, the
+   * earliest the whole run can end, so the label says "Earliest end".
+   */
+  plannedEndKind: 'fixed' | 'earliest';
+  /** The Berlin day of a final decision (ISO date-time). The body does not print it; a page may. */
+  decidedOn?: string;
   abStartedOn?: string;
   /**
    * The views per group when this visitor's view was counted. The beacon counts it after the snapshot,
@@ -63,7 +70,8 @@ export type LiveSnapshot = {
   yourViewN?: number;
   /** "Leaving within 5 seconds": the interval of B − A against its limit, in points. */
   guardrail?: { lower: number; upper: number; limit: number };
-  aaFailed?: { on: string; reason: string; restartsOn: string };
+  /** `restartsOn` is absent until the restart date is set; the body then leaves out the restart sentence. */
+  aaFailed?: { on: string; reason: string; restartsOn?: string };
   /** The effect size the final interval rules out; default: the larger end of the interval. */
   ruledOutAbove?: number;
   nextStep?: string;
@@ -255,7 +263,7 @@ const recorded = (n: number): number | string => (Number.isFinite(n) && n >= 0 ?
  * interval columns follow the Now row's
  * digits rule for each row (intervalDigits), so the table and "now: −12 to +31" always agree.
  */
-export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[] = ['live']): TableData {
+export function confidenceTable(s: LiveSnapshot, refs: readonly DerivedRef[]): TableData {
   const columns = ['Views in A', 'Views in B', 'Lower', 'Estimate', 'Upper'];
   const note = 'Lower, estimate and upper are B − A in percentage points.';
   const formats: TableData['formats'] = ['count', 'count', 'signedPoints', 'signedPoints', 'signedPoints'];

@@ -82,7 +82,7 @@ export const SECTIONS: readonly SinkSection[] = [
       >
         <ul className="grid grid-cols-2 gap-4 xs:grid-cols-3">
           {(Object.keys(ICON_LABELS) as IconName[]).map((name) => (
-            <li key={name} className="flex items-center gap-2 text-sm">
+            <li key={name} className="flex flex-wrap items-center gap-2 text-sm wrap-anywhere">
               <Icon name={name} />
               {ICON_LABELS[name]}
             </li>
@@ -119,13 +119,12 @@ export const SECTIONS: readonly SinkSection[] = [
         <Specimen
           id="links--text"
           title="Text links"
-          note="Inline inside a sentence, and standalone with a full-height touch target."
+          note="Each standalone anchor is at least 44 by 44 CSS pixels. The links wrap onto additional rows as needed."
         >
-          <p className="max-w-text text-base">
-            An inline link sits in a sentence, like this <TextLink href="/">link to the home page</TextLink>, and
-            keeps the line height of the text around it.
-          </p>
-          <div className={`mt-2 ${row}`}>
+          <div className={row}>
+            <TextLink href="/" standalone>
+              Home page
+            </TextLink>
             <TextLink href="/" standalone>
               Standalone link
             </TextLink>

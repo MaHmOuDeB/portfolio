@@ -1,0 +1,103 @@
+.chart {
+  container: demo-chart / inline-size;
+  min-inline-size: 0;
+}
+
+.compact,
+.scroll-hint {
+  display: none;
+}
+
+@container demo-chart (width < 16rem) {
+  .default {
+    display: none;
+  }
+
+  .compact {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Keep the minimum width local to the plot. Prose stays in the figure column. */
+.scroll {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.scroll:focus-visible {
+  outline-offset: -2px;
+}
+
+/* 4rem for the numeric y rail, 6rem for the sparse ticks and curve, 0.5rem at the right edge. */
+.plot {
+  display: block;
+  min-inline-size: 10.5rem;
+  height: calc(var(--plot-height) + 3 * var(--text-xs));
+  padding-inline: 4rem 0.5rem;
+  padding-block: var(--text-xs) calc(2 * var(--text-xs));
+  overflow: visible;
+}
+
+/* The terminal curve stroke can extend past the inner SVG into the outer plot padding. */
+.plot > svg {
+  overflow: visible;
+}
+
+@container demo-chart (width < 10.5rem) {
+  .scroll-hint {
+    display: block;
+  }
+}
+
+/* Demo-local adapter for ChartFrame's existing markup, calibrated to the 16px-root layout. */
+.font-budget [data-layout="narrow"] {
+  --demo-left: var(--demo-narrow-left);
+  --demo-left-px: var(--demo-narrow-left-px);
+  --demo-height: 200px;
+}
+
+.font-budget [data-layout="wide"] {
+  --demo-left: var(--demo-wide-left);
+  --demo-left-px: var(--demo-wide-left-px);
+  --demo-height: 260px;
+}
+
+.font-budget [data-chart-frame] {
+  /* ChartFrame currently supplies this gutter as an inline pixel style. */
+  padding-left: var(--demo-left) !important;
+  height: calc(var(--demo-height) + 5.5rem);
+}
+
+.font-budget g > [data-axis-label] {
+  transform: translateY(calc(2.5rem - 40px));
+}
+
+.font-budget [data-chart-frame] > [data-axis-label] {
+  transform: translate(calc(var(--demo-left-px) - var(--demo-left)), calc(0.875rem - 14px));
+}
+
+.font-budget [data-chart-frame] > g {
+  transform: translateY(2.5rem);
+}
+
+.font-budget g > [data-tick="y"] {
+  transform: translateX(calc(8px - 0.5rem));
+}
+
+.font-budget g > [data-tick="x"] {
+  transform: translateY(calc(1.25rem - 20px));
+}
+
+/* Use the sparse layout until dense tick labels fit, including chart columns in
+   a wider viewport. Both bounds follow the font so intermediate sizes have no gap. */
+@container demo-chart (16rem <= width < 20rem) {
+  .font-budget [data-layout="narrow"] {
+    display: block;
+  }
+
+  .font-budget [data-layout="wide"] {
+    display: none;
+  }
+}

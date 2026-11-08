@@ -2,12 +2,17 @@
   "name": "portfolio",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "sources:sync": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync-sources.ts",
     "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-obf-constants.ts --check && npm run sources:sync -- --check",
     "build": "next build",
     "assert:no-kitchen-sink": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assert-no-kitchen-sink.ts",
+    "experiment:preview-check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-check.ts",
+    "experiment:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/experiment-check.ts",
+    "launch:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/launch-check.ts",
+    "prereg:hash": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prereg-hash.ts",
     "truth:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/truth-audit.ts",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
@@ -28,8 +33,10 @@
     "check": "npm run typecheck && npm run lint && npm run lint:css && npm run test && npm run lint:design:src"
   },
   "dependencies": {
+    "@vercel/edge-config": "1.5.1",
     "d3-scale": "4.0.2",
     "d3-shape": "3.2.0",
+    "isbot": "5.2.2",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"

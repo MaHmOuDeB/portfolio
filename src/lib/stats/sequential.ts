@@ -6,9 +6,9 @@
  * and the simulation in tests/unit/stats/sequential.test.ts shows it is conservative (ever-exclude
  * rates well below the 0.05 target). Every difference is B - A.
  */
-import { OBF_CONSTANTS } from './obf-constants.generated';
-import type { Counts, Interval } from './proportions';
-import { checkAlpha, checkArm } from './validate';
+import { OBF_CONSTANTS } from './obf-constants.generated.ts';
+import type { Counts, Interval } from './proportions.ts';
+import { checkAlpha, checkArm } from './validate.ts';
 
 const MAX_ITERATIONS = 200;
 const RELATIVE_TOLERANCE = 1e-15;

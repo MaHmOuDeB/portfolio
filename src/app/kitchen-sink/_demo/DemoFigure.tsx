@@ -24,7 +24,7 @@ export function DemoFigure({ id, titleLevel, failAt }: { id: string; titleLevel?
         id={id}
         titleLevel={titleLevel}
         failAt={failAt}
-        preview={<DemoChart id={`${id}-preview`} model={demoModel(values)} />}
+        preview={<DemoChart id={`${id}-preview`} model={demoModel(values)} presetPreview />}
       />
     </LoadOnIntent>
   );

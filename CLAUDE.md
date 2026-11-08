@@ -42,7 +42,7 @@ Next code.
 | `npm run build` | Production build. `prebuild` first checks the obfuscated constants and the vendored sources. |
 | `npm run check` | The local gate: typecheck, ESLint, Stylelint, unit tests and `lint:design:src`. Run it before every push. |
 | `npm run test` | Vitest unit tests (`tests/unit`). `npm run test:cov` adds the coverage gate on `src/lib/stats`. |
-| `npm run test:e2e` | Playwright (`tests/e2e`). It builds with `KITCHEN_SINK=1` and serves on port 3123, so rebuild without the flag afterwards. Visual tests are skipped locally. |
+| `npm run test:e2e` | Playwright (`tests/e2e`). It builds with `KITCHEN_SINK=1` and serves on port 3123, so rebuild without the flag afterwards. It also starts a local fake of the experiment store on port 8079 (`scripts/fake-upstash.ts`) and runs both servers on a test clock after the experiment's fixture start. Visual tests are skipped locally. |
 | `npm run test:e2e:docker` | The same Playwright suite inside the image the CI e2e job uses (needs Docker): the repository is mounted read-only and copied to a volume, `npm ci` installs the Linux modules there, and it runs with `CI=true`. Use it to reproduce a failure that appears only in CI, for example `npm run test:e2e:docker -- tests/e2e/shell.spec.ts --project=desktop-chromium`. Visual baselines are missing there too, so add `--grep-invert @visual`. |
 | `npm run lint:design` | The design lint over the source and the built CSS (run `npm run build` first). |
 | `npm run lint:design:src` | The design lint over the source only (part of `npm run check`). |
@@ -50,6 +50,8 @@ Next code.
 | `npm run sources:sync` | Vendors the pinned source exports and regenerates `src/lib/facts/facts.generated.ts`. |
 | `npm run truth:audit` | The truth audit over a finished build (CI runs it on the build job). |
 | `npm run assert:no-kitchen-sink` | Fails if the build contains a kitchen-sink route. CI runs it after `npm run build`, and the deploy workflow after `vercel build`. |
+| `npm run experiment:check -- --url <origin>` | Prints the live experiment's state from `<origin>/experiment/data.json`. `--storage` (with the production variables in the environment) checks the read-only store token and the Edge Config connection, printing two status lines and never a value. |
+| `npm run launch:check -- --canonical <domain>` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks with `headers` on the canonical domain, secrets by name, the `prereg-v1` tag locally and on origin). Run `npm run build` first. See `docs/experiment/runbook.md`. |
 
 Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:meta`,
 `npm run lhci` and `npm run links`.
@@ -65,7 +67,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time. |
 | `src/lib/facts` | The `<Fact>` data, formatters and checked lookup. |
 | `src/styles/tokens.css` | The design tokens. |
-| `content/` | MDX content (pages written as data; not created yet). |
+| `content/` | Content as data: the privacy notice (`content/privacy.ts`) and the frozen experiment headlines. MDX pages come later. |
 | `data/sources/` and `sources.lock.json` | Vendored source exports, written by `scripts/sync-sources.ts`. |
 | `scripts/` | Build, audit and lint tooling, run with Node's type stripping. |
 | `tests/unit`, `tests/e2e` | Vitest and Playwright. Visual baselines are `tests/e2e/__screenshots__/**`. |
@@ -97,12 +99,14 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 - Computed, simulated and live numbers carry `data-derived`, always written with
   `derivedAttr(refs)` (or the `Derived` component) and never empty. Refs are fact ids,
   `source:<id>`, `simulated`, `live` or `build`. The truth audit reports an empty or unknown ref.
-- Kit components that print numbers take their refs from the caller. Live components use
-  `['live']`, kitchen-sink demos `['simulated']`.
+- Kit components that print numbers take their refs from the caller, and `refs` is required on the
+  live components (no default). Live components use `['live']`, kitchen-sink demos `['simulated']`.
 - Prose lives in MDX under `content/`.
 - Negative numbers use the true minus sign (U+2212). Zero prints "0", never "+0" or "-0". Every
   "±" names its level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
   and 24-hour `hh:mm`.
+- A date that needs its year (a legal notice's version date) prints `dd.mm.yyyy` inside
+  `<time dateTime>`; live timestamps stay `dd.mm` and `hh:mm`.
 
 ## Caching model
 

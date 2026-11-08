@@ -235,8 +235,8 @@ test.describe('site header', () => {
     });
     const headerTop = async (width: number, height: number) => {
       await page.setViewportSize({ width, height });
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.mouse.wheel(0, 1000);
+      // Set the scroll position directly so this measures sticky layout after resizing.
+      await page.evaluate(() => window.scrollTo({ top: 1000, behavior: 'instant' }));
       await page.waitForFunction(() => window.scrollY >= 900);
       return page.getByRole('banner').evaluate((el) => el.getBoundingClientRect().top);
     };
