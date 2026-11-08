@@ -43,7 +43,7 @@ export function Segmented<V extends string>({ name, legend, options, value, onCh
             >
               <input
                 type="radio"
-                className="sr-only"
+                className="sr-only scroll-my-8"
                 name={name}
                 value={option.value}
                 checked={checked}
