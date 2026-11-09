@@ -20,6 +20,12 @@ jobs:
     name: Static checks and unit tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7.2
+        ports: ['16389:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,6 +39,12 @@ jobs:
       - run: npm run lint
       - run: npm run lint:css
       - run: npm run test:cov
+      - name: Redis conformance
+        run: |
+          sudo apt-get update && sudo apt-get install -y redis-tools
+          redis-cli -p 16389 -2 --json ping
+          redis-cli -p 16389 info server | grep -E '^redis_version:7\.2\.'
+          REDIS_CONFORMANCE_URL=redis://127.0.0.1:16389 npm test -- tests/unit/experiment/redis-conformance.test.ts --reporter=default
       - name: Upload unit test report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
