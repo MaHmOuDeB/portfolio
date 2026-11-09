@@ -14,6 +14,10 @@
 //   in its no-JS form (the no-js runtime state covers "failed to load"): `data-island="failed"` hides the
 //   [data-js-only] parts and shows the [data-nojs-only] ones (globals.css). The static HTML is never
 //   broken. Focus that was inside the island goes to the open table.
+// - `eager` loads the island right after hydration, without waiting for intent or idle time (for a
+//   Figure that is the first thing a visitor sees). It goes through the same `load` as the other
+//   triggers, so the preview handover, the focus handling and the failure fallback are the same. The
+//   server renders the same preview and fetches nothing: the island's code is requested by the browser.
 // - The root carries `data-island="idle" | "ready" | "failed"`.
 import { catchError } from 'next/error';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
@@ -30,10 +34,12 @@ function Island({
   preview,
   children,
   root,
+  eager,
 }: {
   preview: ReactNode;
   children: ReactNode;
   root: RefObject<HTMLDivElement | null>;
+  eager: boolean;
 }) {
   // `loading`: intent seen, the island is rendering (its code may still be on the way).
   // `ready`: the island has committed and the preview is gone.
@@ -47,6 +53,21 @@ function Island({
     setLoading(true);
   }, [root]);
   const arrive = useCallback(() => setReady(true), []);
+
+  // Eager: load once the page is interactive. `load` is stable and setting `loading` again is a
+  // no-op, so turning `eager` on later never loads twice. It runs in a microtask, not in the effect
+  // body itself (a state change there would render twice in one commit); a cleanup that comes first,
+  // such as a strict-mode remount, cancels it.
+  useEffect(() => {
+    if (!eager) return;
+    let live = true;
+    queueMicrotask(() => {
+      if (live) load();
+    });
+    return () => {
+      live = false;
+    };
+  }, [eager, load]);
 
   useEffect(() => {
     if (loading) return;
@@ -130,11 +151,20 @@ const Guard = catchError(function IslandFailed(props: FailedProps) {
   return <FailedPreview {...props} />;
 });
 
-export function LoadOnIntent({ preview, children }: { preview: ReactNode; children: ReactNode /* the lazy island */ }) {
+export function LoadOnIntent({
+  preview,
+  children,
+  eager = false,
+}: {
+  preview: ReactNode;
+  children: ReactNode /* the lazy island */;
+  /** Load the island after hydration instead of on intent or idle time. Default false. */
+  eager?: boolean;
+}) {
   const root = useRef<HTMLDivElement>(null);
   return (
     <Guard preview={preview} root={root}>
-      <Island preview={preview} root={root}>
+      <Island preview={preview} root={root} eager={eager}>
         {children}
       </Island>
     </Guard>

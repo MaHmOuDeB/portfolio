@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { ComponentProps } from 'react';
 import fc from 'fast-check';
 import { parseFragment } from 'parse5';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -9,6 +11,7 @@ import { LiveStateBody } from '@/components/kit/LiveStateBody';
 import { NowRow } from '@/components/kit/NowRow';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { liveFigureState, type CsPoint, type LiveSnapshot } from '@/lib/figure/cs-band';
+import type { Layout } from '@/lib/figure/scales';
 import {
   DATA_AMOUNTS,
   LIVE_PHASES,
@@ -229,6 +232,204 @@ describe('ConfidenceChart', () => {
     expect(charts).toBeGreaterThan(100);
     // Hundreds of full renders: room for a loaded machine.
   }, 30_000);
+});
+
+describe('ConfidenceChart overrides', () => {
+  // The markup the chart produced before it took a height or label override, one short hash per
+  // fixture (generated from the unextended component, main 96d4470: every phase, amount of data and
+  // freshness of the sink, plus the paused interval above zero; each in the responsive, narrow and
+  // wide forms). Absent overrides must keep reproducing it.
+  const SEED_HASHES: Record<string, string> = {
+  "before-data/low-data/fresh": "30124f32e9ff7b52",
+  "before-data/low-data/stale": "30124f32e9ff7b52",
+  "before-data/low-data/paused": "30124f32e9ff7b52",
+  "before-data/enough-data/fresh": "30124f32e9ff7b52",
+  "before-data/enough-data/stale": "30124f32e9ff7b52",
+  "before-data/enough-data/paused": "30124f32e9ff7b52",
+  "calibration/low-data/fresh": "c34d2d16c21e1347",
+  "calibration/low-data/stale": "c34d2d16c21e1347",
+  "calibration/low-data/paused": "c34d2d16c21e1347",
+  "calibration/enough-data/fresh": "195ed9470e6182a0",
+  "calibration/enough-data/stale": "195ed9470e6182a0",
+  "calibration/enough-data/paused": "8dca9c71eb1f6c53",
+  "aa-failed/low-data/fresh": "75a11da44c802486",
+  "aa-failed/low-data/stale": "75a11da44c802486",
+  "aa-failed/low-data/paused": "75a11da44c802486",
+  "aa-failed/enough-data/fresh": "75a11da44c802486",
+  "aa-failed/enough-data/stale": "75a11da44c802486",
+  "aa-failed/enough-data/paused": "75a11da44c802486",
+  "ab/low-data/fresh": "877007dd3baa8be7",
+  "ab/low-data/stale": "877007dd3baa8be7",
+  "ab/low-data/paused": "877007dd3baa8be7",
+  "ab/enough-data/fresh": "83eff63f41e86040",
+  "ab/enough-data/stale": "83eff63f41e86040",
+  "ab/enough-data/paused": "9c33b4ad8cba6376",
+  "inconclusive/low-data/fresh": "75a11da44c802486",
+  "inconclusive/low-data/stale": "75a11da44c802486",
+  "inconclusive/low-data/paused": "75a11da44c802486",
+  "inconclusive/enough-data/fresh": "0e467d8c13bdafba",
+  "inconclusive/enough-data/stale": "0e467d8c13bdafba",
+  "inconclusive/enough-data/paused": "6de0b9079208b5c6",
+  "ship-b/low-data/fresh": "75a11da44c802486",
+  "ship-b/low-data/stale": "75a11da44c802486",
+  "ship-b/low-data/paused": "75a11da44c802486",
+  "ship-b/enough-data/fresh": "4ed6edcd2aa44a80",
+  "ship-b/enough-data/stale": "4ed6edcd2aa44a80",
+  "ship-b/enough-data/paused": "8af344dff23c3e5b",
+  "stop-for-harm/low-data/fresh": "75a11da44c802486",
+  "stop-for-harm/low-data/stale": "75a11da44c802486",
+  "stop-for-harm/low-data/paused": "75a11da44c802486",
+  "stop-for-harm/enough-data/fresh": "46e338a08fac8fad",
+  "stop-for-harm/enough-data/stale": "46e338a08fac8fad",
+  "stop-for-harm/enough-data/paused": "0168f05d7f8b52e7",
+  "srm-suppressed/low-data/fresh": "75a11da44c802486",
+  "srm-suppressed/low-data/stale": "75a11da44c802486",
+  "srm-suppressed/low-data/paused": "75a11da44c802486",
+  "srm-suppressed/enough-data/fresh": "75a11da44c802486",
+  "srm-suppressed/enough-data/stale": "75a11da44c802486",
+  "srm-suppressed/enough-data/paused": "75a11da44c802486",
+  "paused-above-zero": "c0faa86707e0785f",
+  };
+  const fixtures: Array<[string, LiveSnapshot]> = [];
+  for (const p of LIVE_PHASES) {
+    for (const d of DATA_AMOUNTS) for (const f of FRESHNESS_KINDS) fixtures.push([`${p}/${d}/${f}`, liveFixture(p, d, f)]);
+  }
+  fixtures.push(['paused-above-zero', pausedAbAboveZeroFixture()]);
+  const render = (s: LiveSnapshot, extra: Partial<ComponentProps<typeof ConfidenceChart>> = {}) =>
+    renderToStaticMarkup(<ConfidenceChart id="fixture" snapshot={s} body={bodyOf(s)} refs={['simulated']} {...extra} />);
+  const hashOf = (s: LiveSnapshot, extra: Partial<ComponentProps<typeof ConfidenceChart>> = {}) =>
+    createHash('sha256')
+      .update([undefined, 'narrow', 'wide'].map((layout) => render(s, { layout: layout as Layout | undefined, ...extra })).join('\n'))
+      .digest('hex')
+      .slice(0, 16);
+  const plotHeights = (html: string) =>
+    Object.fromEntries(
+      frames(parse(html)).map((f) => [attr(f, 'data-layout')!, Number(attr(byTag(f, 'svg').find((s) => hasAttr(s, 'data-mark-layer'))!, 'height'))]),
+    );
+  const frameHeights = (html: string) => Object.fromEntries(frames(parse(html)).map((f) => [attr(f, 'data-layout')!, Number(attr(f, 'height'))]));
+  const labels = (html: string) => frames(parse(html)).map((f) => attr(f, 'aria-label')!);
+
+  it('seed: the default rendering equals the rendering from before the extension, for every fixture', () => {
+    expect(fixtures.map(([id]) => id).sort()).toEqual(Object.keys(SEED_HASHES).sort());
+    for (const [id, s] of fixtures) expect(hashOf(s), id).toBe(SEED_HASHES[id]);
+  });
+
+  it('passing the defaults, or leaving the overrides undefined, changes nothing', () => {
+    for (const [id, s] of fixtures) {
+      const plain = render(s);
+      expect(render(s, { height: { narrow: 220, wide: 280 } }), id).toBe(plain);
+      expect(render(s, { height: undefined, ariaLabel: undefined }), id).toBe(plain);
+    }
+  });
+
+  it('keeps the geometry of the default: 220 narrow and 280 wide', () => {
+    expect(plotHeights(render(AB))).toEqual({ narrow: 220, wide: 280 });
+  });
+
+  it('an explicit height sets the plot height of each layout, narrow and wide', () => {
+    const html = render(AB, { height: { narrow: 160, wide: 340 } });
+    expect(plotHeights(html)).toEqual({ narrow: 160, wide: 340 });
+    // The frame grows by exactly the same amount: the labels and axes around the plot do not move.
+    const base = frameHeights(render(AB));
+    const taller = frameHeights(html);
+    expect(taller.narrow! - base.narrow!).toBe(160 - 220);
+    expect(taller.wide! - base.wide!).toBe(340 - 280);
+    // One layout alone takes its own override.
+    expect(plotHeights(render(AB, { layout: 'narrow', height: { narrow: 175.5, wide: 300 } }))).toEqual({ narrow: 175.5 });
+    expect(plotHeights(render(AB, { layout: 'wide', height: { narrow: 100, wide: 410 } }))).toEqual({ wide: 410 });
+  });
+
+  it('a height override keeps the marks and scales of the default: only the vertical plot size differs', () => {
+    const strip = (html: string) => html.replace(/ height="[\d.]+"/g, '').replace(/viewBox="0 0 1000 [\d.]+"/g, '').replace(/ (?:y|y1|y2|cy)="[-\d.]+"/g, '').replace(/ d="[^"]*"/g, '');
+    expect(strip(render(AB, { height: { narrow: 180, wide: 360 } }))).toBe(strip(render(AB)));
+  });
+
+  it('any positive finite height draws at exactly that height', () => {
+    fc.assert(
+      fc.property(fc.double({ min: 1, max: 2000, noNaN: true }), fc.double({ min: 1, max: 2000, noNaN: true }), (narrow, wide) => {
+        expect(plotHeights(render(AB, { height: { narrow, wide } }))).toEqual({ narrow, wide });
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it('rejects an invalid height, in every state, drawn or not', () => {
+    const bad: unknown[] = [
+      { narrow: 0, wide: 280 },
+      { narrow: 220, wide: 0 },
+      { narrow: -1, wide: 280 },
+      { narrow: 220, wide: -280 },
+      { narrow: Number.NaN, wide: 280 },
+      { narrow: 220, wide: Infinity },
+      { narrow: -Infinity, wide: 280 },
+      { narrow: '220', wide: 280 },
+      { narrow: 220 },
+      { wide: 280 },
+      {},
+      null,
+      220,
+      [220, 280],
+    ];
+    for (const [id, s] of fixtures) {
+      for (const height of bad) {
+        expect(() => render(s, { height: height as never }), `${id} ${JSON.stringify(height)}`).toThrow(TypeError);
+      }
+    }
+    // Including the collecting state, which draws no frame and so would otherwise ignore it.
+    expect(() => render({ ...AB, nA: 0, nB: 0 }, { height: { narrow: 0, wide: 0 } })).toThrow(TypeError);
+  });
+
+  it('rejects any non-positive or non-finite height (property)', () => {
+    const invalid = fc.oneof(fc.double({ max: 0 }), fc.constantFrom(Number.NaN, Infinity, -Infinity, -0));
+    fc.assert(
+      fc.property(invalid, fc.boolean(), (value, onNarrow) => {
+        const height = onNarrow ? { narrow: value, wide: 280 } : { narrow: 220, wide: value };
+        expect(() => render(AB, { height })).toThrow(TypeError);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it('an explicit label replaces the generated one in both layouts, and nothing else changes', () => {
+    const html = render(AB, { ariaLabel: 'The two groups, compared as views accumulate' });
+    expect(labels(html)).toEqual(['The two groups, compared as views accumulate', 'The two groups, compared as views accumulate']);
+    expect(html.replaceAll('The two groups, compared as views accumulate', labels(render(AB))[0]!)).toBe(render(AB));
+  });
+
+  it('an explicit label also replaces the pause wording', () => {
+    for (const s of [liveFixture('ab', 'enough-data', 'paused'), pausedAbAboveZeroFixture(), liveFixture('calibration', 'enough-data', 'paused')]) {
+      expect(labels(render(s)).every((l) => /until the pause/.test(l))).toBe(true);
+      const own = labels(render(s, { ariaLabel: 'The chart is held at its last interval' }));
+      expect(own).toEqual(['The chart is held at its last interval', 'The chart is held at its last interval']);
+      expect(own.join(' ')).not.toMatch(/until the pause/);
+    }
+  });
+
+  it('keeps the generated label when none is given, and with an explicit height too', () => {
+    expect(labels(render(AB, { height: { narrow: 200, wide: 300 } }))).toEqual(labels(render(AB)));
+  });
+
+  it('rejects a label with a digit, in every state, drawn or not', () => {
+    for (const label of ['Interval of 12 points', '1', 'Chart 2 of 3', 'B − A: +3', 'half of 50']) {
+      for (const [id, s] of fixtures) expect(() => render(s, { ariaLabel: label }), `${id} ${label}`).toThrow(TypeError);
+    }
+    expect(() => render({ ...AB, nA: 0, nB: 0 }, { ariaLabel: 'Chart 2' })).toThrow(TypeError);
+  });
+
+  it('rejects a label that is empty, blank or not a string', () => {
+    for (const label of ['', ' ', '\n\t', null, 7, {}, ['a']]) {
+      expect(() => render(AB, { ariaLabel: label as never }), JSON.stringify(label)).toThrow(TypeError);
+    }
+  });
+
+  it('with both overrides set the truth audit finds nothing', () => {
+    const page = (body: string) => `<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body>${body}</body></html>`;
+    const ctx = { route: '/live', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
+    for (const [id, s] of fixtures) {
+      const html = render(s, { height: { narrow: 190, wide: 310 }, ariaLabel: 'The groups compared as views accumulate' });
+      expect(auditHtml(page(html), ctx), id).toEqual([]);
+    }
+  });
 });
 
 describe('NowRow', () => {

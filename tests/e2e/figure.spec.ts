@@ -343,3 +343,114 @@ test.describe('kitchen sink Figures', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// /kitchen-sink/chart-overrides: the Figure loaded with `eager`, and a live chart with its own
+// plot height and accessible name.
+test.describe('kit extensions: eager loading and chart overrides', () => {
+  const OVERRIDES = '/kitchen-sink/chart-overrides';
+
+  test('eager: the island loads after hydration with no pointer, no focus and no idle callback', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page);
+    await page.goto(OVERRIDES);
+    // The server sends the preview; the island replaces it once the page is interactive.
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    await expect(baseline(page, 'eager')).toBeVisible();
+    await baseline(page, 'eager').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(baseline(page, 'eager')).toHaveValue('0.11');
+    expect(errors).toEqual([]);
+  });
+
+  test('eager: the server HTML is the preview and the island code is requested by the browser, not the server', async ({ page, request }) => {
+    const response = await request.get(OVERRIDES);
+    const html = await response.text();
+    expect(html).toContain('data-island="idle"');
+    expect(html).not.toContain('data-island="ready"');
+    await withoutIdle(page);
+    let scripts = 0;
+    page.on('request', (r) => {
+      if (r.resourceType() === 'script') scripts += 1;
+    });
+    await page.goto(OVERRIDES);
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    expect(scripts).toBeGreaterThan(0);
+  });
+
+  test('the default stays deferred: the demo Figure on the kitchen sink is still idle without intent', async ({ page }) => {
+    await withoutIdle(page);
+    await page.goto('/kitchen-sink');
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(500);
+    await expect(island(page, 'demo')).toHaveAttribute('data-island', 'idle');
+  });
+
+  test('eager: an island whose code fails to load shows the same no-JS preview as intent loading, and focus stays put', async ({ page }) => {
+    await withoutIdle(page);
+    watchErrors(page, ['A fictional chunk failure']);
+    await page.goto(OVERRIDES);
+    const failed = page.locator('[data-island="failed"]', { has: figure(page, 'eager-failed') });
+    await expect(failed).toHaveCount(1);
+    await expect(figure(page, 'eager-failed').getByText('Controls need JavaScript.')).toBeVisible();
+    await expect(figure(page, 'eager-failed').locator('[data-nojs-only] table')).toBeVisible();
+    await expect(figure(page, 'eager-failed').getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(figure(page, 'eager-failed').locator('svg[data-chart-frame]:visible')).toHaveCount(1);
+    // Nothing held focus, so none is taken: it does not jump to the table the way a focused island's does.
+    await expect(figure(page, 'eager-failed').locator('[data-nojs-only] [role="region"]')).not.toBeFocused();
+    // The Figure beside it, and the rest of the page, are untouched.
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    await expect(page.getByRole('heading', { level: 1, name: 'Kit overrides' })).toBeVisible();
+  });
+
+  const plotHeight = (page: Page, chartId: string, layout: 'narrow' | 'wide') =>
+    page
+      .locator(`[data-chart="${chartId}-chart"] svg[data-layout="${layout}"] svg[data-mark-layer]`)
+      .evaluate((el) => Number(el.getAttribute('height')));
+  const frameBox = (page: Page, chartId: string, layout: 'narrow' | 'wide') =>
+    page.locator(`[data-chart="${chartId}-chart"] svg[data-layout="${layout}"]`).evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return { width: box.width, height: box.height, scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth };
+    });
+
+  for (const [name, size, layout, expected] of [
+    ['phone', { width: 390, height: 844 }, 'narrow', { default: 220, override: 160 }],
+    ['desktop', { width: 1280, height: 800 }, 'wide', { default: 280, override: 340 }],
+  ] as const) {
+    test(`chart overrides on a ${name}: the plot takes its own height, the default keeps its own`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.goto(OVERRIDES);
+      expect(await plotHeight(page, 'chart-default', layout)).toBe(expected.default);
+      expect(await plotHeight(page, 'chart-override', layout)).toBe(expected.override);
+      const normal = await frameBox(page, 'chart-default', layout);
+      const own = await frameBox(page, 'chart-override', layout);
+      // The rendered frame grows or shrinks by exactly the plot's difference, and nothing overflows.
+      expect(own.height - normal.height).toBeCloseTo(expected.override - expected.default, 0);
+      expect(own.width).toBeCloseTo(normal.width, 0);
+      expect(own.scrollWidth).toBeLessThanOrEqual(own.clientWidth);
+    });
+  }
+
+  test('chart overrides: the explicit label names both frames, the default keeps the generated one', async ({ page }) => {
+    await page.goto(OVERRIDES);
+    const labels = (id: string) => page.locator(`[data-chart="${id}-chart"] svg[data-chart-frame]`).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
+    const own = await labels('chart-override');
+    expect(own).toHaveLength(2);
+    expect(new Set(own).size).toBe(1);
+    expect(own[0]).toMatch(/^The two groups compared as views accumulate/);
+    expect(own[0]).not.toMatch(/\d/);
+    const generated = await labels('chart-default');
+    expect(generated[0]).toMatch(/^The difference between the groups, B minus A, as views per group grow/);
+  });
+
+  test('chart overrides in forced colours: the chart still draws, at the same geometry, and axe finds nothing', async ({ page }) => {
+    await page.goto(OVERRIDES);
+    const before = await plotHeight(page, 'chart-override', 'wide');
+    await page.emulateMedia({ forcedColors: 'active' });
+    expect(await plotHeight(page, 'chart-override', 'wide')).toBe(before);
+    for (const id of ['chart-default', 'chart-override']) {
+      await expect(page.locator(`[data-chart="${id}-chart"] svg[data-layout]:visible [data-cs="band"]`)).toHaveCount(1);
+      await expect(page.locator(`[data-chart="${id}-chart"] svg[data-layout]:visible [data-cs="current"]`)).toHaveCount(1);
+    }
+    await expectNoA11yViolations(page);
+  });
+});

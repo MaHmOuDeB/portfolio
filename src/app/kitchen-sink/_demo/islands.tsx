@@ -15,6 +15,14 @@ export function DemoIsland(props: DemoInteractiveProps) {
   return <LazyDemo {...props} />;
 }
 
+// An island whose code never arrives, as a blocked or failed network would leave it: the import
+// rejects the moment it is asked for, so the failure needs no request routing in a test.
+const LazyUnreachable = lazy<typeof DemoIsland>(() => Promise.reject(new Error('A fictional chunk failure in the kitchen sink')));
+
+export function UnreachableDemoIsland(props: DemoInteractiveProps) {
+  return <LazyUnreachable {...props} />;
+}
+
 const noop = () => {};
 
 export function InertDemoControls({ id, values }: { id: string; values: DemoValues }) {

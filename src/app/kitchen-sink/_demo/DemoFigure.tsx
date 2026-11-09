@@ -5,12 +5,27 @@
 import { LoadOnIntent } from '@/components/kit/LoadOnIntent';
 import { PRESETS } from './DemoControls';
 import { DemoChart, DemoFigureView, demoModel } from './demo-view';
-import { DemoIsland, InertDemoControls } from './islands';
+import { DemoIsland, InertDemoControls, UnreachableDemoIsland } from './islands';
 
-export function DemoFigure({ id, titleLevel, failAt }: { id: string; titleLevel?: 2 | 3 | 4; failAt?: number }) {
+export function DemoFigure({
+  id,
+  titleLevel,
+  failAt,
+  eager,
+  unreachable,
+}: {
+  id: string;
+  titleLevel?: 2 | 3 | 4;
+  failAt?: number;
+  eager?: boolean;
+  /** The island's code never loads: the preview comes back in its no-JS form. */
+  unreachable?: boolean;
+}) {
   const values = PRESETS.default;
+  const Island = unreachable ? UnreachableDemoIsland : DemoIsland;
   return (
     <LoadOnIntent
+      eager={eager}
       preview={
         <DemoFigureView
           id={id}
@@ -20,7 +35,7 @@ export function DemoFigure({ id, titleLevel, failAt }: { id: string; titleLevel?
         />
       }
     >
-      <DemoIsland
+      <Island
         id={id}
         titleLevel={titleLevel}
         failAt={failAt}
