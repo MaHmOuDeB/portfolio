@@ -365,7 +365,9 @@ else
       valid = expiry == expected
     end
   end
-  for i=2,#types do values[i] = redis.call('GET',KEYS[i+2]) end
+  -- The per-type claims matter only behind a legacy arm claim. Behind no claim, a pending one or
+  -- the other arm's, every item is an orphan whatever they hold, so they are not read.
+  for i=2,#types do values[i] = (entry == arm) and redis.call('GET',KEYS[i+2]) or false end
 end
 local outcomes, planned, ready, seen = {}, {}, {}, {}
 for i,t in ipairs(types) do ready[t] = values[i] == arm end

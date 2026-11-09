@@ -9,9 +9,12 @@ import { serverNow } from './clock.ts';
 import { closeIfDecided } from './close.ts';
 import { ownerCookieValid } from './exclude.ts';
 import { NO_FLAGS, readFlags } from './flags.ts';
-import type { EventDeps } from './handler.ts';
+import { createCeilingMemo, type EventDeps } from './handler.ts';
 
 const log = (line: object) => console.log(JSON.stringify(line));
+
+/** Lives as long as the server process: a full daily ceiling is remembered across requests. */
+const ceilingMemo = createCeilingMemo();
 
 /**
  * Runs a task after the response (or the prerender) is finished. Outside a request scope, where
@@ -37,6 +40,7 @@ export function eventDeps(): EventDeps {
     now: () => serverNow(env),
     // One JSON line per request; LogLine holds categories only.
     log,
+    ceilingMemo,
     // The owner's exclusion cookie (set through /exclude) marks a view as self.
     ownerCookieValid: (cookieHeader) => ownerCookieValid(cookieHeader, env.excludeToken),
     // The day's first granted ceiling slot schedules the closing check after the response.

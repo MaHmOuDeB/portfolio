@@ -16,6 +16,9 @@
 //      of any kind is cut off after an atomic expiring increment (the store's free quota is finite).
 //   8. The closed marker: entries check before flags. Later batches check inside their write.
 //   9. Flags: paused or malformed: paused. A read error is logged and counting goes on.
+//     A process that has seen the day's ceiling full answers an entry-only batch with `ceiling` here,
+//     before the rate limit, without touching the store. A batch that carries later events still
+//     takes the full path: it may be a counted view's re-sent flush, whose later events must land.
 //  10. The entry: claimed first (a re-sent entry records nothing), then bot, internal, self and a
 //      client reject each record a rejection and stop; then the daily ceiling; then it counts. The
 //      day's first granted ceiling slot calls onNewDay.
@@ -69,7 +72,25 @@ export type EventDeps = {
   ownerCookieValid: (cookieHeader: string | null) => boolean;
   /** Called after finalization is attempted for the first granted ceiling slot of a Berlin day. */
   onNewDay?: (ns: string, day: string) => void;
+  /**
+   * What this process knows about the daily ceiling. Absent: every refused entry asks the store.
+   * The route keeps one for the life of the process; a cold instance simply asks the store once.
+   */
+  ceilingMemo?: CeilingMemo;
 };
+
+/**
+ * The newest Berlin day this process has seen the daily ceiling full. One slot, so it never grows.
+ * A day's count only goes up (slots are never given back), so a full day stays full until
+ * midnight, and a later day is simply a different key.
+ */
+export type CeilingMemo = { full: string | null };
+
+export function createCeilingMemo(): CeilingMemo {
+  return { full: null };
+}
+
+const memoKey = (ns: string, day: string) => `${ns}|${day}`;
 
 const ALLOWED_CONTENT_TYPES = ['', 'text/plain', 'application/json'];
 
@@ -245,6 +266,14 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     const start = calibrationStart(config, env.vercelEnv)!;
     if (config.phase === 'ab' && nowMs >= Date.parse(plannedEnd(config, start).at)) throw refuse('ended');
 
+    // 6b. The day is full and this batch is only an entry: nothing to look up or count. (If it were
+    // a counted view's re-sent entry the answer would be `duplicate` with no effect either way,
+    // and the sender ends on any refusal.)
+    const day = berlinDay(now.toISOString());
+    if (batch.events.length === 1 && batch.events[0]!.type === 'entry' && deps.ceilingMemo?.full === memoKey(batch.ns, day)) {
+      throw refuse('ceiling');
+    }
+
     // 7. Address and rate limit.
     const production = env.vercelEnv === 'production';
     const bucket = ipBucket(clientAddress(request)) ?? (production ? null : 'local');
@@ -252,7 +281,6 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
     if (production && env.ratelimitHmacKey === undefined) {
       throw new Stop(500, { ok: false, reason: 'misconfigured' }, 'error', 'no-ratelimit-key');
     }
-    const day = berlinDay(now.toISOString());
     const [first, ...rest] = batch.events;
     const entry = first!.type === 'entry' ? first! : null;
     const later: EventType[] = (entry === null ? batch.events : rest).map((e) => e.type);
@@ -321,6 +349,7 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
           throw refuse(reason, 'rejected');
         }
         const ceiling = await countDailyEntryN(write, { ns: batch.ns, day, ceiling: config.dailyEntryCeiling });
+        if (ceiling.verdict !== 'ok' && deps.ceilingMemo !== undefined) deps.ceilingMemo.full = memoKey(batch.ns, day);
         if (ceiling.verdict === 'ceiling-first') {
           await recordRejection(write, { ns: batch.ns, reason: 'ceiling', day });
           throw refuse('ceiling', 'rejected');

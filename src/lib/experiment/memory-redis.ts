@@ -284,7 +284,7 @@ export function createMemoryRedis(o: { now?: () => number; /** Model-only tracin
               valid = expiry === deadline;
             }
           }
-          values = [entryValue, ...ks.slice(3).map(k => call('GET', k))];
+          values = [entryValue, ...ks.slice(3).map(k => entryValue === arm ? call('GET', k) : null)];
         }
         const ready = new Set<EventType>(EVENT_TYPES.filter((_, i) => values[i] === arm));
         const seen = new Set<string>();
