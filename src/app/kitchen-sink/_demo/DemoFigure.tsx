@@ -5,7 +5,7 @@
 import { LoadOnIntent } from '@/components/kit/LoadOnIntent';
 import { PRESETS } from './DemoControls';
 import { DemoChart, DemoFigureView, demoModel } from './demo-view';
-import { DemoIsland, InertDemoControls, UnreachableDemoIsland } from './islands';
+import { DelayedUnreachableDemoIsland, DemoIsland, InertDemoControls, UnreachableDemoIsland } from './islands';
 
 export function DemoFigure({
   id,
@@ -18,11 +18,14 @@ export function DemoFigure({
   titleLevel?: 2 | 3 | 4;
   failAt?: number;
   eager?: boolean;
-  /** The island's code never loads: the preview comes back in its no-JS form. */
-  unreachable?: boolean;
+  /**
+   * The island's code never loads: the preview comes back in its no-JS form. `'delayed'` keeps the
+   * request pending until the page calls `window.__delayedIsland.fail()`.
+   */
+  unreachable?: boolean | 'delayed';
 }) {
   const values = PRESETS.default;
-  const Island = unreachable ? UnreachableDemoIsland : DemoIsland;
+  const Island = unreachable === 'delayed' ? DelayedUnreachableDemoIsland : unreachable ? UnreachableDemoIsland : DemoIsland;
   return (
     <LoadOnIntent
       eager={eager}

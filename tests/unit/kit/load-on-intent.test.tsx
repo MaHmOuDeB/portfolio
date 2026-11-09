@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoadOnIntent } from '@/components/kit/LoadOnIntent';
 
 // The tests run in Node: there is no DOM to hydrate into. The browser half of LoadOnIntent (the
-// preview handover, the focus handoff and the failed-import fallback) is in tests/e2e/figure.spec.ts.
+// preview handover, the focus handoff, the failed-import fallback and the change of `eager` from false
+// to true on a mounted component, which needs real state and effects) is in tests/e2e/figure.spec.ts,
+// on the /kitchen-sink/eager routes.
 // Here the component renders on the server for real, and its hooks are replaced by recorders, so
 // the island's own effects and state setters can be run one by one, with `window` and `document`
 // stubbed, and seen to do (or not do) what `eager` promises.
@@ -165,16 +167,6 @@ describe('LoadOnIntent eager', () => {
     commit(effects);
     await Promise.resolve();
     expect(setLoading).toHaveBeenCalledTimes(1);
-  });
-
-  it('the eager effect depends on eager and the stable load callback only, and turning eager on loads once', () => {
-    const source = readFileSync(join(import.meta.dirname, '../../../src/components/kit/LoadOnIntent.tsx'), 'utf8');
-    const code = source.replace(/^\s*\/\/.*$/gm, '');
-    expect(code).toMatch(/const load = useCallback\(/);
-    expect(code).toMatch(/if \(live\) load\(\);[\s\S]*?\}, \[eager, load\]\);/);
-    // One load path: the eager trigger calls the same `load` as the pointer, focus and idle ones.
-    expect(code.match(/const load\b/g)).toHaveLength(1);
-    expect(code).toMatch(/onPointerEnter=\{loading \? undefined : load\}/);
   });
 
   it('eager is false by default and is the only prop added', () => {
