@@ -168,8 +168,7 @@ view once and in order. A click counts for its view only inside that window.
 ## The daily ceiling
 
 At most 200 counted entry views per Berlin day. After that the reason is "ceiling" and nothing
-more is counted that day. That is about 50 times the traffic I expect, and low enough that a month
-at the ceiling, page reads included, uses about 70 percent of the store's free monthly command allowance. Visits turned away after the ceiling cost a few more commands each.
+more is counted that day. That is about 50 times the traffic I expect, and low enough that a month at the ceiling, page reads included, uses about 70 percent of the store's free monthly command allowance. Visits turned away after the ceiling cost a few more commands each.
 
 ## Expected detectable effect
 
