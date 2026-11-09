@@ -268,7 +268,9 @@ export async function handleEvent(request: Request, deps: EventDeps): Promise<Re
 
     // 6b. The day is full and this batch is only an entry: nothing to look up or count. (If it were
     // a counted view's re-sent entry the answer would be `duplicate` with no effect either way,
-    // and the sender ends on any refusal.)
+    // and the sender ends on any refusal.) Bot, internal, self and client-reject entries that arrive
+    // after the day is full are refused here too, so their rd: rejection rows stop growing on a
+    // full day; the analysis excludes ceiling days, so only the published funnel is affected.
     const day = berlinDay(now.toISOString());
     if (batch.events.length === 1 && batch.events[0]!.type === 'entry' && deps.ceilingMemo?.full === memoKey(batch.ns, day)) {
       throw refuse('ceiling');

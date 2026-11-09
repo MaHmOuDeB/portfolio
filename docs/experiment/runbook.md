@@ -251,10 +251,11 @@ See [Redis conformance](redis-conformance.md) for the staging checks.
 
 The counter database's free tier allows 500,000 commands a month. The experiment is built to stay
 under it at the daily limit of 200 counted views: 200 views x 48 commands x 30 days is 288,000,
-page reads add up to 55,000, and refused entries beyond the daily limit add up to 156,000 in the
-worst case (650 a day at 8 commands each, which only happens when every request lands on a server
-that has not yet seen that day's limit reached; one that has answers without touching the
-database). The total is 499,000, so there is almost no spare room if the assumptions are wrong.
+page reads add up to 55,000, and I allow 156,000 for refused entries beyond the daily limit (650 a
+day at 8 commands each: the room left under the quota, not a measured figure). A server that has
+already seen that day's limit reached answers a lone entry without touching the database, so the
+real cost is lower, but a refused request that also carries later events still pays the full 8.
+The total is 499,000, so there is almost no spare room if the assumptions are wrong.
 
 1. Upstash console, the database, **Usage**: look at the command count once a week and after any
    day with unusual traffic.
