@@ -64,7 +64,13 @@ export function createSender(o: {
   }
   // The server starts the claim TTL after the first post. Starting here bounds the
   // replay conservatively without requiring the original response or a server clock.
-  const replayUntil = performance.now() + EXPERIMENT.pvTtlSeconds * 1000;
+  // Both clocks start now. performance.now() may stop while a laptop sleeps and Date.now() can be
+  // set by the user, so an entry is replayed only while BOTH elapsed times are inside the window.
+  const startedMono = performance.now();
+  const startedWall = Date.now();
+  const replayWindowMs = EXPERIMENT.pvTtlSeconds * 1000;
+  const insideReplayWindow = (): boolean =>
+    performance.now() - startedMono < replayWindowMs && Date.now() - startedWall < replayWindowMs;
   const pv = o.newId();
   const batch = (events: BeaconItem[]): BeaconBatch => ({ v: 1, ns: o.ns, pv, arm: o.arm, events });
   const items = (types: EventType[]): BeaconItem[] => types.map((type) => ({ type }));
@@ -135,7 +141,7 @@ export function createSender(o: {
       const unconfirmed = [...inFlight, ...waiting];
       inFlight = [];
       waiting = [];
-      if (unconfirmed[0] === 'entry' && performance.now() >= replayUntil) return;
+      if (unconfirmed[0] === 'entry' && !insideReplayWindow()) return;
       if (unconfirmed.length > 0) o.post(batch(items(unconfirmed)), 'beacon').catch(() => null);
     },
   };

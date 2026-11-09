@@ -5,7 +5,7 @@ import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats
 import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, type ExperimentConfig } from '../../../src/experiment.config';
 import { HEADLINES, type HeadlinePart } from '../../../content/experiment/headlines';
 import { preregHash } from '../../../scripts/prereg-hash';
-import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA, MONTHLY_PAGE_READ_BUDGET } from './budget';
+import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA, MONTHLY_PAGE_READ_BUDGET, REFUSED_ENTRIES_PER_DAY, REFUSED_ENTRY_COMMANDS } from './budget';
 
 const ROOT = join(import.meta.dirname, '../../..');
 
@@ -53,6 +53,13 @@ describe('the daily ceiling and the command quota', () => {
     expect(COMMANDS_PER_FULL_VIEW).toBeLessThanOrEqual(50);
     const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
     expect(atCeiling + MONTHLY_PAGE_READ_BUDGET).toBeLessThan(MONTHLY_COMMAND_QUOTA);
+  });
+
+  it('still fit with the worst-case refused entries every day (200 x 48 x 30 + 55,000 + 650 x 8 x 30 = 499,000)', () => {
+    const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
+    const refused = REFUSED_ENTRIES_PER_DAY * REFUSED_ENTRY_COMMANDS * 30;
+    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBe(499_000);
+    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 });
 

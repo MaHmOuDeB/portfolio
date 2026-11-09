@@ -6,7 +6,7 @@ import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { RedisUnavailable, type RedisCommand, type RedisRest } from '@/lib/experiment/redis-rest';
 import {
-  ATOMIC_ENTRY_SCRIPT, ATOMIC_LATER_SCRIPT, countDailyEntryN, finalizeAtomicEntry, rateLimit, readCounters,
+  ATOMIC_ENTRY_SCRIPT, ATOMIC_LATER_SCRIPT, CountingClosed, countDailyEntryN, finalizeAtomicEntry, rateLimit, readCounters,
   readView, recordAtomicLater, reserveAtomicEntry,
 } from '@/lib/experiment/store';
 
@@ -253,6 +253,60 @@ describe.skipIf(!endpoint)('standalone Redis conformance (set REDIS_CONFORMANCE_
     expect((await recordAtomicLater(f.redis, request)).map(item => item.result.outcome)).toEqual(['counted', 'counted']);
     expect((await recordAtomicLater(f.redis, request)).map(item => item.result.outcome)).toEqual(['duplicate', 'duplicate']);
     expect(await f.redis.command(['PEXPIRETIME', keys.claim(f.ns, pv, 'card')])).toBe(view.entryExpiry);
+  }));
+
+  it('binds a later-only batch to the entry\'s Berlin day when the caller sends the next day', () => exercise(async f => {
+    await f.enter();
+    // After midnight the handler may still derive the next day; the packed claim's stored day wins.
+    const batch = await recordAtomicLater(f.redis, { ...f.input, day: '2026-11-02', items: ['inview', 'engaged'] });
+    expect(batch.map(item => item.result.outcome)).toEqual(['counted', 'counted']);
+    const rows = await readCounters(f.redis, f.ns);
+    expect(rows.days.map(row => row.day)).toEqual([day]);
+    expect(rows.days[0]?.a).toMatchObject({ entry: 1, inview: 1, engaged: 1 });
+    expect(rows.totals.a).toMatchObject({ entry: 1, inview: 1, engaged: 1 });
+  }));
+
+  it('answers a later-only batch on a pending claim with orphans and writes no counter', () => exercise(async f => {
+    expect(await f.reserve()).toBe('OK');
+    const batch = await recordAtomicLater(f.redis, { ...f.input, items: ['card', 'inview'] });
+    expect(batch.map(item => item.result.outcome)).toEqual(['orphan', 'orphan']);
+    expect(await f.redis.command(['HGETALL', keys.counters(f.ns)])).toEqual([]);
+    // The entry then counts, and the same later batch is admitted once the claim is promoted.
+    expect(await finalizeAtomicEntry(f.redis, f.input)).toMatchObject({ outcome: 'counted' });
+    const after = await recordAtomicLater(f.redis, { ...f.input, items: ['card', 'inview'] });
+    expect(after.map(item => item.result.outcome)).toEqual(['orphan', 'counted']);
+    const again = await recordAtomicLater(f.redis, { ...f.input, items: ['card', 'inview'] });
+    expect(again.map(item => item.result.outcome)).toEqual(['counted', 'duplicate']);
+  }));
+
+  it('replies closed to a later script without a deadline, and orphans an entry on a reservation', () => exercise(async f => {
+    await f.enter();
+    const marker = JSON.stringify({ kind: 'decision', day });
+    await f.redis.command(['SET', keys.closed(f.ns), marker]);
+    const raw = ['EVAL', ATOMIC_LATER_SCRIPT, 9, ...f.allKeys, 'a', day, '', 'cv'] as const;
+    expect(await f.redis.command(raw)).toEqual(['closed', marker]);
+    await expect(recordAtomicLater(f.redis, { ...f.input, items: ['cv'] })).rejects.toBeInstanceOf(CountingClosed);
+    expect((await readCounters(f.redis, f.ns)).totals.a.cv).toBe(0);
+    // A new view's reservation, finalized after closure, is an orphan and counts nothing more.
+    const other = { ...f.input, pv: '00000000-0000-4000-8000-000000000002' };
+    await f.redis.command(['SET', keys.claim(f.ns, other.pv, 'entry'), `pending:${owner}`, 'NX', 'EX', 1800]);
+    expect(await finalizeAtomicEntry(f.redis, other)).toEqual({ outcome: 'orphan' });
+    expect((await readCounters(f.redis, f.ns)).totals.a.entry).toBe(1);
+    await f.redis.command(['DEL', keys.claim(f.ns, other.pv, 'entry')]);
+  }));
+
+  it('counts each type once across concurrent identical later-only batches without a deadline', () => exercise(async f => {
+    await f.enter();
+    const items = ['inview', 'card', 'secondary'] as const;
+    const command = ['EVAL', ATOMIC_LATER_SCRIPT, 9, ...f.allKeys, 'a', day, '', ...items] as const;
+    const execute = (run: (c: RedisCommand) => Promise<unknown>) =>
+      Promise.all([run(command), run(command), run(command)]).then(replies => replies.map(reply => JSON.stringify(reply)).sort());
+    const real = await execute(realCommand);
+    expect(real).toEqual(await execute(f.model.command));
+    expect(real.filter(reply => reply.includes('counted'))).toHaveLength(1);
+    const rows = await readCounters(f.redis, f.ns);
+    expect(rows.totals.a).toMatchObject({ entry: 1, inview: 1, card: 1, secondary: 1 });
+    expect(rows.days[0]?.a).toEqual(rows.totals.a);
   }));
 
   for (const fault of ['before-counts', 'after-counts'] as const) {

@@ -1,11 +1,11 @@
 import { readView } from '@/lib/experiment/store';
-import { COMMANDS_PER_FULL_VIEW } from './budget';
+import { COMMANDS_PER_FULL_VIEW, REFUSED_ENTRY_COMMANDS } from './budget';
 import { createHmac } from 'node:crypto';
 import type { ServerEnv } from '@/lib/env';
 import { EXPERIMENT, type ExperimentConfig } from '@/experiment.config';
 import type { BeaconItem, EventType } from '@/lib/experiment/events';
 import { NO_FLAGS, readFlags, type ExperimentFlags } from '@/lib/experiment/flags';
-import { handleEvent, type EventDeps, type LogLine } from '@/lib/experiment/handler';
+import { createCeilingMemo, handleEvent, type EventDeps, type LogLine } from '@/lib/experiment/handler';
 import { INTERNAL_MESSAGE } from '@/lib/experiment/internal';
 import { keys } from '@/lib/experiment/keys';
 import { createMemoryRedis, type MemoryRedis } from '@/lib/experiment/memory-redis';
@@ -69,6 +69,8 @@ type Setup = {
   write?: (redis: MemoryRedis) => RedisRest | null;
   owner?: (cookie: string | null) => boolean;
   atomicCommand?: (c: RedisCommand) => void;
+  /** Leave the process without a ceiling memo, as a cold instance is. */
+  noCeilingMemo?: boolean;
 };
 
 function setup(o: Setup = {}) {
@@ -92,6 +94,7 @@ function setup(o: Setup = {}) {
     config: o.config ?? CONFIG,
     ownerCookieValid: o.owner ?? (() => false),
     onNewDay: (ns, day) => newDays.push([ns, day]),
+    ...(o.noCeilingMemo ? {} : { ceilingMemo: createCeilingMemo() }),
   };
   async function post(payload: string | BodyInit, headers: Record<string, string | null> = {}, url = `${CANONICAL}/api/e`) {
     const h = new Headers({ origin: CANONICAL, 'sec-fetch-site': 'same-origin', 'x-real-ip': IP, 'user-agent': CHROME, 'content-type': 'text/plain;charset=UTF-8' });
@@ -546,6 +549,35 @@ describe('10. the entry', () => {
     expect(await s.hash()).toEqual({ 't:a:entry': '2', [`d:${DAY}:a:entry`]: '2', 'r:ceiling': '1', [`rd:${DAY}:ceiling`]: '1' });
     expect(s.logs[2]).toMatchObject({ outcome: 'rejected', reason: 'ceiling' });
     expect(s.logs[3]).toMatchObject({ outcome: 'refused', reason: 'ceiling' });
+  });
+
+  it('once the day is full, a counted view\'s re-sent entry still lets its later events in', async () => {
+    const s = setup({ config: config({ dailyEntryCeiling: 1 }) });
+    await s.post(body(['entry'], { pv: pvOf(1) }));
+    expect((await s.post(body(['entry'], { pv: pvOf(2) }))).json).toEqual(refused('ceiling'));
+    expect((await s.post(body(['entry'], { pv: pvOf(3) }))).json).toEqual(refused('ceiling'));
+    expect((await s.post(body(['entry', 'inview'], { pv: pvOf(1) }))).json).toEqual(ok([['entry', 'duplicate'], ['inview', 'counted']], { viewN: 1 }));
+    expect((await s.post(body(['engaged'], { pv: pvOf(1) }))).json).toEqual(ok([['engaged', 'counted']]));
+    expect((await s.post(body(['entry'], { pv: pvOf(1) }))).json).toEqual(refused('ceiling'));
+  });
+
+  it('a new Berlin day starts counting again after a full one', async () => {
+    const s = setup({ config: config({ dailyEntryCeiling: 1 }) });
+    await s.post(body(['entry'], { pv: pvOf(1) }));
+    await s.post(body(['entry'], { pv: pvOf(2) }));
+    expect((await s.post(body(['entry'], { pv: pvOf(3) }))).json).toEqual(refused('ceiling'));
+    s.advance(24 * 3600 * 1000);
+    expect((await s.post(body(['entry'], { pv: pvOf(4) }))).json).toEqual(ok([['entry', 'counted']]));
+  });
+
+  it('a process that has not seen the full day (a cold instance) asks Redis and gets the same refusal', async () => {
+    const s = setup({ config: config({ dailyEntryCeiling: 1 }) });
+    await s.post(body(['entry'], { pv: pvOf(1) }));
+    await s.post(body(['entry'], { pv: pvOf(2) }));
+    s.deps.ceilingMemo = createCeilingMemo();
+    expect((await s.post(body(['entry'], { pv: pvOf(3) }))).json).toEqual(refused('ceiling'));
+    expect(s.logs[2]).toMatchObject({ outcome: 'refused', reason: 'ceiling' });
+    expect(await s.redis.command(['GET', keys.ceiling(NS, DAY)])).toBe('3');
   });
 
   it('a bot-refused entry and a ceiling-refused entry leave their later events orphans', async () => {
@@ -1062,7 +1094,7 @@ function counting(redis: RedisRest) {
 }
 
 describe('the command budget', () => {
-  async function measure(batches: { events: EventType[] | Items; headers?: Record<string, string | null> }[], o: Setup = {}) {
+  async function measure(batches: { events: EventType[] | Items; pv?: string; headers?: Record<string, string | null> }[], o: Setup = {}) {
     let meter: ReturnType<typeof counting> | undefined;
     let inner = 0;
     const s = setup({
@@ -1078,7 +1110,7 @@ describe('the command budget', () => {
     for (const b of batches) {
       meter!.reset();
       inner = 0;
-      await s.post(body(b.events), b.headers);
+      await s.post(body(b.events, b.pv === undefined ? {} : { pv: b.pv }), b.headers);
       each.push(meter!.count());
       innerEach.push(inner);
     }
@@ -1101,10 +1133,27 @@ describe('the command budget', () => {
     expect(fragmented.total + fragmented.innerEach.reduce((a, b) => a + b, 0)).toBe(78);
   });
 
+  it('a ceiling-refused entry costs Redis commands until the process knows the day is full, then none', async () => {
+    const entries = [1, 2, 3, 4, 5].map((n) => ({ events: ['entry'] as EventType[], pv: pvOf(n) }));
+    const { each, innerEach } = await measure(entries, { config: config({ dailyEntryCeiling: 1 }) });
+    const cost = each.map((n, i) => n + innerEach[i]!);
+    // counted; the first refusal (records the rejection); then the memo answers without Redis.
+    expect(cost[0]).toBeGreaterThan(0);
+    expect(cost[1]).toBeGreaterThan(0);
+    expect(cost.slice(2)).toEqual([0, 0, 0]);
+  });
+
+  it('an instance with no memo pays REFUSED_ENTRY_COMMANDS for each refused entry', async () => {
+    const entries = [1, 2, 3, 4].map((n) => ({ events: ['entry'] as EventType[], pv: pvOf(n) }));
+    const { each, innerEach } = await measure(entries, { config: config({ dailyEntryCeiling: 1 }), noCeilingMemo: true });
+    const cost = each.map((n, i) => n + innerEach[i]!);
+    expect(cost.slice(2)).toEqual([REFUSED_ENTRY_COMMANDS, REFUSED_ENTRY_COMMANDS]);
+  });
+
   it('meters a bot-refused entry, its repeat and its later orphan', async () => {
     const bot = { 'user-agent': 'Googlebot/2.1' };
     const { each, innerEach } = await measure([{ events: ['entry'], headers: bot }, { events: ['entry'], headers: bot }, { events: ['inview', 'card'] }]);
-    expect(each.map((n, i) => n + innerEach[i]!)).toEqual([9, 5, 12]);
+    expect(each.map((n, i) => n + innerEach[i]!)).toEqual([9, 5, 6]);
   });
 
   it('counts rate-limited requests, including the first rejection write, and pre-store refusals', async () => {

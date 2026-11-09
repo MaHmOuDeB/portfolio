@@ -85,6 +85,12 @@ const HELD_REASON: Record<Held['reason'], string> = {
   'inconsistent-counts': 'the counts failed a consistency check, so the test stopped at the last clean look',
 };
 
+/** After "Paused on dd.mm: ". A stored stop never resumes in its namespace, so this must not read as a pause. */
+const STOPPED_FOR_GOOD_REASON = 'I stopped counting for this run and am checking the stored result before showing it';
+/** After "Calibration stopped on dd.mm: ". */
+const NO_NOTE_REASON = 'I no longer have the note explaining why';
+const NOTE_DISAGREES_REASON = 'the day I stored for this stop does not match what I see now, so I am checking it';
+
 const NOT_STARTED_REASON = 'the experiment has not started yet, so nothing is counted';
 const UNAVAILABLE_REASON = 'the live counts could not be read when this page was built, so they show at the next update';
 
@@ -168,7 +174,7 @@ function reconcileClosed(
     const fallback = unavailable();
     return {
       ...fallback, closed, closureMismatch: true, frozenAt: closed.day,
-      live: { ...fallback.live, freshness: { kind: 'paused', pausedOn: on, reason: 'I stopped counting and am checking the results' } },
+      live: { ...fallback.live, freshness: { kind: 'paused', pausedOn: on, reason: STOPPED_FOR_GOOD_REASON } },
     };
   }
   // The marker retained neither the original reason nor an instant within its Berlin day.
@@ -177,7 +183,9 @@ function reconcileClosed(
     ...s, closed, ...(derived === null && !flagDisagrees ? {} : { closureMismatch: true as const }), status: 'aa-failed', frozenAt: closed.day,
     calibration: s.calibration === null ? null : { ...s.calibration, ready: false },
     live: { ...s.live, phase: 'aa-failed', aaFailed: {
-      on, reason: 'I no longer have the note explaining why',
+      // No note exists only when neither a flag nor a derived failure does; otherwise one exists
+      // and disagrees with the stored stop, which is a different statement.
+      on, reason: derived === null && !flagDisagrees ? NO_NOTE_REASON : NOTE_DISAGREES_REASON,
     } },
   };
 }

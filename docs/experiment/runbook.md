@@ -246,3 +246,42 @@ The recorded stop still controls counting. A conflicting A/B result is withheld 
 the discrepancy is investigated. Keep the original closed marker and calibration
 failure flag. Review the counters and the flag history before using a fresh namespace.
 See [Redis conformance](redis-conformance.md) for the staging checks.
+
+## 10. Watch the command quota
+
+The counter database's free tier allows 500,000 commands a month. The experiment is built to stay
+under it at the daily limit of 200 counted views: 200 views x 48 commands x 30 days is 288,000,
+page reads add up to 55,000, and I allow 156,000 for refused entries beyond the daily limit (650 a
+day at 8 commands each: the room left under the quota, not a measured figure). A server that has
+already seen that day's limit reached answers a lone entry without touching the database, so the
+real cost is lower, but a refused request that also carries later events still pays the full 8.
+The total is 499,000, so there is almost no spare room if the assumptions are wrong.
+
+1. Upstash console, the database, **Usage**: look at the command count once a week and after any
+   day with unusual traffic.
+2. Set a usage alert at 70% of the monthly quota (350,000 commands) if the console offers one for
+   this plan. If it does not, note the date I last looked and check again within a week of the
+   count passing 250,000.
+3. If the count passes 70% before the 20th of a month, look for a flood (the Vercel Firewall
+   should have stopped it, step 2) before anything else. When the quota runs out, counting stops
+   for the rest of the month in both groups alike and the live test page says it is paused or
+   unreadable; nothing is lost silently, but the run's views are fewer.
+
+## 11. Before the first live write: no older writer may run
+
+The experiment's claims use a packed layout (arm, day, expiry and which events were counted, in
+one value). A server running the earlier layout writes separate keys, and the two must never write
+the same namespace at once. The simplest way to guarantee that is deploy order, and it holds here
+without extra code because of how the project is wired:
+
+- Only a production deployment ever writes to the store; a preview never does, even with the
+  credentials present (`tests/unit/experiment/access.test.ts`, the preview cases). `main` deploys as
+  a preview until `LAUNCHED` is `true` (the deploy workflow), so no deployment of any earlier
+  layout has ever been in production.
+- So the first production deployment is already the packed layout. Before setting `LAUNCHED=true`,
+  check that the deployment about to go live was built from a commit on `main` that contains
+  `ATOMIC_LATER_SCRIPT` in `src/lib/experiment/store.ts`.
+- After launch, do not roll back or promote a deployment older than that commit (Vercel's Instant
+  Rollback and "Promote" both do exactly that). If a rollback to an older layout is ever needed,
+  stop counting first (step 9), then use a fresh namespace for the next run (as in step 8) rather
+  than let two layouts share one.

@@ -475,4 +475,30 @@ describe('entry replay lifetime', () => {
       wall.mockRestore();
     }
   });
+
+  // [monotonic elapsed, wall elapsed, posts expected after the flush]
+  it.each([
+    [1000, 1000, 2],
+    [1000, 1799999, 2],
+    [1000, 1800000, 1],
+    [1800000, 1000, 1],
+    [1799999, 1799999, 2],
+    [1000, -5000, 2],
+  ])('replays only if both clocks are inside the window (%i ms monotonic, %i ms wall)', async (mono, elapsedWall, posts) => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    const wall = vi.spyOn(Date, 'now').mockReturnValue(5_000_000);
+    try {
+      const h = harness();
+      h.calls[0]!.resolve(null);
+      await settle();
+      h.sender.enqueue('inview', 'card');
+      clock.mockReturnValue(1000 + mono);
+      wall.mockReturnValue(5_000_000 + elapsedWall);
+      h.sender.flush();
+      expect(h.calls).toHaveLength(posts);
+    } finally {
+      clock.mockRestore();
+      wall.mockRestore();
+    }
+  });
 });
