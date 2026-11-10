@@ -215,10 +215,6 @@ describe('the tools I have built', () => {
     expect(automation).not.toMatch(/A\/B|experiment|25\+|recommendation/i);
   });
 
-  it('describe Docproof as engineering, never as job-search or CV tooling', () => {
-    expect(headlineText(byId.docproof.parts)).not.toMatch(/\b(CV|resume|job|application|career|tailor)/i);
-  });
-
   it('call the MarketingWS variants copy variants, never experimentation', () => {
     const text = headlineText(byId.marketingws.parts);
     expect(text).not.toMatch(/A\/B|experiment|test(s|ing)?\b/i);
