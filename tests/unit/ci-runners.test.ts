@@ -10,9 +10,11 @@ const ROOT = join(import.meta.dirname, '../..');
 const CI = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
 const DEPLOY = readFileSync(join(ROOT, '.github/workflows/deploy.yml'), 'utf8');
 const REDIS_DOC = readFileSync(join(ROOT, 'docs/experiment/redis-conformance.md'), 'utf8');
+const VITEST_CONFIG = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8');
 
 const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
 const STATIC_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
+const E2E_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
 const CAPS = '--cpus 3 --memory 3584m --memory-swap 3584m';
 
@@ -36,6 +38,17 @@ function key(job: string, name: string): string | undefined {
 
 const ci = jobs(CI);
 
+/** The top-level events under `on:`, by name. */
+function ciTriggers(): Record<string, string> {
+  const on = CI.slice(CI.indexOf('\non:\n') + 5, CI.indexOf('\nconcurrency:'));
+  const out: Record<string, string> = {};
+  for (const part of on.split(/^(?= {2}[a-z_]+:)/m)) {
+    const name = /^ {2}([a-z_]+):/.exec(part)?.[1];
+    if (name) out[name] = part;
+  }
+  return out;
+}
+
 describe('the CI jobs and their check names', () => {
   it('keeps every job and its name', () => {
     expect(Object.fromEntries(Object.entries(ci).map(([id, job]) => [id, key(job, 'name')]))).toEqual({
@@ -50,10 +63,12 @@ describe('the CI jobs and their check names', () => {
   });
 
   it('runs every job except lhci on the self-hosted labels', () => {
-    for (const id of ['stats-ref', 'sources-remote', 'build', 'e2e', 'links']) {
+    for (const id of ['stats-ref', 'sources-remote', 'build', 'links']) {
       expect(key(ci[id]!, 'runs-on'), id).toBe(SELF_HOSTED);
     }
+    // Static (fixed Redis port) only on instance 1; e2e (the longest job) only on instance 2.
     expect(key(ci.static!, 'runs-on')).toBe(STATIC_RUNS_ON);
+    expect(key(ci.e2e!, 'runs-on')).toBe(E2E_RUNS_ON);
   });
 
   it('keeps lhci on a GitHub-hosted ubuntu-24.04 runner, so Lighthouse scores stay comparable', () => {
@@ -108,9 +123,12 @@ describe('the self-hosted adjustments', () => {
     }
   });
 
-  it('gives static room for the slower Docker VM: 25 minutes and a 20 s test timeout', () => {
+  it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 20 s test timeout', () => {
     expect(key(ci.static!, 'timeout-minutes')).toBe('25');
-    expect(ci.static).toContain('- run: npm run test:cov -- --testTimeout=20000');
+    // The timeout lives in vitest.config.mts, for every run, not in a CI-only flag.
+    expect(ci.static).toContain('      - run: npm run test:cov\n');
+    expect(CI).not.toContain('--testTimeout');
+    expect(VITEST_CONFIG).toMatch(/^ {4}testTimeout: 20_000,$/m);
   });
 
   it('runs the end-to-end suite with two workers and a 90-minute limit', () => {
@@ -121,5 +139,41 @@ describe('the self-hosted adjustments', () => {
   it('starts the link-check site inside the job container, on port 3123', () => {
     expect(ci.links).toContain('nohup npx next start -p 3123');
     expect(ci.links).toContain('http://localhost:3123/');
+  });
+});
+
+/** Whether a job runs on the self-hosted runners. */
+function selfHosted(job: string): boolean {
+  return /self-hosted/.test(key(job, 'runs-on') ?? '');
+}
+
+describe('the trust boundary of the self-hosted jobs', () => {
+  it('has no trigger that runs with secrets on code from outside the repository', () => {
+    const triggers = CI.slice(0, CI.indexOf('\njobs:\n'));
+    for (const t of ['pull_request_target', 'workflow_run', 'issue_comment', 'workflow_dispatch', 'repository_dispatch']) {
+      expect(triggers, t).not.toContain(t);
+    }
+    expect(Object.keys(ciTriggers())).toEqual(['pull_request', 'push']);
+  });
+
+  it('grants the token read access to the contents only, once, at the top', () => {
+    expect(CI.match(/^\s*permissions:/gm)).toHaveLength(1);
+    expect(CI).toMatch(/^permissions:\n {2}contents: read\n\n/m);
+  });
+
+  it('hands the self-hosted jobs no secret but TRUTH_DENYLIST', () => {
+    for (const [id, job] of Object.entries(ci).filter(([, j]) => selfHosted(j))) {
+      const used = [...job.matchAll(/secrets\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
+      expect(used.filter((s) => s !== 'TRUTH_DENYLIST'), id).toEqual([]);
+    }
+    expect(new Set([...CI.matchAll(/secrets\.(\w+)/g)].map((m) => m[1]))).toEqual(new Set(['TRUTH_DENYLIST']));
+    expect(ci.build).toContain('TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}');
+  });
+
+  it('never leaves the token in a checkout', () => {
+    const checkouts = CI.split('- uses: actions/checkout@').slice(1);
+    expect(checkouts.length).toBe(Object.keys(ci).length);
+    // Inside the step's own `with:` block, whatever other inputs it has.
+    for (const c of checkouts) expect(c).toMatch(/^\S+ # v[\d.]+\n {8}with:\n(?: {10}\S.*\n)*? {10}persist-credentials: false\n/);
   });
 });

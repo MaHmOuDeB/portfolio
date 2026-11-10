@@ -65,10 +65,7 @@ jobs:
           pdftotext -v
       - name: Synthetic PDF extraction
         run: python3 -I scripts/pdf-extraction-proof.py tests/fixtures/pdf/synthetic.pdf "Synthetic PDF extraction proof"
-      # A 20 s test timeout instead of Vitest's 5 s: under the runner's CPU cap, with coverage on
-      # and other work on the Mac, the property tests in snapshot.test.ts took up to 6 s (about 1 s
-      # on a hosted runner).
-      - run: npm run test:cov -- --testTimeout=20000
+      - run: npm run test:cov
       - name: Redis conformance
         run: |
           redis-cli -p 16389 -2 --json ping
@@ -157,7 +154,9 @@ jobs:
 
   e2e:
     name: End-to-end tests
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    # Only on the instance labelled portfolio-mac-2, so the longest job never holds instance 1, where
+    # static (a required check) has to run.
+    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]
     # The suite takes 37 to 49 minutes on a hosted runner (and longer while several PRs run at once);
     # at 50 it was cancelled mid-run. 90 leaves room for growth without hiding a hung run for long.
     timeout-minutes: 90
