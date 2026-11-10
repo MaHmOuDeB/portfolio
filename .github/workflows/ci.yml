@@ -15,15 +15,31 @@ concurrency:
 permissions:
   contents: read
 
+# Self-hosted runners. Every job except lhci runs on the owner's self-hosted runners (the labels
+# self-hosted, linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon Mac, one
+# also labelled portfolio-mac-1, the other portfolio-mac-2), because this private repository's
+# hosted-runner minutes ran short. lhci stays on ubuntu-24.04 so Lighthouse scores stay comparable
+# between runs, and deploy.yml stays on GitHub's runners because it holds the production secrets.
+# A self-hosted runner executes whatever a workflow run checks out, so it must never serve a public
+# repository or a pull request from a fork: BEFORE this repository is made public, switch these
+# jobs back to `runs-on: ubuntu-24.04` and drop the container `options` caps (a 2-CPU hosted
+# runner rejects `--cpus 3`).
+# tests/unit/ci-runners.test.ts pins this layout.
 jobs:
   static:
     name: Static checks and unit tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Only on the runner instance labelled portfolio-mac-1, so two static jobs never run at once:
+    # the runners share the Docker VM's network, where port 16389 can be published only once.
+    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]
+    # 25, not 15: on the Mac's Docker VM `npm ci` alone took 2 to 8 minutes, depending on the load.
+    timeout-minutes: 25
     services:
       redis:
         image: redis:7.2
-        ports: ['16389:6379']
+        # Loopback only: unbound, Docker Desktop would publish the port on every interface of the
+        # Mac. It stays fixed because Docker Desktop reports a port it picks by the Mac's number,
+        # which is not the port in the Docker VM, where the runner's steps run.
+        ports: ['127.0.0.1:16389:6379']
         options: >-
           --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 15
     steps:
@@ -49,7 +65,10 @@ jobs:
           pdftotext -v
       - name: Synthetic PDF extraction
         run: python3 -I scripts/pdf-extraction-proof.py tests/fixtures/pdf/synthetic.pdf "Synthetic PDF extraction proof"
-      - run: npm run test:cov
+      # A 20 s test timeout instead of Vitest's 5 s: under the runner's CPU cap, with coverage on
+      # and other work on the Mac, the property tests in snapshot.test.ts took up to 6 s (about 1 s
+      # on a hosted runner).
+      - run: npm run test:cov -- --testTimeout=20000
       - name: Redis conformance
         run: |
           redis-cli -p 16389 -2 --json ping
@@ -66,7 +85,7 @@ jobs:
 
   stats-ref:
     name: Statistics reference data
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,7 +105,7 @@ jobs:
 
   sources-remote:
     name: Pinned sources exist on GitHub
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -103,7 +122,7 @@ jobs:
 
   build:
     name: Production build
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -138,10 +157,15 @@ jobs:
 
   e2e:
     name: End-to-end tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    # The suite takes 37 to 49 minutes on a hosted runner (and longer while several PRs run at once);
+    # at 50 it was cancelled mid-run. 90 leaves room for growth without hiding a hung run for long.
+    timeout-minutes: 90
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
+      # A job container is a sibling of the runner container, so the runner's caps do not reach it:
+      # these hold it to one runner's share of the Mac (3 of the Docker VM's 8 CPUs, 3.5 GB).
+      options: --cpus 3 --memory 3584m --memory-swap 3584m
     env:
       # The `update-baselines` label on the PR regenerates every visual baseline in this container.
       # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
@@ -157,7 +181,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run test:e2e
+      # Two workers: Playwright's default is half the CPUs it sees, which are the Docker VM's 8, not
+      # the container's 3, and more workers than two time out on the live page in the Docker VM.
+      - run: npm run test:e2e -- --workers=2
         env:
           HOME: /root
       # Only the JSON report is uploaded. test-results/ and playwright-report/ are deliberately
@@ -219,8 +245,14 @@ jobs:
   links:
     name: Link check
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 10
+    # In a container (the e2e image, already on the runner) so that `next start -p 3123` has a
+    # network of its own: two runners share the Docker VM's network, where two link checks at once
+    # would both want port 3123.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --cpus 3 --memory 3584m --memory-swap 3584m
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

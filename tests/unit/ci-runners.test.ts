@@ -1,0 +1,125 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Where each CI job runs. Every job except lhci runs on the owner's self-hosted runners (two runner
+// containers on one Mac that share the Docker VM's network); lhci and the deploy stay on GitHub's
+// runners. The required checks are matched by job name, so the names must not change. The
+// self-hosted layout must be switched back before the repository is made public (see the comment
+// at the top of the jobs in ci.yml).
+const ROOT = join(import.meta.dirname, '../..');
+const CI = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+const DEPLOY = readFileSync(join(ROOT, '.github/workflows/deploy.yml'), 'utf8');
+const REDIS_DOC = readFileSync(join(ROOT, 'docs/experiment/redis-conformance.md'), 'utf8');
+
+const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
+const STATIC_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
+const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
+const CAPS = '--cpus 3 --memory 3584m --memory-swap 3584m';
+
+/** The text of each job under `jobs:`, by job id. */
+function jobs(workflow: string): Record<string, string> {
+  const at = workflow.indexOf('\njobs:\n');
+  expect(at).toBeGreaterThan(-1);
+  const parts = workflow.slice(at + '\njobs:\n'.length).split(/^(?= {2}[a-z][\w-]*:$)/m);
+  const out: Record<string, string> = {};
+  for (const part of parts) {
+    const id = /^ {2}([a-z][\w-]*):$/m.exec(part)?.[1];
+    if (id) out[id] = part;
+  }
+  return out;
+}
+
+/** A job-level key (four spaces in), such as `runs-on` or `name`. */
+function key(job: string, name: string): string | undefined {
+  return new RegExp(`^ {4}${name}: (.+)$`, 'm').exec(job)?.[1];
+}
+
+const ci = jobs(CI);
+
+describe('the CI jobs and their check names', () => {
+  it('keeps every job and its name', () => {
+    expect(Object.fromEntries(Object.entries(ci).map(([id, job]) => [id, key(job, 'name')]))).toEqual({
+      static: 'Static checks and unit tests',
+      'stats-ref': 'Statistics reference data',
+      'sources-remote': 'Pinned sources exist on GitHub',
+      build: 'Production build',
+      e2e: 'End-to-end tests',
+      lhci: 'Lighthouse CI',
+      links: 'Link check',
+    });
+  });
+
+  it('runs every job except lhci on the self-hosted labels', () => {
+    for (const id of ['stats-ref', 'sources-remote', 'build', 'e2e', 'links']) {
+      expect(key(ci[id]!, 'runs-on'), id).toBe(SELF_HOSTED);
+    }
+    expect(key(ci.static!, 'runs-on')).toBe(STATIC_RUNS_ON);
+  });
+
+  it('keeps lhci on a GitHub-hosted ubuntu-24.04 runner, so Lighthouse scores stay comparable', () => {
+    expect(key(ci.lhci!, 'runs-on')).toBe('ubuntu-24.04');
+    expect(ci.lhci).not.toMatch(/self-hosted|container:/);
+  });
+
+  it('keeps the deploy, which holds the production secrets, on GitHub-hosted runners', () => {
+    const deploy = jobs(DEPLOY);
+    expect(Object.keys(deploy)).toEqual(['deploy']);
+    expect(key(deploy.deploy!, 'runs-on')).toBe('ubuntu-24.04');
+    expect(DEPLOY).not.toMatch(/self-hosted|portfolio-mac/);
+  });
+
+  it('says why the jobs are self-hosted and that they go back before the repository is public', () => {
+    const header = CI.slice(0, CI.indexOf('\njobs:\n'));
+    expect(header).toMatch(/self-hosted, linux, arm64 and portfolio-mac/);
+    expect(header.replace(/\n# /g, ' ')).toContain('BEFORE this repository is made public, switch these jobs back to `runs-on: ubuntu-24.04`');
+  });
+
+  it('pins every action to a full commit SHA', () => {
+    const uses = [...CI.matchAll(/^\s+(?:- )?uses: (\S+)/gm)].map((m) => m[1]!);
+    expect(uses.length).toBeGreaterThan(10);
+    for (const ref of uses) expect(ref, ref).toMatch(/@[0-9a-f]{40}$/);
+  });
+});
+
+describe('the self-hosted adjustments', () => {
+  it('runs static only on instance 1 and publishes its Redis port on loopback only', () => {
+    // The runners share the Docker VM's network, so a fixed port can be published once at a time.
+    expect(key(ci.static!, 'runs-on')).toBe(STATIC_RUNS_ON);
+    expect(ci.static).toContain("ports: ['127.0.0.1:16389:6379']");
+    expect(CI.match(/16389:6379/g)).toHaveLength(1);
+    expect(ci.static).toContain('REDIS_CONFORMANCE_URL=redis://127.0.0.1:16389 npm test');
+  });
+
+  it('keeps the Redis snippet in the docs identical to the workflow', () => {
+    for (const line of [
+      "        ports: ['127.0.0.1:16389:6379']",
+      '          redis-cli -p 16389 -2 --json ping',
+      `          redis-cli -p 16389 info server | grep -E '^redis_version:7\\.2\\.'`,
+    ]) {
+      expect(CI, line).toContain(line);
+      expect(REDIS_DOC, line).toContain(line);
+    }
+  });
+
+  it('caps the job containers, which the runner container caps do not reach', () => {
+    for (const id of ['e2e', 'links']) {
+      expect(ci[id], id).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
+      expect(ci[id], id).toContain(`      options: ${CAPS}\n`);
+    }
+  });
+
+  it('gives static room for the slower Docker VM: 25 minutes and a 20 s test timeout', () => {
+    expect(key(ci.static!, 'timeout-minutes')).toBe('25');
+    expect(ci.static).toContain('- run: npm run test:cov -- --testTimeout=20000');
+  });
+
+  it('runs the end-to-end suite with two workers and a 90-minute limit', () => {
+    expect(ci.e2e).toContain('- run: npm run test:e2e -- --workers=2');
+    expect(key(ci.e2e!, 'timeout-minutes')).toBe('90');
+  });
+
+  it('starts the link-check site inside the job container, on port 3123', () => {
+    expect(ci.links).toContain('nohup npx next start -p 3123');
+    expect(ci.links).toContain('http://localhost:3123/');
+  });
+});
