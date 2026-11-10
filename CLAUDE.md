@@ -135,7 +135,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Figure`, `FigureProps`, `instantly` | `Figure.tsx` | The frame of every chart and interactive part. `instantly(figureId, apply)` makes a change land without a transition (Reset). |
 | `FigureErrorBoundary`, `FigureErrorFallback`, `FigureErrorFallbackProps`, `FallbackBody` | `FigureErrorBoundary.tsx` (client) | Per-Figure error boundary and the fallback that replaces a Figure that throws. |
 | `ChartFrame`, `ChartFrameProps`, `AxisSpec`, `Annotation`, `PlotContext`, `Layout`, `MARK_UNITS`, `MarkLayer` | `ChartFrame.tsx` | The SVG frame: grid, axes, tick labels, zero line and one annotation. Marks go in `MarkLayer`. |
-| `ConfidenceChart` | `ConfidenceChart.tsx` | The live experiment's confidence-sequence chart with its "Now" row. |
+| `ConfidenceChart` | `ConfidenceChart.tsx` | The live experiment's confidence-sequence chart with its "Now" row. Optional `height` (`{ narrow, wide }` plot px, positive and finite, defaults 220 and 280) and `ariaLabel` (a non-empty finding in words, no digit, replaces the generated one, also under a pause); an invalid value throws. |
 | `NowRow` | `NowRow.tsx` | The interval glyph on a difference axis under the ConfidenceChart. |
 | `LiveStateBody` | `LiveStateBody.tsx` | The body of a live Figure in each state of the state matrix. |
 | `UpdatedLabel`, `ProgressLine` | `LiveLabels.tsx` | When live data was updated, and how far a collecting test has got. |
@@ -150,7 +150,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. |
 | `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. |
-| `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle. |
+| `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. |
 | `useFigureParams` | `useFigureParams.ts` (client) | Reads and writes a Figure's URL state. Call it inside a `<Suspense>` boundary. |
 | `ButtonLink`, `buttonClass` | `ButtonLink.tsx` | A link drawn as a button, and the class list for a real `<button>` that must match. |
 | `TextLink` | `TextLink.tsx` | An inline link. |

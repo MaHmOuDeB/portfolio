@@ -343,3 +343,200 @@ test.describe('kitchen sink Figures', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// /kitchen-sink/eager and its sub-routes: the Figure loaded with `eager`. The success specimen is on
+// a page of its own, so it is held to no errors at all; each failing island has a route of its own
+// and names the one error it allows.
+test.describe('kit extension: eager loading', () => {
+  const EAGER = '/kitchen-sink/eager';
+  const FAILED = '/kitchen-sink/eager/failed';
+  const DELAYED = '/kitchen-sink/eager/delayed';
+  const TOGGLE = '/kitchen-sink/eager/toggle';
+
+  test('eager: the island loads after hydration with no pointer, no focus and no idle callback', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page);
+    await page.goto(EAGER);
+    // The server sends the preview; the island replaces it once the page is interactive.
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    await expect(baseline(page, 'eager')).toBeVisible();
+    await baseline(page, 'eager').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(baseline(page, 'eager')).toHaveValue('0.11');
+    expect(errors).toEqual([]);
+  });
+
+  test('eager: the server HTML is the preview, and the browser requests the island code once, after hydration', async ({ page, request }) => {
+    const response = await request.get(EAGER);
+    const html = await response.text();
+    expect(html).toContain('data-island="idle"');
+    expect(html).not.toContain('data-island="ready"');
+    await withoutIdle(page);
+    await page.goto(EAGER);
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    // The lazy factory counts its calls on `window`: it only runs in a browser, when the island renders.
+    expect(await page.evaluate(() => window.__demoIslandRequests)).toBe(1);
+  });
+
+  test('the default stays deferred: the demo Figure on the kitchen sink is still idle without intent', async ({ page }) => {
+    await withoutIdle(page);
+    await page.goto('/kitchen-sink');
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(500);
+    await expect(island(page, 'demo')).toHaveAttribute('data-island', 'idle');
+    expect(await page.evaluate(() => window.__demoIslandRequests ?? 0)).toBe(0);
+  });
+
+  test('eager switched on after mount: the island loads once, and later renders do not load it again', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page);
+    await page.goto(TOGGLE);
+    const counts = () => page.evaluate(() => window.__eagerToggle ?? { loads: 0, mounts: 0 });
+    await expect(page.locator('[data-eager-toggle="state"]')).toHaveText('eager off, rendered 0 times');
+    // Hydrated, deferred and nothing to trigger it: nothing loads.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(500);
+    await expect(island(page, 'eager-toggle')).toHaveAttribute('data-island', 'idle');
+    expect(await counts()).toEqual({ loads: 0, mounts: 0 });
+
+    await page.locator('[data-eager-toggle="on"]').click();
+    await expect(island(page, 'eager-toggle')).toHaveAttribute('data-island', 'ready');
+    await expect(baseline(page, 'eager-toggle')).toBeVisible();
+    expect(await counts()).toEqual({ loads: 1, mounts: 1 });
+
+    for (let i = 1; i <= 3; i += 1) {
+      await page.locator('[data-eager-toggle="rerender"]').click();
+      await expect(page.locator('[data-eager-toggle="state"]')).toHaveText(`eager on, rendered ${i} times`);
+    }
+    await expect(island(page, 'eager-toggle')).toHaveAttribute('data-island', 'ready');
+    expect(await counts()).toEqual({ loads: 1, mounts: 1 });
+    expect(errors).toEqual([]);
+  });
+
+  test('eager: an island whose code fails to load shows the same no-JS preview as intent loading, and focus stays put', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page, ['A fictional chunk failure']);
+    await page.goto(FAILED);
+    const failed = page.locator('[data-island="failed"]', { has: figure(page, 'eager-failed') });
+    await expect(failed).toHaveCount(1);
+    await expect(figure(page, 'eager-failed').getByText('Controls need JavaScript.')).toBeVisible();
+    await expect(figure(page, 'eager-failed').locator('[data-nojs-only] table')).toBeVisible();
+    await expect(figure(page, 'eager-failed').getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(figure(page, 'eager-failed').locator('svg[data-chart-frame]:visible')).toHaveCount(1);
+    // Nothing held focus, so none is taken: it does not jump to the table the way a focused island's does.
+    await expect(figure(page, 'eager-failed').locator('[data-nojs-only] [role="region"]')).not.toBeFocused();
+    // The Figure beside it, and the rest of the page, are untouched.
+    await expect(island(page, 'eager')).toHaveAttribute('data-island', 'ready');
+    await expect(page.getByRole('heading', { level: 1, name: 'Eager loading, code unreachable' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  /** Opens the pending-request fixture and waits until the browser has asked for the island's code. */
+  async function pending(page: Page) {
+    await withoutIdle(page);
+    const errors = watchErrors(page, ['A fictional delayed chunk failure']);
+    await page.goto(DELAYED);
+    await page.waitForFunction(() => window.__delayedIsland?.requests === 1);
+    // The request is in flight: the preview is what is on screen.
+    await expect(island(page, 'eager-delayed')).toHaveAttribute('data-island', 'idle');
+    await expect(baseline(page, 'eager-delayed')).toBeVisible();
+    return errors;
+  }
+  const refuse = (page: Page) => page.evaluate(() => window.__delayedIsland?.fail());
+
+  test('eager: focus in the preview while the request is pending goes to the open table when the request fails', async ({ page }) => {
+    const errors = await pending(page);
+    await baseline(page, 'eager-delayed').focus();
+    await expect(baseline(page, 'eager-delayed')).toBeFocused();
+    // Focusing the preview is also intent, but the island is already on its way: it is not asked for twice.
+    expect(await page.evaluate(() => window.__delayedIsland?.requests)).toBe(1);
+
+    await refuse(page);
+    const failed = page.locator('[data-island="failed"]', { has: figure(page, 'eager-delayed') });
+    await expect(failed).toHaveCount(1);
+    await expect(figure(page, 'eager-delayed').getByText('Controls need JavaScript.')).toBeVisible();
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] table')).toBeVisible();
+    await expect(figure(page, 'eager-delayed').getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(figure(page, 'eager-delayed').locator('svg[data-chart-frame]:visible')).toHaveCount(1);
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] [role="region"]')).toBeFocused();
+    expect(errors).toEqual([]);
+  });
+
+  test('eager: focus elsewhere while the request is pending is not taken when the request fails', async ({ page }) => {
+    await pending(page);
+    const elsewhere = page.locator('[data-focus-elsewhere]');
+    await elsewhere.focus();
+    await expect(elsewhere).toBeFocused();
+
+    await refuse(page);
+    await expect(page.locator('[data-island="failed"]', { has: figure(page, 'eager-delayed') })).toHaveCount(1);
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] table')).toBeVisible();
+    await expect(elsewhere).toBeFocused();
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] [role="region"]')).not.toBeFocused();
+  });
+
+  test('eager: with no focus anywhere while the request is pending, none is taken when the request fails', async ({ page }) => {
+    await pending(page);
+    await refuse(page);
+    await expect(page.locator('[data-island="failed"]', { has: figure(page, 'eager-delayed') })).toHaveCount(1);
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] table')).toBeVisible();
+    await expect(figure(page, 'eager-delayed').locator('[data-nojs-only] [role="region"]')).not.toBeFocused();
+  });
+});
+
+// /kitchen-sink/chart-overrides: a live chart with its own plot height and accessible name.
+test.describe('kit extension: chart overrides', () => {
+  const OVERRIDES = '/kitchen-sink/chart-overrides';
+
+  const plotHeight = (page: Page, chartId: string, layout: 'narrow' | 'wide') =>
+    page
+      .locator(`[data-chart="${chartId}-chart"] svg[data-layout="${layout}"] svg[data-mark-layer]`)
+      .evaluate((el) => Number(el.getAttribute('height')));
+  const frameBox = (page: Page, chartId: string, layout: 'narrow' | 'wide') =>
+    page.locator(`[data-chart="${chartId}-chart"] svg[data-layout="${layout}"]`).evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return { width: box.width, height: box.height, scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth };
+    });
+
+  for (const [name, size, layout, expected] of [
+    ['phone', { width: 390, height: 844 }, 'narrow', { default: 220, override: 160 }],
+    ['desktop', { width: 1280, height: 800 }, 'wide', { default: 280, override: 340 }],
+  ] as const) {
+    test(`chart overrides on a ${name}: the plot takes its own height, the default keeps its own`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.goto(OVERRIDES);
+      expect(await plotHeight(page, 'chart-default', layout)).toBe(expected.default);
+      expect(await plotHeight(page, 'chart-override', layout)).toBe(expected.override);
+      const normal = await frameBox(page, 'chart-default', layout);
+      const own = await frameBox(page, 'chart-override', layout);
+      // The rendered frame grows or shrinks by exactly the plot's difference, and nothing overflows.
+      expect(own.height - normal.height).toBeCloseTo(expected.override - expected.default, 0);
+      expect(own.width).toBeCloseTo(normal.width, 0);
+      expect(own.scrollWidth).toBeLessThanOrEqual(own.clientWidth);
+    });
+  }
+
+  test('chart overrides: the explicit label names both frames, the default keeps the generated one', async ({ page }) => {
+    await page.goto(OVERRIDES);
+    const labels = (id: string) => page.locator(`[data-chart="${id}-chart"] svg[data-chart-frame]`).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
+    const own = await labels('chart-override');
+    expect(own).toHaveLength(2);
+    expect(new Set(own).size).toBe(1);
+    expect(own[0]).toMatch(/^The two groups compared as views accumulate/);
+    expect(own[0]).not.toMatch(/\d/);
+    const generated = await labels('chart-default');
+    expect(generated[0]).toMatch(/^The difference between the groups, B minus A, as views per group grow/);
+  });
+
+  test('chart overrides in forced colours: the chart still draws, at the same geometry, and axe finds nothing', async ({ page }) => {
+    await page.goto(OVERRIDES);
+    const before = await plotHeight(page, 'chart-override', 'wide');
+    await page.emulateMedia({ forcedColors: 'active' });
+    expect(await plotHeight(page, 'chart-override', 'wide')).toBe(before);
+    for (const id of ['chart-default', 'chart-override']) {
+      await expect(page.locator(`[data-chart="${id}-chart"] svg[data-layout]:visible [data-cs="band"]`)).toHaveCount(1);
+      await expect(page.locator(`[data-chart="${id}-chart"] svg[data-layout]:visible [data-cs="current"]`)).toHaveCount(1);
+    }
+    await expectNoA11yViolations(page);
+  });
+});

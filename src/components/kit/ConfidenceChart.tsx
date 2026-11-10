@@ -26,9 +26,34 @@ type Props = {
   refs: readonly DerivedRef[];
   /** One layout only (tests); omit for responsive. */
   layout?: Layout;
+  /** Plot height in px per layout; omit for the default (220 narrow, 280 wide). Positive and finite, or it throws. */
+  height?: { narrow: number; wide: number };
+  /**
+   * The chart's accessible name, in words: replaces the generated finding, also under a pause.
+   * Not empty and no digit (ChartFrame throws on one), or it throws.
+   */
+  ariaLabel?: string;
 };
 
 const HEIGHT = { narrow: 220, wide: 280 } as const;
+
+/** The override or the default. A height that is not positive and finite throws, in every state. */
+function plotHeight(height: Props['height']): { narrow: number; wide: number } {
+  if (height === undefined) return HEIGHT;
+  const ok = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  if (typeof height !== 'object' || height === null || !ok(height.narrow) || !ok(height.wide)) {
+    throw new TypeError('a chart height gives a positive, finite plot height in px for both narrow and wide');
+  }
+  return { narrow: height.narrow, wide: height.wide };
+}
+
+/** The explicit label. One that is not a non-empty string without a digit throws, in every state. */
+function checkedLabel(label: string | undefined): string | undefined {
+  if (label === undefined) return undefined;
+  if (typeof label !== 'string' || label.trim() === '') throw new TypeError('a chart ariaLabel is a non-empty string');
+  if (/\d/.test(label)) throw new TypeError(`a chart's ariaLabel states the finding in words and holds no digit: "${label}"`);
+  return label;
+}
 const VIEW_TICK = 8;
 const VIEW_LABEL_GAP = 4;
 const LABEL_HALO = { stroke: 'var(--color-bg)', strokeWidth: '4px', paintOrder: 'stroke', strokeLinejoin: 'round' } as const;
@@ -163,7 +188,10 @@ function Overlays({ ctx, m }: { ctx: PlotContext; m: ConfidenceModel }) {
   );
 }
 
-export function ConfidenceChart({ id, snapshot, body, refs, layout }: Props) {
+export function ConfidenceChart({ id, snapshot, body, refs, layout, height, ariaLabel: label }: Props) {
+  // Checked before anything is drawn, so a bad override fails in the collecting states too.
+  const plotHeights = plotHeight(height);
+  const ownLabel = checkedLabel(label);
   const shown = shows(snapshot, body);
   if (shown === 'nothing') return null;
   const m = shown === 'chart' || shown === 'running' ? confidenceModel(snapshot) : null;
@@ -186,7 +214,7 @@ export function ConfidenceChart({ id, snapshot, body, refs, layout }: Props) {
     <div data-confidence-chart={id}>
       <ChartFrame
         id={`${id}-chart`}
-        ariaLabel={ariaLabel(m, ownBody(snapshot, body), body === 'paused')}
+        ariaLabel={ownLabel ?? ariaLabel(m, ownBody(snapshot, body), body === 'paused')}
         layout={layout}
         x={{ ...m.x, label: 'Views per group', refs }}
         y={{
@@ -198,7 +226,7 @@ export function ConfidenceChart({ id, snapshot, body, refs, layout }: Props) {
           aboveLabel: 'B higher',
           belowLabel: 'B lower',
         }}
-        height={HEIGHT}
+        height={plotHeights}
         marks={(ctx) => <Marks ctx={ctx} m={m} project={shown === 'running'} />}
         overlays={(ctx) => <Overlays ctx={ctx} m={m} />}
       />
