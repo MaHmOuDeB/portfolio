@@ -112,9 +112,10 @@ jobs:
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
           npx --no-install vercel pull --yes --environment="$environment" --token="$VERCEL_TOKEN"
-      # The build never holds the store's write token, only the read-only one: the wrapper builds
-      # from a copy of the pulled environment without it, proves from inside every Node process of
-      # the build (Next included) that it was absent, and puts the pulled file back afterwards.
+      # The build never holds the store's write credentials (KV_REST_API_TOKEN, KV_URL, REDIS_URL),
+      # only the read-only token: the wrapper builds from a copy of the pulled environment without
+      # them, proves from inside every Node process of the build (Next included) that they were
+      # absent, and puts the pulled file back afterwards.
       - name: Build
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

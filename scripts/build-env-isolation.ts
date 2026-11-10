@@ -1,26 +1,32 @@
-// Keeps the store's write token out of the deploy build. `vercel build` loads the environment that
-// `vercel pull` wrote to .vercel/.env.<target>.local into every process of the build, so unsetting
-// the variable in the shell is not enough. scripts/vercel-build-isolated.sh runs:
+// Keeps the store's write credentials out of the deploy build: KV_REST_API_TOKEN (the REST write
+// token) and KV_URL and REDIS_URL (connection strings that carry the database password, so they
+// write too; the app reads neither). Only KV_REST_API_READ_ONLY_TOKEN and KV_REST_API_URL stay.
+// `vercel build` loads the environment that `vercel pull` wrote to .vercel/.env.<target>.local
+// into every process of the build, so unsetting the variables in the shell is not enough.
+// scripts/vercel-build-isolated.sh runs:
 //
 //   build-env-isolation.ts sanitize <env file> <work dir>  before the build: keeps the pulled file
-//       in the work dir (mode 600) and leaves the build a copy without KV_REST_API_TOKEN;
+//       in the work dir (mode 600) and leaves the build a copy without the three write credentials;
 //   build-env-isolation.ts restore <env file> <work dir>   after the build: puts the pulled file
 //       back byte for byte, and refuses if the build changed the copy (pulled it again);
 //   build-env-isolation.ts verify <env file> <work dir>    reads the records that
 //       scripts/build-env-canary.cjs wrote from inside every Node process of the build, and fails
-//       unless the write token was in none of them, the Next build ran, the read-only token was in
-//       the Next build exactly when it was pulled, and the restored file is the pulled one.
+//       unless no write credential was in any of them, the Next build ran, the read-only token was
+//       in the Next build exactly when it was pulled, and the restored file is the pulled one.
 //
 // It prints variable names and counts only, never a value.
 import { createHash } from 'node:crypto';
 import { chmodSync, copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-export const WRITE_TOKEN = 'KV_REST_API_TOKEN';
+/** Every store credential that can write. scripts/build-env-canary.cjs checks the same three names. */
+export const WRITE_CREDENTIALS = ['KV_REST_API_TOKEN', 'KV_URL', 'REDIS_URL'] as const;
 export const READ_TOKEN = 'KV_REST_API_READ_ONLY_TOKEN';
+const WRITE_SET: ReadonlySet<string> = new Set(WRITE_CREDENTIALS);
+const WRITE_LIST = `${WRITE_CREDENTIALS[0]}, ${WRITE_CREDENTIALS[1]} or ${WRITE_CREDENTIALS[2]}`;
 
 // The Vercel CLI reads the pulled file with a line-based dotenv parser (one KEY=value per line). A
-// line it reads as the write token is removed, and so is an `export KEY=` line, which other
+// line it reads as a write credential is removed, and so is an `export KEY=` line, which other
 // parsers accept.
 const LINE_KEY = /^\s*(?:export\s+)?([\w.-]+)\s*=/;
 
@@ -34,11 +40,11 @@ export function keysOf(text: string): Set<string> {
   return keys;
 }
 
-/** The file without any line that sets the write token; every other byte is kept. */
-export function withoutWriteToken(text: string): string {
+/** The file without any line that sets a write credential; every other byte is kept. */
+export function withoutWriteCredentials(text: string): string {
   return text
     .split(/(?<=\n)/)
-    .filter((line) => LINE_KEY.exec(line)?.[1] !== WRITE_TOKEN)
+    .filter((line) => !WRITE_SET.has(LINE_KEY.exec(line)?.[1] ?? ''))
     .join('');
 }
 
@@ -74,7 +80,7 @@ export function checkCanary(text: string, pulledRead: boolean): CanaryResult {
     else failures.push(`malformed canary record on line ${i + 1}`);
   });
   const withWrite = records.filter((r) => r.write).length;
-  if (withWrite > 0) failures.push(`${WRITE_TOKEN} reached ${withWrite} of ${records.length} build process records`);
+  if (withWrite > 0) failures.push(`a store write credential (${WRITE_LIST}) reached ${withWrite} of ${records.length} build process records`);
   const next = records.filter((r) => r.nextBuild);
   if (!next.some((r) => r.at === 'start')) failures.push('the canary saw no Next build');
   else if (!next.some((r) => r.at === 'exit')) failures.push('the canary saw no Next build exit');
@@ -83,7 +89,7 @@ export function checkCanary(text: string, pulledRead: boolean): CanaryResult {
   return { ok: failures.length === 0, processes: records.length, failures };
 }
 
-type State = { hadWrite: boolean; hadRead: boolean; pulled: string; sanitized: string };
+type State = { hadWrite: Record<string, boolean>; hadRead: boolean; pulled: string; sanitized: string };
 
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 
@@ -108,19 +114,19 @@ export function main(argv: string[], deps: Deps = { out: (l) => process.stdout.w
     const pulled = readFileSync(envFile);
     const text = pulled.toString('utf8');
     const keys = keysOf(text);
-    const sanitized = Buffer.from(withoutWriteToken(text), 'utf8');
-    if (keysOf(sanitized.toString('utf8')).has(WRITE_TOKEN)) return fail(`${WRITE_TOKEN} is still in the build copy of ${name}`);
+    const sanitized = Buffer.from(withoutWriteCredentials(text), 'utf8');
+    const left = keysOf(sanitized.toString('utf8'));
+    for (const key of WRITE_CREDENTIALS) if (left.has(key)) return fail(`${key} is still in the build copy of ${name}`);
     writeFileSync(backup, pulled, { mode: 0o600 });
     chmodSync(backup, 0o600);
-    const state: State = { hadWrite: keys.has(WRITE_TOKEN), hadRead: keys.has(READ_TOKEN), pulled: sha256(pulled), sanitized: sha256(sanitized) };
+    const hadWrite = Object.fromEntries(WRITE_CREDENTIALS.map((key) => [key, keys.has(key)]));
+    const state: State = { hadWrite, hadRead: keys.has(READ_TOKEN), pulled: sha256(pulled), sanitized: sha256(sanitized) };
     writeFileSync(statePath, JSON.stringify(state), { mode: 0o600 });
     writeFileSync(envFile, sanitized, { mode: 0o600 });
     chmodSync(envFile, 0o600);
-    deps.out(
-      state.hadWrite
-        ? `build-env: ${WRITE_TOKEN} removed from the build copy of ${name}`
-        : `build-env: ${WRITE_TOKEN} was not in ${name}`,
-    );
+    for (const key of WRITE_CREDENTIALS) {
+      deps.out(hadWrite[key] ? `build-env: ${key} removed from the build copy of ${name}` : `build-env: ${key} was not in ${name}`);
+    }
     deps.out(`build-env: ${READ_TOKEN} kept (${state.hadRead ? 'present' : 'absent'} in the pulled file)`);
     return 0;
   }
@@ -150,11 +156,17 @@ export function main(argv: string[], deps: Deps = { out: (l) => process.stdout.w
     for (const failure of result.failures) deps.out(`build-env: FAIL ${failure}`);
     return 1;
   }
-  const restoredWrite = keysOf(readFileSync(envFile, 'utf8')).has(WRITE_TOKEN);
-  if (restoredWrite !== state.hadWrite) return fail(`${WRITE_TOKEN} in the restored file does not match the pulled file`);
-  deps.out(`build-env: ${WRITE_TOKEN} absent in all ${result.processes} build process records, the Next build included`);
+  const restored = keysOf(readFileSync(envFile, 'utf8'));
+  for (const key of WRITE_CREDENTIALS) {
+    if (restored.has(key) !== state.hadWrite[key]) return fail(`${key} in the restored file does not match the pulled file`);
+  }
+  deps.out(
+    `build-env: no store write credential (${WRITE_CREDENTIALS.join(', ')}) in any of ${result.processes} build process records, the Next build included`,
+  );
   deps.out(`build-env: ${READ_TOKEN} ${state.hadRead ? 'present' : 'absent'} in the Next build, as pulled`);
-  deps.out(`build-env: ${WRITE_TOKEN} ${state.hadWrite ? 'present' : 'absent'} in the restored file for the deployment, as pulled`);
+  for (const key of WRITE_CREDENTIALS) {
+    deps.out(`build-env: ${key} ${state.hadWrite[key] ? 'present' : 'absent'} in the restored file for the deployment, as pulled`);
+  }
   return 0;
 }
 
