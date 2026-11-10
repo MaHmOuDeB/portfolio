@@ -79,8 +79,8 @@ export const READ_TIMEOUT_MS = 2000;
  * "Paused on dd.mm: ". The kit has no state for a held test yet, so a held A/B shows as paused at
  * its fault: counting has stopped there, and the frozen chart stays.
  */
-const MALFORMED_REASON = 'the experiment settings could not be read, so counting is stopped until I fix them';
-const HELD_REASON: Record<Held['reason'], string> = {
+export const MALFORMED_REASON = 'the experiment settings could not be read, so counting is stopped until I fix them';
+export const HELD_REASON: Record<Held['reason'], string> = {
   'band-conflict': 'the interval failed a consistency check, so the test stopped at the last clean look',
   'inconsistent-counts': 'the counts failed a consistency check, so the test stopped at the last clean look',
 };
@@ -91,8 +91,8 @@ const STOPPED_FOR_GOOD_REASON = 'I stopped counting for this run and am checking
 const NO_NOTE_REASON = 'I no longer have the note explaining why';
 const NOTE_DISAGREES_REASON = 'the day I stored for this stop does not match what I see now, so I am checking it';
 
-const NOT_STARTED_REASON = 'the experiment has not started yet, so nothing is counted';
-const UNAVAILABLE_REASON = 'the live counts could not be read when this page was built, so they show at the next update';
+export const NOT_STARTED_REASON = 'the experiment has not started yet, so nothing is counted';
+export const UNAVAILABLE_REASON = 'the live counts could not be read when this page was built, so they show at the next update';
 
 const REFS: Record<ExperimentSnapshot['source'], readonly DerivedRef[]> = {
   store: ['live'],
