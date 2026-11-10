@@ -147,6 +147,14 @@ html:not([data-js]) [data-js-only] {
 }
 
 /*
+ * A Figure whose readout is its lead may draw nothing in its body; an empty body adds no space.
+ * A body holding an error fallback is never empty, so the fallback always shows.
+ */
+[data-figure-body]:empty {
+  display: none;
+}
+
+/*
  * An island that failed to load (LoadOnIntent) falls back to its preview in the no-JS form:
  * JS-only parts hide, no-JS parts come back with the display their utilities give them.
  */
