@@ -5,8 +5,7 @@
 // every number is a source value, or a checked fact where the export rounds one too far.
 import type { DerivedRef } from '@/components/kit/Derived';
 import type { ColumnFormat, TableData } from '@/components/kit/DataTable';
-import { getFact } from '@/lib/facts';
-import { COHORTS, RETAIL, RETENTION, type ReturnMode } from './data';
+import { COHORTS, RETAIL, RETENTION, numericFact, type ReturnMode } from './data';
 
 const RETAIL_REFS: readonly DerivedRef[] = ['source:retail'];
 
@@ -25,12 +24,6 @@ function finite(v: number, what: string, share = false): number {
   return v;
 }
 
-function factValue(id: Parameters<typeof getFact>[0]): number {
-  const v = getFact(id).value;
-  if (typeof v !== 'number') throw new TypeError(`${id}: expected a number`);
-  return v;
-}
-
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Returned-order value per month, in whole pounds, with or without the 24-hour reversal rule. */
@@ -45,8 +38,8 @@ export function returnsTable(mode: ReturnMode): TableData {
     formats: ['number', 'count', 'number'],
     note:
       mode === 'raw'
-        ? 'Without the cleaning rule: a cancellation that reverses an order counts as a returned order. The last month is partial: the data ends early in December.'
-        : 'With the cleaning rule: an order and the cancellation that reverses it are both removed. The last month is partial: the data ends early in December.',
+        ? 'Without the reversal rule: a cancellation that reverses an order counts as a returned order. The last month is partial: the data ends early in December.'
+        : 'With the reversal rule: an order and the cancellation that reverses it are both removed. The last month is partial: the data ends early in December.',
     refs: RETAIL_REFS,
   };
 }
@@ -69,7 +62,7 @@ export function cohortTable(): TableData {
     }),
     formats: ['number', 'count', ...Array<ColumnFormat>(months).fill('share')],
     note:
-      'Customers are grouped by the month of their first order. Each later month counts the cohort members who ordered in that month, so a share can rise again; it is not the share still active.',
+      'Customers are grouped by the month of their first order in the data. Each later month counts the cohort members who ordered in that month, so a share can rise again; it is not the share who kept buying every month since.',
     refs: ['source:retention'],
   };
 }
@@ -80,8 +73,8 @@ export function cohortTable(): TableData {
  * checked fact computed from counts.
  */
 export function rfmTable(): TableData {
-  const championsShare = factValue('retention.rfm.champions_customer_share');
-  const championsSpend = factValue('retention.rfm.champions_revenue_share');
+  const championsShare = numericFact('retention.rfm.champions_customer_share');
+  const championsSpend = numericFact('retention.rfm.champions_revenue_share');
   const segments = RETENTION.tables.rfm_segments;
   const champions = segments.find((s) => s.segment === 'Champions');
   if (!champions) throw new Error('retention: no Champions segment in the export');
@@ -108,8 +101,8 @@ export function rfmTable(): TableData {
 export function modelsTable(): TableData {
   const models = RETENTION.tables.models;
   const auc = (name: string) => models.find((m) => m.model === name)?.roc_auc;
-  if (auc('Baseline: most recent buyer first') !== factValue('retention.model.rule_auc')) throw new Error('retention: rule AUC differs from its fact');
-  if (auc('Gradient boosting') !== factValue('retention.model.gb_auc')) throw new Error('retention: gradient-boosting AUC differs from its fact');
+  if (auc('Baseline: most recent buyer first') !== numericFact('retention.model.rule_auc')) throw new Error('retention: rule AUC differs from its fact');
+  if (auc('Gradient boosting') !== numericFact('retention.model.gb_auc')) throw new Error('retention: gradient-boosting AUC differs from its fact');
   return {
     columns: ['Model', 'ROC AUC, all customers', 'ROC AUC, lapsed customers only'],
     rows: models.map((m) => [m.model, finite(m.roc_auc, `${m.model} AUC`, true), finite(m.lapsed_roc_auc, `${m.model} lapsed AUC`, true)]),
@@ -122,7 +115,7 @@ export function modelsTable(): TableData {
 /** Lapsed customers ranked by score: observed later orders against a random selection of the same size. */
 export function targetingTable(): TableData {
   return {
-    columns: ['Share selected', 'Customers selected', 'Returned within the window', 'Expected returners from random selection'],
+    columns: ['Share selected', 'Customers selected', 'Ordered again within the window', 'Expected to order again, random selection'],
     rows: RETENTION.tables.lapsed_targeting.map((r) => [
       finite(r.contact_share, 'share selected', true),
       finite(r.contacted, 'customers selected'),
@@ -130,7 +123,7 @@ export function targetingTable(): TableData {
       finite(r.returners_random, 'expected from random selection'),
     ]),
     formats: ['share', 'count', 'count', 'number'],
-    note: 'Lapsed customers with the highest model scores, selected on paper only: nobody was contacted. Returned means they ordered again within the window. These are observed orders, not the effect of an offer.',
+    note: 'Lapsed customers with the highest model scores, selected on paper only: nobody was contacted. These are observed orders, not the effect of an offer.',
     refs: ['source:retention', 'retention.winback.top20_customers'],
   };
 }
@@ -146,7 +139,7 @@ export function holdoutTable(): TableData {
       finite(h.customers_per_arm, `${h.group} customers per group`),
     ]),
     formats: ['number', 'share', 'count', 'count'],
-    note: 'A sample-size calculation only: nobody was contacted and no test was run.',
+    note: 'A sample-size calculation only: nobody was contacted and no test was run. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
     refs: ['source:retention', 'retention.winback.n_per_arm', 'retention.winback.baseline_rate', 'retention.winback.uplift_pp'],
   };
 }

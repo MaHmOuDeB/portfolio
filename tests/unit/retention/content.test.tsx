@@ -60,6 +60,8 @@ describe('honest wording', () => {
     expect(pageText).toContain('public dataset, rebuilt in 2026');
     const source = readFileSync(join(repo, 'content/retention.tsx'), 'utf8');
     expect(source).toContain('public dataset, rebuilt in 2026');
+    expect(pageText).toContain('Two personal projects on the same public dataset, rebuilt in 2026');
+    expect(pageText).toContain('sized a holdout test');
     expect(source).not.toMatch(/getFullYear|new Date\(|Date\.now/);
   });
 
@@ -67,6 +69,8 @@ describe('honest wording', () => {
     expect(pageText).toMatch(/\bsized\b/);
     expect(pageText).toContain('Nobody was contacted');
     expect(pageText).toContain('no test was run');
+    // Both sample-size sentences carry the settings the size depends on.
+    expect(pageText.split('two-sided, a 5% significance level and 80% power')).toHaveLength(3);
   });
 
   it('gives the exact Champions definition and its by-construction caveat', () => {
@@ -123,6 +127,7 @@ describe('the summary', () => {
   it('prints the returns growth through the retail facts, mostly one order on its source date', () => {
     expect(summary).toContain('data-fact="retail.returns.yoy_growth_raw"');
     expect(summary).toContain('data-fact="retail.returns.yoy_growth_clean"');
+    expect(text(summary)).toContain('grew 29% in January to November 2011 against the same months of 2010');
     const method = html(RetentionMethod);
     expect(method).toContain('data-fact="retail.reversal.january_gbp"');
     const january = RETAIL.tables.largest_reversals.find((r) => r.value_gbp === getFact('retail.reversal.january_gbp').value);
@@ -133,7 +138,7 @@ describe('the summary', () => {
   it('derives the target rate from the baseline and the uplift', () => {
     const target = /<data value="([^"]+)" data-derived="retention\.winback\.baseline_rate retention\.winback\.uplift_pp">([^<]*)<\/data>/.exec(summary);
     expect(target).not.toBeNull();
-    expect(Number(target![1])).toBeCloseTo(0.34, 10);
+    expect(target![1]).toBe('0.34');
     expect(target![2]).toBe('34%');
     expect(summary).toContain('data-fact="retention.winback.n_per_arm"');
   });
@@ -152,8 +157,18 @@ describe('how I checked this', () => {
     expect(text(html(RetentionChecks))).toContain('scipy and statsmodels');
   });
 
-  it('gives the AUC interval as test-sample variability only', () => {
+  it('describes the audit exactly: marked figures, years allowed', () => {
+    const checks = text(html(RetentionChecks));
+    expect(checks).toContain(
+      'Every figure on this page is marked with where it comes from: one of those exports, the source code at the linked commits, or a calculation. An audit of the built page fails on any unmarked number other than a calendar year.',
+    );
+    expect(pageText).not.toMatch(/not typed/);
+  });
+
+  it('gives the AUC gain with its level, as test-sample variability only', () => {
     const checks = html(RetentionChecks);
+    expect(checks).toContain('data-fact="retention.model.auc_gain"');
+    expect(text(checks)).toContain('The gain in ROC AUC is 0.03, with a 95% interval of 0.02 to 0.04 from a paired bootstrap');
     expect(checks).toContain('data-fact="retention.model.auc_gain_low"');
     expect(checks).toContain('data-fact="retention.model.auc_gain_high"');
     expect(text(checks)).toContain('test-sample variability only');
@@ -167,6 +182,7 @@ describe('the limits', () => {
     expect([...limits.matchAll(/<li/g)].length).toBeGreaterThanOrEqual(2);
     expect(text(limits)).toContain('historic, observational data');
     expect(text(limits)).toContain('does not cover retraining');
+    expect(text(limits)).toContain('a first order in the data is not always a customer\'s first order');
   });
 
   it('shows the calibration gap from the lowest-scored tenth of the source table', () => {

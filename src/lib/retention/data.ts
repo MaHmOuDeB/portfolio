@@ -2,6 +2,7 @@
 // loader in @/lib/sources (never imported again here), and the commits they are pinned to. Server
 // only: pages pass islands just the rows they plot.
 import type { Provenance } from '@/components/kit/ProvenanceBadge';
+import { getFact, type FactId } from '@/lib/facts';
 import { provenanceOf, retail, retention } from '@/lib/sources';
 import lock from '../../../sources.lock.json';
 
@@ -44,4 +45,11 @@ export function sourceRepo(id: PageSource): { name: string; commit: string; tree
     // With no path, the export file itself.
     file: (path = entry.path) => `${base}/blob/${entry.commit}/${path}`,
   };
+}
+
+/** A fact's value, checked to be a finite number (shares, counts and AUCs, never a date). */
+export function numericFact(id: FactId): number {
+  const v = getFact(id).value;
+  if (typeof v !== 'number' || !Number.isFinite(v)) throw new TypeError(`${id}: expected a finite number`);
+  return v;
 }

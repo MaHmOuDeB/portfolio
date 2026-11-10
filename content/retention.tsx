@@ -10,7 +10,7 @@ import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 import { getFact } from '@/lib/facts';
-import { RETAIL, RETENTION, sourceRepo } from '@/lib/retention/data';
+import { RETAIL, RETENTION, numericFact, sourceRepo } from '@/lib/retention/data';
 
 // Constants of the source code, printed through <Derived> because no export holds them as a value.
 /** sql/01_clean.sql in both repositories: an order reversed by a cancellation up to a day later. */
@@ -20,11 +20,22 @@ const WINDOW_DAYS = 90;
 /** src/analysis.py rule_segment and quintile_score: Champions score 4 or 5 of 5 on R, F and M. */
 const CHAMPIONS_MIN_SCORE = 4;
 const TOP_SCORE = 5;
+/** src/analysis.py holdout_sample_sizes: a two-sided test at this significance level and power. */
+const ALPHA = 0.05;
+const POWER = 0.8;
 
 const RULE_REFS = ['source:retail', 'source:retention'] as const;
 
 const Hours = () => <Derived value={RULE_HOURS} unit="count" refs={RULE_REFS} />;
 const Days = () => <Derived value={WINDOW_DAYS} unit="count" refs={['source:retention']} />;
+
+/** The settings every holdout size on this page assumes. */
+const TestSettings = () => (
+  <>
+    two-sided, a <Derived value={ALPHA} unit="share" refs={['source:retention']} /> significance level and{' '}
+    <Derived value={POWER} unit="share" refs={['source:retention']} /> power
+  </>
+);
 
 /** The reversed order behind most of the January to November change, found by its fact value. */
 function januaryReversalDate(): string {
@@ -36,11 +47,12 @@ function januaryReversalDate(): string {
 
 /** 34%: the baseline rate plus the uplift the test is sized to detect. */
 function TargetRate() {
-  const baseline = getFact('retention.winback.baseline_rate').value as number;
-  const upliftPoints = getFact('retention.winback.uplift_pp').value as number;
+  const baseline = numericFact('retention.winback.baseline_rate');
+  const upliftPoints = numericFact('retention.winback.uplift_pp');
   return (
     <Derived
-      value={baseline + upliftPoints / 100}
+      // In whole points, so the machine value is 0.34 and not 0.29 + 0.05 with float noise.
+      value={Math.round(baseline * 100 + upliftPoints) / 100}
       unit="share"
       decimals={0}
       refs={['retention.winback.baseline_rate', 'retention.winback.uplift_pp']}
@@ -60,8 +72,9 @@ export function RetentionSummary(): ReactNode {
     [
       'My role',
       <>
-        A personal project on a public dataset, rebuilt in 2026 from my Master&apos;s project. I cleaned the orders,
-        analysed the cohorts and segments, built and evaluated the model, and sized the test.
+        Two personal projects on the same public dataset, rebuilt in 2026 from my Master&apos;s projects. I cleaned
+        the orders, analysed the returns, the cohorts and the segments, built and evaluated the model, and sized a
+        holdout test.
       </>,
     ],
     [
@@ -75,7 +88,7 @@ export function RetentionSummary(): ReactNode {
       'Result',
       <>
         Counting orders cancelled within <Hours /> hours as returns made returned-order value look like it grew{' '}
-        <Fact id="retail.returns.yoy_growth_raw" /> from January to November 2010 to the same months of 2011. With
+        <Fact id="retail.returns.yoy_growth_raw" /> in January to November 2011 against the same months of 2010. With
         those orders removed, it grew about <Fact id="retail.returns.yoy_growth_clean" />. About{' '}
         <Fact id="retention.cohort.month1_rate" /> of a cohort order again in the month after their first order. A
         model ranks who orders again only slightly better than putting the most recent buyers first: ROC AUC{' '}
@@ -94,7 +107,7 @@ export function RetentionSummary(): ReactNode {
       <>
         A holdout test, which I sized at <Fact id="retention.winback.n_per_arm" /> lapsed customers per group to
         detect a rise from <Fact id="retention.winback.baseline_rate" /> to <TargetRate /> in those who order again
-        within <Days /> days. Nobody was contacted and no test was run.
+        within <Days /> days (<TestSettings />). Nobody was contacted and no test was run.
       </>,
     ],
   ];
@@ -117,8 +130,9 @@ export function RetentionMethod(): ReactNode {
       <p className={ITEM}>
         The data is UCI Online Retail II, orders from a UK online gift retailer from{' '}
         <Fact id="retention.data.first_date" /> to <Fact id="retention.data.last_date" />:{' '}
-        <Fact id="retention.data.raw_rows" /> invoice lines. Cleaning drops lines without a customer, lines that are not
-        products (such as postage) and lines with no positive quantity or price. After cleaning,{' '}
+        <Fact id="retention.data.raw_rows" /> invoice lines. Cleaning keeps cancellations apart as returns and drops
+        lines without a customer, lines that are not products (such as postage) and lines with no positive quantity or
+        price. After cleaning and the reversal rule below,{' '}
         <Fact id="retention.data.clean_rows" /> sales lines remain, in <Fact id="retention.data.orders" /> orders from{' '}
         <Fact id="retention.data.customers" /> customers.
       </p>
@@ -133,13 +147,14 @@ export function RetentionMethod(): ReactNode {
         <Fact id="retention.data.last_date" />. The change between the two growth figures comes mostly from one{' '}
         <Fact id="retail.reversal.january_gbp" /> order, placed on{' '}
         <Derived value={januaryReversalDate()} unit="date" refs={['source:retail']} /> and cancelled within{' '}
-        <Hours /> hours. The inflated growth was not my catch: a review caught it and I fixed it. Growth is not the same as returns as a share of sales: with the rule, returns were{' '}
+        <Hours /> hours. The inflated growth was not my catch: a review caught it and I fixed it. Growth is not the
+        same as returns as a share of sales: with the rule, returns were{' '}
         <Fact id="retail.returns.rate_2010_clean" /> of sales in January to November 2010 and{' '}
         <Fact id="retail.returns.rate_2011_clean" /> in 2011; without it, <Fact id="retail.returns.rate_2010_raw" /> and{' '}
         <Fact id="retail.returns.rate_2011_raw" />.
       </p>
       <p className={ITEM}>
-        Customers are grouped by the month of their first order. I use the January to November 2010 cohorts: December
+        Customers are grouped by the month of their first order in the data. I use the January to November 2010 cohorts: December
         2009 is the first month of the data, so it holds customers who were already buying, and December 2010 would end
         in the incomplete December 2011. A later month counts the cohort members who ordered in that month, so a share
         can rise again. Weighted by cohort size, about <Fact id="retention.cohort.month1_rate" /> order again in the
@@ -164,7 +179,7 @@ export function RetentionMethod(): ReactNode {
         Lapsed customers are those with no order in the <Days /> days before the September 2011 cutoff:{' '}
         <Fact id="retention.winback.lapsed_customers" /> of them, and <Fact id="retention.winback.baseline_rate" /> of
         them ordered again within <Days /> days. I sized a holdout test for them with a standard two-group sample-size
-        calculation. Nobody was contacted and no test was run.
+        calculation (<TestSettings />). Nobody was contacted and no test was run.
       </p>
     </>
   );
@@ -183,7 +198,11 @@ export function RetentionChecks(): ReactNode {
     ],
     [
       'printed',
-      <>Every figure on this page is printed from those exports, not typed, and an audit of the built page fails on any number that is not.</>,
+      <>
+        Every figure on this page is marked with where it comes from: one of those exports, the source code at the
+        linked commits, or a calculation. An audit of the built page fails on any unmarked number other than a
+        calendar year.
+      </>,
     ],
     [
       'period',
@@ -196,9 +215,10 @@ export function RetentionChecks(): ReactNode {
     [
       'interval',
       <>
-        The interval on the gain in ROC AUC, <Fact id="retention.model.auc_gain_low" /> to{' '}
-        <Fact id="retention.model.auc_gain_high" />, is a paired bootstrap over the test customers, so it covers
-        test-sample variability only.
+        The gain in ROC AUC is <Fact id="retention.model.auc_gain" />, with a{' '}
+        <Derived value={0.95} unit="share" refs={['source:retention']} /> interval of{' '}
+        <Fact id="retention.model.auc_gain_low" /> to <Fact id="retention.model.auc_gain_high" /> from a paired
+        bootstrap over the test customers, so it covers test-sample variability only.
       </>,
     ],
     [
@@ -260,6 +280,13 @@ export function RetentionLimits(): ReactNode {
       <>
         Champions&apos; share of spend is high partly by construction: spend is one of the three scores that define
         them.
+      </>,
+    ],
+    [
+      'first-order',
+      <>
+        The data starts in December 2009, so a first order in the data is not always a customer&apos;s first order,
+        and lines without a customer number are left out of every customer figure.
       </>,
     ],
   ];

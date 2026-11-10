@@ -98,6 +98,8 @@ describe('cohorts', () => {
     expect(t.formats).toEqual(['number', 'count', ...Array<string>(13).fill('share')]);
     // A later month can be higher than an earlier one: active that month, not survival.
     expect(t.rows[0]![4]).toBe(0.3179);
+    expect(t.note).toContain('first order in the data');
+    expect(t.note).toContain('not the share who kept buying every month since');
     expect(bodyCells(render(t)).slice(0, 4).map((c) => c.text)).toEqual(['Jan 2010', '368', '100%', '21%']);
   });
 });
@@ -142,6 +144,7 @@ describe('returns', () => {
     expect(t.rows[0]![0]).toBe('Dec 2009');
     expect(t.rows[24]![0]).toBe('Dec 2011');
     expect(t.refs).toEqual(['source:retail']);
+    expect(t.note).toContain(mode === 'raw' ? 'Without the reversal rule' : 'With the reversal rule');
     const cells = bodyCells(render(t));
     const first = cells[1]!;
     expect(first.text).toBe(mode === 'raw' ? '19,338' : '15,091');
@@ -204,7 +207,10 @@ describe('models', () => {
 describe('targeting and sizing stay separate', () => {
   it('targeting: observed later orders against a random selection, selected and never contacted', () => {
     const t = targetingTable();
-    expect(t.columns).toEqual(['Share selected', 'Customers selected', 'Returned within the window', 'Expected returners from random selection']);
+    // Renamed from the brief's "Returned within the window" (controller ruling): on this page "returns" means
+    // returned-order value, so the header says what happened, an order.
+    expect(t.columns).toEqual(['Share selected', 'Customers selected', 'Ordered again within the window', 'Expected to order again, random selection']);
+    expect(t.columns.join(' ')).not.toMatch(/return/i);
     expect(t.rows[0]).toEqual([0.05, 167, 116, 48.4]);
     expect(t.rows[1]).toEqual([0.1, 335, 216, 97.2]);
     expect(t.rows).toEqual(RETENTION.tables.lapsed_targeting.map((r) => [r.contact_share, r.contacted, r.returners_model, r.returners_random]));
@@ -214,6 +220,8 @@ describe('targeting and sizing stay separate', () => {
 
   it('holdout: customers per group from the sizing, never customers selected', () => {
     const t = holdoutTable();
+    // Some sizes exceed the group they are for (the top fifth of lapsed customers is far smaller), so the note says so.
+    expect(t.note).toContain('Where the customers needed per group exceed the customers in that group');
     expect(t.columns).toContain('Customers per group');
     expect(t.columns).not.toContain('Customers selected');
     const fivePoints = t.rows.find((r) => r[0] === 'All lapsed customers' && r[2] === 5);
