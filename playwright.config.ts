@@ -110,5 +110,11 @@ export default defineConfig({
       grepInvert: /@visual/,
       use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } },
     },
+    // Firefox runs every test except the visual baselines, like WebKit.
+    {
+      name: 'desktop-firefox',
+      grepInvert: /@visual/,
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } },
+    },
   ],
 });
