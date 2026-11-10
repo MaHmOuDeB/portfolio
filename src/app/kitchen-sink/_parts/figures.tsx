@@ -1,7 +1,8 @@
 // The "Figures" section of the kitchen sink: the Figure frame in each runtime state. A static
 // Figure, the interactive demo twice (URL ids `demo` and `demo-b`, loaded on intent), the forced
-// no-JS and error states, a client island that throws, and a diagram. All data is fictional: a
-// hypothetical sign-up page. The live phases are on /kitchen-sink/live.
+// no-JS and error states, a client island that throws, a diagram, and the demo with a `lead` in
+// each of those states. All data is fictional: a hypothetical sign-up page. The live phases are on
+// /kitchen-sink/live.
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { PRESETS, REFS } from '../_demo/DemoControls';
@@ -140,6 +141,49 @@ export function FiguresSection() {
         note="The same interactive Figure, with a fictional bug: one step up the baseline slider makes its chart throw in the browser. Only this Figure shows the fallback, with the build-time chart."
       >
         <DemoFigure id="fragile" titleLevel={4} failAt={0.11} />
+      </Specimen>
+      <Specimen
+        id="figures--lead"
+        title="Interactive Figure with a lead"
+        note="The readout is the Figure's lead: it sits between the title and the controls, so it is read before them, and it moves with them."
+      >
+        <DemoFigure id="demo-lead" titleLevel={4} lead />
+      </Specimen>
+      <Specimen
+        id="figures--lead-no-js"
+        title="A lead without JavaScript"
+        note="Forced: the lead stays above the result line; the controls give way to the open table."
+      >
+        <DemoFigureView
+          id="demo-lead-no-js"
+          titleLevel={4}
+          title="Each smaller rise to detect needs more visitors in each group."
+          values={PRESET}
+          state={{ runtime: 'no-js' }}
+          lead
+          controls={<InertDemoControls id="demo-lead-no-js" values={PRESET} />}
+        />
+      </Specimen>
+      <Specimen
+        id="figures--lead-error"
+        title="A lead when the chart could not load"
+        note="Forced: the lead goes with the controls and the result line; the build-time chart, one sentence and the open table take the chart's place."
+      >
+        <DemoFigureView
+          id="demo-lead-error"
+          titleLevel={4}
+          title="The smaller the rise to detect, the more visitors each group needs."
+          values={PRESET}
+          state={{ runtime: 'error' }}
+          lead
+        />
+      </Specimen>
+      <Specimen
+        id="figures--lead-island-throws"
+        title="A Figure with a lead whose chart throws"
+        note="The same fictional bug: one step up the baseline slider makes its chart throw in the browser, and the lead hides with the controls."
+      >
+        <DemoFigure id="fragile-lead" titleLevel={4} failAt={0.11} lead />
       </Specimen>
       <Specimen id="figures--diagram" title="Diagram" note="A title, the drawing and a caption: no badge, controls or table.">
         <StepsDiagram id="steps" />

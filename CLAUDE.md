@@ -133,7 +133,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 
 | Export | File | Role |
 |---|---|---|
-| `Figure`, `FigureProps`, `instantly` | `Figure.tsx` | The frame of every chart and interactive part. `instantly(figureId, apply)` makes a change land without a transition (Reset). |
+| `Figure`, `FigureProps`, `instantly` | `Figure.tsx` | The frame of every chart and interactive part. A chart Figure's optional `lead` is drawn between the title and the control row (a readout seen before the controls); it shows in the default and no-JS states and is hidden, like the result line, when the Figure holds an error fallback. `instantly(figureId, apply)` makes a change land without a transition (Reset). |
 | `FigureErrorBoundary`, `FigureErrorFallback`, `FigureErrorFallbackProps`, `FallbackBody` | `FigureErrorBoundary.tsx` (client) | Per-Figure error boundary and the fallback that replaces a Figure that throws. |
 | `ChartFrame`, `ChartFrameProps`, `AxisSpec`, `Annotation`, `PlotContext`, `Layout`, `MARK_UNITS`, `MarkLayer` | `ChartFrame.tsx` | The SVG frame: grid, axes, tick labels, zero line and one annotation. Marks go in `MarkLayer`. |
 | `ConfidenceChart` | `ConfidenceChart.tsx` | The live experiment's confidence-sequence chart with its "Now" row. Optional `height` (`{ narrow, wide }` plot px, positive and finite, defaults 220 and 280) and `ariaLabel` (a non-empty finding in words, no digit, replaces the generated one, also under a pause); an invalid value throws. |

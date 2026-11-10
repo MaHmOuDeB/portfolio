@@ -254,6 +254,42 @@ test.describe('kitchen sink Figures', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a lead sits between the title and the controls, moves with them, and hides with them on a fallback', async ({ page }) => {
+    const errors = watchErrors(page, [CHART_FAILURE]);
+    await page.goto('/kitchen-sink');
+    // Before the controls, in the default and no-JS views; absent from the forced error view.
+    const order = (id: string) =>
+      figure(page, id).evaluate((el) =>
+        [...el.children].map((c) => [...c.attributes].find((a) => a.name.startsWith('data-figure-'))?.name ?? c.tagName.toLowerCase()),
+      );
+    await ready(page, 'demo-lead');
+    expect((await order('demo-lead')).slice(0, 3)).toEqual(['h4', 'data-figure-lead', 'data-figure-controls']);
+    expect((await order('demo-lead-no-js')).slice(0, 3)).toEqual(['h4', 'data-figure-lead', 'data-figure-result']);
+    await expect(figure(page, 'demo-lead-no-js').locator('[data-figure-lead]')).toBeVisible();
+    await expect(figure(page, 'demo-lead-error').locator('[data-figure-lead]')).toHaveCount(0);
+
+    // The lead is drawn above the control row and follows the controls.
+    const lead = figure(page, 'demo-lead').locator('[data-figure-lead]');
+    const group = figure(page, 'demo-lead').getByRole('group', { name: 'Controls' });
+    expect((await lead.boundingBox())!.y).toBeLessThan((await group.boundingBox())!.y);
+    const before = await lead.locator('data').textContent();
+    await baseline(page, 'demo-lead').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(lead.locator('data')).not.toHaveText(before!);
+
+    // A real error caught by the boundary hides the lead with the controls and the result line.
+    await ready(page, 'fragile-lead');
+    const fragile = figure(page, 'fragile-lead');
+    await expect(fragile.locator('[data-figure-lead]')).toBeVisible();
+    await baseline(page, 'fragile-lead').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(fragile.getByRole('status')).toHaveText(STATIC_SENTENCE);
+    await expect(fragile.locator('[data-figure-lead]')).toBeHidden();
+    await expect(fragile.getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(fragile.locator('[data-figure-result]')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
   test('intent: the island is idle until the pointer arrives, and its code loads only then', async ({ page }) => {
     await withoutIdle(page);
     const chunks: string[] = [];

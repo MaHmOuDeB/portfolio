@@ -13,6 +13,7 @@ export function DemoFigure({
   failAt,
   eager,
   unreachable,
+  lead,
 }: {
   id: string;
   titleLevel?: 2 | 3 | 4;
@@ -23,6 +24,8 @@ export function DemoFigure({
    * request pending until the page calls `window.__delayedIsland.fail()`.
    */
   unreachable?: boolean | 'delayed';
+  /** The readout is drawn as the Figure's lead, between the title and the controls. */
+  lead?: boolean;
 }) {
   const values = PRESETS.default;
   const Island = unreachable === 'delayed' ? DelayedUnreachableDemoIsland : unreachable ? UnreachableDemoIsland : DemoIsland;
@@ -34,6 +37,7 @@ export function DemoFigure({
           id={id}
           titleLevel={titleLevel}
           values={values}
+          lead={lead}
           controls={<InertDemoControls id={id} values={values} />}
         />
       }
@@ -42,6 +46,7 @@ export function DemoFigure({
         id={id}
         titleLevel={titleLevel}
         failAt={failAt}
+        lead={lead}
         preview={<DemoChart id={`${id}-preview`} model={demoModel(values)} presetPreview />}
       />
     </LoadOnIntent>
