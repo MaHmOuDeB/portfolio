@@ -298,7 +298,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 /*
  * "Your view", the muted x-axis tick the kit draws once this visit is counted, fades in once over the
  * step duration: ScrollShell sets data-tick-fade for that long only, so a chart redrawn later shows
- * the tick still.
+ * the tick still. The window starts with the count, not with the first drawing, so a count that
+ * arrives before the chart has loaded shows the tick without a fade.
  */
 @keyframes scroll-moment-your-view {
   from {
@@ -312,7 +313,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 /*
  * A live chart that failed (HomeChart's own boundary shows its fallback: a sentence and an open table
- * that can be long), or whose code could not load (the island's preview is marked failed), drops the
+ * that can be long), or whose code could not load (the island's preview is marked failed), or that a
+ * phone's canvas waited for too long (ScrollShell's data-chart-late; that drop is final), drops the
  * moment to its stacked frames: the canvas hides, so the stage keeps only the step navigation and
  * never covers the steps, and each step's stacked frame shows its chart, the server's drawing of it or
  * its fallback. Both copies of a chart get the same input, so whichever failed, the frames are what
@@ -320,12 +322,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
  * replaces it.
  */
 html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-scroll-canvas],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-scroll-canvas] {
+html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-scroll-canvas],
+html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-late]) [data-scroll-canvas] {
   display: none;
 }
 
 html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-stacked-frame],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-stacked-frame] {
+html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-stacked-frame],
+html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-late]) [data-stacked-frame] {
   display: block;
 }
 

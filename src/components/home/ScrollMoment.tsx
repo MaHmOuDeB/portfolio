@@ -141,7 +141,7 @@ export function ScrollMomentView({ arm, steps, charts, refs, Shell }: ScrollMome
           caption={
             <>
               When a band is shown, it is the <Derived value={1 - EXPERIMENT.alpha} unit="share" refs={BUILD} /> confidence sequence of
-              B − A in percentage points, narrowed at each look and never widened.
+              B − A in percentage points, never widened at a look.
             </>
           }
           provenance={refs.includes('live') ? 'live' : 'simulated'}

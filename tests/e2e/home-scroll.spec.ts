@@ -488,7 +488,12 @@ const TWO = scroll('ab-two-charts');
 const ARM = 'b';
 const OTHER_ARM = 'a';
 
-/** Counts every scrollIntoView: the step navigation's scroll is the only one the moment makes. */
+/**
+ * Counts every scrollIntoView: the step navigation's scroll is the only one the moment makes. It stands
+ * in for a spy on StepNav's onChange: in the sticky layout every onChange goes to the controller's
+ * fromNav, which always scrolls, so an outside change that called onChange would show here (and its
+ * announcement in the live-region record).
+ */
 async function spyNavScrolls(context: BrowserContext) {
   await context.addInitScript(() => {
     const w = window as unknown as { __navScrolls: number };
@@ -656,7 +661,16 @@ test.describe('home scroll moment interaction', () => {
     await page.context().close();
   });
 
-  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 768 }]) {
+  // The sticky sizes of the page's viewport matrix (1280x720 at 125% is 1024x576 CSS px).
+  for (const size of [
+    { width: 375, height: 667 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 576 },
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 },
+  ]) {
     test(`${size.width}x${size.height}: the step navigation sets the step at once, scrolls it into view and keeps focus`, async ({ browser, baseURL }) => {
       const page = await open(browser, baseURL, AB, size, {}, spyNavScrolls);
       await bringIntoBand(page, 1);
@@ -745,7 +759,8 @@ test.describe('home scroll moment interaction', () => {
     await page.context().close();
   });
 
-  for (const size of [{ width: 375, height: 667 }, { width: 360, height: 800 }]) {
+  // 768x1024: the stage sits under the sticky header, so the scroll margin adds to the header's padding.
+  for (const size of [{ width: 375, height: 667 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
     test(`${size.width}x${size.height}: Shift+Tab never leaves focus behind the sticky stage`, async ({ browser, baseURL, browserName }) => {
       const page = await open(browser, baseURL, AB, size);
       const back = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Shift+Tab' : 'Shift+Tab';
@@ -758,9 +773,12 @@ test.describe('home scroll moment interaction', () => {
         const g = await page.evaluate(() => {
           const el = document.activeElement as HTMLElement | null;
           if (el === null || !el.closest('[data-scroll-steps]')) return null;
-          const stage = document.querySelector('[data-scroll-stage]')!.getBoundingClientRect();
+          const box = document.querySelector('[data-scroll-stage]')!;
+          const stage = box.getBoundingClientRect();
+          // Stuck at its sticky offset: 0, or the header's height where the header sticks too.
+          const offset = Number.parseFloat(getComputedStyle(box).top) || 0;
           const r = el.getBoundingClientRect();
-          return { tag: el.tagName.toLowerCase(), top: r.top, bottom: r.bottom, stageBottom: stage.bottom, stuck: stage.top <= 1, vh: document.documentElement.clientHeight };
+          return { tag: el.tagName.toLowerCase(), top: r.top, bottom: r.bottom, stageBottom: stage.bottom, stuck: stage.top <= offset + 1, vh: document.documentElement.clientHeight };
         });
         if (g === null) {
           if (seen.length > 0) break;
@@ -945,6 +963,61 @@ test.describe('home scroll moment interaction', () => {
       await context.close();
     });
   }
+
+  test("375x667: a chart whose code never arrives drops the moment to its stacked frames after the wait", async ({ browser, baseURL }) => {
+    test.slow();
+    const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
+    const page = await context.newPage();
+    const first = await firstLoadChunks(page, AB);
+    const never = new Promise<void>(() => {});
+    // Every later chunk (the chart's code) hangs: no error, no response.
+    await page.route(/\/_next\/static\/chunks\/.*\.js(\?.*)?$/, async (route) => {
+      if (!first.has(chunkPath(route.request().url()))) await never;
+      await route.continue();
+    });
+    await page.goto(AB);
+    await waitHydrated(page);
+    expect(await page.locator('[data-scroll-shell][data-chart-late]').count(), 'not before the wait').toBe(0);
+    await expect(page.locator('[data-scroll-shell][data-chart-late]')).toBeAttached({ timeout: 15_000 });
+    const l = await layoutOf(page);
+    expect(l.scrollWidth).toBeLessThanOrEqual(l.clientWidth);
+    expect(l.frames, 'the stacked frame shows the server chart').toEqual([true]);
+    expect(l.stepNav, 'the step navigation stays').toBe(true);
+    expect(await page.locator('[data-scroll-canvas]').isVisible()).toBe(false);
+    expect(await drawnCharts(page)).toBe(1);
+    expect(await chartTables(page)).toBe(1);
+    await context.close();
+  });
+
+  test('375x667: the drop after the wait is final, even when the chart code arrives later', async ({ browser, baseURL }) => {
+    test.slow();
+    const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
+    const page = await context.newPage();
+    const first = await firstLoadChunks(page, AB);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    await page.route(/\/_next\/static\/chunks\/.*\.js(\?.*)?$/, async (route) => {
+      if (!first.has(chunkPath(route.request().url()))) await held;
+      await route.continue();
+    });
+    await page.goto(AB);
+    await expect(page.locator('[data-scroll-shell][data-chart-late]')).toBeAttached({ timeout: 15_000 });
+    release();
+    await expect(page.locator('[data-stacked-frame] [data-home-chart][data-measured]')).toBeAttached({ timeout: 15_000 });
+    await expect(page.locator('[data-scroll-shell][data-chart-late]')).toBeAttached();
+    expect(await page.locator('[data-scroll-canvas]').isVisible()).toBe(false);
+    expect(await drawnCharts(page)).toBe(1);
+    await context.close();
+  });
+
+  test('375x667: a chart that loads in time keeps the sticky stage, with no late mark', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 375, height: 667 });
+    await page.waitForTimeout(5500);
+    expect(await page.locator('[data-scroll-shell][data-chart-late]').count()).toBe(0);
+    expect(await layoutOf(page)).toMatchObject({ stage: true, frames: [false] });
+    expect(await page.locator('[data-scroll-canvas]').isVisible()).toBe(true);
+    await page.context().close();
+  });
 
   test('without a kit chart nothing follows the scroll: the first step stays current', async ({ browser, baseURL }) => {
     const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });

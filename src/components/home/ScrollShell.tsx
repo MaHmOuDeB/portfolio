@@ -9,7 +9,10 @@
 // - The current step. The step navigation sets it at once and scrolls that step into view; an
 //   IntersectionObserver on a thin trigger band sets it as the page scrolls, and is ignored while the
 //   navigation's scroll runs (lib/home/scroll-controller). Nothing scrolls on its own. The current step
-//   is the list item with aria-current="step"; StepNav announces only its own uses.
+//   is the list item with aria-current="step"; StepNav announces only its own uses. Accepted residual:
+//   if the reader interrupts a navigation scroll midway, the step stays the navigation's until the
+//   next step enters the trigger band (the observer reports changes only, and a fresh reading at the
+//   end of the scroll would undo a navigation to a last step the band cannot reach).
 // - A held key moves one step: the browser repeats keydown while a key is held, and StepNav moves on
 //   every keydown, so repeats are stopped before they reach it (Enter's repeats too, which would click).
 // - Focus never hides behind the phone's sticky stage: the stage's measured height goes to
@@ -19,15 +22,18 @@
 //   motion switched on midway ends the fade at once.
 // - The chart code (HomeChart, the kit's chart, d3) is not in the first load: each chart is the
 //   server's drawing until its code loads, on the moment coming near or at idle time, and at once on a
-//   phone, where the canvas stays blank until the chart has measured it (that code is requested as soon
-//   as this module runs there, so the wait is no longer than with the code in the first load). If it
-//   cannot load, globals.css drops the moment to its stacked frames, which keep the server's drawing.
+//   phone, where the canvas stays blank until the chart has measured it. There the code is requested
+//   as soon as this module runs, which is after the first-load scripts have arrived, so it can add a
+//   round trip to that wait; how long it takes is measured separately, not assumed. If the code cannot
+//   load, or on a phone the chart has not measured within CHART_WAIT_MS of its loading starting
+//   (data-chart-late), globals.css drops the moment to its stacked frames, which keep the server's
+//   drawing. That drop is final: a chart that arrives later never moves the page a second time.
 // - "Your view": the beacon fires `experiment:counted` once this visit is counted. The first count of
 //   this page's group is kept in memory (never stored) and drawn as the kit's muted x-axis tick, only
 //   where the server let the tick start (ScrollMoment's tickFrom) and from the last look drawn on. The
 //   tick fades in once over the step duration. The listener is attached in a layout effect, which runs
 //   before any page effect (such as the beacon's) can post the view.
-import { lazy, memo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { lazy, memo, useEffect, useMemo, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
 import { LoadOnIntent } from '@/components/kit/LoadOnIntent';
@@ -50,11 +56,13 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 const NEAR = '100% 0px 100% 0px';
 const IDLE_TIMEOUT_MS = 2000;
 const STEP_MS = 320;
+/** How long a phone's canvas may wait for its chart to measure before the moment drops to its stacked frames. */
+const CHART_WAIT_MS = 5000;
 
 // On a phone the sticky canvas is blank until the chart has measured it: ask for the chart's code as
-// soon as this module runs, alongside hydration, rather than after it. Only where the page has a
-// sticky moment (a moment without a kit chart never needs the code); if the HTML is still being
-// parsed, look again once it has been.
+// soon as this module runs (it arrives with the first-load scripts), not only once the page has
+// hydrated. Only where the page has a sticky moment (a moment without a kit chart never needs the
+// code); if the HTML is still being parsed, look again once it has been.
 function prefetchOnPhone() {
   if (!document.documentElement.hasAttribute('data-js') || !window.matchMedia(ONE_COLUMN).matches) return;
   if (document.querySelector('[data-scroll-moment="sticky"]') === null) return;
@@ -112,6 +120,7 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
   const [near, setNear] = useState(false);
   const [viewN, setViewN] = useState<number | null>(null);
   const [fading, setFading] = useState(false);
+  const [late, setLate] = useState(false);
   const shell = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const controller = useRef<ScrollController | null>(null);
@@ -204,6 +213,19 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
     };
   }, [sticky]);
 
+  // A phone's canvas is blank until its chart has measured: if that has not happened CHART_WAIT_MS
+  // after the chart began to load, the moment drops to its stacked frames for good.
+  useEffect(() => {
+    const root = shell.current;
+    if (!sticky || !near || root === null || !window.matchMedia(ONE_COLUMN).matches) return;
+    const measured = () => root.querySelector('[data-scroll-canvas] [data-canvas-layer][data-active] [data-home-chart][data-measured]') !== null;
+    if (measured()) return;
+    const timer = window.setTimeout(() => {
+      if (!measured()) setLate(true);
+    }, CHART_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [sticky, near]);
+
   // The stage's height for the steps' scroll margin, and the step observer on its trigger band. Both
   // follow the stage's size: it changes with the layout (beside, above, hidden when stacked).
   useLayoutEffect(() => {
@@ -258,18 +280,22 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
     else c.fromNav(step, window.matchMedia(REDUCED).matches);
   };
 
+  // One snapshot object per chart while nothing changes, so the memoized chart is not drawn again on
+  // every step change once a count has arrived.
+  const snapshots = useMemo(() => charts.map((c) => (c === null ? null : withYourView(c.snapshot, c.tickFrom, viewN))), [charts, viewN]);
+
   const island = (i: number, preview: ReactNode) => {
     const chart = charts[i]!;
     return (
       <LoadOnIntent eager={near} preview={preview}>
-        <LazyHomeChart snapshot={withYourView(chart.snapshot, chart.tickFrom, viewN)} table={chart.table} refs={refs} ariaLabel={chart.ariaLabel} />
+        <LazyHomeChart snapshot={snapshots[i]!} table={chart.table} refs={refs} ariaLabel={chart.ariaLabel} />
       </LoadOnIntent>
     );
   };
 
   const shown = canvas?.byStep[current - 1];
   return (
-    <div ref={shell} data-scroll-shell="" data-tick-fade={fading ? '' : undefined}>
+    <div ref={shell} data-scroll-shell="" data-tick-fade={fading ? '' : undefined} data-chart-late={late ? '' : undefined}>
       {canvas ? (
         <div ref={stage} data-scroll-stage="" className="bg-bg pt-3">
           <div id="home-canvas" data-scroll-canvas="">

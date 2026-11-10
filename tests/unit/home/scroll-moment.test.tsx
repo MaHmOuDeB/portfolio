@@ -96,6 +96,9 @@ describe('ScrollMoment: the server markup both layouts share', () => {
     const caption = figure.childNodes.filter((c): c is El => 'tagName' in c && c.tagName === 'figcaption');
     expect(caption).toHaveLength(1);
     expect(squash(text(caption[0]!))).toContain('confidence sequence of B − A in percentage points');
+    // The band is the running intersection: a look can leave it as it was (no new views), never wider.
+    expect(squash(text(caption[0]!))).toContain('confidence sequence of B − A in percentage points, never widened at a look.');
+    expect(squash(text(caption[0]!))).not.toContain('narrowed at each look');
     expect(squash(text(caption[0]!))).toContain('Simulated');
     // The live chart's numbers: one open table (no-JS) and one folded table (JS), both in the caption;
     // CSS shows one. No other table in the moment carries the chart's caption.
@@ -259,12 +262,11 @@ describe('the client and server modules', () => {
     expect(src).not.toMatch(/^import (?!type)[^;]*from '@\/lib\/home\/(model|scroll)'/m);
   });
 
-  it('every scroll-moment state of the dev host renders through the truth audit with no finding', () => {
-    for (const s of SCROLL_STATES) {
-      const m = s.model();
-      const props = s.props?.(m) ?? scrollMomentProps(m);
-      expect(audit(renderToStaticMarkup(<ScrollMoment {...props} />)), s.id).toEqual([]);
-    }
+  // One test per state: all of them in one test came close to the 5 s default and timed out under load.
+  it.each(SCROLL_STATES.map((s) => [s.id, s] as const))('%s renders through the truth audit with no finding', (id, s) => {
+    const m = s.model();
+    const props = s.props?.(m) ?? scrollMomentProps(m);
+    expect(audit(renderToStaticMarkup(<ScrollMoment {...props} />)), id).toEqual([]);
   });
 });
 
@@ -321,6 +323,26 @@ describe('what the client half receives', () => {
     for (const p of [scrollMomentProps(m), scrollMomentProps(m, { tickAllowed: true })]) {
       expect(JSON.stringify(shellProps(p).charts)).not.toContain('yourViewN');
     }
+  });
+
+  // The small-count rule on what the browser receives: the client half's chart entries, for the small
+  // fixtures and the drawable states, hold no count from 1 to 4 and no visitor count.
+  it.each([
+    ...(['ab-tiny', 'calibration-tiny', 'ab-zero-sixty', 'ab-asymmetric', 'calibration-asymmetric', 'srm-one-sided-small', 'paused-tiny', 'paused-under-50'] as const).map(
+      (n) => [n, simulated(toHomeModel(narrativeFixture(n), 'b'))] as const,
+    ),
+    ...WITH_CHART.map((m) => [m.mode, m] as const),
+  ])('%s: the client half receives no count from 1 to 4 and no visitor count', (_, m) => {
+    const sent = JSON.parse(JSON.stringify(shellProps(scrollMomentProps(m, { tickAllowed: true })).charts)) as unknown;
+    const small: string[] = [];
+    const scan = (v: unknown, key = ''): void => {
+      if (typeof v === 'number' && ['nA', 'nB', 'n', 'nSmaller', 'smaller', 'a', 'b', 'tickFrom'].includes(key) && v >= 1 && v <= 4) small.push(`${key}=${v}`);
+      if (Array.isArray(v)) v.forEach((x) => scan(x, key));
+      else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) scan(x, k);
+    };
+    scan(sent);
+    expect(small).toEqual([]);
+    expect(JSON.stringify(sent)).not.toContain('yourViewN');
   });
 
   it('a held chart gets no tick start even if the server allowed one', () => {
