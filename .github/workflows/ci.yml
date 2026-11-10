@@ -38,6 +38,16 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run lint:css
+      # The CV checks read PDFs with python3 and pdftotext (poppler-utils). Installed before the unit
+      # tests, with their versions in the log; a missing tool fails here.
+      - name: Install PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3 poppler-utils
+          python3 --version
+          pdftotext -v
+      - name: Synthetic PDF extraction
+        run: python3 scripts/pdf-extraction-proof.py tests/fixtures/pdf/synthetic.pdf "Synthetic PDF extraction proof"
       - run: npm run test:cov
       - name: Redis conformance
         run: |
@@ -248,3 +258,24 @@ jobs:
           if [ -f next-start.pid ]; then
             kill "$(cat next-start.pid)" 2>/dev/null || true
           fi
+
+  cv-pdf:
+    name: CV PDF check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The pull request's own head commit, not the merge commit GitHub would check out, so HEAD in
+      # the summary is the commit under review. On a push to main it is the pushed commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      # Reserved for the check of the real CV PDF; checker-only until that check and the PDF arrive
+      # together (see the script). The deny-list goes to this step alone. The secret is not exposed
+      # to pull requests from forks.
+      - name: Actual CV PDF check (checker-only)
+        env:
+          TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/cv-pdf-gate.sh
