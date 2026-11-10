@@ -28,6 +28,41 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # After launch only the commit named in the repository variable LAUNCH_SHA may deploy
+      # production: a CI run that was queued or in flight when LAUNCHED became "true", or a re-run
+      # of an older run, fails here, before the checkout and every Vercel step, and deploys nothing.
+      # LAUNCH_SHA must be the full lowercase commit SHA; an empty or malformed value fails too.
+      # It prints only the tested commit, LAUNCH_SHA and the decision. Previews are unchanged.
+      - name: Guard production SHA
+        env:
+          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCH_SHA: ${{ vars.LAUNCH_SHA }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ -z "$LAUNCH_SHA" ]; then
+            shown='(empty)'
+          elif [[ "$LAUNCH_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            shown="$LAUNCH_SHA"
+          else
+            shown='(not a full commit SHA)'
+          fi
+          echo "Tested commit (head_sha): ${HEAD_SHA}"
+          echo "LAUNCH_SHA: ${shown}"
+          if [ "$LAUNCHED" != "true" ]; then
+            echo "Decision: preview deploy, LAUNCHED is not true"
+            exit 0
+          fi
+          if [ "$shown" != "$LAUNCH_SHA" ]; then
+            echo "Decision: refused, LAUNCH_SHA is not a full commit SHA"
+            echo "::error::LAUNCHED is true but LAUNCH_SHA is not a full commit SHA; nothing is deployed."
+            exit 1
+          fi
+          if [ "$HEAD_SHA" != "$LAUNCH_SHA" ]; then
+            echo "Decision: refused, the tested commit is not LAUNCH_SHA"
+            echo "::error::LAUNCHED is true and this run tested a commit other than LAUNCH_SHA; nothing is deployed."
+            exit 1
+          fi
+          echo "Decision: production deploy allowed"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
