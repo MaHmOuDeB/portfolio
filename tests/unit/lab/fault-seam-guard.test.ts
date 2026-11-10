@@ -989,13 +989,23 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
         'src/components/retention/ReturnsFigureClient.tsx#ReturnsIsland',
         'src/components/retention/ReturnsInteractive.tsx#ReturnsInteractive',
         'src/components/retention/ReturnsView.tsx#ReturnsFigureView',
+        'src/components/retention/CohortFigure.tsx#CohortFigure',
+        'src/components/retention/CohortFigureClient.tsx#CohortFigureClient',
+        'src/components/retention/CohortFigureClient.tsx#CohortIsland',
+        'src/components/retention/CohortInteractive.tsx#CohortInteractive',
+        'src/components/retention/CohortView.tsx#CohortFigureView',
       ]),
     );
   });
 
-  it('would reject the faults host if a production root reached it', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/retention/faults/page.dev.tsx']);
-    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([['src/app/kitchen-sink/retention/faults/page.dev.tsx', 'activation']]);
+  it('would reject the faults host if a production root reached it: one activation per Figure it sets', () => {
+    const host = 'src/app/kitchen-sink/retention/faults/page.dev.tsx';
+    const a = analyse(DISK, REPO, pageExtensions, [host]);
+    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
+    // each violation is the line that sets the seam on that Figure, the cohort Figure among them
+    const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
+    const tagged = a.violations.map((v) => lines[v.line - 1]!.trim());
+    expect(tagged).toEqual(expect.arrayContaining([expect.stringMatching(/^<ReturnsFigure faultAfterChange \/>$/), expect.stringMatching(/^<CohortFigure rows=\{COHORTS\} faultAfterChange \/>$/)]));
   });
 });
 

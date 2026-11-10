@@ -2,8 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DataTable, type TableData } from '@/components/kit/DataTable';
 import { Figure } from '@/components/kit/Figure';
-import { formatValue } from '@/lib/facts/format';
-import { formatNumber, formatSignedNumber } from '@/lib/figure/format';
+import { formatNumber } from '@/lib/figure/format';
 import { confidenceTable, formatIntervalPoints, type LiveSnapshot } from '@/lib/figure/cs-band';
 import { liveFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
 
@@ -46,16 +45,47 @@ const SHARES: TableData = {
   refs: ['source:retention', 'simulated'],
 };
 
+// The same shares under neutral labels and only a simulated ref, for the Figure test.
+const NEUTRAL: TableData = {
+  columns: ['Group', 'Share'],
+  rows: [
+    ['Group one', 0.2345],
+    ['Group two', 0.212],
+    ['Group three', 0],
+  ],
+  formats: ['number', 'share'],
+  refs: ['simulated'],
+};
+
 describe('DataTable share format', () => {
   it('prints a raw fraction as a whole percent: .2345 is 23%, .212 is 21%, zero is 0%', () => {
     const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={SHARES} mode="open" />);
     expect(cells(html)).toEqual(['Champions', '23%', 'Loyal', '21%', 'Lost', '0%']);
   });
 
-  it('writes the percent through the facts formatter with zero decimals', () => {
-    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={SHARES} mode="open" />);
-    const printed = cells(html).filter((_, i) => i % 2 === 1);
-    expect(printed).toEqual([0.2345, 0.212, 0].map((v) => formatValue(v, 'share', { decimals: 0 })));
+  // Literal expectations: rounding is half away from zero after the x100, a share under 0.5% prints
+  // 0%, 99.5% and up print 100%, a value that rounds to zero has no sign, a negative share uses
+  // U+2212, and an already-rounded copy can print one point off (0.235, not 0.2345).
+  it.each([
+    [-0.05, '−5%'],
+    [-0.004, '0%'],
+    [-0, '0%'],
+    [0, '0%'],
+    [0.004, '0%'],
+    [0.005, '1%'],
+    [0.2345, '23%'],
+    [0.235, '24%'],
+    [0.9949, '99%'],
+    [0.995, '100%'],
+    [1, '100%'],
+  ])('prints the share %s as %s', (value, printed) => {
+    const table: TableData = { columns: ['Share'], rows: [[value]], formats: ['share'], refs: ['simulated'] };
+    expect(cells(renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />))).toEqual([printed]);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])('throws on the non-finite share %s', (value) => {
+    const table: TableData = { columns: ['Share'], rows: [[value]], formats: ['share'], refs: ['simulated'] };
+    expect(() => renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />)).toThrow(TypeError);
   });
 
   it('right-aligns the share cells and their header, marks them data-num and spreads the refs', () => {
@@ -94,11 +124,11 @@ describe('DataTable share format', () => {
     };
     const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />);
     expect(cells(html)).toEqual([
-      formatNumber(1234.5678), formatNumber(1234.5678, 0), formatNumber(2.25, 1), formatSignedNumber(2.25, 1), formatNumber(0.2345),
-      formatNumber(-0.4), formatNumber(7.6, 0), formatNumber(0, 1), formatSignedNumber(0, 1), formatNumber(0),
+      '1,234.57', '1,235', '2.3', '+2.3', '0.235',
+      '−0.4', '8', '0', '0', '0',
     ]);
     const withoutFormats = renderToStaticMarkup(<DataTable id="t" caption="c" table={{ ...table, formats: undefined }} mode="open" />);
-    expect(cells(withoutFormats)).toEqual([1234.5678, 1234.5678, 2.25, 2.25, 0.2345, -0.4, 7.6, 0, 0, 0].map((v) => formatNumber(v)));
+    expect(cells(withoutFormats)).toEqual(['1,234.57', '1,234.57', '2.25', '2.25', '0.235', '−0.4', '7.6', '0', '0', '0']);
   });
 
   it('ignores rowDigits in a share column', () => {
@@ -109,14 +139,15 @@ describe('DataTable share format', () => {
   it('renders the share column in the no-JS open table of a Figure', () => {
     const figure = (runtime?: 'no-js') =>
       renderToStaticMarkup(
-        <Figure id="shares" title="Champions are about a fifth of customers." caption="A fictional caption." provenance="simulated" table={SHARES} state={runtime ? { runtime } : undefined}>
+        <Figure id="shares" title="A fictional share table" caption="A fictional caption." provenance="simulated" table={NEUTRAL} state={runtime ? { runtime } : undefined}>
           <svg role="img" aria-label="A fictional chart" />
         </Figure>,
       );
     for (const html of [figure(), figure('no-js')]) {
-      const open = html.slice(html.indexOf('id="shares-table-open-caption"'));
-      expect(open.length).toBeLessThan(html.length);
-      expect(cells(open).slice(0, 6)).toEqual(['Champions', '23%', 'Loyal', '21%', 'Lost', '0%']);
+      const at = html.indexOf('id="shares-table-open-caption"');
+      expect(at).toBeGreaterThanOrEqual(0);
+      const open = html.slice(at);
+      expect(cells(open).slice(0, 6)).toEqual(['Group one', '23%', 'Group two', '21%', 'Group three', '0%']);
     }
   });
 });

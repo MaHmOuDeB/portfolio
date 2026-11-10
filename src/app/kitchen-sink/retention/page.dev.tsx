@@ -3,7 +3,11 @@
 // in the components themselves. A query such as `?returns.mode=raw` is the Figure's own URL state,
 // read as on the real page. The failing variants are on /kitchen-sink/retention/faults.
 import type { Metadata } from 'next';
+import { CohortFigure } from '@/components/retention/CohortFigure';
+import { ModelFigure } from '@/components/retention/ModelFigure';
 import { ReturnsFigure } from '@/components/retention/ReturnsFigure';
+import { RfmFigure } from '@/components/retention/RfmFigure';
+import { COHORTS, RETENTION } from '@/lib/retention/data';
 
 export const metadata: Metadata = {
   title: 'Retention host',
@@ -23,6 +27,30 @@ export default function KitchenSinkRetention() {
         </h2>
         <div className="mt-6">
           <ReturnsFigure />
+        </div>
+      </section>
+      <section data-host-section="cohorts" aria-labelledby="host-cohorts" className="mt-section">
+        <h2 id="host-cohorts" className="text-xl font-semibold">
+          Cohorts
+        </h2>
+        <div className="mt-6">
+          <CohortFigure rows={COHORTS} />
+        </div>
+      </section>
+      <section data-host-section="segments" aria-labelledby="host-segments" className="mt-section">
+        <h2 id="host-segments" className="text-xl font-semibold">
+          Segments
+        </h2>
+        <div className="mt-6">
+          <RfmFigure rows={RETENTION.tables.rfm_segments} />
+        </div>
+      </section>
+      <section data-host-section="model" aria-labelledby="host-model" className="mt-section">
+        <h2 id="host-model" className="text-xl font-semibold">
+          Model
+        </h2>
+        <div className="mt-6">
+          <ModelFigure />
         </div>
       </section>
     </div>

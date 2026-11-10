@@ -2,7 +2,9 @@
 // after a change and check the error fallback. Nothing in the production build imports this page
 // (the fault-seam guard checks that), and it is built only with KITCHEN_SINK=1.
 import type { Metadata } from 'next';
+import { CohortFigure } from '@/components/retention/CohortFigure';
 import { ReturnsFigure } from '@/components/retention/ReturnsFigure';
+import { COHORTS } from '@/lib/retention/data';
 
 export const metadata: Metadata = {
   title: 'Retention host, failing charts',
@@ -22,6 +24,14 @@ export default function KitchenSinkRetentionFaults() {
         </h2>
         <div className="mt-6">
           <ReturnsFigure faultAfterChange />
+        </div>
+      </section>
+      <section data-host-section="cohorts" aria-labelledby="host-cohorts" className="mt-section">
+        <h2 id="host-cohorts" className="text-xl font-semibold">
+          Cohorts
+        </h2>
+        <div className="mt-6">
+          <CohortFigure rows={COHORTS} faultAfterChange />
         </div>
       </section>
     </div>
