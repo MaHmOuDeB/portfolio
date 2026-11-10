@@ -72,12 +72,52 @@ const EXPORT_VALUES: Record<string, Set<string>> = {
 
 const SECTIONS: readonly (() => ReactNode)[] = [RetentionSummary, RetentionMethod, RetentionChecks, RetentionLimits, RetentionSources];
 const html = SECTIONS.map((S) => renderToStaticMarkup(<S />)).join('\n');
-const derived = [...html.matchAll(/<(\w+)([^>]*?)\sdata-derived="([^"]*)"[^>]*>([^<]*)</g)].map((m) => ({
-  tag: m[1]!,
-  value: /value="([^"]*)"/.exec(m[2]!)?.[1],
-  refs: m[3]!.split(' '),
-  text: m[4]!,
-}));
+type DerivedNode = { tag: string; value: string | undefined; refs: string[]; text: string };
+
+function parseDerived(markup: string): DerivedNode[] {
+  return [...markup.matchAll(/<(\w+)([^>]*?)\sdata-derived="([^"]*)"[^>]*>([^<]*)</g)].map((m) => ({
+    tag: m[1]!,
+    value: /value="([^"]*)"/.exec(m[2]!)?.[1],
+    refs: m[3]!.split(' '),
+    text: m[4]!,
+  }));
+}
+
+/** The text a value should print as, from the unit and decimals its own text shows. */
+function expectedText(value: string, text: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatValue(value, 'date');
+  const decimals = /\.(\d+)/.exec(text)?.[1]?.length ?? 0;
+  return formatValue(Number(value), text.endsWith('%') ? 'share' : 'count', { decimals });
+}
+
+/** Each derived node that is not a value of a source it names, a listed constant or arithmetic on its facts, or whose text is another number. */
+function unexplained(nodes: readonly DerivedNode[]): string[] {
+  const out: string[] = [];
+  for (const d of nodes) {
+    const sources = d.refs.filter((r) => r.startsWith('source:'));
+    const facts = d.refs.filter(isFact);
+    const label = `[${d.refs.join(' ')}]`;
+    if (d.tag === 'data' && d.value !== undefined) {
+      const fromSource = sources.some((s) => EXPORT_VALUES[s]?.has(d.value!) || CODE_CONSTANTS[s]?.some((c) => String(c) === d.value));
+      // The target rate: the baseline plus the rise, in whole points.
+      const fromFacts =
+        facts.length === 2 &&
+        facts.includes('retention.winback.baseline_rate') &&
+        facts.includes('retention.winback.uplift_pp') &&
+        Number(d.value) === Math.round((getFact('retention.winback.baseline_rate').value as number) * 100 + (getFact('retention.winback.uplift_pp').value as number)) / 100;
+      if (!fromSource && !fromFacts) out.push(`${d.value} ${label}`);
+      else if (expectedText(d.value, d.text) !== d.text) out.push(`${d.value} printed as ${d.text} ${label}`);
+    } else if (d.tag === 'code') {
+      const id = sources[0]?.slice('source:'.length) as 'retention' | 'retail' | undefined;
+      if (!id || !sourceRepo(id).commit.startsWith(d.text)) out.push(`${d.text} ${label}`);
+    } else if (!sources.some((s) => EXPORT_VALUES[s]?.has(d.text))) {
+      out.push(`${d.text} ${label}`);
+    }
+  }
+  return out;
+}
+
+const derived = parseDerived(html);
 
 describe('derived numbers in the Retention prose', () => {
   it('finds the derived numbers it checks', () => {
@@ -93,33 +133,15 @@ describe('derived numbers in the Retention prose', () => {
     }
   });
 
-  it('each value is a value of a source it names, a listed code constant, or arithmetic on the facts it names', () => {
-    const unexplained: string[] = [];
-    for (const d of derived) {
-      const sources = d.refs.filter((r) => r.startsWith('source:'));
-      const facts = d.refs.filter(isFact);
-      if (d.tag === 'data' && d.value !== undefined) {
-        const fromSource = sources.some((s) => EXPORT_VALUES[s]!.has(d.value!) || CODE_CONSTANTS[s]!.some((c) => String(c) === d.value));
-        // The target rate: the baseline plus the rise, in whole points.
-        const fromFacts =
-          facts.length === 2 &&
-          facts.includes('retention.winback.baseline_rate') &&
-          facts.includes('retention.winback.uplift_pp') &&
-          Number(d.value) === Math.round((getFact('retention.winback.baseline_rate').value as number) * 100 + (getFact('retention.winback.uplift_pp').value as number)) / 100;
-        if (!fromSource && !fromFacts) unexplained.push(`${d.value} [${d.refs.join(' ')}]`);
-      } else if (d.tag === 'code') {
-        const id = sources[0]!.slice('source:'.length) as 'retention' | 'retail';
-        if (!sourceRepo(id).commit.startsWith(d.text)) unexplained.push(`${d.text} [${d.refs.join(' ')}]`);
-      } else if (!sources.some((s) => EXPORT_VALUES[s]!.has(d.text))) {
-        unexplained.push(`${d.text} [${d.refs.join(' ')}]`);
-      }
-    }
-    expect(unexplained).toEqual([]);
+  it('each value is a value of a source it names, a listed code constant, or arithmetic on the facts it names, printed as itself', () => {
+    expect(unexplained(derived)).toEqual([]);
   });
 
-  it('would catch an untraced number', () => {
-    const fake = '<data value="0.123" data-derived="source:retention">12%</data>';
-    const value = /value="([^"]*)"/.exec(fake)![1]!;
-    expect(EXPORT_VALUES['source:retention']!.has(value) || CODE_CONSTANTS['source:retention']!.includes(Number(value))).toBe(false);
+  it('would catch an untraced number, and a value printed as another number, through the same check', () => {
+    expect(unexplained(parseDerived('<data value="0.123" data-derived="source:retention">12%</data>'))).toEqual(['0.123 [source:retention]']);
+    // 0.29 is a real export value, so only the displayed text gives it away.
+    expect(unexplained(parseDerived('<data value="0.29" data-derived="source:retention">35%</data>'))).toEqual(['0.29 printed as 35% [source:retention]']);
+    expect(unexplained(parseDerived('<data value="0.29" data-derived="source:retention">29%</data>'))).toEqual([]);
+    expect(unexplained(parseDerived('<code data-derived="source:retail">abcdef0</code>'))).toEqual(['abcdef0 [source:retail]']);
   });
 });
