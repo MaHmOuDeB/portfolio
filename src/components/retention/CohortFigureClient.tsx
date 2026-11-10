@@ -45,6 +45,7 @@ export function CohortControls({
     <div
       role="group"
       aria-labelledby={`${COHORTS_ID}-title`}
+      data-cohort-controls=""
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
       <div className="min-w-0">

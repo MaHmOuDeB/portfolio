@@ -8,7 +8,7 @@
 // the kit's sentence and the current table, never a preset chart beside it. `faultAfterChange` (a
 // test seam, absent in production) is forwarded unchanged to the view, whose chart then throws on
 // the first render after a cohort change.
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { Provenance } from '@/components/kit/ProvenanceBadge';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
@@ -22,15 +22,19 @@ export type CohortInteractiveProps = {
   faultAfterChange?: true;
 };
 
-const CONTROLS = `#${COHORTS_ID} [data-figure-controls] button`;
+const CONTROLS = `#${COHORTS_ID} [data-cohort-controls] button`;
+/** Frames to wait for the preview to leave and the island's control to exist. */
+const HANDOFF_FRAMES = 120;
 
-/** The position of the preview's control button that holds focus as the island first renders, if any. */
-function focusedPreviewButton(): number | null {
+type Handoff = { element: HTMLElement; index: number };
+
+/** The preview's control button (Previous, Next or Reset) that holds focus as the island first renders, if any. */
+function focusedPreviewButton(): Handoff | null {
   if (typeof document === 'undefined') return null;
   const active = document.activeElement;
   if (!(active instanceof HTMLButtonElement)) return null;
   const index = [...document.querySelectorAll(CONTROLS)].indexOf(active);
-  return index < 0 ? null : index;
+  return index < 0 ? null : { element: active, index };
 }
 
 export default function CohortInteractive({ rows, provenance, faultAfterChange }: CohortInteractiveProps) {
@@ -39,18 +43,35 @@ export default function CohortInteractive({ rows, provenance, faultAfterChange }
   const [presets] = useState(() => cohortPresets(rows));
   const { values, preset, set, reset } = useFigureParams(COHORTS_ID, schema, presets);
   // The loader hands focus from the preview to the island by element id, and the kit's StepNav and
-  // Reset buttons have none: a keyboard visitor who tabbed into the preview would be left on <body>
-  // when it is replaced. The island focuses its own button at the same place once the preview is
-  // gone (the frame after the swap), unless focus has gone somewhere else meanwhile.
+  // Reset buttons have none: a keyboard visitor on a preview control would be left on <body> when
+  // the preview goes. The island remembers that button's place and focuses its own button there as
+  // soon as the preview has left: in a microtask after this commit (the loader removes the preview
+  // in a synchronous update of the same commit, so before the browser paints), then each frame
+  // while the preview is still there or the button does not exist yet. It stops if focus has gone
+  // anywhere else. The same handoff as the returns Figure's island.
   const [handoff] = useState(focusedPreviewButton);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (handoff === null) return;
-    const frame = requestAnimationFrame(() => {
+    let live = true;
+    let frame = 0;
+    let tries = 0;
+    const place = () => {
+      if (!live) return;
       const active = document.activeElement;
-      if (active !== null && active !== document.body) return;
-      document.querySelectorAll<HTMLButtonElement>(CONTROLS)[handoff]?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
+      const previewStays = active === handoff.element && handoff.element.isConnected;
+      const lost = active === null || active === document.body || (active === handoff.element && !handoff.element.isConnected);
+      const target = document.querySelectorAll<HTMLButtonElement>(CONTROLS)[handoff.index];
+      if (lost && target !== undefined && target !== handoff.element) {
+        target.focus();
+        return;
+      }
+      if ((previewStays || lost) && tries++ < HANDOFF_FRAMES) frame = requestAnimationFrame(place);
+    };
+    queueMicrotask(place);
+    return () => {
+      live = false;
+      cancelAnimationFrame(frame);
+    };
   }, [handoff]);
   const [announcement, setAnnouncement] = useState('');
   const [changed, setChanged] = useState(false);

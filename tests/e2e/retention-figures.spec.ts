@@ -214,6 +214,15 @@ test.describe('Cohort Figure', () => {
     expect(clipped).toBe(false);
   });
 
+  test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {
+    await withoutIdle(page);
+    await page.goto(HOST);
+    await expect(island(page)).toHaveAttribute('data-island', 'idle');
+    await figure(page).getByRole('button', { name: 'Reset' }).focus();
+    await expect(island(page)).toHaveAttribute('data-island', 'ready');
+    await expect(figure(page).getByRole('button', { name: 'Reset' })).toBeFocused();
+  });
+
   test('Reset restores January, clears only its own keys and keeps the returns key and the hash', async ({ page }) => {
     await page.goto(`${HOST}?${ID}.cohort=2010-05&returns.mode=raw#host-cohorts`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
