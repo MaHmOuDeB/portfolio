@@ -16,7 +16,12 @@ const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
 const STATIC_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
 const E2E_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
-const CAPS = '--cpus 3 --memory 3584m --memory-swap 3584m';
+const CAPS: Record<string, string> = {
+  // Shared memory from the Docker VM (Playwright's Docker advice) and 5 GB: at 3.5 GB with Docker's
+  // 64 MB /dev/shm the heaviest pages crashed the browser; at 4.5 GB they passed at the cap.
+  e2e: '--cpus 3 --memory 5120m --memory-swap 5120m --ipc=host',
+  links: '--cpus 3 --memory 3584m --memory-swap 3584m',
+};
 
 /** The text of each job under `jobs:`, by job id. */
 function jobs(workflow: string): Record<string, string> {
@@ -119,8 +124,21 @@ describe('the self-hosted adjustments', () => {
   it('caps the job containers, which the runner container caps do not reach', () => {
     for (const id of ['e2e', 'links']) {
       expect(ci[id], id).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
-      expect(ci[id], id).toContain(`      options: ${CAPS}\n`);
+      expect(ci[id], id).toContain(`      options: ${CAPS[id]}\n`);
     }
+  });
+
+  it('gives each self-hosted job a limit measured on a loaded Mac, and lhci its hosted one', () => {
+    const limits = Object.fromEntries(Object.entries(ci).map(([id, job]) => [id, key(job, 'timeout-minutes')]));
+    expect(limits).toEqual({ static: '25', 'stats-ref': '25', 'sources-remote': '25', build: '25', e2e: '90', lhci: '20', links: '25' });
+  });
+
+  it('caches npm on the runner\'s disk instead of through GitHub, except on hosted lhci', () => {
+    for (const [id, job] of Object.entries(ci)) {
+      if (id === 'lhci') expect(job, id).toContain('          cache: npm\n');
+      else expect(job, id).not.toMatch(/^\s+cache:/m);
+    }
+    for (const id of ['e2e', 'links']) expect(ci[id], id).toContain('      npm_config_cache: /__w/_cache/npm\n');
   });
 
   it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 20 s test timeout', () => {

@@ -24,6 +24,12 @@ permissions:
 # repository or a pull request from a fork: BEFORE this repository is made public, switch these
 # jobs back to `runs-on: ubuntu-24.04` and drop the container `options` caps (a 2-CPU hosted
 # runner rejects `--cpus 3`).
+# On the runners, npm, uv and Python downloads are cached on each runner's own disk (the runner sets
+# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the container jobs set
+# npm_config_cache to the same folder under /__w), so setup-node's GitHub cache is off for these
+# jobs: restoring and saving it over the Mac's connection took minutes. Put `cache: npm` back when
+# switching back. The time limits come from the first run on a loaded Mac with cold caches: npm ci
+# up to 9 minutes, the first Node download 5, the first Python and wheels over 9.
 # tests/unit/ci-runners.test.ts pins this layout.
 jobs:
   static:
@@ -49,7 +55,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -83,7 +88,7 @@ jobs:
   stats-ref:
     name: Statistics reference data
     runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,7 +108,7 @@ jobs:
   sources-remote:
     name: Pinned sources exist on GitHub
     runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -111,7 +116,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - run: npm ci
       # Fetches each pinned export from raw.githubusercontent.com and compares its sha256 with
       # sources.lock.json, so a commit that exists only on a laptop, or was force-pushed away, fails.
@@ -120,7 +124,7 @@ jobs:
   build:
     name: Production build
     runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -128,7 +132,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - run: npm ci
       - run: npm run build
       - name: Check the build has no kitchen sink
@@ -154,8 +157,8 @@ jobs:
 
   e2e:
     name: End-to-end tests
-    # Only on the instance labelled portfolio-mac-2, so the longest job never holds instance 1, where
-    # static (a required check) has to run.
+    # Only on the instance labelled portfolio-mac-2, so the longest job never holds instance 1,
+    # where static (a required check) has to run.
     runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]
     # The suite takes 37 to 49 minutes on a hosted runner (and longer while several PRs run at once);
     # at 50 it was cancelled mid-run. 90 leaves room for growth without hiding a hung run for long.
@@ -163,9 +166,14 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       # A job container is a sibling of the runner container, so the runner's caps do not reach it:
-      # these hold it to one runner's share of the Mac (3 of the Docker VM's 8 CPUs, 3.5 GB).
-      options: --cpus 3 --memory 3584m --memory-swap 3584m
+      # these hold it to 3 of the Docker VM's 8 CPUs and 5 GB. --ipc=host is what Playwright's
+      # Docker guide recommends for Chromium. At 3.5 GB with Docker's 64 MB /dev/shm the heaviest
+      # pages crashed the browser ("Target crashed"); at 4.5 GB with --ipc=host they passed, but
+      # the container's memory peaked at its cap, hence 5 GB.
+      options: --cpus 3 --memory 5120m --memory-swap 5120m --ipc=host
     env:
+      # npm's cache on the runner's own disk (/__w is the runner's work folder), kept between jobs.
+      npm_config_cache: /__w/_cache/npm
       # The `update-baselines` label on the PR regenerates every visual baseline in this container.
       # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
       # diffs are: remove the label (and commit the reviewed baselines) before merging. Removing it
@@ -178,7 +186,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - run: npm ci
       # Two workers: Playwright's default is half the CPUs it sees, which are the Docker VM's 8, not
       # the container's 3, and more workers than two time out on the live page in the Docker VM.
@@ -245,13 +252,16 @@ jobs:
     name: Link check
     needs: build
     runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 10
+    timeout-minutes: 25
     # In a container (the e2e image, already on the runner) so that `next start -p 3123` has a
     # network of its own: two runners share the Docker VM's network, where two link checks at once
     # would both want port 3123.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --cpus 3 --memory 3584m --memory-swap 3584m
+    env:
+      # npm's cache on the runner's own disk (/__w is the runner's work folder), kept between jobs.
+      npm_config_cache: /__w/_cache/npm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -259,7 +269,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: next-build
