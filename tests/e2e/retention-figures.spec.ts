@@ -346,6 +346,16 @@ test.describe('Cohort, RFM and model Figures together', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(HOST);
       for (const id of ['rfm', 'models']) await chartTextFits(page, id);
+      // each bar label is one line, left of zero (a label split across the chart fails both)
+      const misplaced = await figure(page, 'rfm').evaluate((root) => {
+        const svg = [...root.querySelectorAll('svg[data-chart-frame]')].find((s) => s.getClientRects().length > 0)!;
+        const zero = svg.querySelector('[data-axis-zero]')!.getBoundingClientRect().left;
+        return [...svg.querySelectorAll('text[data-bar-label]')].flatMap((t) => {
+          const r = t.getBoundingClientRect();
+          return r.right > zero + 0.5 || r.height > 24 ? [`${t.textContent} ${Math.round(r.right - zero)} ${Math.round(r.height)}`] : [];
+        });
+      });
+      expect(misplaced, String(width)).toEqual([]);
       await noHorizontalScroll(page);
     }
   });

@@ -90,9 +90,12 @@ function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
       ))}
       {bars.flatMap((b, i) =>
         series.map((s) => (
+          // One text run: a <tspan> with its own font features (data-num, data-derived) is laid out
+          // away from its parent in Chromium, so the whole label carries the value's refs instead.
           <text
             key={`${b.segment}-${s.key}-label`}
             data-bar-label={s.key}
+            {...derivedAttr(s.refs(b))}
             className="text-xs fill-ink"
             x={pct(ctx.xFrac(0))}
             dx={-6}
@@ -100,10 +103,7 @@ function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
             textAnchor="end"
             dominantBaseline="middle"
           >
-            {`${s.word} `}
-            <tspan data-num="" {...derivedAttr(s.refs(b))}>
-              {formatValue(s.value(b), 'share')}
-            </tspan>
+            {`${s.word} ${formatValue(s.value(b), 'share')}`}
           </text>
         )),
       )}

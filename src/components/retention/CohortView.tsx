@@ -104,6 +104,9 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
     const y0 = ctx.yPx(index + 0.5);
     return (
       <>
+        {/* The frame draws a gridline per row across the whole plot; the room right of the last
+            month holds only the "Selected" label, so it is cleared to the background. */}
+        <rect data-label-room="" x={x(LATER_END)} width={MARK_UNITS - x(LATER_END)} y={0} height={ctx.height} fill="var(--color-bg)" />
         {cells}
         <rect
           data-mark=""
