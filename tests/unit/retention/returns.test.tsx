@@ -110,13 +110,18 @@ describe('the result line', () => {
     expect(JANUARY.date).toBe('2011-01-18');
     for (const html of [CLEAN, RAW]) {
       const line = result(html);
-      expect(prose(line)).toContain('The difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
+      expect(prose(line)).toContain('the difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
       expect(line).toContain('data-fact="retail.reversal.january_gbp"');
       expect(line).toContain(`<data value="${JANUARY.date}" data-derived="source:retail">18 Jan 2011</data>`);
       expect(html).not.toContain('retail.reversal.largest_gbp');
       expect(text(html)).not.toContain('£168k');
       expect(html).not.toContain(LARGEST.date);
     }
+  });
+
+  it('names the other mode before "the difference", so the sentence has its referent in both modes', () => {
+    expect(prose(result(CLEAN))).toContain('Counting those orders as returns makes the growth look larger: the difference is mostly one £77k order');
+    expect(prose(result(RAW))).toContain('Removing those orders brings the growth down: the difference is mostly one £77k order');
   });
 
   it('is growth in returned-order value, distinct from returns as a share of sales', () => {

@@ -121,9 +121,11 @@ export function ReturnsChart({ mode, data }: { mode: ReturnMode; data: readonly 
 
 /** The result line: the growth in this mode over the window, and the order behind most of the gap. */
 export function ReturnsResult({ mode, data, evidence }: { mode: ReturnMode; data: readonly RetailMonth[]; evidence: ReturnsEvidence }) {
+  // The other mode, named in words so the sentence has its referent without a second figure.
   const reversal = (
     <>
-      The difference is mostly one <Fact id="retail.reversal.january_gbp" /> order placed and cancelled on{' '}
+      {mode === 'raw' ? 'Removing those orders brings the growth down' : 'Counting those orders as returns makes the growth look larger'}: the
+      difference is mostly one <Fact id="retail.reversal.january_gbp" /> order placed and cancelled on{' '}
       <Derived value={evidence.januaryReversalDate} unit="date" refs={RETURNS_REFS} />.
     </>
   );

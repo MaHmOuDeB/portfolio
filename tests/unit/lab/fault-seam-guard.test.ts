@@ -606,13 +606,17 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
   }
   const affectedFiles = new Set([...affected].map((id) => id.slice(0, id.lastIndexOf('#'))));
 
-  // --- The seam never changes name and never escapes its component. A reference to a component's
-  // received seam is allowed in two places only: the exact forward `faultAfterChange={faultAfterChange}`,
-  // and a condition whose value stays in the component (an `if` test, or the condition of a ternary,
-  // `&&` or `||` that is itself a JSX child). Anything else (another attribute, a variable, a hook,
-  // an array, a return) would carry the seam under another name, out of the guard's sight. When the
-  // escape is an attribute of another name on a known component, that component's attribute is
-  // tainted, and any production call site that sets it fails too.
+  // --- The seam never changes name and never escapes its component. Inside the component whose
+  // parameter declares it, a reference to the seam is allowed in three shapes only, the ones that
+  // can do nothing but forward it or throw:
+  //   (a) the exact forward `faultAfterChange={faultAfterChange}` (an own-props spread names no seam);
+  //   (b) `if (<cond>) throw ...;`, with no else and nothing but the throw in the then-branch;
+  //   (c) a JSX child `{<cond> ? <Leaf /> : null}`, where Leaf is a top-level function of the same
+  //       module that is not exported, takes no parameters, and is rendered with no attributes.
+  // <cond> holds only the seam and plain local bindings of that component (its own props or
+  // variables), joined by !, comparisons, && and ||: no call, assignment or property read. Anything
+  // else (another attribute, a variable, a hook, a return, a nested callback) fails, and an attribute
+  // of another name that received the seam is checked at every other call site too.
   const tainted = new Set<string>();
   const escapeAttrs = new Set<ts.Node>();
   const PASS_THROUGH = new Set([
@@ -629,9 +633,48 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     while (ts.isParenthesizedExpression(x.parent)) x = x.parent;
     return x;
   }
-  function seamUseAllowed(id: ts.Identifier): boolean {
+  const enclosingFunction = (n: ts.Node): ts.Node | undefined => {
+    let p: ts.Node | undefined = n.parent;
+    while (p && !isFunctionLike(p)) p = p.parent;
+    return p;
+  };
+  const within = (inner: ts.Node, outer: ts.Node) => inner.getStart() >= outer.getStart() && inner.end <= outer.end;
+  /** Only the seam and plain bindings of `owner`, joined by !, comparisons, && and ||. */
+  function pureCondition(e: ts.Node, owner: ts.Node): boolean {
+    if (ts.isParenthesizedExpression(e)) return pureCondition(e.expression, owner);
+    if (ts.isPrefixUnaryExpression(e)) return e.operator === ts.SyntaxKind.ExclamationToken && pureCondition(e.operand, owner);
+    if (ts.isBinaryExpression(e)) return PASS_THROUGH.has(e.operatorToken.kind) && pureCondition(e.left, owner) && pureCondition(e.right, owner);
+    if (e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword || e.kind === ts.SyntaxKind.NullKeyword) return true;
+    if (ts.isIdentifier(e)) {
+      const decl = lookup(e)?.decl;
+      return decl !== undefined && within(decl, owner) && enclosingFunction(decl) === owner;
+    }
+    return false;
+  }
+  const isOnlyThrow = (st: ts.Statement): boolean =>
+    ts.isThrowStatement(st) || (ts.isBlock(st) && st.statements.length === 1 && ts.isThrowStatement(st.statements[0]!));
+  const isNull = (e: ts.Expression) => unwrap(e).kind === ts.SyntaxKind.NullKeyword;
+  /** A module-local throwing leaf: `<Leaf />` with no attributes, a top-level, unexported, parameterless function. */
+  function isLocalLeaf(m: Module, e: ts.Expression): boolean {
+    const el = unwrap(e);
+    if (!ts.isJsxSelfClosingElement(el) || el.attributes.properties.length > 0 || !ts.isIdentifier(el.tagName)) return false;
+    const name = el.tagName.text;
+    if (!isTopLevel(lookup(el.tagName))) return false;
+    const b = m.bindings.get(name);
+    if (b?.kind !== 'local') return false;
+    let fn: ts.Node = b.node;
+    if (ts.isVariableDeclaration(fn)) {
+      if (!fn.initializer || hasModifier(fn.parent.parent, ts.SyntaxKind.ExportKeyword)) return false;
+      fn = unwrap(fn.initializer);
+    } else if (hasModifier(fn, ts.SyntaxKind.ExportKeyword)) return false;
+    if (!isFunctionLike(fn) || fn.parameters.length > 0) return false;
+    const exported = [...m.exports.values()].some((x) => (x.kind === 'local' && x.name === name) || (x.kind === 'node' && x.node === b.node));
+    return !exported;
+  }
+  function seamUseAllowed(m: Module, id: ts.Identifier, owner: ts.Node): boolean {
     const p0 = id.parent;
     if (ts.isJsxExpression(p0) && p0.expression === id && ts.isJsxAttribute(p0.parent) && ts.isIdentifier(p0.parent.name) && p0.parent.name.text === SEAM) return true;
+    if (enclosingFunction(id) !== owner) return false;
     let n: ts.Node = id;
     for (;;) {
       const p = n.parent;
@@ -640,10 +683,10 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
       else if (ts.isBinaryExpression(p) && PASS_THROUGH.has(p.operatorToken.kind)) n = p;
       else break;
     }
+    if (!pureCondition(n, owner)) return false;
     const p = n.parent;
-    if (ts.isIfStatement(p) && p.expression === n) return true;
-    if (ts.isConditionalExpression(p) && p.condition === n && isJsxChild(climbParens(p).parent)) return true;
-    if (n !== id && ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || n.operatorToken.kind === ts.SyntaxKind.BarBarToken) && isJsxChild(p)) return true;
+    if (ts.isIfStatement(p) && p.expression === n) return p.elseStatement === undefined && isOnlyThrow(p.thenStatement);
+    if (ts.isConditionalExpression(p) && p.condition === n) return isJsxChild(climbParens(p).parent) && isNull(p.whenFalse) && isLocalLeaf(m, p.whenTrue);
     return false;
   }
   const isSeamParamBinding = (decl: ts.Node | undefined) =>
@@ -657,7 +700,9 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
           (ts.isJsxAttribute(parent) && parent.name === n) ||
           (ts.isPropertyAccessExpression(parent) && parent.name === n) ||
           (ts.isPropertyAssignment(parent) && parent.name === n);
-        if (!notReference && isSeamParamBinding(lookup(n)?.decl) && !seamUseAllowed(n)) {
+        const decl = lookup(n)?.decl;
+        const owner = decl && isSeamParamBinding(decl) ? ownerOf(decl) : undefined;
+        if (!notReference && owner !== undefined && !seamUseAllowed(m, n, owner)) {
           report(n, 'seam-escape', 'the seam is forwarded only as itself, or used as a condition that stays in the component');
           let a: ts.Node | undefined = n.parent;
           while (a && !ts.isJsxAttribute(a) && !ts.isStatement(a) && !isFunctionLike(a)) a = a.parent;
@@ -1188,7 +1233,7 @@ describe('fixtures added after review: the seam never changes name or escapes', 
   };
   const figure = (body: string, extra = '') => ({
     ...view,
-    'src/components/x/XFigure.tsx': `import { useState } from 'react';
+    'src/components/x/XFigure.tsx': `import { useEffect, useState } from 'react';
 import { View } from './View';
 ${extra}
 export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) {
@@ -1216,10 +1261,51 @@ export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) {
     expect(rules(files)).toEqual(expect.arrayContaining(['src/components/x/XFigure.tsx seam-escape', 'src/app/page.tsx activation']));
   });
 
-  it('the seam used only as a condition inside the component passes: an if test, a JSX child ternary or &&', () => {
+  it('the two shapes that can only throw pass: `if (cond) throw` and a JSX child `cond ? <Leaf /> : null`', () => {
     expect(rules(figure('if (faultAfterChange && changed) throw new Error("seam"); return <View />;'))).toEqual([]);
+    expect(rules(figure('if (!(faultAfterChange !== true) && changed) { throw new Error("seam"); } return <View />;'))).toEqual([]);
     expect(rules(figure('return <section>{faultAfterChange && changed ? <Boom /> : null}<View /></section>;', 'function Boom(): never { throw new Error("seam"); }'))).toEqual([]);
-    expect(rules(figure('return <section>{!(faultAfterChange === true) || <View />}</section>;'))).toEqual([]);
+    // the shipped view: a destructured plain prop in the condition, a module-local leaf
+    expect(rules({
+      'src/components/x/XFigure.tsx': `import { ThrowingIsland } from './Island';
+function Boom(): never { throw new Error('seam'); }
+export function XFigure({ faultAfterChange, changed }: { faultAfterChange?: true; changed?: boolean }) {
+  return <section>{faultAfterChange && changed ? <Boom /> : null}<ThrowingIsland data={1} faultAfterChange={faultAfterChange} /></section>;
+}`,
+    })).toEqual([]);
+  });
+
+  const leaf = 'function Boom(): never { throw new Error("seam"); }';
+  it.each([
+    ['R1: a variable set inside a permitted if', 'let on = false; if (faultAfterChange) on = true; return <View chartFails={on && changed} />;', ''],
+    ['R2: a JSX-child ternary that renders a renamed prop', 'return <section>{faultAfterChange && changed ? <View chartFails /> : <View />}</section>;', ''],
+    ['R3: an if that returns a renamed prop', 'if (faultAfterChange && changed) return <View chartFails />; return <View />;', ''],
+    ['R4: state set in an effect', 'const [boom, setBoom] = useState(false); useEffect(() => { if (faultAfterChange) setBoom(true); }, []); return <View chartFails={boom} />;', ''],
+    ['R5: an assignment inside the condition', 'let on = false; if (faultAfterChange && (on = true)) {} return <View chartFails={on} />;', ''],
+    ['an if with an else', 'if (faultAfterChange) throw new Error("seam"); else console.log("no"); return <View />;', ''],
+    ['a call in the condition', 'if (faultAfterChange && Math.random() > 0.5) throw new Error("seam"); return <View />;', ''],
+    ['a property read in the condition', 'if (faultAfterChange && window.closed) throw new Error("seam"); return <View />;', ''],
+    ['a throwing leaf that is exported', 'return <section>{faultAfterChange ? <Boom /> : null}</section>;', 'export function Boom(): never { throw new Error("seam"); }'],
+    ['a throwing leaf that takes props', 'return <section>{faultAfterChange ? <Boom label="x" /> : null}</section>;', 'function Boom(_: { label: string }): never { throw new Error("seam"); }'],
+    ['a leaf from another module', 'return <section>{faultAfterChange ? <View /> : null}</section>;', ''],
+    ['a ternary whose other branch renders', 'return <section>{faultAfterChange ? <Boom /> : <View />}</section>;', leaf],
+    ['a JSX-child || form', 'return <section>{!(faultAfterChange === true) || <View />}</section>;', ''],
+    ['a JSX-child && form', 'return <section>{faultAfterChange && <Boom />}</section>;', leaf],
+    ['a ternary outside a JSX child', 'const el = faultAfterChange ? <Boom /> : null; return <section>{el}</section>;', leaf],
+    ['a condition inside a nested callback', 'return <section>{[1].map(() => (faultAfterChange ? <Boom key="b" /> : null))}</section>;', leaf],
+    ['destructuring with a rename', 'const { x: y } = { x: faultAfterChange }; return <View chartFails={y} />;', ''],
+    ['an object spread holding the seam', 'return <View {...{ chartFails: faultAfterChange }} />;', ''],
+    ['a helper that receives it', 'const flag = pass(faultAfterChange); return <View chartFails={flag} />;', 'function pass(v?: true) { return v === true; }'],
+  ])('%s fails', (_, body, extra) => {
+    expect(rules(figure(body, extra)), body).toContain('src/components/x/XFigure.tsx seam-escape');
+  });
+
+  it('R2b: a renamed prop on a component a production page also renders fails', () => {
+    const files = {
+      ...figure('return <section>{faultAfterChange && changed ? <View chartFails /> : <View />}</section>;'),
+      ...page('return <><XFigure /><View chartFails /></>;', `import { XFigure } from '@/components/x/XFigure';\nimport { View } from '@/components/x/View';`),
+    };
+    expect(rules(files)).toContain('src/components/x/XFigure.tsx seam-escape');
   });
 });
 

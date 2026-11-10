@@ -66,7 +66,7 @@ test.describe('Returns-cleaning Figure', () => {
     await page.goto(`${HOST}?${ID}.mode=raw`);
     await expect(figure(page).getByRole('heading', { level: 3 })).toHaveText(TITLE);
     await expect(result(page)).toContainText('grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010.');
-    await expect(result(page)).toContainText('The difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
+    await expect(result(page)).toContainText('Counting those orders as returns makes the growth look larger: the difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
     await expect(figure(page).getByText('Public data', { exact: true })).toBeVisible();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     const table = figure(page).locator('[data-nojs-only] table');
