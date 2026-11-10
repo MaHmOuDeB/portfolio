@@ -15,17 +15,18 @@ concurrency:
 permissions:
   contents: read
 
-# Self-hosted runners. Every job except lhci runs on the owner's self-hosted runners (the labels
-# self-hosted, linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon Mac, one
-# also labelled portfolio-mac-1, the other portfolio-mac-2), because this private repository's
-# hosted-runner minutes ran short. lhci stays on ubuntu-24.04 so Lighthouse scores stay comparable
-# between runs, and deploy.yml stays on GitHub's runners because it holds the production secrets.
+# Self-hosted runners. Every job except lhci and cv-pdf runs on the owner's self-hosted runners (the
+# labels self-hosted, linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon
+# Mac, one also labelled portfolio-mac-1, the other portfolio-mac-2), because this private
+# repository's hosted-runner minutes ran short. lhci stays on ubuntu-24.04 so Lighthouse scores stay
+# comparable between runs, cv-pdf is a short hosted check, and deploy.yml stays on GitHub's runners
+# because it holds the production secrets.
 # A self-hosted runner executes whatever a workflow run checks out, so it must never serve a public
 # repository or a pull request from a fork: BEFORE this repository is made public, switch these
-# jobs back to `runs-on: ubuntu-24.04` and drop the container `options` caps (a 2-CPU hosted
+# jobs back to `runs-on: ubuntu-24.04` and drop the e2e container's `options` caps (a 2-CPU hosted
 # runner rejects `--cpus 3`).
 # On the runners, npm, uv and Python downloads are cached on each runner's own disk (the runner sets
-# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the container jobs set
+# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e container sets
 # npm_config_cache to the same folder under /__w), so setup-node's GitHub cache is off for these
 # jobs: restoring and saving it over the Mac's connection took minutes. Put `cache: npm` back when
 # switching back. The time limits come from the first run on a loaded Mac with cold caches: npm ci
@@ -251,17 +252,12 @@ jobs:
   links:
     name: Link check
     needs: build
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    # Only on the instance labelled portfolio-mac-1, so two link checks never run at once: the
+    # runners share the Docker VM's network, where `next start -p 3123` can listen only once.
+    # Not in a job container: there the runner hands composite actions their host path as
+    # github.action_path, so lychee-action's entrypoint is "No such file" (exit 127).
+    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]
     timeout-minutes: 25
-    # In a container (the e2e image, already on the runner) so that `next start -p 3123` has a
-    # network of its own: two runners share the Docker VM's network, where two link checks at once
-    # would both want port 3123.
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-      options: --cpus 3 --memory 3584m --memory-swap 3584m
-    env:
-      # npm's cache on the runner's own disk (/__w is the runner's work folder), kept between jobs.
-      npm_config_cache: /__w/_cache/npm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

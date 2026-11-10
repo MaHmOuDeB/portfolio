@@ -13,15 +13,12 @@ const REDIS_DOC = readFileSync(join(ROOT, 'docs/experiment/redis-conformance.md'
 const VITEST_CONFIG = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8');
 
 const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
-const STATIC_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
+const INSTANCE_1 = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
 const E2E_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
-const CAPS: Record<string, string> = {
-  // Shared memory from the Docker VM (Playwright's Docker advice) and 5 GB: at 3.5 GB with Docker's
-  // 64 MB /dev/shm the heaviest pages crashed the browser; at 4.5 GB they passed at the cap.
-  e2e: '--cpus 3 --memory 5120m --memory-swap 5120m --ipc=host',
-  links: '--cpus 3 --memory 3584m --memory-swap 3584m',
-};
+// Shared memory from the Docker VM (Playwright's Docker advice) and 5 GB: at 3.5 GB with Docker's
+// 64 MB /dev/shm the heaviest pages crashed the browser; at 4.5 GB they passed at the cap.
+const E2E_CAPS = '--cpus 3 --memory 5120m --memory-swap 5120m --ipc=host';
 
 /** The text of each job under `jobs:`, by job id. */
 function jobs(workflow: string): Record<string, string> {
@@ -64,21 +61,26 @@ describe('the CI jobs and their check names', () => {
       e2e: 'End-to-end tests',
       lhci: 'Lighthouse CI',
       links: 'Link check',
+      'cv-pdf': 'CV PDF check',
     });
   });
 
-  it('runs every job except lhci on the self-hosted labels', () => {
-    for (const id of ['stats-ref', 'sources-remote', 'build', 'links']) {
+  it('runs every job except lhci and cv-pdf on the self-hosted labels', () => {
+    for (const id of ['stats-ref', 'sources-remote', 'build']) {
       expect(key(ci[id]!, 'runs-on'), id).toBe(SELF_HOSTED);
     }
-    // Static (fixed Redis port) only on instance 1; e2e (the longest job) only on instance 2.
-    expect(key(ci.static!, 'runs-on')).toBe(STATIC_RUNS_ON);
+    // Static (fixed Redis port) and links (fixed site port) only on instance 1; e2e (the longest
+    // job) only on instance 2.
+    expect(key(ci.static!, 'runs-on')).toBe(INSTANCE_1);
+    expect(key(ci.links!, 'runs-on')).toBe(INSTANCE_1);
     expect(key(ci.e2e!, 'runs-on')).toBe(E2E_RUNS_ON);
   });
 
-  it('keeps lhci on a GitHub-hosted ubuntu-24.04 runner, so Lighthouse scores stay comparable', () => {
-    expect(key(ci.lhci!, 'runs-on')).toBe('ubuntu-24.04');
-    expect(ci.lhci).not.toMatch(/self-hosted|container:/);
+  it('keeps lhci and cv-pdf on GitHub-hosted ubuntu-24.04 runners (Lighthouse scores stay comparable)', () => {
+    for (const id of ['lhci', 'cv-pdf']) {
+      expect(key(ci[id]!, 'runs-on'), id).toBe('ubuntu-24.04');
+      expect(ci[id], id).not.toMatch(/self-hosted|container:/);
+    }
   });
 
   it('keeps the deploy, which holds the production secrets, on GitHub-hosted runners', () => {
@@ -104,7 +106,7 @@ describe('the CI jobs and their check names', () => {
 describe('the self-hosted adjustments', () => {
   it('runs static only on instance 1 and publishes its Redis port on loopback only', () => {
     // The runners share the Docker VM's network, so a fixed port can be published once at a time.
-    expect(key(ci.static!, 'runs-on')).toBe(STATIC_RUNS_ON);
+    expect(key(ci.static!, 'runs-on')).toBe(INSTANCE_1);
     expect(ci.static).toContain("ports: ['127.0.0.1:16389:6379']");
     expect(CI.match(/16389:6379/g)).toHaveLength(1);
     expect(ci.static).toContain('REDIS_CONFORMANCE_URL=redis://127.0.0.1:16389 npm test');
@@ -121,16 +123,25 @@ describe('the self-hosted adjustments', () => {
     }
   });
 
-  it('caps the job containers, which the runner container caps do not reach', () => {
-    for (const id of ['e2e', 'links']) {
-      expect(ci[id], id).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
-      expect(ci[id], id).toContain(`      options: ${CAPS[id]}\n`);
-    }
+  it('caps the e2e job container, which the runner container caps do not reach', () => {
+    expect(ci.e2e).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
+    expect(ci.e2e).toContain(`      options: ${E2E_CAPS}\n`);
+    // Only e2e runs in a job container (composite actions break in one: see links).
+    expect(Object.entries(ci).filter(([, job]) => /^ {4}container:/m.test(job)).map(([id]) => id)).toEqual(['e2e']);
   });
 
   it('gives each self-hosted job a limit measured on a loaded Mac, and lhci its hosted one', () => {
     const limits = Object.fromEntries(Object.entries(ci).map(([id, job]) => [id, key(job, 'timeout-minutes')]));
-    expect(limits).toEqual({ static: '25', 'stats-ref': '25', 'sources-remote': '25', build: '25', e2e: '90', lhci: '20', links: '25' });
+    expect(limits).toEqual({
+      static: '25',
+      'stats-ref': '25',
+      'sources-remote': '25',
+      build: '25',
+      e2e: '90',
+      lhci: '20',
+      links: '25',
+      'cv-pdf': '5',
+    });
   });
 
   it('caches npm on the runner\'s disk instead of through GitHub, except on hosted lhci', () => {
@@ -138,7 +149,7 @@ describe('the self-hosted adjustments', () => {
       if (id === 'lhci') expect(job, id).toContain('          cache: npm\n');
       else expect(job, id).not.toMatch(/^\s+cache:/m);
     }
-    for (const id of ['e2e', 'links']) expect(ci[id], id).toContain('      npm_config_cache: /__w/_cache/npm\n');
+    expect(ci.e2e).toContain('      npm_config_cache: /__w/_cache/npm\n');
   });
 
   it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 20 s test timeout', () => {
@@ -154,7 +165,7 @@ describe('the self-hosted adjustments', () => {
     expect(key(ci.e2e!, 'timeout-minutes')).toBe('90');
   });
 
-  it('starts the link-check site inside the job container, on port 3123', () => {
+  it('starts the link-check site on the runner, on port 3123', () => {
     expect(ci.links).toContain('nohup npx next start -p 3123');
     expect(ci.links).toContain('http://localhost:3123/');
   });
