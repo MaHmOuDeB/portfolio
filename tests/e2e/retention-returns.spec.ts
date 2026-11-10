@@ -66,7 +66,7 @@ test.describe('Returns-cleaning Figure', () => {
     await page.goto(`${HOST}?${ID}.mode=raw`);
     await expect(figure(page).getByRole('heading', { level: 3 })).toHaveText(TITLE);
     await expect(result(page)).toContainText('grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010.');
-    await expect(result(page)).toContainText('mostly one £77k order on 18 Jan 2011');
+    await expect(result(page)).toContainText('The difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
     await expect(figure(page).getByText('Public data', { exact: true })).toBeVisible();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     const table = figure(page).locator('[data-nojs-only] table');
@@ -167,6 +167,34 @@ test.describe('Returns-cleaning Figure', () => {
     await openTable(page);
     await expect(tableCells(page).filter({ hasText: JAN_RAW })).toHaveCount(1);
   });
+
+  for (const control of ['radio', 'Reset'] as const) {
+    test(`keyboard: focus on the preview's ${control} moves to the island's ${control}, never resting on <body>`, async ({ page }) => {
+      await withoutIdle(page);
+      await page.goto(HOST);
+      await expect(island(page)).toHaveAttribute('data-island', 'idle');
+      // Count the frames in which focus sits on <body>, from the moment it first enters the page.
+      await page.evaluate(() => {
+        const w = window as unknown as { bodyFrames: number; watching: boolean };
+        w.bodyFrames = 0;
+        w.watching = false;
+        document.addEventListener('focusin', () => (w.watching = true), { once: true });
+        const tick = () => {
+          if (w.watching && document.activeElement === document.body) w.bodyFrames++;
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      const target = control === 'radio' ? clean(page) : figure(page).getByRole('button', { name: 'Reset' });
+      await target.focus();
+      await expect(island(page)).toHaveAttribute('data-island', 'ready');
+      await expect(target).toBeFocused();
+      // the focused control is the island's own, not a leftover preview node
+      expect(await figure(page).locator('[data-returns-controls]').count()).toBe(1);
+      await page.waitForTimeout(200);
+      expect(await page.evaluate(() => (window as unknown as { bodyFrames: number }).bodyFrames)).toBe(0);
+    });
+  }
 
   test('no motion: switching modes moves no mark and starts no animation, on a stable axis', async ({ page }) => {
     await page.goto(HOST);

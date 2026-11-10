@@ -4,14 +4,23 @@
 // source with the TypeScript parser, walks the local module graph from every production root, and
 // fails closed on anything it cannot follow.
 //
-// - Roots: the App Router's special files under src/app (page, layout, route, the metadata files
-//   and the rest) with an extension of the plain build's pageExtensions (never `.dev.tsx`), plus
-//   src/proxy.ts, src/middleware.ts and src/instrumentation(-client).ts when present.
+// - Roots: the App Router's special files under src/app (page, layout, route, global-not-found, the
+//   metadata files and the rest) with an extension of the plain build's pageExtensions (never
+//   `.dev.tsx`), plus proxy, middleware, instrumentation(-client) and mdx-components, in src/ or at
+//   the repository root, when present.
 // - Edges: static imports and re-exports, literal `import()` and `require()`; `lazy(() => import())`
 //   and `next/dynamic` bind to the module's default export. A local import that does not resolve,
 //   a non-literal `import()` or `require()`, or an asset that does not exist fails.
 // - Affected components: every top-level component that destructures `faultAfterChange` from its
 //   props, and, to a fixed point, every component that passes its own props on to one by spread.
+// - Inside a component, its received seam is used only as itself: forwarded as
+//   `faultAfterChange={faultAfterChange}`, or as a condition that stays in the component (an `if`
+//   test, or a JSX child's ternary, `&&` or `||`). Passing it on under another name, or storing,
+//   returning or handing it to a call, fails, and an attribute that received it is then checked at
+//   every other call site too.
+// - A spread onto a tag whose identity cannot be followed (a local variable or parameter) fails
+//   unless it is the component's own props. Namespace imports and `export * as` re-exports resolve.
+// - A bare specifier must be a Node built-in or an installed package: another alias fails closed.
 // - At every JSX call site in a reachable module, `faultAfterChange` may only be the component's
 //   own received prop, forwarded unchanged under the same name: `faultAfterChange={faultAfterChange}`
 //   bound to its own destructured parameter with no default, or `{...props}` of its own unreassigned
@@ -23,6 +32,7 @@
 // The fixtures are in-memory sources served by a custom ts.CompilerHost, so typecheck and lint never
 // read them.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { builtinModules } from 'node:module';
 import { join, posix, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -103,6 +113,7 @@ type Rule =
   | 'seam-read'
   | 'seam-object'
   | 'seam-reassigned'
+  | 'seam-escape'
   | 'unsafe-spread'
   | 'create-element'
   | 'direct-call'
@@ -136,9 +147,9 @@ type Resolved = { kind: 'external' } | { kind: 'code'; file: string } | { kind: 
 
 const CODE_EXT = ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.cjs'];
 const LEAF = /\.(css|scss|sass|json|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|webp|avif|ico|txt)$/i;
-const SPECIAL = ['page', 'layout', 'template', 'error', 'global-error', 'not-found', 'forbidden', 'unauthorized', 'loading', 'default', 'route', 'sitemap', 'robots', 'manifest'];
+const SPECIAL = ['page', 'layout', 'template', 'error', 'global-error', 'not-found', 'global-not-found', 'forbidden', 'unauthorized', 'loading', 'default', 'route', 'sitemap', 'robots', 'manifest'];
 const NUMBERED_METADATA = ['icon', 'apple-icon', 'opengraph-image', 'twitter-image'];
-const EXTRA_ROOTS = ['proxy', 'middleware', 'instrumentation', 'instrumentation-client'];
+const EXTRA_ROOTS = ['proxy', 'middleware', 'instrumentation', 'instrumentation-client', 'mdx-components'];
 
 const isFunctionLike = (n: ts.Node): n is ts.FunctionLikeDeclaration =>
   ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n) || ts.isConstructorDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n);
@@ -181,7 +192,14 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     if (spec.startsWith('@/')) base = posix.join(root, 'src', spec.slice(2));
     else if (spec.startsWith('.')) base = posix.join(posix.dirname(from), spec);
     else if (spec.startsWith('/')) base = spec;
-    else return { kind: 'external' };
+    else {
+      // A bare specifier is a package only if it is a Node built-in or installed; anything else
+      // (another alias, a typo) might be local, so it fails closed.
+      const first = spec.split('/')[0]!;
+      if (spec.startsWith('node:') || builtinModules.includes(first)) return { kind: 'external' };
+      const pkg = spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : first;
+      return host.fileExists(posix.join(root, 'node_modules', pkg, 'package.json')) ? { kind: 'external' } : { kind: 'missing' };
+    }
     if (LEAF.test(base)) return host.fileExists(base) ? { kind: 'leaf', file: base } : { kind: 'missing' };
     if (CODE_EXT.some((e) => base.endsWith(e))) return host.fileExists(base) ? { kind: 'code', file: base } : { kind: 'missing' };
     for (const c of [...CODE_EXT.map((e) => base + e), ...CODE_EXT.map((e) => posix.join(base, `index${e}`))]) {
@@ -310,9 +328,11 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
       return match !== null && pageExt.has(match[1]!);
     });
   for (const name of EXTRA_ROOTS) {
-    for (const ext of ['ts', 'js', 'tsx', 'jsx']) {
-      const f = posix.join(root, 'src', `${name}.${ext}`);
-      if (host.fileExists(f)) roots.push(f);
+    for (const dir of ['src', '.']) {
+      for (const ext of ['ts', 'js', 'tsx', 'jsx']) {
+        const f = posix.join(root, dir, `${name}.${ext}`);
+        if (host.fileExists(f)) roots.push(f);
+      }
     }
   }
   roots.push(...extraRoots.map((f) => posix.join(root, f)));
@@ -360,6 +380,36 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     return `${m.file}#${name}`;
   }
   const isWithin = (inner: ts.Node, outer: ts.Node) => inner.pos >= outer.pos && inner.end <= outer.end;
+
+  /**
+   * The module a namespace name stands for: an `import * as NS`, or a name that resolves through
+   * imports and re-exports to an `export * as NS`. Null for an external package's namespace,
+   * undefined when the name is not a namespace.
+   */
+  function exportNamespace(module: string | null, name: string, seen: Set<string>): string | null | undefined {
+    if (module === null) return undefined;
+    const m = modules.get(module);
+    if (!m) return undefined;
+    const key = `${module}#${name}`;
+    if (seen.has(key)) return undefined;
+    seen.add(key);
+    const e = m.exports.get(name);
+    if (e?.kind === 'reexport') return e.name === '*' ? e.module : exportNamespace(e.module, e.name, seen);
+    if (e?.kind === 'local') return namespaceBinding(m, e.name, seen);
+    if (name !== 'default') {
+      for (const star of m.stars) {
+        const r = exportNamespace(star, name, seen);
+        if (r !== undefined) return r;
+      }
+    }
+    return undefined;
+  }
+  function namespaceBinding(m: Module, name: string, seen = new Set<string>()): string | null | undefined {
+    const b = m.bindings.get(name);
+    if (b?.kind === 'namespace') return b.module;
+    if (b?.kind === 'import') return exportNamespace(b.module, b.name, seen);
+    return undefined;
+  }
 
   /** The function a component identity names, if it is one. */
   function componentNode(id: Id): ts.FunctionLikeDeclaration | null {
@@ -460,8 +510,9 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     }
     if (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression)) {
       const r = lookup(e.expression);
-      const b = isTopLevel(r) ? m.bindings.get(e.expression.text) : undefined;
-      if (b?.kind === 'namespace') return exportId(b.module, e.name.text, new Set());
+      const ns = isTopLevel(r) ? namespaceBinding(m, e.expression.text) : undefined;
+      if (ns === null) return null;
+      if (ns !== undefined) return exportId(ns, e.name.text, new Set());
       return 'dynamic';
     }
     return ts.isJsxNamespacedName(e) ? null : 'dynamic';
@@ -555,13 +606,80 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
   }
   const affectedFiles = new Set([...affected].map((id) => id.slice(0, id.lastIndexOf('#'))));
 
+  // --- The seam never changes name and never escapes its component. A reference to a component's
+  // received seam is allowed in two places only: the exact forward `faultAfterChange={faultAfterChange}`,
+  // and a condition whose value stays in the component (an `if` test, or the condition of a ternary,
+  // `&&` or `||` that is itself a JSX child). Anything else (another attribute, a variable, a hook,
+  // an array, a return) would carry the seam under another name, out of the guard's sight. When the
+  // escape is an attribute of another name on a known component, that component's attribute is
+  // tainted, and any production call site that sets it fails too.
+  const tainted = new Set<string>();
+  const escapeAttrs = new Set<ts.Node>();
+  const PASS_THROUGH = new Set([
+    ts.SyntaxKind.EqualsEqualsEqualsToken,
+    ts.SyntaxKind.ExclamationEqualsEqualsToken,
+    ts.SyntaxKind.EqualsEqualsToken,
+    ts.SyntaxKind.ExclamationEqualsToken,
+    ts.SyntaxKind.AmpersandAmpersandToken,
+    ts.SyntaxKind.BarBarToken,
+  ]);
+  const isJsxChild = (n: ts.Node) => ts.isJsxExpression(n) && (ts.isJsxElement(n.parent) || ts.isJsxFragment(n.parent));
+  function climbParens(n: ts.Node): ts.Node {
+    let x = n;
+    while (ts.isParenthesizedExpression(x.parent)) x = x.parent;
+    return x;
+  }
+  function seamUseAllowed(id: ts.Identifier): boolean {
+    const p0 = id.parent;
+    if (ts.isJsxExpression(p0) && p0.expression === id && ts.isJsxAttribute(p0.parent) && ts.isIdentifier(p0.parent.name) && p0.parent.name.text === SEAM) return true;
+    let n: ts.Node = id;
+    for (;;) {
+      const p = n.parent;
+      if (ts.isParenthesizedExpression(p)) n = p;
+      else if (ts.isPrefixUnaryExpression(p) && p.operator === ts.SyntaxKind.ExclamationToken) n = p;
+      else if (ts.isBinaryExpression(p) && PASS_THROUGH.has(p.operatorToken.kind)) n = p;
+      else break;
+    }
+    const p = n.parent;
+    if (ts.isIfStatement(p) && p.expression === n) return true;
+    if (ts.isConditionalExpression(p) && p.condition === n && isJsxChild(climbParens(p).parent)) return true;
+    if (n !== id && ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || n.operatorToken.kind === ts.SyntaxKind.BarBarToken) && isJsxChild(p)) return true;
+    return false;
+  }
+  const isSeamParamBinding = (decl: ts.Node | undefined) =>
+    decl !== undefined && ts.isBindingElement(decl) && ts.isObjectBindingPattern(decl.parent) && ts.isParameter(decl.parent.parent);
+  for (const m of modules.values()) {
+    const visit = (n: ts.Node): void => {
+      if (ts.isIdentifier(n) && n.text === SEAM && !inTypePosition(n)) {
+        const parent = n.parent;
+        const notReference =
+          (ts.isBindingElement(parent) && (parent.name === n || parent.propertyName === n)) ||
+          (ts.isJsxAttribute(parent) && parent.name === n) ||
+          (ts.isPropertyAccessExpression(parent) && parent.name === n) ||
+          (ts.isPropertyAssignment(parent) && parent.name === n);
+        if (!notReference && isSeamParamBinding(lookup(n)?.decl) && !seamUseAllowed(n)) {
+          report(n, 'seam-escape', 'the seam is forwarded only as itself, or used as a condition that stays in the component');
+          let a: ts.Node | undefined = n.parent;
+          while (a && !ts.isJsxAttribute(a) && !ts.isStatement(a) && !isFunctionLike(a)) a = a.parent;
+          if (a && ts.isJsxAttribute(a) && ts.isIdentifier(a.name)) {
+            escapeAttrs.add(a);
+            const t = identityOf(m, a.parent.parent.tagName);
+            if (typeof t === 'string' && t !== 'dynamic') tainted.add(`${t}::${a.name.text}`);
+          }
+        }
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(m.sf);
+  }
+
   // --- Checks over every reachable module.
   for (const m of modules.values()) {
     // Only names that can refer to an affected component need the value-use check: top-level
     // bindings that resolve to one, and namespace imports (whose members might).
     const candidates = new Set<string>();
-    for (const [name, b] of m.bindings) {
-      if (b.kind === 'namespace') candidates.add(name);
+    for (const name of m.bindings.keys()) {
+      if (namespaceBinding(m, name) !== undefined) candidates.add(name);
       else {
         const id = localId(m, name);
         if (id !== null && affected.has(id)) candidates.add(name);
@@ -650,7 +768,27 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     }
     if (isIntrinsic(el.tagName)) return;
     const t = identityOf(m, el.tagName);
-    if (typeof t !== 'string' || t === 'dynamic' || !affected.has(t)) return;
+    // An attribute that carries a renamed seam, set anywhere else.
+    if (typeof t === 'string' && t !== 'dynamic') {
+      for (const a of props) {
+        if (ts.isJsxAttribute(a) && ts.isIdentifier(a.name) && !escapeAttrs.has(a) && tainted.has(`${t}::${a.name.text}`)) {
+          report(a, 'activation', `${a.name.text} carries a renamed ${SEAM}`);
+        }
+      }
+    }
+    // A tag whose identity cannot be followed: a spread could hand it anything, so only the
+    // component's own props may be spread onto it.
+    if (t === 'dynamic') {
+      for (const a of props) {
+        if (!ts.isJsxSpreadAttribute(a)) continue;
+        const r = ts.isIdentifier(a.expression) ? lookup(a.expression) : undefined;
+        const owner = r ? ownerOf(r.decl) : undefined;
+        const own = r !== undefined && owner !== undefined && isOwnProps(owner, r.decl) && componentFns.has(owner) && !isWritten(owner, r.decl, (a.expression as ts.Identifier).text);
+        if (!own) report(a, 'unestablished-identity', 'a spread onto a component whose identity cannot be followed');
+      }
+      return;
+    }
+    if (typeof t !== 'string' || !affected.has(t)) return;
     // Spreads onto an affected component: only the component's own props, last.
     props.forEach((a, i) => {
       if (!ts.isJsxSpreadAttribute(a)) return;
@@ -677,7 +815,7 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     if (ts.isIdentifier(n)) {
       // Not a reference: names of declarations, properties, attributes and specifiers.
       if (ts.isPropertyAccessExpression(parent) && parent.name === n) return;
-      if (ts.isPropertyAccessExpression(parent) && parent.expression === n && m.bindings.get(n.text)?.kind === 'namespace') return;
+      if (ts.isPropertyAccessExpression(parent) && parent.expression === n && namespaceBinding(m, n.text) !== undefined) return;
       if (
         (ts.isPropertyAssignment(parent) && parent.name === n) ||
         (ts.isBindingElement(parent) && (parent.name === n || parent.propertyName === n)) ||
@@ -763,6 +901,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
         'src/components/retention/ReturnsFigureClient.tsx#ReturnsFigureClient',
         'src/components/retention/ReturnsFigureClient.tsx#ReturnsIsland',
         'src/components/retention/ReturnsInteractive.tsx#ReturnsInteractive',
+        'src/components/retention/ReturnsView.tsx#ReturnsFigureView',
       ]),
     );
   });
@@ -777,6 +916,9 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
 // Fixtures: in-memory sources.
 
 const BASE: Record<string, string> = {
+  // The packages the fixtures import, as installed: a bare specifier must name one of them.
+  'node_modules/react/package.json': '{}',
+  'node_modules/next/package.json': '{}',
   'src/app/layout.tsx': `import './globals.css';
 import type { ReactNode } from 'react';
 export default function Layout({ children }: { children: ReactNode }) { return <html><body>{children}</body></html>; }`,
@@ -1036,3 +1178,90 @@ ${lazyLine}
 export function ThrowingIsland(props: ThrowingProps) { return <LazyThrowing {...props} />; }`,
   };
 }
+
+describe('fixtures added after review: the seam never changes name or escapes', () => {
+  const view = {
+    'src/components/x/View.tsx': `export function View({ chartFails, x }: { chartFails?: boolean; x?: unknown }) {
+  if (chartFails) throw new Error('seam');
+  return <p>{String(x)}</p>;
+}`,
+  };
+  const figure = (body: string, extra = '') => ({
+    ...view,
+    'src/components/x/XFigure.tsx': `import { useState } from 'react';
+import { View } from './View';
+${extra}
+export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) {
+  const [changed] = useState(false);
+  ${body}
+}`,
+  });
+
+  it.each([
+    ['a renamed forward', 'return <View chartFails={faultAfterChange === true && changed} />;'],
+    ['a forward of a value built from the seam', 'return <View x={faultAfterChange && changed} />;'],
+    ['a seam stored in a variable', 'const on = faultAfterChange; return <View x={on} />;'],
+    ['a seam handed to a hook', 'const [kept] = useState(faultAfterChange); return <View x={kept} />;'],
+    ['a seam in an array', 'return <View x={[faultAfterChange]} />;'],
+    ['a seam returned', 'return faultAfterChange ? <View /> : <View x={changed} />, faultAfterChange;'],
+  ])('%s fails', (_, body) => {
+    expect(rules(figure(body))).toContain('src/components/x/XFigure.tsx seam-escape');
+  });
+
+  it('a production page that sets the renamed prop fails at the page too', () => {
+    const files = {
+      ...figure('return <View chartFails={faultAfterChange === true && changed} />;'),
+      ...page('return <><XFigure /><View chartFails /></>;', `import { XFigure } from '@/components/x/XFigure';\nimport { View } from '@/components/x/View';`),
+    };
+    expect(rules(files)).toEqual(expect.arrayContaining(['src/components/x/XFigure.tsx seam-escape', 'src/app/page.tsx activation']));
+  });
+
+  it('the seam used only as a condition inside the component passes: an if test, a JSX child ternary or &&', () => {
+    expect(rules(figure('if (faultAfterChange && changed) throw new Error("seam"); return <View />;'))).toEqual([]);
+    expect(rules(figure('return <section>{faultAfterChange && changed ? <Boom /> : null}<View /></section>;', 'function Boom(): never { throw new Error("seam"); }'))).toEqual([]);
+    expect(rules(figure('return <section>{!(faultAfterChange === true) || <View />}</section>;'))).toEqual([]);
+  });
+});
+
+describe('fixtures added after review: identities and roots the guard must follow', () => {
+  it('a namespace re-export resolves, so a spread on its member is checked', () => {
+    expect(rules({
+      'src/components/x/ns.ts': `export * as NS from './XFigure';`,
+      ...page(`const o = JSON.parse('{}'); return <NS.XFigure {...o} />;`, `import { NS } from '@/components/x/ns';`),
+    })).toContain('src/app/page.tsx unsafe-spread');
+    expect(rules({
+      'src/components/x/ns.ts': `export * as NS from './XFigure';`,
+      ...page('return <NS.XFigure />;', `import { NS } from '@/components/x/ns';`),
+    })).toEqual([]);
+  });
+
+  it('a spread onto a tag whose identity cannot be followed fails closed', () => {
+    expect(rules(page(`return <Pick as={XFigure} />;`, `import type { ComponentType } from 'react';
+import { XFigure } from '@/components/x/XFigure';
+function Pick({ as: Comp }: { as: ComponentType }) { const o = JSON.parse('{}'); return <Comp {...o} />; }`))).toEqual(
+      expect.arrayContaining(['src/app/page.tsx unestablished-identity']),
+    );
+  });
+
+  it('a bare specifier that is not an installed package, or another alias, is unresolved', () => {
+    expect(rules(page('return null;', `import { Evil } from '~/evil';`))).toContain('src/app/page.tsx unresolved-import');
+    expect(rules(page('return null;', `import x from 'not-installed';`))).toContain('src/app/page.tsx unresolved-import');
+    expect(rules(page('return null;', `import { useState } from 'react';\nimport dynamic from 'next/dynamic';\nimport { readFileSync } from 'node:fs';\nimport path from 'path';`))).toEqual([]);
+  });
+
+  it("Next's global-not-found and mdx-components files are roots", () => {
+    const activates = `import { XFigure } from '@/components/x/XFigure';\nexport default function F() { return <XFigure faultAfterChange />; }`;
+    expect(rules({ 'src/app/global-not-found.tsx': activates })).toContain('src/app/global-not-found.tsx activation');
+    expect(rules({ 'src/mdx-components.tsx': activates })).toContain('src/mdx-components.tsx activation');
+    expect(rules({ 'mdx-components.tsx': activates })).toContain('mdx-components.tsx activation');
+  });
+});
+
+describe('the alias map the guard resolves', () => {
+  it('is exactly the one tsconfig path, @/*', () => {
+    const tsconfig = ts.parseConfigFileTextToJson('tsconfig.json', readFileSync(join(REPO, 'tsconfig.json'), 'utf8')).config as {
+      compilerOptions: { paths?: Record<string, string[]> };
+    };
+    expect(tsconfig.compilerOptions.paths).toEqual({ '@/*': ['./src/*'] });
+  });
+});

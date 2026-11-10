@@ -123,8 +123,7 @@ export function ReturnsChart({ mode, data }: { mode: ReturnMode; data: readonly 
 export function ReturnsResult({ mode, data, evidence }: { mode: ReturnMode; data: readonly RetailMonth[]; evidence: ReturnsEvidence }) {
   const reversal = (
     <>
-      The gap to the {mode === 'raw' ? 'cleaned' : 'uncleaned'} growth is mostly one{' '}
-      <Fact id="retail.reversal.january_gbp" /> order on{' '}
+      The difference is mostly one <Fact id="retail.reversal.january_gbp" /> order placed and cancelled on{' '}
       <Derived value={evidence.januaryReversalDate} unit="date" refs={RETURNS_REFS} />.
     </>
   );
@@ -151,11 +150,16 @@ export type ReturnsFigureViewProps = {
   announcement?: string;
   /** The island passes false, so a chart failure shows the kit's sentence and the current table only. */
   preview?: ReactNode;
-  /** The test seam's failure, set by the island after a change; never by the server. */
-  chartFails?: boolean;
+  /**
+   * Test seam, absent in production: with `changed`, the chart throws, so a test can see the error
+   * fallback. The island forwards it unchanged; the server never sets it.
+   */
+  faultAfterChange?: true;
+  /** Whether the visitor has changed the mode since the island loaded. */
+  changed?: boolean;
 };
 
-export function ReturnsFigureView({ mode, data, evidence, table, controls, announcement, preview, chartFails }: ReturnsFigureViewProps) {
+export function ReturnsFigureView({ mode, data, evidence, table, controls, announcement, preview, faultAfterChange, changed }: ReturnsFigureViewProps) {
   return (
     <Figure
       id={RETURNS_ID}
@@ -177,7 +181,7 @@ export function ReturnsFigureView({ mode, data, evidence, table, controls, annou
       }
     >
       <ReturnsChart mode={mode} data={data} />
-      {chartFails ? <SeamFailure /> : null}
+      {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
   );
 }

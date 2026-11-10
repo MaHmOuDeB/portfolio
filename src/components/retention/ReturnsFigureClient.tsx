@@ -34,6 +34,7 @@ export function ReturnsControls({ mode, onMode, onReset }: { mode: ReturnMode; o
     <div
       role="group"
       aria-labelledby={`${RETURNS_ID}-title`}
+      data-returns-controls=""
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
       <Segmented name={`${RETURNS_ID}-mode`} legend="Reversed orders" options={MODE_OPTIONS} value={mode} onChange={onMode} />
