@@ -344,7 +344,7 @@ describe('LiveNote: the exact notes', () => {
     expect(m.mode).toBe('held');
     expect(m.split).toMatchObject({ base: 'entry', day: '2026-12-02' });
     expect(sentence(html(m))).toBe(
-      'The test stopped because the counts failed a consistency check. Results use only the data up to the last check that passed. The check failed on 02.12. The split check also failed on 02.12, on entry views. Entry views at that check: 360 in group A and 80 in group B.',
+      'The test stopped because the counts failed a consistency check. Results use only the data up to the last check that passed. The check failed on 02.12. The split check also failed on 02.12, on entry views.',
     );
   });
 

@@ -41,7 +41,7 @@ import {
 import { formatSignedNumber } from '@/lib/figure/format';
 import { MIN_PER_GROUP, type Freshness } from '@/lib/figure/states';
 import { berlinDate } from '@/lib/figure/time';
-import { publishedCount } from './counts';
+import { publishedCount, type PublishedCount } from './counts';
 import type { HomeModel, CheckStatus } from './model';
 
 export type HomeStep = 1 | 2 | 3 | 4 | 5;
@@ -99,8 +99,12 @@ function explanation(m: HomeModel): ReactNode {
   return stopSentence(m);
 }
 
-/** The same, without the failed split's base, day and counts, which the Split step gives. */
-const shortExplanation = (m: HomeModel): ReactNode => (m.mode === 'srm-suppressed' ? SPLIT_FAILED : explanation(m));
+/** The same, without where a failed split check failed, which the Split step gives. */
+function shortExplanation(m: HomeModel): ReactNode {
+  if (m.mode === 'srm-suppressed') return SPLIT_FAILED;
+  if (m.mode === 'held') return stopSentence(m, { splitWarning: false });
+  return explanation(m);
+}
 
 // ---------------------------------------------------------------------------------------------
 // The live chart
@@ -154,7 +158,7 @@ export function chartAriaLabel(m: HomeModel, step: HomeStep): string | undefined
 // ---------------------------------------------------------------------------------------------
 // The steps
 
-function hypothesis(m: HomeModel): ReactNode {
+function hypothesis(m: HomeModel, p: string): ReactNode {
   const aa = calibrating(m);
   const opener =
     m.mode === 'not-started'
@@ -169,7 +173,7 @@ function hypothesis(m: HomeModel): ReactNode {
       {opener ? <Para>{opener}</Para> : null}
       <Para>The hypothesis: case-study cards that state the finding get more clicks than cards that name the topic.</Para>
       <Visual>
-        <HypothesisDiagram kind={aa ? 'identical-headlines' : 'topic-finding'} />
+        <HypothesisDiagram kind={aa ? 'identical-headlines' : 'topic-finding'} id={`${p}-hypothesis`} />
       </Visual>
     </>
   );
@@ -182,6 +186,15 @@ function SplitStatus({ m }: { m: HomeModel }) {
   const { entry, analysed } = m.splitStatus;
   const status: CheckStatus = entry === 'failed' || analysed === 'failed' ? 'failed' : entry === 'passed' && analysed === 'passed' ? 'passed' : 'not-evaluated';
   const tone = status === 'passed' ? 'text-ok' : status === 'failed' ? 'text-warn' : '';
+  if (status === 'passed' && m.afterDecisionSrm) {
+    // The decision's own check passed; a check after it failed, which the decision does not undo.
+    return (
+      <Para>
+        Split check: <span className={`font-semibold ${tone}`}>passed</span> at the decision;{' '}
+        <span className="font-semibold text-warn">a later check failed</span>.
+      </Para>
+    );
+  }
   return (
     <Para>
       Split check: <span className={`font-semibold ${tone}`}>{STATUS_WORD[status]}</span>.
@@ -189,12 +202,24 @@ function SplitStatus({ m }: { m: HomeModel }) {
   );
 }
 
-function split(m: HomeModel): ReactNode {
+/**
+ * The counts the Split step may print: both groups at 50 or more. A held test reports only its last
+ * clean look (the model keeps only looks with 50 views a group), never counts from the fault on.
+ */
+function splitCounts(m: HomeModel): { a: PublishedCount; b: PublishedCount } | null {
+  if (m.held !== null) {
+    const clean = m.live.series.at(-1);
+    return clean ? { a: publishedCount(clean.nA), b: publishedCount(clean.nB) } : null;
+  }
+  return countsReached(m) ? { a: m.counts.a, b: m.counts.b } : null;
+}
+
+function split(m: HomeModel, p: string): ReactNode {
   const past = pastTense(m);
-  const assigned = `Each visit to the home page ${past ? 'was' : 'is'} assigned to group A or B at random, on the server.`;
+  const assigned = `Each counted visit to the home page ${past ? 'was' : 'is'} assigned to group A or B at random, on the server.`;
   const outlines = (
     <Visual>
-      <GroupOutlinesDiagram />
+      <GroupOutlinesDiagram id={`${p}-split`} />
     </Visual>
   );
   if (UNREAD.has(m.mode)) {
@@ -209,6 +234,7 @@ function split(m: HomeModel): ReactNode {
   const stop = stopOf(m);
   // A failed split or calibration is not running, whatever its flags say.
   const counting = stop === 'running' && !withheld(m);
+  const shown = splitCounts(m);
   const view = calibrating(m) ? 'This view: one of the two identical groups.' : `This view: group ${m.arm === 'a' ? 'A' : 'B'}.`;
   const livePage = (
     <>
@@ -216,7 +242,11 @@ function split(m: HomeModel): ReactNode {
     </>
   );
   const under =
-    stop === 'held' || stop === 'closed' ? (
+    stop === 'held' ? (
+      <>
+        At least one group had fewer than <Target /> views at the last check that passed.
+      </>
+    ) : stop === 'closed' ? (
       <>
         At least one group had fewer than <Target /> views when counting stopped.
       </>
@@ -235,11 +265,11 @@ function split(m: HomeModel): ReactNode {
       {calibrating(m) && !past ? <Para>While calibrating, both groups see the same page.</Para> : null}
       <Para>{view}</Para>
       {m.mode === 'srm-suppressed' ? <Para>{stopSentence(m)}</Para> : null}
-      {countsReached(m) ? (
+      {shown ? (
         <>
           <Para>
-            {counting ? 'Views so far: ' : 'Views counted: '}
-            <PublishedCountText value={m.counts.a} refs={m.refs} /> in group A and <PublishedCountText value={m.counts.b} refs={m.refs} /> in group B.
+            {stop === 'held' ? 'Analysed views at the last check that passed: ' : counting ? 'Analysed views so far: ' : 'Analysed views counted: '}
+            <PublishedCountText value={shown.a} refs={m.refs} /> in group A and <PublishedCountText value={shown.b} refs={m.refs} /> in group B.
           </Para>
           <SplitStatus m={m} />
         </>
@@ -250,7 +280,7 @@ function split(m: HomeModel): ReactNode {
       )}
       {m.split && m.mode !== 'srm-suppressed' ? (
         <Para>
-          <SplitWarning split={m.split} refs={m.refs} lead="The split check failed on" />
+          <SplitWarning split={m.split} refs={m.refs} lead="The split check failed on" counts={m.held === null} />
         </Para>
       ) : null}
       {outlines}
@@ -266,7 +296,7 @@ const STOPPED_CHART: Record<Exclude<Stop, 'running'>, string> = {
   confirming: 'The result is being confirmed, so the chart shows the last interval, with nothing projected.',
 };
 
-function evidence(m: HomeModel): ReactNode {
+function evidence(m: HomeModel, p: string): ReactNode {
   if (UNREAD.has(m.mode) || withheld(m)) return <Para>{shortExplanation(m)}</Para>;
   const stop = stopOf(m);
   const snap = chartSnapshot(m, EVIDENCE);
@@ -275,15 +305,24 @@ function evidence(m: HomeModel): ReactNode {
     if (snap !== null) return <Para>{STOPPED_CHART[stop]}</Para>;
     const frame = stop === 'held' || stop === 'closed' ? 'stopped' : stop;
     return (
-      <CollectingFrame counts={m.counts} plannedEnd={m.live.plannedEnd} plannedEndKind={m.live.plannedEndKind} stopped={frame} refs={m.refs} />
+      <CollectingFrame
+        id={`${p}-collecting`}
+        counts={m.counts}
+        plannedEnd={m.live.plannedEnd}
+        plannedEndKind={m.live.plannedEndKind}
+        stopped={frame}
+        refs={m.refs}
+      />
     );
   }
   const nextLook = 'Views from today join the analysis at the next daily look.';
   const running: ReactNode = drawable(m.live) ? (
     aa ? (
       'Both groups see the same page, so the interval is expected to include zero. A new look is added once a day, after the day’s views are complete.'
-    ) : (
+    ) : confidenceModel(m.live)?.projection !== undefined ? (
       'The interval stays valid however often anyone looks. The lighter band after the last look shows how far it is projected to narrow by the planned number of views.'
+    ) : (
+      'The interval stays valid however often anyone looks.'
     )
   ) : aa ? (
     nextLook
@@ -297,14 +336,21 @@ function evidence(m: HomeModel): ReactNode {
       <Para>{running}</Para>
       {snap === null ? (
         <Visual>
-          <CollectingFrame counts={m.counts} plannedEnd={m.live.plannedEnd} plannedEndKind={m.live.plannedEndKind} stopped={false} refs={m.refs} />
+          <CollectingFrame
+            id={`${p}-collecting`}
+            counts={m.counts}
+            plannedEnd={m.live.plannedEnd}
+            plannedEndKind={m.live.plannedEndKind}
+            stopped={false}
+            refs={m.refs}
+          />
         </Visual>
       ) : null}
     </>
   );
 }
 
-function guardrails(m: HomeModel): ReactNode {
+function guardrails(m: HomeModel, p: string): ReactNode {
   const g = EXPERIMENT.guardrail;
   return (
     <>
@@ -324,7 +370,7 @@ function guardrails(m: HomeModel): ReactNode {
       {calibrating(m) ? <Para>The calibration publishes no guardrail interval.</Para> : null}
       <Para>Page speed parity is checked in lab runs.</Para>
       <Visual>
-        <GuardrailChart model={m} />
+        <GuardrailChart model={m} id={`${p}-guardrail`} />
       </Visual>
     </>
   );
@@ -368,14 +414,14 @@ function decisionText(m: HomeModel): ReactNode {
     : 'No result is shown before enough data arrives.';
 }
 
-function decision(m: HomeModel): ReactNode {
+function decision(m: HomeModel, p: string): ReactNode {
   const calibrationChecks = calibrating(m) && !UNREAD.has(m.mode) && !withheld(m) && m.mode !== 'paused' && countsReached(m);
   return (
     <>
       <Para>{decisionText(m)}</Para>
       {calibrationChecks ? <SplitStatus m={m} /> : null}
       <Visual>
-        <DecisionZonesDiagram />
+        <DecisionZonesDiagram id={`${p}-decision`} />
       </Visual>
       <p data-closing-proof="" className={`${P} mt-6`}>
         <Parts parts={HOME_HERO.proof} />{' '}
@@ -387,13 +433,18 @@ function decision(m: HomeModel): ReactNode {
   );
 }
 
-/** The five steps for a model, in order. */
-export function homeSteps(m: HomeModel): readonly HomeStepContent[] {
+/**
+ * The five steps for a model, in order. `idPrefix` starts every element id in the bodies (default
+ * "home"), so the same steps can be rendered twice in one document (for example sticky and stacked
+ * frames) without a repeated id.
+ */
+export function homeSteps(m: HomeModel, { idPrefix = 'home' }: { idPrefix?: string } = {}): readonly HomeStepContent[] {
+  const p = idPrefix;
   return [
-    { step: 1, heading: 'Hypothesis', body: hypothesis(m) },
-    { step: 2, heading: 'Split', body: split(m) },
-    { step: 3, heading: 'Evidence', body: evidence(m) },
-    { step: 4, heading: 'Guardrails', body: guardrails(m) },
-    { step: 5, heading: 'Decision', body: decision(m) },
+    { step: 1, heading: 'Hypothesis', body: hypothesis(m, p) },
+    { step: 2, heading: 'Split', body: split(m, p) },
+    { step: 3, heading: 'Evidence', body: evidence(m, p) },
+    { step: 4, heading: 'Guardrails', body: guardrails(m, p) },
+    { step: 5, heading: 'Decision', body: decision(m, p) },
   ];
 }

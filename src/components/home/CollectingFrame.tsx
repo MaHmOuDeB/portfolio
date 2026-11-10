@@ -25,6 +25,8 @@ type Props = {
   /** false while the test runs; otherwise why no estimate is shown. */
   stopped: false | 'paused' | 'stopped' | 'confirming';
   refs: readonly DerivedRef[];
+  /** The Figure's id, so a page can draw the frame twice. */
+  id?: string;
 };
 
 const BUILD: readonly DerivedRef[] = ['build'];
@@ -52,10 +54,10 @@ function Progress({ counts, plannedEnd, plannedEndKind, stopped, refs }: Props):
     );
   }
   if (reached) {
-    // Both groups are in, and the first completed day will give the first look.
+    // Never "60 of 50", and no promise: the step that draws this frame says what comes next.
     return (
       <p className={P}>
-        <Target /> views per group are in; the first estimate appears at the next look.
+        Both groups have reached <Target /> views; no estimate is shown here.
       </p>
     );
   }
@@ -76,20 +78,22 @@ function Progress({ counts, plannedEnd, plannedEndKind, stopped, refs }: Props):
 }
 
 export function CollectingFrame(props: Props) {
-  const { counts, stopped, refs } = props;
+  const { counts, stopped, refs, id = 'home-collecting' } = props;
+  const label = stopped === false ? 'No estimate yet' : 'No estimate is shown';
   return (
     <div data-collecting-frame={stopped === false ? 'collecting' : stopped}>
       <Figure
-        id="home-collecting"
+        id={id}
         titleLevel={4}
-        title={stopped === false ? 'No estimate yet' : 'No estimate is shown'}
+        title={label}
         caption="The difference between the groups, B minus A, in percentage points, with the hollow mark in place of an interval."
-        provenance={refs.includes('simulated') ? 'simulated' : 'live'}
+        // Live only when the counts are: fixture and build data are never "Live from this site".
+        provenance={refs.includes('live') ? 'live' : 'simulated'}
         table={{ columns: ['Group', 'Views'], rows: [['A', counts.a], ['B', counts.b]], formats: ['number', 'count'], refs }}
       >
         <ChartFrame
-          id="home-collecting-chart"
-          ariaLabel="No estimate yet"
+          id={`${id}-chart`}
+          ariaLabel={label}
           height={HEIGHT}
           x={{ domain: [0, MIN_PER_GROUP], ticks: { narrow: [0, MIN_PER_GROUP], wide: [0, MIN_PER_GROUP] }, format: (v) => formatNumber(v, 0), label: 'Views per group', refs: BUILD }}
           y={{

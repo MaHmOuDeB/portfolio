@@ -48,7 +48,7 @@ export default async function StepState({ params }: { params: Promise<{ state: s
                   titleLevel={4}
                   title="The difference between the groups as views per group grow"
                   caption="B minus A in percentage points: the band is the confidence sequence, the dot the current estimate."
-                  provenance="live"
+                  provenance="simulated"
                   state={live}
                   table={homeChartTable(snap, model.refs)}
                 >

@@ -9,8 +9,11 @@ const MODES: readonly HomeMode[] = [
   'paused', 'before-data', 'calibration', 'ab', 'ship-b', 'stop-for-harm', 'inconclusive',
 ];
 
+/** The data here is fictional, so every number on these pages is marked simulated, never live. */
+const simulated = (m: HomeModel): HomeModel => ({ ...m, refs: ['simulated'] });
+
 /** Each state's Home model, seen from group B. */
 export const STEP_STATES: readonly { id: string; model: () => HomeModel }[] = [
-  ...MODES.map((m) => ({ id: m, model: () => toHomeModel(snapshotFixture(m), 'b') })),
-  ...NARRATIVE_FIXTURES.map((n) => ({ id: n, model: () => toHomeModel(narrativeFixture(n), 'b') })),
+  ...MODES.map((m) => ({ id: m, model: () => simulated(toHomeModel(snapshotFixture(m), 'b')) })),
+  ...NARRATIVE_FIXTURES.map((n) => ({ id: n, model: () => simulated(toHomeModel(narrativeFixture(n), 'b')) })),
 ];

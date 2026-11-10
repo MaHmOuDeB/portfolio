@@ -9,9 +9,9 @@ import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
-import { HOME_HERO, headlineText } from '../../../content/home.ts';
+import { HEADLINES, HOME_HERO, headlineText } from '../../../content/home.ts';
 import { CollectingFrame } from '@/components/home/CollectingFrame';
-import { GuardrailChart } from '@/components/home/GuardrailChart';
+import { GuardrailChart, printedInterval } from '@/components/home/GuardrailChart';
 import { DecisionZonesDiagram, GroupOutlinesDiagram, HypothesisDiagram } from '@/components/home/StepDiagrams';
 import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import { Figure } from '@/components/kit/Figure';
@@ -81,7 +81,7 @@ const stepsHtml = (m: HomeModel) =>
     </>,
   );
 
-/** The live chart as the page draws it (in the Figure, with the caller's table and the T0 overrides). */
+/** The live chart as the page draws it (in the Figure, with the caller's table and the chart's label override). */
 function chartHtml(m: HomeModel): string {
   const snap = chartSnapshot(m, 3);
   if (snap === null) return '';
@@ -366,7 +366,7 @@ describe('Hypothesis', () => {
 });
 
 describe('Split', () => {
-  const ASSIGNED = 'Each visit to the home page is assigned to group A or B at random, on the server.';
+  const ASSIGNED = 'Each counted visit to the home page is assigned to group A or B at random, on the server.';
   const THRESHOLD = 'At least one group has fewer than 50 views so far. The Live test page shows the counts that are safe to publish.';
 
   it('says at least one group is under 50, with two equal outlines and no count', () => {
@@ -393,22 +393,22 @@ describe('Split', () => {
 
   it('prints safe counts and the actual split status from 50 views a group', () => {
     const h = stepHtml(mode('ab'), 2);
-    expect(paragraphs(h)).toContain('Views so far: 60 in group A and 70 in group B.');
+    expect(paragraphs(h)).toContain('Analysed views so far: 60 in group A and 70 in group B.');
     expect(paragraphs(h)).toContain('Split check: passed.');
     // Counted, not evaluated yet: no passed claim.
     const due = stepHtml(named('ab-due'), 2);
-    expect(paragraphs(due)).toContain('Views so far: 60 in group A and 60 in group B.');
+    expect(paragraphs(due)).toContain('Analysed views so far: 60 in group A and 60 in group B.');
     expect(paragraphs(due)).toContain('Split check: not evaluated in this snapshot.');
     expect(everything(due)).not.toMatch(/passed/);
   });
 
   it('speaks in the past once counting stopped', () => {
-    expect(paragraphs(stepHtml(mode('ship-b'), 2))).toContain('Views counted: 300 in group A and 300 in group B.');
-    expect(paragraphs(stepHtml(named('held-under-50'), 2))).toContain(
+    expect(paragraphs(stepHtml(mode('ship-b'), 2))).toContain('Analysed views counted: 300 in group A and 300 in group B.');
+    expect(paragraphs(stepHtml(named('closed-under-50'), 2))).toContain(
       'At least one group had fewer than 50 views when counting stopped. The Live test page shows the counts that are safe to publish.',
     );
     expect(paragraphs(stepHtml(named('closed-under-50'), 2))[0]).toBe(
-      'Each visit to the home page was assigned to group A or B at random, on the server.',
+      'Each counted visit to the home page was assigned to group A or B at random, on the server.',
     );
   });
 
@@ -428,7 +428,7 @@ describe('Split', () => {
     for (const m of ['not-started', 'unavailable', 'closure-check', 'settings-unreadable'] as const) {
       const h = stepHtml(mode(m), 2);
       expect(all(doc(h), hasAttr('data-derived'))).toEqual([]);
-      expect(everything(h)).not.toMatch(/Views so far|Views counted|fewer than/);
+      expect(everything(h)).not.toMatch(/views so far|views counted|fewer than/i);
     }
   });
 });
@@ -554,8 +554,10 @@ describe('Guardrails', () => {
     const g = m.live.guardrail!;
     const h = stepHtml(m, 4);
     expect(h).toContain('data-guardrail="interval"');
-    expect(everything(h)).toMatch(/Quick exits, B minus A: [−+]?[\d.]+ to [−+]?[\d.]+ points\. The upper end is (not )?below the limit\./);
-    expect(everything(h)).toContain(g.upper < g.limit ? 'The upper end is below the limit.' : 'The upper end is not below the limit.');
+    expect(everything(h)).toMatch(/Quick exits, B minus A: [−+]?[\d.]+ to [−+]?[\d.]+ points\. /);
+    expect(everything(h)).toContain(
+      g.upper < g.limit ? 'The upper end is below the limit.' : g.lower >= g.limit ? 'The whole interval lies above the limit.' : 'The interval still reaches the limit.',
+    );
   });
 
   it('hides the interval when the split check failed', () => {
@@ -669,7 +671,7 @@ describe('the small-count rule across the steps and the chart', () => {
     for (const m of ['not-started', 'unavailable', 'closure-check'] as const) {
       const h = pageHtml(mode(m));
       expect(all(doc(h), (el) => (attr(el, 'data-derived') ?? '').split(' ').includes('build') && squash(text(el)) === '0' && el.tagName !== 'text')).toEqual([]);
-      expect(everything(h)).not.toMatch(/\b0 of 50|Views so far|Views counted/);
+      expect(everything(h)).not.toMatch(/\b0 of 50|views so far|views counted/i);
     }
   });
 });
@@ -780,8 +782,9 @@ describe('GuardrailChart', () => {
       expect(attr(n, 'data-derived')).toBe('build');
     }
     expect(all(doc(h), hasAttr('data-limit-line')).length).toBe(2);
-    const rows = all(all(doc(h), (el) => el.tagName === 'tbody')[0]!, (el) => el.tagName === 'tr').map((tr) => all(tr, (el) => el.tagName === 'td').map((td) => squash(text(td))));
-    expect(rows).toEqual([['Interval', 'Not shown'], ['Limit', '+10']]);
+    // Only the pre-registered rule is drawn: a diagram Figure, with no data badge and no table.
+    expect(h).not.toContain('<table');
+    expect(everything(h)).not.toMatch(/Live from this site|Simulated|Public data/);
     expect(audit(h)).toEqual([]);
   });
 
@@ -923,7 +926,7 @@ const placeholderAt = async (now: string) =>
 function expectClosed(m: HomeModel) {
   const h = pageHtml(m);
   expect(everything(h)).not.toMatch(STOPPED_PROMISES);
-  expect(everything(h)).not.toMatch(/Views so far|has fewer than|are the test|is assigned/);
+  expect(everything(h)).not.toMatch(/views so far|has fewer than|are the test|is assigned/i);
   expect(h).not.toContain('data-cs="projection"');
   expect(paragraphs(stepHtml(m, 1))).toContain('The case-study cards above were the test.');
   if (!m.closedConfirmed) expect(everything(h)).not.toMatch(/counting has closed|counting stopped/i);
@@ -981,7 +984,7 @@ describe('closure across the five steps', () => {
     expect(m.mode).toBe('closure-check');
     expectClosed(m);
     expect(chartSnapshot(m, 3)).toBeNull();
-    expect(everything(pageHtml(m))).not.toMatch(/Ship B\.|Stop for harm\.|Inconclusive at the limit|paused|Views counted/);
+    expect(everything(pageHtml(m))).not.toMatch(/Ship B\.|Stop for harm\.|Inconclusive at the limit|paused|views counted/i);
   });
 
   it('an A/A flag-only marker: the failed calibration, no chart', async () => {
@@ -1013,7 +1016,7 @@ describe('closure across the five steps', () => {
       const m = toHomeModel(buildFixture({ config: FIXTURE_AB, now, rows }), 'b');
       expect(m.mode).toBe('held');
       const h = everything(pageHtml(m));
-      expect(h).not.toMatch(/Inconclusive at the limit|Ship B\.|Stop for harm\.|resum|running|Views so far/);
+      expect(h).not.toMatch(/Inconclusive at the limit|Ship B\.|Stop for harm\.|resum|running|views so far/i);
       expect(h).not.toMatch(STOPPED_PROMISES);
       expect(pageHtml(m)).not.toContain('data-cs="projection"');
       expect(paragraphs(stepHtml(m, 5))[0]).toMatch(/^The test stopped because the counts failed a consistency check\./);
@@ -1022,6 +1025,142 @@ describe('closure across the five steps', () => {
   });
 
   it.each(['closure-check', 'ship-b', 'inconclusive'] as const)('%s: the past tense in the Split step too', (m) => {
-    expect(paragraphs(stepHtml(mode(m), 2))[0]).toBe('Each visit to the home page was assigned to group A or B at random, on the server.');
+    expect(paragraphs(stepHtml(mode(m), 2))[0]).toBe('Each counted visit to the home page was assigned to group A or B at random, on the server.');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Review fixes
+
+describe('review fixes', () => {
+  it('a held test reports only the last clean look: never counts from the fault on', () => {
+    const m = named('held-srm');
+    const page = everything(pageHtml(m));
+    expect(paragraphs(stepHtml(m, 2))).toContain('Analysed views at the last check that passed: 50 in group A and 50 in group B.');
+    expect(page).not.toMatch(/\b55\b|\b370\b|\b90\b/);
+    // The split flag is named by base and day only.
+    expect(page).toContain('The split check failed on 02.12, on entry views.');
+    expect(page).not.toMatch(/Entry views at that check/);
+    // No clean look to report: the past-tense sentence, no count.
+    const low = named('held-under-50');
+    expect(paragraphs(stepHtml(low, 2))).toContain(
+      'At least one group had fewer than 50 views at the last check that passed. The Live test page shows the counts that are safe to publish.',
+    );
+  });
+
+  it('two renders of the steps in one document repeat no id', () => {
+    for (const m of [mode('ab'), named('ab-tiny'), named('held-under-50'), mode('calibration'), mode('not-started')]) {
+      const twice = renderToStaticMarkup(
+        <>
+          {homeSteps(m).map((s) => <div key={s.step}>{s.body}</div>)}
+          {homeSteps(m, { idPrefix: 'home-stacked' }).map((s) => <div key={s.step}>{s.body}</div>)}
+        </>,
+      );
+      const ids = all(doc(twice), hasAttr('id')).map((el) => attr(el, 'id')!);
+      expect(ids.length).toBeGreaterThan(0);
+      expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    }
+    // The default ids are unchanged.
+    expect(stepHtml(mode('ab'), 1)).toContain('id="home-hypothesis"');
+    expect(stepHtml(named('ab-tiny'), 3)).toContain('id="home-collecting"');
+    expect(stepHtml(mode('ab'), 4)).toContain('id="home-guardrail"');
+  });
+
+  it('a later failed split check is stated in the Split step too', () => {
+    const p = paragraphs(stepHtml(named('ship-b-late-srm'), 2));
+    expect(p).toContain('Split check: passed at the decision; a later check failed.');
+    expect(p).not.toContain('Split check: passed.');
+  });
+
+  it('a stopped collecting frame never says "yet", not even in its accessible name', () => {
+    for (const stopped of ['paused', 'stopped', 'confirming'] as const) {
+      const h = frameHtml({ stopped });
+      for (const f of all(doc(h), hasAttr('data-chart-frame'))) expect(attr(f, 'aria-label')).toBe('No estimate is shown');
+      expect(everything(h)).not.toMatch(/\byet\b/);
+    }
+    for (const n of ['held-under-50', 'paused-under-50', 'closed-under-50', 'final-low', 'paused-tiny'] as const) {
+      expect(everything(stepHtml(named(n), 3))).not.toMatch(/\byet\b/);
+    }
+  });
+});
+
+describe('review fixes: minors', () => {
+  const guard = (gr: { lower: number; upper: number; limit: number }) => {
+    const m = mode('ab');
+    return renderToStaticMarkup(<GuardrailChart model={{ ...m, live: { ...m.live, guardrail: gr } }} />);
+  };
+
+  it('a held test says where its split failed once, in the Split step', () => {
+    const page = everything(pageHtml(named('held-srm')));
+    expect(page.match(/failed on 02\.12, on entry views/g)).toHaveLength(1);
+    expect(page.match(/The test stopped because the counts failed a consistency check\./g)).toHaveLength(2);
+  });
+
+  it('the guardrail says below, still reaches, or above the limit', () => {
+    const cases = [
+      [{ lower: -3, upper: 4, limit: 10 }, 'The quick-exit interval lies below the limit', 'The upper end is below the limit.', 'the interval lies below the limit'],
+      [{ lower: -3, upper: 14, limit: 10 }, 'The quick-exit interval still reaches the limit', 'The interval still reaches the limit.', 'the interval still reaches the limit'],
+      [{ lower: 12, upper: 20, limit: 10 }, 'The quick-exit interval lies above the limit', 'The whole interval lies above the limit.', 'the interval lies above the limit'],
+    ] as const;
+    for (const [gr, title, sentence, label] of cases) {
+      const h = guard(gr);
+      expect(squash(text(all(doc(h), (el) => el.tagName === 'h4')[0]!))).toBe(title);
+      expect(everything(h)).toContain(sentence);
+      for (const f of all(doc(h), hasAttr('data-chart-frame'))) expect(attr(f, 'aria-label')).toBe(`The quick-exit interval, B minus A, against its limit: ${label}`);
+    }
+  });
+
+  it('the printed ends never contradict the verdict after rounding', () => {
+    const num = (t: string) => Number(t.replace('−', '-').replace('+', ''));
+    for (const gr of [
+      { lower: -5, upper: 9.96, limit: 10 },
+      { lower: -25, upper: 9.6, limit: 10 },
+      { lower: -5, upper: 9.99999999, limit: 10 },
+      { lower: 9.96, upper: 30, limit: 10 },
+      { lower: -5, upper: 10, limit: 10 },
+    ]) {
+      const h = guard(gr);
+      const shown = everything(h).match(/Quick exits, B minus A: (\S+) to (\S+) points\./)!;
+      const [lo, hi] = [num(shown[1]!), num(shown[2]!)];
+      const place = (l: number, u: number) => (u < gr.limit ? 'below' : l >= gr.limit ? 'above' : 'reaches');
+      expect(place(lo, hi)).toBe(place(gr.lower, gr.upper));
+      const cells = all(all(doc(h), (el) => el.tagName === 'tbody')[0]!, (el) => el.tagName === 'td').map((td) => squash(text(td)));
+      expect(`${cells[1]} to ${cells[3]}`).toBe(`${shown[1]} to ${shown[2]}`);
+    }
+    expect(printedInterval({ lower: -5, upper: 9.96, limit: 10 }).digits).toBe(2);
+  });
+
+  it('a badge says live only for live data', () => {
+    expect(everything(frameHtml({ refs: ['build'] }))).toContain('Simulated');
+    expect(everything(frameHtml({ refs: ['build'] }))).not.toContain('Live from this site');
+    expect(everything(frameHtml({ refs: ['live'] }))).toContain('Live from this site');
+    const m = mode('ab');
+    expect(everything(renderToStaticMarkup(<GuardrailChart model={{ ...m, refs: ['build'] }} />))).not.toContain('Live from this site');
+  });
+
+  it('a running frame at 50 a group promises nothing and never prints above its target', () => {
+    const h = everything(frameHtml({ counts: { a: 60, b: 70, smaller: 60 } }));
+    expect(h).toContain('Both groups have reached 50 views; no estimate is shown here.');
+    expect(h).not.toMatch(STOPPED_PROMISES);
+    expect(h).not.toMatch(/\b60 of 50\b|Progress/);
+  });
+
+  it('the projection sentence only where a band is drawn', () => {
+    const m = mode('ab');
+    const capped = { ...m, live: { ...m.live, capPerArm: 40 } };
+    expect(paragraphs(stepHtml(capped, 3))).toContain('The interval stays valid however often anyone looks.');
+    expect(everything(stepHtml(capped, 3))).not.toMatch(/lighter band/);
+    expect(chartHtml(capped)).not.toContain('data-cs="projection"');
+    expect(everything(stepHtml(m, 3))).toMatch(/lighter band/);
+    expect(chartHtml(m)).toContain('data-cs="projection"');
+  });
+
+  it('quotes no group’s headline anywhere in the scroll moment, in either group', () => {
+    const quotes = HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]);
+    const models = [...MODES.map((x) => mode(x, 'a')), ...MODES.map((x) => mode(x, 'b')), ...NARRATIVE_FIXTURES.map((n) => named(n, 'a'))];
+    for (const m of models) {
+      const page = everything(pageHtml(m));
+      for (const q of quotes) expect(page).not.toContain(q);
+    }
   });
 });

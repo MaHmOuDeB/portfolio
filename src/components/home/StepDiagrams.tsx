@@ -4,7 +4,8 @@
 // - the split: two equal, unnumbered group outlines;
 // - the decision: the three outcomes of the pre-registered rule.
 // They show no observed data and no number. The hypothesis diagrams describe the headlines without
-// quoting them, so a reader in one group is never shown the other group's headline. Server-safe.
+// quoting them, so a reader in one group is never shown the other group's headline. Each takes an
+// optional `id`, so a page can draw it twice. Server-safe.
 import { Figure } from '@/components/kit/Figure';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 
@@ -44,10 +45,10 @@ const HYPOTHESIS = {
 } as const;
 
 /** The headlines each group sees: identical in the calibration, topic versus finding in the A/B. */
-export function HypothesisDiagram({ kind }: { kind: 'identical-headlines' | 'topic-finding' }) {
+export function HypothesisDiagram({ kind, id = 'home-hypothesis' }: { kind: 'identical-headlines' | 'topic-finding'; id?: string }) {
   const d = HYPOTHESIS[kind];
   return (
-    <Figure kind="diagram" id="home-hypothesis" titleLevel={4} title={d.title} caption={d.caption}>
+    <Figure kind="diagram" id={id} titleLevel={4} title={d.title} caption={d.caption}>
       <div data-diagram={kind} className="grid grid-cols-2 gap-4">
         {GROUPS.map((g, i) => (
           <div key={g.arm} data-group-outline={g.arm} className={OUTLINE}>
@@ -64,13 +65,13 @@ export function HypothesisDiagram({ kind }: { kind: 'identical-headlines' | 'top
 }
 
 /** Two groups of the same design, with no count: the split before any data is shown. */
-export function GroupOutlinesDiagram() {
+export function GroupOutlinesDiagram({ id = 'home-split' }: { id?: string }) {
   return (
     <Figure
       kind="diagram"
-      id="home-split"
+      id={id}
       titleLevel={4}
-      title="Every visit joins one of two groups at random"
+      title="Every counted visit joins one of two groups at random"
       caption="The server picks the group before the page is sent. The split check compares the two groups with the even split the design expects."
     >
       <div data-diagram="group-outlines" className="grid gap-3">
@@ -120,11 +121,11 @@ function ZoneSketch({ from, to }: { from: number; to: number }) {
 }
 
 /** The three outcomes of the pre-registered decision rule. */
-export function DecisionZonesDiagram() {
+export function DecisionZonesDiagram({ id = 'home-decision' }: { id?: string }) {
   return (
     <Figure
       kind="diagram"
-      id="home-decision"
+      id={id}
       titleLevel={4}
       title="Three outcomes, written down before the data"
       caption="Each bar is an interval for B minus A, and the dark vertical line is zero. The rule is part of the pre-registration."
