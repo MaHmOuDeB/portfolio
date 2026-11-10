@@ -39,6 +39,7 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
   const calls: string[][] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push([cmd, ...args]);
+    if (cmd === 'gh' && args[0] === 'api' && args[1]?.endsWith('/actions/runners')) return { status: 0, stdout: '0\n' };
     if (cmd === 'git' && args[0] === 'rev-parse') return { status: 0, stdout: 'abc\n' };
     if (cmd === 'git' && args[0] === 'ls-remote') return { status: 0, stdout: 'abc\trefs/tags/prereg-v1\n' };
     if (cmd === 'git' && args[0] === 'show') return { status: 0, stdout: `# Pre-registration\n\nPre-registration hash: ${HASH}\n` };
@@ -162,6 +163,53 @@ describe('launch:check', () => {
     const d = deps();
     main(ARGS, d.deps);
     expect(d.lines.join('\n')).not.toMatch(/DPA|processing agreement/i);
+  });
+
+  it('names each workflow that still names a self-hosted runner, and accepts hosted ones', () => {
+    const d = deps();
+    mkdirSync(join(root, '.github/workflows'), { recursive: true });
+    writeFileSync(join(root, '.github/workflows/deploy.yml'), 'jobs:\n  deploy:\n    runs-on: ubuntu-24.04\n');
+    expect(main(ARGS, d.deps)).toBe(0);
+    writeFileSync(join(root, '.github/workflows/ci.yml'), 'jobs:\n  static:\n    runs-on: [self-hosted, linux, arm64, portfolio-mac]\n');
+    writeFileSync(join(root, '.github/workflows/other.yaml'), '# label: portfolio-mac-2\n');
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.join('\n');
+    expect(out).toMatch(/^unmet: a workflow still names a self-hosted runner: \.github\/workflows\/ci\.yml \(self-hosted, portfolio-mac\); switch its jobs back to runs-on: ubuntu-24\.04$/m);
+    expect(out).toMatch(/^unmet: a workflow still names a self-hosted runner: \.github\/workflows\/other\.yaml \(portfolio-mac\)/m);
+    expect(out).not.toMatch(/deploy\.yml/);
+  });
+
+  it('names self-hosted runners still registered, asking gh read-only for the count alone', () => {
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'api' ? { status: 0, stdout: '2\n' } : base(cmd, args));
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.join('\n')).toMatch(/^unmet: self-hosted runners are still registered for the repository: 2 \(deregister and remove them first\)$/m);
+    const calls = deps();
+    main(ARGS, calls.deps);
+    expect(calls.calls.filter((c) => c[0] === 'gh' && c[1] === 'api')).toEqual([
+      ['gh', 'api', 'repos/MaHmOuDeB/portfolio/actions/runners', '--jq', '.total_count'],
+    ]);
+  });
+
+  it('fails closed when the runners cannot be counted, printing none of the output', () => {
+    for (const answer of [{ status: 1, stdout: SECRET_VALUE }, { status: 0, stdout: SECRET_VALUE }, { status: null, stdout: '' }]) {
+      const d = deps();
+      const base = d.deps.run!;
+      d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'api' ? answer : base(cmd, args));
+      expect(main(ARGS, d.deps)).toBe(1);
+      const out = d.lines.join('\n');
+      expect(out).toMatch(/^unmet: could not count the repository's self-hosted runners \(run gh auth login, then try again\)$/m);
+      expect(out).not.toContain(SECRET_VALUE);
+    }
+  });
+
+  it('flags this repository\'s ci.yml while CI runs on the self-hosted runners, never deploy.yml', () => {
+    const d = deps({ root: join(import.meta.dirname, '../..') });
+    expect(main(ARGS, d.deps)).toBe(1);
+    const flagged = d.lines.filter((l) => l.startsWith('unmet: a workflow still names a self-hosted runner'));
+    expect(flagged.some((l) => l.includes('.github/workflows/ci.yml'))).toBe(true);
+    expect(flagged.some((l) => l.includes('deploy.yml'))).toBe(false);
   });
 });
 

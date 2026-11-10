@@ -13,11 +13,12 @@
 // - the secrets exist, by name: in Vercel's production environment and in the GitHub repository;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash.
+// - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
 //
 // It reads secret NAMES only: the Vercel CLI is never asked for JSON (which would include values),
 // and no command output is printed. It needs `npx vercel login` and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
@@ -107,6 +108,47 @@ function names(stdout: string): Set<string> {
   return new Set([...stdout.matchAll(/^\s*([A-Z][A-Z0-9_]{2,})\b/gm)].map((m) => m[1]!));
 }
 
+/** Words in a workflow that mean a job still runs on the owner's self-hosted runners. */
+export const SELF_HOSTED_MARKERS = ['self-hosted', 'portfolio-mac'] as const;
+
+/**
+ * While CI runs on self-hosted runners the repository must stay private: once it is public, anyone's
+ * pull request could run on that machine. So no workflow may name a self-hosted runner, and GitHub
+ * must list no runner for the repository. Fails closed: a workflow folder or a runner count that
+ * cannot be read is unmet. Prints only file names, the markers and the count.
+ */
+export function selfHostedUnmet(d: Pick<LaunchDeps, 'root' | 'run'>): string[] {
+  const unmet: string[] = [];
+  const dir = join(d.root, '.github/workflows');
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort();
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') unmet.push('could not read .github/workflows to look for self-hosted runners');
+  }
+  for (const f of files) {
+    let text = '';
+    try {
+      text = readFileSync(join(dir, f), 'utf8');
+    } catch {
+      unmet.push(`could not read .github/workflows/${f} to look for self-hosted runners`);
+      continue;
+    }
+    const found = SELF_HOSTED_MARKERS.filter((m) => text.includes(m));
+    if (found.length > 0) {
+      unmet.push(`a workflow still names a self-hosted runner: .github/workflows/${f} (${found.join(', ')}); switch its jobs back to runs-on: ubuntu-24.04`);
+    }
+  }
+  const runners = d.run('gh', ['api', `repos/${GITHUB_REPO}/actions/runners`, '--jq', '.total_count']);
+  const count = runners.stdout.trim();
+  if (runners.status !== 0 || !/^\d+$/.test(count)) {
+    unmet.push('could not count the repository\'s self-hosted runners (run gh auth login, then try again)');
+  } else if (count !== '0') {
+    unmet.push(`self-hosted runners are still registered for the repository: ${count} (deregister and remove them first)`);
+  }
+  return unmet;
+}
+
 export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number {
   const d: LaunchDeps = { ...defaults(), ...partial };
   const unmet: string[] = [];
@@ -164,6 +206,9 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
     if (tagged.status !== 0 || hash === undefined) unmet.push(`${PREREG_TAG} has no pre-registration hash in docs/experiment/prereg.md`);
     else if (hash !== d.preregHash()) unmet.push(`the design changed since ${PREREG_TAG}: its hash is not the current one (a new version and tag are needed)`);
   }
+
+  // Self-hosted runners.
+  unmet.push(...selfHostedUnmet(d));
 
   for (const line of unmet) d.out(`unmet: ${line}`);
   if (unmet.length > 0) {
