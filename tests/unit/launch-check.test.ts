@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EXPERIMENT, type ExperimentConfig } from '../../src/experiment.values.ts';
-import { GITHUB_SECRETS, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, main, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
+import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, main, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
 import type { LaunchFact } from '../../content/privacy.ts';
 
 const STARTED = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-09T00:00:00+01:00' } } as unknown as ExperimentConfig;
@@ -43,6 +43,7 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
     if (cmd === 'git' && args[0] === 'rev-parse') return { status: 0, stdout: 'abc\n' };
     if (cmd === 'git' && args[0] === 'ls-remote') return { status: 0, stdout: 'abc\trefs/tags/prereg-v1\n' };
     if (cmd === 'git' && args[0] === 'show') return { status: 0, stdout: `# Pre-registration\n\nPre-registration hash: ${HASH}\n` };
+    if (cmd === 'gh' && args[0] === 'variable') return { status: 0, stdout: `${GITHUB_VARIABLES.join('\n')}\n` };
     if (cmd === 'gh') return { status: 0, stdout: GITHUB_SECRETS.map((n) => `${n}\tUpdated 2026-11-01`).join('\n') };
     if (args.includes('vercel')) return { status: 0, stdout: `${vercelTable(VERCEL_SECRETS)}\n${SECRET_VALUE}` };
     return { status: 1, stdout: '' };
@@ -125,6 +126,48 @@ describe('launch:check', () => {
     const out = d.lines.join('\n');
     expect(out).toMatch(/^unmet: could not list the Vercel production variables/m);
     expect(out).toMatch(/^unmet: could not list the GitHub secrets/m);
+    expect(out).not.toContain(SECRET_VALUE);
+  });
+
+  it('names each GitHub variable the deploy needs that is missing, by name only', () => {
+    expect(GITHUB_VARIABLES).toEqual(['LAUNCHED', 'LAUNCH_SHA']);
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: 'LAUNCHED\n' } : base(cmd, args));
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.join('\n');
+    expect(out).toMatch(/^unmet: variable missing in GitHub: LAUNCH_SHA$/m);
+    expect(out).not.toMatch(/variable missing in GitHub: LAUNCHED$/m);
+  });
+
+  it('asks gh for the variable names only, never their values, and prints none of its output', () => {
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) =>
+      cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: `LAUNCHED\nLAUNCH_SHA\n${SECRET_VALUE}\n` } : base(cmd, args);
+    expect(main(ARGS, d.deps)).toBe(0);
+    expect(d.lines.join('\n')).not.toContain(SECRET_VALUE);
+    const calls: string[][] = [];
+    const record = deps();
+    const recordBase = record.deps.run!;
+    record.deps.run = (cmd, args) => {
+      calls.push([cmd, ...args]);
+      return recordBase(cmd, args);
+    };
+    main(ARGS, record.deps);
+    expect(calls.filter((c) => c[0] === 'gh' && c[1] === 'variable')).toEqual([
+      ['gh', 'variable', 'list', '--repo', GITHUB_REPO, '--json', 'name', '--jq', '.[].name'],
+    ]);
+  });
+
+  it('a gh that cannot list the variables counts as unmet, with no output of its own', () => {
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 1, stdout: SECRET_VALUE } : base(cmd, args));
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.join('\n');
+    expect(out).toMatch(/^unmet: could not list the GitHub variables \(run gh auth login, then try again\)$/m);
+    expect(out).not.toMatch(/variable missing in GitHub/);
     expect(out).not.toContain(SECRET_VALUE);
   });
 

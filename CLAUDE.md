@@ -51,7 +51,7 @@ Next code.
 | `npm run truth:audit` | The truth audit over a finished build (CI runs it on the build job). |
 | `npm run assert:no-kitchen-sink` | Fails if the build contains a kitchen-sink route. CI runs it after `npm run build`, and the deploy workflow after `vercel build`. |
 | `npm run experiment:check -- --url <origin>` | Prints the live experiment's state from `<origin>/experiment/data.json`. `--storage` (with the production variables in the environment) checks the read-only store token and the Edge Config connection, printing two status lines and never a value. |
-| `npm run launch:check -- --canonical <domain>` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks with `headers` on the canonical domain, secrets by name, the `prereg-v1` tag locally and on origin). Run `npm run build` first. See `docs/experiment/runbook.md`. |
+| `npm run launch:check -- --canonical <domain>` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks with `headers` on the canonical domain, secrets and the `LAUNCHED` and `LAUNCH_SHA` variables by name, the `prereg-v1` tag locally and on origin). Run `npm run build` first. See `docs/experiment/runbook.md`. |
 
 Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:meta`,
 `npm run lhci` and `npm run links`.

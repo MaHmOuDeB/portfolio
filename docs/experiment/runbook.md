@@ -182,6 +182,7 @@ launch conditions met" once none is left. It checks:
 - the deployed checks `split`, `isr`, `headers`, `firewall` and `domains` are recorded as `PASS`,
   and the `headers` row was run against the canonical domain;
 - the secrets of step 1 exist (it reads their names only);
+- the GitHub repository variables `LAUNCHED` and `LAUNCH_SHA` exist (it reads their names only);
 - the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
@@ -191,6 +192,24 @@ also prints an `unmet` line for each workflow that names them, and one while Git
 for the repository (or cannot be asked). Before the repository is made public, every job goes back
 to `runs-on: ubuntu-24.04` and both runners are deregistered and removed; a self-hosted runner must
 never run a public repository's pull requests.
+
+### The one commit production may deploy: `LAUNCH_SHA`
+
+Once `LAUNCHED` is `true`, the deploy workflow deploys production only for the commit named in the
+GitHub repository variable `LAUNCH_SHA`, written as the full 40-character commit SHA in lower case.
+Any other commit, an empty `LAUNCH_SHA` or a shortened one makes the deploy fail at its first step,
+before anything is built, so a CI run that was queued before launch, or a re-run of an older one,
+never reaches production. I set `LAUNCH_SHA` to the launch merge commit in the same sitting as
+`LAUNCHED`:
+
+```sh
+gh variable set LAUNCH_SHA --repo MaHmOuDeB/portfolio --body "<full merge commit SHA>"
+gh variable set LAUNCHED --repo MaHmOuDeB/portfolio --body true
+```
+
+After launch, every merge I approve needs `LAUNCH_SHA` updated to that merge's commit SHA first, or
+its Deploy fails by design and deploys nothing. Vercel's Instant Rollback and "Promote" do not go
+through this workflow, so the guard does not cover them (see step 11).
 
 The privacy page currently waits for one fact: whether the counter database keeps backups. To
 confirm it, open <https://console.upstash.com>, select the database, open **Backups**, and check
