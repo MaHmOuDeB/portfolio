@@ -67,7 +67,7 @@ test.describe('Returns-cleaning Figure', () => {
     await expect(figure(page).getByRole('heading', { level: 3 })).toHaveText(TITLE);
     await expect(result(page)).toContainText('grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010.');
     await expect(result(page)).toContainText('mostly one £77k order on 18 Jan 2011');
-    await expect(figure(page).getByText('Public data')).toBeVisible();
+    await expect(figure(page).getByText('Public data', { exact: true })).toBeVisible();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     const table = figure(page).locator('[data-nojs-only] table');
     await expect(table).toBeVisible();
@@ -86,8 +86,9 @@ test.describe('Returns-cleaning Figure', () => {
       if (loaded && request.resourceType() === 'script') scripts.push(request.url());
     });
     await page.goto(HOST);
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(500);
+    // Everything the page itself asks for has arrived (a loaded machine can deliver a page chunk
+    // after the load event); from here on, only the island's code may arrive, and only on intent.
+    await page.waitForLoadState('networkidle');
     loaded = true;
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
@@ -174,10 +175,14 @@ test.describe('Returns-cleaning Figure', () => {
     const before = await ticks();
     await figure(page).locator('label', { hasText: 'Counted as returns' }).click();
     await expect(raw(page)).toBeChecked();
-    const motion = await figure(page).evaluate((root) => ({
-      animations: root.getAnimations({ subtree: true }).length,
-      transitions: [...root.querySelectorAll('[data-mark]')].map((m) => getComputedStyle(m).transitionDuration),
-    }));
+    // The marks only: the kit's segment colours answering the click are not chart motion.
+    const motion = await figure(page).evaluate((root) => {
+      const marks = [...root.querySelectorAll('[data-mark]')];
+      return {
+        animations: marks.reduce((n, m) => n + m.getAnimations().length, 0),
+        transitions: marks.map((m) => getComputedStyle(m).transitionDuration),
+      };
+    });
     expect(motion.animations).toBe(0);
     expect(motion.transitions.every((d) => d.split(',').every((part) => part.trim() === '0s'))).toBe(true);
     expect(await ticks()).toEqual(before);
@@ -243,15 +248,24 @@ test.describe('Returns-cleaning Figure', () => {
     await figure(page).locator('label', { hasText: 'Counted as returns' }).click();
     const status = figure(page).getByRole('status');
     await expect(status).toHaveText(SENTENCE);
-    const focus = await page.evaluate(() => {
+    // Engines differ in what a click on a radio's label focuses. One that focuses the radio (Chromium)
+    // loses it with the hidden controls, so the fallback takes it. One that does not (WebKit) puts
+    // it where any click on that spot goes: the nearest focusable ancestor, here the page's <main>
+    // (tabindex -1, the skip link's target), outside the Figure. Either way it is never a control
+    // of the Figure, and never <body> unless it was there before.
+    const focus = await page.evaluate((id) => {
       const a = document.activeElement;
+      const figureRoot = document.getElementById(id)!;
+      const clickTarget = figureRoot.parentElement?.closest('[tabindex]') ?? null;
       return {
+        what: a === null ? 'null' : `${a.tagName.toLowerCase()}#${a.id}[role=${a.getAttribute('role')}]`,
         body: a === document.body,
-        status: a?.getAttribute('role') === 'status',
+        status: a?.getAttribute('role') === 'status' && figureRoot.contains(a),
+        clickTarget: a !== null && a === clickTarget && !figureRoot.contains(a),
         hidden: a instanceof HTMLElement && a !== document.body && !a.checkVisibility(),
       };
-    });
-    expect(focus.body || focus.status).toBe(true);
+    }, ID);
+    expect(focus.body || focus.status || focus.clickTarget, focus.what).toBe(true);
     expect(focus.hidden).toBe(false);
     await assertCurrentFallback(page);
     expect(errors).toEqual([]);
