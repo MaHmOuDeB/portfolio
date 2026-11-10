@@ -150,14 +150,14 @@ export function LiveNote({ model: m }: { model: HomeModel }): ReactNode {
       const restarts = a.restartsOn !== undefined && Date.parse(a.restartsOn) > Date.parse(m.readAt) ? a.restartsOn : null;
       return (
         <Exceptional>
-          Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}.
+          Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason.replace(/[.\s]+$/, '')}.
           {restarts !== null ? (
             <>
               {' Calibration restarts on '}
               <When iso={restarts} refs={refs} />.
             </>
           ) : null}
-          {m.split ? <SplitWarning split={m.split} refs={refs} lead="The split check failed on" /> : null}
+          {m.split ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
         </Exceptional>
       );
     }

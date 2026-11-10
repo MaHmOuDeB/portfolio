@@ -377,12 +377,19 @@ describe('LiveNote: the exact notes', () => {
     for (const f of [flags(), flags('2026-12-01T00:00:00+01:00')]) expect(everything(html(build(f)))).not.toMatch(/calibrating/i);
   });
 
+  it('does not double the full stop when the stored reason already ends in one', () => {
+    const f: ExperimentFlags = { ...NO_FLAGS, aaFailed: { on: '2026-11-06T09:00:00+01:00', reason: 'a script error dropped some views.' } };
+    const rows = [{ day: '2026-11-03', a: { entry: 30, inview: 20 }, b: { entry: 30, inview: 20 } }];
+    const text = sentence(html(toHomeModel(buildFixture({ config: FIXTURE_CALIBRATION, now: CAL_NOW, flags: f, rows }), 'a')));
+    expect(text).toBe('Calibration stopped on 06.11: a script error dropped some views.');
+  });
+
   it('keeps the split warning on a failed calibration (A/A plus SRM)', () => {
     const s = buildFixture({ config: FIXTURE_CALIBRATION, now: CAL_NOW, rows: [{ day: '2026-11-03', a: { entry: 120, inview: 50, engaged: 50 }, b: { entry: 60, inview: 50, engaged: 50 } }] });
     const m = toHomeModel(s, 'a');
     expect(m.mode).toBe('aa-failed');
     expect(sentence(html(m))).toBe(
-      'Calibration stopped on 03.11: the split check failed. The split check failed on 03.11, on entry views. Entry views at that check: 120 in group A and 60 in group B.',
+      'Calibration stopped on 03.11: the split check failed. It failed on 03.11, on entry views. Entry views at that check: 120 in group A and 60 in group B.',
     );
   });
 });

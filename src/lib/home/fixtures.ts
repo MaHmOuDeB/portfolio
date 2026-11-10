@@ -12,6 +12,9 @@ import type { CounterRows, GroupCounts } from '@/lib/experiment/store';
 import { berlinStartOfDay } from '@/lib/experiment/time';
 import type { HomeMode } from './model';
 
+// Same wording as the reader's stored-result check in live.ts, copied because that constant is not exported.
+const CLOSURE_CHECK_REASON = 'I stopped counting for this run and am checking the stored result before showing it';
+
 /** The calibration, started at the fixture start. */
 export const FIXTURE_CALIBRATION: ExperimentConfig = {
   ...EXPERIMENT,
@@ -76,7 +79,7 @@ function base(mode: HomeMode): ExperimentSnapshot {
       // A stored decision that the current analysis does not confirm: the reader's fallback.
       const day = '2026-12-02';
       const s = placeholder(FIXTURE_AB, AB_NOW, 'unreadable');
-      return { ...s, closed: { kind: 'decision', day }, closureMismatch: true, frozenAt: day, live: { ...s.live, freshness: { kind: 'paused', pausedOn: berlinStartOfDay(day), reason: UNAVAILABLE_REASON } } };
+      return { ...s, closed: { kind: 'decision', day }, closureMismatch: true, frozenAt: day, live: { ...s.live, freshness: { kind: 'paused', pausedOn: berlinStartOfDay(day), reason: CLOSURE_CHECK_REASON } } };
     }
     case 'settings-unreadable': {
       const s = buildFixture({ config: FIXTURE_CALIBRATION, now: CALIBRATION_NOW, rows: [{ day: '2026-11-03', a: group(60, 9), b: group(60, 10) }] });
