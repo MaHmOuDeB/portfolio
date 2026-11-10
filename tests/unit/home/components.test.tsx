@@ -26,7 +26,7 @@ const { Hero } = await import('@/components/home/Hero');
 const { Tools } = await import('@/components/home/Tools');
 
 const ARMS: readonly Arm[] = ['a', 'b'];
-const NBSP = ' ';
+const NBSP = '\u00a0';
 
 const audit = (html: string) =>
   auditHtml(html, { route: '/v/a', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] });

@@ -263,6 +263,28 @@ test.describe('Home planner', () => {
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
   });
 
+  test('the readout is the lead, and the empty body takes no space in the preview and the island', async ({ page }) => {
+    await withoutIdle(page);
+    await page.goto(HOST);
+    for (const phase of ['preview', 'island'] as const) {
+      if (phase === 'island') await ready(page);
+      const body = figure(page).locator('[data-figure-body]');
+      expect(await body.evaluate((el) => el.childNodes.length), phase).toBe(0);
+      await expect(body, phase).toHaveCSS('display', 'none');
+      await expect(figure(page).locator('[data-figure-lead] [data-planner-n]'), phase).toHaveText(PRESET_N);
+      // The space from the result line to the caption is the caption's own top margin only.
+      const gap = await figure(page).evaluate((root) => {
+        const caption = root.querySelector('figcaption')!;
+        const result = root.querySelector('[data-figure-result]')!;
+        return {
+          gap: caption.getBoundingClientRect().top - result.getBoundingClientRect().bottom,
+          margin: parseFloat(getComputedStyle(caption).marginTop),
+        };
+      });
+      expect(Math.abs(gap.gap - gap.margin), phase).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('axe finds no violations in the preview or the loaded island', async ({ page }) => {
     await withoutIdle(page);
     await page.goto(HOST);

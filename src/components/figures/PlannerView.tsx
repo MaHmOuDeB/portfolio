@@ -3,8 +3,10 @@
 // (the static HTML, also the no-JS view) and the island draws the live view with the same markup.
 // Every number is marked 'simulated'; the formula in <code> is a build constant.
 // The readout is the Figure's lead, above the controls, so a phone reader sees the number with the
-// title; the body draws nothing more. If the view throws, the fallback shows the preset readout
-// (`preview`: the island passes the server's, the server view its own).
+// title; the body draws nothing (an empty body takes no space, globals.css). With an empty body the
+// Figure's own error boundary wraps nothing: a throw in the island view is caught by LoadOnIntent's
+// guard, which brings back the server preview in its no-JS form. `preview` is used only by a forced
+// `error` runtime.
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
@@ -59,7 +61,7 @@ export type PlannerFigureViewProps = {
   controls?: ReactNode;
   announcement?: string;
   titleLevel?: 2 | 3 | 4;
-  /** The server's preset readout for the error fallback; the island passes it. */
+  /** The preset readout a forced `error` runtime shows; a real throw is caught by LoadOnIntent. */
   preview?: ReactNode;
 };
 

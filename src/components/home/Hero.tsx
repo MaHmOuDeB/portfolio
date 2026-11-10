@@ -10,7 +10,7 @@ import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 import { HeroSimulator } from './HeroSimulator';
 import { Parts } from './Parts';
 
-const NAME = SITE.name.replace('El Bergui', 'El Bergui');
+const NAME = SITE.name.replace('El Bergui', 'El\u00a0Bergui');
 
 export function Hero() {
   return (

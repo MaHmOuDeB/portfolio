@@ -127,10 +127,12 @@ test.describe('Home cards: equal geometry across forced groups', () => {
   test('@matrix every card, headline, description, link and the region match in both groups, in every font state', async ({ browser }, info) => {
     test.setTimeout(120_000);
     const viewport = info.project.use.viewport ?? { width: 1440, height: 900 };
-    const deviceScaleFactor = info.project.use.deviceScaleFactor;
+    // The project's own emulation: scale, and the phone projects' mobile viewport and touch.
+    const { deviceScaleFactor, isMobile, hasTouch, userAgent } = info.project.use;
+    const emulation = { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent };
     for (const font of FONT_STATES) {
-      const a = await open(browser, 'a', font, { viewport, deviceScaleFactor });
-      const b = await open(browser, 'b', font, { viewport, deviceScaleFactor });
+      const a = await open(browser, 'a', font, emulation);
+      const b = await open(browser, 'b', font, emulation);
       const label = `${viewport.width}x${viewport.height} ${font}`;
       expectSameGeometry(await geometry(a), await geometry(b), label);
       await expectCompleteHeadlines(a, `${label} group A`);
@@ -221,12 +223,20 @@ test.describe('Home cards: the region and its links', () => {
     });
   }
 
-  test('a card link is a real next/link: a click navigates on the same origin', async ({ page }) => {
+  test('a card link is a next/link: a click asks the client router (an RSC request) for the same-origin page', async ({ page }) => {
     await page.goto(host('b'));
+    await waitForIslands(page);
     const link = page.locator('[data-experiment-click="card"]').nth(1);
     await expect(link).toHaveAttribute('href', '/work/retention');
     const href = await link.evaluate((a) => (a as HTMLAnchorElement).href);
     expect(new URL(href).origin).toBe(new URL(page.url()).origin);
+    // A plain <a> would make a document request; next/link fetches the route's RSC payload first.
+    // The case-study page is a later page, so what comes back does not matter here.
+    const rsc = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === '/work/retention' && r.headers()['rsc'] === '1' && r.resourceType() !== 'document',
+    );
+    await link.click();
+    await rsc;
   });
 
   test('the cards stack below lg and sit in three columns with aligned links at lg', async ({ browser }) => {

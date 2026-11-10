@@ -185,6 +185,9 @@ test.describe('kitchen sink Figures', () => {
     await expect(status).toHaveText(STATIC_SENTENCE);
     await expect(figure(page, 'thrower').locator('[data-figure-fallback] table')).toBeVisible();
     await expect(figure(page, 'thrower').locator('[data-figure-preview] svg[data-chart-frame]:visible')).toHaveCount(1);
+    // A body holding a caught error's fallback is not empty, so the empty-body rule never hides it.
+    await expect(figure(page, 'thrower').locator('[data-figure-body]')).toBeVisible();
+    await expect(figure(page, 'thrower').locator('[data-figure-body]')).not.toHaveCSS('display', 'none');
     await expect(figure(page, 'thrower').getByRole('heading', { level: 4 })).toHaveText(
       'A rise of two points takes thousands of visitors per group to detect.',
     );
@@ -198,6 +201,32 @@ test.describe('kitchen sink Figures', () => {
     await expect(baseline(page, 'demo')).toHaveValue('0.11');
     await expect(figure(page, 'demo').getByRole('status')).toHaveCount(0);
     expect(errors).toEqual([]);
+  });
+
+  test('an empty Figure body takes no space; a forced error body shows its fallback, and no sink Figure body is empty', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const bodies = page.locator('[data-figure-body]');
+    const count = await bodies.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const body = bodies.nth(i);
+      // Every sink Figure draws something in its body, so the rule changes none of them.
+      expect(await body.evaluate((el) => el.childNodes.length), `body ${i}`).toBeGreaterThan(0);
+      expect(await body.evaluate((el) => getComputedStyle(el).display), `body ${i}`).not.toBe('none');
+    }
+    const forced = figure(page, 'static-error').locator('[data-figure-body]');
+    await expect(forced.locator('[data-figure-fallback]')).toBeVisible();
+    await expect(forced).not.toHaveCSS('display', 'none');
+    // An empty body, added to the page as a Figure whose readout is its lead would render it.
+    const box = await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.setAttribute('data-figure-body', '');
+      el.className = 'mt-4';
+      document.querySelector('[data-figure]')!.append(el);
+      const r = el.getBoundingClientRect();
+      return { display: getComputedStyle(el).display, height: r.height, width: r.width };
+    });
+    expect(box).toEqual({ display: 'none', height: 0, width: 0 });
   });
 
   test('a pointer failure with nothing focused leaves focus where it was', async ({ page }) => {

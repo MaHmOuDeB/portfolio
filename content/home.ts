@@ -63,7 +63,7 @@ export const HOME_CASES: readonly { study: Study; href: string; description: rea
     study: 'retention',
     href: HOME_LINKS.retention,
     description: [
-      'Two years of orders from a UK online gift retailer (public data, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
+      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
     ],
   },
   {

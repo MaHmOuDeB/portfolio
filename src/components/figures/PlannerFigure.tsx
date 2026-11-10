@@ -1,8 +1,8 @@
 // The Home sample-size planner as a page places it: the server draws the preset (the static HTML,
 // also what a visitor without JavaScript keeps, with the open table), and EagerOrIntent swaps in the
-// island on intent, or at once for a shared URL with planner keys. The island gets the server's
-// preset readout as its error preview, so a view that throws in the browser is never drawn again by
-// the fallback.
+// island on intent, or at once for a shared URL with planner keys. If the island throws in the
+// browser, LoadOnIntent's guard brings back this server preview in its no-JS form (the readout and
+// the open table); the island's `preview` serves only a forced `error` runtime.
 import { EagerOrIntent } from './EagerOrIntent';
 import { InertPlannerControls, PlannerIsland } from './PlannerFigureClient';
 import { PlannerFigureView, PlannerReadout } from './PlannerView';

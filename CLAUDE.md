@@ -174,7 +174,9 @@ a page needs the smallest possible bundle it can also import a component's file 
 - **Table fallback** on every chart Figure, readable without JavaScript.
 - **States.** Every Figure has a runtime state (`default`, `no-js`, `error`). A live Figure also
   has a phase, an amount of data and a freshness. The state matrix, with its order of precedence,
-  is `src/lib/figure/states.ts`, and the kitchen sink shows every state.
+  is `src/lib/figure/states.ts`, and the kitchen sink shows every state. An empty body (a Figure
+  whose readout is its lead) takes no space (`[data-figure-body]:empty` in `globals.css`); a body
+  holding an error fallback is never empty, so the fallback always shows.
 - **Presets are always meaningful.** The default view is a real case, never an empty one.
 - **Tabular figures are per element.** `tnum` also widens the hyphen, full stop, colon and space,
   so it is on exactly `[data-num]`, `data`, `time`, `output` and `input[type="number"]`
