@@ -15,9 +15,9 @@ const ID = 'cohorts';
 const TITLE = 'Repeat ordering varies by cohort and month';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const SEAM_FAILURE = 'The cohort chart failed after a change (test seam)';
-const JAN_RESULT = 'In the month after their first order, 21% of the Jan 2010 cohort (368 customers) ordered again; twelve months after it, 23%.';
-const MAR_RESULT = 'In the month after their first order, 19% of the Mar 2010 cohort (441 customers) ordered again; twelve months after it, 20%.';
-const FEB_RESULT = 'In the month after their first order, 24% of the Feb 2010 cohort (374 customers) ordered again; twelve months after it, 15%.';
+const JAN_RESULT = 'In the month after their first order, 21% of the Jan 2010 cohort (368 customers) ordered again; in the twelfth month after it, 23% did.';
+const MAR_RESULT = 'In the month after their first order, 19% of the Mar 2010 cohort (441 customers) ordered again; in the twelfth month after it, 20% did.';
+const FEB_RESULT = 'In the month after their first order, 24% of the Feb 2010 cohort (374 customers) ordered again; in the twelfth month after it, 15% did.';
 
 const figure = (page: Page, id = ID) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
@@ -350,11 +350,34 @@ test.describe('Cohort, RFM and model Figures together', () => {
     });
   }
 
-  test('wide: the RFM and model charts keep their labels apart and inside their Figures', async ({ page }) => {
-    for (const width of [600, 1024, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
+  test('wide: every chart keeps its labels apart and inside its Figure, and each heatmap value fits its cell', async ({ page }) => {
+    // 1024x576 is the 1280x720 screen at 125% zoom.
+    for (const [width, height] of [[600, 900], [1024, 900], [1440, 900], [1024, 576]] as const) {
+      await page.setViewportSize({ width, height });
       await page.goto(HOST);
-      for (const id of ['rfm', 'models']) await chartTextFits(page, id);
+      // The cohort island swaps in on intent or idle time; measure once it has, not mid-swap.
+      await ready(page);
+      for (const id of [ID, 'rfm', 'models']) await chartTextFits(page, id);
+      const heat = await heatmap(page).evaluate((root) => {
+        const box = (el: Element) => el.getBoundingClientRect();
+        const cells = [...root.querySelectorAll('rect[data-cell]')];
+        const outside = [...root.querySelectorAll('text[data-cell-label]')].flatMap((t) => {
+          const cell = root.querySelector(`rect[data-cell][data-cohort="${t.getAttribute('data-cohort')}"][data-month="${t.getAttribute('data-month')}"]`)!;
+          const [r, c] = [box(t), box(cell)];
+          return r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5
+            ? [`${t.getAttribute('data-cohort')} ${t.getAttribute('data-month')}`]
+            : [];
+        });
+        // the background clear covers every cell, so the frame's row gridlines never show through a value
+        const clear = box(root.querySelector('rect[data-plot-clear]')!);
+        const uncovered = cells.filter((c) => {
+          const r = box(c);
+          return r.left < clear.left - 0.5 || r.right > clear.right + 0.5 || r.top < clear.top - 0.5 || r.bottom > clear.bottom + 0.5;
+        }).length;
+        const clearFirst = (root.querySelector('rect[data-plot-clear]')!.compareDocumentPosition(cells[0]!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+        return { outside, uncovered, clearFirst, cells: cells.length };
+      });
+      expect(heat, `${width}x${height}`).toEqual({ outside: [], uncovered: 0, clearFirst: true, cells: 132 });
       // each bar label is one line, left of zero (a label split across the chart fails both)
       const misplaced = await figure(page, 'rfm').evaluate((root) => {
         const svg = [...root.querySelectorAll('svg[data-chart-frame]')].find((s) => s.getClientRects().length > 0)!;

@@ -1,4 +1,5 @@
-// The RFM Figure's plotting data and the Champions rule's constants. Server only (it reads facts
+// The RFM Figure's plotting data, and the constants of the source code that the Retention copy and
+// Figures print (the Champions rule, the label window, the interval level). Server only (it reads facts
 // through ./data). The export rounds the Champions customer share to three decimals, which would
 // print one point too high, so the plotted Champions share is the checked fact, as in rfmTable: the
 // bar, the readout and the table all say the same.
@@ -11,6 +12,14 @@ import { numericFact, type RfmSegment } from './data';
  */
 export const CHAMPIONS_MIN_SCORE = 4;
 export const TOP_SCORE = 5;
+
+/**
+ * sql/02_features.sql: the label window after a cutoff, in days; src/analysis.py: lapsed means no
+ * order in the window before it.
+ */
+export const WINDOW_DAYS = 90;
+/** src/analysis.py: the level of the paired bootstrap interval on the AUC gain. */
+export const INTERVAL_LEVEL = 0.95;
 
 export type RfmBar = {
   segment: string;

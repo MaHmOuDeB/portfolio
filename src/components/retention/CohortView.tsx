@@ -104,9 +104,10 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
     const y0 = ctx.yPx(index + 0.5);
     return (
       <>
-        {/* The frame draws a gridline per row across the whole plot; the room right of the last
-            month holds only the "Selected" label, so it is cleared to the background. */}
-        <rect data-label-room="" x={x(LATER_END)} width={MARK_UNITS - x(LATER_END)} y={0} height={ctx.height} fill="var(--color-bg)" />
+        {/* The frame draws a gridline per row across the whole plot, through the middle of each
+            row's printed values and through the "Selected" label's room. The cells are
+            translucent, so the whole plot is cleared to the background before they are drawn. */}
+        <rect data-plot-clear="" x={0} width={MARK_UNITS} y={0} height={ctx.height} fill="var(--color-bg)" />
         {cells}
         <rect
           data-mark=""
@@ -258,15 +259,15 @@ export function CohortResult({ row }: { row: Cohort }) {
     <>
       In the month after their first order, <Derived value={row.retention[1]!} unit="share" refs={COHORTS_REFS} /> of
       the <CohortName month={row.cohort_month} /> cohort (
-      <Derived value={row.cohort_size} unit="count" refs={COHORTS_REFS} /> customers) ordered again; twelve months after
-      it, <Derived value={row.retention[MONTHS.length]!} unit="share" refs={COHORTS_REFS} />.
+      <Derived value={row.cohort_size} unit="count" refs={COHORTS_REFS} /> customers) ordered again; in the twelfth month
+      after it, <Derived value={row.retention[MONTHS.length]!} unit="share" refs={COHORTS_REFS} /> did.
     </>
   );
 }
 
 /** The same sentence as plain text, for the announcement on a committed change. */
 export function cohortResultText(row: Cohort): string {
-  return `In the month after their first order, ${share(row.retention[1]!)} of the ${monthLabel(row.cohort_month)} cohort (${formatValue(row.cohort_size, 'count')} customers) ordered again; twelve months after it, ${share(row.retention[MONTHS.length]!)}.`;
+  return `In the month after their first order, ${share(row.retention[1]!)} of the ${monthLabel(row.cohort_month)} cohort (${formatValue(row.cohort_size, 'count')} customers) ordered again; in the twelfth month after it, ${share(row.retention[MONTHS.length]!)} did.`;
 }
 
 export type CohortFigureViewProps = {

@@ -187,6 +187,21 @@ describe('the cohort Figure', () => {
     );
   });
 
+  it('clears the whole plot to the background before the cells, so no row gridline crosses a printed value', () => {
+    const heat = mode(SERVER, 'heatmap').body;
+    const clear = tags(heat, /<rect[^>]*data-plot-clear=""[^>]*>/g);
+    expect(clear).toHaveLength(1);
+    expect(Number(attr(clear[0]!, 'x'))).toBe(0);
+    expect(Number(attr(clear[0]!, 'width'))).toBe(1000);
+    expect(Number(attr(clear[0]!, 'y'))).toBe(0);
+    expect(attr(clear[0]!, 'fill')).toBe('var(--color-bg)');
+    // inside the mark layer, after the frame's gridlines and before the first cell
+    const layer = heat.indexOf('data-mark-layer');
+    expect(heat.indexOf('data-plot-clear')).toBeGreaterThan(layer);
+    expect(heat.lastIndexOf('data-grid', layer)).toBeGreaterThan(-1);
+    expect(heat.indexOf('data-plot-clear')).toBeLessThan(heat.indexOf('data-cell=""'));
+  });
+
   it('outlines and labels the selected cohort row, January by default and March when March is chosen', () => {
     for (const [html, month] of [[SERVER, '2010-01'], [cohortView('2010-03'), '2010-03']] as const) {
       const heat = mode(html, 'heatmap').body;
@@ -232,10 +247,10 @@ describe('the cohort Figure', () => {
 
   it('the result line states the selected cohort’s own values, as source-derived numbers', () => {
     const jan = prose(result(SERVER));
-    expect(jan).toBe(`In the month after their first order, ${share(JAN.retention[1]!)} of the Jan 2010 cohort (${JAN.cohort_size} customers) ordered again; twelve months after it, ${share(JAN.retention[12]!)}.`);
+    expect(jan).toBe(`In the month after their first order, ${share(JAN.retention[1]!)} of the Jan 2010 cohort (${JAN.cohort_size} customers) ordered again; in the twelfth month after it, ${share(JAN.retention[12]!)} did.`);
     const mar = prose(result(cohortView('2010-03')));
     expect(mar).toContain(`${share(MAR.retention[1]!)} of the Mar 2010 cohort (${MAR.cohort_size} customers) ordered again`);
-    expect(mar).toContain(`twelve months after it, ${share(MAR.retention[12]!)}.`);
+    expect(mar).toContain(`in the twelfth month after it, ${share(MAR.retention[12]!)} did.`);
     expect(untracedData(SERVER)).toEqual([]);
     expect(result(SERVER)).toContain('data-derived="source:retention"');
   });

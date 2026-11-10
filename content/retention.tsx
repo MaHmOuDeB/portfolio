@@ -11,14 +11,12 @@ import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 import { getFact } from '@/lib/facts';
 import { RETAIL, RETENTION, numericFact, sourceRepo } from '@/lib/retention/data';
-// src/analysis.py rule_segment and quintile_score: Champions score 4 or 5 of 5 on R, F and M.
-import { CHAMPIONS_MIN_SCORE, TOP_SCORE } from '@/lib/retention/rfm';
+// Constants of the source code: the Champions scores, the label window and the interval level.
+import { CHAMPIONS_MIN_SCORE, INTERVAL_LEVEL, TOP_SCORE, WINDOW_DAYS } from '@/lib/retention/rfm';
 
 // Constants of the source code, printed through <Derived> because no export holds them as a value.
 /** sql/01_clean.sql in both repositories: an order reversed by a cancellation up to a day later. */
 const RULE_HOURS = 24;
-/** sql/02_features.sql: the label window after a cutoff; src/analysis.py: lapsed = no order in the window before it. */
-const WINDOW_DAYS = 90;
 /** src/analysis.py holdout_sample_sizes: a two-sided test at this significance level and power. */
 const ALPHA = 0.05;
 const POWER = 0.8;
@@ -215,7 +213,7 @@ export function RetentionChecks(): ReactNode {
       'interval',
       <>
         The gain in ROC AUC is <Fact id="retention.model.auc_gain" />, with a{' '}
-        <Derived value={0.95} unit="share" refs={['source:retention']} /> interval of{' '}
+        <Derived value={INTERVAL_LEVEL} unit="share" refs={['source:retention']} /> interval of{' '}
         <Fact id="retention.model.auc_gain_low" /> to <Fact id="retention.model.auc_gain_high" /> from a paired
         bootstrap over the test customers, so it covers test-sample variability only.
       </>,

@@ -118,7 +118,10 @@ export function cohortAxis(rows: readonly Cohort[]): { top: number; ticks: numbe
   return { top: tenths / 10, ticks: Array.from({ length: tenths + 1 }, (_, i) => i / 10) };
 }
 
-/** The darkest cell's opacity: dark enough to read the scale, light enough for ink text on it. */
+/**
+ * The darkest cell's opacity: dark enough to read the scale, light enough for ink text on it. Ink on
+ * the darkest possible cell is 6.2:1 (tokens.css: ink on series-1 at this opacity over bg).
+ */
 export const HEAT_MAX_OPACITY = 0.6;
 
 /** A cell's opacity: proportional to its share, on the axis top shared by every cohort. */

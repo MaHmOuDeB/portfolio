@@ -16,15 +16,12 @@ import { formatValue, type FactId } from '@/lib/facts';
 import { factText } from '@/lib/facts/text';
 import { pct } from '@/lib/figure/scales';
 import { RETENTION, figureProvenance, numericFact } from '@/lib/retention/data';
+import { INTERVAL_LEVEL, WINDOW_DAYS } from '@/lib/retention/rfm';
 import { modelsTable } from '@/lib/retention/tables';
 
 const ID = 'models';
 const TITLE = 'The model ranks repeat buyers only slightly better than recency';
 const REFS = ['source:retention'] as const;
-/** src/analysis.py: the label window after a cutoff, in days (a constant of the source code). */
-const WINDOW_DAYS = 90;
-/** src/analysis.py: the level of the paired bootstrap interval on the gain. */
-const INTERVAL_LEVEL = 0.95;
 
 /** The two methods compared, by their export names, with the fact that holds each AUC. */
 const COMPARED: readonly { model: string; fact: FactId }[] = [

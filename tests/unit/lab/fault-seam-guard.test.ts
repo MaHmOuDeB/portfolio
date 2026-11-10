@@ -1109,6 +1109,25 @@ const page = (body: string, imports = `import { XFigure } from '@/components/x/X
 });
 
 describe('fixtures that fail', () => {
+  it('a production page that sets the seam on the cohort view, an inner hop', () => {
+    const view = 'src/components/retention/CohortView.tsx';
+    const route = 'src/app/page.tsx';
+    const a = run({
+      [view]: `function SeamFailure(): never {
+  throw new Error('The cohort chart failed after a change (test seam)');
+}
+export function CohortFigureView({ changed, faultAfterChange }: { changed?: boolean; faultAfterChange?: true }) {
+  return <figure>{faultAfterChange && changed ? <SeamFailure /> : null}</figure>;
+}`,
+      [route]: `import { CohortFigureView } from '@/components/retention/CohortView';
+export default function Page() {
+  return <CohortFigureView changed faultAfterChange />;
+}`,
+    });
+    expect(a.affected).toContain(`${view}#CohortFigureView`);
+    expect(a.violations.map((v) => [v.file, v.line, v.rule])).toEqual([[route, 3, 'activation']]);
+  });
+
   it.each([
     ['a bare attribute', 'return <XFigure faultAfterChange />;'],
     ['explicit true', 'return <XFigure faultAfterChange={true} />;'],
