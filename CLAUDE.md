@@ -189,6 +189,15 @@ a page needs the smallest possible bundle it can also import a component's file 
   with a `bg` halo. No `<text>` inside an SVG that has a `viewBox`. At most two series; `series-2`
   only for the current estimate, and every `series-2` dot has a 2 px `bg` ring.
 
+### Composites
+
+Page-level parts built from the kit. They live outside the kit (`src/components/home`), and each is
+listed here once its file exists.
+
+| Export | File | Role |
+|---|---|---|
+| `LiveNote` | `src/components/home/LiveNote.tsx` | The Home note on the live test, from the server-only Home model (`src/lib/home/model.ts`): nothing before the start, the kit's `PhaseLabel` while the test runs, and a stated reason with a link to `/experiment` when it is stopped, unreadable or finished. Every count prints by the small-count rule (`src/lib/home/counts.ts`). |
+
 ## Golden-page rule
 
 The Retention page is the reference page. Later pages copy its structure. When a subagent builds a
