@@ -274,8 +274,9 @@ describe('Figure lead', () => {
     }[runtime];
     expect(outline(html)).toEqual(expected);
     // An empty lead is no lead.
-    expect(markup({ state: { runtime }, lead: undefined })).toBe(html);
     expect(markup({ state: { runtime }, lead: null })).toBe(html);
+    expect(markup({ state: { runtime }, lead: false })).toBe(html);
+    expect(markup({ state: { runtime }, lead: '' })).toBe(html);
   });
 
   it.each(['default', 'no-js'] as const)('in %s, the lead is one div between the title and the control row, and nothing else changes', (runtime) => {
