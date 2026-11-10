@@ -332,3 +332,32 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bash scripts/cv-pdf-gate.sh
+
+  build-isolation:
+    name: Build token isolation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # What `vercel pull --environment=production` leaves behind, made locally so no secret is
+      # needed: project settings for an offline `vercel build` and an env file holding both store
+      # tokens. The values are synthetic and the store URL is not set, so nothing is reached.
+      - name: Synthetic pulled environment
+        run: |
+          mkdir -p .vercel
+          printf '%s\n' '{"projectId":"prj_build_isolation","orgId":"team_build_isolation","settings":{"framework":"nextjs"}}' > .vercel/project.json
+          printf '%s\n' 'KV_REST_API_TOKEN="synthetic-write-token"' 'KV_REST_API_READ_ONLY_TOKEN="synthetic-read-token"' > .vercel/.env.production.local
+      # The deploy's own build wrapper, with the real Vercel CLI and Next build: it fails unless the
+      # write token is absent from every Node process of the build and the read-only token reached
+      # the Next build.
+      - name: Production build without the write token
+        env:
+          VERCEL_TELEMETRY_DISABLED: '1'
+        run: bash scripts/vercel-build-isolated.sh production
