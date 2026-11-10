@@ -16,9 +16,11 @@ export type DemoInteractiveProps = {
   preview: ReactNode;
   /** Sink only: from this baseline on, the chart throws (client-only code reached by interaction). */
   failAt?: number;
+  /** Sink only: the readout is the Figure's lead. */
+  lead?: boolean;
 };
 
-export default function DemoInteractive({ id, titleLevel, preview, failAt }: DemoInteractiveProps) {
+export default function DemoInteractive({ id, titleLevel, preview, failAt, lead }: DemoInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(id, SCHEMA, PRESETS);
   const [announcement, setAnnouncement] = useState('');
   const announce = (v: DemoValues) => setAnnouncement(resultSentence(demoModel(v)));
@@ -29,6 +31,7 @@ export default function DemoInteractive({ id, titleLevel, preview, failAt }: Dem
       values={values}
       preview={preview}
       breakChart={failAt !== undefined && values.baseline >= failAt}
+      lead={lead}
       announcement={announcement}
       controls={
         <DemoControls

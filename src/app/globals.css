@@ -139,9 +139,10 @@ html:not([data-js]) [data-js-only] {
 
 /*
  * A Figure whose boundary caught an error shows its fallback (preview, sentence, open table): its
- * controls, result line and own tables would act on a chart that is gone.
+ * lead, controls, result line and own tables would speak for a chart that is gone.
  */
-[data-figure]:has([data-figure-fallback]) :is([data-figure-controls], [data-figure-result], [data-figure-tables]) {
+[data-figure]:has([data-figure-fallback])
+  :is([data-figure-lead], [data-figure-controls], [data-figure-result], [data-figure-tables]) {
   display: none;
 }
 

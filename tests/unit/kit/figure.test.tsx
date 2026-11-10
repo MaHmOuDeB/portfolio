@@ -238,6 +238,78 @@ describe('Figure, chart kind', () => {
   });
 });
 
+describe('Figure lead', () => {
+  const LEAD = <p data-test-lead="">A fictional readout.</p>;
+  const LEAD_HTML = '<div data-figure-lead="" class="mt-4"><p data-test-lead="">A fictional readout.</p></div>';
+  const RESULT = <span>A fictional result.</span>;
+  const markup = (overrides: ChartOverrides = {}) =>
+    renderToStaticMarkup(
+      <Figure
+        id="demo"
+        title="Smaller rises need many more visitors."
+        caption="A fictional caption."
+        provenance="simulated"
+        table={TABLE}
+        controls={<button type="button">Fictional control</button>}
+        result={RESULT}
+        {...overrides}
+      >
+        {CHART}
+      </Figure>,
+    );
+  /** The figure's element children, each named by its tag and its data-figure-* marker. */
+  const outline = (html: string) =>
+    (figureOf(parse(html)).childNodes ?? [])
+      .filter((n) => n.nodeName !== '#text')
+      .map((n) => [n.nodeName, ...(n.attrs ?? []).filter((a) => a.name.startsWith('data-figure-')).map((a) => a.name)].join(' '));
+  const RUNTIMES = ['default', 'no-js', 'error'] as const;
+
+  it.each(RUNTIMES)('without a lead, %s draws no lead and no extra wrapper', (runtime) => {
+    const html = markup({ state: { runtime } });
+    expect(html).not.toContain('data-figure-lead');
+    const expected = {
+      default: ['h3', 'div data-figure-controls', 'p data-figure-result', 'p data-figure-announcement', 'div data-figure-body', 'figcaption'],
+      'no-js': ['h3', 'p data-figure-result', 'div data-figure-body', 'figcaption'],
+      error: ['h3', 'div data-figure-body', 'figcaption'],
+    }[runtime];
+    expect(outline(html)).toEqual(expected);
+    // An empty lead is no lead.
+    expect(markup({ state: { runtime }, lead: undefined })).toBe(html);
+    expect(markup({ state: { runtime }, lead: null })).toBe(html);
+  });
+
+  it.each(['default', 'no-js'] as const)('in %s, the lead is one div between the title and the control row, and nothing else changes', (runtime) => {
+    const without = markup({ state: { runtime } });
+    const html = markup({ state: { runtime }, lead: LEAD });
+    // The only bytes the prop adds are its own wrapper, right after the title.
+    expect(html.replace(LEAD_HTML, '')).toBe(without);
+    expect(html).toContain(`</h3>${LEAD_HTML}`);
+    const kids = outline(html);
+    expect(kids.slice(0, 2)).toEqual(['h3', 'div data-figure-lead']);
+    if (runtime === 'default') expect(kids[2]).toBe('div data-figure-controls');
+    else expect(kids[2]).toBe('p data-figure-result');
+    expect(withAttr(parse(html), 'data-test-lead')).toHaveLength(1);
+  });
+
+  it('is not drawn beside a forced error fallback, like the result line', () => {
+    const without = markup({ state: { runtime: 'error' } });
+    const html = markup({ state: { runtime: 'error' }, lead: LEAD });
+    expect(html).toBe(without);
+    expect(html).not.toContain('data-figure-lead');
+    expect(html).not.toContain('A fictional readout.');
+  });
+
+  it('is a chart-kind prop only: a diagram does not take it', () => {
+    const html = renderToStaticMarkup(
+      // @ts-expect-error a diagram has no lead
+      <Figure id="flow" kind="diagram" title="Each step hands its work to the next." caption="A fictional diagram." lead={LEAD}>
+        <svg />
+      </Figure>,
+    );
+    expect(html).not.toContain('data-figure-lead');
+  });
+});
+
 describe('Figure, diagram kind', () => {
   it('has a title, the drawing and a caption, and no badge, table or controls', () => {
     const root = diagram();
