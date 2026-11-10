@@ -2,6 +2,9 @@
 // group needs to detect the chosen rise. Shared and hook-free: the server draws the preset with it
 // (the static HTML, also the no-JS view) and the island draws the live view with the same markup.
 // Every number is marked 'simulated'; the formula in <code> is a build constant.
+// The readout is the Figure's lead, above the controls, so a phone reader sees the number with the
+// title; the body draws nothing more. If the view throws, the fallback shows the preset readout
+// (`preview`: the island passes the server's, the server view its own).
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
@@ -70,8 +73,9 @@ export function PlannerFigureView({ id, values, controls, announcement, titleLev
       titleLevel={titleLevel}
       provenance="simulated"
       table={plannerTable(v)}
+      lead={<PlannerReadout values={v} />}
       controls={controls}
-      preview={preview}
+      preview={preview ?? <PlannerReadout values={v} presetNote />}
       announcement={announcement}
       result={
         <>
@@ -96,7 +100,7 @@ export function PlannerFigureView({ id, values, controls, announcement, titleLev
         </>
       }
     >
-      <PlannerReadout values={v} />
+      {null}
     </Figure>
   );
 }

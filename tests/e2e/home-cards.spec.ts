@@ -274,7 +274,7 @@ test.describe('Home hero', () => {
       await expect(hero.locator('h1')).toHaveCSS('font-size', '44px');
       await expect(hero.locator('[data-hero-role]')).toHaveCSS('font-size', '20px');
       const title = hero.locator('figure[data-figure="hero-planner"] h2');
-      const readout = hero.locator('figure[data-figure="hero-planner"] [data-figure-body] [data-planner-n]');
+      const readout = hero.locator('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]');
       for (const el of [title, readout]) {
         await expect(el).toBeVisible();
         const box = (await el.boundingBox())!;

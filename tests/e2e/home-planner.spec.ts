@@ -16,7 +16,7 @@ const figure = (page: Page) => page.locator(`figure[data-figure="${ID}"]`);
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
 const baseline = (page: Page) => figure(page).getByRole('slider', { name: 'Baseline conversion' });
 const rise = (page: Page) => figure(page).getByRole('slider', { name: 'Rise in points' });
-const readout = (page: Page) => figure(page).locator('[data-figure-body] [data-planner-n]');
+const readout = (page: Page) => figure(page).locator('[data-figure-lead] [data-planner-n]');
 const live = (page: Page) => figure(page).locator('[data-figure-announcement]');
 const query = (page: Page) => new URL(page.url()).searchParams;
 
@@ -175,7 +175,7 @@ test.describe('Home planner', () => {
       root.addEventListener('input', () => {
         inputAt = performance.now();
       }, true);
-      const n = root.querySelector('[data-figure-body] [data-planner-n]')!;
+      const n = root.querySelector('[data-figure-lead] [data-planner-n]')!;
       new MutationObserver(() => {
         if (inputAt !== null) {
           w.lat.push(performance.now() - inputAt);
