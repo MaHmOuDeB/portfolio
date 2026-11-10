@@ -167,6 +167,79 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /*
+ * The Home scroll moment (components/home/ScrollMoment.tsx). The server sends both layouts and these
+ * rules pick one before the first paint, from the JavaScript flag, the reduced-motion setting and the
+ * screen size; nothing is swapped when the page hydrates. The inactive layout's parts are
+ * display: none, so each layout has one drawn chart and one table.
+ * - Stacked still frames by default: without JavaScript, with reduced motion, on short screens, and
+ *   whenever the moment has no kit chart (data-scroll-moment="stacked" has no stage at all).
+ * - Sticky from 1024 px (64rem) wide on a screen at least 520 px (32.5rem) tall: two columns, the
+ *   steps beside the stage (the chart's canvas and the step navigation).
+ * - Sticky below 1024 px on a screen at least 600 px (37.5rem) tall: one column, the stage above the
+ *   steps. The canvas holds the chart's box at --chart-h-phone (40svh) from the first paint, so the
+ *   Now row and the step navigation under it never move; HomeChart sizes its plot from the same
+ *   height and is hidden until it has measured it.
+ * - The stage sits under the header where the header is sticky (the condition in @layer base above).
+ */
+[data-scroll-stage] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) and (width >= 64rem) and (height >= 32.5rem),
+  (prefers-reduced-motion: no-preference) and (width < 64rem) and (height >= 37.5rem) {
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-chart);
+  }
+
+  html[data-js] [data-scroll-moment="sticky"] [data-stacked-frame] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (width < 64rem) and (height >= 37.5rem) {
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
+    margin-bottom: calc(var(--spacing) * 6);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-canvas] :is([data-home-chart-sizer], [data-chart]) {
+    height: var(--chart-h-phone);
+  }
+
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-canvas] [data-home-chart]:not([data-measured]) [data-chart] {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (width >= 64rem) and (height >= 32.5rem) {
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-shell] {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    column-gap: calc(var(--spacing) * 14);
+  }
+
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-steps] {
+    grid-row: 1;
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (width >= 48rem) and (height >= 43.75rem) {
+  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
+    top: var(--header-h);
+  }
+}
+
+/*
  * Forced colours (Windows high contrast). Unlayered, so the bg utilities cannot undo them. The
  * selected segment's ink fill is dropped there, so a Highlight border names it; the slider keeps a
  * visible thumb and a Highlight active track.
