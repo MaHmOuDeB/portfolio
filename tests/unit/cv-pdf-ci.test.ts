@@ -61,19 +61,24 @@ describe('the CI workflow', () => {
 
   it('installs python3 and poppler-utils with apt-get and prints their versions before the unit tests', () => {
     const list = steps(all.get('static')!);
-    const install = indexOf(list, /apt-get install -y[^\n]*\bpython3\b[^\n]*\bpoppler-utils\b/);
+    const install = indexOf(list, /apt-get[^\n]* install -y[^\n]*\bpython3\b[^\n]*\bpoppler-utils\b/);
     const tests = indexOf(list, /^ {6}- run: npm run test:cov$/m);
     expect(install).toBeGreaterThan(-1);
     expect(tests).toBeGreaterThan(install);
-    expect(list[install]).toMatch(/sudo apt-get update/);
+    expect(list[install]).toMatch(/^ {10}sudo apt-get -o Acquire::Retries=3 update$/m);
+    expect(list[install]).toMatch(/sudo apt-get -o Acquire::Retries=3 install -y/);
+    // One apt-get update in the job: the Redis client comes from the same install.
+    expect(list.join('').match(/^ +(?:sudo )?apt-get[^\n]*\bupdate\b/gm)).toHaveLength(1);
+    expect(list[install]).toMatch(/install -y[^\n]*\bredis-tools\b/);
+    expect(indexOf(list, /name: Redis conformance/)).toBeGreaterThan(install);
     expect(list[install]).toMatch(/^ {10}python3 --version$/m);
     expect(list[install]).toMatch(/^ {10}pdftotext -v$/m);
   });
 
   it('extracts and checks the synthetic PDF on the runner before the unit tests', () => {
     const list = steps(all.get('static')!);
-    const proof = indexOf(list, /python3 scripts\/pdf-extraction-proof\.py tests\/fixtures\/pdf\/synthetic\.pdf "Synthetic PDF extraction proof"/);
-    const install = indexOf(list, /apt-get install -y[^\n]*\bpoppler-utils\b/);
+    const proof = indexOf(list, /python3 -I scripts\/pdf-extraction-proof\.py tests\/fixtures\/pdf\/synthetic\.pdf "Synthetic PDF extraction proof"/);
+    const install = indexOf(list, /apt-get[^\n]* install -y[^\n]*\bpoppler-utils\b/);
     expect(proof).toBeGreaterThan(install);
     expect(indexOf(list, /^ {6}- run: npm run test:cov$/m)).toBeGreaterThan(proof);
   });
@@ -278,10 +283,14 @@ describe('the reserved actual-PDF step (checker-only mode)', () => {
     }
   });
 
-  it('fails outside a git checkout', () => {
+  it('fails outside a git checkout, before writing anything', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cv-pdf-gate-'));
     try {
-      expect(gate(dir).status).not.toBe(0);
+      const r = gate(dir);
+      expect(r.status).not.toBe(0);
+      expect(r.stderr).toMatch(/not a git repository/i);
+      expect(r.summary).not.toContain('HEAD');
+      expect(r.stdout).toBe('');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
