@@ -221,11 +221,36 @@ exists.
 | `CohortFigure` | `src/components/retention/CohortFigure.tsx` | The cohort Figure (`cohorts`): the share of each Jan to Nov 2010 cohort who ordered again in each of the twelve months after their first order (month zero, the first order, is in the table only). From 600 px up a heatmap of every cohort (one sequential hue with each value printed, the chosen row outlined and labelled); below it the chosen cohort as a line on an axis every cohort shares. Cell values are printed on their cells: the one stated exception to labels-off-marks, ink at least 6.2:1 on the darkest possible cell. Both charts are drawn and CSS shows one with `display: none`. The picker is the kit's StepNav (Previous and Next through the cohorts) with Reset. The server draws the preset and the open table; the island (`CohortFigureClient.tsx`, `CohortInteractive.tsx`, view `CohortView.tsx`) gets only the cohort rows and the badge (`src/lib/retention/cohorts.ts`). Its `faultAfterChange` prop is a test seam that only a dev host may set. |
 | `RfmFigure` | `src/components/retention/RfmFigure.tsx` | The RFM Figure (`rfm`, static): share of customers (outlined) and share of spend (filled) per segment on one axis from none to all, each bar labelled with its series and value, segment names on their own line. The Champions customer share is the checked fact, not the export's rounded value (`src/lib/retention/rfm.ts`, which also holds the Champions scores). |
 | `ModelFigure` | `src/components/retention/ModelFigure.tsx` | The model Figure (`models`, static): the recency rule and gradient boosting as dots at their ROC AUC on a track from chance to perfect, with no interval on either AUC; the gain and its interval are facts in the result line. The table adds logistic regression and the lapsed-only scores. |
+| `RetentionPage`, `RETENTION_SECTIONS` | `src/components/retention/RetentionPage.tsx` | The Retention case study, the golden page (below): the analysis template's sections in order, each a `<section>` with an id and its own h2, the four Figures above and the two open sizing tables with their badges. Its prose comes from `content/retention.tsx`. Optional `planner` places a planner Figure in the win-back section; without one the section shows the sourced sizing, its table and a link to the Lab. Mounted by `src/app/work/retention/page.tsx` and by its dev host. |
 
 ## Golden-page rule
 
-The Retention page is the reference page. Later pages copy its structure. When a subagent builds a
+The Retention page is the reference page: `RetentionPage` in
+`src/components/retention/RetentionPage.tsx`, mounted by `src/app/work/retention/page.tsx`, with
+its prose in `content/retention.tsx`. Later pages copy its structure. When a subagent builds a
 page, give it the primitives catalogue above and the golden page.
+
+- **Outline.** One h1 (the page title) with a one-line intro under it, then a Summary box (question,
+  my role, method, result, what I would recommend, next step), then the section links
+  (`<nav aria-label="On this page">`), then one `<section id>` per part: problem, data, method, one
+  section per analysis step with its Figure, findings, "How I checked this", limits, sources and
+  links. Each section is labelled by its own h2 (`aria-labelledby` the h2's `<id>-title`); Figure
+  and table titles are h3. Anchor ids are descriptive (`returns-cleaning`, not `s4`) and never equal
+  a Figure id; the link labels are short ("Cleaning").
+- **Width.** Prose in the readable column (`max-w-text`); Figures and tables run to `max-w-figure`.
+  Sections are spaced (`mt-12 md:mt-section`), not boxed: no card grid and no motion of the page's
+  own.
+- **Period and denominator.** Every rate says over which months and of whom ("January to November
+  2011 against the same months of 2010", "of lapsed customers", "of customers at the cutoff").
+- **Provenance and tables.** Every chart is a Figure with its badge and table; a table shown without
+  a chart has its own h3, an open `DataTable` and a `ProvenanceBadge`.
+- **URL state.** Interactive Figures keep their setting under their own `?<figureId>.<param>` keys,
+  so a link opens the same view; the page itself reads no query.
+- **Limits.** At least two concrete limits in their own section, each about this data (what it
+  cannot show, what an interval does not cover), never a generic disclaimer.
+- **Links.** Every link on the page is a 44 px target (`TextLink` with `standalone`), sources link
+  their pinned commits, never a moving branch, and "How I checked this" quotes the code it relies on
+  exactly, from the pinned commit.
 
 ## Design guardrails
 

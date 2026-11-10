@@ -1,0 +1,189 @@
+import { expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { auditHtml } from '../../scripts/truth-audit.ts';
+import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
+import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
+
+// The Retention case study at /work/retention, the reference page later pages copy, and its dev
+// host /kitchen-sink/retention, which mounts the same composition. The page is static: prose,
+// four public-data Figures (each loads its island on intent, or at once for its own URL keys), two
+// open tables and a list of links. Nothing on it comes from the live experiment.
+
+const ROUTE = '/work/retention';
+const HOST = '/kitchen-sink/retention';
+const TITLE = 'Customer retention and reactivation analysis';
+const SECTIONS = [
+  ['summary', 'Summary'],
+  ['problem', 'The problem'],
+  ['data', 'The data'],
+  ['method', 'Method'],
+  ['returns-cleaning', 'Cleaning: reversed orders and returns'],
+  ['cohort-retention', 'Cohorts: who orders again, month by month'],
+  ['customer-segments', 'Customer segments'],
+  ['repeat-order-model', 'A model of who orders again'],
+  ['win-back-sizing', 'Sizing a win-back test'],
+  ['findings', 'Findings'],
+  ['how-i-checked-this', 'How I checked this'],
+  ['limits', 'Limits'],
+  ['sources', 'Sources and links'],
+] as const;
+const LINKS = ['Problem', 'Data', 'Method', 'Cleaning', 'Cohorts', 'Segments', 'Model', 'Win-back sizing', 'Findings', 'How I checked this', 'Limits', 'Sources'];
+const FIGURES = ['returns', 'cohorts', 'rfm', 'models'];
+
+const sectionLinks = (page: Page) => page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
+
+/** What a page is made of: its sections with their headings, its Figures and its tables, in order. */
+function composition(page: Page) {
+  return page.evaluate(() => ({
+    h1: [...document.querySelectorAll('main h1')].map((h) => h.textContent?.trim()),
+    sections: [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
+    headings: [...document.querySelectorAll('main h2, main h3')].map((h) => `${h.tagName} ${h.textContent?.trim()}`),
+    figures: [...document.querySelectorAll('main figure[data-figure]')].map((f) => [f.closest('section[id]')?.id, f.getAttribute('data-figure')]),
+    tables: [...document.querySelectorAll('main table caption')].map((c) => c.textContent?.trim()),
+    links: [...document.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href')),
+  }));
+}
+
+test.describe('the Retention page', () => {
+  test('outline: one h1, the sections in template order, landmarks once each, no skipped heading level', async ({ page }) => {
+    const response = await page.goto(ROUTE);
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveTitle(TITLE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+    const { sections, headings } = await composition(page);
+    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    for (const [id, title] of SECTIONS) {
+      await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
+    }
+    // h1, then h2 sections; an h3 (a Figure or a table title) only ever follows an h2 or another h3
+    expect(headings[0]).toMatch(/^H2 /);
+    // the figures sit in their analysis sections
+    expect((await composition(page)).figures).toEqual([
+      ['returns-cleaning', 'returns'],
+      ['cohort-retention', 'cohorts'],
+      ['customer-segments', 'rfm'],
+      ['repeat-order-model', 'models'],
+    ]);
+  });
+
+  test('the dev host mounts the same composition as the route', async ({ page }) => {
+    await page.goto(ROUTE);
+    const route = await composition(page);
+    await page.goto(HOST);
+    const host = await composition(page);
+    expect(host).toEqual(route);
+    expect(route.figures.map(([, id]) => id)).toEqual(FIGURES);
+  });
+
+  test('section links: in page order, every target exists, and a link lands its heading below the header', async ({ page }) => {
+    await page.goto(ROUTE);
+    await expect(sectionLinks(page)).toHaveText(LINKS);
+    const hrefs = await sectionLinks(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+    expect(hrefs).toEqual(SECTIONS.slice(1).map(([id]) => `#${id}`));
+    for (const href of hrefs) await expect(page.locator(href!)).toHaveCount(1);
+
+    await sectionLinks(page).filter({ hasText: 'Cleaning' }).click();
+    await expect(page).toHaveURL(/#returns-cleaning$/);
+    const heading = page.locator('#returns-cleaning-title');
+    await expect(heading).toBeInViewport();
+    const covered = await heading.evaluate((h) => {
+      const header = document.querySelector('[data-site-header]')!;
+      const r = h.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + 4, r.top + r.height / 2);
+      return hit !== null && header.contains(hit);
+    });
+    expect(covered, 'the heading is not under the sticky header').toBe(false);
+  });
+
+  test('keyboard: the section links are reached in order and Enter follows one', async ({ page, browserName }) => {
+    // WebKit on macOS moves focus to links only with Alt+Tab (as in a11y.spec.ts).
+    const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
+    await page.goto(ROUTE);
+    // Settle the page first, so no island swap overlaps the fragment scroll being measured.
+    await waitForIslands(page);
+    await sectionLinks(page).first().focus();
+    for (const label of LINKS.slice(1)) {
+      await page.keyboard.press(key);
+      await expect(page.locator(':focus')).toHaveText(label);
+    }
+    await sectionLinks(page).filter({ hasText: 'Limits' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#limits$/);
+    await expect(page.locator('#limits-title')).toBeInViewport();
+  });
+
+  test('axe finds nothing, with every island loaded', async ({ page }) => {
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    await page.evaluate(() => document.fonts.ready);
+    await expectNoA11yViolations(page);
+  });
+
+  test('the served and the hydrated page pass the truth audit and never say a forbidden phrase', async ({ page, request }) => {
+    const ctx = { route: ROUTE, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
+    const served = await (await request.get(ROUTE)).text();
+    expect(auditHtml(served, ctx)).toEqual([]);
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    expect(auditHtml(await page.content(), ctx)).toEqual([]);
+
+    const visible = await page.locator('body').innerText();
+    const names = await page.evaluate(() =>
+      [...document.querySelectorAll('[aria-label], [aria-description], [title], img[alt]')]
+        .map((el) => [el.getAttribute('aria-label'), el.getAttribute('aria-description'), el.getAttribute('title'), el.getAttribute('alt')].filter(Boolean).join(' '))
+        .join(' '),
+    );
+    for (const pattern of [/we decided/i, /the business/i, /rolled out/i, /launched/i, /customers responded/i, /\bsaved\b|revenue caused/i, /Pulse|Weather|Audible/, /paused|A\/A|calibration run/i]) {
+      expect(visible, String(pattern)).not.toMatch(pattern);
+      expect(names, String(pattern)).not.toMatch(pattern);
+    }
+    expect(visible).toContain('public dataset, rebuilt in 2026');
+    expect(visible).toContain('I sized a possible holdout test; nobody was contacted and no test was run.');
+    // no raw Home model in the page or its payload
+    expect(served).not.toMatch(/splitStatus|testNote/);
+  });
+
+  test('nothing of the live experiment: no beacon, no live note, no request to the experiment endpoints', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (r) => requests.push(new URL(r.url()).pathname));
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    await expect(page.locator('[data-experiment], [data-phase]')).toHaveCount(0);
+    expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment'))).toEqual([]);
+  });
+
+  test('without JavaScript: every section, every Figure with its open table, and both sizing tables', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(ROUTE);
+    for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    for (const id of FIGURES) {
+      const f = page.locator(`figure[data-figure="${id}"]`);
+      await expect(f.locator('[data-nojs-only] table')).toBeVisible();
+      await expect(f.locator('details')).toBeHidden();
+    }
+    for (const id of ['holdout-sizes', 'lapsed-targeting']) await expect(page.locator(`[aria-labelledby="${id}-caption"] table`)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'The reversal rule in SQL' })).toBeVisible();
+    await context.close();
+  });
+
+  test('print: every section heading, the SQL and the sizing tables print, and nothing overflows the page', async ({ page }) => {
+    await page.goto(ROUTE);
+    await page.emulateMedia({ media: 'print' });
+    for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    for (const id of ['holdout-sizes', 'lapsed-targeting']) await expect(page.locator(`[aria-labelledby="${id}-caption"] table`)).toBeVisible();
+    await expect(page.getByRole('region', { name: 'The reversal rule in SQL' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
+  test('reflow at 320 px: the document never scrolls sideways; the SQL scrolls inside its own region', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    const sql = page.getByRole('region', { name: 'The reversal rule in SQL' });
+    await expect(sql).toHaveAttribute('tabindex', '0');
+    expect(await sql.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  });
+});

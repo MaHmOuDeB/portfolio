@@ -37,3 +37,10 @@ test('the home page is the per-group page, and no other page sits at /', () => {
   expect(routes).toContain('/v/[arm]');
   expect(routes).not.toContain('/');
 });
+
+test('the Retention case study ships at /work/retention, before any /work or /lab index page', () => {
+  expect(LIVE_ROUTES).toContain('/work/retention');
+  // A link to a later page stays unprefetched until that page exists.
+  expect(LIVE_ROUTES).not.toContain('/work');
+  expect(LIVE_ROUTES).not.toContain('/lab');
+});
