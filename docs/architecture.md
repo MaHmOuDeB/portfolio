@@ -52,12 +52,13 @@ flowchart TD
 
 | Job | Checks |
 |---|---|
-| `static` | Types, ESLint, Stylelint and unit tests with statistics coverage. |
+| `static` | Types, ESLint, Stylelint, the PDF tools (python3 and pdftotext, proven on a synthetic PDF) and unit tests with statistics coverage. |
 | `stats-ref` | Regenerates scipy and statsmodels references and compares them numerically with committed values. |
 | `sources-remote` | Verifies pinned source exports against GitHub. |
 | `build` | Production build, absence of development showcase routes, design lint and truth audit. |
 | `e2e` | Playwright in its pinned container, including visual checks and controlled baseline updates. |
 | `lhci` | Lighthouse against the production build. |
 | `links` | Lychee against the locally served build. |
+| `cv-pdf` | Records the checked-out commit, its tree and the hashes of the CV checker, its claim manifest and the CV PDF; passes while no PDF is in the tree, and fails on a PDF until its check is active. |
 
 [The deployment workflow](../.github/workflows/deploy.yml) follows successful CI pushes to main from this repository. It checks out the tested commit, gathers test reports into [build metadata](../scripts/build-meta.ts), builds with the Vercel environment, checks that showcase routes are absent and deploys prebuilt output. The launch setting selects preview or production; before launch, additional gates check that Vercel can create a preview and verify the resulting target. The [deployed checks guide](experiment/deployed-checks.md) describes the separate preview and launch verification.

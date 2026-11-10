@@ -1,2 +1,4 @@
 data/sources/*.json -text
 src/lib/facts/facts.generated.ts text eol=lf
+# Exact xref byte offsets and required trailing spaces: never convert line endings.
+tests/fixtures/pdf/*.pdf binary
