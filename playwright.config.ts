@@ -19,6 +19,19 @@ const STORE_ENV = {
   EXPERIMENT_CLOCK_OFFSET_MS: String(e2eClockOffsetMs()),
 };
 
+// Desktop Firefox exists only on demand (PLAYWRIGHT_FIREFOX=1), so the default and CI runs keep
+// their projects. It runs every test except the visual baselines, like WebKit.
+const FIREFOX_PROJECTS =
+  process.env.PLAYWRIGHT_FIREFOX === '1'
+    ? [
+        {
+          name: 'desktop-firefox',
+          grepInvert: /@visual/,
+          use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } },
+        },
+      ]
+    : [];
+
 export default defineConfig({
   testDir: 'tests/e2e',
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
@@ -110,5 +123,6 @@ export default defineConfig({
       grepInvert: /@visual/,
       use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } },
     },
+    ...FIREFOX_PROJECTS,
   ],
 });
