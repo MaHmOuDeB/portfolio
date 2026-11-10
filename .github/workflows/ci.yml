@@ -129,7 +129,9 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    # The suite takes 37 to 49 minutes on a hosted runner (and longer while several PRs run at once);
+    # at 50 it was cancelled mid-run. 90 leaves room for growth without hiding a hung run for long.
+    timeout-minutes: 90
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
