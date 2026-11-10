@@ -1,6 +1,7 @@
 // The table fallback for every chart. Server-rendered, so the numbers are readable without
 // JavaScript, by assistive technology and in print. Every cell carries data-derived with the refs
 // the caller names, so the truth audit knows where the numbers come from. Server-safe, no hooks.
+import { formatValue } from '@/lib/facts/format';
 import { formatNumber, formatSignedNumber, formatSignedPoints } from '@/lib/figure/format';
 import { derivedAttr, type DerivedRef } from './Derived';
 
@@ -10,10 +11,11 @@ import { derivedAttr, type DerivedRef } from './Derived';
  * - `count`: whole numbers.
  * - `points`: one decimal at most, no sign.
  * - `signedPoints`: one decimal at most with "+" or U+2212, and a bare "0" for zero.
+ * - `share`: a raw fraction written as a whole percent by the facts formatter (0.2345 is "23%").
  * A table with `rowDigits` prints the `points` and `signedPoints` cells of row r with exactly that
  * many decimals instead, so a row can follow the digits rule of the interval it belongs to.
  */
-export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints';
+export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints' | 'share';
 
 function formatCell(v: number, format: ColumnFormat, digits?: number): string {
   if (digits !== undefined && (format === 'points' || format === 'signedPoints')) {
@@ -26,6 +28,8 @@ function formatCell(v: number, format: ColumnFormat, digits?: number): string {
       return formatNumber(v, 1);
     case 'signedPoints':
       return formatSignedNumber(v, 1);
+    case 'share':
+      return formatValue(v, 'share', { decimals: 0 });
     default:
       return formatNumber(v);
   }
