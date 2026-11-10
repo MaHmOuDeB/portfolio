@@ -51,10 +51,12 @@ const CHART_NAME: Record<ReturnMode, string> = {
   clean: 'Returned-order value by month, with reversed orders removed: no spike in the second January, and a small partial last month',
 };
 
-/** Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests. */
-export const SEAM_FAILURE = 'The returns chart failed after a change (test seam)';
+/**
+ * Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests.
+ * Its body is exactly one throw with a literal message, the only shape the fault-seam guard accepts.
+ */
 function SeamFailure(): never {
-  throw new Error(SEAM_FAILURE);
+  throw new Error('The returns chart failed after a change (test seam)');
 }
 
 export function ReturnsChart({ mode, data }: { mode: ReturnMode; data: readonly RetailMonth[] }) {

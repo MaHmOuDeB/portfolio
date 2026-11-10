@@ -31,6 +31,14 @@
 //   component used as a value (its identity could no longer be followed).
 // The fixtures are in-memory sources served by a custom ts.CompilerHost, so typecheck and lint never
 // read them.
+//
+// Known limits. The guard is written against honest mistakes that would ship the test-only switch
+// to production: a renamed prop, a forward to a component that drops or rereads it, a condition that
+// renders something other than a throwing leaf. It is a name-based static check, so it is not complete
+// against deliberately obfuscated code: reflection over props, side effects hidden inside expressions
+// or a component that throws on a prop never taken from the seam are out of its scope. The second
+// layer is the build-output scan (fault-seam-build.test.ts), which fails if a plain build switches
+// the seam on in any form a bundler or the server renderer writes it.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { join, posix, relative, resolve } from 'node:path';
@@ -570,6 +578,7 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     if (def) components.set(`${m.file}#default`, { m, fn: def });
   }
   const componentFns = new Set([...components.values()].map((c) => c.fn));
+  const idOfFn = new Map([...components].map(([id, c]) => [c.fn as ts.Node, id]));
 
   const affected = new Set<Id>();
   for (const [id, { fn }] of components) if (seamElement(fn)) affected.add(id);
@@ -651,10 +660,19 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
     }
     return false;
   }
+  /** `throw new Error(<string literal>)`, and nothing else. */
+  const isErrorThrow = (st: ts.Node | undefined): boolean => {
+    if (!st || !ts.isThrowStatement(st) || !st.expression || !ts.isNewExpression(st.expression)) return false;
+    const e = st.expression;
+    return ts.isIdentifier(e.expression) && e.expression.text === 'Error' && e.arguments?.length === 1 && literalText(e.arguments[0]) !== null;
+  };
   const isOnlyThrow = (st: ts.Statement): boolean =>
-    ts.isThrowStatement(st) || (ts.isBlock(st) && st.statements.length === 1 && ts.isThrowStatement(st.statements[0]!));
+    isErrorThrow(st) || (ts.isBlock(st) && st.statements.length === 1 && isErrorThrow(st.statements[0]));
   const isNull = (e: ts.Expression) => unwrap(e).kind === ts.SyntaxKind.NullKeyword;
-  /** A module-local throwing leaf: `<Leaf />` with no attributes, a top-level, unexported, parameterless function. */
+  /**
+   * A module-local throwing leaf: `<Leaf />` with no attributes, a top-level, unexported,
+   * parameterless function whose body is exactly `throw new Error(<string literal>)`.
+   */
   function isLocalLeaf(m: Module, e: ts.Expression): boolean {
     const el = unwrap(e);
     if (!ts.isJsxSelfClosingElement(el) || el.attributes.properties.length > 0 || !ts.isIdentifier(el.tagName)) return false;
@@ -667,7 +685,9 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
       if (!fn.initializer || hasModifier(fn.parent.parent, ts.SyntaxKind.ExportKeyword)) return false;
       fn = unwrap(fn.initializer);
     } else if (hasModifier(fn, ts.SyntaxKind.ExportKeyword)) return false;
-    if (!isFunctionLike(fn) || fn.parameters.length > 0) return false;
+    // Its whole body is one `throw new Error(<string literal>)`: it can do nothing but throw.
+    if (!isFunctionLike(fn) || fn.parameters.length > 0 || !fn.body || !ts.isBlock(fn.body)) return false;
+    if (fn.body.statements.length !== 1 || !isErrorThrow(fn.body.statements[0])) return false;
     const exported = [...m.exports.values()].some((x) => (x.kind === 'local' && x.name === name) || (x.kind === 'node' && x.node === b.node));
     return !exported;
   }
@@ -809,7 +829,29 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
         ts.isParameter(decl.parent.parent) &&
         isFunctionLike(decl.parent.parent.parent) &&
         decl.parent.parent.parent.parameters[0] === decl.parent.parent;
-      if (!ok) report(a, 'activation', `${SEAM} is not this component’s own received prop`);
+      if (!ok) {
+        report(a, 'activation', `${SEAM} is not this component’s own received prop`);
+        continue;
+      }
+      // A forward reaches only a component that takes the seam itself and is traced here.
+      const target = isIntrinsic(el.tagName) ? null : identityOf(m, el.tagName);
+      if (typeof target !== 'string' || target === 'dynamic' || !affected.has(target)) {
+        report(a, 'activation', `${SEAM} is forwarded only to a component that takes it`);
+      }
+    }
+    // An affected component's own props (which may hold the seam) are spread only onto another
+    // affected component, never onto an element or a component that would drop or reread them.
+    for (const a of props) {
+      if (!ts.isJsxSpreadAttribute(a) || !ts.isIdentifier(a.expression)) continue;
+      const r = lookup(a.expression);
+      const owner = r ? ownerOf(r.decl) : undefined;
+      if (!r || !owner || !isOwnProps(owner, r.decl)) continue;
+      const ownerId = idOfFn.get(owner);
+      if (ownerId === undefined || !affected.has(ownerId)) continue;
+      const target = isIntrinsic(el.tagName) ? null : identityOf(m, el.tagName);
+      if (typeof target !== 'string' || target === 'dynamic' || !affected.has(target)) {
+        report(a, 'unsafe-spread', 'a seam component spreads its props only onto another seam component');
+      }
     }
     if (isIntrinsic(el.tagName)) return;
     const t = identityOf(m, el.tagName);
@@ -1349,5 +1391,94 @@ describe('the alias map the guard resolves', () => {
       compilerOptions: { paths?: Record<string, string[]> };
     };
     expect(tsconfig.compilerOptions.paths).toEqual({ '@/*': ['./src/*'] });
+  });
+});
+
+describe('fixtures added in the last guard round: a leaf only throws, a forward only reaches a seam component', () => {
+  const view = {
+    'src/components/x/View.tsx': `export function View({ chartFails }: { chartFails?: boolean }) {
+  if (chartFails) throw new Error('seam');
+  return <p>view</p>;
+}`,
+  };
+  const withLeaf = (leaf: string, body = 'return <section>{faultAfterChange && changed ? <Leaf /> : null}<View /></section>;') => ({
+    ...view,
+    'src/components/x/XFigure.tsx': `import { useEffect, useState } from 'react';
+import { View } from './View';
+let armed = false;
+${leaf}
+export function XFigure({ faultAfterChange, changed }: { faultAfterChange?: true; changed?: boolean }) {
+  ${body}
+}
+export function Reader() { return <View chartFails={armed} />; }`,
+  });
+
+  it.each([
+    ['B1: a leaf that renders a renamed prop', 'function Leaf() { return <View chartFails />; }'],
+    ['B10: an arrow leaf that renders a renamed prop', 'const Leaf = () => <View chartFails />;'],
+    ['B2: a leaf that writes a module variable', 'function Leaf() { armed = true; return null; }'],
+    ['B3: a leaf that writes a global in an effect', 'function Leaf() { useEffect(() => { (globalThis as { armed?: boolean }).armed = true; }); return null; }'],
+    ['a leaf that throws something other than a new Error with a literal', 'function Leaf(): never { throw armed; }'],
+    ['a leaf whose message is computed', 'function Leaf(): never { throw new Error(String(armed)); }'],
+    ['a leaf with a statement before its throw', 'function Leaf(): never { armed = true; throw new Error("seam"); }'],
+  ])('%s fails', (_, leaf) => {
+    expect(rules(withLeaf(leaf))).toContain('src/components/x/XFigure.tsx seam-escape');
+  });
+
+  it('B1b: a renamed-prop leaf with a production page rendering the same prop fails', () => {
+    const files = {
+      ...withLeaf('function Leaf() { return <View chartFails />; }'),
+      ...page('return <><XFigure /><View chartFails /></>;', `import { XFigure } from '@/components/x/XFigure';\nimport { View } from '@/components/x/View';`),
+    };
+    expect(rules(files)).toContain('src/components/x/XFigure.tsx seam-escape');
+  });
+
+  it('B4: an if whose throw runs an assignment first fails', () => {
+    expect(rules(withLeaf('', 'if (faultAfterChange && changed) throw (armed = true, new Error("seam")); return <View />;'))).toContain('src/components/x/XFigure.tsx seam-escape');
+    expect(rules(withLeaf('', 'if (faultAfterChange && changed) throw new Error(String(armed)); return <View />;'))).toContain('src/components/x/XFigure.tsx seam-escape');
+  });
+
+  it('the strict leaf and the strict if pass', () => {
+    expect(rules(withLeaf('function Leaf(): never { throw new Error("The chart failed after a change"); }'))).toEqual([]);
+    expect(rules(withLeaf('const Leaf = (): never => { throw new Error(`seam`); };'))).toEqual([]);
+    expect(rules(withLeaf('', 'if (faultAfterChange && changed) { throw new Error("seam"); } return <View />;'))).toEqual([]);
+  });
+
+  const generic = {
+    'src/components/x/Generic.tsx': `import { View } from './View';
+export function Generic(props: Record<string, unknown>) { return <View chartFails={Object.values(props).some(Boolean)} />; }`,
+  };
+  it('B5: a forward by name onto a component that does not take the seam fails', () => {
+    expect(rules({
+      ...view,
+      ...generic,
+      'src/components/x/XFigure.tsx': `import { Generic } from './Generic';
+export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) { return <Generic faultAfterChange={faultAfterChange} />; }`,
+    })).toContain('src/components/x/XFigure.tsx activation');
+  });
+
+  it('B5b: the same, with a production page rendering the renamed prop', () => {
+    expect(rules({
+      ...view,
+      ...generic,
+      'src/components/x/XFigure.tsx': `import { Generic } from './Generic';
+export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) { return <Generic faultAfterChange={faultAfterChange} />; }`,
+      ...page('return <><XFigure /><View chartFails /></>;', `import { XFigure } from '@/components/x/XFigure';\nimport { View } from '@/components/x/View';`),
+    })).toContain('src/components/x/XFigure.tsx activation');
+  });
+
+  it('B12: a forward onto an own-props spread into a component that does not take the seam fails', () => {
+    expect(rules({
+      ...view,
+      ...generic,
+      'src/components/x/Island.tsx': `import { Generic } from './Generic';
+export function ThrowingIsland(props: { data: number; faultAfterChange?: true }) { return <Generic {...props} />; }`,
+    })).toContain('src/components/x/XFigure.tsx activation');
+  });
+
+  it('a forward by name onto an intrinsic element fails', () => {
+    expect(rules({
+      'src/components/x/XFigure.tsx': `export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) { return <div data-x="1" {...{}} faultAfterChange={faultAfterChange} />; }`,
+    })).toContain('src/components/x/XFigure.tsx activation');
   });
 });
