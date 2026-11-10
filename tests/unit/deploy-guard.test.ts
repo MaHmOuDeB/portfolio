@@ -39,7 +39,7 @@ function guardScript(): string {
 const HEAD = '0123456789abcdef0123456789abcdef01234567';
 const OTHER = 'fedcba9876543210fedcba9876543210fedcba98';
 
-/** Runs the guard as GitHub's default bash shell does (`bash --noprofile --norc -eo pipefail`). */
+/** Runs the guard as GitHub runs a step with `shell: bash` (`bash --noprofile --norc -eo pipefail {0}`). */
 function guard(env: { LAUNCHED: string; LAUNCH_SHA: string; HEAD_SHA: string }) {
   const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', guardScript()], {
     encoding: 'utf8',
@@ -56,6 +56,16 @@ describe('the Guard production SHA step', () => {
     expect(list[0]).not.toMatch(/vercel|uses:/);
     const pull = list.findIndex((s) => s.includes('name: Pull Vercel environment'));
     expect(pull).toBeGreaterThan(0);
+  });
+
+  it('has exactly name, env, shell: bash and run, so nothing can skip it or let a refusal continue', () => {
+    const keys = guardStep()
+      .split('\n')
+      .map((line) => /^(?: {6}- | {8})([A-Za-z-]+):/.exec(line)?.[1])
+      .filter((key): key is string => key !== undefined);
+    expect(keys).toEqual(['name', 'env', 'shell', 'run']);
+    expect(guardStep()).toMatch(/^ {8}shell: bash$/m);
+    expect(guardStep()).not.toMatch(/continue-on-error|^\s*if:|working-directory|timeout-minutes/m);
   });
 
   it('reads the launch setting the way the other steps do, LAUNCH_SHA and the tested commit, and no secret', () => {
@@ -91,11 +101,18 @@ describe('the Guard production SHA step', () => {
   });
 
   it('fails when LAUNCHED is true and LAUNCH_SHA is not a full lowercase commit SHA', () => {
-    for (const bad of [HEAD.slice(0, 7), HEAD.toUpperCase(), ` ${HEAD}`, `${HEAD}\n`, `${HEAD}0`]) {
+    for (const bad of [HEAD.slice(0, 7), HEAD.toUpperCase(), ` ${HEAD}`, `${HEAD}\n`, `${HEAD}0`, '(not a full commit SHA)', '(empty)']) {
       const r = guard({ LAUNCHED: 'true', LAUNCH_SHA: bad, HEAD_SHA: HEAD });
       expect(r.status, JSON.stringify(bad)).toBe(1);
       expect(r.out).toContain('Decision: refused, LAUNCH_SHA is not a full commit SHA\n');
     }
+  });
+
+  it('decides validity from the value, never from its display text', () => {
+    const r = guard({ LAUNCHED: 'true', LAUNCH_SHA: '(not a full commit SHA)', HEAD_SHA: '(not a full commit SHA)' });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain('Decision: refused, LAUNCH_SHA is not a full commit SHA\n');
+    expect(r.out).not.toContain('the tested commit is not LAUNCH_SHA');
   });
 
   it('leaves previews as they are when LAUNCHED is not true, whatever LAUNCH_SHA holds', () => {

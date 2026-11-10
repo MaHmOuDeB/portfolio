@@ -33,15 +33,20 @@ jobs:
       # of an older run, fails here, before the checkout and every Vercel step, and deploys nothing.
       # LAUNCH_SHA must be the full lowercase commit SHA; an empty or malformed value fails too.
       # It prints only the tested commit, LAUNCH_SHA and the decision. Previews are unchanged.
+      # `shell: bash` runs it with -eo pipefail. The step must keep no `if:` or `continue-on-error`:
+      # a refusal has to stop the job (tests/unit/deploy-guard.test.ts pins its keys).
       - name: Guard production SHA
         env:
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
           LAUNCH_SHA: ${{ vars.LAUNCH_SHA }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
         run: |
+          valid=
           if [ -z "$LAUNCH_SHA" ]; then
             shown='(empty)'
           elif [[ "$LAUNCH_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            valid=1
             shown="$LAUNCH_SHA"
           else
             shown='(not a full commit SHA)'
@@ -52,7 +57,7 @@ jobs:
             echo "Decision: preview deploy, LAUNCHED is not true"
             exit 0
           fi
-          if [ "$shown" != "$LAUNCH_SHA" ]; then
+          if [ -z "$valid" ]; then
             echo "Decision: refused, LAUNCH_SHA is not a full commit SHA"
             echo "::error::LAUNCHED is true but LAUNCH_SHA is not a full commit SHA; nothing is deployed."
             exit 1
