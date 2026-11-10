@@ -1,8 +1,8 @@
 // The "Figures" section of the kitchen sink: the Figure frame in each runtime state. A static
 // Figure, the interactive demo twice (URL ids `demo` and `demo-b`, loaded on intent), the forced
-// no-JS and error states, a client island that throws, a diagram, and the demo with a `lead` in
-// each of those states. All data is fictional: a hypothetical sign-up page. The live phases are on
-// /kitchen-sink/live.
+// no-JS and error states, a client island that throws, a diagram, and then the demo with a `lead`
+// in each of those states. All data is fictional: a hypothetical sign-up page. The live phases are
+// on /kitchen-sink/live.
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { PRESETS, REFS } from '../_demo/DemoControls';
@@ -142,6 +142,13 @@ export function FiguresSection() {
       >
         <DemoFigure id="fragile" titleLevel={4} failAt={0.11} />
       </Specimen>
+      <Specimen id="figures--diagram" title="Diagram" note="A title, the drawing and a caption: no badge, controls or table.">
+        <StepsDiagram id="steps" />
+      </Specimen>
+      {/*
+        The lead specimens come last on the page: a specimen above an existing one moves it by a
+        fraction of a pixel, and its visual baseline with it.
+      */}
       <Specimen
         id="figures--lead"
         title="Interactive Figure with a lead"
@@ -184,9 +191,6 @@ export function FiguresSection() {
         note="The same fictional bug: one step up the baseline slider makes its chart throw in the browser, and the lead hides with the controls."
       >
         <DemoFigure id="fragile-lead" titleLevel={4} failAt={0.11} lead />
-      </Specimen>
-      <Specimen id="figures--diagram" title="Diagram" note="A title, the drawing and a caption: no badge, controls or table.">
-        <StepsDiagram id="steps" />
       </Specimen>
     </>
   );
