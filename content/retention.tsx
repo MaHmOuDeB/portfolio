@@ -88,8 +88,9 @@ export function RetentionSummary(): ReactNode {
       <>
         Counting orders cancelled within <Hours /> hours as returns made returned-order value look like it grew{' '}
         <Fact id="retail.returns.yoy_growth_raw" /> in January to November 2011 against the same months of 2010. With
-        those orders removed, it grew about <Fact id="retail.returns.yoy_growth_clean" />. About{' '}
-        <Fact id="retention.cohort.month1_rate" /> of a cohort order again in the month after their first order. A
+        those orders removed, it grew about <Fact id="retail.returns.yoy_growth_clean" />. Across the January to
+        November 2010 cohorts, weighted by size, about <Fact id="retention.cohort.month1_rate" /> order again in the
+        month after their first order. A
         model ranks who orders again only slightly better than putting the most recent buyers first: ROC AUC{' '}
         <Fact id="retention.model.gb_auc" /> against <Fact id="retention.model.rule_auc" />.
       </>,
@@ -170,7 +171,7 @@ export function RetentionData(): ReactNode {
 export function RetentionMethodSteps(): ReactNode {
   return (
     <>
-      <p className={ITEM}>I worked in five steps, each with its own period and its own group of customers:</p>
+      <p className={ITEM}>I worked in five steps; most have their own period and their own group of customers:</p>
       <ol className="mt-4 list-decimal pl-6">
         <li className="mt-2 first:mt-0">
           Clean the invoice lines with SQL in DuckDB, and remove orders cancelled within <Hours /> hours.
@@ -256,7 +257,7 @@ export function RetentionCohorts(): ReactNode {
       2009 is the first month of the data, so it holds customers who were already buying, and December 2010 would end
       in the incomplete December 2011. A later month counts the cohort members who ordered in that month, so a share
       can rise again. Weighted by cohort size, about <Fact id="retention.cohort.month1_rate" /> order again in the
-      month after their first order and about <Fact id="retention.cohort.month12_rate" /> a year after it.
+      month after their first order and about <Fact id="retention.cohort.month12_rate" /> in the twelfth month after it.
     </p>
   );
 }
@@ -403,16 +404,16 @@ export function RetentionFindings(): ReactNode {
     [
       'cohorts',
       <>
-        About <Fact id="retention.cohort.month1_rate" /> of a cohort order again in the month after their first order,
-        and about <Fact id="retention.cohort.month12_rate" /> in the twelfth month after it. Repeat ordering varies by
-        cohort, and a later month can be higher than an earlier one.
+        Across the January to November 2010 cohorts, about <Fact id="retention.cohort.month1_rate" /> order again in
+        the month after their first order, and about <Fact id="retention.cohort.month12_rate" /> in the twelfth month
+        after it. Repeat ordering varies by cohort, and a later month can be higher than an earlier one.
       </>,
     ],
     [
       'segments',
       <>
-        Champions are <Fact id="retention.rfm.champions_customer_share" /> of customers and hold{' '}
-        <Fact id="retention.rfm.champions_revenue_share" /> of spend up to the cutoff, partly by construction.
+        Champions are <Fact id="retention.rfm.champions_customer_share" /> of customers at the September 2011 cutoff
+        and hold <Fact id="retention.rfm.champions_revenue_share" /> of spend up to it, partly by construction.
       </>,
     ],
     [
@@ -426,8 +427,9 @@ export function RetentionFindings(): ReactNode {
     [
       'sizing',
       <>
-        A holdout test of all lapsed customers fits in one period at <Fact id="retention.winback.n_per_arm" /> per
-        group. A test on the top-scored customers alone does not.
+        Sized to detect a rise of <Fact id="retention.winback.uplift_pp" /> percentage points, a holdout test of all
+        lapsed customers needs <Fact id="retention.winback.n_per_arm" /> per group and fits in one period; a test on
+        the top-scored customers alone does not.
       </>,
     ],
   ];
@@ -456,6 +458,15 @@ export const REVERSAL_SQL = [
   ' AND s.invoice_ts <= r.invoice_ts AND s.invoice_ts >= r.invoice_ts - INTERVAL 1 DAY;',
 ].join('\n');
 const REVERSAL_SQL_LINES = '#L34-L39';
+/**
+ * The commits REVERSAL_SQL was read at: the lock commits of the two repositories when it was
+ * quoted. A test holds the lock to these, so a lock bump cannot leave old SQL quoted "at the linked
+ * commits": re-read sql/01_clean.sql lines 34 to 39 at the new commit, then change both.
+ */
+export const REVERSAL_SQL_READ_AT = {
+  retention: '20cfb1376af28e19f6988283be39b45ded5afe22',
+  retail: '73dc12a52d81e8459b99335a01db00c72d799f59',
+} as const;
 
 /**
  * The SQL excerpt of the reversal rule, with what it does and a link to the whole file. The prose
@@ -590,7 +601,7 @@ export function RetentionLimits(): ReactNode {
       'calibration',
       <>
         The scores rank customers but are not calibrated probabilities: in the tenth of customers with the lowest
-        scores, the model predicted <Derived value={lowest.predicted} unit="share" decimals={1} refs={['source:retention']} /> on
+        gradient-boosting scores, it predicted <Derived value={lowest.predicted} unit="share" decimals={1} refs={['source:retention']} /> on
         average and <Derived value={lowest.observed} unit="share" decimals={1} refs={['source:retention']} /> ordered
         again.
       </>,

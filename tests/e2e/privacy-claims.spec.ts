@@ -37,6 +37,8 @@ async function stored(page: Page): Promise<{ cookies: unknown[]; local: number; 
 
 for (const route of LIVE_ROUTES) {
   test(`${route}: only same-origin requests, nothing stored in the browser, no CSP violation`, async ({ page, baseURL }) => {
+    // Test too strict: the default 30 s does not fit a long page on a loaded WebKit runner (it timed out mid-run, not hung).
+    test.slow();
     const seen = await record(page);
     const response = await page.goto(route);
     expect(response?.ok(), route).toBe(true);

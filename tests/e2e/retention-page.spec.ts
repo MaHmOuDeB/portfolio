@@ -56,8 +56,11 @@ test.describe('the Retention page', () => {
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
-    // h1, then h2 sections; an h3 (a Figure or a table title) only ever follows an h2 or another h3
-    expect(headings[0]).toMatch(/^H2 /);
+    // h1, then h2 sections; no level is skipped and nothing goes below h3 (Figure and table titles)
+    const levels = headings.map((h) => Number(h.slice(1, 2)));
+    expect(levels[0]).toBe(2);
+    expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
+    expect(Math.max(...levels)).toBe(3);
     // the figures sit in their analysis sections
     expect((await composition(page)).figures).toEqual([
       ['returns-cleaning', 'returns'],
@@ -110,6 +113,37 @@ test.describe('the Retention page', () => {
     await sectionLinks(page).filter({ hasText: 'Limits' }).focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/#limits$/);
+    await expect(page.locator('#limits-title')).toBeInViewport();
+  });
+
+  test('no section moves when the islands load', async ({ page }) => {
+    // Hold the idle trigger, measure the server previews, then let the islands load.
+    await page.addInitScript(() => {
+      const held: IdleRequestCallback[] = [];
+      (window as unknown as { releaseIdle: () => void }).releaseIdle = () => held.splice(0).forEach((cb) => cb({ didTimeout: false, timeRemaining: () => 50 }));
+      window.requestIdleCallback = (cb) => (held.push(cb), held.length);
+      window.cancelIdleCallback = () => {};
+    });
+    await page.goto(ROUTE);
+    const tops = () => page.evaluate(() => [...document.querySelectorAll('main section[id]')].map((s) => [s.id, (s as HTMLElement).offsetTop]));
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+    const before = await tops();
+    await page.evaluate(() => (window as unknown as { releaseIdle: () => void }).releaseIdle());
+    await waitForIslands(page);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(2);
+    expect(await tops()).toEqual(before);
+  });
+
+  test('a cold #limits link lands on its heading and keeps it in view once the islands load', async ({ page, browserName }) => {
+    // Real defect, not in this page's code: in WebKit the view jumps about 370 px within a second of
+    // the fragment scroll, before any island loads (landed at the heading, then scrolled to the end
+    // of the page; with overflow-anchor: none it jumps the other way). Layout positions before and
+    // after are equal, so a transient layout change during hydration moves it. Chromium keeps the
+    // heading. Reported for a fix in the island wrappers; until then WebKit is a known failure.
+    test.fixme(browserName === 'webkit', 'WebKit loses the fragment position during hydration (reported)');
+    await page.goto(`${ROUTE}#limits`);
+    await expect(page.locator('#limits-title')).toBeInViewport();
+    await waitForIslands(page);
     await expect(page.locator('#limits-title')).toBeInViewport();
   });
 

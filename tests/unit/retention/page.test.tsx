@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { RETENTION_SECTIONS, RetentionPage } from '@/components/retention/RetentionPage';
+import { REVERSAL_SQL_READ_AT } from '../../../content/retention';
 import { FACTS, FACT_DISPLAYS, getFact } from '@/lib/facts';
 import { RETENTION } from '@/lib/retention/data';
 import { sampleSizePerArm } from '@/lib/stats';
@@ -142,6 +143,23 @@ describe('the outline', () => {
   });
 });
 
+describe('periods, denominators and names', () => {
+  it('names the cohorts, the cutoff, the rise the sizing depends on and the model', () => {
+    const summary = text(section(PAGE, 'summary'));
+    expect(summary).toContain('Across the January to November 2010 cohorts, weighted by size, about 20% order again in the month after their first order.');
+    const findings = text(section(PAGE, 'findings'));
+    expect(findings).toContain('Across the January to November 2010 cohorts, about 20% order again in the month after their first order, and about 18% in the twelfth month after it.');
+    expect(findings).toContain('Champions are 23% of customers at the September 2011 cutoff and hold 71% of spend up to it, partly by construction.');
+    expect(findings).toContain('Sized to detect a rise of 5 percentage points, a holdout test of all lapsed customers needs 1,353 per group and fits in one period');
+    expect(text(section(PAGE, 'limits'))).toContain('in the tenth of customers with the lowest gradient-boosting scores, it predicted 3.1%');
+    expect(text(section(PAGE, 'method'))).toContain('I worked in five steps; most have their own period and their own group of customers:');
+    expect(text(section(PAGE, 'cohort-retention'))).toContain(
+      'about 20% order again in the month after their first order and about 18% in the twelfth month after it.',
+    );
+    expect(PAGE_TEXT).not.toMatch(/About 20% of a cohort|the model predicted|each with its own period|a year after it/);
+  });
+});
+
 describe('the summary', () => {
   it('has question, my role, method, result, what I would recommend and next step', () => {
     const s = section(PAGE, 'summary');
@@ -268,6 +286,13 @@ describe('how I checked this', () => {
       ].join('\n'),
     );
     expect(s).toContain(`href="https://github.com/${name}/blob/${commit}/sql/01_clean.sql#L34-L39"`);
+  });
+
+  it.each(['retention', 'retail'] as const)('the %s lock commit is the commit the SQL excerpt was read at', (id) => {
+    expect(
+      lock.sources[id]!.commit,
+      're-read sql/01_clean.sql lines 34-39 at the new commit before changing this',
+    ).toBe(REVERSAL_SQL_READ_AT[id]);
   });
 
   it('never links a moving branch anywhere on the page', () => {

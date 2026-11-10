@@ -135,7 +135,7 @@ test.describe('Returns-cleaning Figure', () => {
   });
 
   test("Reset restores the preset, clears only its own keys and keeps the cohort key and the hash", async ({ page }) => {
-    await page.goto(`${HOST}?${ID}.mode=raw&cohorts.cohort=2010-03#host-cleaning`);
+    await page.goto(`${HOST}?${ID}.mode=raw&cohorts.cohort=2010-03#returns-cleaning`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(raw(page)).toBeChecked();
     await figure(page).getByRole('button', { name: 'Reset' }).click();
@@ -145,7 +145,7 @@ test.describe('Returns-cleaning Figure', () => {
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith(`${ID}.`))).toEqual([]);
     expect(url.searchParams.get('cohorts.cohort')).toBe('2010-03');
-    expect(url.hash).toBe('#host-cleaning');
+    expect(url.hash).toBe('#returns-cleaning');
   });
 
   test('keyboard: focus moving into the preview loads the island and stays on the radio; an arrow key switches the mode', async ({ page }) => {
