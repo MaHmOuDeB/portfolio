@@ -207,8 +207,8 @@ describe('models', () => {
 describe('targeting and sizing stay separate', () => {
   it('targeting: observed later orders against a random selection, selected and never contacted', () => {
     const t = targetingTable();
-    // Renamed from the brief's "Returned within the window" (controller ruling): on this page "returns" means
-    // returned-order value, so the header says what happened, an order.
+    // Not "Returned within the window": on this page "returns" means returned-order value, so the
+    // header says what happened, an order.
     expect(t.columns).toEqual(['Share selected', 'Customers selected', 'Ordered again within the window', 'Expected to order again, random selection']);
     expect(t.columns.join(' ')).not.toMatch(/return/i);
     expect(t.rows[0]).toEqual([0.05, 167, 116, 48.4]);
