@@ -19,6 +19,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 docker run --rm \
   -e CI=true -e HOME=/root \
+  -e PLAYWRIGHT_FIREFOX \
   -v "$ROOT":/src:ro \
   -v "$VOLUME":/work \
   -w /work \
