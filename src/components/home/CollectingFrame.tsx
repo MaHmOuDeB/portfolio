@@ -2,7 +2,7 @@
 // as "<5", or the test stopped (held, paused or closed) before a look could be drawn. The kit's
 // collecting Now row prints the exact counts in its progress line and its table, so Home draws its
 // own: the difference axis with the public ChartFrame (B − A from −1 to +1 with only the 0 tick,
-// views per group from 0 to the 50 the pre-registration needs), the hollow glyph on the zero line,
+// views per group named but not numbered), the hollow glyph on the zero line,
 // no observed mark, and a progress sentence built from the published smaller count, text only (no
 // <progress>, whose value would expose the exact count). Its table masks the counts the same way.
 // A stopped test is never promised a next look or an estimate. Server-safe.
@@ -95,7 +95,8 @@ export function CollectingFrame(props: Props) {
           id={`${id}-chart`}
           ariaLabel={label}
           height={HEIGHT}
-          x={{ domain: [0, MIN_PER_GROUP], ticks: { narrow: [0, MIN_PER_GROUP], wide: [0, MIN_PER_GROUP] }, format: (v) => formatNumber(v, 0), label: 'Views per group', refs: BUILD }}
+          // No x ticks: the centred glyph is no position on this axis and must not read as a number of views.
+          x={{ domain: [0, MIN_PER_GROUP], ticks: { narrow: [], wide: [] }, format: (v) => formatNumber(v, 0), label: 'Views per group', refs: BUILD }}
           y={{
             domain: [-1, 1],
             ticks: { narrow: [0], wide: [0] },

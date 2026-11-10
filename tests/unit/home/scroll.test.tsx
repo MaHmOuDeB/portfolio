@@ -692,7 +692,7 @@ const frameHtml = (props: Partial<Parameters<typeof CollectingFrame>[0]> = {}) =
   );
 
 describe('CollectingFrame', () => {
-  it('draws the difference axis with only the zero tick, views per group to 50, and the hollow glyph on zero', () => {
+  it('draws the difference axis with only the zero tick, views per group unnumbered, and the hollow glyph on zero', () => {
     const h = frameHtml();
     const frames = all(doc(h), hasAttr('data-chart-frame'));
     expect(frames.length).toBe(2);
@@ -700,9 +700,12 @@ describe('CollectingFrame', () => {
       expect(attr(f, 'aria-label')).toBe('No estimate yet');
       const y = all(f, hasAttr('data-tick', 'y')).map((t) => squash(text(t)));
       expect(y).toEqual(['0']);
-      const x = all(f, hasAttr('data-tick', 'x'));
-      expect(x.map((t) => squash(text(t)))).toEqual(['0', '50']);
-      for (const t of [...x, ...all(f, hasAttr('data-tick', 'y'))]) expect(attr(t, 'data-derived')).toBe('build');
+      // No x tick: the centred glyph must not read as a number of views.
+      expect(all(f, hasAttr('data-tick', 'x'))).toEqual([]);
+      // The one numeric tick text in the frame is the difference axis's zero.
+      const ticks = all(f, hasAttr('data-tick')).map((t) => squash(text(t)));
+      expect(ticks.filter((t) => /\d/.test(t))).toEqual(['0']);
+      for (const t of all(f, hasAttr('data-tick', 'y'))) expect(attr(t, 'data-derived')).toBe('build');
       expect(squash(text(f))).toContain('Views per group');
       expect(squash(text(f))).toContain('no difference');
       expect(squash(text(f))).toContain('B higher');
