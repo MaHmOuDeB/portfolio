@@ -191,12 +191,15 @@ a page needs the smallest possible bundle it can also import a component's file 
 
 ### Composites
 
-Page-level parts built from the kit. They live outside the kit (`src/components/home`), and each is
-listed here once its file exists.
+Page-level parts built from the kit. They live outside the kit (`src/components/home` and
+`src/components/figures`), and each is listed here once its file exists.
 
 | Export | File | Role |
 |---|---|---|
 | `LiveNote` | `src/components/home/LiveNote.tsx` | The Home note on the live test, from the server-only Home model (`src/lib/home/model.ts`): nothing before the start, the kit's `PhaseLabel` while the test runs, and a stated reason with a link to `/experiment` when it is stopped, unreadable or finished. Every count prints by the small-count rule (`src/lib/home/counts.ts`). |
+| `HeroSimulator` | `src/components/home/HeroSimulator.tsx` | The hero's evidence slot: the sample-size planner (`hero-planner`), the same for every visitor. |
+| `PlannerFigure` | `src/components/figures/PlannerFigure.tsx` | The sample-size planner for a hypothetical sign-up test: Baseline conversion, Rise in points and Reset, with the visitors per group from Cohen's h (two-sided, significance level 0.05, power 0.8). The server draws the preset and the open table; the rise is capped so the target stays at or under 99% (`src/lib/lab/planner.ts`). |
+| `EagerOrIntent` | `src/components/figures/EagerOrIntent.tsx` (client) | Wraps `LoadOnIntent`: a URL key in one of the given Figure namespaces loads the island right after hydration (`eager`), anything else waits for intent. Read with `useSearchParams` inside its own `Suspense`. |
 
 ## Golden-page rule
 
