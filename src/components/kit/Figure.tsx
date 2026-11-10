@@ -1,7 +1,7 @@
-// The frame for every chart and every interactive part: title, an optional lead, control row, result
-// line, the chart (inside a per-Figure error boundary), the caption with its provenance badge, and the
-// table fallback. One contract, so a new Figure is a content task. Shared: no hooks, so the server renders
-// static Figures and an island renders its interactive one with the same markup.
+// The frame for every chart and every interactive part: title, an optional lead, control row,
+// result line, the chart (inside a per-Figure error boundary), the caption with its provenance badge,
+// and the table fallback. One contract, so a new Figure is a content task. Shared: no hooks, so the
+// server renders static Figures and an island renders its interactive one with the same markup.
 //
 // - The table is given twice: open inside [data-nojs-only] under "Controls need JavaScript." (said
 //   only when there are controls), and folded inside [data-js-only]. The unlayered JS-flag rules in
@@ -9,8 +9,9 @@
 // - A forced runtime (kitchen sink, tests): `no-js` renders the no-JS view ungated, with no controls
 //   and no disclosure; `error` renders the error fallback in place of the chart, with no controls,
 //   no lead, no result and no second table. A real error caught by the boundary looks the same:
-//   globals.css hides the lead, controls, result and tables of a Figure that holds a fallback. The fallback's preview
-//   is `preview`, else the children: an island Figure passes the server's preset chart.
+//   globals.css hides the lead, controls, result and tables of a Figure that holds a fallback. The
+//   fallback's preview is `preview`, else the children: an island Figure passes the server's preset
+//   chart.
 // - The announcement region is polite and starts empty: the state a page loads in is plain text and
 //   is not announced. The island sets `announcement` on commit only (slider release, toggle, Reset).
 //   It carries the table's refs, so the truth audit covers the numbers it speaks.
@@ -53,6 +54,8 @@ export type FigureProps = {
       /**
        * Drawn between the title and the control row (a chart Figure only): a readout that must be
        * seen before the controls. Shown in the default and no-JS states, never beside a fallback.
+       * Like the controls and the result line it sits outside the Figure's error boundary, so it
+       * must not throw; its changes are not announced (the island sets `announcement` for that).
        */
       lead?: ReactNode;
       /** Slider / Segmented / Reset. */
