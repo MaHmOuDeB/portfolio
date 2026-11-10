@@ -6,16 +6,30 @@
 import { FeaturedCases } from '@/components/home/FeaturedCases';
 import { Hero } from '@/components/home/Hero';
 import { LiveNote } from '@/components/home/LiveNote';
-import { ScrollMoment } from '@/components/home/ScrollMoment';
+import { ScrollMomentView, type ScrollMomentProps } from '@/components/home/ScrollMoment';
+import { ScrollShell } from '@/components/home/ScrollShell';
 import { Tools } from '@/components/home/Tools';
 import type { Arm } from '@/experiment.values';
 import type { HomeModel } from '@/lib/home/model';
-import { ChartErrorMoment } from './ChartErrorMoment';
+import { ChartErrorShell } from './ChartErrorMoment';
 import { hostNoteModel, hostScrollModel, scrollMomentProps } from './fixtures';
 
-/** `breakChart`: the scroll moment's live chart fails in the browser (the chart-error state). */
-export function HostHome({ arm, model, breakChart = false }: { arm: Arm; model?: HomeModel; breakChart?: boolean }) {
-  const scroll = scrollMomentProps(model ?? hostScrollModel());
+/**
+ * `breakChart`: the scroll moment's live chart fails in the browser (the chart-error state). `scroll`:
+ * the scroll moment's own props, where a state page composes them itself.
+ */
+export function HostHome({
+  arm,
+  model,
+  breakChart = false,
+  scroll: given,
+}: {
+  arm: Arm;
+  model?: HomeModel;
+  breakChart?: boolean;
+  scroll?: ScrollMomentProps;
+}) {
+  const scroll = given ?? scrollMomentProps(model ?? hostScrollModel());
   return (
     <div data-host-home={arm} className="pb-section">
       <Hero />
@@ -26,7 +40,7 @@ export function HostHome({ arm, model, breakChart = false }: { arm: Arm; model?:
         <FeaturedCases headlineArm={arm} />
       </div>
       <div className="mt-12 md:mt-section">
-        {breakChart ? <ChartErrorMoment {...scroll} /> : <ScrollMoment {...scroll} />}
+        <ScrollMomentView {...scroll} Shell={breakChart ? ChartErrorShell : ScrollShell} />
       </div>
       <div className="mt-12 md:mt-section">
         <Tools />

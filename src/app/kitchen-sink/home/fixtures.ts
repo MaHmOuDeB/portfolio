@@ -36,27 +36,44 @@ function manyLooks(): HomeModel {
 export const CHART_ERROR_STATE = 'chart-error';
 
 /**
- * The scroll-moment pages' states: every step state, then the chart geometry cases, then the A/B whose
- * live chart fails after hydration.
- */
-export const SCROLL_STATES: readonly { id: string; model: () => HomeModel }[] = [
-  ...STEP_STATES,
-  { id: 'ab-many-looks', model: manyLooks },
-  { id: CHART_ERROR_STATE, model: STEP_STATES.find((s) => s.id === 'ab')!.model },
-];
-
-/**
  * The scroll moment's props for a model, as the Home page composes them: the five steps, and for each
- * step the live chart the server sliced for it (null where it has none). The counted-view tick is
- * never allowed on the host: no visit is counted here.
+ * step the live chart the server sliced for it (null where it has none). The counted-view tick is not
+ * allowed on the host (no visit is counted here) unless a state asks for it: the tick's browser specs
+ * then send the counted-view event themselves.
  */
-export function scrollMomentProps(model: HomeModel): ScrollMomentProps {
+export function scrollMomentProps(model: HomeModel, { tickAllowed = false }: { tickAllowed?: boolean } = {}): ScrollMomentProps {
   const steps = homeSteps(model);
   const charts = steps.map(({ step }) => {
     const snapshot = chartSnapshot(model, step);
     return snapshot === null
       ? null
-      : { snapshot, table: homeChartTable(snapshot, model.refs), ariaLabel: chartAriaLabel(model, step), tickAllowed: false };
+      : { snapshot, table: homeChartTable(snapshot, model.refs), ariaLabel: chartAriaLabel(model, step), tickAllowed };
   });
   return { arm: model.arm, steps, charts, refs: model.refs };
 }
+
+const abModel = () => STEP_STATES.find((s) => s.id === 'ab')!.model();
+
+/**
+ * A mechanism state for the canvas cross-fade, never a Home state: the Evidence step's chart, and at the
+ * Decision step the same looks drawn as paused (the same table), so the canvas has two layers.
+ */
+function twoCharts(model: HomeModel): ScrollMomentProps {
+  const props = scrollMomentProps(model);
+  const evidence = props.charts[2]!;
+  const paused = { ...evidence, ariaLabel: undefined, snapshot: { ...evidence.snapshot, freshness: { kind: 'paused' as const, pausedOn: evidence.snapshot.plannedEnd, reason: 'a fictional pause' } } };
+  return { ...props, charts: props.charts.map((c, i) => (i === 4 ? paused : c)) };
+}
+
+/**
+ * The scroll-moment pages' states: every step state, then the chart geometry cases, the A/B whose
+ * live chart fails after hydration, the A/B with the visitor tick allowed, and the cross-fade's two
+ * layers. `props` composes the moment where the page's default (no tick) does not fit.
+ */
+export const SCROLL_STATES: readonly { id: string; model: () => HomeModel; props?: (m: HomeModel) => ScrollMomentProps }[] = [
+  ...STEP_STATES,
+  { id: 'ab-many-looks', model: manyLooks },
+  { id: CHART_ERROR_STATE, model: abModel },
+  { id: 'ab-tick', model: abModel, props: (m) => scrollMomentProps(m, { tickAllowed: true }) },
+  { id: 'ab-two-charts', model: abModel, props: twoCharts },
+];

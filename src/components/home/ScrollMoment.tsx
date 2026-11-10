@@ -1,6 +1,5 @@
-'use client';
-
 // The Home scroll moment: five steps (heading and a server-rendered body each) and the live chart.
+// This is the server half; ScrollShell is the client half that follows the visitor. Server-safe.
 // The server sends one markup for both layouts and CSS picks one before the first paint (globals.css,
 // from the JavaScript flag on <html>, the reduced-motion setting and the screen size), so nothing is
 // restructured or swapped when the page hydrates:
@@ -10,32 +9,39 @@
 //   JavaScript, with reduced motion and on short screens.
 // The inactive layout's parts are display: none, never off-screen. The step bodies are drawn once and
 // both layouts use them; only the chart is drawn twice (the canvas and a stacked frame), and one of the
-// two is always hidden.
+// two is always hidden. Each chart is drawn here, on the server (HomeChartView), and stays that drawing
+// until ScrollShell has loaded the chart's code.
 // When the kit draws a chart, one chart Figure frames the moment: its title above the steps, its
 // caption, badge and table after the last step, never in the canvas. Its one table serves both layouts.
 // Without a kit chart (counts printed as "<5", a placeholder, a failed check, a stopped test with no
 // look) there is no stage, and the steps are always stacked: each body carries its own visual.
-// The Figure's own error boundary wraps the whole shell, and its fallback preview would be these
-// client children: if anything in the shell outside a chart's own boundary threw in the browser, the
-// fallback would replace all five steps. Accepted: the step bodies are server output and each HomeChart
-// has its own boundary, so nothing in the shell is known to throw there.
+// The Figure's own error boundary wraps the whole shell, and its fallback preview would be its client
+// children: if anything in the shell outside a chart's own boundary threw in the browser, the fallback
+// would replace all five steps. Accepted: the step bodies are server output and each chart has its own
+// boundary, so nothing in the shell is known to throw there.
 // The title is a level-2 heading, so the steps' h3 headings and their diagrams' h4 titles nest under
 // it rather than under the last case-study card.
-// This receives no Home model: only the steps, the chart entries the server sliced (`chartSnapshot`,
-// `homeChartTable`, `chartAriaLabel` in src/lib/home/scroll.tsx) and the refs. The step shown first is
-// the first; the step navigation moves it, and nothing scrolls on its own.
-import { useState, type ReactNode } from 'react';
+// This receives no Home model: only the group, the steps, the chart entries the server sliced
+// (`chartSnapshot`, `homeChartTable`, `chartAriaLabel` in src/lib/home/scroll.tsx, with `tickAllowed`)
+// and the refs.
+import type { ComponentType, ReactNode } from 'react';
 import type { TableData } from '@/components/kit/DataTable';
 import { Derived, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { StepNav } from '@/components/kit/StepNav';
 import { EXPERIMENT, type Arm } from '@/experiment.values';
-import { liveFigureState, type LiveSnapshot } from '@/lib/figure/cs-band';
-import { normalizeSteps } from '@/lib/figure/steps';
+import { confidenceModel, liveFigureState, type LiveSnapshot } from '@/lib/figure/cs-band';
+import { MIN_PER_GROUP, resolveFigureBody } from '@/lib/figure/states';
 import type { HomeStep } from '@/lib/home/scroll';
-import { HomeChart } from './HomeChart';
+import { HomeChartPreview } from './HomeChartView';
+import { ScrollShell, type ScrollShellProps, type ShellChart } from './ScrollShell';
 
-export type ScrollChart = { snapshot: LiveSnapshot; table: TableData; ariaLabel?: string; tickAllowed: boolean };
+export type ScrollChart = {
+  snapshot: LiveSnapshot;
+  table: TableData;
+  ariaLabel?: string;
+  /** Whether this page may draw the visitor's "your view" tick on this chart (set by the server, no default). */
+  tickAllowed: boolean;
+};
 
 export type ScrollMomentProps = {
   /** The group this view was assigned to (used by the counted-view tick). */
@@ -49,13 +55,6 @@ export type ScrollMomentProps = {
 const BUILD: readonly DerivedRef[] = ['build'];
 const FIGURE_ID = 'home-chart';
 
-/** The chart the canvas shows for a step: its own, else the nearest earlier one, else the nearest later one. */
-function canvasChart(charts: ScrollMomentProps['charts'], current: number): ScrollChart | null {
-  const i = current - 1;
-  const drawn = (c: ScrollChart | null | undefined): c is ScrollChart => c != null;
-  return [charts[i], ...charts.slice(0, Math.max(0, i)).reverse(), ...charts.slice(i + 1)].find(drawn) ?? null;
-}
-
 /** The one chart the Figure frames. Every entry must print the same table, or one Figure would misdescribe another. */
 function framedChart(charts: ScrollMomentProps['charts']): ScrollChart | null {
   const drawn = charts.filter((c): c is ScrollChart => c !== null);
@@ -66,41 +65,70 @@ function framedChart(charts: ScrollMomentProps['charts']): ScrollChart | null {
   return first;
 }
 
-export function ScrollMoment({ steps, charts, refs }: ScrollMomentProps) {
-  const [current, setCurrent] = useState(1);
-  const framed = framedChart(charts);
-  const onCanvas = canvasChart(charts, current);
-  const at = (step: number) => normalizeSteps(step, steps.length).current;
+/**
+ * Where the visitor's "your view" tick may start: the views per group of the last look drawn, or null
+ * for no tick. Only where the server allowed it, and only on a chart that runs on enough data: fresh
+ * (not stale, not paused, so never held or closed), in the calibration or the A/B (a decided test
+ * counts no more views; a withheld result draws nothing), and with every count it prints at least 50.
+ */
+export function tickFrom(chart: ScrollChart): number | null {
+  if (chart.tickAllowed !== true) return null;
+  const s = chart.snapshot;
+  const state = liveFigureState(s);
+  const body = resolveFigureBody(state);
+  if (state.live?.data !== 'enough-data' || s.freshness.kind !== 'fresh' || (body !== 'calibration' && body !== 'ab')) return null;
+  const counts = [s.nA, s.nB, ...s.series.flatMap((p) => [p.nA, p.nB])];
+  if (!counts.every((n) => Number.isFinite(n) && n >= MIN_PER_GROUP)) return null;
+  return confidenceModel(s)?.current.n ?? null;
+}
 
+/** The step's own chart, else the nearest earlier one, else the nearest later one (an entry index), or -1. */
+function canvasEntry(charts: ScrollMomentProps['charts'], step: number): number {
+  const i = step - 1;
+  const order = [i, ...Array.from({ length: i }, (_, k) => i - 1 - k), ...Array.from({ length: charts.length - i - 1 }, (_, k) => i + 1 + k)];
+  return order.find((k) => charts[k] != null) ?? -1;
+}
+
+/** The canvas layers (one per distinct chart; equal entries share the first's layer) and the layer of each step. */
+function canvasPlan(charts: ScrollMomentProps['charts']): { layers: number[]; byStep: number[] } {
+  const key = (c: ScrollChart) => JSON.stringify([c.snapshot, c.ariaLabel ?? null]);
+  const owner = new Map<string, number>();
+  const layerOf = charts.map((c, i) => {
+    if (c === null) return -1;
+    const k = key(c);
+    if (!owner.has(k)) owner.set(k, i);
+    return owner.get(k)!;
+  });
+  const byStep = charts.map((_, i) => {
+    const entry = canvasEntry(charts, i + 1);
+    return entry < 0 ? -1 : layerOf[entry]!;
+  });
+  return { layers: [...new Set(layerOf.filter((l) => l >= 0))], byStep };
+}
+
+/** The scroll moment with a given client half: ScrollShell, or a test build's stand-in. */
+export function ScrollMomentView({ arm, steps, charts, refs, Shell }: ScrollMomentProps & { Shell: ComponentType<ScrollShellProps> }) {
+  const framed = framedChart(charts);
+  const plan = framed ? canvasPlan(charts) : null;
+  const shellCharts: (ShellChart | null)[] = charts.map((c) =>
+    c === null ? null : { snapshot: c.snapshot, table: c.table, ariaLabel: c.ariaLabel, tickFrom: tickFrom(c) },
+  );
+  const preview = (i: number, where: 'canvas' | 'frame') => {
+    const c = charts[i];
+    return c ? <HomeChartPreview id={`home-chart-${where}-${i + 1}`} snapshot={c.snapshot} refs={refs} ariaLabel={c.ariaLabel} /> : null;
+  };
   const shell = (
-    <div data-scroll-shell="">
-      {framed && onCanvas ? (
-        <div data-scroll-stage="" className="bg-bg pt-3">
-          <div id="home-canvas" data-scroll-canvas="">
-            <HomeChart snapshot={onCanvas.snapshot} table={onCanvas.table} refs={refs} ariaLabel={onCanvas.ariaLabel} />
-          </div>
-          <div className="mt-3 pb-3">
-            <StepNav current={current} total={steps.length} onChange={(next) => setCurrent(at(next))} label="Steps of the live test" refs={BUILD} />
-          </div>
-        </div>
-      ) : null}
-      <ol data-scroll-steps="" className="grid gap-12">
-        {steps.map((s, i) => {
-          const chart = charts[i] ?? null;
-          return (
-            <li key={s.step} id={`home-step-${s.step}`} data-scroll-step={s.step} aria-current={s.step === current ? 'step' : undefined}>
-              <h3 className="text-xl font-semibold">{s.heading}</h3>
-              <div className="mt-3">{s.body}</div>
-              {chart ? (
-                <div id={`home-frame-${s.step}`} data-stacked-frame={s.step} className="mt-6">
-                  <HomeChart snapshot={chart.snapshot} table={chart.table} refs={refs} ariaLabel={chart.ariaLabel} />
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+    <Shell
+      arm={arm}
+      steps={steps}
+      charts={shellCharts}
+      previews={{
+        canvas: charts.map((_, i) => (plan?.layers.includes(i) ? preview(i, 'canvas') : null)),
+        frames: charts.map((_, i) => preview(i, 'frame')),
+      }}
+      canvas={plan}
+      refs={refs}
+    />
   );
 
   return (
@@ -127,4 +155,8 @@ export function ScrollMoment({ steps, charts, refs }: ScrollMomentProps) {
       )}
     </div>
   );
+}
+
+export function ScrollMoment(props: ScrollMomentProps) {
+  return <ScrollMomentView {...props} Shell={ScrollShell} />;
 }

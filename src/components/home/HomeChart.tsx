@@ -1,6 +1,8 @@
 'use client';
 
 // The scroll moment's live chart: the kit's ConfidenceChart, sized from the box it is drawn in.
+// Its code is not in the page's first load: the scroll shell loads it later (ScrollShell), and until
+// then the server's drawing of the same chart (HomeChartView) stands in its place.
 // A ResizeObserver reads two things, never the window:
 // - the width of its own box: below 640 px the narrow layout, else the wide one;
 // - the height of its sizer, which CSS gives the phone's sticky canvas only (`--chart-h-phone`,
@@ -15,31 +17,14 @@
 // The table is the caller's (counts printed by the small-count rule): it is shown only if the chart
 // throws, in place of the chart, by the kit's error boundary.
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import type { TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
 import { FigureErrorBoundary } from '@/components/kit/FigureErrorBoundary';
-import { liveFigureState, type LiveSnapshot } from '@/lib/figure/cs-band';
+import type { LiveSnapshot } from '@/lib/figure/cs-band';
 import type { Layout } from '@/lib/figure/scales';
-import { resolveFigureBody } from '@/lib/figure/states';
+import { FIXED_PLOT, HomeChartBox, HomeChartDrawing, chartLayout, plotHeight } from './HomeChartView';
 
-/** The plot where no box sets it, and the room ChartFrame keeps for its axes (40 above, 48 below). */
-const FIXED_PLOT = 280;
-const AXES = 88;
-const MIN_PLOT = 80;
-/** The container width below which the narrow layout is drawn (the kit's sm). */
-const NARROW_BELOW = 640;
-
-/** The plot height for a sizer `fit` px tall: 0 (or unmeasurable) means no box, so the fixed plot. */
-export function plotHeight(fit: number): number {
-  if (!Number.isFinite(fit) || fit <= 0) return FIXED_PLOT;
-  return Math.max(MIN_PLOT, fit - AXES);
-}
-
-/** The layout a container `width` px wide holds. */
-export function chartLayout(width: number): Layout {
-  return width < NARROW_BELOW ? 'narrow' : 'wide';
-}
+export { chartLayout, plotHeight };
 
 type Measured = { layout: Layout; plot: number };
 
@@ -77,19 +62,10 @@ export function HomeChart({
 
   const plot = measured?.plot ?? FIXED_PLOT;
   return (
-    <div ref={root} data-home-chart="" data-plot={plot} data-measured={measured ? '' : undefined} className="relative">
-      <div ref={sizer} data-home-chart-sizer="" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 w-px" />
+    <HomeChartBox plot={plot} measured={measured !== null} rootRef={root} sizerRef={sizer}>
       <FigureErrorBoundary id={id} body="live" table={table}>
-        <ConfidenceChart
-          id={id}
-          snapshot={snapshot}
-          body={resolveFigureBody(liveFigureState(snapshot))}
-          refs={refs}
-          layout={measured?.layout}
-          height={{ narrow: plot, wide: plot }}
-          ariaLabel={ariaLabel}
-        />
+        <HomeChartDrawing id={id} snapshot={snapshot} refs={refs} ariaLabel={ariaLabel} layout={measured?.layout} plot={plot} />
       </FigureErrorBoundary>
-    </div>
+    </HomeChartBox>
   );
 }

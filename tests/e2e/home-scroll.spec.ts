@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import type { Browser, BrowserContextOptions, Page } from '@playwright/test';
+import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
 import { test } from './fixtures';
 
 // The Home scroll moment's shell on the dev host (/kitchen-sink/home/scroll/<state>, the Home page's
@@ -34,8 +34,16 @@ const DESKTOP_PLOT = 280;
 type Mode = 'sticky-1' | 'sticky-2' | 'stacked';
 type Size = { width: number; height: number };
 
-async function open(browser: Browser, baseURL: string | undefined, url: string, size: Size, options: BrowserContextOptions = {}): Promise<Page> {
+async function open(
+  browser: Browser,
+  baseURL: string | undefined,
+  url: string,
+  size: Size,
+  options: BrowserContextOptions = {},
+  init?: (context: BrowserContext) => Promise<void>,
+): Promise<Page> {
   const context = await browser.newContext({ baseURL, viewport: size, ...options });
+  await init?.(context);
   const page = await context.newPage();
   await page.goto(url);
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -145,6 +153,9 @@ test.describe('home scroll moment shell', () => {
   }
 
   test('reduced motion and no JavaScript get the stacked frames at every size', async ({ browser, baseURL }) => {
+    // Six pages, each waiting for its charts' code, which loads at idle time away from the moment
+    // (2 s in WebKit, which has no idle callback): a longer time budget, the same assertions.
+    test.slow();
     for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 576 }, { width: 1440, height: 900 }]) {
       for (const options of [{ reducedMotion: 'reduce' as const }, { javaScriptEnabled: false }]) {
         const page = await open(browser, baseURL, AB, size, options);
@@ -312,9 +323,12 @@ test.describe('home scroll moment shell', () => {
           headings: headings.map(shown),
           guardrailTables: [...document.querySelectorAll('[data-figure="home-guardrail"] > figcaption > [data-figure-tables]')].filter(shown).length,
           vh: innerHeight,
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
         };
       });
       expect(g).toMatchObject({ canvas: false, frame: true, fallbackTable: true, stepNav: true, headings: [true, true, true, true, true] });
+      expect(g.scrollWidth, 'the open fallback table scrolls inside its own box, never the page').toBeLessThanOrEqual(g.clientWidth);
       expect(g.stage.bottom, 'the stage, now the step navigation alone, stays inside the viewport').toBeLessThanOrEqual(g.vh);
       expect(g.stage.height, 'and covers little of it').toBeLessThan(g.vh / 4);
       expect(await chartTables(page), 'one accessible chart table: the fallback’s').toBe(1);
@@ -460,4 +474,504 @@ test.describe('home scroll moment hydration', () => {
       });
     }
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The interaction: which step is current, the step navigation, focus under the sticky stage, the
+// cross-fade between canvas layers, the counted-view tick and the chart's deferred code.
+
+/** The A/B with the visitor tick allowed by the server (as the Home page sets it on a fresh page). */
+const TICK = scroll('ab-tick');
+/** Two different chart entries, so the canvas has two layers to cross-fade between (dev host only). */
+const TWO = scroll('ab-two-charts');
+/** The group the scroll-moment pages are seen from. */
+const ARM = 'b';
+const OTHER_ARM = 'a';
+
+/** Counts every scrollIntoView: the step navigation's scroll is the only one the moment makes. */
+async function spyNavScrolls(context: BrowserContext) {
+  await context.addInitScript(() => {
+    const w = window as unknown as { __navScrolls: number };
+    w.__navScrolls = 0;
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element, ...args: Parameters<Element['scrollIntoView']>) {
+      w.__navScrolls += 1;
+      return original.apply(this, args);
+    };
+  });
+}
+
+/** Records what the live region announces and every move of aria-current, from now on. */
+async function record(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __announced: string[]; __currents: string[] };
+    w.__announced = [];
+    w.__currents = [];
+    const live = document.querySelector('[data-scroll-stage] [data-step-live]')!;
+    new MutationObserver((records) => {
+      for (const r of records) for (const n of r.addedNodes) if (n.nodeType === 1) w.__announced.push(n.textContent ?? '');
+    }).observe(live, { childList: true, subtree: true });
+    const steps = document.querySelector('[data-scroll-steps]')!;
+    new MutationObserver((records) => {
+      for (const r of records) {
+        const el = r.target as Element;
+        if (el.getAttribute('aria-current') === 'step') w.__currents.push(el.getAttribute('data-scroll-step')!);
+      }
+    }).observe(steps, { attributes: true, attributeFilter: ['aria-current'], subtree: true });
+  });
+}
+
+const recorded = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __announced: string[]; __currents: string[]; __navScrolls: number };
+    return { announced: w.__announced, currents: w.__currents, navScrolls: w.__navScrolls };
+  });
+
+async function currentStep(page: Page): Promise<string[]> {
+  return page.locator('[data-scroll-steps] > [aria-current="step"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-scroll-step')!));
+}
+
+/** Waits until the page has stopped scrolling (two frames with the same position, several times). */
+async function settle(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let last = -1;
+        let still = 0;
+        const tick = () => {
+          still = scrollY === last ? still + 1 : 0;
+          last = scrollY;
+          if (still >= 8) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+}
+
+/**
+ * Scrolls (instantly, never with scrollIntoView) so that step `k` covers the trigger band: its top a
+ * little above the band, in the part of the screen the stage leaves visible.
+ */
+async function bringIntoBand(page: Page, k: number) {
+  await page.evaluate((step) => {
+    const stage = document.querySelector<HTMLElement>('[data-scroll-stage]')!;
+    const s = stage.getBoundingClientRect();
+    const beside = s.left >= document.querySelector('[data-scroll-steps]')!.getBoundingClientRect().right - 1;
+    const vh = document.documentElement.clientHeight;
+    const stuckBottom = (Number.parseFloat(getComputedStyle(stage).top) || 0) + stage.offsetHeight;
+    const target = beside ? vh * 0.3 : stuckBottom + 0.2 * (vh - stuckBottom);
+    const el = document.getElementById(`home-step-${step}`)!;
+    window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - target, behavior: 'instant' });
+  }, k);
+  await settle(page);
+}
+
+const stepNav = (page: Page) => page.locator('[data-scroll-stage] [data-step-nav]');
+const nextButton = (page: Page) => stepNav(page).getByRole('button', { name: 'Next' });
+const previousButton = (page: Page) => stepNav(page).getByRole('button', { name: 'Previous' });
+
+/** True once React has hydrated the shell (it keeps its fiber on the node). */
+async function waitHydrated(page: Page) {
+  await page.waitForFunction(() => {
+    const el = document.querySelector('[data-scroll-shell]');
+    return el !== null && Object.keys(el).some((k) => k.startsWith('__reactFiber'));
+  });
+}
+
+/** The script chunks the HTML of `url` names (its first load), by path. */
+async function firstLoadChunks(page: Page, url: string): Promise<Set<string>> {
+  const html = await (await page.request.get(url)).text();
+  return new Set([...html.matchAll(/\/_next\/static\/chunks\/[^"'\s\\)]+?\.js/g)].map((m) => m[0]));
+}
+
+const chunkPath = (url: string) => new URL(url).pathname;
+
+function dispatchCounted(page: Page, detail: unknown) {
+  return page.evaluate((d) => window.dispatchEvent(new CustomEvent('experiment:counted', { detail: d })), detail);
+}
+
+test.describe('home scroll moment interaction', () => {
+  test.beforeEach(({ browserName }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium' && testInfo.project.name !== 'desktop-webkit', 'covered by the desktop projects');
+    void browserName;
+  });
+
+  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 768 }]) {
+    test(`${size.width}x${size.height}: scrolling moves exactly one current step, and never scrolls or announces`, async ({ browser, baseURL }) => {
+      const page = await open(browser, baseURL, AB, size, {}, spyNavScrolls);
+      await record(page);
+      expect(await currentStep(page)).toEqual(['1']);
+      for (const k of [2, 3, 4, 5, 4, 2, 1]) {
+        await bringIntoBand(page, k);
+        await expect.poll(() => currentStep(page), `step ${k} in the band`).toEqual([String(k)]);
+        await expect(stepNav(page).locator('[data-step-count]')).toHaveText(`${k} of 5`);
+      }
+      const r = await recorded(page);
+      expect(r.navScrolls, 'an outside change never calls the navigation, so nothing scrolls').toBe(0);
+      expect(r.announced, 'nor is it announced').toEqual([]);
+      await expect(stepNav(page).locator('[data-step-live]')).toHaveText('');
+      await page.context().close();
+    });
+  }
+
+  test('after Back, the restored page sets its step from the observer alone: no navigation scroll, no announcement', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 }, {}, spyNavScrolls);
+    await bringIntoBand(page, 3);
+    await expect.poll(() => currentStep(page)).toEqual(['3']);
+    await page.goto('/kitchen-sink/home');
+    await page.goBack();
+    await waitHydrated(page);
+    await settle(page);
+    await page.waitForTimeout(500);
+    expect(await currentStep(page), 'one current step').toHaveLength(1);
+    await record(page);
+    await bringIntoBand(page, 4);
+    await expect.poll(() => currentStep(page)).toEqual(['4']);
+    const r = await recorded(page);
+    expect(r.navScrolls, 'the outside changes never called the navigation').toBe(0);
+    expect(r.announced).toEqual([]);
+    await expect(stepNav(page).locator('[data-step-live]')).toHaveText('');
+    await page.context().close();
+  });
+
+  test('375x667: the trigger band lies below the stage, so the current step is one the reader can see', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 375, height: 667 });
+    // Step 2 starts just under the stuck stage; step 1 ends behind it, where a band 45% to 50% down
+    // the whole screen would still find it.
+    await page.evaluate(() => {
+      const stage = document.querySelector<HTMLElement>('[data-scroll-stage]')!;
+      const el = document.getElementById('home-step-2')!;
+      window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - (stage.offsetHeight + 12), behavior: 'instant' });
+    });
+    await settle(page);
+    const g = await page.evaluate(() => ({
+      stage: document.querySelector('[data-scroll-stage]')!.getBoundingClientRect().bottom,
+      oneBottom: document.getElementById('home-step-1')!.getBoundingClientRect().bottom,
+      vh: document.documentElement.clientHeight,
+    }));
+    expect(g.oneBottom, 'step 1 now ends behind the stage').toBeLessThan(g.stage);
+    expect(g.oneBottom, 'inside the band a whole-screen observer would use').toBeGreaterThan(g.vh * 0.5);
+    await expect.poll(() => currentStep(page)).toEqual(['2']);
+    await page.context().close();
+  });
+
+  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 768 }]) {
+    test(`${size.width}x${size.height}: the step navigation sets the step at once, scrolls it into view and keeps focus`, async ({ browser, baseURL }) => {
+      const page = await open(browser, baseURL, AB, size, {}, spyNavScrolls);
+      await bringIntoBand(page, 1);
+      await record(page);
+      await nextButton(page).focus();
+      await page.keyboard.press('Enter');
+      expect(await currentStep(page), 'synchronous: before the scroll has run').toEqual(['2']);
+      await settle(page);
+      await page.keyboard.press('Space');
+      await settle(page);
+      await page.keyboard.press('ArrowRight');
+      await settle(page);
+      await page.keyboard.press('ArrowLeft');
+      await settle(page);
+      await page.waitForTimeout(1100);
+      expect(await currentStep(page)).toEqual(['3']);
+      const r = await recorded(page);
+      expect(r.currents, 'the observer never pulls the step back while the navigation scrolls').toEqual(['2', '3', '4', '3']);
+      expect(r.announced).toEqual(['2 of 5', '3 of 5', '4 of 5', '3 of 5']);
+      expect(r.navScrolls).toBe(4);
+      await expect(nextButton(page)).toBeFocused();
+      const g = await page.evaluate(() => {
+        const stage = document.querySelector('[data-scroll-stage]')!.getBoundingClientRect();
+        const step = document.getElementById('home-step-3')!.getBoundingClientRect();
+        const steps = document.querySelector('[data-scroll-steps]')!.getBoundingClientRect();
+        return { stageBottom: stage.bottom, beside: stage.left >= steps.right - 1, top: step.top, vh: document.documentElement.clientHeight };
+      });
+      if (!g.beside) expect(g.top, 'the step lands under the stage, not behind it').toBeGreaterThanOrEqual(g.stageBottom - 1);
+      // And it starts above the trigger band, so the observer agrees with the navigation.
+      const bandTop = g.beside ? g.vh * 0.45 : g.stageBottom + 0.45 * (g.vh - g.stageBottom);
+      expect(g.top).toBeLessThan(bandTop);
+      await page.context().close();
+    });
+  }
+
+  test('two quick presses: the observer does not pull the step back to the one the scroll passes', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 });
+    await bringIntoBand(page, 4);
+    await expect.poll(() => currentStep(page)).toEqual(['4']);
+    await record(page);
+    await previousButton(page).focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await settle(page);
+    await page.waitForTimeout(1100);
+    expect(await currentStep(page)).toEqual(['2']);
+    expect((await recorded(page)).currents).toEqual(['3', '2']);
+    await page.context().close();
+  });
+
+  test('at the last step, Next does nothing: no scroll, no new announcement, focus stays', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 }, {}, spyNavScrolls);
+    await bringIntoBand(page, 5);
+    await expect.poll(() => currentStep(page)).toEqual(['5']);
+    await record(page);
+    await nextButton(page).focus();
+    await expect(nextButton(page)).toHaveAttribute('aria-disabled', 'true');
+    for (const key of ['Enter', 'Space', 'ArrowRight']) await page.keyboard.press(key);
+    await page.waitForTimeout(300);
+    expect(await currentStep(page)).toEqual(['5']);
+    expect(await recorded(page)).toEqual({ announced: [], currents: [], navScrolls: 0 });
+    await expect(stepNav(page).locator('[data-step-live]')).toHaveText('');
+    await expect(nextButton(page)).toBeFocused();
+    await page.context().close();
+  });
+
+  test('a held arrow key or Enter moves one step and announces it once', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 });
+    await bringIntoBand(page, 1);
+    await record(page);
+    await nextButton(page).focus();
+    // A second keyboard.down of a key that is already down is a repeat (KeyboardEvent.repeat).
+    for (let i = 0; i < 5; i += 1) await page.keyboard.down('ArrowRight');
+    await page.keyboard.up('ArrowRight');
+    await settle(page);
+    await page.waitForTimeout(1100);
+    expect(await currentStep(page)).toEqual(['2']);
+    for (let i = 0; i < 5; i += 1) await page.keyboard.down('Enter');
+    await page.keyboard.up('Enter');
+    await settle(page);
+    await page.waitForTimeout(1100);
+    expect(await currentStep(page)).toEqual(['3']);
+    const r = await recorded(page);
+    expect(r.announced).toEqual(['2 of 5', '3 of 5']);
+    expect(r.currents).toEqual(['2', '3']);
+    await page.context().close();
+  });
+
+  for (const size of [{ width: 375, height: 667 }, { width: 360, height: 800 }]) {
+    test(`${size.width}x${size.height}: Shift+Tab never leaves focus behind the sticky stage`, async ({ browser, baseURL, browserName }) => {
+      const page = await open(browser, baseURL, AB, size);
+      const back = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Shift+Tab' : 'Shift+Tab';
+      // Start after the steps, in the chart Figure's caption, and walk back through every step.
+      await page.locator('#home-chart > figcaption').locator('summary, a[href], button, [tabindex]').filter({ visible: true }).first().focus();
+      const seen: { tag: string; top: number; bottom: number; stageBottom: number; stuck: boolean; vh: number }[] = [];
+      for (let i = 0; i < 60; i += 1) {
+        await page.keyboard.press(back);
+        await settle(page);
+        const g = await page.evaluate(() => {
+          const el = document.activeElement as HTMLElement | null;
+          if (el === null || !el.closest('[data-scroll-steps]')) return null;
+          const stage = document.querySelector('[data-scroll-stage]')!.getBoundingClientRect();
+          const r = el.getBoundingClientRect();
+          return { tag: el.tagName.toLowerCase(), top: r.top, bottom: r.bottom, stageBottom: stage.bottom, stuck: stage.top <= 1, vh: document.documentElement.clientHeight };
+        });
+        if (g === null) {
+          if (seen.length > 0) break;
+          continue;
+        }
+        seen.push(g);
+      }
+      expect(seen.some((s) => s.tag === 'a'), 'focus reached a link in the steps').toBe(true);
+      for (const s of seen) {
+        if (s.stuck) expect(s.top, `${s.tag} is below the stuck stage`).toBeGreaterThanOrEqual(s.stageBottom - 1);
+        expect(s.bottom, `${s.tag} is inside the screen`).toBeLessThanOrEqual(s.vh + 1);
+      }
+      await page.context().close();
+    });
+  }
+
+  test('the canvas cross-fades between chart layers in opacity, and reduced motion snaps a fade midway', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, TWO, { width: 1024, height: 768 });
+    const layers = page.locator('[data-scroll-canvas] [data-canvas-layer]');
+    await expect(layers).toHaveCount(2);
+    await bringIntoBand(page, 4);
+    await expect.poll(() => currentStep(page)).toEqual(['4']);
+    // Press Next and read the fade in the same task, then slow it right down, so it is surely still
+    // running when reduced motion is switched on.
+    const mid = await nextButton(page).evaluate(
+      (button) =>
+        new Promise<{ active: boolean; fades: unknown[] }[]>((resolve) => {
+          (button as HTMLButtonElement).click();
+          requestAnimationFrame(() => {
+            const els = [...document.querySelectorAll('[data-scroll-canvas] [data-canvas-layer]')];
+            resolve(
+              els.map((el) => {
+                const fades = el.getAnimations().filter((a) => (a as CSSTransition).transitionProperty === 'opacity');
+                for (const a of el.getAnimations()) a.playbackRate = 0.01;
+                return { active: el.hasAttribute('data-active'), fades: fades.map((a) => a.effect?.getTiming().duration) };
+              }),
+            );
+          });
+        }),
+    );
+    expect(mid.map((l) => l.active)).toEqual([false, true]);
+    for (const l of mid) expect(l.fades, 'an opacity transition of the step duration').toEqual([320]);
+    expect(await layers.evaluateAll((els) => els.map((el) => el.getAnimations().length > 0)), 'still fading').toEqual([true, true]);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    // The setting's change event reaches the page a moment later in some engines.
+    await expect
+      .poll(() => layers.evaluateAll((els) => els.map((el) => ({ running: el.getAnimations().length, opacity: getComputedStyle(el).opacity }))), { timeout: 3000 })
+      .toEqual([{ running: 0, opacity: '0' }, { running: 0, opacity: '1' }]);
+    expect(await layoutOf(page), 'reduced motion stacks the frames').toMatchObject({ stage: false });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.waitForTimeout(400);
+    const after = await layers.evaluateAll((els) => els.map((el) => ({ opacity: getComputedStyle(el).opacity, visibility: getComputedStyle(el).visibility, hidden: el.getAttribute('aria-hidden') })));
+    expect(after).toEqual([
+      { opacity: '0', visibility: 'hidden', hidden: 'true' },
+      { opacity: '1', visibility: 'visible', hidden: null },
+    ]);
+    expect(await layers.evaluateAll((els) => els.map((el) => el.getAnimations().length)), 'nothing resumes').toEqual([0, 0]);
+    expect(await drawnCharts(page)).toBe(1);
+    expect(await chartTables(page)).toBe(1);
+    await page.context().close();
+  });
+
+  test('your view: a counted view of this group, retained until the deferred chart mounts, drawn at the axis end', async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 1024, height: 768 } });
+    const page = await context.newPage();
+    const first = await firstLoadChunks(page, TICK);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    await page.route(/\/_next\/static\/chunks\/.*\.js(\?.*)?$/, async (route) => {
+      if (!first.has(chunkPath(route.request().url()))) await held;
+      await route.continue();
+    });
+    await page.goto(TICK);
+    await waitHydrated(page);
+    expect(await page.locator('[data-scroll-canvas] [data-home-chart][data-measured]').count(), 'the chart has not mounted yet').toBe(0);
+    await dispatchCounted(page, { arm: ARM, viewN: 1e9 });
+    release();
+    await page.locator('[data-scroll-moment]').hover();
+    await expect(page.locator('[data-scroll-canvas] [data-home-chart][data-measured]')).toBeAttached({ timeout: 15_000 });
+    const tick = page.locator('[data-scroll-canvas] [data-your-view]');
+    await expect(tick).toHaveCount(1);
+    expect(await tick.locator('line').getAttribute('x1'), 'min(views, end of the axis): the end').toBe('100%');
+    await expect(tick.locator('text')).toHaveText('your view');
+    expect(await tick.locator('line').getAttribute('stroke')).toBe('var(--color-muted)');
+    await context.close();
+  });
+
+  test('your view fades in once, and never again when the chart redraws', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, TICK, { width: 1024, height: 768 });
+    // Send the count and read the tick's animations the moment it is drawn.
+    const fade = await page.evaluate(
+      (arm) =>
+        new Promise<{ name: string; duration: unknown }[]>((resolve) => {
+          const canvas = document.querySelector('[data-scroll-canvas]')!;
+          const read = () => {
+            const tick = canvas.querySelector('[data-your-view]');
+            if (tick === null) return false;
+            resolve(tick.getAnimations().map((a) => ({ name: (a as CSSAnimation).animationName, duration: a.effect?.getTiming().duration })));
+            return true;
+          };
+          const watch = new MutationObserver(() => {
+            if (read()) watch.disconnect();
+          });
+          watch.observe(canvas, { childList: true, subtree: true });
+          window.dispatchEvent(new CustomEvent('experiment:counted', { detail: { arm, viewN: 1e9 } }));
+        }),
+      ARM,
+    );
+    const tick = page.locator('[data-scroll-canvas] [data-your-view]');
+    await expect(tick).toHaveCount(1);
+    expect(fade).toEqual([{ name: 'scroll-moment-your-view', duration: 320 }]);
+    await page.waitForTimeout(700);
+    expect(await tick.evaluate((el) => el.getAnimations().length)).toBe(0);
+    // A layout change redraws the chart (narrow layout, one column): the tick is drawn again, still.
+    await page.setViewportSize({ width: 600, height: 800 });
+    await expect(page.locator('[data-scroll-canvas] svg[data-chart-frame][data-layout="narrow"]')).toHaveCount(1);
+    const again = page.locator('[data-scroll-canvas] [data-your-view]');
+    await expect(again).toHaveCount(1);
+    expect(await again.evaluate((el) => ({ running: el.getAnimations().length, opacity: getComputedStyle(el).opacity }))).toEqual({ running: 0, opacity: '1' });
+    await page.context().close();
+  });
+
+  test("your view: another group's count is ignored, a count before the last look draws no tick, and only the first is used", async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, TICK, { width: 1024, height: 768 });
+    // Taken, this one would draw a tick at the axis end.
+    await dispatchCounted(page, { arm: OTHER_ARM, viewN: 1e9 });
+    await dispatchCounted(page, { arm: ARM, viewN: Number.NaN });
+    await dispatchCounted(page, { arm: ARM, viewN: 1 });
+    await dispatchCounted(page, { arm: ARM, viewN: 1e9 });
+    await page.waitForTimeout(500);
+    await expect(page.locator('[data-scroll-moment] [data-your-view]')).toHaveCount(0);
+    await page.context().close();
+  });
+
+  test('your view: none when the server did not allow it, after a counted view of this group', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 });
+    await dispatchCounted(page, { arm: ARM, viewN: 1e9 });
+    await page.waitForTimeout(500);
+    await expect(page.locator('[data-scroll-moment] [data-your-view]')).toHaveCount(0);
+    await page.context().close();
+  });
+
+  test('your view under reduced motion: drawn in the stacked frame at once, without a fade', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, TICK, { width: 1024, height: 768 }, { reducedMotion: 'reduce' });
+    await dispatchCounted(page, { arm: ARM, viewN: 1e9 });
+    const tick = page.locator('[data-stacked-frame] [data-your-view]');
+    await expect(tick).toHaveCount(1);
+    expect(await tick.evaluate((el) => ({ running: el.getAnimations().length, opacity: getComputedStyle(el).opacity }))).toEqual({ running: 0, opacity: '1' });
+    await page.context().close();
+  });
+
+  test('the chart code is not in the first load: it arrives in a later chunk', async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 1024, height: 768 });
+    const first = await firstLoadChunks(page, AB);
+    expect(first.size).toBeGreaterThan(0);
+    const markers = ['data-your-view', 'data-home-chart-sizer'];
+    for (const path of first) {
+      const body = await (await page.request.get(path)).text();
+      for (const m of markers) expect(body.includes(m), `${path} holds ${m}`).toBe(false);
+    }
+    const later = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((p) => p.startsWith('/_next/static/chunks/') && p.endsWith('.js')));
+    const bodies = await Promise.all(later.filter((p) => !first.has(p)).map(async (p) => (await page.request.get(p)).text()));
+    for (const m of markers) expect(bodies.some((b) => b.includes(m)), `a chunk loaded later holds ${m}`).toBe(true);
+    await page.context().close();
+  });
+
+  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 576 }]) {
+    test(`${size.width}x${size.height}: if the chart's code cannot load, the moment drops to its stacked frames`, async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ baseURL, viewport: size });
+      const page = await context.newPage();
+      const first = await firstLoadChunks(page, AB);
+      await page.route(/\/_next\/static\/chunks\/.*\.js(\?.*)?$/, (route) => (first.has(chunkPath(route.request().url())) ? route.continue() : route.abort()));
+      await page.goto(AB);
+      await page.locator('[data-scroll-moment]').hover();
+      await expect(page.locator('[data-scroll-canvas] [data-island="failed"]')).toBeAttached({ timeout: 15_000 });
+      const l = await layoutOf(page);
+      expect(l.scrollWidth).toBeLessThanOrEqual(l.clientWidth);
+      expect(l.frames, 'the stacked frame shows the server chart').toEqual([true]);
+      expect(await page.locator('[data-scroll-canvas]').isVisible()).toBe(false);
+      expect(await drawnCharts(page)).toBe(1);
+      expect(await chartTables(page)).toBe(1);
+      await context.close();
+    });
+  }
+
+  test('without a kit chart nothing follows the scroll: the first step stays current', async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
+    await spyNavScrolls(context);
+    const page = await context.newPage();
+    await page.goto(TINY);
+    await waitHydrated(page);
+    for (const k of [2, 4, 5]) {
+      await page.evaluate((step) => document.getElementById(`home-step-${step}`)!.getBoundingClientRect(), k);
+      await page.evaluate((step) => window.scrollTo({ top: scrollY + document.getElementById(`home-step-${step}`)!.getBoundingClientRect().top - 200, behavior: 'instant' }), k);
+      await settle(page);
+    }
+    await page.waitForTimeout(300);
+    expect(await currentStep(page)).toEqual(['1']);
+    expect(await page.evaluate(() => (window as unknown as { __navScrolls: number }).__navScrolls)).toBe(0);
+    await context.close();
+  });
+
+  test('forced colours: the step navigation and your view stay drawn', async ({ browser, baseURL, browserName }) => {
+    test.skip(browserName !== 'chromium', 'forced-colours emulation is Chromium only');
+    const page = await open(browser, baseURL, TICK, { width: 1024, height: 768 }, { forcedColors: 'active' });
+    await dispatchCounted(page, { arm: ARM, viewN: 1e9 });
+    const line = page.locator('[data-scroll-canvas] [data-your-view] line');
+    await expect(line).toHaveCount(1);
+    const box = await line.boundingBox();
+    expect(box!.height).toBeGreaterThan(0);
+    await expect(nextButton(page)).toBeVisible();
+    await page.context().close();
+  });
 });

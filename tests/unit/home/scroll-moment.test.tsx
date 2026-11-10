@@ -15,7 +15,8 @@ import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts'
 import { BROKEN_LABEL } from '@/app/kitchen-sink/home/ChartErrorMoment';
 import { CHART_ERROR_STATE, scrollMomentProps, SCROLL_STATES } from '@/app/kitchen-sink/home/fixtures';
 import { HomeChart, chartLayout, plotHeight } from '@/components/home/HomeChart';
-import { ScrollMoment } from '@/components/home/ScrollMoment';
+import { ScrollMoment, ScrollMomentView, type ScrollMomentProps } from '@/components/home/ScrollMoment';
+import type { ScrollShellProps } from '@/components/home/ScrollShell';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel, type HomeMode, type HomeModel } from '@/lib/home/model';
 import { narrativeFixture, type NarrativeFixture } from '@/lib/home/narrative-fixtures';
@@ -236,9 +237,11 @@ describe('the sizing rule', () => {
   });
 });
 
-describe('the client modules', () => {
+describe('the client and server modules', () => {
   const read = (f: string) => readFileSync(new URL(`../../../src/components/home/${f}`, import.meta.url), 'utf8');
-  it.each(['HomeChart.tsx', 'ScrollMoment.tsx'])('%s is a client module that sizes from its box, never the window', (f) => {
+  // ScrollMoment is the server half (it draws each chart on the server, so the chart's code can load
+  // after the first load); ScrollShell is the client half, HomeChart the chart loaded later.
+  it.each(['HomeChart.tsx', 'ScrollShell.tsx'])('%s is a client module that sizes from its box, never the window', (f) => {
     const src = read(f);
     expect(src.startsWith("'use client';")).toBe(true);
     expect(src).not.toMatch(/innerHeight|outerHeight|visualViewport|addEventListener\(\s*['"]resize/);
@@ -247,8 +250,81 @@ describe('the client modules', () => {
     expect(src).not.toMatch(/^import (?!type)[^;]*from '@\/lib\/home\/(model|scroll)'/m);
   });
 
+  it.each(['ScrollMoment.tsx', 'HomeChartView.tsx'])('%s is server-safe: no client directive, no hooks, no reader', (f) => {
+    const src = read(f);
+    expect(src).not.toMatch(/^'use client';/m);
+    expect(src).not.toMatch(/\buse(State|Effect|LayoutEffect|Ref|Id|SyncExternalStore)\b/);
+    expect(src).not.toMatch(/innerHeight|outerHeight|visualViewport/);
+    expect(src).not.toMatch(/from '@\/lib\/experiment\/live'/);
+    expect(src).not.toMatch(/^import (?!type)[^;]*from '@\/lib\/home\/(model|scroll)'/m);
+  });
+
   it('every scroll-moment state of the dev host renders through the truth audit with no finding', () => {
-    for (const s of SCROLL_STATES) expect(audit(html(s.model())), s.id).toEqual([]);
+    for (const s of SCROLL_STATES) {
+      const m = s.model();
+      const props = s.props?.(m) ?? scrollMomentProps(m);
+      expect(audit(renderToStaticMarkup(<ScrollMoment {...props} />)), s.id).toEqual([]);
+    }
+  });
+});
+
+describe('the canvas layers', () => {
+  const layers = (props: ScrollMomentProps) => {
+    const d = doc(renderToStaticMarkup(<ScrollMoment {...props} />));
+    const canvas = all(d, has('data-scroll-canvas'))[0]!;
+    return within(canvas, has('data-canvas-layer')).map((l) => ({
+      entry: attr(l, 'data-canvas-layer'),
+      active: attr(l, 'data-active') !== undefined,
+      hidden: attr(l, 'aria-hidden'),
+      inert: attr(l, 'inert') !== undefined,
+      charts: within(l, has('data-home-chart')).length,
+    }));
+  };
+
+  it('one layer per distinct chart: the Evidence chart alone is one shown layer', () => {
+    expect(layers(scrollMomentProps(mode('ab')))).toEqual([{ entry: '2', active: true, hidden: undefined, inert: false, charts: 1 }]);
+  });
+
+  it('two different charts are two layers; the first step shows the nearest, the other is hidden and inert', () => {
+    const state = SCROLL_STATES.find((s) => s.id === 'ab-two-charts')!;
+    const m = state.model();
+    expect(layers(state.props!(m))).toEqual([
+      { entry: '2', active: true, hidden: undefined, inert: false, charts: 1 },
+      { entry: '4', active: false, hidden: 'true', inert: true, charts: 1 },
+    ]);
+  });
+
+  it('equal entries share one layer', () => {
+    const p = scrollMomentProps(mode('ab'));
+    const same = p.charts.map((c, i) => (i === 4 ? { ...p.charts[2]! } : c));
+    expect(layers({ ...p, charts: same }).map((l) => l.entry)).toEqual(['2']);
+  });
+});
+
+describe('what the client half receives', () => {
+  /** The props ScrollMoment hands its client half (the ones serialized for the browser). */
+  function shellProps(props: ScrollMomentProps): ScrollShellProps {
+    let seen: ScrollShellProps | null = null;
+    const Spy = (p: ScrollShellProps) => {
+      seen = p;
+      return null;
+    };
+    renderToStaticMarkup(<ScrollMomentView {...props} Shell={Spy} />);
+    return seen!;
+  }
+
+  it('carries no visitor tick, and a tick start only where the server allowed it', () => {
+    const m = mode('ab');
+    expect(shellProps(scrollMomentProps(m)).charts.map((c) => c?.tickFrom ?? null)).toEqual([null, null, null, null, null]);
+    const allowed = shellProps(scrollMomentProps(m, { tickAllowed: true })).charts[2]!;
+    expect(allowed.tickFrom).toBeGreaterThanOrEqual(50);
+    for (const p of [scrollMomentProps(m), scrollMomentProps(m, { tickAllowed: true })]) {
+      expect(JSON.stringify(shellProps(p).charts)).not.toContain('yourViewN');
+    }
+  });
+
+  it('a held chart gets no tick start even if the server allowed one', () => {
+    expect(shellProps(scrollMomentProps(mode('held'), { tickAllowed: true })).charts[2]!.tickFrom).toBeNull();
   });
 });
 
