@@ -136,8 +136,10 @@ describe('launch:check', () => {
     d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: 'LAUNCHED\n' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
     const out = d.lines.join('\n');
-    expect(out).toMatch(/^unmet: variable missing in GitHub: LAUNCH_SHA$/m);
-    expect(out).not.toMatch(/variable missing in GitHub: LAUNCHED$/m);
+    expect(out).toMatch(
+      /^unmet: variable missing in GitHub: LAUNCH_SHA \(expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step\)$/m,
+    );
+    expect(out).not.toMatch(/variable missing in GitHub: LAUNCHED /m);
   });
 
   it('asks gh for the variable names only, never their values, and prints none of its output', () => {

@@ -202,7 +202,14 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
     unmet.push('could not list the GitHub variables (run gh auth login, then try again)');
   } else {
     const have = names(variables.stdout);
-    for (const name of GITHUB_VARIABLES) if (!have.has(name)) unmet.push(`variable missing in GitHub: ${name}`);
+    // Before launch both are missing by design; the message must never read as "set it now".
+    for (const name of GITHUB_VARIABLES) {
+      if (!have.has(name)) {
+        unmet.push(
+          `variable missing in GitHub: ${name} (expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step)`,
+        );
+      }
+    }
   }
 
   // The pre-registration tag.
