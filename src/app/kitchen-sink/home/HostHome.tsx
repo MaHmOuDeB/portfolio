@@ -10,9 +10,12 @@ import { ScrollMoment } from '@/components/home/ScrollMoment';
 import { Tools } from '@/components/home/Tools';
 import type { Arm } from '@/experiment.values';
 import type { HomeModel } from '@/lib/home/model';
+import { ChartErrorMoment } from './ChartErrorMoment';
 import { hostNoteModel, hostScrollModel, scrollMomentProps } from './fixtures';
 
-export function HostHome({ arm, model }: { arm: Arm; model?: HomeModel }) {
+/** `breakChart`: the scroll moment's live chart fails in the browser (the chart-error state). */
+export function HostHome({ arm, model, breakChart = false }: { arm: Arm; model?: HomeModel; breakChart?: boolean }) {
+  const scroll = scrollMomentProps(model ?? hostScrollModel());
   return (
     <div data-host-home={arm} className="pb-section">
       <Hero />
@@ -23,7 +26,7 @@ export function HostHome({ arm, model }: { arm: Arm; model?: HomeModel }) {
         <FeaturedCases headlineArm={arm} />
       </div>
       <div className="mt-12 md:mt-section">
-        <ScrollMoment {...scrollMomentProps(model ?? hostScrollModel())} />
+        {breakChart ? <ChartErrorMoment {...scroll} /> : <ScrollMoment {...scroll} />}
       </div>
       <div className="mt-12 md:mt-section">
         <Tools />

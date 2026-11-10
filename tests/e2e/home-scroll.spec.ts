@@ -23,6 +23,8 @@ const AB = scroll('ab');
 const LOOKS = scroll('ab-many-looks');
 /** Before data: the kit's collecting row in the canvas, no plot. */
 const BEFORE = scroll('before-data');
+/** The A/B with its live chart made to throw after hydration (dev host only). */
+const CHART_ERROR = scroll('chart-error');
 /** Counts that print as "<5": no kit chart at all. */
 const TINY = scroll('ab-tiny');
 
@@ -93,6 +95,7 @@ const MODES: readonly { size: Size; mode: Mode; note: string }[] = [
   { size: { width: 390, height: 844 }, mode: 'sticky-1', note: 'phone' },
   { size: { width: 768, height: 1024 }, mode: 'sticky-1', note: 'tablet' },
   { size: { width: 800, height: 600 }, mode: 'sticky-1', note: 'single column at exactly 600 px' },
+  { size: { width: 320, height: 640 }, mode: 'sticky-1', note: 'narrowest phone' },
   { size: { width: 1024, height: 576 }, mode: 'sticky-2', note: 'screen share, 1280x720 at 125%' },
   { size: { width: 1024, height: 520 }, mode: 'sticky-2', note: 'two columns at exactly 520 px' },
   { size: { width: 1024, height: 768 }, mode: 'sticky-2', note: 'laptop' },
@@ -235,9 +238,18 @@ test.describe('home scroll moment shell', () => {
     }
   });
 
-  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 576 }]) {
-    test(`${size.width}x${size.height}: the step navigation sits under the canvas, inside the viewport, while the stage is stuck`, async ({ browser, baseURL }) => {
-      const page = await open(browser, baseURL, AB, size);
+  const NAV_SIZES = [
+    { width: 375, height: 667 },
+    { width: 320, height: 640 },
+    { width: 800, height: 600 },
+    { width: 1024, height: 576 },
+    { width: 1024, height: 520 },
+  ] as const;
+  // Running, before data (the kit's collecting row), held (last interval) and final (Ship B): the Now
+  // row's label and the collecting row differ in height.
+  for (const state of ['ab', 'before-data', 'held', 'ship-b'] as const) for (const size of NAV_SIZES) {
+    test(`${state} at ${size.width}x${size.height}: the step navigation sits under the canvas, inside the viewport, while the stage is stuck`, async ({ browser, baseURL }) => {
+      const page = await open(browser, baseURL, scroll(state), size);
       // Scroll to the Evidence step: the stage is stuck there.
       await page.evaluate(() => document.getElementById('home-step-3')!.scrollIntoView({ block: 'center' }));
       await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
@@ -249,7 +261,7 @@ test.describe('home scroll moment shell', () => {
       expect(g.stage.top).toBeLessThanOrEqual(1);
       expect(g.nav.top, 'below the canvas').toBeGreaterThanOrEqual(g.canvas.bottom - 1);
       expect(g.nav.bottom, 'inside the viewport').toBeLessThanOrEqual(g.vh);
-      test.info().annotations.push({ type: 'room-for-steps', description: `${size.width}x${size.height}: ${Math.round(g.vh - g.stage.bottom)} px under the stage` });
+      test.info().annotations.push({ type: 'room-for-steps', description: `${state} ${size.width}x${size.height}: ${Math.round(g.vh - g.stage.bottom)} px under the stage, step navigation ends ${Math.round(g.vh - g.nav.bottom)} px above the bottom` });
       if (size.width < 1024) expect(g.vh - g.stage.bottom, 'room for the step text under the stage').toBeGreaterThan(160);
       await page.context().close();
     });
@@ -276,6 +288,59 @@ test.describe('home scroll moment shell', () => {
       expect(g).toMatchObject({ titleShown: true, captionShown: true, badge: true });
       await page.context().close();
     }
+  });
+
+  for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 576 }]) {
+    test(`${size.width}x${size.height}: a live chart that fails drops the moment to its stacked frames, with one table and nothing hidden`, async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ baseURL, viewport: size });
+      const page = await context.newPage();
+      await page.goto(CHART_ERROR);
+      // The dev state breaks the chart after hydration, as a client failure would.
+      await expect(page.locator('[data-stacked-frame] [data-home-chart] > [data-figure-fallback]')).toBeAttached({ timeout: 15_000 });
+      await page.evaluate(() => document.getElementById('home-step-3')!.scrollIntoView({ block: 'center' }));
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const g = await page.evaluate(() => {
+        const shown = (el: Element | null) => el !== null && el.getClientRects().length > 0;
+        const stage = document.querySelector('[data-scroll-stage]')!.getBoundingClientRect();
+        const headings = [...document.querySelectorAll('[data-scroll-step] > h3')];
+        return {
+          canvas: shown(document.querySelector('[data-scroll-canvas]')),
+          frame: shown(document.querySelector('[data-stacked-frame]')),
+          fallbackTable: shown(document.querySelector('[data-stacked-frame] [data-figure-fallback] table')),
+          stepNav: shown(document.querySelector('[data-scroll-stage] [data-step-nav]')),
+          stage: { height: stage.height, bottom: stage.bottom },
+          headings: headings.map(shown),
+          guardrailTables: [...document.querySelectorAll('[data-figure="home-guardrail"] > figcaption > [data-figure-tables]')].filter(shown).length,
+          vh: innerHeight,
+        };
+      });
+      expect(g).toMatchObject({ canvas: false, frame: true, fallbackTable: true, stepNav: true, headings: [true, true, true, true, true] });
+      expect(g.stage.bottom, 'the stage, now the step navigation alone, stays inside the viewport').toBeLessThanOrEqual(g.vh);
+      expect(g.stage.height, 'and covers little of it').toBeLessThan(g.vh / 4);
+      expect(await chartTables(page), 'one accessible chart table: the fallback’s').toBe(1);
+      expect(g.guardrailTables, 'the guardrail chart keeps its own table').toBe(1);
+      await context.close();
+    });
+  }
+
+  test("a Figure's fallback hides only its own tables, never another Figure's", async ({ browser, baseURL }) => {
+    const page = await open(browser, baseURL, AB, { width: 375, height: 667 });
+    // Stand a fallback into the guardrail chart, which sits inside the live chart's Figure.
+    await page.evaluate(() => {
+      const body = document.querySelector('[data-figure="home-guardrail"] > [data-figure-body]')!;
+      const fallback = document.createElement('div');
+      fallback.setAttribute('data-figure-fallback', 'static');
+      body.prepend(fallback);
+    });
+    const shownTables = (figure: string) =>
+      page.evaluate(
+        (id) => [...document.querySelectorAll(`[data-figure="${id}"] > figcaption > [data-figure-tables]`)].filter((t) => t.getClientRects().length > 0).length,
+        figure,
+      );
+    expect(await shownTables('home-guardrail'), 'its own tables hide').toBe(0);
+    expect(await shownTables('home-chart'), "the live chart's table stays").toBe(1);
+    expect(await layoutOf(page), 'the live chart did not fail, so the layout stays sticky').toMatchObject({ stage: true, frames: [false] });
+    await page.context().close();
   });
 
   test('a toolbar-only height change, with a stable svh box, redraws nothing', async ({ browser, baseURL }) => {

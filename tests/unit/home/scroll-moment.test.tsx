@@ -12,12 +12,13 @@ import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
-import { scrollMomentProps, SCROLL_STATES } from '@/app/kitchen-sink/home/fixtures';
+import { BROKEN_LABEL } from '@/app/kitchen-sink/home/ChartErrorMoment';
+import { CHART_ERROR_STATE, scrollMomentProps, SCROLL_STATES } from '@/app/kitchen-sink/home/fixtures';
 import { HomeChart, chartLayout, plotHeight } from '@/components/home/HomeChart';
 import { ScrollMoment } from '@/components/home/ScrollMoment';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel, type HomeMode, type HomeModel } from '@/lib/home/model';
-import { narrativeFixture } from '@/lib/home/narrative-fixtures';
+import { narrativeFixture, type NarrativeFixture } from '@/lib/home/narrative-fixtures';
 import { homeChartTable } from '@/lib/home/scroll';
 
 type El = T.Element;
@@ -68,7 +69,7 @@ describe('ScrollMoment: the server markup both layouts share', () => {
     // The step navigation sits in the stage, after the canvas, never inside it.
     expect(within(stages[0]!, has('data-step-nav'))).toHaveLength(1);
     expect(within(canvases[0]!, has('data-step-nav'))).toHaveLength(0);
-    // T5 draws a live chart in the Evidence step only, so there is one stacked frame, in step 3.
+    // Only the Evidence step draws a live chart, so there is one stacked frame, in step 3.
     const frames = all(d, has('data-stacked-frame'));
     expect(frames.map((f) => attr(f, 'data-stacked-frame'))).toEqual(['3']);
     expect(attr(frames[0]!, 'id')).toBe('home-frame-3');
@@ -136,6 +137,57 @@ describe('ScrollMoment: the server markup both layouts share', () => {
     const other = scrollMomentProps(mode('calibration')).charts[2]!;
     const charts = p.charts.map((c, i) => (i === 4 ? other : c));
     expect(() => renderToStaticMarkup(<ScrollMoment {...p} charts={charts} />)).toThrow(/one table/);
+  });
+});
+
+describe('what the client components receive', () => {
+  // The props the server serializes for the two client components (the step bodies are server output
+  // and print counts by the small-count rule themselves). Small counts, a flagged one-sided split and a
+  // paused test with little data: no count from 1 to 4 and no visitor tick may travel to the browser.
+  const SMALL: readonly NarrativeFixture[] = ['ab-tiny', 'calibration-tiny', 'ab-zero-sixty', 'ab-asymmetric', 'calibration-asymmetric', 'srm-one-sided-small', 'paused-tiny', 'paused-under-50'];
+  const COUNT_KEYS = new Set(['nA', 'nB', 'n', 'nSmaller', 'smaller', 'a', 'b', 'yourViewN']);
+
+  function smallCounts(value: unknown, key = '', out: string[] = []): string[] {
+    if (typeof value === 'number' && COUNT_KEYS.has(key) && value >= 1 && value <= 4) out.push(`${key}=${value}`);
+    if (Array.isArray(value)) value.forEach((v) => smallCounts(v, key, out));
+    else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) smallCounts(v, k, out);
+    return out;
+  }
+
+  it.each(SMALL)('%s: the chart entries hold no count from 1 to 4 and no visitor tick', (name) => {
+    const p = scrollMomentProps(simulated(toHomeModel(narrativeFixture(name), 'b')));
+    const sent = JSON.parse(JSON.stringify({ arm: p.arm, charts: p.charts, refs: p.refs })) as unknown;
+    expect(smallCounts(sent)).toEqual([]);
+    expect(JSON.stringify(sent)).not.toContain('yourViewN');
+    // The table cells too: a count from 1 to 4 prints as "<5".
+    for (const c of p.charts) for (const row of c?.table.rows ?? []) for (const cell of row.slice(0, 2)) expect(cell).not.toSatisfy((v) => typeof v === 'number' && v >= 1 && v <= 4);
+  });
+
+  it('the scan finds a small count where one is planted', () => {
+    expect(smallCounts({ charts: [{ snapshot: { nA: 3, series: [{ n: 60, nB: 2 }] } }] })).toEqual(['nA=3', 'nB=2']);
+  });
+});
+
+describe('the chart-error dev state', () => {
+  it('is drawn whole on the server, and the name it gives the chart in the browser makes the kit throw', () => {
+    const state = SCROLL_STATES.find((s) => s.id === CHART_ERROR_STATE)!;
+    const p = scrollMomentProps(state.model());
+    expect(all(doc(renderToStaticMarkup(<ScrollMoment {...p} />)), has('data-figure-fallback'))).toHaveLength(0);
+    const chart = p.charts[2]!;
+    expect(() => renderToStaticMarkup(<HomeChart snapshot={chart.snapshot} table={chart.table} refs={p.refs} ariaLabel={BROKEN_LABEL} />)).toThrow(/no digit/);
+  });
+});
+
+describe('the fallback rules in globals.css', () => {
+  const css = readFileSync(new URL('../../../src/app/globals.css', import.meta.url), 'utf8');
+  it("hide a Figure's lead, controls, result and tables only for its own fallback", () => {
+    // A descendant fallback (a nested Figure's, or the scroll moment's chart's) must not reach them.
+    expect(css).not.toMatch(/\[data-figure\]:has\(\[data-figure-fallback\]\)/);
+    expect(css).toContain('[data-figure]:has(> [data-figure-body] > [data-figure-fallback])');
+  });
+  it('drop the scroll moment to its stacked frames when a live chart fails', () => {
+    expect(css).toContain(':has([data-home-chart] > [data-figure-fallback]) [data-scroll-canvas]');
+    expect(css).toContain(':has([data-home-chart] > [data-figure-fallback]) [data-stacked-frame]');
   });
 });
 

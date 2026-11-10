@@ -1,10 +1,10 @@
 // Dev-only: the Home host with the scroll moment (and the note) in one fictional state, seen from
-// group B, one static page per state: the step states, then the chart geometry cases. The browser
-// specs of the scroll moment's layouts run here.
+// group B, one static page per state: the step states, the chart geometry cases and a live chart that
+// fails in the browser. The browser specs of the scroll moment's layouts run here.
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { HostHome } from '../../HostHome';
-import { SCROLL_STATES } from '../../fixtures';
+import { CHART_ERROR_STATE, SCROLL_STATES } from '../../fixtures';
 
 export const dynamicParams = false;
 
@@ -22,5 +22,5 @@ export default async function ScrollState({ params }: { params: Promise<{ state:
   const found = SCROLL_STATES.find((s) => s.id === state);
   if (!found) notFound();
   const model = found.model();
-  return <HostHome arm={model.arm} model={model} />;
+  return <HostHome arm={model.arm} model={model} breakChart={state === CHART_ERROR_STATE} />;
 }

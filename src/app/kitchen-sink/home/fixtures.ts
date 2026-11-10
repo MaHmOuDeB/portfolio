@@ -32,8 +32,18 @@ function manyLooks(): HomeModel {
   return simulated(toHomeModel(buildFixture({ config: FIXTURE_AB, now: '2026-12-12T12:00:00+01:00', rows }), 'b'));
 }
 
-/** The scroll-moment pages' states: every step state, then the chart geometry cases. */
-export const SCROLL_STATES: readonly { id: string; model: () => HomeModel }[] = [...STEP_STATES, { id: 'ab-many-looks', model: manyLooks }];
+/** The scroll-moment page whose live chart fails in the browser (HostHome's `breakChart`). */
+export const CHART_ERROR_STATE = 'chart-error';
+
+/**
+ * The scroll-moment pages' states: every step state, then the chart geometry cases, then the A/B whose
+ * live chart fails after hydration.
+ */
+export const SCROLL_STATES: readonly { id: string; model: () => HomeModel }[] = [
+  ...STEP_STATES,
+  { id: 'ab-many-looks', model: manyLooks },
+  { id: CHART_ERROR_STATE, model: STEP_STATES.find((s) => s.id === 'ab')!.model },
+];
 
 /**
  * The scroll moment's props for a model, as the Home page composes them: the five steps, and for each

@@ -139,10 +139,14 @@ html:not([data-js]) [data-js-only] {
 
 /*
  * A Figure whose boundary caught an error shows its fallback (preview, sentence, open table): its
- * lead, controls, result line and own tables would speak for a chart that is gone.
+ * lead, controls, result line and own tables would speak for a chart that is gone. Only its own
+ * fallback counts (a direct child of its body, from its boundary or a forced error state): a Figure
+ * nested in another one, or a chart with its own boundary inside a Figure, never hides the other
+ * Figure's parts.
  */
-[data-figure]:has([data-figure-fallback])
-  :is([data-figure-lead], [data-figure-controls], [data-figure-result], [data-figure-tables]) {
+[data-figure]:has(> [data-figure-body] > [data-figure-fallback])
+  > :is([data-figure-lead], [data-figure-controls], [data-figure-result]),
+[data-figure]:has(> [data-figure-body] > [data-figure-fallback]) > figcaption > [data-figure-tables] {
   display: none;
 }
 
@@ -236,6 +240,51 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @media (prefers-reduced-motion: no-preference) and (width >= 48rem) and (height >= 43.75rem) {
   html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
     top: var(--header-h);
+  }
+}
+
+/*
+ * A live chart that failed (HomeChart's own boundary shows its fallback: a sentence and an open table
+ * that can be long) drops the moment to its stacked frames: the canvas hides, so the stage keeps only
+ * the step navigation and never covers the steps, and each step's stacked frame shows its chart or its
+ * fallback. Both copies of a chart get the same input, so whichever failed, the frames are what shows.
+ * The chart Figure's own table hides when the visible frame holds the fallback, whose table replaces it.
+ */
+html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-scroll-canvas] {
+  display: none;
+}
+
+html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-stacked-frame] {
+  display: block;
+}
+
+[data-figure="home-chart"]:has([data-stacked-frame] > [data-home-chart] > [data-figure-fallback])
+  > figcaption > [data-figure-tables] {
+  display: none;
+}
+
+/*
+ * Until HomeChart has measured its box, the server's chart shows the layout its container holds (the
+ * kit's own switch follows the viewport), so a narrow column never shows the wide layout first. 640 px
+ * is HomeChart's narrow threshold.
+ */
+@container (width < 640px) {
+  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="wide"] {
+    display: none;
+  }
+
+  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="narrow"] {
+    display: block;
+  }
+}
+
+@container (width >= 640px) {
+  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="narrow"] {
+    display: none;
+  }
+
+  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="wide"] {
+    display: block;
   }
 }
 

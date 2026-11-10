@@ -15,6 +15,12 @@
 // caption, badge and table after the last step, never in the canvas. Its one table serves both layouts.
 // Without a kit chart (counts printed as "<5", a placeholder, a failed check, a stopped test with no
 // look) there is no stage, and the steps are always stacked: each body carries its own visual.
+// The Figure's own error boundary wraps the whole shell, and its fallback preview would be these
+// client children: if anything in the shell outside a chart's own boundary threw in the browser, the
+// fallback would replace all five steps. Accepted: the step bodies are server output and each HomeChart
+// has its own boundary, so nothing in the shell is known to throw there.
+// The title is a level-2 heading, so the steps' h3 headings and their diagrams' h4 titles nest under
+// it rather than under the last case-study card.
 // This receives no Home model: only the steps, the chart entries the server sliced (`chartSnapshot`,
 // `homeChartTable`, `chartAriaLabel` in src/lib/home/scroll.tsx) and the refs. The step shown first is
 // the first; the step navigation moves it, and nothing scrolls on its own.
@@ -102,6 +108,7 @@ export function ScrollMoment({ steps, charts, refs }: ScrollMomentProps) {
       {framed ? (
         <Figure
           id={FIGURE_ID}
+          titleLevel={2}
           title="The difference between the groups."
           caption={
             <>
