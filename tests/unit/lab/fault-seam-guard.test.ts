@@ -1007,6 +1007,29 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     const tagged = a.violations.map((v) => lines[v.line - 1]!.trim());
     expect(tagged).toEqual(expect.arrayContaining([expect.stringMatching(/^<ReturnsFigure faultAfterChange \/>$/), expect.stringMatching(/^<CohortFigure rows=\{COHORTS\} faultAfterChange \/>$/)]));
   });
+
+  it('finds the full planner’s seam components from the Lab host, and accepts their forwarding', () => {
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/page.dev.tsx']);
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/lab/FullPlanner.tsx#FullPlanner',
+        'src/components/lab/FullPlannerControls.tsx#FullPlannerIsland',
+        'src/components/lab/FullPlannerClient.tsx#FullPlannerClient',
+        'src/components/lab/FullPlannerView.tsx#SizingFigureView',
+        'src/components/lab/DurationFigure.tsx#DurationFigure',
+        'src/components/lab/FullPlannerView.tsx#DurationFigureView',
+      ]),
+    );
+  });
+
+  it('would reject the Lab faults host if a production root reached it', () => {
+    const host = 'src/app/kitchen-sink/lab/faults/page.dev.tsx';
+    const a = analyse(DISK, REPO, pageExtensions, [host]);
+    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation']]);
+    const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
+    expect(lines[a.violations[0]!.line - 1]!.trim()).toBe('<FullPlanner faultAfterChange />');
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1509,5 +1532,87 @@ export function ThrowingIsland(props: { data: number; faultAfterChange?: true })
     expect(rules({
       'src/components/x/XFigure.tsx': `export function XFigure({ faultAfterChange }: { faultAfterChange?: true }) { return <div data-x="1" {...{}} faultAfterChange={faultAfterChange} />; }`,
     })).toContain('src/components/x/XFigure.tsx activation');
+  });
+});
+
+describe('fixtures for the full planner: a paired island whose seam reaches two Figures', () => {
+  // The repository's shape in miniature: a server composition, a lazy island loaded through a
+  // received-props spread, the island forwarding the seam to the sizing view and to the duration
+  // Figure, and the duration Figure forwarding it to its view.
+  const lab: Record<string, string> = {
+    'src/components/lab/FullPlannerView.tsx': `function SizingSeamFailure(): never {
+  throw new Error('The sizing readout failed after a change (test seam)');
+}
+function DurationSeamFailure(): never {
+  throw new Error('The duration readout failed after a change (test seam)');
+}
+export function SizingFigureView({ changed, faultAfterChange }: { changed?: boolean; faultAfterChange?: true }) {
+  return <figure>{faultAfterChange && changed ? <SizingSeamFailure /> : null}</figure>;
+}
+export function DurationFigureView({ changed, faultAfterChange }: { changed?: boolean; faultAfterChange?: true }) {
+  return <figure>{faultAfterChange && changed ? <DurationSeamFailure /> : null}</figure>;
+}`,
+    'src/components/lab/DurationFigure.tsx': `'use client';
+import { useState } from 'react';
+import { DurationFigureView } from './FullPlannerView';
+export function DurationFigure({ nPerArm, faultAfterChange }: { nPerArm: number; faultAfterChange?: true }) {
+  const [changed] = useState(nPerArm < 0);
+  return <DurationFigureView changed={changed} faultAfterChange={faultAfterChange} />;
+}`,
+    'src/components/lab/FullPlannerClient.tsx': `'use client';
+import { useState } from 'react';
+import { DurationFigure } from './DurationFigure';
+import { SizingFigureView } from './FullPlannerView';
+export type FullPlannerClientProps = { id: string; faultAfterChange?: true };
+export default function FullPlannerClient({ id, faultAfterChange }: FullPlannerClientProps) {
+  const [changed] = useState(id === '');
+  return <div><SizingFigureView changed={changed} faultAfterChange={faultAfterChange} /><DurationFigure nPerArm={1} faultAfterChange={faultAfterChange} /></div>;
+}`,
+    'src/components/lab/FullPlannerControls.tsx': `'use client';
+import { lazy } from 'react';
+import type { FullPlannerClientProps } from './FullPlannerClient';
+const LazyFullPlanner = lazy(() => import('./FullPlannerClient'));
+export function FullPlannerIsland(props: FullPlannerClientProps) { return <LazyFullPlanner {...props} />; }`,
+    'src/components/lab/FullPlanner.tsx': `import { FullPlannerIsland } from './FullPlannerControls';
+export function FullPlanner({ id = 'planner', faultAfterChange }: { id?: string; faultAfterChange?: true }) {
+  return <section><FullPlannerIsland id={id} faultAfterChange={faultAfterChange} /></section>;
+}`,
+  };
+  const labPage = (body: string, imports = `import { FullPlanner } from '@/components/lab/FullPlanner';`): Record<string, string> => ({
+    ...lab,
+    'src/app/page.tsx': `${imports}\nexport default function Page() {\n  ${body}\n}`,
+  });
+
+  it('the faithful chain passes, and every hop is found from the source', () => {
+    const a = run(labPage('return <FullPlanner />;'));
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/lab/FullPlanner.tsx#FullPlanner',
+        'src/components/lab/FullPlannerControls.tsx#FullPlannerIsland',
+        'src/components/lab/FullPlannerClient.tsx#FullPlannerClient',
+        'src/components/lab/FullPlannerView.tsx#SizingFigureView',
+        'src/components/lab/DurationFigure.tsx#DurationFigure',
+        'src/components/lab/FullPlannerView.tsx#DurationFigureView',
+      ]),
+    );
+  });
+
+  it.each([
+    ['the composition', 'return <FullPlanner faultAfterChange />;', `import { FullPlanner } from '@/components/lab/FullPlanner';`],
+    ['the duration Figure, an inner hop', 'return <DurationFigure nPerArm={1} faultAfterChange />;', `import { DurationFigure } from '@/components/lab/DurationFigure';`],
+    ['the duration view, the last hop', 'return <DurationFigureView changed faultAfterChange />;', `import { DurationFigureView } from '@/components/lab/FullPlannerView';`],
+  ])('a production page that sets the seam on %s fails', (_, body, imports) => {
+    const a = run(labPage(body, imports));
+    expect(a.violations.map((v) => [v.file, v.line, v.rule])).toEqual([['src/app/page.tsx', 3, 'activation']]);
+  });
+
+  it('the island forwarding the seam to the duration Figure under another name fails', () => {
+    const files = labPage('return <FullPlanner />;');
+    files['src/components/lab/FullPlannerClient.tsx'] = files['src/components/lab/FullPlannerClient.tsx']!.replace(
+      '<DurationFigure nPerArm={1} faultAfterChange={faultAfterChange} />',
+      '<DurationFigure nPerArm={1} faultAfterChange={faultAfterChange ?? true} />',
+    );
+    expect(rules(files)).toContain('src/components/lab/FullPlannerClient.tsx activation');
   });
 });

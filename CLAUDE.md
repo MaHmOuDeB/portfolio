@@ -195,8 +195,8 @@ a page needs the smallest possible bundle it can also import a component's file 
 ### Composites
 
 Page-level parts built from the kit. They live outside the kit (`src/components/home`,
-`src/components/figures` and `src/components/retention`), and each is listed here once its file
-exists.
+`src/components/figures`, `src/components/retention` and `src/components/lab`), and each is listed
+here once its file exists.
 
 | Export | File | Role |
 |---|---|---|
@@ -222,6 +222,8 @@ exists.
 | `RfmFigure` | `src/components/retention/RfmFigure.tsx` | The RFM Figure (`rfm`, static): share of customers (outlined) and share of spend (filled) per segment on one axis from none to all, each bar labelled with its series and value, segment names on their own line. The Champions customer share is the checked fact, not the export's rounded value (`src/lib/retention/rfm.ts`, which also holds the Champions scores). |
 | `ModelFigure` | `src/components/retention/ModelFigure.tsx` | The model Figure (`models`, static): the recency rule and gradient boosting as dots at their ROC AUC on a track from chance to perfect, with no interval on either AUC; the gain and its interval are facts in the result line. The table adds logistic regression and the lapsed-only scores. |
 | `RetentionPage`, `RETENTION_SECTIONS` | `src/components/retention/RetentionPage.tsx` | The Retention case study, the golden page (below): the analysis template's sections in order, each a `<section>` with an id and its own h2, the four Figures above and the two open sizing tables with their badges. Its prose comes from `content/retention.tsx`. Optional `planner` places a planner Figure in the win-back section; without one the section shows the sourced sizing, its table and a link to the Lab. Mounted by `src/app/work/retention/page.tsx` and by its dev host. |
+| `FullPlanner` | `src/components/lab/FullPlanner.tsx` | The full sample-size planner, two Figures loaded as one paired island: sizing (`planner`: Baseline conversion, Rise to detect, MDE unit in points or percent of the baseline, Reset; Cohen's h, two-sided, significance level 0.05, power 0.8, equal groups, one look) and duration (`duration`: Total visitors per day and Reset; whole weeks, rounded up). The rise is stored in whole points whatever unit shows it, so a unit switch never changes the sample, and the percent slider steps one point at a time. The server draws the preset pair and both open tables; `EagerOrIntent` loads the island for a key of either Figure (`src/lib/lab/full-planner.ts`, the client-safe values in `full-planner-values.ts`, copy in `content/lab.tsx`). `context="retention"` with its own ids plans a hypothetical uplift on the Retention win-back's observed baseline. Its `faultAfterChange` prop is a test seam that only a dev host may set. |
+| `DurationFigure` | `src/components/lab/DurationFigure.tsx` (client) | The duration Figure's live side inside the paired island (`FullPlannerClient.tsx`, views in `FullPlannerView.tsx`, control rows in `FullPlannerControls.tsx`): it owns only its traffic and that URL state, and takes the visitors per group from the sizing Figure. Its Reset restores the traffic only. |
 
 ## Golden-page rule
 

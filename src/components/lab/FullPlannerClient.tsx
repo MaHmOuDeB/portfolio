@@ -1,0 +1,161 @@
+'use client';
+
+// The full planner's paired island, loaded by EagerOrIntent (FullPlannerControls imports it
+// lazily; the server never imports it). It owns the sizing values once, with their URL state
+// (`?planner.baseline=0.3&planner.risePoints=4&planner.mode=relative`), and hands the visitors per
+// group to the duration Figure, which owns only its traffic. It announces the sizing result on a
+// committed change only: slider release, a key release, a typed value, a unit change or Reset.
+//
+// - Joint URL state: a baseline change can lower the rise (the target never passes 99%), so every
+//   change writes the whole normalized triple, and neither state nor URL ever holds an unnormalized
+//   pair. The latest triple is kept in a ref: a slider's release handler is the one from the render
+//   where the drag began, so it cannot read the rise from its own closure after a cap.
+// - Switching the unit changes only how the rise is shown: the baseline, the rise in points, the
+//   target and the sample stay exactly as they were.
+// - It passes `preview={false}` to the sizing Figure: if its readout throws after a change, the
+//   fallback shows the kit's sentence and the current table, never a preset readout beside it.
+//   `faultAfterChange` (a test seam, absent in production) is forwarded unchanged to both Figures.
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { instantly } from '@/components/kit/Figure';
+import { useFigureParams } from '@/components/kit/useFigureParams';
+import {
+  FULL_PLAN_PRESETS,
+  FULL_PLAN_SCHEMA,
+  PLANNER_NOUN,
+  fullPlanModel,
+  fullPlanSentence,
+  normalizeFullPlan,
+  type FullPlanValues,
+  type PlannerContext,
+} from '@/lib/lab/full-planner';
+import { DurationFigure } from './DurationFigure';
+import { SizingControls } from './FullPlannerControls';
+import { PAIR_CLASS, SizingFigureView } from './FullPlannerView';
+
+export type FullPlannerClientProps = {
+  /** The sizing Figure's id. */
+  id: string;
+  /** The duration Figure's id. */
+  durationId: string;
+  context: PlannerContext;
+  faultAfterChange?: true;
+};
+
+/** Frames to wait for the preview to leave and the island's control to exist. */
+const HANDOFF_FRAMES = 120;
+
+type Handoff = { element: HTMLElement; selector: string };
+
+/**
+ * The preview's control without an id that holds focus as the island first renders: a unit radio
+ * or either Figure's Reset. The sliders and number inputs have ids; the loader hands those over.
+ */
+function focusedPreviewControl(ids: readonly string[], modeName: string): Handoff | null {
+  if (typeof document === 'undefined') return null;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return null;
+  for (const id of ids) {
+    const controls = `#${id} [data-planner-controls]`;
+    if (active.closest(controls) === null) continue;
+    if (active instanceof HTMLInputElement && active.name === modeName) {
+      return { element: active, selector: `${controls} input[name="${modeName}"][value="${active.value}"]` };
+    }
+    if (active instanceof HTMLButtonElement) return { element: active, selector: `${controls} button` };
+  }
+  return null;
+}
+
+export default function FullPlannerClient({ id, durationId, context, faultAfterChange }: FullPlannerClientProps) {
+  const { values, preset, set, reset } = useFigureParams(id, FULL_PLAN_SCHEMA, FULL_PLAN_PRESETS);
+  const shown = normalizeFullPlan(values);
+  const latest = useRef(shown);
+  // Back or Forward can bring new values without a handler here; follow them after the render.
+  useEffect(() => {
+    latest.current = { baseline: shown.baseline, risePoints: shown.risePoints, mode: shown.mode };
+  }, [shown.baseline, shown.risePoints, shown.mode]);
+  // The loader hands focus from the preview to the island by element id, and the kit's radios and
+  // Reset buttons have none: a keyboard visitor on one of them would be left on <body> when the
+  // preview goes. The island remembers that control and focuses its own one as soon as the preview
+  // has left: in a microtask after this commit (the loader removes the preview in a synchronous
+  // update of the same commit, so before the browser paints), then each frame while the preview is
+  // still there or the control does not exist yet. It stops if focus has gone anywhere else. The
+  // same handoff as the Retention Figures' islands.
+  const [handoff] = useState(() => focusedPreviewControl([id, durationId], `${id}-mode`));
+  useLayoutEffect(() => {
+    if (handoff === null) return;
+    let live = true;
+    let frame = 0;
+    let tries = 0;
+    const place = () => {
+      if (!live) return;
+      const active = document.activeElement;
+      const previewStays = active === handoff.element && handoff.element.isConnected;
+      const lost = active === null || active === document.body || (active === handoff.element && !handoff.element.isConnected);
+      const target = document.querySelector<HTMLElement>(handoff.selector);
+      if (lost && target !== null && target !== handoff.element) {
+        target.focus();
+        return;
+      }
+      if ((previewStays || lost) && tries++ < HANDOFF_FRAMES) frame = requestAnimationFrame(place);
+    };
+    queueMicrotask(place);
+    return () => {
+      live = false;
+      cancelAnimationFrame(frame);
+    };
+  }, [handoff]);
+  const [announcement, setAnnouncement] = useState('');
+  const [changed, setChanged] = useState(false);
+  const noun = PLANNER_NOUN[context];
+  const current = () => latest.current;
+
+  // The whole normalized triple, every time: a stale or capped URL pair is replaced by the one on screen.
+  const apply = (next: FullPlanValues) => {
+    latest.current = next;
+    set('baseline', next.baseline);
+    set('risePoints', next.risePoints);
+    set('mode', next.mode);
+  };
+  const commit = (next: FullPlanValues) => {
+    setChanged(true);
+    setAnnouncement(fullPlanSentence(next, noun));
+  };
+
+  return (
+    <div data-full-planner="" className={PAIR_CLASS}>
+      <SizingFigureView
+        id={id}
+        context={context}
+        values={shown}
+        preview={false}
+        announcement={announcement}
+        faultAfterChange={faultAfterChange}
+        changed={changed}
+        controls={
+          <SizingControls
+            id={id}
+            values={shown}
+            onBaseline={(baseline) => apply(normalizeFullPlan({ ...current(), baseline }))}
+            onBaselineCommit={(baseline) => commit(normalizeFullPlan({ ...current(), baseline }))}
+            onRise={(risePoints) => apply(normalizeFullPlan({ ...current(), risePoints }))}
+            onRiseCommit={(risePoints) => commit(normalizeFullPlan({ ...current(), risePoints }))}
+            onMode={(mode) => {
+              const next = normalizeFullPlan({ ...current(), mode });
+              apply(next);
+              commit(next);
+            }}
+            onReset={() =>
+              instantly(id, () => {
+                reset();
+                const restored = normalizeFullPlan(FULL_PLAN_PRESETS[preset]!);
+                latest.current = restored;
+                setAnnouncement(fullPlanSentence(restored, noun));
+              })
+            }
+          />
+        }
+      />
+      <DurationFigure id={durationId} context={context} nPerArm={fullPlanModel(shown).nPerArm} faultAfterChange={faultAfterChange} />
+    </div>
+  );
+}
