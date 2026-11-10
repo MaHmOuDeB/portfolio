@@ -9,7 +9,7 @@
 import { lazy } from 'react';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
-import { PLANNER_REFS, PLANNER_SCHEMA, percentText, pointsText, riseMax, targetRate, type PlannerValues } from '@/lib/lab/planner';
+import { PLANNER_REFS, PLANNER_SCHEMA, percentText, pointsText, riseMax, targetRate, type PlannerValues } from '@/lib/lab/planner-values';
 import type { PlannerInteractiveProps } from './PlannerInteractive';
 
 const LazyPlanner = lazy(() => import('./PlannerInteractive'));
