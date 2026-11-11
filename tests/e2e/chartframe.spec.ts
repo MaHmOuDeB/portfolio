@@ -234,7 +234,7 @@ for (const width of WIDTHS) {
 }
 
 // The frame states, per outer label, the column width below which it anchors the label at its tick:
-// about 838 px for the first label of this specimen and 852 px for the last. Either side of each, the
+// 838 px for the first label of this specimen and 852 px for the last. Either side of each, the
 // label is inside the frame and sits where its anchor says.
 test('an outer x tick label goes from anchored at its tick to centred as the column passes the width the frame states', async ({ page }) => {
   // The column is the viewport less the page's side padding: measure that once, then set the column.
