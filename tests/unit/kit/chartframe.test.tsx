@@ -183,6 +183,90 @@ describe('ChartFrame', () => {
     expect(xs.map(text)).toEqual(['0', '50', '100', '150', '200', '250']);
   });
 
+  describe('outermost x tick labels inside the domain', () => {
+    // A log axis, as the exaggeration chart draws it: the domain runs from 0.02 to 50 and the ticks
+    // 0.1, 1 and 10 sit at about 21%, 50% and 79% of the plot, not on its ends.
+    const LOG: Partial<ChartFrameProps> = {
+      x: {
+        domain: [Math.log10(0.02), Math.log10(50)],
+        ticks: { narrow: [-1, 0, 1], wide: [-1, 0, 1] },
+        format: (v) => formatNumber(10 ** v, 1),
+        label: 'Ratio (log scale)',
+        refs: ['simulated'],
+      },
+      annotation: undefined,
+    };
+    const styles = (props: Partial<ChartFrameProps>) =>
+      [...renderToStaticMarkup(<ChartFrame {...FIXTURE} {...props} />).matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]!);
+    const xTicks = (props: Partial<ChartFrameProps>, layout = 1) =>
+      ticks(frames(render(props))[layout]!).filter((t) => attr(t, 'data-tick') === 'x');
+
+    it('centres each on its tick, as the ticks between them are', () => {
+      const xs = xTicks(LOG);
+      expect(xs.map(text)).toEqual(['0.1', '1', '10']);
+      expect(xs.map((t) => attr(t, 'text-anchor'))).toEqual(['middle', 'middle', 'middle']);
+      expect(Number.parseFloat(attr(xs[0]!, 'x')!)).toBeCloseTo((100 * (-1 - Math.log10(0.02))) / (2 * Math.log10(50)), 2);
+    });
+
+    it('keeps start and end only for a tick on the end of the domain', () => {
+      const ends = xTicks({ ...LOG, x: { ...LOG.x!, ticks: { narrow: [Math.log10(0.02), 0, 1], wide: [Math.log10(0.02), 0, 1] } } });
+      expect(ends.map((t) => attr(t, 'text-anchor'))).toEqual(['start', 'middle', 'middle']);
+      const one = xTicks({ ...LOG, x: { ...LOG.x!, ticks: { narrow: [Math.log10(50)], wide: [Math.log10(50)] } } });
+      expect(one.map((t) => attr(t, 'text-anchor'))).toEqual(['end']);
+    });
+
+    describe('never leaves the frame', () => {
+      // No zero in the y domain, so no zero-line words and no right margin; y labels one digit wide.
+      const Y: ChartFrameProps['y'] = {
+        domain: [1, 5],
+        ticks: { narrow: [1, 3, 5], wide: [1, 2, 3, 4, 5] },
+        format: (v) => formatNumber(v, 0),
+        label: 'Count',
+        refs: ['simulated'],
+      };
+      // Long labels close to both ends: 500,000 at 5% and 9,500,000 at 95% of the plot.
+      const WIDE_LABELS: Partial<ChartFrameProps> = {
+        x: { domain: [0, 10_000_000], ticks: { narrow: [500_000, 9_500_000], wide: [500_000, 9_500_000] }, format: (v) => formatNumber(v, 0), label: 'Visitors', refs: ['simulated'] },
+        y: Y,
+        annotation: undefined,
+      };
+      const left = Math.ceil(1 * 8.4) + 8;
+      // The narrowest column in which the centred label stays inside the frame: its half width
+      // (8.4 px a character) past the gutter, spread over the share of the plot on its side.
+      const need = (chars: number, side: number, room: number) => left + 0 + Math.ceil(((chars * 8.4) / 2 - side) / room);
+
+      it('below the column width where a centred label would cross the frame edge, anchors it at its tick, away from the edge', () => {
+        const [narrow, wide] = styles(WIDE_LABELS);
+        for (const [rules, layout] of [[narrow, 'narrow'], [wide, 'wide']] as const) {
+          expect(rules).toBe(
+            `@container (width < ${need(7, left, 0.05)}px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="first"]{text-anchor:start}}` +
+              `@container (width < ${need(9, 0, 1 - 0.95)}px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="last"]{text-anchor:end}}`,
+          );
+        }
+        const xs = xTicks(WIDE_LABELS);
+        expect(xs.map((t) => [text(t), attr(t, 'text-anchor'), attr(t, 'data-tick-edge')])).toEqual([
+          ['500,000', 'middle', 'first'],
+          ['9,500,000', 'middle', 'last'],
+        ]);
+      });
+
+      it('needs no rule where the centred label always fits in the gutter', () => {
+        // "0.1" is 12.6 px either side of its tick; the y gutter of "+40" is 34 px wide.
+        const xs = xTicks({ ...LOG, y: FIXTURE.y });
+        expect(attr(xs[0]!, 'data-tick-edge')).toBeUndefined();
+        expect(styles({ ...LOG, y: FIXTURE.y }).join('')).not.toContain('data-tick-edge="first"');
+        // The right margin holds "no difference", so "10" fits on that side too.
+        expect(attr(xs[2]!, 'data-tick-edge')).toBeUndefined();
+        expect(styles({ ...LOG, y: FIXTURE.y })).toEqual([]);
+      });
+
+      it('marks nothing on an axis whose ticks sit on the domain ends', () => {
+        expect(render().childNodes!.length).toBeGreaterThan(0);
+        expect(find(render(), (n) => hasAttr(n, 'data-tick-edge'))).toHaveLength(0);
+      });
+    });
+  });
+
   it('draws the zero line in ink, its tick reads "0" and carries the zero label', () => {
     const [, wide] = frames(render());
     const zero = find(wide!, (n) => hasAttr(n, 'data-zero-line'));

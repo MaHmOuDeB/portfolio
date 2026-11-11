@@ -503,6 +503,36 @@ test.describe('Both diagnostics together', () => {
     });
   }
 
+  // On the log axis the ticks 0.1, 1 and 10 sit inside the domain, not on its ends: each label is
+  // centred on its tick, so it reads the value it labels, and stays inside the chart frame.
+  for (const width of [320, 1440]) {
+    test(`the exaggeration x tick labels centre on their ticks and stay inside the frame at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(HOST);
+      await ready(page, 'curse');
+      const svg = figure(page, 'curse').locator('svg[data-chart-frame]:visible');
+      const ticks = await svg.evaluate((frame) => {
+        const box = frame.getBoundingClientRect();
+        const style = getComputedStyle(frame);
+        const left = box.left + Number.parseFloat(style.paddingLeft);
+        const plot = box.width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+        return [...frame.querySelectorAll<SVGTextElement>('[data-tick="x"]')].map((t) => {
+          const r = t.getBoundingClientRect();
+          return {
+            text: t.textContent,
+            off: (r.left + r.right) / 2 - (left + (Number.parseFloat(t.getAttribute('x')!) / 100) * plot),
+            inside: r.left >= box.left - 0.5 && r.right <= box.right + 0.5,
+          };
+        });
+      });
+      expect(ticks.map((t) => t.text)).toEqual(['0.1', '1', '10']);
+      for (const t of ticks) {
+        expect(Math.abs(t.off), `${t.text} is ${t.off.toFixed(1)} px off its tick`).toBeLessThanOrEqual(2);
+        expect(t.inside, `${t.text} inside the frame`).toBe(true);
+      }
+    });
+  }
+
   test('wide: chart text inside each Figure and apart, at the matrix widths and the screen-share size', async ({ page }) => {
     // Six page loads with both islands each: WebKit in the container needs more than 30 s.
     markSlow('six page loads with both islands each: WebKit in the container needs more than 30 s');

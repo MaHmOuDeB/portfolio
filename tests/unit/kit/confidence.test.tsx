@@ -238,7 +238,9 @@ describe('ConfidenceChart overrides', () => {
   // The markup the chart produced before it took a height or label override, one short hash per
   // fixture (generated from the unextended component, main 96d4470: every phase, amount of data and
   // freshness of the sink, plus the paused interval above zero; each in the responsive, narrow and
-  // wide forms). Absent overrides must keep reproducing it.
+  // wide forms). Absent overrides must keep reproducing it. Regenerated once since, when the frame
+  // began centring an outermost x tick label that is not on an end of the domain: in the 16 fixtures
+  // with a chart, the last x tick's text-anchor went from "end" to "middle", and nothing else changed.
   const SEED_HASHES: Record<string, string> = {
   "before-data/low-data/fresh": "30124f32e9ff7b52",
   "before-data/low-data/stale": "30124f32e9ff7b52",
@@ -249,9 +251,9 @@ describe('ConfidenceChart overrides', () => {
   "calibration/low-data/fresh": "c34d2d16c21e1347",
   "calibration/low-data/stale": "c34d2d16c21e1347",
   "calibration/low-data/paused": "c34d2d16c21e1347",
-  "calibration/enough-data/fresh": "195ed9470e6182a0",
-  "calibration/enough-data/stale": "195ed9470e6182a0",
-  "calibration/enough-data/paused": "8dca9c71eb1f6c53",
+  "calibration/enough-data/fresh": "47dd3b1333a825d1",
+  "calibration/enough-data/stale": "47dd3b1333a825d1",
+  "calibration/enough-data/paused": "31b74a46e3105b1e",
   "aa-failed/low-data/fresh": "75a11da44c802486",
   "aa-failed/low-data/stale": "75a11da44c802486",
   "aa-failed/low-data/paused": "75a11da44c802486",
@@ -261,34 +263,34 @@ describe('ConfidenceChart overrides', () => {
   "ab/low-data/fresh": "877007dd3baa8be7",
   "ab/low-data/stale": "877007dd3baa8be7",
   "ab/low-data/paused": "877007dd3baa8be7",
-  "ab/enough-data/fresh": "83eff63f41e86040",
-  "ab/enough-data/stale": "83eff63f41e86040",
-  "ab/enough-data/paused": "9c33b4ad8cba6376",
+  "ab/enough-data/fresh": "42be55503ac0ccd4",
+  "ab/enough-data/stale": "42be55503ac0ccd4",
+  "ab/enough-data/paused": "56a7df87c6c60eeb",
   "inconclusive/low-data/fresh": "75a11da44c802486",
   "inconclusive/low-data/stale": "75a11da44c802486",
   "inconclusive/low-data/paused": "75a11da44c802486",
-  "inconclusive/enough-data/fresh": "0e467d8c13bdafba",
-  "inconclusive/enough-data/stale": "0e467d8c13bdafba",
-  "inconclusive/enough-data/paused": "6de0b9079208b5c6",
+  "inconclusive/enough-data/fresh": "b683e14eb33ff06d",
+  "inconclusive/enough-data/stale": "b683e14eb33ff06d",
+  "inconclusive/enough-data/paused": "4d815e03f0e62f54",
   "ship-b/low-data/fresh": "75a11da44c802486",
   "ship-b/low-data/stale": "75a11da44c802486",
   "ship-b/low-data/paused": "75a11da44c802486",
-  "ship-b/enough-data/fresh": "4ed6edcd2aa44a80",
-  "ship-b/enough-data/stale": "4ed6edcd2aa44a80",
-  "ship-b/enough-data/paused": "8af344dff23c3e5b",
+  "ship-b/enough-data/fresh": "4c403699ce6592eb",
+  "ship-b/enough-data/stale": "4c403699ce6592eb",
+  "ship-b/enough-data/paused": "a16156cc55a39126",
   "stop-for-harm/low-data/fresh": "75a11da44c802486",
   "stop-for-harm/low-data/stale": "75a11da44c802486",
   "stop-for-harm/low-data/paused": "75a11da44c802486",
-  "stop-for-harm/enough-data/fresh": "46e338a08fac8fad",
-  "stop-for-harm/enough-data/stale": "46e338a08fac8fad",
-  "stop-for-harm/enough-data/paused": "0168f05d7f8b52e7",
+  "stop-for-harm/enough-data/fresh": "f5dc7b51a94a0e0f",
+  "stop-for-harm/enough-data/stale": "f5dc7b51a94a0e0f",
+  "stop-for-harm/enough-data/paused": "03d5146e77690d7a",
   "srm-suppressed/low-data/fresh": "75a11da44c802486",
   "srm-suppressed/low-data/stale": "75a11da44c802486",
   "srm-suppressed/low-data/paused": "75a11da44c802486",
   "srm-suppressed/enough-data/fresh": "75a11da44c802486",
   "srm-suppressed/enough-data/stale": "75a11da44c802486",
   "srm-suppressed/enough-data/paused": "75a11da44c802486",
-  "paused-above-zero": "c0faa86707e0785f",
+  "paused-above-zero": "ac55a40a84ea86e8",
   };
   const fixtures: Array<[string, LiveSnapshot]> = [];
   for (const p of LIVE_PHASES) {
