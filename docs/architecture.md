@@ -57,7 +57,7 @@ flowchart TD
 | `sources-remote` | Verifies pinned source exports against GitHub. |
 | `build` | Production build, absence of development showcase routes, design lint and truth audit. |
 | `e2e` | Playwright in its pinned container, including visual checks and controlled baseline updates. |
-| `lhci` | Lighthouse against the production build, twice: the category scores with Lighthouse's simulated throttling, then LCP with the same slow network and CPU profile applied for real. |
+| `lhci` | Lighthouse against the production build, with the slow-4G network and CPU profile applied for real. |
 | `lhci-gate` | One Lighthouse result per commit: passes when Lighthouse passed in this run, or in an earlier run of the same pull request commit; fails when it was not measured or failed. |
 | `links` | Lychee against the locally served build. |
 | `cv-pdf` | Records the checked-out commit, its tree and the hashes of the CV checker, its claim manifest and the CV PDF; passes while no PDF is in the tree, and fails on a PDF until its check is active. |

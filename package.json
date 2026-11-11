@@ -28,7 +28,7 @@
     "test:e2e:docker": "bash scripts/e2e-docker.sh",
     "gen:obf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-obf-constants.ts",
     "build:meta": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-meta.ts",
-    "lhci": "lhci autorun && lhci autorun --config=lighthouserc.throttled.json",
+    "lhci": "lhci autorun",
     "links": "lychee --config .lychee.toml http://localhost:3123/",
     "check": "npm run typecheck && npm run lint && npm run lint:css && npm run test && npm run lint:design:src"
   },
