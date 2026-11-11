@@ -479,9 +479,16 @@ for (const id of ['srm', 'curse'] as const) {
       // Start with nothing focused, as the kit's own pointer test does.
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
-      // A click three quarters along the track: a change, whatever the engine focuses.
+      // page.mouse does not scroll, and where the page sits once the islands have loaded is not this
+      // test's subject: bring the control on screen and check that the click point is the control.
+      await range(page, control).scrollIntoViewIfNeeded();
       const box = (await range(page, control).boundingBox())!;
-      await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+      const [x, y] = [box.x + box.width * 0.75, box.y + box.height / 2];
+      expect(await page.evaluate(([px, py, cid]) => document.elementFromPoint(px, py)?.id === cid, [x, y, control] as const)).toBe(true);
+      const before = await range(page, control).inputValue();
+      // A click three quarters along the track: a change, whatever the engine focuses.
+      await page.mouse.click(x, y);
+      await expect(range(page, control)).not.toHaveValue(before);
       const status = figure(page, id).getByRole('status');
       await expect(status).toHaveText(SENTENCE);
       const focus = await page.evaluate((fid) => {
