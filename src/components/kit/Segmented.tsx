@@ -6,6 +6,8 @@
 // From xs up the options are one joined row exactly 44 px tall (--size-target, the touch target, with
 // no padding round it), so a control row lines up with the Slider and Reset. Under xs they stack as
 // full-width rows, each with a radio mark, so an unselected option still reads as a choice.
+// A disabled group can name the element that says why (`disabledReasonId`): it describes the group
+// while disabled, and only then, so a hidden reason is never read.
 import { cx } from '@/lib/cx';
 
 export type SegmentedProps<V extends string> = {
@@ -15,6 +17,12 @@ export type SegmentedProps<V extends string> = {
   value: V;
   onChange: (v: V) => void;
   disabled?: boolean;
+  /**
+   * The id of the element that says why the group is disabled. While `disabled`, it describes the
+   * group (aria-describedby on the fieldset), so assistive technology reads the reason with it; while
+   * enabled it is not used.
+   */
+  disabledReasonId?: string;
 };
 
 const STATE = {
@@ -22,11 +30,16 @@ const STATE = {
   unchecked: { enabled: 'cursor-pointer border-muted text-ink hover:bg-line', disabled: 'cursor-not-allowed border-line text-muted' },
 } as const;
 
-export function Segmented<V extends string>({ name, legend, options, value, onChange, disabled }: SegmentedProps<V>) {
+export function Segmented<V extends string>({ name, legend, options, value, onChange, disabled, disabledReasonId }: SegmentedProps<V>) {
   // A value that is not an option (a stale or hostile URL) shows the first option as chosen.
   const selected = options.some((o) => o.value === value) ? value : options[0]?.value;
   return (
-    <fieldset data-js-only disabled={disabled} className="min-w-0 max-xs:w-full">
+    <fieldset
+      data-js-only
+      disabled={disabled}
+      aria-describedby={disabled && disabledReasonId ? disabledReasonId : undefined}
+      className="min-w-0 max-xs:w-full"
+    >
       <legend className="text-sm text-muted">{legend}</legend>
       <div className="mt-1 flex flex-col gap-2 xs:inline-flex xs:flex-row xs:gap-0">
         {options.map((option) => {

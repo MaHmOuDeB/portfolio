@@ -410,6 +410,14 @@ describe('the controls', () => {
     expect(reason(daily)).toMatch(/aria-hidden="true"/);
   });
 
+  it('describe the disabled Fix group by its reason, and the enabled group by nothing', () => {
+    expect(reason(once)).toMatch(/<p id="peeking-fix-reason"/);
+    expect(fixGroup(once)).toMatch(/<fieldset[^>]*aria-describedby="peeking-fix-reason"/);
+    expect(fixGroup(daily)).not.toContain('aria-describedby');
+    // exactly one element carries the id the group points at
+    expect(once.match(/ id="peeking-fix-reason"/g)).toHaveLength(1);
+  });
+
   it('give the looks with the visitors they add up to, under a simulated marker', () => {
     expect(daily).toMatch(/<div data-slider="[^"]*" data-js-only="[^"]*" data-derived="simulated"/);
     expect(daily).toContain('aria-valuetext="20 looks, 2,000 visitors per group by the last"');
