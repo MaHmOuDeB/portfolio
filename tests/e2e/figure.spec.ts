@@ -475,9 +475,7 @@ test.describe('kit: the table fallback, drawn once', () => {
     await expect(figure(page, 'static').getByRole('region')).toBeFocused();
   });
 
-  test('without JavaScript: one open table, named, with no disclosure, and axe finds nothing', async ({ browser }) => {
-    // One axe pass over the two Figures of the 100-specimen page: about 40 s in WebKit under load.
-    test.setTimeout(120_000);
+  test('without JavaScript: one open table, named, with no disclosure', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto('/kitchen-sink');
@@ -488,7 +486,6 @@ test.describe('kit: the table fallback, drawn once', () => {
       await expect(f.getByRole('table')).toHaveAccessibleName(await f.locator('h4').innerText());
       await expect(f.locator('summary')).toBeHidden();
     }
-    expect((await axe(page, ...TABLE_FIGURES)).violations).toEqual([]);
     // The note sits 12 px under the badge row and the table 8 px under the note, as before; a Figure
     // without controls has its table 12 px under the badge row.
     const gap = (id: string) =>
@@ -522,6 +519,21 @@ test.describe('kit: the table fallback, drawn once', () => {
     const after = await Promise.all(TABLE_FIGURES.map((id) => geometry(page, id)));
     expect(after).toEqual(before);
     for (const g of after) expect(g.body).toBeNull();
+  });
+
+  test('the no-JS view, drawn by the CSS without the JavaScript flag: axe finds nothing', async ({ page }) => {
+    // axe runs in the page, so it cannot scan a page loaded without JavaScript. The no-JS view is
+    // chosen by CSS alone (html:not([data-js])), so removing the flag draws it for the scan.
+    test.setTimeout(90_000);
+    await page.goto('/kitchen-sink');
+    await waitForIslands(page);
+    await page.evaluate(() => document.documentElement.removeAttribute('data-js'));
+    for (const id of TABLE_FIGURES) {
+      await expect(figure(page, id).getByRole('table')).toBeVisible();
+      await expect(figure(page, id).locator('summary')).toBeHidden();
+    }
+    await expect(figure(page, 'demo').getByText('Controls need JavaScript.')).toBeVisible();
+    expect((await axe(page, ...TABLE_FIGURES)).violations).toEqual([]);
   });
 
   test('in print the table shows and the summary does not', async ({ page }) => {

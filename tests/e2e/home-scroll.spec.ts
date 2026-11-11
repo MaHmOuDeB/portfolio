@@ -78,13 +78,17 @@ async function layoutOf(page: Page) {
 }
 
 /**
- * The accessible chart tables in the moment: rendered (no display: none ancestor), whether folded in
- * their disclosure or open. The chart's tables carry the Figure's id.
+ * The accessible chart tables in the moment: rendered (no display: none ancestor, apart from the
+ * body of a folded table, which its summary opens), whether folded or open. The chart's tables carry
+ * the Figure's id.
  */
 async function chartTables(page: Page): Promise<number> {
   return page.evaluate(() => {
+    // A folded table counts: its body is hidden only until the summary drawn before it opens it.
+    const folded = (e: Element) => e.matches('[data-table-body]') && e.previousElementSibling?.matches('[data-table-toggle]') === true
+      && getComputedStyle(e.previousElementSibling).display !== 'none';
     const rendered = (el: Element) => {
-      for (let e: Element | null = el; e; e = e.parentElement) if (getComputedStyle(e).display === 'none') return false;
+      for (let e: Element | null = el; e; e = e.parentElement) if (getComputedStyle(e).display === 'none' && !folded(e)) return false;
       return true;
     };
     return [...document.querySelectorAll('[data-scroll-moment] caption')]

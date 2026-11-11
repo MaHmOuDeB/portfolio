@@ -79,7 +79,8 @@ for (const [phase, phaseLabel] of Object.entries(phases)) {
         }
       }
       await measure('phase aggregate table counts', async () => {
-        await expect(section.locator('[data-specimen] table')).toHaveCount(24);
+        // One table per Figure: the six default runtimes no longer carry a second, folded copy.
+        await expect(section.locator('[data-specimen] table')).toHaveCount(18);
         await expect(section.getByRole('table')).toHaveCount(18);
       });
     });
@@ -107,7 +108,8 @@ test('live examples preserve aggregate specimen, figure and table counts', async
       });
     }
     await measure('whole-page aggregate table counts', async () => {
-      await expect(page.locator('[data-specimen] table')).toHaveCount(192);
+      // One table per Figure: the 48 default runtimes no longer carry a second, folded copy.
+      await expect(page.locator('[data-specimen] table')).toHaveCount(144);
       await expect(page.getByRole('table')).toHaveCount(144);
     });
   });
