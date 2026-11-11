@@ -69,11 +69,12 @@ describe('the CI jobs and their check names', () => {
       lhci: 'Lighthouse CI',
       links: 'Link check',
       'cv-pdf': 'CV PDF check',
+      'build-isolation': 'Build token isolation',
     });
   });
 
   it('runs every job on the self-hosted labels', () => {
-    for (const id of ['stats-ref', 'sources-remote', 'build', 'cv-pdf']) {
+    for (const id of ['stats-ref', 'sources-remote', 'build', 'cv-pdf', 'build-isolation']) {
       expect(key(ci[id]!, 'runs-on'), id).toBe(SELF_HOSTED);
     }
     // Static (fixed Redis port) and links (fixed site port) only on instance 1; e2e (the longest
@@ -158,6 +159,7 @@ describe('the self-hosted adjustments', () => {
       lhci: '60',
       links: '25',
       'cv-pdf': '5',
+      'build-isolation': '25',
     });
   });
 
