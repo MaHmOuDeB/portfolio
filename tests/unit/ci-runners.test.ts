@@ -101,18 +101,23 @@ describe('the CI jobs and their check names', () => {
     const others = Object.keys(ci).filter((id) => id !== 'lhci');
     expect(key(ci.lhci!, 'needs')).toBe(`[${others.join(', ')}]`);
     expect(key(ci.lhci!, 'if')).toBe(
-      "${{ !cancelled() && needs.build.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && needs.build.outputs.lhci-passed != 'true' }}",
+      "${{ !cancelled() && needs.build.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && needs.build.outputs.lhci-passed != 'true' && !contains(github.event.pull_request.labels.*.name, 'update-baselines') }}",
     );
-    // No label skip: a skipped job reports success, so lhci skips only when this exact commit
-    // already passed it (below), never on the event alone.
-    expect(key(ci.lhci!, 'if')).not.toMatch(/label|github\.event\.action/);
-    // The build job's output, and npm from GitHub's cache on the hosted runner.
+    // A skipped job reports success, so lhci skips only while `update-baselines` is on (that run is
+    // not merge evidence) or when this exact commit already passed it (below), never on the event.
+    expect(key(ci.lhci!, 'if')!.replace("!contains(github.event.pull_request.labels.*.name, 'update-baselines')", '')).not.toMatch(
+      /label|github\.event\.action/,
+    );
+    // The comment says the skipped run is not a pass and which run gates the merge.
+    const comment = ci.lhci!.split('\n    needs:')[0]!.replace(/\n {4}# /g, ' ');
+    expect(comment).toContain('a skip is never a Lighthouse pass');
+    expect(comment).toContain('the run after the label is removed is the one that gates the merge');
+    // The build job's output.
     expect(ci.lhci).toContain('          name: next-build\n          path: .next\n');
-    expect(ci.lhci).toContain('          node-version-file: .nvmrc\n          cache: npm\n');
     // The plain run, as before the self-hosted runners: no CPU multiplier, no benchmark guard.
     expect(ci.lhci).toMatch(/^ {6}- run: npm run lhci$/m);
     expect(ci.lhci).not.toMatch(/lhci-calibrated|cpuSlowdownMultiplier|lhci collect/);
-    expect(ci.lhci).toContain('          if-no-files-found: error\n          retention-days: 7\n');
+    expect(ci.lhci).toContain("          if-no-files-found: error\n          retention-days: ${{ github.event_name == 'pull_request' && 3 || 7 }}\n");
     // The local calibration script keeps its multiplier and its browser (lhci-calibrated.test.ts).
     expect(LHCI_SCRIPT).toMatch(new RegExp(`^MULTIPLIER=${LHCI_CPU_MULTIPLIER.replace('.', '\\.')}$`, 'm'));
     expect(LHCI_SCRIPT).toContain("export CHROME_PATH=\"$(node -e \"console.log(require('playwright-core').chromium.executablePath())\")\"");
@@ -125,6 +130,63 @@ describe('the CI jobs and their check names', () => {
     expect(Object.keys(deploy)).toEqual(['deploy']);
     expect(key(deploy.deploy!, 'runs-on')).toBe('ubuntu-24.04');
     expect(DEPLOY).not.toMatch(/self-hosted|portfolio-mac/);
+    // Successful deploys took 2:06 to 2:11; 10 minutes caps a hung one.
+    expect(key(deploy.deploy!, 'timeout-minutes')).toBe('10');
+  });
+
+  it('restores node_modules on the hosted jobs by exact key only, and installs and saves on a miss', () => {
+    const NODE_MODULES_KEY =
+      "key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.version }}-${{ hashFiles('package-lock.json') }}";
+    const deploy = jobs(DEPLOY).deploy!;
+    for (const [name, job] of [['lhci', ci.lhci!], ['deploy', deploy]] as const) {
+      const steps = job.split('\n      - ').slice(1);
+      const at = (re: RegExp) => steps.findIndex((step) => re.test(step));
+      const version = at(/^name: Node version\n {8}id: node\n {8}run: echo "version=\$\(node --version\)" >> "\$GITHUB_OUTPUT"$/);
+      const restore = at(/^name: Restore node_modules\n {8}id: node-modules\n {8}uses: actions\/cache\/restore@[0-9a-f]{40} # v[\d.]+\n/);
+      const install = at(/^if: \$\{\{ steps\.node-modules\.outputs\.cache-hit != 'true' \}\}\n {8}run: npm ci$/);
+      const save = at(/^name: Save node_modules\n {8}if: \$\{\{ steps\.node-modules\.outputs\.cache-hit != 'true' \}\}\n {8}uses: actions\/cache\/save@[0-9a-f]{40} # v[\d.]+\n/);
+      expect([version, restore, install, save], name).toEqual([version, version + 1, version + 2, version + 3]);
+      expect(version, name).toBeGreaterThan(0);
+      // After setup-node, which reads .nvmrc and no longer caches ~/.npm.
+      const setup = at(/^uses: actions\/setup-node@[0-9a-f]{40} # v[\d.]+\n {8}with:\n {10}node-version-file: \.nvmrc\n(?! {10})/);
+      expect(setup, name).toBeGreaterThan(-1);
+      expect(setup, name).toBeLessThan(version);
+      expect(steps[restore]!.endsWith(`\n          path: node_modules\n          ${NODE_MODULES_KEY}`), name).toBe(true);
+      expect(steps[save], name).toMatch(/\n {10}path: node_modules\n {10}key: \$\{\{ steps\.node-modules\.outputs\.cache-primary-key \}\}(?:\n|$)/);
+      // The exact key only: no prefix match can bring back another lockfile's tree, no second npm cache.
+      const code = job.replace(/^\s*#.*\n/gm, '');
+      expect(code, name).not.toMatch(/restore-keys|^\s+cache:|fail-on-cache-miss/m);
+      expect(job.match(/run: npm ci$/gm), name).toHaveLength(1);
+      // Nothing between them holds a secret.
+      for (const step of steps.slice(version, save + 1)) expect(step, name).not.toMatch(/secrets\./);
+    }
+    // In the deploy, the cache steps come after the SHA guard and before every Vercel step.
+    const steps = deploy.split('\n      - ').slice(1);
+    const save = steps.findIndex((step) => step.startsWith('name: Save node_modules'));
+    expect(steps.findIndex((step) => step.startsWith('name: Guard production SHA'))).toBe(0);
+    expect(steps.findIndex((step) => step.startsWith('name: Pull Vercel environment'))).toBeGreaterThan(save);
+    // In lhci, the tree is saved before Lighthouse runs.
+    const lhciSteps = ci.lhci!.split('\n      - ').slice(1);
+    expect(lhciSteps.findIndex((step) => step.startsWith('name: Save node_modules'))).toBeLessThan(
+      lhciSteps.findIndex((step) => step.startsWith('run: npm run lhci')),
+    );
+  });
+
+  it('keeps artifacts only as long as something reads them', () => {
+    // deploy.yml reads these from the push run on main; on a pull request they are kept 3 days.
+    expect(ci.static).toContain("          name: report-vitest\n          path: reports/vitest.json\n          if-no-files-found: error\n          retention-days: ${{ github.event_name == 'pull_request' && 3 || 14 }}\n");
+    expect(ci.e2e).toContain("          name: report-e2e\n          path: reports/e2e.json\n          if-no-files-found: error\n          retention-days: ${{ github.event_name == 'pull_request' && 3 || 14 }}\n");
+    for (const name of ['report-vitest', 'report-e2e', 'report-lhci']) expect(DEPLOY).toContain(`          name: ${name}\n`);
+    // Visual baselines only while the label is on or when e2e failed.
+    expect(ci.e2e).toMatch(
+      /- name: Upload visual baselines\n {8}if: \$\{\{ !cancelled\(\) && \(failure\(\) \|\| env\.UPDATE_BASELINES == '1'\) \}\}\n/,
+    );
+    expect(ci.e2e).toContain("UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}");
+    // The build output lives one day; every upload names its retention.
+    expect(ci.build).toContain('          retention-days: 1\n');
+    const uploads = CI.split('uses: actions/upload-artifact@').slice(1);
+    expect(uploads).toHaveLength(5);
+    for (const upload of uploads) expect(upload.split('\n      - ')[0]).toMatch(/\n {10}retention-days: /);
   });
 
   it('skips Lighthouse only for a pull request commit that already passed it, looked up on a self-hosted runner', () => {
@@ -139,14 +201,14 @@ describe('the CI jobs and their check names', () => {
     // The marker is saved by the hosted job only after its assertions and the report upload passed.
     const steps = ci.lhci!.split('\n      - ');
     const run = steps.findIndex((step) => step.startsWith('run: npm run lhci'));
-    const save = steps.findIndex((step) => /^uses: actions\/cache\/save@[0-9a-f]{40} /.test(step) || /\n {8}uses: actions\/cache\/save@[0-9a-f]{40} /.test(step));
+    const save = steps.findIndex((step) => /\n {8}uses: actions\/cache\/save@[0-9a-f]{40} /.test(step) && step.includes('.lhci-passed'));
     expect(run).toBeGreaterThan(-1);
     expect(save).toBeGreaterThan(run);
     for (const step of steps.slice(save - 1, save + 1)) {
       expect(step).toContain("if: ${{ success() && github.event_name == 'pull_request' }}");
     }
     expect(steps[save]).toContain(marker);
-    expect(ci.lhci).not.toMatch(/lookup-only|restore-keys/);
+    expect(ci.lhci!.replace(/^\s*#.*\n/gm, '')).not.toMatch(/lookup-only|restore-keys/);
   });
 
   it('says why the jobs are self-hosted, why lhci is not, and that they go back before the repository is public', () => {
@@ -157,6 +219,8 @@ describe('the CI jobs and their check names', () => {
     expect(header).toContain('a Lighthouse measurement needs a quiet machine');
     expect(header).toContain('budgets were calibrated on the hosted runner');
     expect(header).toMatch(/scripts\/lhci-calibrated\.sh .*Lighthouse quiet lock are no longer used by CI; they stay for local calibration runs/);
+    expect(header).toContain('not while the `update-baselines` label is on or on a pull request commit that already passed it');
+    expect(header).toContain('the visual baselines are uploaded only while the `update-baselines` label is on or when e2e failed');
   });
 
   it('pins every action to a full commit SHA', () => {
@@ -208,9 +272,8 @@ describe('the self-hosted adjustments', () => {
     });
   });
 
-  it('caches npm on the runner\'s disk instead of through GitHub, except on the hosted lhci', () => {
-    for (const [id, job] of Object.entries(ci).filter(([jobId]) => jobId !== 'lhci')) expect(job, id).not.toMatch(/^\s+cache:/m);
-    expect(ci.lhci!.match(/^\s+cache:.*$/gm)).toEqual(['          cache: npm']);
+  it('caches npm on the runner\'s disk instead of through GitHub (the hosted lhci caches node_modules)', () => {
+    for (const [id, job] of Object.entries(ci)) expect(job, id).not.toMatch(/^\s+cache:/m);
     expect(ci.e2e).toContain('      npm_config_cache: /__w/_cache/npm\n');
   });
 
