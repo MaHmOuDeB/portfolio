@@ -276,6 +276,10 @@ test.describe('kitchen sink controls', () => {
       .evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value));
     expect(checked).toEqual(['none', 'obf', 'cs']);
     await expect(page.locator('[data-specimen="controls--segmented-disabled"] fieldset')).toHaveAttribute('disabled');
+    // the line that says why describes the disabled group
+    await expect(page.locator('[data-specimen="controls--segmented-disabled"] fieldset')).toHaveAccessibleDescription(
+      'One look at the end needs no fix.',
+    );
     for (const radio of await page.locator('[data-specimen="controls--segmented-disabled"] input').all()) {
       await expect(radio).toBeDisabled();
     }
