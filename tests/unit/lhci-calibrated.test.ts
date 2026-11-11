@@ -10,7 +10,9 @@ import {
   verdict,
 } from '../../scripts/lhci-benchmark-guard.ts';
 
-// The self-hosted Lighthouse run (the lhci job in ci.yml). Its CPU multiplier (2.8) is calibrated
+// The calibrated Lighthouse run on the Mac, which the lhci job in ci.yml used while it was
+// self-hosted; CI now runs Lighthouse on GitHub's hosted runner, and the script stays for local
+// calibration runs. Its CPU multiplier (2.8) is calibrated
 // against GitHub's hosted runner on a quiet Mac, where this runner's benchmark index is 2810.5
 // (measured in the capped job container while the Lighthouse lock held); a busier machine measures
 // a lower index and would report worse scores than the hosted runner. So the run checks the median benchmark index of its 5 runs against the calibrated

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Lighthouse CI on the self-hosted runner, calibrated to GitHub's hosted runner (the lhci job in
-# .github/workflows/ci.yml; tests/unit/lhci-calibrated.test.ts).
+# Lighthouse CI on the Mac, calibrated to GitHub's hosted runner (tests/unit/lhci-calibrated.test.ts).
+# The lhci job in .github/workflows/ci.yml used it while that job was self-hosted; CI now runs the
+# plain `npm run lhci` on GitHub's hosted runner, and this script stays for local calibration runs.
 #
 # Lighthouse simulates the throttled CPU by multiplying each main-thread task it measured by
 # cpuSlowdownMultiplier. Lighthouse's own benchmark index puts the capped lhci job container on a
