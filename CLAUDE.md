@@ -102,8 +102,9 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 - Kit components that print numbers take their refs from the caller, and `refs` is required on the
   live components (no default). Live components use `['live']`, kitchen-sink demos `['simulated']`.
 - Prose lives in MDX under `content/`.
-- Negative numbers use the true minus sign (U+2212). Zero prints "0", never "+0" or "-0". Every
-  "±" names its level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
+- Negative numbers use the true minus sign (U+2212). Zero has no sign: it prints "0", or "0.0"
+  and so on where a fixed number of decimals is asked for, never "+0" or "-0". Every "±" names its
+  level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
   and 24-hour `hh:mm`.
 - A date that needs its year (a legal notice's version date) prints `dd.mm.yyyy` inside
   `<time dateTime>`; live timestamps stay `dd.mm` and `hh:mm`.
@@ -146,7 +147,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Fact` | `Fact.tsx` | A number from the facts data, as `<data data-fact>`. |
 | `Derived`, `derivedAttr`, `DerivedRef` | `Derived.tsx` | A computed, simulated, live or build number, as `data-derived`. |
 | `Stat` | `Stat.tsx` | A large number with its label and source line. |
-| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. |
+| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. An optional `numberText` sets the number input's text (display only, such as "17.2" for a value with many digits). |
 | `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. Each radio's id is `${name}-${value}`, so a `name` is used once per page. |
 | `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. An optional `id` is set on the button. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. |

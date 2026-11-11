@@ -387,3 +387,50 @@ test.describe('kitchen sink step navigation', () => {
     await context.close();
   });
 });
+
+test.describe('kitchen sink slider steps', () => {
+  // One step is 100 / 29 percent: the value at five points is 17.2413793103448, shown as "17.2".
+  const specimen = (page: Page) => page.locator('[data-specimen="slider-steps--percent"]');
+  const exact = (page: Page) => specimen(page).getByRole('spinbutton', { name: 'Rise to detect, percent of the baseline' });
+  const range = (page: Page) => specimen(page).getByRole('slider', { name: 'Rise to detect' });
+  const readout = (page: Page) => specimen(page).locator('[data-slider-readout]');
+  const released = (page: Page) => specimen(page).locator('[data-released]');
+  const open = async (page: Page) => {
+    await page.goto('/kitchen-sink/slider-steps');
+    await expect(specimen(page).locator('[data-ready]')).toHaveCount(1);
+  };
+
+  test('ArrowUp in the number input moves one whole point at once and shows the formatted value', async ({ page }) => {
+    await open(page);
+    await expect(exact(page)).toHaveValue('17.2');
+    await expect(readout(page)).toHaveText('17.2% of the baseline');
+    await exact(page).focus();
+    await page.keyboard.down('ArrowUp');
+    // Live while the key is down: no blur, no Enter.
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(exact(page)).toHaveValue('20.7');
+    await expect(range(page)).toHaveAttribute('aria-valuetext', '20.7% of the baseline');
+    await expect(exact(page)).toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    // Releasing the key commits, as on the range input.
+    await page.keyboard.up('ArrowUp');
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+    await expect(exact(page)).toHaveValue('13.8');
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+  });
+
+  test('a grid value typed with every digit a browser prints updates live, before blur', async ({ page }) => {
+    await open(page);
+    // min + 5 steps to full double precision: off snapToStep's own rounding in the last digits.
+    await exact(page).fill('20.689655172413794');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(exact(page)).toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    await exact(page).blur();
+    await expect(exact(page)).toHaveValue('20.7');
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
+  });
+});

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { parseFragment } from 'parse5';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
@@ -164,6 +165,65 @@ const fix = (value: (typeof FIX)[number]['value'], disabled?: boolean) =>
       <Segmented name="fix" legend="Fix" options={FIX} value={value} onChange={noop} disabled={disabled} />,
     ),
   );
+
+// A percent-of-baseline slider: one step is one whole point of a 29% baseline, so the value at five
+// points is 500 / 29 = 17.2413793103448 after snapping.
+const rise = (overrides: Partial<SliderProps> = {}) =>
+  renderToStaticMarkup(
+    <Slider
+      id="rise"
+      label="Rise to detect"
+      min={100 / 29}
+      max={2500 / 29}
+      step={100 / 29}
+      value={500 / 29}
+      onChange={noop}
+      valueText={(n) => `${n} percent`}
+      readout={(n) => `${n.toFixed(1)}% of baseline`}
+      refs={['simulated']}
+      {...overrides}
+    />,
+  );
+const sha = (html: string) => createHash('sha256').update(html).digest('hex');
+const numberValue = (html: string) => attr(input(parse(html), 'number'), 'value');
+
+describe('Slider number input text', () => {
+  it('renders byte-identical HTML without numberText (hashes taken before numberText existed)', () => {
+    const plain = renderToStaticMarkup(
+      <Slider id="looks" label="Looks" min={1} max={50} step={1} value={20} onChange={noop} valueText={(n) => `${n} looks`} refs={['simulated']} />,
+    );
+    expect(sha(plain)).toBe('ee43693be300ee4699235805fa2e6d9829462bddf4e9dbd55b1941f774929595');
+    expect(sha(rise())).toBe('06f293123033dd1b361bc4f0415145f0104aa170cb3b0bc10c6d1d315bb2b173');
+    expect(numberValue(rise())).toBe('17.2413793103448');
+  });
+
+  it('shows the number input text from numberText, display only', () => {
+    const html = rise({ numberText: (v) => v.toFixed(1) });
+    expect(numberValue(html)).toBe('17.2');
+    // The range input, its spoken value, the readout and the number input's bounds keep the exact value.
+    const root = parse(html);
+    expect(attr(input(root, 'range'), 'value')).toBe('17.2413793103448');
+    expect(attr(input(root, 'range'), 'aria-valuetext')).toBe('17.2413793103448 percent');
+    expect(attr(input(root, 'number'), 'step')).toBe(String(100 / 29));
+    expect(text(find(root, (n) => hasAttr(n, 'data-slider-readout'))[0]!)).toBe('17.2% of baseline');
+    // Only the value attribute differs from the plain markup.
+    expect(html.replace('value="17.2"', 'value="17.2413793103448"')).toBe(rise());
+  });
+
+  it('formats the snapped value, not the raw prop', () => {
+    expect(numberValue(rise({ value: 999, numberText: (v) => v.toFixed(1) }))).toBe('86.2');
+    expect(attr(input(looks({ value: 20.4, numberText: (v) => `${v}.0` }), 'number'), 'value')).toBe('20.0');
+  });
+
+  it('falls back to the plain value when numberText gives text a number input cannot hold', () => {
+    for (const bad of ['17,2', '\u221217.2', '17.2%', '', ' 17.2', 'NaN', 'Infinity']) {
+      expect(numberValue(rise({ numberText: () => bad })), JSON.stringify(bad)).toBe('17.2413793103448');
+    }
+    for (const good of ['17', '17.2', '-17.2', '.5', '1e3', '17.20']) {
+      expect(numberValue(rise({ numberText: () => good })), good).toBe(good);
+    }
+  });
+});
 
 describe('Segmented', () => {
   it('is a fieldset with a visible legend and one checked native radio', () => {

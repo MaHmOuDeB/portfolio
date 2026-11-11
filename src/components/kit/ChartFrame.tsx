@@ -30,8 +30,9 @@ export type AxisSpec = {
   /** Tick values per layout, usually from niceTicks. Values outside the domain are dropped. */
   ticks: { narrow: number[]; wide: number[] };
   /**
-   * One of the helpers in lib/figure/format, so a zero prints "0" and a minus is U+2212. It needs
-   * enough digits for the tick step: a repeated label, or a non-zero tick printed like zero, throws.
+   * One of the helpers in lib/figure/format, so a zero is never signed ("0", or "0.0" at one fixed
+   * decimal: the axis's own decimals) and a minus is U+2212. It needs enough digits for the tick
+   * step: a repeated label, or a non-zero tick printed like zero, throws.
    */
   format: (v: number) => string;
   label: string;
