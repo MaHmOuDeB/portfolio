@@ -506,6 +506,26 @@ test.describe('kitchen sink slider steps', () => {
     await expect(readout(page)).toHaveText('13.8% of the baseline');
   });
 
+  test('an entry typed after a step whose key-up was lost replaces it: a later blur commits nothing old', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // ArrowUp steps to 20.7 and its key-up never comes (a system shortcut can swallow one).
+    await page.keyboard.down('ArrowUp');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    // The visitor types another value and commits it with Enter.
+    await exact(page).fill('24');
+    await page.keyboard.press('Enter');
+    await expect(readout(page)).toHaveText('24.1% of the baseline');
+    await expect(released(page)).toHaveText('Released at 24.1% of the baseline');
+    // Focus leaves: the step from before the entry must not be committed over it.
+    await page.locator('h1').click();
+    await expect(exact(page)).not.toBeFocused();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await expect(released(page)).toHaveText('Released at 24.1% of the baseline');
+    await expect(readout(page)).toHaveText('24.1% of the baseline');
+    await page.keyboard.up('ArrowUp');
+  });
+
   test('a range step whose key-up was lost is committed when focus leaves', async ({ page }) => {
     await open(page);
     await range(page).focus();

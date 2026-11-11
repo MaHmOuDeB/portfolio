@@ -147,7 +147,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Fact` | `Fact.tsx` | A number from the facts data, as `<data data-fact>`. |
 | `Derived`, `derivedAttr`, `DerivedRef` | `Derived.tsx` | A computed, simulated, live or build number, as `data-derived`. |
 | `Stat` | `Stat.tsx` | A large number with its label and source line. |
-| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. An optional `numberText` sets the number input's text (display only, such as "17.2" for a value with many digits). `onCommit` fires on pointer up, key up and number-input blur, and on blur while a key that moved the value is still held. |
+| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. An optional `numberText` sets the number input's text (display only, such as "17.2" for a value with many digits). `onCommit` fires on pointer up, key up and number-input blur, and on blur while a key that moved the value is still held; a commit can repeat an unchanged value. |
 | `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. Each radio's id is `${name}-${value}`, so a `name` is used once per page. `disabledReasonId` names the element that says why a disabled group is disabled; it describes the group only while it is disabled. |
 | `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. An optional `id` is set on the button. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. With an `id`, the buttons' ids are `${id}-previous` and `${id}-next`, so a preview's button can hand focus to the island's. |
