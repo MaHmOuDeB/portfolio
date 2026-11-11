@@ -15,6 +15,12 @@ const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, tex
 // two tests (360 s); the work and every assertion stay the same.
 const HEAVY_ROUTES = new Set(['/kitchen-sink/live']);
 const HEAVY_REASON = '144 live specimens: 17 to 44 s on a quiet machine, over 120 s under heavy load';
+// The tab walk's wait, per stop, for focus scrolling to settle. A settled stop passes on its first
+// two frames. markSlow does not scale an expect timeout, and on a heavily loaded runner the default
+// 5 s failed a correct walk of /kitchen-sink, a page not marked slow, so this applies on every
+// route: three times the default, the factor markSlow gives a test. A scroll that never settles
+// still fails.
+const SETTLE_TIMEOUT = 15_000;
 
 async function open(page: Page, route: string): Promise<void> {
   const response = await page.goto(route);
@@ -81,7 +87,7 @@ for (const route of routes) {
           await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
             const before = scrollY;
             requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
-          }))).toBe(true);
+          })), { timeout: SETTLE_TIMEOUT }).toBe(true);
           const result = await page.evaluate(() => {
             const el = document.activeElement as HTMLElement | null;
             if (!el || el === document.body) return null;
