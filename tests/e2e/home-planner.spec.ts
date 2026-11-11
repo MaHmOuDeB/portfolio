@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
+import { watchScripts } from './island-code';
 
 // The Home planner on the dev host /kitchen-sink/home: a hypothetical sign-up test (Baseline
 // conversion 1% to 98%, preset 29%; Rise in points 1 to 30, preset 5, capped so the target stays at
@@ -71,20 +72,16 @@ test.describe('Home planner', () => {
   test('lazy: the island is idle until the pointer arrives, and no code loads before', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
-    const scripts: string[] = [];
-    let loaded = false;
-    page.on('request', (request) => {
-      if (loaded && request.resourceType() === 'script') scripts.push(request.url());
-    });
+    const scripts = watchScripts(page);
     await page.goto(HOST);
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
-    loaded = true;
+    scripts.start();
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
-    expect(scripts).toEqual([]);
+    expect(await scripts.counted()).toEqual([]);
     await ready(page);
-    expect(scripts.length).toBeGreaterThan(0);
+    expect((await scripts.counted()).length).toBeGreaterThan(0);
     await expect(readout(page)).toHaveText(PRESET_N);
     expect(errors).toEqual([]);
   });

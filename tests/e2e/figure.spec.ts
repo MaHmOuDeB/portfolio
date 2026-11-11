@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
+import { watchScripts } from './island-code';
 
 // The "Figures" section of the kitchen sink (Review Focus 5): two interactive demo Figures, `demo`
 // and `demo-b` (Baseline conversion 0.05 to 0.5, step 0.01, preset 0.1; Power 80% or 90%; Reset),
@@ -321,22 +322,18 @@ test.describe('kitchen sink Figures', () => {
 
   test('intent: the island is idle until the pointer arrives, and its code loads only then', async ({ page }) => {
     await withoutIdle(page);
-    const chunks: string[] = [];
-    let loaded = false;
-    page.on('request', (request) => {
-      if (loaded && request.resourceType() === 'script') chunks.push(request.url());
-    });
+    const chunks = watchScripts(page);
     await page.goto('/kitchen-sink');
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
-    loaded = true;
+    chunks.start();
     await expect(island(page, 'demo')).toHaveAttribute('data-island', 'idle');
     await expect(island(page, 'demo-b')).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
-    expect(chunks).toEqual([]);
+    expect(await chunks.counted()).toEqual([]);
 
     await ready(page, 'demo');
-    expect(chunks.length).toBeGreaterThan(0);
+    expect((await chunks.counted()).length).toBeGreaterThan(0);
     await expect(island(page, 'demo-b')).toHaveAttribute('data-island', 'idle');
   });
 

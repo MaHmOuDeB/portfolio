@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
+import { watchScripts } from './island-code';
 
 // The returns-cleaning Figure on the dev host /kitchen-sink/retention: returned-order value per
 // month, with orders cancelled within 24 hours counted as returns (raw) or removed (clean, the
@@ -80,21 +81,18 @@ test.describe('Returns-cleaning Figure', () => {
   test('lazy: the island is idle until the pointer arrives, and no code loads before', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
-    const scripts: string[] = [];
-    let loaded = false;
-    page.on('request', (request) => {
-      if (loaded && request.resourceType() === 'script') scripts.push(request.url());
-    });
+    const scripts = watchScripts(page);
     await page.goto(HOST);
     // Everything the page itself asks for has arrived (a loaded machine can deliver a page chunk
     // after the load event); from here on, only the island's code may arrive, and only on intent.
+    // The router's prefetches of other pages may still land, and are not counted (island-code.ts).
     await page.waitForLoadState('networkidle');
-    loaded = true;
+    scripts.start();
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
-    expect(scripts).toEqual([]);
+    expect(await scripts.counted()).toEqual([]);
     await ready(page);
-    expect(scripts.length).toBeGreaterThan(0);
+    expect((await scripts.counted()).length).toBeGreaterThan(0);
     await expect(clean(page)).toBeChecked();
     expect(errors).toEqual([]);
   });
