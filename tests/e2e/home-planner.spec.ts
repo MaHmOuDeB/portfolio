@@ -63,7 +63,8 @@ test.describe('Home planner', () => {
     await expect(table).toBeVisible();
     await expect(table).toContainText('1,353');
     await expect(figure(page).getByRole('group', { name: 'Controls' })).toBeHidden();
-    await expect(figure(page).getByText('not a figure from the case studies below')).toBeVisible();
+    await expect(figure(page).getByText('The baseline is a hypothetical sign-up conversion rate.')).toBeVisible();
+    await expect(figure(page).getByText(/case stud/i)).toHaveCount(0);
     await context.close();
   });
 

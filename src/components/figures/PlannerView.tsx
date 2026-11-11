@@ -29,7 +29,7 @@ const SIMULATED = derivedAttr(PLANNER_REFS);
 
 export const PLANNER_TITLE = 'Smaller rises need more visitors per group.';
 export const HYPOTHETICAL = 'Hypothetical sign-up test';
-export const BASELINE_NOTE = 'The baseline is a hypothetical sign-up conversion rate, not a figure from the case studies below.';
+export const BASELINE_NOTE = 'The baseline is a hypothetical sign-up conversion rate.';
 
 /**
  * The large number and its unit. The number keeps room for the widest result the inputs allow, so
