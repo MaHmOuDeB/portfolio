@@ -131,10 +131,11 @@ test.describe('the home page at /', () => {
     for (const path of ['/v/a', '/v/b']) expect((await request.get(path)).status(), path).toBe(404);
   });
 
-  test('metadata: canonical /, no noindex', async ({ page }) => {
+  test('metadata: no relative canonical, no noindex', async ({ page }) => {
     await page.goto('/');
-    // Relative here (no production host in this build); absolute on the production host.
-    expect(new URL((await page.locator('link[rel="canonical"]').getAttribute('href'))!, page.url()).pathname).toBe('/');
+    // This build has no production host, so no canonical (a relative one is invalid); the production
+    // build names https://<host>/ (unit-tested in page.test.tsx).
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
     await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
     await expect(page).toHaveTitle('Mahmoud El Bergui');
   });

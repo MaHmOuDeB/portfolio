@@ -297,18 +297,24 @@ describe('the route: static per-group pages', () => {
     expect(read).not.toHaveBeenCalled();
   });
 
-  it('has static metadata from the site constants: canonical /, no noindex, no snapshot read', () => {
+  it('has static metadata from the site constants: no noindex, no snapshot read; a canonical only when it can be absolute', () => {
     expect(typeof route.metadata).toBe('object');
     expect('generateMetadata' in route).toBe(false);
     const m = route.metadata;
     expect(m.title).toBe(SITE.name);
     expect(m.description).toBe(`${SITE.role} in ${SITE.city}.`);
-    expect(m.alternates?.canonical).toBe('/');
     expect(m.robots).toBeUndefined();
     expect(JSON.stringify(m)).not.toMatch(/noindex/i);
-    // The canonical address resolves on the production host when it is known.
-    expect(String(homeMetadata({ ...PRODUCTION, productionHost: 'example.com' }).metadataBase)).toBe('https://example.com/');
-    expect(homeMetadata({ ...PRODUCTION, productionHost: undefined }).metadataBase).toBeUndefined();
+    // On the production host the canonical is "/" resolved against it: https://<host>/.
+    const known = homeMetadata({ ...PRODUCTION, productionHost: 'example.com' });
+    expect(String(known.metadataBase)).toBe('https://example.com/');
+    expect(known.alternates?.canonical).toBe('/');
+    // Without a production host (a local, test or Lighthouse build) there is no absolute address to
+    // name, and a relative canonical is invalid (Lighthouse SEO: "Is not an absolute URL (/)"), so
+    // there is none.
+    const unknown = homeMetadata({ ...PRODUCTION, productionHost: undefined });
+    expect(unknown.metadataBase).toBeUndefined();
+    expect(unknown.alternates).toBeUndefined();
   });
 
   it('uses no request-time API, no persistent layout beacon and no cache components', () => {
