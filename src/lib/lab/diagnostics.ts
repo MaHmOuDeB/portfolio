@@ -108,14 +108,16 @@ function niceCeil(v: number): number {
 
 /**
  * The count axis: from zero to a nice value at or above the tallest bar (observed or expected), with
- * four steps; only whole-number ticks are kept, since visitors are counted.
+ * four steps; only whole-number ticks are kept, since visitors are counted. The narrow layout keeps
+ * every other tick and always the top one, so a phone never shows a lone "0" (a top of 25 has only
+ * 0 and 25 as whole ticks).
  */
-export function srmAxis(v: SrmValues): { top: number; ticks: number[] } {
+export function srmAxis(v: SrmValues): { top: number; ticks: { wide: number[]; narrow: number[] } } {
   const e = srmExpected(v);
   const top = niceCeil(Math.max(SRM_MIN_TOP, v.nA, v.nB, e.a, e.b));
   const step = top / 4;
-  const ticks = [0, 1, 2, 3, 4].map((i) => i * step).filter(Number.isInteger);
-  return { top, ticks };
+  const wide = [0, 1, 2, 3, 4].map((i) => i * step).filter(Number.isInteger);
+  return { top, ticks: { wide, narrow: wide.filter((t, i) => i % 2 === 0 || t === top) } };
 }
 
 // ---------------------------------------------------------------------------------------------

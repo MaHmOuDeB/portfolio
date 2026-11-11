@@ -128,31 +128,35 @@ function Value({ name, text }: { name: string; text: string }) {
   );
 }
 
-/** Power, the wrong-sign rate and exaggeration, large; words instead for the other branches. */
+/**
+ * Power, the wrong-sign rate and exaggeration, large. The same three items in every branch, words in
+ * place of numbers for a zero effect and an unbounded result, so the readout keeps its height when a
+ * shared URL swaps the preset preview for one of those branches.
+ */
 export function CurseReadout({ result }: { result: CurseResult }) {
-  if (result.kind !== 'result') {
-    return (
-      <p data-curse-readout="" data-curse-branch={result.kind} className="mb-4 text-base">
-        {result.kind === 'zero-effect' ? 'No true effect, so no exaggeration to show.' : 'No finite value at this setting.'}
-      </p>
-    );
-  }
   const item = (label: string, value: ReactNode) => (
     <div>
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="mt-1 text-xl font-semibold">{value}</dd>
     </div>
   );
+  const values: [ReactNode, ReactNode, ReactNode] =
+    result.kind === 'result'
+      ? [
+          <Value key="p" name="power" text={formatPower(result.power)} />,
+          <Value key="s" name="wrong-sign" text={formatWrongSign(result.typeS)} />,
+          <>
+            <Value name="exaggeration" text={formatExaggeration(result.exaggeration)} /> times
+          </>,
+        ]
+      : result.kind === 'zero-effect'
+        ? ['not shown', 'undefined', 'undefined']
+        : ['not shown', 'not shown', 'no finite value'];
   return (
-    <dl data-curse-readout="" className="mb-4 grid gap-4 xs:grid-cols-3">
-      {item('Power', <Value name="power" text={formatPower(result.power)} />)}
-      {item('Wrong sign, among significant estimates', <Value name="wrong-sign" text={formatWrongSign(result.typeS)} />)}
-      {item(
-        'Exaggeration, among significant estimates',
-        <>
-          <Value name="exaggeration" text={formatExaggeration(result.exaggeration)} /> times
-        </>,
-      )}
+    <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-3">
+      {item('Power', values[0])}
+      {item('Wrong sign, among significant estimates', values[1])}
+      {item('Exaggeration, among significant estimates', values[2])}
     </dl>
   );
 }
@@ -211,8 +215,8 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
       result={<CurseResultLine values={v} result={result} />}
       caption={
         <>
-          An analytic calculation (Gelman and Carlin’s retrodesign), not a simulation. A study estimates a true effect,
-          and its estimate is normally distributed around that effect with the standard error you set, both in the same
+          An exact calculation from Gelman and Carlin’s retrodesign formulas on hypothetical values you set; no random
+          draws are involved. A study estimates a true effect, and its estimate is normally distributed around that effect with the standard error you set, both in the same
           arbitrary units; the test is two-sided at a significance level of{' '}
           <span {...SIMULATED}>{formatNumber(CURSE_ALPHA)}</span>. Power is the chance that the estimate passes that
           threshold. The other two numbers describe only the estimates that pass the threshold: how many have the wrong

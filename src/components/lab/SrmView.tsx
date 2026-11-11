@@ -58,7 +58,7 @@ function SrmSeamFailure(): never {
 function chartName(r: SrmResult): string {
   const base = 'Observed and expected visitors in group A and group B, as paired bars';
   if (r.kind === 'empty') return `${base}: no visitors yet, so nothing is tested`;
-  return `${base}: the split is ${r.flagged ? 'flagged as a mismatch' : 'not flagged'}`;
+  return `${base}: the split is ${r.flagged ? 'flagged for a closer look' : 'not flagged'}`;
 }
 
 export function SrmChart({ values, result }: { values: SrmValues; result: SrmResult }) {
@@ -111,7 +111,7 @@ export function SrmChart({ values, result }: { values: SrmValues; result: SrmRes
       }}
       y={{
         domain: [0, top],
-        ticks: { narrow: ticks.filter((_, i) => i % 2 === 0), wide: ticks },
+        ticks,
         format: (t) => formatNumber(t, 0),
         label: 'Visitors',
         refs: DIAGNOSTICS_REFS,

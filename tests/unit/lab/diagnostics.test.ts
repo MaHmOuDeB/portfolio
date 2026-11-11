@@ -224,9 +224,25 @@ describe('the split check around the model', () => {
       const { top, ticks } = srmAxis(v);
       const e = srmExpected(v);
       expect(top).toBeGreaterThanOrEqual(Math.max(v.nA, v.nB, e.a, e.b));
-      expect(ticks[0]).toBe(0);
-      expect(ticks.at(-1)).toBeLessThanOrEqual(top);
-      expect(ticks.every(Number.isInteger)).toBe(true);
+      for (const layout of [ticks.wide, ticks.narrow]) {
+        expect(layout[0]).toBe(0);
+        expect(layout.at(-1)).toBeLessThanOrEqual(top);
+        expect(layout.every(Number.isInteger)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps a scale on phones: the narrow ticks always hold zero and the top, for every reachable tallest bar', () => {
+    // a top of 25 has only 0 and 25 as whole ticks; every other narrow tick alone would leave just 0
+    expect(srmAxis({ nA: 22, nB: 3, shareA: 0.5 }).ticks.narrow).toEqual([0, 25]);
+    for (let m = 0; m <= 10_000; m++) {
+      const { top, ticks } = srmAxis({ nA: m, nB: 0, shareA: 0.5 });
+      expect(ticks.narrow.length, String(m)).toBeGreaterThanOrEqual(2);
+      expect(ticks.narrow[0]).toBe(0);
+      expect(ticks.narrow.at(-1), String(m)).toBe(top);
+      expect(ticks.wide.at(-1), String(m)).toBe(top);
+      // the narrow ticks are a subset of the wide ones
+      expect(ticks.narrow.every((t) => ticks.wide.includes(t))).toBe(true);
     }
   });
 
@@ -532,6 +548,17 @@ describe('the split Figure as the server draws it', () => {
     ]);
   });
 
+  it('names a flagged chart no more strongly than its copy: flagged for a closer look, not a verdict', () => {
+    const names = (html: string) => [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
+    const flagged = names(srmView({ nA: 120, nB: 60, shareA: 0.5 }));
+    expect(flagged.length).toBeGreaterThan(0);
+    for (const n of flagged) {
+      expect(n).toContain('the split is flagged for a closer look');
+      expect(n).not.toMatch(/mismatch|proof|caused/i);
+    }
+    for (const n of names(SERVER)) expect(n).toContain('the split is not flagged');
+  });
+
   it('has no stray number, no digit in a chart name and no non-finite text', () => {
     expect(audit(SERVER)).toEqual([]);
     for (const m of SERVER.matchAll(/aria-label="([^"]*)"/g)) expect(m[1]).not.toMatch(/\d/);
@@ -571,7 +598,9 @@ describe('the exaggeration Figure as the server draws it', () => {
 
   it('says what is assumed and what is not claimed: analytic, normal, independent, arbitrary units, selection', () => {
     const t = prose(SERVER);
-    expect(t).toContain('analytic calculation');
+    expect(t).toContain('An exact calculation from Gelman and Carlin’s retrodesign formulas on hypothetical values you set; no random draws are involved.');
+    // the Simulated badge marks hypothetical values: the caption must not deny it
+    expect(t).not.toMatch(/not a simulation/i);
     expect(t).toContain('normally distributed');
     expect(t).toContain('independent observations');
     expect(t).toContain('arbitrary units');
@@ -609,6 +638,25 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(parts.dotValue).toBe(model.exaggeration);
     expect(parts.readout).toEqual({ power: '5%', wrongSign: '47.7%', exaggeration: '116.9' });
     expect(parts.mine).toEqual([['0.02', '5%', '47.7%', '116.9', 'Yes']]);
+  });
+
+  it('keeps the readout’s three items in every branch, so its height does not change after hydration', () => {
+    const items = (html: string) => {
+      const dl = html.match(/<dl[^>]*data-curse-readout=""[^>]*>([\s\S]*?)<\/dl>/)?.[1] ?? '';
+      return [...dl.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/g)].map((m) => [m[1], text(m[2]!)]);
+    };
+    const labels = ['Power', 'Wrong sign, among significant estimates', 'Exaggeration, among significant estimates'];
+    expect(items(curseView(CURSE_PRESETS.default)).map((i) => i[0])).toEqual(labels);
+    expect(items(curseView({ trueEffect: 0, se: 1 }))).toEqual([
+      [labels[0], 'not shown'],
+      [labels[1], 'undefined'],
+      [labels[2], 'undefined'],
+    ]);
+    expect(items(curseView({ trueEffect: 1, se: 1 }, infiniteRetro))).toEqual([
+      [labels[0], 'not shown'],
+      [labels[1], 'not shown'],
+      [labels[2], 'no finite value'],
+    ]);
   });
 
   it('at zero effect: the undefined sentence, no dot, no log evaluation of zero, no number in its words', () => {

@@ -181,6 +181,7 @@ test.describe('Split check Figure', () => {
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await expect(result(page, 'srm')).toContainText('Chi-square 100 with one degree of freedom, p-value below 0.001: flagged.');
     await expect(figure(page, 'srm').locator('[data-srm-status]')).toHaveText('flagged');
+    await expect(figure(page, 'srm').locator('svg[data-chart-frame]:visible')).toHaveAttribute('aria-label', /the split is flagged for a closer look$/);
     expect(await tableRows(page, 'srm')).toEqual([
       ['Group A', '0', '50%', '50'],
       ['Group B', '100', '50%', '50'],
@@ -199,6 +200,13 @@ test.describe('Split check Figure', () => {
       ['Group A', '0', '50%', '0'],
       ['Group B', '0', '50%', '0'],
     ]);
+  });
+
+  test('on a phone the count axis keeps its top tick when the tallest bar is just over 20', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(`${HOST}?srm.nA=22&srm.nB=3`);
+    await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
+    await expect(figure(page, 'srm').locator('svg[data-chart-frame]:visible [data-tick="y"]')).toHaveText(['25', '0']);
   });
 
   test('120 against 60 is flagged; a tiny split warns about the approximation', async ({ page }) => {
@@ -330,6 +338,26 @@ test.describe('Exaggeration Figure', () => {
     await expect(figure(page, 'curse').locator('svg[data-chart-frame]:visible [data-tick="x"]')).toHaveText(['0.1', '1', '10']);
     await expect(figure(page, 'curse')).not.toContainText(/Infinity|NaN|null/);
     expect(errors).toEqual([]);
+  });
+
+  test('the readout keeps its height from the preset preview to an eager zero-effect island', async ({ page }) => {
+    for (const width of [375, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      await withoutIdle(page);
+      await page.goto(HOST);
+      await expect(island(page, 'curse')).toHaveAttribute('data-island', 'idle');
+      const height = () => figure(page, 'curse').locator('[data-curse-readout]').evaluate((el) => el.getBoundingClientRect().height);
+      // the first layout of a cold page can report zero for a moment: wait for a settled height
+      await expect.poll(height).toBeGreaterThan(0);
+      const preset = await height();
+      await page.goto(`${HOST}?curse.trueEffect=0`);
+      await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
+      await expect(result(page, 'curse')).toContainText(ZERO);
+      await expect(figure(page, 'curse').locator('[data-curse-readout]')).toHaveAttribute('data-curse-branch', 'zero-effect');
+      await expect.poll(height).toBeGreaterThan(0);
+      const zero = await height();
+      expect(Math.abs(zero - preset), String(width)).toBeLessThanOrEqual(1);
+    }
   });
 
   test('a hostile shared URL shows the preset or clamped values, with no error', async ({ page }) => {
@@ -568,6 +596,8 @@ test.describe('Both diagnostics together', () => {
   });
 
   test('axe finds no violations in the previews or the loaded islands', async ({ page }) => {
+    // Four axe passes over two full pages: WebKit in the container needs more than 30 s under load.
+    test.slow();
     await withoutIdle(page);
     for (const width of [375, 1440]) {
       await page.setViewportSize({ width, height: 900 });
@@ -591,7 +621,7 @@ async function newContext(browser: Browser, viewport: { width: number; height: n
 async function assertCurrentFallback(page: Page, id: Id, o: { pointer?: boolean } = {}) {
   const f = figure(page, id);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText(TITLE[id]);
-  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'a warning to investigate' : 'analytic calculation');
+  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'a warning to investigate' : 'no random draws are involved');
   const rows = await f.locator('[data-figure-fallback] table tbody tr').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent!.trim())));
   if (id === 'srm') {
     // group A's count moved off the preset 100
