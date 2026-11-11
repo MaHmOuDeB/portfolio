@@ -115,10 +115,15 @@ const FIX_NAME: Record<Fix, string> = { naive: 'no fix', obf: "O'Brien-Fleming",
 function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableData {
   const ghost = naive.cumulativeByLook.map(percent);
   if (v.mode === 'once') {
+    // One row per daily look with no fix, then the one look at the end as its own row, so every
+    // numeric column holds a number in every row.
     return {
-      columns: ['Look', 'False winners so far, peeking daily with no fix (%)', 'False winners, one look at the end (%)'],
-      rows: ghost.map((g, i) => [i + 1, g, i === ghost.length - 1 ? percent(selected.falsePositiveRate) : '']),
-      formats: ['count', 'points', 'points'],
+      columns: ['Look', 'Schedule', 'False winners so far (%)'],
+      rows: [
+        ...ghost.map((g, i): (string | number)[] => [i + 1, 'Peeking daily, no fix', g]),
+        [v.looks, 'One look at the end', percent(selected.falsePositiveRate)],
+      ],
+      formats: ['count', 'number', 'points'],
       note: 'Shares of the simulated runs. Looking once means a single check, made after as many visitors as the daily schedule has at its last look.',
       refs: PEEK_REFS,
     };

@@ -1030,6 +1030,28 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
     expect(lines[a.violations[0]!.line - 1]!.trim()).toBe('<FullPlanner faultAfterChange />');
   });
+
+  it('finds the peeking Figure’s seam components from its host, and accepts their forwarding', () => {
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/peeking/page.dev.tsx']);
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/figures/PeekingFigure.tsx#PeekingFigure',
+        'src/components/figures/PeekingFigureClient.tsx#PeekingFigureClient',
+        'src/components/figures/PeekingFigureClient.tsx#PeekingIsland',
+        'src/components/figures/PeekingInteractive.tsx#PeekingInteractive',
+        'src/components/figures/PeekingView.tsx#PeekingFigureView',
+      ]),
+    );
+  });
+
+  it('would reject the peeking faults host if a production root reached it', () => {
+    const host = 'src/app/kitchen-sink/lab/peeking/faults/page.dev.tsx';
+    const a = analyse(DISK, REPO, pageExtensions, [host]);
+    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation']]);
+    const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
+    expect(lines[a.violations[0]!.line - 1]!.trim()).toBe('<PeekingFigure faultAfterChange />');
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1614,5 +1636,86 @@ export function FullPlanner({ id = 'planner', faultAfterChange }: { id?: string;
       '<DurationFigure nPerArm={1} faultAfterChange={faultAfterChange ?? true} />',
     );
     expect(rules(files)).toContain('src/components/lab/FullPlannerClient.tsx activation');
+  });
+});
+
+describe('fixtures for the peeking Figure: a server preview, a lazy island and a shared view', () => {
+  // The repository's shape in miniature: the server Figure forwards the seam to the client loader,
+  // the loader to the island wrapper, which spreads its own props onto the lazy island; the island
+  // forwards it to the view, whose throwing leaf is the only thing the seam switches on.
+  const peeking: Record<string, string> = {
+    'src/components/figures/PeekingView.tsx': `function SeamFailure(): never {
+  throw new Error('The peeking chart failed after a change (test seam)');
+}
+export function PeekingFigureView({ changed, faultAfterChange }: { changed?: boolean; faultAfterChange?: true }) {
+  return <figure>{faultAfterChange && changed ? <SeamFailure /> : null}</figure>;
+}`,
+    'src/components/figures/PeekingInteractive.tsx': `'use client';
+import { useState } from 'react';
+import { PeekingFigureView } from './PeekingView';
+export type PeekingInteractiveProps = { id: string; faultAfterChange?: true };
+export default function PeekingInteractive({ id, faultAfterChange }: PeekingInteractiveProps) {
+  const [changed] = useState(id === '');
+  return <PeekingFigureView changed={changed} faultAfterChange={faultAfterChange} />;
+}`,
+    'src/components/figures/PeekingFigureClient.tsx': `'use client';
+import { lazy } from 'react';
+import type { PeekingInteractiveProps } from './PeekingInteractive';
+const LazyPeeking = lazy(() => import('./PeekingInteractive'));
+export function PeekingIsland(props: PeekingInteractiveProps) { return <LazyPeeking {...props} />; }
+export function PeekingFigureClient({ id, faultAfterChange }: { id: string; faultAfterChange?: true }) {
+  return <section><PeekingIsland id={id} faultAfterChange={faultAfterChange} /></section>;
+}`,
+    'src/components/figures/PeekingFigure.tsx': `import { PeekingFigureClient } from './PeekingFigureClient';
+export function PeekingFigure({ id = 'peeking', faultAfterChange }: { id?: string; faultAfterChange?: true }) {
+  return <PeekingFigureClient id={id} faultAfterChange={faultAfterChange} />;
+}`,
+  };
+  const peekPage = (body: string, imports = `import { PeekingFigure } from '@/components/figures/PeekingFigure';`): Record<string, string> => ({
+    ...peeking,
+    'src/app/page.tsx': `${imports}\nexport default function Page() {\n  ${body}\n}`,
+  });
+
+  it('the faithful chain passes, and every hop is found from the source', () => {
+    const a = run(peekPage('return <PeekingFigure />;'));
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/figures/PeekingFigure.tsx#PeekingFigure',
+        'src/components/figures/PeekingFigureClient.tsx#PeekingFigureClient',
+        'src/components/figures/PeekingFigureClient.tsx#PeekingIsland',
+        'src/components/figures/PeekingInteractive.tsx#PeekingInteractive',
+        'src/components/figures/PeekingView.tsx#PeekingFigureView',
+      ]),
+    );
+    expect(a.reachable).toContain('src/components/figures/PeekingInteractive.tsx');
+  });
+
+  it.each([
+    ['the server Figure', 'return <PeekingFigure faultAfterChange />;', `import { PeekingFigure } from '@/components/figures/PeekingFigure';`],
+    ['the client loader, an inner hop', 'return <PeekingFigureClient id="peeking" faultAfterChange />;', `import { PeekingFigureClient } from '@/components/figures/PeekingFigureClient';`],
+    ['the island wrapper', 'return <PeekingIsland id="peeking" faultAfterChange={true} />;', `import { PeekingIsland } from '@/components/figures/PeekingFigureClient';`],
+    ['the view, the last hop', 'return <PeekingFigureView changed faultAfterChange />;', `import { PeekingFigureView } from '@/components/figures/PeekingView';`],
+  ])('a production page that sets the seam on %s fails', (_, body, imports) => {
+    const a = run(peekPage(body, imports));
+    expect(a.violations.map((v) => [v.file, v.line, v.rule])).toEqual([['src/app/page.tsx', 3, 'activation']]);
+  });
+
+  it('the island forwarding a defaulted seam to the view fails', () => {
+    const files = peekPage('return <PeekingFigure />;');
+    files['src/components/figures/PeekingInteractive.tsx'] = files['src/components/figures/PeekingInteractive.tsx']!.replace(
+      'faultAfterChange={faultAfterChange} />',
+      'faultAfterChange={faultAfterChange ?? true} />',
+    );
+    expect(rules(files)).toContain('src/components/figures/PeekingInteractive.tsx activation');
+  });
+
+  it('the server Figure defaulting the seam to true fails', () => {
+    const files = peekPage('return <PeekingFigure />;');
+    files['src/components/figures/PeekingFigure.tsx'] = files['src/components/figures/PeekingFigure.tsx']!.replace(
+      "{ id = 'peeking', faultAfterChange }",
+      "{ id = 'peeking', faultAfterChange = true }",
+    );
+    expect(rules(files)).toEqual(expect.arrayContaining(['src/components/figures/PeekingFigure.tsx seam-default']));
   });
 });

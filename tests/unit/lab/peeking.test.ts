@@ -263,12 +263,21 @@ describe('the table fallback', () => {
     }
   });
 
-  it('once: the daily ghost by look and the single end look on the last row', () => {
+  // Every numeric column holds a number in every row (an empty cell would make the table left-align
+  // that column): the daily looks with no fix, one row per look, then the one look at the end.
+  it('once: the daily ghost by look, then the one look at the end as its own row, with no empty cell', () => {
     const v = computePeek({ looks: 20, mode: 'once', fix: 'obf' });
-    expect(v.table.columns).toHaveLength(3);
-    expect(v.table.rows).toHaveLength(20);
-    expect(v.table.rows.slice(0, 19).every((r) => r[2] === '')).toBe(true);
-    expect(v.table.rows[19]).toEqual([20, pct(v.naive.falsePositiveRate), pct(v.selected.falsePositiveRate)]);
+    expect(v.table.columns).toEqual(['Look', 'Schedule', 'False winners so far (%)']);
+    expect(v.table.formats).toEqual(['count', 'number', 'points']);
+    expect(v.table.rows).toEqual([
+      ...v.naive.cumulativeByLook.map((g, i) => [i + 1, 'Peeking daily, no fix', pct(g)]),
+      [20, 'One look at the end', pct(v.selected.falsePositiveRate)],
+    ]);
+    for (const looks of [1, 50]) {
+      const rows = computePeek({ looks, mode: 'once', fix: 'naive' }).table.rows;
+      expect(rows).toHaveLength(looks + 1);
+      expect(rows.every((r) => typeof r[0] === 'number' && typeof r[1] === 'string' && typeof r[2] === 'number')).toBe(true);
+    }
   });
 
   it('keeps its words free of numerals (numbers live in the cells, marked simulated), and never says 25%', () => {
