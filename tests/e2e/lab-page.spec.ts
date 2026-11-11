@@ -1,10 +1,9 @@
 import { expect } from '@playwright/test';
 import type { Browser, Page } from '@playwright/test';
-import { auditHtml } from '../../scripts/truth-audit.ts';
-import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 import { HOME_LINKS } from '../../content/home-destinations.ts';
 import { dotGeometry } from './curse-geometry';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
+import { auditLive } from './truth-live';
 
 // The Lab's two static routes: /lab, four worked examples as one reading page (sections
 // #sample-size, #peeking-at-results, #split-check and #exaggeration, then #limits), and /lab/peeking,
@@ -30,14 +29,19 @@ const FIGURES = [
   ['split-check', 'srm'],
   ['exaggeration', 'curse'],
 ] as const;
+// What each example is for, in list order (content/lab.tsx).
+const PURPOSES = [
+  'How many visitors each group needs to detect a given rise, and how many weeks that takes at a given traffic.',
+  'What checking a running test every day does to its false positives, and what each fix costs.',
+  'Whether the groups got the share of visitors they were meant to get, or whether the assignment and the logging need a closer look.',
+  'Why an effect that passes the threshold in a test with little power looks bigger than it is.',
+];
 const PEEK_PRESET_LINE = /^Under these simulation assumptions, 22\.1% of 1,000 runs found a false winner by look 20 /;
 const CHUNK_ERRORS = ['chunk', 'Chunk', 'Failed to fetch', 'dynamically imported module', 'Importing a module script failed'];
 
 const figure = (page: Page, id: string) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id: string) => page.locator('[data-island]', { has: figure(page, id) });
 const result = (page: Page, id: string) => figure(page, id).locator('[data-figure-result]');
-const audit = (html: string, route: string) =>
-  auditHtml(html, { route, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] });
 
 async function withoutIdle(page: Page) {
   await page.addInitScript(() => {
@@ -57,31 +61,6 @@ function watchErrors(page: Page, expected: readonly string[] = []) {
     if (!expected.some((e) => text.includes(e))) errors.push(text);
   });
   return errors;
-}
-
-/**
- * The hydrated page's truth: the audit over the serialized DOM, plus what serialization does not
- * carry or the audit does not read: each input's live value, and every accessible-name, value-text
- * and title string with a digit must sit under a source marker.
- */
-async function auditLive(page: Page, route: string, when: string) {
-  expect(audit(await page.content(), route), `${route} ${when}`).toEqual([]);
-  const stray = await page.evaluate(() => {
-    const out: string[] = [];
-    const main = document.querySelector('main')!;
-    for (const input of main.querySelectorAll('input')) {
-      if (input.type !== 'hidden' && /\d/.test(input.value) && !input.closest('[data-derived], [data-fact]')) out.push(`value=${input.value}`);
-    }
-    for (const el of main.querySelectorAll('*')) {
-      for (const name of ['aria-label', 'aria-valuetext', 'aria-description', 'title', 'alt', 'placeholder']) {
-        const v = el.getAttribute(name);
-        if (v && /\d/.test(v) && !el.closest('[data-derived], [data-fact]')) out.push(`${name}=${v}`);
-      }
-    }
-    if (/\bInfinity\b|\bNaN\b/.test(main.innerText)) out.push('a non-finite value in the text');
-    return out;
-  });
-  expect(stray, `${route} ${when}`).toEqual([]);
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -115,12 +94,8 @@ test.describe('the Lab routes', () => {
     await expect(page.locator('main')).toContainText('I use these examples to show what a test can and cannot tell me.');
     const nav = page.getByRole('navigation', { name: 'On this page' });
     await expect(nav.getByRole('link')).toHaveText(SECTIONS.slice(0, 4).map(([, title]) => title));
-    expect(await nav.locator('li').evaluateAll((items) => items.map((li) => li.querySelector('p')?.textContent?.trim().length ?? 0))).toEqual([
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-    ]);
+    // each link is followed by its own sentence on what the example is for
+    await expect(nav.locator('li > p')).toHaveText(PURPOSES);
     for (const [id, title] of SECTIONS) await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     const layout = await page.evaluate(() => ({
       figures: [...document.querySelectorAll('main figure[data-figure]')].map((f) => [f.closest('section[id]')?.id, f.getAttribute('data-figure')]),

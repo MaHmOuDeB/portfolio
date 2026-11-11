@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
+import { auditLive } from './truth-live';
 
 // The Retention case study at /work/retention, the reference page later pages copy, and its dev
 // host /kitchen-sink/retention, which mounts the same composition. The page is static: prose,
@@ -241,6 +242,31 @@ test.describe('the Retention page', () => {
     await expect(page.locator('figure[data-figure="winback"] [data-planner-n]')).toHaveText('1,353');
     // no raw Home model in the page or its payload
     expect(served).not.toMatch(/splitStatus|testNote/);
+  });
+
+  test('the hydrated page stays true after the win-back planner is used: each slider, the unit and both Resets', async ({ page }) => {
+    test.slow();
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    await auditLive(page, ROUTE, 'islands loaded');
+    const sizing = page.locator('figure[data-figure="winback"]');
+    const duration = page.locator('figure[data-figure="winback-duration"]');
+    // both sizing sliders and the traffic, each one step by key (the key release commits)
+    for (const [f, name] of [[sizing, 'Baseline conversion'], [sizing, 'Rise to detect'], [duration, 'Total customers per day']] as const) {
+      await f.getByRole('slider', { name }).focus();
+      await page.keyboard.press('ArrowRight');
+    }
+    await expect(sizing.locator('[data-figure-result]')).toContainText('from 30% to 36%.');
+    await expect(sizing.locator('[data-figure-announcement]')).not.toHaveText('');
+    await expect(duration.locator('[data-figure-announcement]')).not.toHaveText('');
+    await auditLive(page, ROUTE, 'baseline, rise and traffic moved');
+    await sizing.locator('label', { hasText: 'Percent of baseline' }).click();
+    await expect(sizing.locator('[data-figure-result]')).toContainText('of the baseline, from 30% to 36%.');
+    await auditLive(page, ROUTE, 'rise shown in percent of the baseline');
+    for (const f of [sizing, duration]) await f.getByRole('button', { name: 'Reset' }).click();
+    await expect(sizing.locator('[data-figure-result]')).toContainText('To detect a rise of 5 points, from 29% to 34%.');
+    await expect(sizing.locator('[data-figure-body] [data-planner-n]')).toHaveText('1,353');
+    await auditLive(page, ROUTE, 'after both Resets');
   });
 
   test('nothing of the live experiment: no beacon, no live note, no request to the experiment endpoints', async ({ page }) => {

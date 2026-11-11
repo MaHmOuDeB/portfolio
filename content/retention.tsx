@@ -369,7 +369,7 @@ export function RetentionTargeting(): ReactNode {
 /** The link to the Lab, where the same sizing can be tried with other numbers. */
 export function RetentionLabLink(): ReactNode {
   return (
-    <TextLink href="/lab" standalone>
+    <TextLink href="/lab#sample-size" standalone>
       Try other baselines and rises in the Lab&apos;s sample-size planner
     </TextLink>
   );

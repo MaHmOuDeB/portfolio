@@ -124,6 +124,15 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<figure [^>]*data-figure="/g)]).toHaveLength(placed.length);
   });
 
+  it('badges each of the four public-data Figures Public data, never Simulated', () => {
+    for (const id of ['returns', 'cohorts', 'rfm', 'models']) {
+      const figure = new RegExp(`<figure [^>]*data-figure="${id}"[\\s\\S]*?</figure>`).exec(PAGE);
+      expect(figure, id).not.toBeNull();
+      expect(text(figure![0]), id).toContain('Public data');
+      expect(text(figure![0]), id).not.toMatch(/Simulated|Live from this site/);
+    }
+  });
+
   it('keeps prose in the readable column and lets the evidence run wider', () => {
     for (const [id] of ORDER) {
       const s = section(PAGE, id);
@@ -263,13 +272,14 @@ describe('the win-back section', () => {
   it('has controls only inside its planner Figures, and links to the Lab and to the Home planner', () => {
     const outside = s.replace(/<figure [\s\S]*?<\/figure>/g, '');
     expect(outside).not.toMatch(/<input|<button|role="group"|role="radiogroup"/);
-    expect(s).toMatch(/<a [^>]*href="\/lab"[^>]*>Try other baselines and rises in the Lab(&#x27;|')s sample-size planner<\/a>/);
+    // the Lab link lands on the Lab's sample-size section, the planner
+    expect(s).toMatch(/<a [^>]*href="\/lab#sample-size"[^>]*>Try other baselines and rises in the Lab(&#x27;|')s sample-size planner<\/a>/);
     const home = /<a [^>]*href="([^"]+)"[^>]*>The same arithmetic as the Home planner<\/a>/.exec(s);
     expect(home?.[1]).toBe('/#hero-planner');
     expect(home![0]).toContain('data-touch-target=""');
     // the links follow the planner, and the targeting evidence follows them
-    expect(s.indexOf('data-figure="winback-duration"')).toBeLessThan(s.indexOf('href="/lab"'));
-    expect(s.indexOf('href="/lab"')).toBeLessThan(s.indexOf('href="/#hero-planner"'));
+    expect(s.indexOf('data-figure="winback-duration"')).toBeLessThan(s.indexOf('href="/lab#sample-size"'));
+    expect(s.indexOf('href="/lab#sample-size"')).toBeLessThan(s.indexOf('href="/#hero-planner"'));
     expect(s.indexOf('href="/#hero-planner"')).toBeLessThan(s.indexOf('lapsed-targeting'));
   });
 
