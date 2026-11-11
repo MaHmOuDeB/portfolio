@@ -11,6 +11,7 @@ const SPECIMENS = [
   'chartframe--wide',
   'chartframe--zero-width',
   'chartframe--all-equal',
+  'chartframe--edge-ticks',
 ];
 const WIDTHS = [375, 1440] as const;
 const SLOW_PAGE_TIMEOUT = 90_000;
@@ -23,6 +24,49 @@ async function openAt(page: Page, width: number) {
 
 /** The frames a visitor sees: CSS hides the other layout of each responsive chart. */
 const visibleFrames = (page: Page) => page.locator('[data-specimen^="chartframe--"] svg[data-chart-frame]:visible');
+
+type EdgeTick = { text: string; anchor: string; pastLeft: number; pastRight: number; centre: number; start: number; end: number };
+
+/**
+ * The x tick labels of the "outer ticks close to the plot's ends" specimen, with the width of its
+ * column: each label's computed anchor, how far it reaches past the frame on either side (negative
+ * is inside), and where its centre, start and end sit against its tick, in px.
+ */
+async function edgeTicks(page: Page): Promise<{ column: number; ticks: EdgeTick[] }> {
+  return page.locator('[data-specimen="chartframe--edge-ticks"] svg[data-chart-frame]:visible').evaluate((frame) => {
+    const box = frame.getBoundingClientRect();
+    const style = getComputedStyle(frame);
+    const [left, right] = [Number.parseFloat(style.paddingLeft), Number.parseFloat(style.paddingRight)];
+    const ticks = [...frame.querySelectorAll<SVGTextElement>('[data-tick="x"]')].map((t) => {
+      const r = t.getBoundingClientRect();
+      const tickX = box.left + left + (Number.parseFloat(t.getAttribute('x')!) / 100) * (box.width - left - right);
+      return {
+        text: t.textContent ?? '',
+        anchor: getComputedStyle(t).textAnchor,
+        pastLeft: box.left - r.left,
+        pastRight: r.right - box.right,
+        centre: (r.left + r.right) / 2 - tickX,
+        start: r.left - tickX,
+        end: r.right - tickX,
+      };
+    });
+    return { column: frame.closest('[data-chart]')!.getBoundingClientRect().width, ticks };
+  });
+}
+
+/** Every label is inside the frame, and sits against its tick as its anchor says. */
+function expectEdgeTicks(ticks: EdgeTick[], anchors: readonly string[], at: string) {
+  expect(ticks.map((t) => t.text)).toEqual(['102,000', '150,000', '196,000']);
+  for (const t of ticks) {
+    const past = Math.max(t.pastLeft, t.pastRight);
+    expect(past, `${at}: "${t.text}" is ${past.toFixed(1)} px past the frame`).toBeLessThanOrEqual(0.5);
+  }
+  expect(ticks.map((t) => t.anchor), at).toEqual(anchors);
+  for (const t of ticks) {
+    const off = t.anchor === 'start' ? t.start : t.anchor === 'end' ? t.end : t.centre;
+    expect(Math.abs(off), `${at}: "${t.text}" sits ${off.toFixed(1)} px from its tick`).toBeLessThanOrEqual(1);
+  }
+}
 
 for (const width of WIDTHS) {
   test.describe(`chart frame at ${width} px`, () => {
@@ -154,6 +198,13 @@ for (const width of WIDTHS) {
       expect(sides).toBe(8);
     });
 
+    test(`outer x tick labels close to the plot's ends stay inside the frame, ${width < 640 ? 'anchored at their ticks' : 'centred on their ticks'}`, async ({ page }) => {
+      await openAt(page, width);
+      const { ticks } = await edgeTicks(page);
+      // A phone column is too narrow to centre them; the widest column has the room.
+      expectEdgeTicks(ticks, width < 640 ? ['start', 'middle', 'end'] : ['middle', 'middle', 'middle'], `${width} px`);
+    });
+
     test('every mark keeps its stroke width however far the layer stretches', async ({ page }) => {
       await openAt(page, width);
       const effects = await visibleFrames(page).evaluateAll((frames) =>
@@ -181,6 +232,29 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+// The frame states, per outer label, the column width below which it anchors the label at its tick:
+// about 838 px for the first label of this specimen and 852 px for the last. Either side of each, the
+// label is inside the frame and sits where its anchor says.
+test('an outer x tick label goes from anchored at its tick to centred as the column passes the width the frame states', async ({ page }) => {
+  // The column is the viewport less the page's side padding: measure that once, then set the column.
+  await openAt(page, 1000);
+  const padding = 1000 - (await edgeTicks(page)).column;
+  expect(padding).toBeGreaterThanOrEqual(0);
+  for (const [column, anchors] of [
+    [830, ['start', 'middle', 'end']],
+    [845, ['middle', 'middle', 'end']],
+    [860, ['middle', 'middle', 'middle']],
+  ] as const) {
+    await page.setViewportSize({ width: column + padding, height: 900 });
+    await expect.poll(async () => Math.round((await edgeTicks(page)).column)).toBe(column);
+    expectEdgeTicks((await edgeTicks(page)).ticks, anchors, `a ${column} px column`);
+  }
+  // The widths are the ones the frame wrote for this chart.
+  const rules = await page.locator('[data-specimen="chartframe--edge-ticks"] style').evaluateAll((els) => els.map((e) => e.textContent).join(''));
+  expect(rules).toContain('@container (width < 838px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}');
+  expect(rules).toContain('@container (width < 852px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="last"]{text-anchor:end}}');
+});
 
 test('no text sits inside an svg that has a viewBox, and no chart prints NaN', async ({ page }) => {
   await page.goto('/kitchen-sink');

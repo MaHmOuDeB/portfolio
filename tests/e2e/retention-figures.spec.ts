@@ -362,7 +362,8 @@ test.describe('Cohort, RFM and model Figures together', () => {
       await page.goto(HOST);
       await ready(page);
       await noHorizontalScroll(page);
-      for (const id of [ID, 'rfm', 'models']) {
+      // The returns chart too: its last month label stays inside only because the frame anchors it at its tick.
+      for (const id of [ID, 'rfm', 'models', 'returns']) {
         await figure(page, id).scrollIntoViewIfNeeded();
         await chartTextFits(page, id);
       }
@@ -382,7 +383,7 @@ test.describe('Cohort, RFM and model Figures together', () => {
       await page.goto(HOST);
       // The cohort island swaps in on intent or idle time; measure once it has, not mid-swap.
       await ready(page);
-      for (const id of [ID, 'rfm', 'models']) await chartTextFits(page, id);
+      for (const id of [ID, 'rfm', 'models', 'returns']) await chartTextFits(page, id);
       const heat = await heatmap(page).evaluate((root) => {
         const box = (el: Element) => el.getBoundingClientRect();
         const cells = [...root.querySelectorAll('rect[data-cell]')];

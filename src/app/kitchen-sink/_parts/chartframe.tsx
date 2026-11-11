@@ -1,6 +1,7 @@
 // The "Chart frame" section of the kitchen sink. All data is fictional: a made-up difference between
 // two groups that settles as views grow, plus the degenerate cases a live chart can hit (one look
-// so far, a value that never moves). Every number is marked 'simulated'.
+// so far, a value that never moves) and an axis whose outer ticks sit close to the plot's ends.
+// Every number is marked 'simulated'.
 import { area, line } from 'd3-shape';
 import { ChartFrame, MARK_UNITS, type AxisSpec, type ChartFrameProps, type PlotContext } from '@/components/kit/ChartFrame';
 import { formatNumber, formatSignedPoints } from '@/lib/figure/format';
@@ -133,6 +134,42 @@ const FLAT: ChartFrameProps = {
   ),
 };
 
+// Outer x ticks inside the domain, close to the plot's ends: at 2% and 96% of it. In a wide column
+// each label is centred on its tick; in a narrower one the frame anchors it at its tick, away from
+// the edge (the first below 837 px, the last below 852 px), so it never leaves the frame. No zero
+// line words, so there is no right margin to catch the last label.
+const EDGE_VISITS: [number, number] = [100_000, 200_000];
+const EDGE_TICKS = [102_000, 150_000, 196_000];
+const EDGE_RATES: Array<[number, number]> = [[100_000, 3], [125_000, 5], [150_000, 4], [175_000, 6], [200_000, 5]];
+const EDGE_TICK_LABELS: ChartFrameProps = {
+  id: 'sink-chart-edge-ticks',
+  ariaLabel: 'A fictional rate that wanders a little as visits grow',
+  x: {
+    domain: EDGE_VISITS,
+    ticks: { narrow: EDGE_TICKS, wide: EDGE_TICKS },
+    format: (v) => formatNumber(v, 0),
+    label: 'Visits',
+    refs: REFS,
+  },
+  y: {
+    domain: [0, 8],
+    ticks: { narrow: [4, 8], wide: [2, 4, 6, 8] },
+    format: (v) => formatNumber(v, 0),
+    label: 'Rate (%)',
+    refs: REFS,
+  },
+  height: { narrow: 160, wide: 200 },
+  marks: (ctx) => (
+    <path
+      data-mark=""
+      d={EDGE_RATES.map(([n, rate], i) => `${i === 0 ? 'M' : 'L'}${ctx.xFrac(n) * MARK_UNITS} ${ctx.yPx(rate)}`).join(' ')}
+      fill="none"
+      stroke="var(--color-series-1)"
+      strokeWidth={1}
+    />
+  ),
+};
+
 export function ChartFrameSection() {
   return (
     <>
@@ -162,6 +199,13 @@ export function ChartFrameSection() {
         note="Every fictional value is equal, so the y domain has no width and the line runs through the middle."
       >
         <ChartFrame {...FLAT} />
+      </Specimen>
+      <Specimen
+        id="chartframe--edge-ticks"
+        title="Outer ticks close to the plot's ends"
+        note="A fictional rate over visits. In a wide column each outer tick label is centred on its tick; in a narrower one it is anchored at its tick, away from the edge, so it stays inside the frame."
+      >
+        <ChartFrame {...EDGE_TICK_LABELS} />
       </Specimen>
     </>
   );
