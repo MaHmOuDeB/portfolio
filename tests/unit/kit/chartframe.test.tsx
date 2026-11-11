@@ -432,3 +432,34 @@ describe('ChartFrame with hostile input', () => {
     expect(() => render({ y: { ...FIXTURE.y, domain: [0, Number.NaN] } })).toThrow(TypeError);
   });
 });
+
+describe('ChartFrame with a fixed-decimals axis format', () => {
+  const fixed1 = (v: number) => formatNumber(v, 1, { fixed: true });
+  const tickText = (f: Node, axis: 'x' | 'y') =>
+    ticks(f).filter((t) => attr(t, 'data-tick') === axis).map((t) => text(byTag(t, 'tspan')[0] ?? t));
+
+  it('prints every x tick at one decimal: 0.5 to 1 reads "0.5" to "1.0"', () => {
+    const steps = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
+    const root = render({
+      x: { ...FIXTURE.x, domain: [0.5, 1], ticks: { narrow: steps, wide: steps }, format: fixed1 },
+      annotation: undefined,
+    });
+    for (const f of frames(root)) expect(tickText(f, 'x')).toEqual(['0.5', '0.6', '0.7', '0.8', '0.9', '1.0']);
+  });
+
+  it('prints the y ticks and the zero tick at one decimal, with U+2212 and no signed zero', () => {
+    const root = render({
+      y: { ...FIXTURE.y, domain: [-1, 1], ticks: { narrow: [-1, 0, 1], wide: [-1, -0.5, -0, 0.5, 1] }, format: fixed1 },
+      annotation: undefined,
+    });
+    const [narrow, wide] = frames(root);
+    expect(tickText(narrow!, 'y')).toEqual(['−1.0', '1.0', '0.0']);
+    expect(tickText(wide!, 'y')).toEqual(['−1.0', '−0.5', '0.5', '1.0', '0.0']);
+  });
+
+  it('still refuses a non-zero tick that prints like zero at the chosen decimals', () => {
+    expect(() =>
+      render({ y: { ...FIXTURE.y, domain: [-0.2, 0.2], ticks: { narrow: [0.04], wide: [-0.04, 0, 0.04] }, format: fixed1 }, annotation: undefined }),
+    ).toThrow(/prints like zero/);
+  });
+});

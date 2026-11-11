@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# The synthetic stand-in for what `vercel pull --environment=production` leaves behind, for the
+# Build token isolation CI job (scripts/vercel-build-isolated.sh then builds from it):
+#
+#   bash scripts/build-isolation-fixture.sh
+#
+# It writes .vercel/project.json (project settings, so `vercel build` runs offline with no token)
+# and .vercel/.env.production.local holding every store credential the wrapper must handle: the
+# three write credentials it strips (KV_REST_API_TOKEN, and KV_URL and REDIS_URL, connection
+# strings with a password) and the read-only token it keeps. Every value is synthetic, and the
+# hosts end in the reserved .invalid, so nothing is ever reached.
+#
+# It deliberately sets no VERCEL_ENV and no KV_REST_API_URL: this job proves the environment
+# isolation, it is not a rehearsal of the production build (which would need the production
+# canonical host). Anything else a deploy-style build needs before `vercel build` (for example a
+# build-metadata file) belongs in this script, so the workflow itself does not change.
+#
+# It refuses to overwrite an existing pulled environment.
+set -euo pipefail
+
+if [ -e .vercel/.env.production.local ] || [ -e .vercel/project.json ]; then
+  echo "build-isolation-fixture: .vercel/.env.production.local or .vercel/project.json already exists; not overwriting it" >&2
+  exit 1
+fi
+
+mkdir -p .vercel
+printf '%s\n' '{"projectId":"prj_build_isolation","orgId":"team_build_isolation","settings":{"framework":"nextjs"}}' > .vercel/project.json
+{
+  echo 'KV_REST_API_TOKEN="synthetic-write-token"'
+  echo 'KV_URL="rediss://default:synthetic-password@store.invalid:6379"'
+  echo 'REDIS_URL="rediss://default:synthetic-password@store.invalid:6379"'
+  echo 'KV_REST_API_READ_ONLY_TOKEN="synthetic-read-token"'
+} > .vercel/.env.production.local
+chmod 600 .vercel/.env.production.local
+echo "build-isolation-fixture: wrote .vercel/project.json and .vercel/.env.production.local (synthetic values)"

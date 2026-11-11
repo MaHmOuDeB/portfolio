@@ -112,6 +112,10 @@ jobs:
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
           npx --no-install vercel pull --yes --environment="$environment" --token="$VERCEL_TOKEN"
+      # The build never holds the store's write credentials (KV_REST_API_TOKEN, KV_URL, REDIS_URL),
+      # only the read-only token: the wrapper builds from a copy of the pulled environment without
+      # them, proves from inside every Node process of the build (Next included) that they were
+      # absent, and puts the pulled file back afterwards.
       - name: Build
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -119,8 +123,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
-          if [ "$LAUNCHED" = "true" ]; then target_flag=--prod; else target_flag=--target=preview; fi
-          npx --no-install vercel build "$target_flag" --token="$VERCEL_TOKEN"
+          if [ "$LAUNCHED" = "true" ]; then target=production; else target=preview; fi
+          bash scripts/vercel-build-isolated.sh "$target"
       # The deploy builds on a fresh checkout with the pulled Vercel project environment, so a
       # KITCHEN_SINK variable set in the Vercel project would put the dev-only route into the
       # deployed build. `vercel build` leaves Next's output in .next, where the check reads it.

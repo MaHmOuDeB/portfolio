@@ -120,3 +120,88 @@ describe('DataTable share format', () => {
     }
   });
 });
+
+describe('DataTable formats, pinned as printed before fixed decimals were added', () => {
+  it('prints the same strings for number, count, points, signedPoints, share and no format', () => {
+    const table: TableData = {
+      columns: ['Number', 'Count', 'Points', 'Signed', 'Share', 'AUC'],
+      rows: [
+        [1234.5678, 1234.5678, 2.25, 2.25, 0.2345, 0.71],
+        [-0.4, 7.6, 0, 0, 0, 0.685],
+      ],
+      formats: ['number', 'count', 'points', 'signedPoints', 'share', 'number'],
+      refs: ['simulated'],
+    };
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />);
+    expect(cells(html)).toEqual(['1,234.57', '1,235', '2.3', '+2.3', '23%', '0.71', '−0.4', '8', '0', '0', '0%', '0.685']);
+    const withoutFormats = renderToStaticMarkup(<DataTable id="t" caption="c" table={{ ...table, formats: undefined }} mode="open" />);
+    expect(cells(withoutFormats)).toEqual(['1,234.57', '1,234.57', '2.25', '2.25', '0.235', '0.71', '−0.4', '7.6', '0', '0', '0', '0.685']);
+    const digits = renderToStaticMarkup(<DataTable id="t" caption="c" table={{ ...table, rowDigits: [2, 0] }} mode="open" />);
+    expect(cells(digits)).toEqual(['1,234.57', '1,235', '2.25', '+2.25', '23%', '0.71', '−0.4', '8', '0', '0', '0%', '0.685']);
+  });
+});
+
+// A fictional model comparison: the ranking scores of three methods, to three decimals.
+const SCORES: TableData = {
+  columns: ['Method', 'Score, all', 'Score, lapsed'],
+  rows: [
+    ['Rule', 0.762, 0.685],
+    ['Model', 0.793, 0.71],
+    ['Other', 1, 0],
+  ],
+  formats: ['number', { fixed: 3 }, { fixed: 3 }],
+  refs: ['simulated'],
+};
+
+describe('DataTable fixed-decimals format', () => {
+  it('prints exactly the given decimals, trailing zeros kept: 0.71 is "0.710", 1 is "1.000", 0 is "0.000"', () => {
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={SCORES} mode="open" />);
+    expect(cells(html)).toEqual(['Rule', '0.762', '0.685', 'Model', '0.793', '0.710', 'Other', '1.000', '0.000']);
+  });
+
+  it('prints through formatNumber with fixed decimals', () => {
+    const table: TableData = { columns: ['A', 'B'], rows: [[1, 0.71], [2.25, 1353]], formats: [{ fixed: 1 }, { fixed: 2 }], refs: ['simulated'] };
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />);
+    expect(cells(html)).toEqual(['1.0', '0.71', '2.3', '1,353.00']);
+    expect(cells(html)).toEqual([formatNumber(1, 1, { fixed: true }), formatNumber(0.71, 2, { fixed: true }), formatNumber(2.25, 1, { fixed: true }), formatNumber(1353, 2, { fixed: true })]);
+  });
+
+  it('uses U+2212 for a negative cell and no sign on a value that rounds to zero', () => {
+    const table: TableData = { columns: ['Change'], rows: [[-0.71], [-0.0004], [-0], [0.0004]], formats: [{ fixed: 3 }], refs: ['simulated'] };
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />);
+    expect(cells(html)).toEqual(['−0.710', '0.000', '0.000', '0.000']);
+  });
+
+  it('right-aligns the fixed cells and their header, marks them data-num and spreads the refs', () => {
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={SCORES} mode="open" />);
+    const [, all, lapsed] = headers(html);
+    expect(all!.attrs).toContain('text-right');
+    expect(lapsed!.attrs).toContain('text-right');
+    const tds = rowsOf(html);
+    for (const score of tds.filter((_, i) => i % 3 !== 0)) {
+      expect(score.attrs).toContain('text-right');
+      expect(score.attrs).toContain('data-num=""');
+      expect(score.attrs).toContain('data-derived="simulated"');
+    }
+  });
+
+  it('ignores rowDigits in a fixed column: the column states its own decimals', () => {
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={{ ...SCORES, rowDigits: [0, 1, 5] }} mode="open" />);
+    expect(cells(html)).toEqual(['Rule', '0.762', '0.685', 'Model', '0.793', '0.710', 'Other', '1.000', '0.000']);
+  });
+
+  it('prints a string cell in a fixed column as is', () => {
+    const table: TableData = { columns: ['Score'], rows: [['not scored'], [0.71]], formats: [{ fixed: 3 }], refs: ['simulated'] };
+    const html = renderToStaticMarkup(<DataTable id="t" caption="c" table={table} mode="open" />);
+    expect(cells(html)).toEqual(['not scored', '0.710']);
+  });
+
+  it('throws on a cell that is not finite, and on decimals that are not a whole number from 0 to 20', () => {
+    const render = (rows: (string | number)[][], fixed: number) =>
+      renderToStaticMarkup(<DataTable id="t" caption="c" table={{ columns: ['Score'], rows, formats: [{ fixed }], refs: ['simulated'] }} mode="open" />);
+    expect(() => render([[Number.NaN]], 3)).toThrow(TypeError);
+    expect(() => render([[Number.POSITIVE_INFINITY]], 3)).toThrow(TypeError);
+    expect(() => render([[0.71]], 1.5)).toThrow(RangeError);
+    expect(() => render([[0.71]], -1)).toThrow(RangeError);
+  });
+});

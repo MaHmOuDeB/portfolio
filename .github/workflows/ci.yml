@@ -29,8 +29,9 @@ permissions:
 # npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e and lhci containers set
 # npm_config_cache to the same folder under /__w), so setup-node's GitHub cache is off for these
 # jobs: restoring and saving it over the Mac's connection took minutes. Put `cache: npm` back when
-# switching back. The time limits come from the first run on a loaded Mac with cold caches: npm ci
-# up to 9 minutes, the first Node download 5, the first Python and wheels over 9.
+# switching back (build-isolation included: back to ubuntu-24.04 with `cache: npm`). The time limits
+# come from the first run on a loaded Mac with cold caches: npm ci up to 9 minutes, the first Node
+# download 5, the first Python and wheels over 9.
 # tests/unit/ci-runners.test.ts pins this layout.
 jobs:
   static:
@@ -218,7 +219,7 @@ jobs:
     name: Lighthouse CI
     # Last, so nothing else of this run competes for the Mac while Lighthouse measures. It still
     # runs when another job failed, as long as the build it measures exists.
-    needs: [static, stats-ref, sources-remote, build, e2e, links, cv-pdf]
+    needs: [static, stats-ref, sources-remote, build, e2e, links, cv-pdf, build-isolation]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     # Only on instance 2, so one Lighthouse run at a time; the runner's job-started hook holds the
     # Mac's heavy-work slot and waits (up to 40 minutes) until the other runner is idle.
@@ -332,3 +333,33 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bash scripts/cv-pdf-gate.sh
+
+  build-isolation:
+    name: Build token isolation
+    # On the self-hosted runners like build (any instance), with a limit like build's: npm ci plus a
+    # Next build. Only synthetic values reach it (no secret), and the deploy itself stays hosted.
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      # A synthetic stand-in for `vercel pull --environment=production`, made by a script so no
+      # secret is needed and a later change can extend the fixture without editing this workflow:
+      # project settings for an offline `vercel build` and an env file holding the three store
+      # write credentials (KV_REST_API_TOKEN, KV_URL, REDIS_URL) and the read-only token. No
+      # VERCEL_ENV on purpose: this job proves the environment isolation, it is not a rehearsal
+      # of the production build.
+      - name: Synthetic pulled environment
+        run: bash scripts/build-isolation-fixture.sh
+      # The deploy's own build wrapper, with the real Vercel CLI and Next build: it fails unless no
+      # store write credential is in any Node process of the build and the read-only token reached
+      # the Next build.
+      - name: Production build without the store's write credentials
+        env:
+          VERCEL_TELEMETRY_DISABLED: '1'
+        run: bash scripts/vercel-build-isolated.sh production

@@ -114,8 +114,12 @@ test('live examples preserve aggregate specimen, figure and table counts', async
   });
 });
 
+// Whole-page axe scans of the 144-specimen page (two on a phone, Menu closed and open) took 16 to
+// 41 s in the e2e container on a quiet machine and over the 120 s budget on a heavily loaded one,
+// so test.slow() triples the budget (360 s); the scans and the assertion stay the same.
 test('live examples have no axe violations with the Menu closed or open', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
+  test.slow(true, '144 live specimens: 16 to 41 s on a quiet machine, over 120 s under heavy load');
   await page.goto('/kitchen-sink/live');
   const scan = () => new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();

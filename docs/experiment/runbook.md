@@ -182,6 +182,9 @@ launch conditions met" once none is left. It checks:
 - the deployed checks `split`, `isr`, `headers`, `firewall` and `domains` are recorded as `PASS`,
   and the `headers` row was run against the canonical domain;
 - the secrets of step 1 exist (it reads their names only);
+- the GitHub repository variables `LAUNCHED` and `LAUNCH_SHA` exist (it reads their names only).
+  They exist only after the launch step, where I set `LAUNCH_SHA` first and then `LAUNCHED`. Before
+  that, `unmet` lines for them are expected and are never a reason to set either one;
 - the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
@@ -206,6 +209,27 @@ npx vercel env pull .env.production.local --environment=production --scope mahmo
 Expected before launch: `redis: ok (0 fields in exp:aa-v1)` and
 `edge config: ok (item experiment: missing)`. The last part deletes the pulled file again; make
 sure it is gone.
+
+### The one commit production may deploy: `LAUNCH_SHA`
+
+Once `LAUNCHED` is `true`, the deploy workflow deploys production only for the commit named in the
+GitHub repository variable `LAUNCH_SHA`, written as the full 40-character commit SHA in lower case.
+Any other commit, an empty `LAUNCH_SHA` or a shortened one makes the deploy fail at its first step,
+before anything is built, so a CI run that was queued before launch, or a re-run of an older one,
+never reaches production. Only I set these two variables, and only in the launch step: first
+`LAUNCH_SHA` to the launch merge commit, then `LAUNCHED`, in the same sitting:
+
+```sh
+gh variable set LAUNCH_SHA --repo MaHmOuDeB/portfolio --body "<full merge commit SHA>"
+gh variable set LAUNCHED --repo MaHmOuDeB/portfolio --body true
+```
+
+After launch, every merge I approve deploys only if `LAUNCH_SHA` names it. A squash merge's commit
+exists only once it is merged, so right after each merge, before that commit's CI run on `main`
+finishes, I set `LAUNCH_SHA` to the new commit's full SHA. If I am too late, its Deploy fails at
+"Guard production SHA" by design and deploys nothing; then I set `LAUNCH_SHA` and re-run that
+commit's CI run, which starts a fresh Deploy. Vercel's Instant Rollback and "Promote" do not go
+through this workflow, so the guard does not cover them (see step 11).
 
 ## 7. Tag the pre-registration (`prereg-v1`)
 

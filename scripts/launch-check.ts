@@ -11,12 +11,15 @@
 // - the deployed checks (docs/experiment/deployed-checks.md, the log table) are recorded as PASS,
 //   and the `headers` PASS was run against the canonical domain (--canonical);
 // - the secrets exist, by name: in Vercel's production environment and in the GitHub repository;
+// - the GitHub repository variables the deploy reads exist, by name: LAUNCHED, and LAUNCH_SHA, the
+//   commit the deploy workflow lets deploy production once LAUNCHED is true;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash.
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
 //
-// It reads secret NAMES only: the Vercel CLI is never asked for JSON (which would include values),
-// and no command output is printed. It needs `npx vercel login` and `gh auth login` on this machine.
+// It reads secret and variable NAMES only: the Vercel CLI is never asked for JSON (which would
+// include values), gh is asked for the variables' name field alone, and no command output is
+// printed. It needs `npx vercel login` and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,6 +44,8 @@ export const VERCEL_SECRETS = [
 ] as const;
 /** Repository secrets the CI and deploy workflows use for the experiment. */
 export const GITHUB_SECRETS = ['INTERNAL_TRAFFIC_SECRET', 'VERCEL_AUTOMATION_BYPASS_SECRET'] as const;
+/** Repository variables the deploy workflow reads: the launch setting and the one commit it may deploy to production. */
+export const GITHUB_VARIABLES = ['LAUNCHED', 'LAUNCH_SHA'] as const;
 /** Rows of the deployed-checks log that must read PASS before launch. */
 export const REQUIRED_LOG_CHECKS = ['split', 'isr', 'headers', 'firewall', 'domains'] as const;
 const PREREG_TAG = EXPERIMENT.prereg.tag;
@@ -190,6 +195,21 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
   } else {
     const have = names(github.stdout);
     for (const name of GITHUB_SECRETS) if (!have.has(name)) unmet.push(`secret missing in GitHub: ${name}`);
+  }
+  // The variables, by name: gh returns only the name field, one per line.
+  const variables = d.run('gh', ['variable', 'list', '--repo', GITHUB_REPO, '--json', 'name', '--jq', '.[].name']);
+  if (variables.status !== 0) {
+    unmet.push('could not list the GitHub variables (run gh auth login, then try again)');
+  } else {
+    const have = names(variables.stdout);
+    // Before launch both are missing by design; the message must never read as "set it now".
+    for (const name of GITHUB_VARIABLES) {
+      if (!have.has(name)) {
+        unmet.push(
+          `variable missing in GitHub: ${name} (expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step)`,
+        );
+      }
+    }
   }
 
   // The pre-registration tag.

@@ -30,8 +30,9 @@ export type AxisSpec = {
   /** Tick values per layout, usually from niceTicks. Values outside the domain are dropped. */
   ticks: { narrow: number[]; wide: number[] };
   /**
-   * One of the helpers in lib/figure/format, so a zero prints "0" and a minus is U+2212. It needs
-   * enough digits for the tick step: a repeated label, or a non-zero tick printed like zero, throws.
+   * One of the helpers in lib/figure/format, so a zero is never signed ("0", or "0.0", "0.00" and
+   * so on at the axis's fixed decimals) and a minus is U+2212. It needs enough digits for the tick
+   * step: a repeated label, or a non-zero tick printed like zero, throws.
    */
   format: (v: number) => string;
   label: string;
@@ -72,7 +73,11 @@ export type ChartFrameProps = {
   /** Drawn unstretched over the marks (dots keep their shape): x via pct(ctx.xFrac(v)), y in px. */
   overlays?: (ctx: PlotContext) => ReactNode;
   annotation?: (ctx: PlotContext) => Annotation;
-  /** Draw one layout only, whatever the viewport (kitchen sink and tests). Omit for responsive. */
+  /**
+   * Draw one layout only, whatever the viewport. A public prop, used in production: a Figure with its
+   * own narrow-width breakpoint (not sm) draws each layout itself and switches between them; the
+   * kitchen sink and tests use it too. Omit for the frame's own responsive switch at sm.
+   */
   layout?: Layout;
 };
 

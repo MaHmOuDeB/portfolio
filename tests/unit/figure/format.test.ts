@@ -41,6 +41,83 @@ describe('formatNumber', () => {
   });
 });
 
+describe('the existing formats, pinned as printed before fixed decimals were added', () => {
+  it('prints the same strings as before', () => {
+    expect(formatNumber(0.71)).toBe('0.71');
+    expect(formatNumber(0.71, 3)).toBe('0.71');
+    expect(formatNumber(1, 1)).toBe('1');
+    expect(formatNumber(0.9, 1)).toBe('0.9');
+    expect(formatNumber(0)).toBe('0');
+    expect(formatNumber(0, 3)).toBe('0');
+    expect(formatNumber(1234.5678)).toBe('1,234.57');
+    expect(formatNumber(1234.5678, 0)).toBe('1,235');
+    expect(formatNumber(-0.4)).toBe('−0.4');
+    expect(formatSignedNumber(2.25, 1)).toBe('+2.3');
+    expect(formatSignedPoints(0, 2)).toBe('0');
+    expect(formatSignedPoints(-0.004, 2)).toBe('0');
+    expect(formatSignedPoints(3, 2)).toBe('+3.00');
+  });
+});
+
+// Fixed decimals: the caller asks for exactly that many decimals, so a column or an axis reads at
+// one precision ("0.710" beside "0.685", "0.9" then "1.0").
+describe('formatNumber with fixed decimals', () => {
+  const fixed = { fixed: true } as const;
+
+  it('keeps trailing zeros up to exactly the given decimals', () => {
+    expect(formatNumber(0.71, 3, fixed)).toBe('0.710');
+    expect(formatNumber(0.685, 3, fixed)).toBe('0.685');
+    expect(formatNumber(1, 1, fixed)).toBe('1.0');
+    expect(formatNumber(0.5, 1, fixed)).toBe('0.5');
+    expect(formatNumber(1353, 2, fixed)).toBe('1,353.00');
+    expect(formatNumber(12, 0, fixed)).toBe('12');
+  });
+
+  it('rounds half away from zero, like the other formats', () => {
+    expect(formatNumber(0.25, 1, fixed)).toBe('0.3');
+    expect(formatNumber(-0.25, 1, fixed)).toBe('−0.3');
+    expect(formatNumber(2.5, 0, fixed)).toBe('3');
+    expect(formatNumber(-2.5, 0, fixed)).toBe('−3');
+    expect(formatNumber(0.7106, 3, fixed)).toBe('0.711');
+  });
+
+  it('uses U+2212 for a negative number', () => {
+    expect(formatNumber(-0.71, 3, fixed)).toBe('−0.710');
+    expect(formatNumber(-1, 1, fixed)).toBe('−1.0');
+  });
+
+  it('prints zero, negative zero and values that round to zero with their decimals and no sign', () => {
+    expect(formatNumber(0, 3, fixed)).toBe('0.000');
+    expect(formatNumber(-0, 3, fixed)).toBe('0.000');
+    expect(formatNumber(-0.0004, 3, fixed)).toBe('0.000');
+    expect(formatNumber(0.0004, 3, fixed)).toBe('0.000');
+    expect(formatNumber(-0.04, 1, fixed)).toBe('0.0');
+    expect(formatNumber(-0.4, 0, fixed)).toBe('0');
+  });
+
+  it('throws on a number that is not finite', () => {
+    expect(() => formatNumber(Number.NaN, 3, fixed)).toThrow(TypeError);
+    expect(() => formatNumber(Number.POSITIVE_INFINITY, 1, fixed)).toThrow(TypeError);
+    expect(() => formatNumber(Number.NEGATIVE_INFINITY, 1, fixed)).toThrow(TypeError);
+  });
+
+  it('refuses decimals that are not a whole number from 0 to 20', () => {
+    expect(() => formatNumber(0.71, 1.5, fixed)).toThrow(RangeError);
+    expect(() => formatNumber(0.71, -1, fixed)).toThrow(RangeError);
+    expect(() => formatNumber(0.71, 21, fixed)).toThrow(RangeError);
+    expect(() => formatNumber(0.71, Number.NaN, fixed)).toThrow(RangeError);
+    // @ts-expect-error fixed decimals need their number of decimals
+    expect(() => formatNumber(0.71, undefined, fixed)).toThrow(RangeError);
+    expect(formatNumber(0.5, 20, fixed)).toBe('0.50000000000000000000');
+  });
+
+  it('is off unless asked for: { fixed: false } prints as before', () => {
+    expect(formatNumber(0.71, 3, { fixed: false })).toBe('0.71');
+    expect(formatNumber(1, 1, { fixed: false })).toBe('1');
+    expect(formatNumber(-0.0004, 3, { fixed: false })).toBe('0');
+  });
+});
+
 describe('formatSignedPoints', () => {
   it('shows a plus sign on a positive value', () => {
     expect(formatSignedPoints(31.2, 0)).toBe('+31');

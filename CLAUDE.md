@@ -51,7 +51,7 @@ Next code.
 | `npm run truth:audit` | The truth audit over a finished build (CI runs it on the build job). |
 | `npm run assert:no-kitchen-sink` | Fails if the build contains a kitchen-sink route. CI runs it after `npm run build`, and the deploy workflow after `vercel build`. |
 | `npm run experiment:check -- --url <origin>` | Prints the live experiment's state from `<origin>/experiment/data.json`. `--storage` (with the production variables in the environment) checks the read-only store token and the Edge Config connection, printing two status lines and never a value. |
-| `npm run launch:check -- --canonical <domain>` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks with `headers` on the canonical domain, secrets by name, the `prereg-v1` tag locally and on origin). Run `npm run build` first. See `docs/experiment/runbook.md`. |
+| `npm run launch:check -- --canonical <domain>` | The launch gate, by hand only (never in `npm run check` or CI): exits 1 naming each unmet launch condition (start date, unverified privacy facts and launch placeholders, deployed checks with `headers` on the canonical domain, secrets and the `LAUNCHED` and `LAUNCH_SHA` variables by name, the `prereg-v1` tag locally and on origin). Run `npm run build` first. See `docs/experiment/runbook.md`. |
 
 Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:meta`,
 `npm run lhci` and `npm run links`.
@@ -102,9 +102,10 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 - Kit components that print numbers take their refs from the caller, and `refs` is required on the
   live components (no default). Live components use `['live']`, kitchen-sink demos `['simulated']`.
 - Prose lives in MDX under `content/`.
-- Negative numbers use the true minus sign (U+2212). Zero prints "0", never "+0" or "-0". Every
-  "±" names its level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
-  and 24-hour `hh:mm`.
+- Negative numbers use the true minus sign (U+2212). Zero has no sign: it prints "0", or "0.0"
+  and so on where a fixed number of decimals is asked for, never "+0" or "-0". Every "±" names its
+  level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm` and 24-hour
+  `hh:mm`.
 - A date that needs its year (a legal notice's version date) prints `dd.mm.yyyy` inside
   `<time dateTime>`; live timestamps stay `dd.mm` and `hh:mm`.
 
@@ -140,15 +141,15 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `LiveStateBody` | `LiveStateBody.tsx` | The body of a live Figure in each state of the state matrix. |
 | `UpdatedLabel`, `ProgressLine` | `LiveLabels.tsx` | When live data was updated, and how far a collecting test has got. |
 | `PhaseLabel`, `TestNote` | `PhaseLabel.tsx` | The one-sentence note on what the site is testing and which group the reader is in. |
-| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. A column format (`number`, `count`, `points`, `signedPoints` or `share`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter. |
+| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. A column format (`number`, `count`, `points`, `signedPoints`, `share` or `{ fixed: n }`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter, and `{ fixed: n }` prints exactly n decimals with trailing zeros kept (`formatNumber(v, n, { fixed: true })`, which also serves an axis). |
 | `IntervalGlyph` | `IntervalGlyph.tsx` | The signature mark: a bar with end caps is the interval, the dot is the estimate. 48 px wide before the name in the header; under 480 px the header uses `length={28}` so it stays on one row. |
 | `ProvenanceBadge`, `Provenance` | `ProvenanceBadge.tsx` | "Simulated", "Public data" or "Live from this site". |
 | `Fact` | `Fact.tsx` | A number from the facts data, as `<data data-fact>`. |
 | `Derived`, `derivedAttr`, `DerivedRef` | `Derived.tsx` | A computed, simulated, live or build number, as `data-derived`. |
 | `Stat` | `Stat.tsx` | A large number with its label and source line. |
-| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. |
-| `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. |
-| `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. |
+| `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. An optional `numberText` sets the number input's text (display only, such as "17.2" for a value with many digits). |
+| `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. Each radio's id is `${name}-${value}`, so a `name` is used once per page. |
+| `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. An optional `id` is set on the button. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. |
 | `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. |
 | `useFigureParams` | `useFigureParams.ts` (client) | Reads and writes a Figure's URL state. Call it inside a `<Suspense>` boundary. |

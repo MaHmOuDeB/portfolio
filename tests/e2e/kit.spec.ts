@@ -387,3 +387,120 @@ test.describe('kitchen sink step navigation', () => {
     await context.close();
   });
 });
+
+test.describe('kitchen sink slider steps', () => {
+  // One step is 100 / 29 percent: the value at five points is 17.2413793103448, shown as "17.2".
+  const specimen = (page: Page) => page.locator('[data-specimen="slider-steps--percent"]');
+  const exact = (page: Page) => specimen(page).getByRole('spinbutton', { name: 'Rise to detect, percent of the baseline' });
+  const range = (page: Page) => specimen(page).getByRole('slider', { name: 'Rise to detect' });
+  const readout = (page: Page) => specimen(page).locator('[data-slider-readout]');
+  const released = (page: Page) => specimen(page).locator('[data-released]');
+  const open = async (page: Page) => {
+    await page.goto('/kitchen-sink/slider-steps');
+    await expect(specimen(page).locator('[data-ready]')).toHaveCount(1);
+  };
+  // The browser's own constraint state of the number input: the shown "17.2" is off the step grid.
+  const stepMismatch = (page: Page) => exact(page).evaluate((el) => (el as HTMLInputElement).validity.stepMismatch);
+  // The invalid state in Chromium's accessibility tree, the one a screen reader reads.
+  const chromiumInvalid = async (page: Page) => {
+    const cdp = await page.context().newCDPSession(page);
+    const { nodes } = (await cdp.send('Accessibility.getFullAXTree')) as {
+      nodes: { role?: { value?: string }; name?: { value?: string }; properties?: { name: string; value: { value?: unknown } }[] }[];
+    };
+    const node = nodes.find((n) => n.role?.value === 'spinbutton' && n.name?.value === 'Rise to detect, percent of the baseline');
+    await cdp.detach();
+    return node?.properties?.find((p) => p.name === 'invalid')?.value.value;
+  };
+
+  test('a formatted number is stated valid to assistive technology, though off the step grid', async ({ page, browserName }) => {
+    await open(page);
+    await expect(exact(page)).toHaveValue('17.2');
+    expect(await stepMismatch(page)).toBe(true);
+    await expect(exact(page)).toHaveAttribute('aria-invalid', 'false');
+    if (browserName === 'chromium') await expect.poll(() => chromiumInvalid(page)).toBe('false');
+    // While an entry is typed, the browser's own state stands: an off-grid entry is snapped on blur.
+    await exact(page).fill('17.24');
+    await expect(exact(page)).not.toHaveAttribute('aria-invalid');
+    if (browserName === 'chromium') await expect.poll(() => chromiumInvalid(page)).toBe('true');
+    await exact(page).blur();
+    await expect(exact(page)).toHaveValue('17.2');
+    await expect(exact(page)).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  test('an arrow key that is part of an IME composition does not step', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // A dispatched event has no default action, so only the Slider's own handler could step here.
+    await exact(page).evaluate((el) => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', isComposing: true, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', isComposing: true, bubbles: true, cancelable: true }));
+    });
+    await exact(page).evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })));
+    // The uncomposed key steps (the probe that the handler is live), the composed one did not.
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(released(page)).toHaveText('Not released yet.');
+  });
+
+  test('ArrowUp in the number input moves one whole point at once and shows the formatted value', async ({ page }) => {
+    await open(page);
+    await expect(exact(page)).toHaveValue('17.2');
+    await expect(readout(page)).toHaveText('17.2% of the baseline');
+    await exact(page).focus();
+    await page.keyboard.down('ArrowUp');
+    // Live while the key is down: no blur, no Enter.
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(exact(page)).toHaveValue('20.7');
+    await expect(range(page)).toHaveAttribute('aria-valuetext', '20.7% of the baseline');
+    await expect(exact(page)).toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    // Releasing the key commits, as on the range input.
+    await page.keyboard.up('ArrowUp');
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+    await expect(exact(page)).toHaveValue('13.8');
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+  });
+
+  test('an arrow step whose key-up was lost is forgotten when focus leaves, so a later key-up commits the value', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // Hold ArrowUp in the number input: it steps to 20.7 and waits for the key-up to commit.
+    await page.keyboard.down('ArrowUp');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    // Focus leaves by pointer while the key is held, so the key-up lands elsewhere.
+    await page.locator('h1').click();
+    await page.keyboard.up('ArrowUp');
+    await expect(exact(page)).not.toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    // The range input moves the value on and commits it.
+    await range(page).focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+    // A stray arrow key-up in the number input (its key-down not taken over) commits the value it
+    // shows, never the step held before focus left.
+    await exact(page).focus();
+    await exact(page).evaluate(async (el) => {
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+      // Let any commit it caused render before the check.
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    });
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+  });
+
+  test('a grid value typed with every digit a browser prints updates live, before blur', async ({ page }) => {
+    await open(page);
+    // min + 5 steps to full double precision: off snapToStep's own rounding in the last digits.
+    await exact(page).fill('20.689655172413794');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(exact(page)).toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    await exact(page).blur();
+    await expect(exact(page)).toHaveValue('20.7');
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
+  });
+});
