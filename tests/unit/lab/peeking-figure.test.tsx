@@ -213,7 +213,13 @@ describe('every one of the 200 states', () => {
     expect(words).toContain('Evan Miller, “How Not To Run an A/B Test”');
     if (values.mode === 'once') {
       expect(words).toContain(`one check after ${formatValue(selected.nPerLook, 'count')} visitors per group`);
-      expect(words).toContain(`The pale ${naive.looks === 1 ? 'dot' : 'line'} is the comparison schedule: ${naive.looks} daily ${naive.looks === 1 ? 'look' : 'looks'} of ${naive.nPerLook} visitors per group with no fix.`);
+      if (L === 1) {
+        // one look: the comparison gives the same share, so its pale dot is under the ringed dot
+        expect(naive.falsePositiveRate).toBe(selected.falsePositiveRate);
+        expect(words).toContain(`The comparison schedule is ${naive.looks} daily look of ${naive.nPerLook} visitors per group with no fix.`);
+      } else {
+        expect(words).toContain(`The pale line is the comparison schedule: ${naive.looks} daily looks of ${naive.nPerLook} visitors per group with no fix.`);
+      }
     } else {
       expect(words).toContain(`Each scheduled look adds ${selected.nPerLook} visitors per group.`);
     }
@@ -319,6 +325,27 @@ describe('the copy of each method', () => {
       }
       expect(view.table.rows.slice(0, looks).map((r) => r[1])).toEqual(Array(looks).fill('Peeking daily, no fix'));
       expect(view.table.rows.at(-1)).toEqual([looks, 'One look at the end', Math.round(view.selected.falsePositiveRate * 1000) / 10]);
+    }
+  });
+
+  it('never names a pale dot as if it showed when the ringed dot covers it (one look, the same share)', () => {
+    const once = prose(caption(at({ looks: 1, mode: 'once', fix: 'naive' }).html));
+    expect(once).toContain('With one look the comparison schedule gives the same share, so its pale dot sits under the ringed dot.');
+    expect(once).not.toContain('The pale dot is');
+    const obf = prose(caption(at({ looks: 1, mode: 'daily', fix: 'obf' }).html));
+    expect(obf).toContain('The comparison is the same 1 daily look of 100 visitors per group with no fix; with one look the fix changes nothing, so the pale dot sits under the ringed dot.');
+    expect(obf).not.toContain('The pale dot is');
+    // the confidence sequence at one look differs from the comparison, so its pale dot shows
+    const cs = at({ looks: 1, mode: 'daily', fix: 'cs' });
+    expect(cs.view.naive.falsePositiveRate).not.toBe(cs.view.selected.falsePositiveRate);
+    expect(prose(caption(cs.html))).toContain('The pale dot is the same 1 daily look of 100 visitors per group with no fix; the ringed dot uses the fix.');
+  });
+
+  it('says what the Monte Carlo range is: where the rate would settle with far more runs', () => {
+    for (const { html } of DRAWN) {
+      const words = prose(caption(html));
+      expect(words).toContain('the 95% Monte Carlo range is a Wilson interval over the runs: where the rate would settle with far more runs.');
+      expect(words).not.toMatch(/another seed/);
     }
   });
 

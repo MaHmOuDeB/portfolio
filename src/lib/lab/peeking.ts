@@ -2,7 +2,7 @@
 // peeking-table.generated.ts, so the browser never simulates. This module normalizes the control
 // values, rebuilds the engine's result for the chosen schedule and for the naive daily ghost, and
 // adds two pieces of arithmetic: the 95% Wilson interval for the Monte Carlo uncertainty of the
-// rate (how much the rate itself could move with other seeds, not a treatment effect), and the
+// rate (where the rate would settle with far more runs, not a treatment effect), and the
 // planning cost of a fix as a ratio (a boundary or an interval width, never measured power or an
 // extra sample). It reaches the statistics through their own files, never the barrel, so neither
 // the simulation engine nor the random number generator is bundled with it. It imports the table,

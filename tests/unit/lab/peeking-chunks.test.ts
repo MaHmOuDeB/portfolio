@@ -19,8 +19,12 @@ const HOST_HTML = join(NEXT, 'server/app/kitchen-sink/lab/peeking.html');
 const STATIC = join(NEXT, 'static');
 const REQUIRED = process.env.REQUIRE_PEEK_CHUNK_SCAN === '1';
 const TABLE_KEY = 'daily/naive/20';
-/** The engine's name and sfc32's seed constant in decimal and hex. */
-const ENGINE = ['simulatePeeking', '2654435769', '0x9e3779b9'];
+/**
+ * Markers of the engine that survive minification: a string literal of its input validation (a
+ * binding name such as simulatePeeking is mangled, so it could never match), and sfc32's seed
+ * constant in decimal and hex.
+ */
+const ENGINE = ['nPerLook must be', '2654435769', '0x9e3779b9'];
 /** A string only the client-safe values hold: the eager file reached them. */
 const VALUES_MARK = 'One look at the end needs no fix.';
 
@@ -53,6 +57,14 @@ describe.skipIf(!REQUIRED)('the built peeking chunks', () => {
       const raw = statSync(f).size;
       console.log(`lazy chunk ${relative(REPO, f)}: ${raw} B raw, ${gzipSync(readFileSync(f), { level: 9 }).length} B gzip (level 9)`);
     }
+  });
+});
+
+describe('the engine markers', () => {
+  it('are in the engine source as written, so a bundled engine would carry them', () => {
+    const engine = readFileSync(join(REPO, 'src/lib/stats/peeking.ts'), 'utf8');
+    expect(engine).toContain('`nPerLook must be an integer in [1, ');
+    expect(readFileSync(join(REPO, 'src/lib/stats/rng.ts'), 'utf8')).toMatch(/0x9e3779b9|2654435769/i);
   });
 });
 

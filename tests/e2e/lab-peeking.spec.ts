@@ -18,7 +18,8 @@ const SENTENCE = 'This chart could not load. The numbers are in the table below.
 const SEAM_FAILURE = 'The peeking chart failed after a change (test seam)';
 const PRESET_LINE = /^Under these simulation assumptions, 22\.1% of 1,000 runs found a false winner by look 20 \(95% Monte Carlo range [\d.]+% to [\d.]+%\): above the nominal 5%\.$/;
 const TABLE_KEY = 'daily/naive/20';
-const SEED_CONSTANTS = ['2654435769', '0x9e3779b9', 'simulatePeeking'];
+// Engine markers that survive minification: a validation string literal and sfc32's seed constant.
+const SEED_CONSTANTS = ['nPerLook must be', '2654435769', '0x9e3779b9'];
 
 const figure = (page: Page) => page.locator(`figure[data-figure="${ID}"]`);
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
@@ -631,6 +632,10 @@ async function assertOnce50Fallback(page: Page) {
   const f = figure(page);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText(TITLE);
   await expect(caption(page)).toContainText('Idea credited to Evan Miller');
+  // the caption is the current view's, once at 50 looks, never the preset's
+  await expect(caption(page)).toContainText('Looking once means one check after 5,000 visitors per group.');
+  await expect(caption(page)).toContainText('The pale line is the comparison schedule: 50 daily looks');
+  await expect(caption(page)).not.toContainText('Each scheduled look adds');
   const fallbackTable = f.locator('[data-figure-fallback] table');
   await expect(fallbackTable).toBeVisible();
   const rows = fallbackTable.locator('tbody tr');

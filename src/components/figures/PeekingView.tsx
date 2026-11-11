@@ -130,11 +130,25 @@ function criterion(view: PeekView): Seg[] {
   return ['A run counts as a false winner the first time its p-value (pooled z-test, two-sided) falls below ', decimal(alpha), '. '];
 }
 
-/** What the marks are: the chosen schedule, the ghost (the daily looks with no fix) and the dot. */
+/**
+ * What the marks are: the chosen schedule, the ghost (the daily looks with no fix) and the dot. At
+ * one look the ghost is a pale dot; when it has the same share as the chosen schedule (looking once,
+ * or O'Brien-Fleming, at one look) the ringed dot covers it, and the caption says so.
+ */
 function legend(view: PeekView): Seg[] {
-  const { values, naive } = view;
+  const { values, naive, selected } = view;
   const one = values.looks === 1;
+  const hidden = one && naive.falsePositiveRate === selected.falsePositiveRate;
   if (values.mode === 'once') {
+    if (hidden) {
+      return [
+        'The comparison schedule is ',
+        count(naive.looks),
+        ' daily look of ',
+        count(naive.nPerLook),
+        ' visitors per group with no fix. With one look the comparison schedule gives the same share, so its pale dot sits under the ringed dot. ',
+      ];
+    }
     return [
       `The pale ${one ? 'dot' : 'line'} is the comparison schedule: `,
       count(naive.looks),
@@ -145,6 +159,15 @@ function legend(view: PeekView): Seg[] {
   }
   if (values.fix === 'naive') {
     return [one ? 'The ringed dot is the share of runs flagged at the one look. ' : 'The line is the share of runs flagged so far at each look, and the ringed dot is the last look. '];
+  }
+  if (hidden) {
+    return [
+      'The comparison is the same ',
+      count(naive.looks),
+      ' daily look of ',
+      count(naive.nPerLook),
+      ' visitors per group with no fix; with one look the fix changes nothing, so the pale dot sits under the ringed dot. ',
+    ];
   }
   return [
     `The pale ${one ? 'dot' : 'line'} is the same `,
@@ -174,7 +197,7 @@ function captionSegments(view: PeekView): Seg[] {
     count(selected.seed),
     '; the ',
     share(MC_LEVEL),
-    ' Monte Carlo range is a Wilson interval over the runs: how far the rate could move with another seed. ',
+    ' Monte Carlo range is a Wilson interval over the runs: where the rate would settle with far more runs. ',
     'Each setting is its own simulation, so nearby look counts can differ by a few points. ',
     ...(view.cost ? ["The price of a fix is arithmetic at the last look's sample, not a measured loss of power. "] : []),
     'Idea credited to Evan Miller, “How Not To Run an A/B Test”.',
