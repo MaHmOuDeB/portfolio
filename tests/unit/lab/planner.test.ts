@@ -195,7 +195,9 @@ describe('the server-rendered preset view', () => {
   });
 
   it('says the baseline is hypothetical and names Cohen\u2019s h, two-sided, with the formula in code', () => {
-    expect(text).toContain('The baseline is a hypothetical sign-up conversion rate, not a figure from the case studies below.');
+    // The preset's numbers are the Retention win-back sizing's, so the note claims no independence from the case studies.
+    expect(text).toContain('The baseline is a hypothetical sign-up conversion rate. Sample sizes');
+    expect(text).not.toMatch(/case stud/i);
     expect(text).toContain("Cohen's h");
     expect(text).toContain('two-sided');
     expect(html).toContain(`<code`);

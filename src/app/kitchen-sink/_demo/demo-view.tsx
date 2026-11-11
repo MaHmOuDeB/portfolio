@@ -6,8 +6,9 @@ import { line } from 'd3-shape';
 import type { CSSProperties, ReactNode } from 'react';
 import { ChartFrame, MARK_UNITS, MarkLayer, type PlotContext } from '@/components/kit/ChartFrame';
 import type { TableData } from '@/components/kit/DataTable';
-import { derivedAttr } from '@/components/kit/Derived';
+import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
+import { Stat } from '@/components/kit/Stat';
 import { formatNumber } from '@/lib/figure/format';
 import { linearFrac, niceTicks, pct } from '@/lib/figure/scales';
 import type { FigureState } from '@/lib/figure/states';
@@ -270,7 +271,26 @@ export type DemoFigureViewProps = {
   preview?: ReactNode;
   /** Sink only: the chart throws while rendering, as a client-side bug would. */
   breakChart?: boolean;
+  /** Sink only: draw the readout as the Figure's lead, above the controls. */
+  lead?: boolean;
+  /** Sink only: a title of its own, so two open tables on one page never share a name. */
+  title?: string;
 };
+
+/** The readout a lead holds: the visitors each group needs, read before the controls. */
+function DemoLead({ model }: { model: DemoModel }) {
+  return (
+    <Stat
+      value={<Derived value={model.n} unit="count" refs={REFS} />}
+      label={
+        <>
+          Visitors per group to detect a rise of <span {...SIMULATED}>{RISE}</span> points
+        </>
+      }
+      source="Simulated: a hypothetical sign-up page, not a real test."
+    />
+  );
+}
 
 /** A chart part that fails while rendering, for the kitchen sink's failing island. */
 export const CHART_FAILURE = 'A fictional chart failure in the kitchen sink';
@@ -287,16 +307,19 @@ export function DemoFigureView({
   titleLevel,
   preview,
   breakChart,
+  lead,
+  title = 'Smaller rises need many more visitors.',
 }: DemoFigureViewProps) {
   const model = demoModel(values);
   return (
     <Figure
       id={id}
-      title="Smaller rises need many more visitors."
+      title={title}
       titleLevel={titleLevel}
       state={state}
       provenance="simulated"
       table={demoTable(model)}
+      lead={lead ? <DemoLead model={model} /> : undefined}
       controls={controls}
       preview={preview ? (
         <>

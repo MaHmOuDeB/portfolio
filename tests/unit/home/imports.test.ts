@@ -1,0 +1,67 @@
+// The Home and Figure composites keep the server/client split: a server file never pulls the kit's
+// client barrel in by accident (only the hook and control wrappers are client modules), and a client
+// module never brings the server-only Home model or live reader into the browser bundle. It may use
+// the model's types (erased at build); for freshness it uses the client-safe freshness module.
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const ROOT = path.resolve(import.meta.dirname, '../../..');
+const DIRS = ['src/components/home', 'src/components/figures'];
+/** Client-safe by contract, though it has no directive: it runs only inside ScrollShell. */
+const CLIENT_SAFE = ['src/lib/home/scroll-controller.ts'];
+
+const files = DIRS.flatMap((d) => readdirSync(path.join(ROOT, d)).filter((f) => /\.tsx?$/.test(f)).map((f) => `${d}/${f}`));
+const source = (f: string) => readFileSync(path.join(ROOT, f), 'utf8');
+/** A 'use client' directive: the first statement, after comments only. */
+const isClient = (f: string) => /^(?:\s*(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/))*\s*['"]use client['"]/.test(source(f));
+
+type Import = { typeOnly: boolean; specifier: string; target: string };
+/** Every static import or re-export, and every dynamic import(), with its resolved repository path. */
+function imports(f: string): Import[] {
+  const src = source(f);
+  const out: Import[] = [];
+  const resolve = (spec: string) => {
+    if (spec.startsWith('@/')) return `src/${spec.slice(2)}`.replace(/\.(tsx?)$/, '');
+    if (spec.startsWith('.')) return path.posix.join(path.posix.dirname(f), spec).replace(/\.(tsx?)$/, '');
+    return spec;
+  };
+  for (const m of src.matchAll(/^\s*(import|export)\s+(type\s+)?([^;'"]*?)\s*from\s*['"]([^'"]+)['"]/gm)) {
+    out.push({ typeOnly: m[2] !== undefined, specifier: m[4]!, target: resolve(m[4]!) });
+  }
+  for (const m of src.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm)) out.push({ typeOnly: false, specifier: m[1]!, target: resolve(m[1]!) });
+  for (const m of src.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) out.push({ typeOnly: false, specifier: m[1]!, target: resolve(m[1]!) });
+  return out;
+}
+
+const SERVER = files.filter((f) => !isClient(f));
+const CLIENT = [...files.filter(isClient), ...CLIENT_SAFE];
+
+describe('the composites keep the server/client split', () => {
+  it('finds the modules it guards', () => {
+    expect(SERVER).toEqual(expect.arrayContaining(['src/components/home/HomeSections.tsx', 'src/components/home/LiveNote.tsx', 'src/components/home/ScrollMoment.tsx']));
+    expect(CLIENT).toEqual(
+      expect.arrayContaining(['src/components/home/NoteFreshness.tsx', 'src/components/home/ScrollShell.tsx', 'src/components/home/HomeChart.tsx', 'src/lib/home/scroll-controller.ts']),
+    );
+  });
+
+  it.each(SERVER)('%s (server): never imports the kit client barrel', (f) => {
+    expect(imports(f).filter((i) => i.target === 'src/components/kit/client')).toEqual([]);
+  });
+
+  it.each(CLIENT)('%s (client): only types from the Home model, never the live reader', (f) => {
+    const all = imports(f);
+    expect(all.filter((i) => i.target === 'src/lib/home/model' && !i.typeOnly)).toEqual([]);
+    expect(all.filter((i) => i.target === 'src/lib/experiment/live')).toEqual([]);
+  });
+
+  it('the guard sees a value import and a relative path', () => {
+    // A self-check of the parser on a made-up file body, so a missed form cannot pass silently.
+    const probe = (body: string) => {
+      const src = body.matchAll(/^\s*(import|export)\s+(type\s+)?([^;'"]*?)\s*from\s*['"]([^'"]+)['"]/gm);
+      return [...src].map((m) => ({ typeOnly: m[2] !== undefined, spec: m[4] }));
+    };
+    expect(probe("import { homeFreshnessAt, type HomeModel } from '@/lib/home/model';")).toEqual([{ typeOnly: false, spec: '@/lib/home/model' }]);
+    expect(probe("import type {\n  HomeModel,\n} from '../../lib/home/model';")).toEqual([{ typeOnly: true, spec: '../../lib/home/model' }]);
+  });
+});

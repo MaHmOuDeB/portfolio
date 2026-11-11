@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
+import { watchScripts } from './island-code';
 
 // The Home planner on the dev host /kitchen-sink/home: a hypothetical sign-up test (Baseline
 // conversion 1% to 98%, preset 29%; Rise in points 1 to 30, preset 5, capped so the target stays at
@@ -16,7 +17,7 @@ const figure = (page: Page) => page.locator(`figure[data-figure="${ID}"]`);
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
 const baseline = (page: Page) => figure(page).getByRole('slider', { name: 'Baseline conversion' });
 const rise = (page: Page) => figure(page).getByRole('slider', { name: 'Rise in points' });
-const readout = (page: Page) => figure(page).locator('[data-figure-body] [data-planner-n]');
+const readout = (page: Page) => figure(page).locator('[data-figure-lead] [data-planner-n]');
 const live = (page: Page) => figure(page).locator('[data-figure-announcement]');
 const query = (page: Page) => new URL(page.url()).searchParams;
 
@@ -63,27 +64,24 @@ test.describe('Home planner', () => {
     await expect(table).toBeVisible();
     await expect(table).toContainText('1,353');
     await expect(figure(page).getByRole('group', { name: 'Controls' })).toBeHidden();
-    await expect(figure(page).getByText('not a figure from the case studies below')).toBeVisible();
+    await expect(figure(page).getByText('The baseline is a hypothetical sign-up conversion rate.')).toBeVisible();
+    await expect(figure(page).getByText(/case stud/i)).toHaveCount(0);
     await context.close();
   });
 
   test('lazy: the island is idle until the pointer arrives, and no code loads before', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
-    const scripts: string[] = [];
-    let loaded = false;
-    page.on('request', (request) => {
-      if (loaded && request.resourceType() === 'script') scripts.push(request.url());
-    });
+    const scripts = watchScripts(page);
     await page.goto(HOST);
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
-    loaded = true;
+    scripts.start();
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
-    expect(scripts).toEqual([]);
+    expect(await scripts.counted()).toEqual([]);
     await ready(page);
-    expect(scripts.length).toBeGreaterThan(0);
+    expect((await scripts.counted()).length).toBeGreaterThan(0);
     await expect(readout(page)).toHaveText(PRESET_N);
     expect(errors).toEqual([]);
   });
@@ -175,7 +173,7 @@ test.describe('Home planner', () => {
       root.addEventListener('input', () => {
         inputAt = performance.now();
       }, true);
-      const n = root.querySelector('[data-figure-body] [data-planner-n]')!;
+      const n = root.querySelector('[data-figure-lead] [data-planner-n]')!;
       new MutationObserver(() => {
         if (inputAt !== null) {
           w.lat.push(performance.now() - inputAt);
@@ -261,6 +259,28 @@ test.describe('Home planner', () => {
     await expect(figure(page).locator('[data-nojs-only] table')).toBeVisible();
     await expect(readout(page)).toHaveText(PRESET_N);
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+  });
+
+  test('the readout is the lead, and the empty body takes no space in the preview and the island', async ({ page }) => {
+    await withoutIdle(page);
+    await page.goto(HOST);
+    for (const phase of ['preview', 'island'] as const) {
+      if (phase === 'island') await ready(page);
+      const body = figure(page).locator('[data-figure-body]');
+      expect(await body.evaluate((el) => el.childNodes.length), phase).toBe(0);
+      await expect(body, phase).toHaveCSS('display', 'none');
+      await expect(figure(page).locator('[data-figure-lead] [data-planner-n]'), phase).toHaveText(PRESET_N);
+      // The space from the result line to the caption is the caption's own top margin only.
+      const gap = await figure(page).evaluate((root) => {
+        const caption = root.querySelector('figcaption')!;
+        const result = root.querySelector('[data-figure-result]')!;
+        return {
+          gap: caption.getBoundingClientRect().top - result.getBoundingClientRect().bottom,
+          margin: parseFloat(getComputedStyle(caption).marginTop),
+        };
+      });
+      expect(Math.abs(gap.gap - gap.margin), phase).toBeLessThanOrEqual(1);
+    }
   });
 
   test('axe finds no violations in the preview or the loaded island', async ({ page }) => {

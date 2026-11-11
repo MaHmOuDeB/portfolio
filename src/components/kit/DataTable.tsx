@@ -11,7 +11,12 @@ import { derivedAttr, type DerivedRef } from './Derived';
  * - `count`: whole numbers.
  * - `points`: one decimal at most, no sign.
  * - `signedPoints`: one decimal at most with "+" or U+2212, and a bare "0" for zero.
- * - `share`: a raw fraction written as a whole percent by the facts formatter (0.2345 is "23%").
+ * - `share`: a raw fraction written as a whole percent by the facts formatter (0.2345 is "23%"),
+ *   rounded half away from zero, so a share under 0.5% prints "0%" (a small non-zero share too)
+ *   and 99.5% or more prints "100%". Pass the unrounded source fraction: a copy already rounded to
+ *   three decimals can print one point off (0.235 is "24%"). A non-finite value throws, as in every
+ *   format. A share column is for zero-decimal facts only: a fact with decimals belongs in a string
+ *   cell written with its own decimals.
  * - `{ fixed: n }`: exactly n decimals, a whole number from 0 to 20 (a RangeError otherwise), with
  *   trailing zeros kept, through formatNumber's fixed option: at three, 0.71 is "0.710" and 1 is
  *   "1.000". No "+"; U+2212 for a negative; zero, -0 and a value that rounds to zero print the zero

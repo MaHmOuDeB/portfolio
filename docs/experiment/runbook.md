@@ -315,3 +315,14 @@ without extra code because of how the project is wired:
   Rollback and "Promote" both do exactly that). If a rollback to an older layout is ever needed,
   stop counting first (step 9), then use a fresh namespace for the next run (as in step 8) rather
   than let two layouts share one.
+
+## 12. What the home page's HTML holds for the two groups
+
+Each featured case-study card holds both groups' headline strings in the HTML, in one grid cell, so
+the card is the same size in both groups at every width, zoom and font. Viewing the page source of
+`/` therefore shows both headlines of every card; that is expected and is not a leak. Only the
+headline of the reader's group (group A's in the calibration, for everyone) is visible and read out
+by screen readers; the other string is `visibility: hidden` and `aria-hidden`, and it holds no link.
+
+To see a group's page as a visitor would, open `/?variant=a` or `/?variant=b`. A forced view is
+never counted (the beacon reports it as `forced`). A direct `/v/a` or `/v/b` is the 404 page.

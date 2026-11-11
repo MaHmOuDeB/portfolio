@@ -37,3 +37,7 @@ test('the home page is the per-group page, and no other page sits at /', () => {
   expect(routes).toContain('/v/[arm]');
   expect(routes).not.toContain('/');
 });
+
+test('the Retention case study ships at /work/retention', () => {
+  expect(LIVE_ROUTES).toContain('/work/retention');
+});

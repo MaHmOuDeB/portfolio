@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
+import { watchScripts } from './island-code';
 
 // The "Figures" section of the kitchen sink (Review Focus 5): two interactive demo Figures, `demo`
 // and `demo-b` (Baseline conversion 0.05 to 0.5, step 0.01, preset 0.1; Power 80% or 90%; Reset),
@@ -185,6 +186,9 @@ test.describe('kitchen sink Figures', () => {
     await expect(status).toHaveText(STATIC_SENTENCE);
     await expect(figure(page, 'thrower').locator('[data-figure-fallback] table')).toBeVisible();
     await expect(figure(page, 'thrower').locator('[data-figure-preview] svg[data-chart-frame]:visible')).toHaveCount(1);
+    // A body holding a caught error's fallback is not empty, so the empty-body rule never hides it.
+    await expect(figure(page, 'thrower').locator('[data-figure-body]')).toBeVisible();
+    await expect(figure(page, 'thrower').locator('[data-figure-body]')).not.toHaveCSS('display', 'none');
     await expect(figure(page, 'thrower').getByRole('heading', { level: 4 })).toHaveText(
       'A rise of two points takes thousands of visitors per group to detect.',
     );
@@ -198,6 +202,32 @@ test.describe('kitchen sink Figures', () => {
     await expect(baseline(page, 'demo')).toHaveValue('0.11');
     await expect(figure(page, 'demo').getByRole('status')).toHaveCount(0);
     expect(errors).toEqual([]);
+  });
+
+  test('an empty Figure body takes no space; a forced error body shows its fallback, and no sink Figure body is empty', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const bodies = page.locator('[data-figure-body]');
+    const count = await bodies.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const body = bodies.nth(i);
+      // Every sink Figure draws something in its body, so the rule changes none of them.
+      expect(await body.evaluate((el) => el.childNodes.length), `body ${i}`).toBeGreaterThan(0);
+      expect(await body.evaluate((el) => getComputedStyle(el).display), `body ${i}`).not.toBe('none');
+    }
+    const forced = figure(page, 'static-error').locator('[data-figure-body]');
+    await expect(forced.locator('[data-figure-fallback]')).toBeVisible();
+    await expect(forced).not.toHaveCSS('display', 'none');
+    // An empty body, added to the page as a Figure whose readout is its lead would render it.
+    const box = await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.setAttribute('data-figure-body', '');
+      el.className = 'mt-4';
+      document.querySelector('[data-figure]')!.append(el);
+      const r = el.getBoundingClientRect();
+      return { display: getComputedStyle(el).display, height: r.height, width: r.width };
+    });
+    expect(box).toEqual({ display: 'none', height: 0, width: 0 });
   });
 
   test('a pointer failure with nothing focused leaves focus where it was', async ({ page }) => {
@@ -254,24 +284,56 @@ test.describe('kitchen sink Figures', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a lead sits between the title and the controls, moves with them, and hides with them on a fallback', async ({ page }) => {
+    const errors = watchErrors(page, [CHART_FAILURE]);
+    await page.goto('/kitchen-sink');
+    // Before the controls, in the default and no-JS views; absent from the forced error view.
+    const order = (id: string) =>
+      figure(page, id).evaluate((el) =>
+        [...el.children].map((c) => [...c.attributes].find((a) => a.name.startsWith('data-figure-'))?.name ?? c.tagName.toLowerCase()),
+      );
+    await ready(page, 'demo-lead');
+    expect((await order('demo-lead')).slice(0, 3)).toEqual(['h4', 'data-figure-lead', 'data-figure-controls']);
+    expect((await order('demo-lead-no-js')).slice(0, 3)).toEqual(['h4', 'data-figure-lead', 'data-figure-result']);
+    await expect(figure(page, 'demo-lead-no-js').locator('[data-figure-lead]')).toBeVisible();
+    await expect(figure(page, 'demo-lead-error').locator('[data-figure-lead]')).toHaveCount(0);
+
+    // The lead is drawn above the control row and follows the controls.
+    const lead = figure(page, 'demo-lead').locator('[data-figure-lead]');
+    const group = figure(page, 'demo-lead').getByRole('group', { name: 'Controls' });
+    expect((await lead.boundingBox())!.y).toBeLessThan((await group.boundingBox())!.y);
+    const before = await lead.locator('data').textContent();
+    await baseline(page, 'demo-lead').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(lead.locator('data')).not.toHaveText(before!);
+
+    // A real error caught by the boundary hides the lead with the controls and the result line.
+    await ready(page, 'fragile-lead');
+    const fragile = figure(page, 'fragile-lead');
+    await expect(fragile.locator('[data-figure-lead]')).toBeVisible();
+    await baseline(page, 'fragile-lead').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(fragile.getByRole('status')).toHaveText(STATIC_SENTENCE);
+    await expect(fragile.locator('[data-figure-lead]')).toBeHidden();
+    await expect(fragile.getByRole('group', { name: 'Controls' })).toBeHidden();
+    await expect(fragile.locator('[data-figure-result]')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
   test('intent: the island is idle until the pointer arrives, and its code loads only then', async ({ page }) => {
     await withoutIdle(page);
-    const chunks: string[] = [];
-    let loaded = false;
-    page.on('request', (request) => {
-      if (loaded && request.resourceType() === 'script') chunks.push(request.url());
-    });
+    const chunks = watchScripts(page);
     await page.goto('/kitchen-sink');
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
-    loaded = true;
+    chunks.start();
     await expect(island(page, 'demo')).toHaveAttribute('data-island', 'idle');
     await expect(island(page, 'demo-b')).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(500);
-    expect(chunks).toEqual([]);
+    expect(await chunks.counted()).toEqual([]);
 
     await ready(page, 'demo');
-    expect(chunks.length).toBeGreaterThan(0);
+    expect((await chunks.counted()).length).toBeGreaterThan(0);
     await expect(island(page, 'demo-b')).toHaveAttribute('data-island', 'idle');
   });
 

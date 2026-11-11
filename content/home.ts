@@ -21,6 +21,35 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
 }
 
 /**
+ * The hero's lines, the same for every visitor. `role` is the site's role line; `place` names the
+ * city and the degree; `proof` is followed by the "Why so many?" link to the adoption context.
+ */
+export const HOME_HERO: {
+  readonly role: string;
+  readonly place: string;
+  readonly proof: readonly HeadlinePart[];
+  readonly whySoMany: string;
+  readonly lab: string;
+  readonly linkedin: string;
+} = {
+  role: 'Experimentation & growth analyst',
+  place: 'Berlin, MSc Data Science',
+  proof: [
+    'Nearly two years at Audible (Amazon): ',
+    { fact: 'profile.audible.experiments' },
+    ' A/B tests across web and mobile, ',
+    { fact: 'profile.audible.recommendations_adopted' },
+    ' recommendations adopted.',
+  ],
+  whySoMany: 'Why so many?',
+  lab: 'Try the lab',
+  linkedin: 'LinkedIn',
+};
+
+/** The link text of every featured case-study card, the same in both groups. */
+export const CASE_LINK_TEXT = 'Read the case study';
+
+/**
  * The description under a card headline: the same in both groups, in the order of HEADLINES.
  * `href` is the case study (a same-origin site path).
  */
@@ -34,7 +63,7 @@ export const HOME_CASES: readonly { study: Study; href: string; description: rea
     study: 'retention',
     href: HOME_LINKS.retention,
     description: [
-      'Two years of orders from a UK online gift retailer (public data, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
+      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
     ],
   },
   {

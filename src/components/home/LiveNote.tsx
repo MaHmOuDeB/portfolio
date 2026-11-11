@@ -42,9 +42,22 @@ function Exceptional({ children }: { children: ReactNode }) {
 
 const BASE_WORDS = { entry: 'entry views', analysed: 'analysed views', both: 'entry and analysed views' } as const;
 
-/** Where the split failed, and its counts for each failed base where both groups have 50 views. */
-function SplitWarning({ split, refs, lead }: { split: NonNullable<HomeModel['split']>; refs: readonly DerivedRef[]; lead: string }) {
-  const bases = split.base === 'both' ? (['entry', 'analysed'] as const) : ([split.base] as const);
+/**
+ * Where the split failed, and its counts for each failed base where both groups have 50 views.
+ * `counts={false}` names the base and day only: a held test reports nothing from its fault on.
+ */
+export function SplitWarning({
+  split,
+  refs,
+  lead,
+  counts = true,
+}: {
+  split: NonNullable<HomeModel['split']>;
+  refs: readonly DerivedRef[];
+  lead: string;
+  counts?: boolean;
+}) {
+  const bases = !counts ? [] : split.base === 'both' ? (['entry', 'analysed'] as const) : ([split.base] as const);
   return (
     <>
       {` ${lead} `}
@@ -105,51 +118,54 @@ function activeNote(m: HomeModel): ReactNode {
   );
 }
 
-export function LiveNote({ model: m }: { model: HomeModel }): ReactNode {
+/** The note's sentence for a failed split check, without where it failed. */
+export const SPLIT_FAILED = 'The split check failed, so no result is shown.';
+
+/**
+ * The stated reason of a stopped, unreadable or failed test, without the link: the note's sentence,
+ * which the scroll moment repeats. Null for every other mode (not started, paused, running, final).
+ * `splitWarning: false` leaves out where a failed split check failed (a step that says it already).
+ */
+export function stopSentence(m: HomeModel, o: { splitWarning?: boolean } = {}): ReactNode {
+  const warn = o.splitWarning !== false;
   const refs = m.refs;
   switch (m.mode) {
-    case 'not-started':
-      return null;
     case 'closure-check':
-      return <Exceptional>Counting has stopped for this run. I am checking the stored result before showing it.</Exceptional>;
+      return 'Counting has stopped for this run. I am checking the stored result before showing it.';
     case 'unavailable':
-      return (
-        <Exceptional>
-          {m.closedConfirmed
-            ? 'The live counts could not be loaded, and counting has closed.'
-            : m.countingClosed
-              ? 'The live counts could not be loaded.'
-              : 'The live counts could not be loaded. They will appear at the next update.'}
-        </Exceptional>
-      );
+      return m.closedConfirmed
+        ? 'The live counts could not be loaded, and counting has closed.'
+        : m.countingClosed
+          ? 'The live counts could not be loaded.'
+          : 'The live counts could not be loaded. They will appear at the next update.';
     case 'settings-unreadable':
-      return <Exceptional>Counting is stopped because the experiment settings could not be read.</Exceptional>;
+      return 'Counting is stopped because the experiment settings could not be read.';
     case 'held': {
       const held = m.held!;
       return (
-        <Exceptional>
+        <>
           {held.reason === 'inconsistent-counts'
             ? 'The test stopped because the counts failed a consistency check.'
             : 'The test stopped because a consistency check failed.'}
           {' Results use only the data up to the last check that passed. The check failed on '}
           <Day day={held.on} refs={refs} />.
-          {m.split ? <SplitWarning split={m.split} refs={refs} lead="The split check also failed on" /> : null}
-        </Exceptional>
+          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="The split check also failed on" counts={false} /> : null}
+        </>
       );
     }
     case 'srm-suppressed':
       return (
-        <Exceptional>
-          The split check failed, so no result is shown.
-          {m.split ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
-        </Exceptional>
+        <>
+          {SPLIT_FAILED}
+          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
+        </>
       );
     case 'aa-failed': {
       const a = m.live.aaFailed;
-      if (!a) return <Exceptional>Calibration stopped.</Exceptional>;
+      if (!a) return 'Calibration stopped.';
       const restarts = a.restartsOn !== undefined && Date.parse(a.restartsOn) > Date.parse(m.readAt) ? a.restartsOn : null;
       return (
-        <Exceptional>
+        <>
           Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason.replace(/[.\s]+$/, '')}.
           {restarts !== null ? (
             <>
@@ -157,10 +173,26 @@ export function LiveNote({ model: m }: { model: HomeModel }): ReactNode {
               <When iso={restarts} refs={refs} />.
             </>
           ) : null}
-          {m.split ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
-        </Exceptional>
+          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
+        </>
       );
     }
+    default:
+      return null;
+  }
+}
+
+export function LiveNote({ model: m }: { model: HomeModel }): ReactNode {
+  switch (m.mode) {
+    case 'not-started':
+      return null;
+    case 'closure-check':
+    case 'unavailable':
+    case 'settings-unreadable':
+    case 'held':
+    case 'srm-suppressed':
+    case 'aa-failed':
+      return <Exceptional>{stopSentence(m)}</Exceptional>;
     case 'paused':
       return activeNote(m);
     case 'ship-b':

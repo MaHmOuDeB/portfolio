@@ -494,8 +494,17 @@ describe('the source', () => {
   const SRC = resolve(import.meta.dirname, '../../../src');
 
   it('gives pages the live view only: no page or component reads the whole snapshot', () => {
-    // The snapshot holds p-values and exact outcome counts; only the blinded data.json route reads it.
-    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts')]);
+    // The snapshot holds p-values and exact outcome counts; only the blinded data.json route reads it,
+    // and the home page, which projects it at once into the server-only Home model (toHomeModel copies
+    // no p-value, chi-square or outcome count; tests/unit/home/page.test.tsx checks the serialized
+    // client props). The home page may use it in exactly that one form.
+    const HOME = join(SRC, 'app/v/[arm]/page.tsx');
+    expect(readFileSync(HOME, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
+      'getExperimentSnapshot',
+      'getExperimentSnapshot',
+    ]);
+    expect(readFileSync(HOME, 'utf8')).toContain('toHomeModel(await getExperimentSnapshot(), arm)');
+    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME]);
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);

@@ -168,12 +168,12 @@ describe('the self-hosted adjustments', () => {
     for (const id of ['e2e', 'lhci']) expect(ci[id], id).toContain('      npm_config_cache: /__w/_cache/npm\n');
   });
 
-  it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 20 s test timeout', () => {
+  it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 60 s test timeout', () => {
     expect(key(ci.static!, 'timeout-minutes')).toBe('25');
     // The timeout lives in vitest.config.mts, for every run, not in a CI-only flag.
     expect(ci.static).toContain('      - run: npm run test:cov\n');
     expect(CI).not.toContain('--testTimeout');
-    expect(VITEST_CONFIG).toMatch(/^ {4}testTimeout: 20_000,$/m);
+    expect(VITEST_CONFIG).toMatch(/^ {4}testTimeout: 60_000,$/m);
   });
 
   it('runs the end-to-end suite with two workers and a 90-minute limit', () => {

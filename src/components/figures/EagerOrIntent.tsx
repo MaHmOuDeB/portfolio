@@ -7,12 +7,19 @@
 // namespaces counts; another Figure's keys do not.
 //
 // The loader is the kit's LoadOnIntent: its `eager` prop goes through the same load, so the preview
-// handover, the focus handoff and the failure fallback are the same in both cases. The query is read
-// with useSearchParams, which on a static page renders this part on the client only, so it sits in
-// its own Suspense boundary; the fallback is the same loader without `eager`, so the static HTML is
-// the preview either way.
-import { useSearchParams } from 'next/navigation';
-import { Suspense, type ReactNode } from 'react';
+// handover, the focus handoff and the failure fallback are the same in both cases.
+//
+// The query is read from the browser's location, never with useSearchParams. On a static page
+// useSearchParams renders up to its Suspense boundary on the client only: the server sends the
+// fallback, and hydration deletes it and inserts a fresh copy. Swapping both Figures of a page that way
+// moved the view in WebKit after a link to a section near the end of the page: WebKit lays the page out
+// midway through the new copy's style (for the charts' container queries), finds it shorter than the
+// scroll position, clamps it and drops its scroll anchor. Here the server snapshot is "not eager", so
+// the static HTML and the first client render are the same and hydrate in place. The location is read
+// right after hydration and then turns `eager` on (the loader's eager effect loads once, however late
+// it turns on). After a client navigation the read is repeated once the router has written the new
+// URL, so a link with this Figure's keys still loads it at once.
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { LoadOnIntent } from '@/components/kit/LoadOnIntent';
 
 type Props = {
@@ -32,27 +39,18 @@ export function hasFigureKeys(search: { keys(): Iterable<string> }, ids: readonl
   return false;
 }
 
-function FromUrl({ ids, preview, children }: Props) {
-  const search = useSearchParams();
-  return (
-    <LoadOnIntent eager={hasFigureKeys(search, ids)} preview={preview}>
-      {children}
-    </LoadOnIntent>
-  );
-}
+// The location only matters for the first load, so nothing needs to subscribe to it.
+const noSubscription = () => () => {};
 
 export function EagerOrIntent({ ids, preview, children }: Props) {
+  const eager = useSyncExternalStore(
+    noSubscription,
+    () => hasFigureKeys(new URLSearchParams(window.location.search), ids),
+    () => false,
+  );
   return (
-    <Suspense
-      fallback={
-        <LoadOnIntent preview={preview}>
-          {children}
-        </LoadOnIntent>
-      }
-    >
-      <FromUrl ids={ids} preview={preview}>
-        {children}
-      </FromUrl>
-    </Suspense>
+    <LoadOnIntent eager={eager} preview={preview}>
+      {children}
+    </LoadOnIntent>
   );
 }

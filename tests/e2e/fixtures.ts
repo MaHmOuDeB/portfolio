@@ -42,7 +42,9 @@ export const test = base.extend<{ clientIdentity: string; clientNetwork: ClientP
 });
 
 export async function expectNoA11yViolations(page: Page): Promise<void> {
+  // Only violations keep every node; options() replaces the options, so it comes before withTags().
   const { violations } = await new AxeBuilder({ page })
+    .options({ resultTypes: ['violations'] })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
   // Recorded before asserting so scripts/build-meta.ts can sum it from the Playwright JSON report.

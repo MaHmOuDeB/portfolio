@@ -2,6 +2,11 @@
 // group needs to detect the chosen rise. Shared and hook-free: the server draws the preset with it
 // (the static HTML, also the no-JS view) and the island draws the live view with the same markup.
 // Every number is marked 'simulated'; the formula in <code> is a build constant.
+// The readout is the Figure's lead, above the controls, so a phone reader sees the number with the
+// title; the body draws nothing (an empty body takes no space, globals.css). With an empty body the
+// Figure's own error boundary wraps nothing: a throw in the island view is caught by LoadOnIntent's
+// guard, which brings back the server preview in its no-JS form. `preview` is used only by a forced
+// `error` runtime.
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
@@ -24,7 +29,7 @@ const SIMULATED = derivedAttr(PLANNER_REFS);
 
 export const PLANNER_TITLE = 'Smaller rises need more visitors per group.';
 export const HYPOTHETICAL = 'Hypothetical sign-up test';
-export const BASELINE_NOTE = 'The baseline is a hypothetical sign-up conversion rate, not a figure from the case studies below.';
+export const BASELINE_NOTE = 'The baseline is a hypothetical sign-up conversion rate.';
 
 /**
  * The large number and its unit. The number keeps room for the widest result the inputs allow, so
@@ -56,7 +61,7 @@ export type PlannerFigureViewProps = {
   controls?: ReactNode;
   announcement?: string;
   titleLevel?: 2 | 3 | 4;
-  /** The server's preset readout for the error fallback; the island passes it. */
+  /** The preset readout a forced `error` runtime shows; a real throw is caught by LoadOnIntent. */
   preview?: ReactNode;
 };
 
@@ -70,8 +75,9 @@ export function PlannerFigureView({ id, values, controls, announcement, titleLev
       titleLevel={titleLevel}
       provenance="simulated"
       table={plannerTable(v)}
+      lead={<PlannerReadout values={v} />}
       controls={controls}
-      preview={preview}
+      preview={preview ?? <PlannerReadout values={v} presetNote />}
       announcement={announcement}
       result={
         <>
@@ -96,7 +102,7 @@ export function PlannerFigureView({ id, values, controls, announcement, titleLev
         </>
       }
     >
-      <PlannerReadout values={v} />
+      {null}
     </Figure>
   );
 }

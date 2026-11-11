@@ -52,7 +52,19 @@ function Island({
     if (active instanceof HTMLElement && active.id && root.current?.contains(active)) focusedId.current = active.id;
     setLoading(true);
   }, [root]);
-  const arrive = useCallback(() => setReady(true), []);
+  // Runs in the commit where the island first appears, while the preview is still in place. Reading a
+  // computed style of the island's new element makes the browser resolve the island's style now, in
+  // this task, before the next render removes the preview. WebKit lays the page out midway through
+  // style resolution to evaluate container queries (every chart is a query container); if the preview
+  // had already gone, that half-built page is shorter than the scroll position of a reader who followed
+  // a link to a section further down, WebKit clamps the position and drops its scroll anchor, and the
+  // view ends at the page end once the rest is built. With the preview in place the page never gets
+  // shorter. Style only, no layout: a forced layout here would let scroll anchoring move the view.
+  const arrive = useCallback(() => {
+    const island = root.current?.lastElementChild;
+    if (island) void getComputedStyle(island).display;
+    setReady(true);
+  }, [root]);
 
   // Eager: load once the page is interactive. `load` is stable and setting `loading` again is a
   // no-op, so turning `eager` on later never loads twice. It runs in a microtask, not in the effect

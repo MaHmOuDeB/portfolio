@@ -1,9 +1,10 @@
 import { expect } from '@playwright/test';
 import { DATA_AMOUNTS, LIVE_PHASES, RUNTIMES, resolveFigureBody, type DataAmount, type Freshness, type FigureRuntime, type LivePhase } from '../../src/lib/figure/states';
-import { expectNoA11yViolations, test } from './fixtures';
+import { test } from './fixtures';
 
 // /kitchen-sink/live: one live Figure per phase × amount of data × freshness × runtime, with
 // fictional data. Each specimen's id names its axes: live--{phase}--{data}--{freshness}--{runtime}.
+// Its axe scans (every project, Menu closed and open) are in a11y.spec.ts.
 
 const FRESHNESS = ['fresh', 'stale', 'paused'] as const;
 const TOTAL = LIVE_PHASES.length * DATA_AMOUNTS.length * FRESHNESS.length * RUNTIMES.length;
@@ -107,11 +108,6 @@ test.describe('live Figure states', () => {
   test('has no horizontal scroll', async ({ page }) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-  });
-
-  test('has no accessibility violations', async ({ page }) => {
-    test.setTimeout(120_000);
-    await expectNoA11yViolations(page);
   });
 });
 

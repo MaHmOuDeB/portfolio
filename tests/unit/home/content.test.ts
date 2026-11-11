@@ -142,7 +142,7 @@ describe('the featured case studies', () => {
       'How I plan and analyse experiments, and why so many of my recommendations were adopted.',
     );
     expect(headlineText(byStudy.retention.description)).toBe(
-      'Two years of orders from a UK online gift retailer (public data, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
+      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
     );
     expect(headlineText(byStudy.pulse.description)).toBe(
       'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
@@ -155,8 +155,8 @@ describe('the featured case studies', () => {
     expect(text).toMatch(/recommendations were adopted/);
   });
 
-  it('call the rebuilt analysis public data, and Pulse a demo with no real users', () => {
-    expect(headlineText(byStudy.retention.description)).toMatch(/public data, rebuilt in 2026/);
+  it('call the rebuilt analysis a public dataset, and Pulse a demo with no real users', () => {
+    expect(headlineText(byStudy.retention.description)).toMatch(/public dataset, rebuilt in 2026/);
     expect(headlineText(byStudy.pulse.description)).toMatch(/no real users/);
     expect(headlineText(byStudy.pulse.description)).not.toMatch(/A\/B|experiment|result/i);
   });
