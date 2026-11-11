@@ -10,19 +10,20 @@ import {
   verdict,
 } from '../../scripts/lhci-benchmark-guard.ts';
 
-// The self-hosted Lighthouse run (the lhci job in ci.yml). Its CPU multiplier is calibrated to
-// GitHub's hosted runner from this runner's benchmark index (837.5, measured in the capped job
-// container); a busier machine measures a lower index and would report worse scores than the
-// hosted runner. So the run checks the median benchmark index of its 5 runs against the calibrated
+// The self-hosted Lighthouse run (the lhci job in ci.yml). Its CPU multiplier (2.8) is calibrated
+// against GitHub's hosted runner on a quiet Mac, where this runner's benchmark index is 2810.5
+// (measured in the capped job container while the Lighthouse lock held); a busier machine measures
+// a lower index and would report worse scores than the hosted runner. So the run checks the median benchmark index of its 5 runs against the calibrated
 // band (+/-20%), collects again once if it is outside, and then fails as "machine too busy to
 // measure", never as a budget failure.
 const ROOT = join(import.meta.dirname, '../..');
 const SCRIPT = join(ROOT, 'scripts/lhci-calibrated.sh');
 
 describe('the benchmark guard', () => {
-  it('is calibrated to 837.5 with a +/-20% band, 670 to 1005', () => {
-    expect(REFERENCE_BENCHMARK_INDEX).toBe(837.5);
-    expect(BENCHMARK_BAND).toEqual([670, 1005]);
+  it('is calibrated to 2810.5 with a +/-20% band, 2248 to 3373, which the script states too', () => {
+    expect(REFERENCE_BENCHMARK_INDEX).toBe(2810.5);
+    expect(BENCHMARK_BAND).toEqual([2248, 3373]);
+    expect(readFileSync(SCRIPT, 'utf8')).toMatch(/^BAND=2248-3373$/m);
   });
 
   it('takes the median', () => {
@@ -34,12 +35,12 @@ describe('the benchmark guard', () => {
   it('reads the benchmark index of every Lighthouse result in a folder', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lhci-guard-'));
     try {
-      writeFileSync(join(dir, 'lhr-1.json'), JSON.stringify({ environment: { benchmarkIndex: 800 } }));
-      writeFileSync(join(dir, 'lhr-2.json'), JSON.stringify({ environment: { benchmarkIndex: 900 } }));
-      writeFileSync(join(dir, 'lhr-3.json'), JSON.stringify({ environment: { benchmarkIndex: 700.5 } }));
+      writeFileSync(join(dir, 'lhr-1.json'), JSON.stringify({ environment: { benchmarkIndex: 2800 } }));
+      writeFileSync(join(dir, 'lhr-2.json'), JSON.stringify({ environment: { benchmarkIndex: 2900 } }));
+      writeFileSync(join(dir, 'lhr-3.json'), JSON.stringify({ environment: { benchmarkIndex: 1100.5 } }));
       writeFileSync(join(dir, 'manifest.json'), '[]');
-      expect(benchmarkIndexes(dir).sort((a, b) => a - b)).toEqual([700.5, 800, 900]);
-      expect(verdict(dir)).toEqual({ median: 800, inBand: true });
+      expect(benchmarkIndexes(dir).sort((a, b) => a - b)).toEqual([1100.5, 2800, 2900]);
+      expect(verdict(dir)).toEqual({ median: 2800, inBand: true });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -55,7 +56,7 @@ describe('the benchmark guard', () => {
         rmSync(dir, { recursive: true, force: true });
       }
     };
-    expect([at(670), at(1005), at(669.5), at(1005.5)]).toEqual([true, true, false, false]);
+    expect([at(2248), at(3373), at(2247.5), at(3373.5)]).toEqual([true, true, false, false]);
   });
 
   it('has no verdict without results', () => {
@@ -111,35 +112,35 @@ function run(indexes: number[], assertStatus = 0) {
 
 describe('scripts/lhci-calibrated.sh', () => {
   it('collects with the calibrated multiplier, then uploads and asserts when the machine is as calibrated', () => {
-    const r = run([850]);
+    const r = run([2800]);
     expect(r.status).toBe(0);
     expect(r.calls).toEqual([
-      '--no-install lhci collect --settings.chromeFlags=--no-sandbox --settings.throttling.cpuSlowdownMultiplier=1.5',
+      '--no-install lhci collect --settings.chromeFlags=--no-sandbox --settings.throttling.cpuSlowdownMultiplier=2.8',
       '--no-install lhci upload',
       '--no-install lhci assert',
     ]);
-    expect(r.summary).toContain('benchmark index 850 (calibrated band 670-1005, multiplier 1.5)');
+    expect(r.summary).toContain('benchmark index 2800 (calibrated band 2248-3373, multiplier 2.8)');
   });
 
   it('collects again once when the first collection ran on a busier or faster machine', () => {
-    const r = run([500, 900]);
+    const r = run([1100, 2900]);
     expect(r.status).toBe(0);
     expect(r.calls.filter((c) => c.includes('lhci collect'))).toHaveLength(2);
     expect(r.calls.at(-1)).toBe('--no-install lhci assert');
-    expect(r.summary).toContain('benchmark index 900');
+    expect(r.summary).toContain('benchmark index 2900');
   });
 
   it('fails as "machine too busy to measure" when both collections are outside the band, never asserting a budget', () => {
-    const r = run([500, 1200]);
+    const r = run([1100, 4000]);
     expect(r.status).toBe(1);
     expect(r.calls.filter((c) => c.includes('lhci collect'))).toHaveLength(2);
     expect(r.calls).not.toContain('--no-install lhci assert');
     expect(r.calls).toContain('--no-install lhci upload');
-    expect(r.summary).toContain('machine too busy to measure (benchmark index 1200, expected 670-1005)');
+    expect(r.summary).toContain('machine too busy to measure (benchmark index 4000, expected 2248-3373)');
   });
 
   it('fails as a budget failure only when the assertions fail on a calibrated machine', () => {
-    const r = run([900], 1);
+    const r = run([2900], 1);
     expect(r.status).toBe(1);
     expect(r.summary).not.toContain('machine too busy');
   });

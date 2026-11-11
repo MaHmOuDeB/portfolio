@@ -4,15 +4,16 @@ import { join } from 'node:path';
 // The benchmark guard of the self-hosted Lighthouse run (scripts/lhci-calibrated.sh). Lighthouse's
 // simulated throttling multiplies every main-thread task it measured by the CPU multiplier, so the
 // multiplier only reproduces GitHub's hosted runner while this machine is as fast as when it was
-// calibrated: benchmark index 837.5 (Lighthouse's own speed score, median of 5 runs in the capped
-// lhci job container). A run whose median index is more than 20% away from that measured on a
-// busier (or idler) machine than the calibration, and its scores do not compare.
+// calibrated: benchmark index 2810.5 (Lighthouse's own speed score: the median of 15 runs in the
+// capped lhci job container while the Lighthouse lock kept the Mac quiet). A run whose median index
+// is more than 20% away from that was measured on a busier (or otherwise different) machine than
+// the calibration, and its scores do not compare.
 //
 //   node scripts/lhci-benchmark-guard.ts <folder of lhr-*.json>
 //
 // prints the median benchmark index ("none" without results) and exits 0 inside the band, 1
 // outside it, 2 without results.
-export const REFERENCE_BENCHMARK_INDEX = 837.5;
+export const REFERENCE_BENCHMARK_INDEX = 2810.5;
 export const TOLERANCE = 0.2;
 export const BENCHMARK_BAND: readonly [number, number] = [
   Math.round(REFERENCE_BENCHMARK_INDEX * (1 - TOLERANCE)),

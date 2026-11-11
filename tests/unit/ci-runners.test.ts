@@ -22,9 +22,10 @@ const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
 const E2E_CAPS = '--cpus 3 --memory 5120m --memory-swap 5120m --ipc=host';
 // Lighthouse: 2 CPUs like GitHub's hosted runner for private repositories, shared memory for Chromium.
 const LHCI_CAPS = '--cpus 2 --memory 3072m --memory-swap 3072m --ipc=host';
-// 4 x benchmarkIndex of the capped lhci container (837.5, measured) / GitHub's hosted runner (2309,
-// the median of 35 hosted Lighthouse runs) = 1.45, rounded to 1.5.
-const LHCI_CPU_MULTIPLIER = '1.5';
+// Empirical: on a quiet Mac (benchmark index 2810.5 under the Lighthouse lock) x1.5 under-throttled
+// and the benchmark-ratio value x4.9 over-throttled against GitHub's hosted runs of the same commits;
+// 2.8 is where TBT met the hosted values on the two references from GitHub's common hardware.
+const LHCI_CPU_MULTIPLIER = '2.8';
 
 /** The text of each job under `jobs:`, by job id. */
 function jobs(workflow: string): Record<string, string> {

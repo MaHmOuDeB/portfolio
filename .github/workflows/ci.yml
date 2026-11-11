@@ -252,8 +252,8 @@ jobs:
       # presented, and Lantern then charges all of their download to LCP: a random outlier of about
       # +500 ms that base main hits too. A real regression raises every run, so the best run still
       # fails; tests/unit/lighthouserc.test.ts pins this shape.
-      # Calibrated to GitHub's hosted runner (CPU multiplier 1.5 from the measured benchmark
-      # indexes), with a benchmark guard: a run measured on a busier machine than the calibration
+      # Calibrated to GitHub's hosted runner (CPU multiplier 2.8, empirical; see the script),
+      # with a benchmark guard: a run measured on a busier machine than the calibration
       # fails as "machine too busy to measure", never as a budget failure. See the script.
       - name: Lighthouse (calibrated to the hosted runner)
         run: bash scripts/lhci-calibrated.sh
