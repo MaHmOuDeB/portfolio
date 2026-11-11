@@ -998,6 +998,33 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     );
   });
 
+  it('finds the Lab diagnostics’ seam components from their dev host, and accepts their forwarding', () => {
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/diagnostics/page.dev.tsx']);
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/lab/SrmFigure.tsx#SrmFigure',
+        'src/components/lab/SrmFigureClient.tsx#SrmFigureClient',
+        'src/components/lab/SrmFigureClient.tsx#SrmIsland',
+        'src/components/lab/SrmInteractive.tsx#SrmInteractive',
+        'src/components/lab/SrmView.tsx#SrmFigureView',
+        'src/components/lab/CurseFigure.tsx#CurseFigure',
+        'src/components/lab/CurseFigureClient.tsx#CurseFigureClient',
+        'src/components/lab/CurseFigureClient.tsx#CurseIsland',
+        'src/components/lab/CurseInteractive.tsx#CurseInteractive',
+        'src/components/lab/CurseView.tsx#CurseFigureView',
+      ]),
+    );
+  });
+
+  it('would reject the Lab diagnostics faults host if a production root reached it: one activation per Figure', () => {
+    const host = 'src/app/kitchen-sink/lab/diagnostics/faults/page.dev.tsx';
+    const a = analyse(DISK, REPO, pageExtensions, [host]);
+    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
+    const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
+    expect(a.violations.map((v) => lines[v.line - 1]!.trim()).sort()).toEqual(['<CurseFigure faultAfterChange />', '<SrmFigure faultAfterChange />']);
+  });
+
   it('would reject the faults host if a production root reached it: one activation per Figure it sets', () => {
     const host = 'src/app/kitchen-sink/retention/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
@@ -1456,6 +1483,87 @@ function Pick({ as: Comp }: { as: ComponentType }) { const o = JSON.parse('{}');
     expect(rules({ 'src/app/global-not-found.tsx': activates })).toContain('src/app/global-not-found.tsx activation');
     expect(rules({ 'src/mdx-components.tsx': activates })).toContain('src/mdx-components.tsx activation');
     expect(rules({ 'mdx-components.tsx': activates })).toContain('mdx-components.tsx activation');
+  });
+});
+
+describe('fixtures for the Lab diagnostics: the split check and exaggeration chains', () => {
+  // The repository's shape in miniature, for each Figure: a server Figure forwarding the seam to its
+  // client placement, a lazy island reached through a received-props spread, the island forwarding
+  // it to its view, and the view rendering a strict throwing leaf.
+  const chain = (name: 'Srm' | 'Curse', message: string): Record<string, string> => ({
+    [`src/components/lab/${name}View.tsx`]: `function ${name}SeamFailure(): never {
+  throw new Error('${message}');
+}
+export function ${name}FigureView({ changed, faultAfterChange }: { changed?: boolean; faultAfterChange?: true }) {
+  return <figure>{faultAfterChange && changed ? <${name}SeamFailure /> : null}</figure>;
+}`,
+    [`src/components/lab/${name}Interactive.tsx`]: `'use client';
+import { useState } from 'react';
+import { ${name}FigureView } from './${name}View';
+export type ${name}InteractiveProps = { faultAfterChange?: true };
+export default function ${name}Interactive({ faultAfterChange }: ${name}InteractiveProps) {
+  const [changed] = useState(false);
+  return <${name}FigureView changed={changed} faultAfterChange={faultAfterChange} />;
+}`,
+    [`src/components/lab/${name}FigureClient.tsx`]: `'use client';
+import { lazy, type ReactNode } from 'react';
+import type { ${name}InteractiveProps } from './${name}Interactive';
+const Lazy${name} = lazy(() => import('./${name}Interactive'));
+export function ${name}Island(props: ${name}InteractiveProps) { return <Lazy${name} {...props} />; }
+export function ${name}FigureClient({ preview, faultAfterChange }: { preview: ReactNode; faultAfterChange?: true }) {
+  return <div>{preview}<${name}Island faultAfterChange={faultAfterChange} /></div>;
+}`,
+    [`src/components/lab/${name}Figure.tsx`]: `import { ${name}FigureClient } from './${name}FigureClient';
+import { ${name}FigureView } from './${name}View';
+export function ${name}Figure({ faultAfterChange }: { faultAfterChange?: true } = {}) {
+  return <${name}FigureClient preview={<${name}FigureView />} faultAfterChange={faultAfterChange} />;
+}`,
+  });
+  const lab = {
+    ...chain('Srm', 'The split chart failed after a change (test seam)'),
+    ...chain('Curse', 'The exaggeration chart failed after a change (test seam)'),
+  };
+  const labPage = (body: string, imports: string): Record<string, string> => ({
+    ...lab,
+    'src/app/page.tsx': `${imports}\nexport default function Page() {\n  ${body}\n}`,
+  });
+  const both = `import { SrmFigure } from '@/components/lab/SrmFigure';\nimport { CurseFigure } from '@/components/lab/CurseFigure';`;
+
+  it('the faithful chains pass, and every hop is found from the source', () => {
+    const a = run(labPage('return <><SrmFigure /><CurseFigure /></>;', both));
+    expect(show(a.violations)).toEqual([]);
+    expect(a.affected).toEqual(
+      expect.arrayContaining(
+        ['Srm', 'Curse'].flatMap((n) => [
+          `src/components/lab/${n}Figure.tsx#${n}Figure`,
+          `src/components/lab/${n}FigureClient.tsx#${n}FigureClient`,
+          `src/components/lab/${n}FigureClient.tsx#${n}Island`,
+          `src/components/lab/${n}Interactive.tsx#${n}Interactive`,
+          `src/components/lab/${n}View.tsx#${n}FigureView`,
+        ]),
+      ),
+    );
+  });
+
+  it.each([
+    ['SrmFigure, the server Figure', 'return <SrmFigure faultAfterChange />;', `import { SrmFigure } from '@/components/lab/SrmFigure';`],
+    ['SrmFigureClient, the client placement', 'return <SrmFigureClient preview={null} faultAfterChange />;', `import { SrmFigureClient } from '@/components/lab/SrmFigureClient';`],
+    ['the split view, the last hop', 'return <SrmFigureView changed faultAfterChange />;', `import { SrmFigureView } from '@/components/lab/SrmView';`],
+    ['CurseFigure, the server Figure', 'return <CurseFigure faultAfterChange={true} />;', `import { CurseFigure } from '@/components/lab/CurseFigure';`],
+    ['CurseFigureClient, the client placement', 'return <CurseFigureClient preview={null} faultAfterChange />;', `import { CurseFigureClient } from '@/components/lab/CurseFigureClient';`],
+    ['the exaggeration view, the last hop', 'return <CurseFigureView changed faultAfterChange />;', `import { CurseFigureView } from '@/components/lab/CurseView';`],
+  ])('a production page that sets the seam on %s fails', (_, body, imports) => {
+    const a = run(labPage(body, imports));
+    expect(a.violations.map((v) => [v.file, v.line, v.rule])).toEqual([['src/app/page.tsx', 3, 'activation']]);
+  });
+
+  it('a client placement that defaults the forwarded seam fails', () => {
+    const files = labPage('return <CurseFigure />;', `import { CurseFigure } from '@/components/lab/CurseFigure';`);
+    files['src/components/lab/CurseFigureClient.tsx'] = files['src/components/lab/CurseFigureClient.tsx']!.replace(
+      '<CurseIsland faultAfterChange={faultAfterChange} />',
+      '<CurseIsland faultAfterChange={faultAfterChange ?? true} />',
+    );
+    expect(rules(files)).toContain('src/components/lab/CurseFigureClient.tsx activation');
   });
 });
 
