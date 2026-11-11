@@ -7,6 +7,7 @@ import { expect, type Page } from '@playwright/test';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { E2E_EXCLUDE_TOKEN as TOKEN } from './constants';
 import { test } from './fixtures';
+import { markSlow } from './slow';
 
 /** Collects every request URL and every CSP violation from the first byte of the page. */
 async function record(page: Page): Promise<{ urls: string[]; violations: string[] }> {
@@ -39,7 +40,7 @@ for (const route of LIVE_ROUTES) {
   test(`${route}: only same-origin requests, nothing stored in the browser, no CSP violation`, async ({ page, baseURL }) => {
     // Test too strict: the default 30 s does not fit the long Retention page on a loaded WebKit runner
     // (it timed out mid-run, not hung). Only that route is slow; the others keep the default.
-    test.slow(route === '/work/retention', 'the long Retention page timed out at 30 s on a loaded WebKit runner');
+    markSlow('the long Retention page timed out at 30 s on a loaded WebKit runner', route === '/work/retention');
     const seen = await record(page);
     const response = await page.goto(route);
     expect(response?.ok(), route).toBe(true);
