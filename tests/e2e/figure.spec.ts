@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { expectNoA11yViolations, test } from './fixtures';
+import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 import { watchScripts } from './island-code';
 
 // The "Figures" section of the kitchen sink (Review Focus 5): two interactive demo Figures, `demo`
@@ -431,9 +431,9 @@ test.describe('kit: the table fallback, drawn once', () => {
         body: box(f.querySelector('[data-table-body]')),
       };
     });
-  const axe = (page: Page, id: string) =>
-    new AxeBuilder({ page })
-      .include(`figure[data-figure="${id}"]`)
+  const axe = (page: Page, ...ids: string[]) =>
+    ids
+      .reduce((builder, id) => builder.include(`figure[data-figure="${id}"]`), new AxeBuilder({ page }))
       .options({ resultTypes: ['violations'] })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
@@ -476,6 +476,8 @@ test.describe('kit: the table fallback, drawn once', () => {
   });
 
   test('without JavaScript: one open table, named, with no disclosure, and axe finds nothing', async ({ browser }) => {
+    // One axe pass over the two Figures of the 100-specimen page: about 40 s in WebKit under load.
+    test.setTimeout(120_000);
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto('/kitchen-sink');
@@ -485,8 +487,8 @@ test.describe('kit: the table fallback, drawn once', () => {
       await expect(f.getByRole('table')).toBeVisible();
       await expect(f.getByRole('table')).toHaveAccessibleName(await f.locator('h4').innerText());
       await expect(f.locator('summary')).toBeHidden();
-      expect((await axe(page, id)).violations, id).toEqual([]);
     }
+    expect((await axe(page, ...TABLE_FIGURES)).violations).toEqual([]);
     // The note sits 12 px under the badge row and the table 8 px under the note, as before; a Figure
     // without controls has its table 12 px under the badge row.
     const gap = (id: string) =>
@@ -504,16 +506,19 @@ test.describe('kit: the table fallback, drawn once', () => {
   });
 
   test('the table parts do not move when the page hydrates', async ({ page }) => {
-    // First the server HTML with the JavaScript flag set (the inline script runs) and no code loaded.
-    await page.route('**/_next/static/**/*.js', (route) => route.abort());
+    // First, in a page of its own, the server HTML with the JavaScript flag set (the inline script
+    // runs) and no code loaded: what a reader sees before hydration.
+    const unhydrated = await page.context().newPage();
+    await unhydrated.route('**/_next/static/**/*.js', (route) => route.abort());
+    await unhydrated.goto('/kitchen-sink');
+    await expect(unhydrated.locator('html')).toHaveAttribute('data-js', '');
+    await unhydrated.evaluate(() => document.fonts.ready);
+    const before = await Promise.all(TABLE_FIGURES.map((id) => geometry(unhydrated, id)));
+    await unhydrated.close();
+    // Then the hydrated page, with every island swapped in.
     await page.goto('/kitchen-sink');
-    await expect(page.locator('html')).toHaveAttribute('data-js', '');
     await page.evaluate(() => document.fonts.ready);
-    const before = await Promise.all(TABLE_FIGURES.map((id) => geometry(page, id)));
-    await page.unroute('**/_next/static/**/*.js');
-    await page.goto('/kitchen-sink');
-    await page.evaluate(() => document.fonts.ready);
-    await ready(page, 'demo');
+    await waitForIslands(page);
     const after = await Promise.all(TABLE_FIGURES.map((id) => geometry(page, id)));
     expect(after).toEqual(before);
     for (const g of after) expect(g.body).toBeNull();
