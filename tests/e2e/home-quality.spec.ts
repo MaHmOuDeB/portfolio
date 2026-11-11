@@ -204,7 +204,8 @@ test.describe('Home quality: the real page in both groups across the size matrix
     expect(boxes[1]).toEqual(boxes[0]);
   });
 
-  test('@quality the Lighthouse URLs answer 200 with the matching x-arm', async ({ request }) => {
+  test('@quality the Lighthouse URLs answer 200 with the matching x-arm', async ({ request }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium', 'once');
     const config = JSON.parse(readFileSync(join(ROOT, 'lighthouserc.json'), 'utf8')) as { ci: { collect: { url: string[] } } };
     expect(config.ci.collect.url.length).toBe(2);
     for (const url of config.ci.collect.url) {
@@ -317,7 +318,12 @@ test.describe('Home quality: every text state', () => {
 // ---------------------------------------------------------------------------------------------------
 // Budgets.
 
-/** The pre-Home first-load JavaScript of the home route: unique script tags, gzip level 6 (measured on main before any Home code). */
+/**
+ * The pre-Home first-load JavaScript of the home route: unique script tags, gzip level 6 (measured on
+ * main before any Home code, on a plain build). These specs run on the test build (KITCHEN_SINK=1),
+ * whose shared chunks read slightly larger (about 0.9 KB on the home route), so the growth asserted
+ * here errs on the strict side; the authoritative figure is the same method on a plain build.
+ */
 const BASELINE_FIRST_LOAD = 143_560;
 const KB = 1024;
 const BUDGET = { growth: 30 * KB, armJs: 5 * KB, html: 60 * KB, armHtml: 1 * KB };
@@ -363,6 +369,29 @@ test.describe('Home quality: budgets', () => {
     expect(Math.abs(result.a!.html - result.b!.html), 'HTML, group difference').toBeLessThanOrEqual(BUDGET.armHtml);
   });
 
+  test('@quality the enough-data host state in both groups: HTML and first-load JavaScript within the same budgets', async ({ request }, info) => {
+    // The heaviest Home state: an A/B with ten looks, its series in the page payload, the chart drawn.
+    test.skip(info.project.name !== 'desktop-chromium', 'once');
+    const result: Record<string, { scripts: number; js: number; html: number }> = {};
+    for (const arm of ['a', 'b'] as const) {
+      const response = await request.get(`/kitchen-sink/home/${arm}/ab-many-looks`);
+      expect(response.status(), `group ${arm}`).toBe(200);
+      const html = await response.body();
+      const scripts = scriptTags(html.toString('utf8'));
+      result[arm] = { scripts: scripts.length, js: await gzipOf(request, scripts), html: gzip(html) };
+    }
+    measure('enough-data host: first-load JS gzip (a, b)', [result.a!.js, result.b!.js]);
+    measure('enough-data host: first-load growth over the pre-Home baseline (a, b)', [result.a!.js - BASELINE_FIRST_LOAD, result.b!.js - BASELINE_FIRST_LOAD]);
+    measure('enough-data host: HTML gzip (a, b)', [result.a!.html, result.b!.html]);
+    for (const arm of ['a', 'b'] as const) {
+      // The host carries the test build's shared chunks too, so this bound is the strict side (see BASELINE_FIRST_LOAD).
+      expect(result[arm]!.js - BASELINE_FIRST_LOAD, `group ${arm}: first-load growth`).toBeLessThanOrEqual(BUDGET.growth);
+      expect(result[arm]!.html, `group ${arm}: HTML`).toBeLessThanOrEqual(BUDGET.html);
+    }
+    expect(Math.abs(result.a!.js - result.b!.js), 'first-load JS, group difference').toBeLessThanOrEqual(BUDGET.armJs);
+    expect(Math.abs(result.a!.html - result.b!.html), 'HTML, group difference').toBeLessThanOrEqual(BUDGET.armHtml);
+  });
+
   test('@quality no statistics code in the page-load scripts; the planner island brings it on intent', async ({ page, request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     for (const arm of ['a', 'b'] as const) {
@@ -395,25 +424,29 @@ test.describe('Home quality: budgets', () => {
     expect(found, 'the island code holds the statistics markers').toBe(true);
   });
 
-  test('@quality JavaScript after 5 s idle, both groups, at phone and desktop sizes', async ({ browser, request }, info) => {
+  test('@quality JavaScript after 5 s idle, both groups, at phone and desktop sizes, on the real page and the enough-data host state', async ({ browser, request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
-    test.setTimeout(90_000);
-    for (const size of [{ width: 375, height: 667 }, { width: 1440, height: 900 }]) {
-      for (const arm of ['a', 'b'] as const) {
-        const context = await browser.newContext({ viewport: size });
-        const page = await context.newPage();
-        const scripts = new Set<string>();
-        page.on('request', (r) => {
-          if (r.resourceType() === 'script') scripts.add(new URL(r.url()).pathname);
-        });
-        await page.goto(`/?variant=${arm}`);
-        await page.waitForTimeout(5000);
-        const first = new Set(scriptTags(await (await request.get(`/?variant=${arm}`)).text()));
-        const later = [...scripts].filter((p) => !first.has(p)).sort();
-        const total = await gzipOf(request, [...scripts]);
-        measure(`JS at 5 s idle, group ${arm}, ${size.width}x${size.height}`, { scripts: scripts.size, gzipBytes: total, laterScripts: later.length, laterGzipBytes: await gzipOf(request, later) });
-        expect(scripts.size).toBeGreaterThanOrEqual(first.size);
-        await context.close();
+    test.setTimeout(150_000);
+    const pages = { real: (arm: 'a' | 'b') => `/?variant=${arm}`, 'enough-data host': (arm: 'a' | 'b') => `/kitchen-sink/home/${arm}/ab-many-looks` };
+    for (const [name, url] of Object.entries(pages)) {
+      for (const size of [{ width: 375, height: 667 }, { width: 1440, height: 900 }]) {
+        for (const arm of ['a', 'b'] as const) {
+          const context = await browser.newContext({ viewport: size });
+          const page = await context.newPage();
+          const scripts = new Set<string>();
+          page.on('request', (r) => {
+            if (r.resourceType() === 'script') scripts.add(new URL(r.url()).pathname);
+          });
+          await page.goto(url(arm));
+          await page.waitForTimeout(5000);
+          const first = new Set(scriptTags(await (await request.get(url(arm))).text()));
+          const later = [...scripts].filter((p) => !first.has(p)).sort();
+          const total = await gzipOf(request, [...scripts]);
+          measure(`JS at 5 s idle, ${name}, group ${arm}, ${size.width}x${size.height}`, { scripts: scripts.size, gzipBytes: total, laterScripts: later.length, laterGzipBytes: await gzipOf(request, later) });
+          // Every first-load script was requested (the page loaded what its HTML names).
+          expect([...first].filter((p) => !scripts.has(p)), `${name}, group ${arm}: first-load scripts not requested`).toEqual([]);
+          await context.close();
+        }
       }
     }
   });
@@ -464,6 +497,9 @@ test.describe('Home quality: budgets', () => {
       // the time from that request to the measured chart is an upper bound of what the wait sees.
       const worst = Math.max(...times.map((x) => x.measured - x.chartRequested));
       measure(`slowest chart request to measured, ${state} (ms; the wait is ${CHART_WAIT_MS})`, worst);
+      // Wall-clock under 4x CPU: on a machine busy with other jobs this can exceed the wait with no
+      // regression (measured 0.6 s on a normal run, 3.7 s margin left on the busiest one). The one CI
+      // retry is the accepted handling; a second failure is a real slowdown to look at.
       expect(worst, `${state}: slowest of 3, from the chart request`).toBeLessThan(CHART_WAIT_MS);
     }
   });
@@ -533,11 +569,15 @@ test.describe('Home quality: islands and forced colours', () => {
     await page.waitForTimeout(800);
     const early = await scripts.counted();
     const first = new Set(scriptTags(await (await request.get('/?variant=b')).text()));
-    measure('scripts before intent (not first-load)', early.filter((p) => !first.has(p)));
+    const before = early.filter((p) => !first.has(p));
+    measure('scripts before intent (not first-load)', before);
+    expect(before, 'no island code before intent').toEqual([]);
     await expect(island).toHaveAttribute('data-island', 'idle');
     await figure.locator('h2').hover();
     await expect(island).toHaveAttribute('data-island', 'ready');
-    measure('scripts by intent', (await scripts.counted()).filter((p) => !first.has(p)));
+    const byIntent = (await scripts.counted()).filter((p) => !first.has(p));
+    measure('scripts by intent', byIntent);
+    expect(byIntent.length, 'intent loads the island code').toBeGreaterThan(0);
   });
 
   test('@quality forced colours: the "your view" tick keeps a visible stroke', async ({ browser }, info) => {
@@ -567,7 +607,21 @@ test.describe('Home quality: islands and forced colours', () => {
     measure('your-view tick stroke (normal, forced colours)', { normal, forced });
     expect(forced.stroke).not.toBe('none');
     expect(forced.stroke).not.toMatch(/rgba\(\d+, \d+, \d+, 0\)/);
-    expect(forced.stroke, 'stroke differs from the background').not.toBe(forced.background);
+    // Non-text contrast (WCAG 1.4.11) of the stroke against the two default forced-colours canvases,
+    // black and white: Chromium's emulation keeps the authored stroke and reports a transparent
+    // background, so the real system canvas is not readable here.
+    const luminance = (rgb: string) => {
+      const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map((v) => {
+        const c = Number(v) / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    const stroke = luminance(forced.stroke);
+    measure('your-view tick contrast in forced colours (on black, on white)', [ratio(stroke, 0), ratio(stroke, 1)].map((x) => Math.round(x * 100) / 100));
+    expect(ratio(stroke, 0), 'against a black canvas').toBeGreaterThanOrEqual(3);
+    expect(ratio(stroke, 1), 'against a white canvas').toBeGreaterThanOrEqual(3);
     expect(parseFloat(forced.width)).toBeGreaterThan(0);
     expect(forced.opacity).not.toBe('0');
     expect(forced.visibility).toBe('visible');

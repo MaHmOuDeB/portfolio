@@ -249,7 +249,6 @@ test.describe('the touch-target check and the inline exception', () => {
     expect(unpinnedExemptions(exempt, [], ['menu-open'])).toEqual(['menu-open: found [menu link], pinned []']);
   });
 
-
   test('exempts only a link inside a sentence; marked, inline-block, lone and non-text-block links are still measured', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto('/kitchen-sink');

@@ -5,7 +5,9 @@
 // without its extension. Turbopack keys a `page.dev.tsx` page as `.../page`, but the render looks
 // it up as `.../page.dev`, so no test-build page gets a font preload while every real page does.
 // This reads the real home page's entry from the same manifest and calls the same
-// `ReactDOM.preload(href, { as: 'font', type })` that Next calls, so the tag is identical.
+// `ReactDOM.preload(href, { as: 'font', type })` that Next calls, so the tag is identical while
+// next.config sets no `assetPrefix`, deployment id or cross-origin setting (Next would apply those;
+// this does not), and while the build is Turbopack's (the manifest key form below).
 import fs from 'node:fs';
 import path from 'node:path';
 import { preload } from 'react-dom';
