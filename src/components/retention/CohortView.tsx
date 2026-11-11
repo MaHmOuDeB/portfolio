@@ -14,6 +14,10 @@
 //   axis is the same for every cohort. Marks have no transition.
 // - Every number is a source value with a source ref: the cells, the dots, the ticks, the result
 //   line and the cohort names.
+// - Page weight: the heatmap's cells and printed values are in cohort order, then month order, so a
+//   cell pairs with its value by position and neither repeats the cohort and month as attributes.
+//   Mark-layer x positions are printed to MARK_DECIMALS places (the layer is 1000 units across the
+//   plot, so the rounding is far below a pixel); the drawn pixels are unchanged.
 import type { ReactNode } from 'react';
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
 import type { TableData } from '@/components/kit/DataTable';
@@ -52,6 +56,10 @@ const LATER_END = MONTHS.length + 0.5;
 /** A heatmap row's height in px. */
 const ROW_PX = 26;
 const LINE_HEIGHT = 220;
+/** Decimals of a mark-layer x position or width as printed. */
+const MARK_DECIMALS = 2;
+/** A mark-layer x position or width, rounded for print: 70.18, never 70.17543859649122. */
+const units = (v: number) => Number(v.toFixed(MARK_DECIMALS));
 const SELECTED = 'Selected';
 const X_LABEL = 'Months after the first order';
 
@@ -77,6 +85,7 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
   };
   const marks = (ctx: PlotContext) => {
     const x = (m: number) => ctx.xFrac(m) * MARK_UNITS;
+    // In cohort order, then month order: the overlays print the values in the same order.
     const cells = rows.flatMap((c, r) =>
       MONTHS.map((m) => {
         const value = c.retention[m]!;
@@ -86,11 +95,9 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
             key={`${c.cohort_month}-${m}`}
             data-mark=""
             data-cell=""
-            data-cohort={c.cohort_month}
-            data-month={m}
             data-value={value}
-            x={x(m - 0.5)}
-            width={x(m + 0.5) - x(m - 0.5)}
+            x={units(x(m - 0.5))}
+            width={units(x(m + 0.5) - x(m - 0.5))}
             y={y0}
             height={ctx.yPx(r + 1.5) - y0}
             fill="var(--color-series-1)"
@@ -112,8 +119,8 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
         <rect
           data-mark=""
           data-selected={selected}
-          x={x(0.5)}
-          width={x(LATER_END) - x(0.5)}
+          x={units(x(0.5))}
+          width={units(x(LATER_END) - x(0.5))}
           y={y0}
           height={ctx.yPx(index + 1.5) - y0}
           fill="none"
@@ -132,8 +139,6 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
           <text
             key={`${c.cohort_month}-${m}`}
             data-cell-label=""
-            data-cohort={c.cohort_month}
-            data-month={m}
             data-num=""
             {...SOURCE}
             className="text-xs fill-ink"
@@ -225,7 +230,7 @@ export function CohortLine({ rows, selected }: { rows: readonly Cohort[]; select
         <polyline
           data-mark=""
           data-cohort={row.cohort_month}
-          points={points.map(([m, v]) => `${ctx.xFrac(m) * MARK_UNITS},${ctx.yPx(toPercent(v))}`).join(' ')}
+          points={points.map(([m, v]) => `${units(ctx.xFrac(m) * MARK_UNITS)},${ctx.yPx(toPercent(v))}`).join(' ')}
           fill="none"
           stroke="var(--color-series-1)"
           strokeWidth={2}

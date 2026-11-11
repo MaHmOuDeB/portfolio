@@ -85,6 +85,17 @@ describe('the returns Figure as the server draws it', () => {
   it('renders the island idle in the static HTML', () => {
     expect(SERVER).toContain('data-island="idle"');
   });
+
+  it('hands the island only the columns it plots: no sales columns, every monthly row and value as exported', () => {
+    const data = ReturnsFigure().props.data as readonly Record<string, unknown>[];
+    expect(data).toHaveLength(ROWS.length);
+    for (const row of data) expect(Object.keys(row).sort()).toEqual(['month', 'partial', 'returns_gbp_clean', 'returns_gbp_raw']);
+    expect(data).toEqual(
+      ROWS.map((r) => ({ month: r.month, partial: r.partial, returns_gbp_clean: r.returns_gbp_clean, returns_gbp_raw: r.returns_gbp_raw })),
+    );
+    // the island's table, built from those rows, is the server's sourced table in both modes
+    for (const mode of ['raw', 'clean'] as const) expect(returnsTableFrom(ReturnsFigure().props.data, mode)).toEqual(returnsTable(mode));
+  });
 });
 
 describe('the result line', () => {

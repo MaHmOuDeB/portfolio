@@ -166,16 +166,18 @@ describe('the cohort Figure', () => {
     expect(cells).toHaveLength(COHORTS.length * 12);
     const labels = tags(heat, /<text[^>]*data-cell-label=""[^>]*>[^<]*<\/text>/g);
     expect(labels).toHaveLength(COHORTS.length * 12);
-    for (const c of COHORTS) {
+    // Cells and labels are in cohort order, then month order: the i-th of each is the same cohort and
+    // month, so a cell and its printed value pair by position.
+    COHORTS.forEach((c, r) => {
       for (let m = 1; m <= 12; m++) {
-        const cell = cells.find((t) => attr(t, 'data-cohort') === c.cohort_month && attr(t, 'data-month') === String(m))!;
-        expect(Number(attr(cell, 'data-value'))).toBe(c.retention[m]);
-        const label = labels.find((t) => attr(t, 'data-cohort') === c.cohort_month && attr(t, 'data-month') === String(m))!;
-        expect(text(label)).toBe(share(c.retention[m]!));
+        const cell = cells[r * 12 + m - 1]!;
+        expect(Number(attr(cell, 'data-value')), `${c.cohort_month} month ${m}`).toBe(c.retention[m]);
+        const label = labels[r * 12 + m - 1]!;
+        expect(text(label), `${c.cohort_month} month ${m}`).toBe(share(c.retention[m]!));
         expect(label).toContain('data-derived="source:retention"');
         expect(label).toContain('data-num=""');
       }
-    }
+    });
     // one sequential hue: every cell is series-1, its opacity rising with the value
     expect(cells.every((t) => attr(t, 'fill') === 'var(--color-series-1)')).toBe(true);
     const byValue = cells.map((t) => [Number(attr(t, 'data-value')), Number(attr(t, 'fill-opacity'))] as const).sort((a, b) => a[0] - b[0]);
@@ -185,6 +187,43 @@ describe('the cohort Figure', () => {
     expect(tags(heat, /<text[^>]*data-tick="y"[^>]*>[^<]*<\/text>/g).map(text)).toEqual(
       ['Jan 2010', 'Feb 2010', 'Mar 2010', 'Apr 2010', 'May 2010', 'Jun 2010', 'Jul 2010', 'Aug 2010', 'Sept 2010', 'Oct 2010', 'Nov 2010'],
     );
+  });
+
+  it('prints no per-cell cohort or month hook: position pairs a cell with its label (page weight)', () => {
+    const heat = mode(SERVER, 'heatmap').body;
+    const hooked = [...tags(heat, /<rect[^>]*data-cell=""[^>]*>/g), ...tags(heat, /<text[^>]*data-cell-label=""[^>]*>/g)].filter(
+      (t) => attr(t, 'data-cohort') !== undefined || attr(t, 'data-month') !== undefined,
+    );
+    expect(hooked).toEqual([]);
+  });
+
+  it('prints mark-layer coordinates with at most two decimals, each within half a hundredth of the exact position', () => {
+    // The mark layer is 1000 units across the plot; at most 0.005 units off is far below a pixel.
+    const heat = mode(SERVER, 'heatmap').body;
+    const layer = heat.slice(heat.indexOf('data-mark-layer'));
+    const marks = tags(layer.slice(0, layer.indexOf('</svg>')), /<rect[^>]*data-(?:cell|selected)=[^>]*>/g);
+    expect(marks).toHaveLength(COHORTS.length * 12 + 1);
+    const unit = 1000 / (12 + 0.5 + 2.25 - 0.5);
+    marks.slice(0, -1).forEach((t, i) => {
+      const m = (i % 12) + 1;
+      for (const [name, exact] of [['x', (m - 1) * unit], ['width', unit]] as const) {
+        const printed = attr(t, name)!;
+        expect(printed, `${name} of cell ${i}`).toMatch(/^\d+(\.\d{1,2})?$/);
+        expect(Math.abs(Number(printed) - exact)).toBeLessThanOrEqual(0.005 + 1e-9);
+      }
+    });
+    const outline = marks.at(-1)!;
+    expect(attr(outline, 'x')).toBe('0');
+    expect(attr(outline, 'width')).toMatch(/^\d+(\.\d{1,2})?$/);
+    expect(Math.abs(Number(attr(outline, 'width')) - 12 * unit)).toBeLessThanOrEqual(0.005 + 1e-9);
+    const points = attr(tags(mode(SERVER, 'line').body, /<polyline[^>]*>/g)[0]!, 'points')!.split(' ');
+    expect(points).toHaveLength(12);
+    points.forEach((p, i) => {
+      const [x, y] = p.split(',');
+      expect(x, `point ${i}`).toMatch(/^\d+(\.\d{1,2})?$/);
+      expect(Math.abs(Number(x) - (i * 1000) / 11)).toBeLessThanOrEqual(0.005 + 1e-9);
+      expect(y).toMatch(/^\d+\.5$/);
+    });
   });
 
   it('clears the whole plot to the background before the cells, so no row gridline crosses a printed value', () => {

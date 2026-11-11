@@ -10,7 +10,18 @@ import type { ParamSchema, Presets } from '@/lib/figure/url-state';
 import type { RETAIL, ReturnMode } from './data';
 
 export type { ReturnMode };
-export type RetailMonth = (typeof RETAIL.tables.monthly)[number];
+/** A monthly row of the retail export, sales columns included. */
+type ExportMonth = (typeof RETAIL.tables.monthly)[number];
+/** A monthly row as the Figure plots it: the month, whether it is partial and its returned-order values. */
+export type RetailMonth = Pick<ExportMonth, 'month' | 'partial' | 'returns_gbp_raw' | 'returns_gbp_clean'>;
+
+/**
+ * The columns of the export's monthly rows that the Figure plots, in export order. The server hands
+ * the island these only: the sales columns are not drawn, so they never reach the page's payload.
+ */
+export function returnsPlotRows(rows: readonly ExportMonth[]): RetailMonth[] {
+  return rows.map(({ month, partial, returns_gbp_raw, returns_gbp_clean }) => ({ month, partial, returns_gbp_raw, returns_gbp_clean }));
+}
 
 export const RETURNS_ID = 'returns';
 export const RETURNS_TITLE = 'Removing reversed orders changes the returns story';

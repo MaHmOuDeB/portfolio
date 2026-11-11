@@ -147,17 +147,21 @@ test.describe('Cohort Figure', () => {
       const selectedLabel = heatmap(page).locator('[data-selected-label]');
       await expect(selectedLabel).toHaveText('Selected');
       await expect(selectedLabel).toBeVisible();
-      // the label is on the outlined row, right of its last cell
-      const geometry = await heatmap(page).evaluate((root, m) => {
+      // the label is on the outlined row, right of its last cell (cells are in cohort, then month
+      // order, so the row's twelve cells and values are the row-th twelve)
+      const rowIndex = label === 'Jan 2010' ? 0 : 2;
+      const geometry = await heatmap(page).evaluate((root, r) => {
         const o = root.querySelector('rect[data-selected]')!.getBoundingClientRect();
         const l = root.querySelector('[data-selected-label]')!.getBoundingClientRect();
-        const last = root.querySelector(`rect[data-cell][data-cohort="${m}"][data-month="12"]`)!.getBoundingClientRect();
-        return { labelMid: (l.top + l.bottom) / 2, top: o.top, bottom: o.bottom, labelLeft: l.left, lastRight: last.right };
-      }, month);
+        const last = root.querySelectorAll('rect[data-cell]')[r * 12 + 11]!.getBoundingClientRect();
+        return { labelMid: (l.top + l.bottom) / 2, top: o.top, bottom: o.bottom, labelLeft: l.left, lastRight: last.right, lastMid: (last.top + last.bottom) / 2 };
+      }, rowIndex);
       expect(geometry.labelMid).toBeGreaterThan(geometry.top);
       expect(geometry.labelMid).toBeLessThan(geometry.bottom);
+      expect(geometry.lastMid).toBeGreaterThan(geometry.top);
+      expect(geometry.lastMid).toBeLessThan(geometry.bottom);
       expect(geometry.labelLeft).toBeGreaterThan(geometry.lastRight);
-      const cells = await heatmap(page).locator(`text[data-cell-label][data-cohort="${month}"]`).allTextContents();
+      const cells = (await heatmap(page).locator('text[data-cell-label]').allTextContents()).slice(rowIndex * 12, rowIndex * 12 + 12);
       const row = await tableRow(page, label);
       expect(cells).toEqual(row.slice(3));
       await chartTextFits(page, ID);
@@ -361,11 +365,12 @@ test.describe('Cohort, RFM and model Figures together', () => {
       const heat = await heatmap(page).evaluate((root) => {
         const box = (el: Element) => el.getBoundingClientRect();
         const cells = [...root.querySelectorAll('rect[data-cell]')];
-        const outside = [...root.querySelectorAll('text[data-cell-label]')].flatMap((t) => {
-          const cell = root.querySelector(`rect[data-cell][data-cohort="${t.getAttribute('data-cohort')}"][data-month="${t.getAttribute('data-month')}"]`)!;
-          const [r, c] = [box(t), box(cell)];
+        // cells and values are both in cohort, then month order: the i-th value belongs on the i-th cell
+        const labels = [...root.querySelectorAll('text[data-cell-label]')];
+        const outside = labels.flatMap((t, i) => {
+          const [r, c] = [box(t), box(cells[i]!)];
           return r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5
-            ? [`${t.getAttribute('data-cohort')} ${t.getAttribute('data-month')}`]
+            ? [`cohort ${Math.floor(i / 12) + 1} month ${(i % 12) + 1}`]
             : [];
         });
         // the background clear covers every cell, so the frame's row gridlines never show through a value
@@ -375,9 +380,9 @@ test.describe('Cohort, RFM and model Figures together', () => {
           return r.left < clear.left - 0.5 || r.right > clear.right + 0.5 || r.top < clear.top - 0.5 || r.bottom > clear.bottom + 0.5;
         }).length;
         const clearFirst = (root.querySelector('rect[data-plot-clear]')!.compareDocumentPosition(cells[0]!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
-        return { outside, uncovered, clearFirst, cells: cells.length };
+        return { outside, uncovered, clearFirst, cells: cells.length, labels: labels.length };
       });
-      expect(heat, `${width}x${height}`).toEqual({ outside: [], uncovered: 0, clearFirst: true, cells: 132 });
+      expect(heat, `${width}x${height}`).toEqual({ outside: [], uncovered: 0, clearFirst: true, cells: 132, labels: 132 });
       // each bar label is one line, left of zero (a label split across the chart fails both)
       const misplaced = await figure(page, 'rfm').evaluate((root) => {
         const svg = [...root.querySelectorAll('svg[data-chart-frame]')].find((s) => s.getClientRects().length > 0)!;
@@ -398,8 +403,10 @@ test.describe('Cohort, RFM and model Figures together', () => {
     await ready(page);
     await page.emulateMedia({ forcedColors: 'active' });
     const heat = await heatmap(page).evaluate((root) => {
-      const darkest = [...root.querySelectorAll<SVGRectElement>('rect[data-cell]')].sort((a, b) => Number(b.dataset.value) - Number(a.dataset.value))[0]!;
-      const label = root.querySelector<SVGTextElement>(`text[data-cell-label][data-cohort="${darkest.dataset.cohort}"][data-month="${darkest.dataset.month}"]`)!;
+      // cells and values are both in cohort, then month order: a cell's value is the label at its index
+      const cells = [...root.querySelectorAll<SVGRectElement>('rect[data-cell]')];
+      const darkest = [...cells].sort((a, b) => Number(b.dataset.value) - Number(a.dataset.value))[0]!;
+      const label = root.querySelectorAll<SVGTextElement>('text[data-cell-label]')[cells.indexOf(darkest)]!;
       const outline = root.querySelector<SVGRectElement>('rect[data-selected]')!;
       const cs = (el: Element) => getComputedStyle(el);
       return {
