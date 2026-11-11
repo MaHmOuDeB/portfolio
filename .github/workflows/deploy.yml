@@ -26,8 +26,6 @@ jobs:
       && github.event.workflow_run.event == 'push'
       && github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
-    # Successful deploys took 2:06 to 2:11; 10 leaves room for a node_modules cache miss and caps
-    # what a hung run can cost (hosted minutes are billed).
     timeout-minutes: 10
     steps:
       # After launch only the commit named in the repository variable LAUNCH_SHA may deploy
@@ -77,29 +75,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-      # node_modules from GitHub's cache, by exact key only: OS, architecture, the exact Node version
-      # (resolved from .nvmrc; it also fixes the npm version) and the lockfile hash, the same key as
-      # the lhci job in ci.yml. No restore-keys, so a cache from another lockfile or Node never
-      # matches; on a miss `npm ci` runs (it deletes any partly restored node_modules first) and its
-      # result is saved under that key at once, before the build or any secret. This run sees only
-      # caches saved on main.
-      - name: Node version
-        id: node
-        run: echo "version=$(node --version)" >> "$GITHUB_OUTPUT"
-      - name: Restore node_modules
-        id: node-modules
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.version }}-${{ hashFiles('package-lock.json') }}
-      - if: ${{ steps.node-modules.outputs.cache-hit != 'true' }}
-        run: npm ci
-      - name: Save node_modules
-        if: ${{ steps.node-modules.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: node_modules
-          key: ${{ steps.node-modules.outputs.cache-primary-key }}
+          cache: npm
+      - run: npm ci
       - name: Download unit test report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

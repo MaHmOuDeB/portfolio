@@ -24,10 +24,12 @@ permissions:
 # Lighthouse measurement needs a quiet machine, which the shared Mac is not, and the Lighthouse
 # budgets were calibrated on the hosted runner. It is the one CI job that spends hosted minutes, so
 # it runs only after every other job has passed, and not while the `update-baselines` label is on or
-# on a pull request commit that already passed it (see the job). scripts/lhci-calibrated.sh and
-# scripts/lhci-benchmark-guard.ts (the CPU multiplier and benchmark guard that approximated the
-# hosted runner on the Mac) and the runners' Lighthouse quiet lock are no longer used by CI; they
-# stay for local calibration runs until a later clean-up removes them.
+# on a pull request commit that already passed it (see the job). The self-hosted "Lighthouse gate"
+# job turns each outcome into one result: a label skip fails as not measured, a skip on an earlier
+# pass of the same commit passes, so a skipped lhci is never read as a pass.
+# scripts/lhci-calibrated.sh and scripts/lhci-benchmark-guard.ts (the CPU multiplier and benchmark
+# guard that approximated the hosted runner on the Mac) and the runners' Lighthouse quiet lock are
+# no longer used by CI; they stay for local calibration runs until a later clean-up removes them.
 # A self-hosted runner executes whatever a workflow run checks out, so it must never serve a public
 # repository or a pull request from a fork: BEFORE this repository is made public, switch these jobs
 # back to `runs-on: ubuntu-24.04` and drop the e2e container `options` caps (a 2-CPU hosted runner
@@ -36,14 +38,14 @@ permissions:
 # npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e container sets npm_config_cache
 # to the same folder under /__w), so setup-node's GitHub cache is off for the self-hosted jobs:
 # restoring and saving it over the Mac's connection took minutes. lhci, on the hosted runner,
-# restores node_modules from GitHub's cache by exact key and skips `npm ci` on a hit. Put `cache:
-# npm` back on the others when switching back (build-isolation included: back to ubuntu-24.04 with
-# `cache: npm`). The time limits of the self-hosted jobs come from the first run on a loaded Mac
-# with cold caches: npm ci up to 9 minutes, the first Node download 5, the first Python and wheels
-# over 9.
+# restores node_modules from GitHub's cache on pull requests (its own key, exact match, checked
+# against the lockfile) and installs fresh on a push to main. Put `cache: npm` back on the others
+# when switching back (build-isolation included: back to ubuntu-24.04 with `cache: npm`). The time
+# limits of the self-hosted jobs come from the first run on a loaded Mac with cold caches: npm ci up
+# to 9 minutes, the first Node download 5, the first Python and wheels over 9.
 # Artifact storage is billed whichever runner uploads. Reports that deploy.yml reads (report-vitest,
 # report-e2e, report-lhci) are kept 3 days on pull requests and longer on main pushes; the visual
-# baselines are uploaded only while the `update-baselines` label is on or when e2e failed.
+# baselines are uploaded only while the `update-baselines` label is on.
 # tests/unit/ci-runners.test.ts pins this layout.
 jobs:
   static:
@@ -144,13 +146,16 @@ jobs:
     outputs:
       lhci-passed: ${{ steps.lhci-passed.outputs.cache-hit }}
     steps:
-      # Whether Lighthouse already passed on this exact commit in an earlier run of this pull request
-      # (the marker the lhci job saves after its assertions passed). A lookup only, nothing is
-      # downloaded, so it costs no hosted minute; a miss or a cache error leaves the output empty and
-      # Lighthouse runs.
+      # Whether Lighthouse already passed on this exact commit in an earlier run of this pull
+      # request (the marker the lhci job saves after its assertions passed). A lookup only, nothing
+      # is downloaded, so it costs no hosted minute; a miss or a cache error leaves the output empty
+      # and Lighthouse runs. Never on a push to main, which always measures. The `lhci-remeasure`
+      # label skips the lookup, so a re-run measures again (or delete the marker: `gh cache delete
+      # lhci-passed-<sha>`). Code in the pull request could save this key too; the push to main
+      # still measures, so a forged marker cannot reach a deploy.
       - name: Look up a Lighthouse pass for this commit
         id: lhci-passed
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'lhci-remeasure') }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .lhci-passed
@@ -236,10 +241,10 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 3 || 14 }}
       # Visual baselines, to download, review and commit (never generate them on a Mac). Only the
       # screenshots folder is uploaded, never test-results/ or traces. Only while the
-      # `update-baselines` label is on, or when this job failed (to see the screenshots that
-      # differ): nothing reads them otherwise, and they were the largest artifact.
+      # `update-baselines` label is on: without it Playwright writes nothing there, so the folder
+      # holds only the committed baselines (the differing screenshots go to test-results/).
       - name: Upload visual baselines
-        if: ${{ !cancelled() && (failure() || env.UPDATE_BASELINES == '1') }}
+        if: ${{ !cancelled() && env.UPDATE_BASELINES == '1' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: visual-baselines
@@ -253,14 +258,13 @@ jobs:
     # waits for every other job and runs only when all of them passed: no hosted minute goes to a
     # run that is already red, and the workflow's concurrency group cancels a superseded run,
     # usually long before it gets here. The price is a few minutes of wall-clock time after e2e.
-    # It is skipped in two cases, and a skip is never a Lighthouse pass. (1) While the
-    # `update-baselines` label is on: that run's e2e is green whatever the screenshots show, so the
-    # run is not merge evidence; the run after the label is removed is the one that gates the merge,
-    # and it measures (or finds the pass below). (2) When Lighthouse already passed on this exact
-    # commit in an earlier run of the pull request (a label event, a re-run of all jobs). It skips
-    # on nothing weaker: a skipped job reports success, and a label event cancels the run in
-    # progress for the same pull request, so a head could otherwise reach main unmeasured. A push to
-    # main always measures: the deploy reads its report.
+    # It is skipped in two cases; the Lighthouse gate job below turns each into one unambiguous
+    # result, so a skipped lhci is never read as a pass. (1) While the `update-baselines` label is
+    # on: that run's e2e is green whatever the screenshots show, so the run is not merge evidence
+    # and the gate fails it as "not measured"; the run after the label is removed is the one that
+    # gates the merge. (2) On a pull request, when the build job found the marker of an earlier pass
+    # on this exact commit (a label event, a re-run of all jobs): the gate passes only on that
+    # proof. A push to main never uses the marker and always measures; the deploy reads its report.
     needs: [static, stats-ref, sources-remote, build, e2e, links, cv-pdf, build-isolation]
     if: ${{ !cancelled() && needs.build.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && needs.build.outputs.lhci-passed != 'true' && !contains(github.event.pull_request.labels.*.name, 'update-baselines') }}
     runs-on: ubuntu-24.04
@@ -281,28 +285,46 @@ jobs:
         with:
           name: next-build
           path: .next
-      # node_modules from GitHub's cache, by exact key only: OS, architecture, the exact Node version
-      # (resolved from .nvmrc; it also fixes the npm version) and the lockfile hash. No restore-keys,
-      # so a cache from another lockfile or Node never matches; on a miss `npm ci` runs (it deletes
-      # any partly restored node_modules first) and its result is saved under that key at once,
-      # before anything else writes to node_modules. deploy.yml uses the same key.
-      - name: Node version
+      # node_modules from GitHub's cache, for pull requests only. The key has a prefix no other job
+      # uses, and only this job saves it: OS, architecture, the exact Node version (resolved from
+      # .nvmrc; it also fixes the npm version) and the hash of package-lock.json and .npmrc,
+      # restored by exact key (no restore-keys). A restored tree must then match the lockfile
+      # exactly (scripts/check-node-modules.ts); on any mismatch, or without a hit, `npm ci` runs
+      # (it deletes node_modules first). A push to main never restores: it always installs fresh
+      # with `npm ci` and saves that tree for the pull requests if the key is new (a lookup only, so
+      # the existing entry is not downloaded). This job holds no secret, so a tampered cache could
+      # at worst falsify a pull request's Lighthouse result, and the push to main measures on a
+      # fresh install.
+      - name: node_modules cache key
         id: node
-        run: echo "version=$(node --version)" >> "$GITHUB_OUTPUT"
+        env:
+          KEY_PREFIX: lhci-hosted-node-modules-${{ runner.os }}-${{ runner.arch }}
+          LOCK_HASH: ${{ hashFiles('package-lock.json', '.npmrc') }}
+        run: echo "key=${KEY_PREFIX}-node-$(node --version)-${LOCK_HASH}" >> "$GITHUB_OUTPUT"
       - name: Restore node_modules
         id: node-modules
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: node_modules
-          key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.version }}-${{ hashFiles('package-lock.json') }}
-      - if: ${{ steps.node-modules.outputs.cache-hit != 'true' }}
+          key: ${{ steps.node.outputs.key }}
+          lookup-only: ${{ github.event_name != 'pull_request' }}
+      - name: Check the restored node_modules against the lockfile
+        id: node-modules-check
+        if: ${{ github.event_name == 'pull_request' && steps.node-modules.outputs.cache-hit == 'true' }}
+        run: |
+          if node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-node-modules.ts; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The restored node_modules does not match the lockfile; installing with npm ci."
+          fi
+      - if: ${{ steps.node-modules-check.outputs.ok != 'true' }}
         run: npm ci
       - name: Save node_modules
         if: ${{ steps.node-modules.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: node_modules
-          key: ${{ steps.node-modules.outputs.cache-primary-key }}
+          key: ${{ steps.node.outputs.key }}
       # Runs against a local `next start` (see lighthouserc.json), which has no protection, so no
       # LHCI_EXTRA_HEADERS is set and no secret can end up in the uploaded reports.
       # LCP is asserted on the best of 5 runs ("optimistic"); the category scores stay on the median.
@@ -427,3 +449,47 @@ jobs:
         env:
           VERCEL_TELEMETRY_DISABLED: '1'
         run: bash scripts/vercel-build-isolated.sh production
+
+  lhci-gate:
+    name: Lighthouse gate
+    # One unambiguous Lighthouse result for this commit, on a self-hosted runner (free). It passes
+    # only when lhci passed in this run, or, on a pull request without the `update-baselines` label,
+    # when lhci was skipped because the marker of an earlier pass on this exact commit exists and
+    # names it. It fails when lhci failed, or was skipped because another job failed or because
+    # `update-baselines` is on ("not measured"). Merge on this check, not on "Lighthouse CI".
+    needs: [build, lhci]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    timeout-minutes: 5
+    steps:
+      # The marker itself (a few bytes), only when lhci was skipped on a pull request after the build
+      # job found it; it must hold this commit's SHA.
+      - name: Restore the Lighthouse pass marker
+        id: marker
+        if: ${{ github.event_name == 'pull_request' && needs.lhci.result == 'skipped' && needs.build.outputs.lhci-passed == 'true' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lhci-passed
+          key: lhci-passed-${{ github.sha }}
+      - name: Lighthouse result for this commit
+        env:
+          LHCI: ${{ needs.lhci.result }}
+          EVENT: ${{ github.event_name }}
+          BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') }}
+          MARKER: ${{ steps.marker.outputs.cache-hit }}
+        run: |
+          if [ "$LHCI" = success ]; then
+            echo "Lighthouse measured ${GITHUB_SHA} in this run and passed."
+            exit 0
+          fi
+          if [ "$BASELINES" = true ]; then
+            echo "::error::Not measured: Lighthouse is skipped while the update-baselines label is on. Remove the label; that run gates the merge."
+            exit 1
+          fi
+          if [ "$EVENT" = pull_request ] && [ "$LHCI" = skipped ] && [ "$MARKER" = true ] \
+            && [ "$(cat .lhci-passed 2>/dev/null)" = "$GITHUB_SHA" ]; then
+            echo "Lighthouse passed on ${GITHUB_SHA} in an earlier run of this pull request (add the lhci-remeasure label to measure again)."
+            exit 0
+          fi
+          echo "::error::No Lighthouse pass for ${GITHUB_SHA} (lhci: ${LHCI})."
+          exit 1
