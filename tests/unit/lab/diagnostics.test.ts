@@ -649,14 +649,32 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(items(curseView(CURSE_PRESETS.default)).map((i) => i[0])).toEqual(labels);
     expect(items(curseView({ trueEffect: 0, se: 1 }))).toEqual([
       [labels[0], 'not shown'],
-      [labels[1], 'undefined'],
-      [labels[2], 'undefined'],
+      [labels[1], 'no true sign'],
+      [labels[2], 'not defined'],
     ]);
     expect(items(curseView({ trueEffect: 1, se: 1 }, infiniteRetro))).toEqual([
       [labels[0], 'not shown'],
       [labels[1], 'not shown'],
       [labels[2], 'no finite value'],
     ]);
+  });
+
+  it('never prints a bare undefined, null or NaN as a value, in any branch (the required sentence keeps its word in prose)', () => {
+    // an element or text whose whole content is one of these words reads as a leaked JavaScript value
+    const bare = (html: string) =>
+      [...html.matchAll(/>\s*(undefined|null|NaN)\s*</g)].map((m) => m[1]).concat([...text(html).matchAll(/\b(null|NaN)\b/g)].map((m) => m[1]));
+    for (const html of [
+      renderToStaticMarkup(createElement(CurseFigure)),
+      curseView({ trueEffect: 0, se: 1 }),
+      curseView({ trueEffect: 1, se: 1 }, infiniteRetro),
+      curseView({ trueEffect: 0.1, se: 5 }),
+      renderToStaticMarkup(createElement(SrmFigure)),
+      srmView({ nA: 0, nB: 0, shareA: 0.5 }),
+    ]) {
+      expect(bare(html)).toEqual([]);
+    }
+    // the word survives only inside sentences: the result line and the table note
+    expect(prose(curseView({ trueEffect: 0, se: 1 }))).toContain('Exaggeration is undefined when the true effect is zero.');
   });
 
   it('at zero effect: the undefined sentence, no dot, no log evaluation of zero, no number in its words', () => {

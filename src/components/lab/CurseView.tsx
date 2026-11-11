@@ -150,7 +150,8 @@ export function CurseReadout({ result }: { result: CurseResult }) {
           </>,
         ]
       : result.kind === 'zero-effect'
-        ? ['not shown', 'undefined', 'undefined']
+        ? // with no true effect there is no true sign for an estimate to get wrong, and no effect to exaggerate
+          ['not shown', 'no true sign', 'not defined']
         : ['not shown', 'not shown', 'no finite value'];
   return (
     <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-3">

@@ -126,6 +126,21 @@ async function focusAndLoad(page: Page, id: Id, control: string) {
   }).toPass({ timeout: 15_000 });
 }
 
+/**
+ * Elements of either hydrated Figure whose whole text is "undefined", "null" or "NaN", and any "null"
+ * or "NaN" word at all. The required zero-effect sentence keeps "undefined" inside prose.
+ */
+async function bareValues(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('figure[data-figure="srm"], figure[data-figure="curse"]')].flatMap((root) => [
+      ...[...root.querySelectorAll('*')]
+        .filter((el) => /^(undefined|null|NaN)$/.test((el.textContent ?? '').trim()))
+        .map((el) => `${el.tagName}: ${el.textContent}`),
+      ...[...(root.textContent ?? '').matchAll(/\b(null|NaN)\b/g)].map((m) => m[0]),
+    ]),
+  );
+}
+
 async function readout(page: Page) {
   const get = (k: string) => figure(page, 'curse').locator(`[data-curse-${k}]`).first().textContent();
   return { power: await get('power'), wrongSign: await get('wrong-sign'), exaggeration: await get('exaggeration') };
@@ -337,6 +352,9 @@ test.describe('Exaggeration Figure', () => {
     expect((await tableRows(page, 'curse')).some((r) => r.at(-1) === 'Yes')).toBe(false);
     await expect(figure(page, 'curse').locator('svg[data-chart-frame]:visible [data-tick="x"]')).toHaveText(['0.1', '1', '10']);
     await expect(figure(page, 'curse')).not.toContainText(/Infinity|NaN|null/);
+    // the readout says why there is no value, never a bare word that looks like a leaked JavaScript value
+    await expect(figure(page, 'curse').locator('[data-curse-readout] dd')).toHaveText(['not shown', 'no true sign', 'not defined']);
+    expect(await bareValues(page)).toEqual([]);
     expect(errors).toEqual([]);
   });
 
@@ -565,6 +583,7 @@ test.describe('Both diagnostics together', () => {
           return out;
         });
         expect(stray, `${id} ${query}`).toEqual([]);
+        expect(await bareValues(page), `${id} ${query}`).toEqual([]);
       }
     }
   });
