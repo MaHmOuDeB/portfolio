@@ -6,7 +6,9 @@
 // - ReturnsIsland is the lazy island; its code (the URL hook, the chart, the facts) is fetched only
 //   when the loader renders it.
 // - ReturnsControls is the control row, in a group named by the Figure's title, shared by the island
-//   and the preview. InertReturnsControls is the preview's copy, with handlers that do nothing.
+//   and the preview. InertReturnsControls is the preview's copy, with handlers that do nothing. Every
+//   control has the same id in both (the radios `returns-mode-<mode>`, Reset `returns-reset`), so the
+//   loader hands a keyboard visitor's focus from the preview's control to the island's.
 //
 // `faultAfterChange` is a test seam: the island's chart throws on the first render after a mode
 // change, so the error fallback can be tested in the browser. It is only ever forwarded here, never
@@ -38,7 +40,7 @@ export function ReturnsControls({ mode, onMode, onReset }: { mode: ReturnMode; o
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
       <Segmented name={`${RETURNS_ID}-mode`} legend="Reversed orders" options={MODE_OPTIONS} value={mode} onChange={onMode} />
-      <ResetButton onReset={onReset} />
+      <ResetButton id={`${RETURNS_ID}-reset`} onReset={onReset} />
     </div>
   );
 }

@@ -248,6 +248,16 @@ describe('the controls', () => {
     expect(text(CLEAN)).toContain('Reset');
   });
 
+  // The island draws the same ReturnsControls, so the loader hands focus from a preview control to
+  // the island's by these ids.
+  it('give each radio and Reset an id, unique on the Figure, for the focus handoff', () => {
+    expect(CLEAN).toMatch(/<input type="radio" id="returns-mode-raw"[^>]*value="raw"/);
+    expect(CLEAN).toMatch(/<input type="radio" id="returns-mode-clean"[^>]*value="clean"/);
+    expect(CLEAN).toMatch(/<button type="button" id="returns-reset"[^>]*>Reset<\/button>/);
+    const ids = [...CLEAN.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('reads a hostile or unknown URL as the clean preset', () => {
     const read = (q: string) => readFigureParams(new URLSearchParams(q), RETURNS_ID, RETURNS_SCHEMA, RETURNS_PRESETS).values.mode;
     expect(read('')).toBe('clean');

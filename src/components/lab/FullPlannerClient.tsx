@@ -16,7 +16,7 @@
 // - It passes `preview={false}` to the sizing Figure: if its readout throws after a change, the
 //   fallback shows the kit's sentence and the current table, never a preset readout beside it.
 //   `faultAfterChange` (a test seam, absent in production) is forwarded unchanged to both Figures.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import {
@@ -43,30 +43,6 @@ export type FullPlannerClientProps = {
   faultAfterChange?: true;
 };
 
-/** Frames to wait for the preview to leave and the island's control to exist. */
-const HANDOFF_FRAMES = 120;
-
-type Handoff = { element: HTMLElement; selector: string };
-
-/**
- * The preview's control without an id that holds focus as the island first renders: a unit radio
- * or either Figure's Reset. The sliders and number inputs have ids; the loader hands those over.
- */
-function focusedPreviewControl(ids: readonly string[], modeName: string): Handoff | null {
-  if (typeof document === 'undefined') return null;
-  const active = document.activeElement;
-  if (!(active instanceof HTMLElement)) return null;
-  for (const id of ids) {
-    const controls = `#${id} [data-planner-controls]`;
-    if (active.closest(controls) === null) continue;
-    if (active instanceof HTMLInputElement && active.name === modeName) {
-      return { element: active, selector: `${controls} input[name="${modeName}"][value="${active.value}"]` };
-    }
-    if (active instanceof HTMLButtonElement) return { element: active, selector: `${controls} button` };
-  }
-  return null;
-}
-
 export default function FullPlannerClient({ id, durationId, context, faultAfterChange }: FullPlannerClientProps) {
   const { values, preset, set, reset } = useFigureParams(id, FULL_PLAN_SCHEMA, FULL_PLAN_PRESETS);
   const shown = normalizeFullPlan(values);
@@ -75,37 +51,6 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
   useEffect(() => {
     latest.current = { baseline: shown.baseline, risePoints: shown.risePoints, mode: shown.mode };
   }, [shown.baseline, shown.risePoints, shown.mode]);
-  // The loader hands focus from the preview to the island by element id, and the kit's radios and
-  // Reset buttons have none: a keyboard visitor on one of them would be left on <body> when the
-  // preview goes. The island remembers that control and focuses its own one as soon as the preview
-  // has left: in a microtask after this commit (the loader removes the preview in a synchronous
-  // update of the same commit, so before the browser paints), then each frame while the preview is
-  // still there or the control does not exist yet. It stops if focus has gone anywhere else. The
-  // same handoff as the Retention Figures' islands.
-  const [handoff] = useState(() => focusedPreviewControl([id, durationId], `${id}-mode`));
-  useLayoutEffect(() => {
-    if (handoff === null) return;
-    let live = true;
-    let frame = 0;
-    let tries = 0;
-    const place = () => {
-      if (!live) return;
-      const active = document.activeElement;
-      const previewStays = active === handoff.element && handoff.element.isConnected;
-      const lost = active === null || active === document.body || (active === handoff.element && !handoff.element.isConnected);
-      const target = document.querySelector<HTMLElement>(handoff.selector);
-      if (lost && target !== null && target !== handoff.element) {
-        target.focus();
-        return;
-      }
-      if ((previewStays || lost) && tries++ < HANDOFF_FRAMES) frame = requestAnimationFrame(place);
-    };
-    queueMicrotask(place);
-    return () => {
-      live = false;
-      cancelAnimationFrame(frame);
-    };
-  }, [handoff]);
   const [announcement, setAnnouncement] = useState('');
   const [changed, setChanged] = useState(false);
   const noun = PLANNER_NOUN[context];

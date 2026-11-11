@@ -6,7 +6,9 @@
 //   shared URL with keys of either Figure.
 // - SizingControls and DurationControls are the two control rows, each in a group named by its
 //   Figure's title, shared by the island and the preview. The Inert copies are the preview's, with
-//   handlers that do nothing, so nothing moves when the island replaces the preview.
+//   handlers that do nothing, so nothing moves when the island replaces the preview. Every control
+//   has the same id in both (`<figure id>-baseline`, `-rise`, `-mode-<unit>`, `-traffic`, `-reset`),
+//   so the loader hands a keyboard visitor's focus from the preview's control to the island's.
 //
 // The rise is shown in points or as a percent of the baseline. In percent the slider and its number
 // input step on the integer-point grid: one step is one whole point, shown as its percent of the
@@ -109,7 +111,7 @@ export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRis
         />
       </div>
       <Segmented name={`${id}-mode`} legend="MDE unit" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
-      <ResetButton onReset={onReset} />
+      <ResetButton id={`${id}-reset`} onReset={onReset} />
     </div>
   );
 }
@@ -143,7 +145,7 @@ export function DurationControls({ id, context, label, traffic, onTraffic, onTra
           refs={FULL_PLANNER_REFS}
         />
       </div>
-      <ResetButton onReset={onReset} />
+      <ResetButton id={`${id}-reset`} onReset={onReset} />
     </div>
   );
 }
