@@ -185,12 +185,7 @@ test.describe('the Retention page', () => {
       await expectHeadingStill(page, id);
     });
 
-    test(`a cold #${id} link keeps its heading still while the islands load`, async ({ page, browserName }) => {
-      // Known WebKit defect in the loader, not in this page: when both previews give way to their
-      // islands in one task, WebKit lays the page out midway through the islands' style (the charts'
-      // container queries) while it is shorter than the scroll position, clamps it and drops its scroll
-      // anchor, so the view ends at the page end. Reported for a fix in the loader.
-      test.fixme(browserName === 'webkit' && id === 'limits', 'WebKit moves the view when both islands swap in (reported)');
+    test(`a cold #${id} link keeps its heading still while the islands load`, async ({ page }) => {
       await recordHeading(page, id);
       await page.goto(`${ROUTE}#${id}`);
       await waitForIslands(page);
