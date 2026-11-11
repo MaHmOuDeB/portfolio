@@ -354,7 +354,7 @@ describe('what the client half receives', () => {
 
 describe('the caption explains the projected area, saying only what the chart draws', () => {
   const PROJECTION =
-    'While the test runs, a shaded area after the last look is a projection, not data: it runs to the planned views per group, ends at the interval projected there and stays inside the last interval.';
+    "While the test runs, a shaded area after the last look is a projection, not data: it runs to the A/B test's planned views per group and ends at the projected interval, cut to the last interval.";
   const captionText = (m: HomeModel) => {
     const figure = all(doc(html(m)), has('data-figure', 'home-chart'))[0]!;
     const caption = figure.childNodes.filter((c): c is El => 'tagName' in c && c.tagName === 'figcaption')[0]!;
@@ -363,11 +363,14 @@ describe('the caption explains the projected area, saying only what the chart dr
 
   it.each(WITH_CHART.map((m) => [m.mode, m] as const))('%s: the caption carries the projection clause after the band sentence', (_, m) => {
     expect(captionText(m)).toContain(`never widened at a look. ${PROJECTION}`);
+    // The planned views per group are the A/B's planning size, never the calibration's own plan.
+    expect(captionText(m)).not.toMatch(/runs to the planned views|ends at the interval projected there/);
   });
 
   // The clause is true of what the kit draws (cs-band confidenceModel, ConfidenceChart Marks): from
-  // the last look's interval to the planned views per group (capPerArm), ending at the estimate ±
-  // the projected half-width, cut to the last interval; drawn only while the test runs.
+  // the last look's interval to the A/B test's planned views per group (capPerArm, the A/B's planning
+  // sample size, also in the calibration), ending at the estimate (kept inside the last interval) ± the
+  // projected half-width, cut to the last interval; drawn only while the test runs.
   const RUNNING: readonly HomeModel[] = [mode('ab'), mode('calibration')];
   it.each(RUNNING.map((m) => [m.mode, m] as const))('%s, running: the drawn projection matches each word of the clause', (_, m) => {
     const snap = scrollMomentProps(m).charts[2]!.snapshot;

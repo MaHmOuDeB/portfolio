@@ -162,9 +162,15 @@ for (const route of routes) {
         overlaps.push(...report.overlaps.map((target) => ({ state, ...target })));
         exempt.push(...report.exempt.map((name) => `${state}: ${name}`));
       }
-      // The links in running text that the inline exception lets be the height of the line, listed so a
-      // new one shows in review.
+      // The links in running text that the inline exception lets be the height of the line: exactly the
+      // pinned list for the route, so a new one fails here until it is listed and reviewed.
       const listed = `inline exception: ${exempt.length ? exempt.join('; ') : 'none'}`;
+      const pinned: string[] = [];
+      for (const entry of INLINE_EXEMPT[route] ?? []) {
+        if (entry.while && !entry.while.text.test((await page.locator(entry.while.selector).first().textContent()) ?? '')) continue;
+        pinned.push(`default: ${entry.name}`);
+      }
+      expect(exempt.filter((e) => e.startsWith('default: ')), `${route}: the inline exemptions are exactly the pinned list (${listed})`).toEqual(pinned);
       expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px (${listed})`).toEqual([]);
       expect(overlaps, `${route}: a link in running text never overlaps another target (${listed})`).toEqual([]);
     });
@@ -213,6 +219,19 @@ for (const route of ['/privacy', '/missing-a11y-page', '/kitchen-sink']) {
 }
 
 /**
+ * The links each route may exempt under the inline exception, in page order (default state). `while`
+ * marks a link that is on the page only in some data states: the Split step names the Live test page
+ * while a group has fewer than 50 views.
+ */
+type InlineEntry = { name: string; while?: { selector: string; text: RegExp } };
+const HOME_INLINE: readonly InlineEntry[] = [
+  { name: 'Why so many?' },
+  { name: 'Live test page', while: { selector: '[data-scroll-step="2"]', text: /fewer than/ } },
+  { name: 'Why so many?' },
+];
+const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = { '/': HOME_INLINE, '/?variant=a': HOME_INLINE, '/?variant=b': HOME_INLINE };
+
+/**
  * The pointer targets of the page in their visible state: those under 44 by 44 CSS px, the links in a
  * sentence of running text that WCAG's inline exception (2.5.5 and 2.5.8) lets be the height of the
  * line, and any such link that overlaps another target.
@@ -227,18 +246,32 @@ async function touchTargetReport(page: Page) {
     const visible: { el: Element; r: DOMRect }[] = [];
     const inline: { el: Element; r: DOMRect; box: Box }[] = [];
     const TEXT_BLOCKS = new Set(['P', 'LI', 'DD', 'FIGCAPTION', 'BLOCKQUOTE', 'TD']);
+    /** Text a sighted reader does not see: aria-hidden, invisible, not rendered, or clipped to 1 px (sr-only). */
+    const hiddenText = (node: Node, block: Element): boolean => {
+      for (let e = node.parentElement; e && e !== block.parentElement; e = e.parentElement) {
+        if (e.getAttribute('aria-hidden') === 'true' || !e.checkVisibility({ checkVisibilityCSS: true })) return true;
+        const r = e.getBoundingClientRect();
+        if (r.width <= 1 && r.height <= 1) return true;
+      }
+      return false;
+    };
     /**
-     * WCAG's inline exception, narrowly: an inline link with no touch-target marker whose nearest block
-     * ancestor is a text block (p, li, dd, figcaption, blockquote, td) holding text outside the link.
+     * WCAG's inline exception, narrowly: an inline `a[href]` with no touch-target marker whose nearest
+     * block ancestor is a text block (p, li, dd, figcaption, blockquote, td) holding visible text that is
+     * outside every link, button and other target.
      */
     const inSentence = (el: Element): boolean => {
-      if (el.tagName !== 'A' || el.hasAttribute('data-touch-target') || getComputedStyle(el).display !== 'inline') return false;
+      if (el.tagName !== 'A' || !el.hasAttribute('href') || el.hasAttribute('data-touch-target') || getComputedStyle(el).display !== 'inline') return false;
       let block = el.parentElement;
       while (block && getComputedStyle(block).display.startsWith('inline')) block = block.parentElement;
       if (!block || !TEXT_BLOCKS.has(block.tagName)) return false;
       const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
       let outside = '';
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!el.contains(n)) outside += n.textContent ?? '';
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const target = n.parentElement?.closest('a, button, [role]');
+        if ((target && target !== block && block.contains(target)) || hiddenText(n, block)) continue;
+        outside += n.textContent ?? '';
+      }
       return outside.trim() !== '';
     };
     for (const el of els) {
@@ -286,6 +319,10 @@ test.describe('the touch-target check and the inline exception', () => {
         '<p><a href="/fixture-alone">lone fixture link</a></p>',
         '<div>Read the <a href="/fixture-div">div fixture link</a> in this text.</div>',
         '<p style="position:relative">Read the <a href="/fixture-overlap">covered fixture link</a> here.<button type="button" style="position:absolute;left:0;top:0;width:400px;height:60px">Over</button></p>',
+        '<p><a href="/fixture-two-a">first fixture link</a> <a href="/fixture-two-b">second fixture link</a></p>',
+        '<p><span aria-hidden="true">Hidden words only.</span> <a href="/fixture-hidden-text">hidden-text fixture link</a></p>',
+        '<p><span class="sr-only">Screen-reader words only.</span> <a href="/fixture-sr-text">sr-text fixture link</a></p>',
+        '<p>Read the <a role="link" tabindex="0">no-href fixture link</a> in this sentence.</p>',
       ].join('');
       document.body.append(fixture);
     });
@@ -293,7 +330,12 @@ test.describe('the touch-target check and the inline exception', () => {
     const smallHrefs = report.small.map((t) => t.href);
     expect(report.exempt).toContain('inline fixture link');
     expect(smallHrefs).not.toContain('/fixture-inline');
-    for (const href of ['/fixture-marked', '/fixture-inline-block', '/fixture-alone', '/fixture-div']) expect(smallHrefs, href).toContain(href);
+    for (const href of ['/fixture-marked', '/fixture-inline-block', '/fixture-alone', '/fixture-div', '/fixture-two-a', '/fixture-two-b', '/fixture-hidden-text', '/fixture-sr-text']) {
+      expect(smallHrefs, href).toContain(href);
+    }
+    // Text in another link or hidden text is not a sentence; a link needs an href to be exempt.
+    expect(report.small.map((t) => t.name)).toContain('no-href fixture link');
+    expect(report.exempt).toEqual(['inline fixture link', 'covered fixture link']);
     // An exempt link that overlaps another target is reported.
     expect(report.overlaps.map((t) => t.href)).toEqual(['/fixture-overlap']);
     // The page's own standalone links (marked as touch targets) are never exempt.

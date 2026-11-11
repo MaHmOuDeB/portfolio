@@ -320,7 +320,7 @@ function evidence(m: HomeModel, p: string): ReactNode {
     aa ? (
       'Both groups see the same page, so the interval is expected to include zero. A new look is added once a day, after the day’s views are complete.'
     ) : confidenceModel(m.live)?.projection !== undefined ? (
-      'The interval stays valid however often anyone looks. The lighter band after the last look shows how far it is projected to narrow by the planned number of views.'
+      "The interval stays valid however often anyone looks. The shaded area after the last look is a projection to the A/B test's planned views per group, not data."
     ) : (
       'The interval stays valid however often anyone looks.'
     )

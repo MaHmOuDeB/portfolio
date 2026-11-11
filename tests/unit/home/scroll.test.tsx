@@ -448,7 +448,7 @@ describe('Evidence', () => {
       'Both groups see the same page, so the interval is expected to include zero. A new look is added once a day, after the day’s views are complete.',
     );
     expect(paragraphs(stepHtml(mode('ab'), 3))).toContain(
-      'The interval stays valid however often anyone looks. The lighter band after the last look shows how far it is projected to narrow by the planned number of views.',
+      "The interval stays valid however often anyone looks. The shaded area after the last look is a projection to the A/B test's planned views per group, not data.",
     );
   });
 
@@ -1152,9 +1152,11 @@ describe('review fixes: minors', () => {
     const m = mode('ab');
     const capped = { ...m, live: { ...m.live, capPerArm: 40 } };
     expect(paragraphs(stepHtml(capped, 3))).toContain('The interval stays valid however often anyone looks.');
-    expect(everything(stepHtml(capped, 3))).not.toMatch(/lighter band/);
+    expect(everything(stepHtml(capped, 3))).not.toMatch(/shaded area/);
     expect(chartHtml(capped)).not.toContain('data-cs="projection"');
-    expect(everything(stepHtml(m, 3))).toMatch(/lighter band/);
+    expect(everything(stepHtml(m, 3))).toMatch(/shaded area after the last look is a projection/);
+    // The projection has the band's own fill (not lighter) and need not narrow, so neither is claimed.
+    expect(everything(stepHtml(m, 3))).not.toMatch(/lighter|narrow/);
     expect(chartHtml(m)).toContain('data-cs="projection"');
   });
 
