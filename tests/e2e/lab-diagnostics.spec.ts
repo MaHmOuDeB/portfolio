@@ -21,7 +21,7 @@ const SRM_PRESET_RESULT = 'Chi-square 0 with one degree of freedom, p-value 1: n
 const CURSE_PRESET_RESULT =
   'At a true effect of 1.0 and a standard error of 1.0, a ratio of 1, power is 17%. Of the estimates that pass the threshold, 0.9% have the wrong sign, and on average their size is 2.5 times the true effect.';
 const ZERO = 'Exaggeration is undefined when the true effect is zero.';
-const CURSE_X_LABEL = 'True effect divided by standard error (log scale)';
+const CURSE_X_LABEL = 'True effect ÷ standard error (log scale)';
 
 const figure = (page: Page, id: Id) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id: Id) => page.locator('[data-island]', { has: figure(page, id) });
@@ -137,13 +137,13 @@ async function noHorizontalScroll(page: Page) {
 }
 
 /** Every text of the visible chart frames inside the Figure, and the labels kept apart. */
-async function chartTextFits(page: Page, id: Id, apart: readonly string[] = []) {
-  const findings = await figure(page, id).evaluate((root, skip) => {
+async function chartTextFits(page: Page, id: Id) {
+  const findings = await figure(page, id).evaluate((root) => {
     const box = root.getBoundingClientRect();
     const texts = [...root.querySelectorAll<SVGTextElement>('svg[data-chart-frame] text')]
       .filter((t) => t.getClientRects().length > 0)
       .map((t) => ({ text: t.textContent ?? '', r: t.getBoundingClientRect() }));
-    const outside = texts.filter(({ text, r }) => !skip.includes(text) && (r.left < box.left - 0.5 || r.right > box.right + 0.5)).map((t) => t.text);
+    const outside = texts.filter(({ r }) => r.left < box.left - 0.5 || r.right > box.right + 0.5).map((t) => t.text);
     const overlaps: string[] = [];
     for (let i = 0; i < texts.length; i++) {
       for (let j = i + 1; j < texts.length; j++) {
@@ -153,7 +153,7 @@ async function chartTextFits(page: Page, id: Id, apart: readonly string[] = []) 
       }
     }
     return { outside, overlaps, count: texts.length };
-  }, apart);
+  });
   expect(findings.count, id).toBeGreaterThan(3);
   expect(findings.outside, id).toEqual([]);
   expect(findings.overlaps, id).toEqual([]);
@@ -471,7 +471,7 @@ test.describe('Both diagnostics together', () => {
       await waitForIslands(page);
       for (const id of ['srm', 'curse'] as const) {
         await ready(page, id);
-        await chartTextFits(page, id, id === 'curse' ? [CURSE_X_LABEL] : []);
+        await chartTextFits(page, id);
       }
       await noHorizontalScroll(page);
       await reset(page, 'curse').scrollIntoViewIfNeeded();
@@ -481,8 +481,8 @@ test.describe('Both diagnostics together', () => {
     });
   }
 
-  // The x-axis label is long for the kit's one-line axis label at the narrowest width. It is checked on
-  // its own, so the reflow test above still covers everything else.
+  // The x-axis label is the longest text on the kit's one-line axis: checked on its own at the two
+  // narrowest widths, as well as in the reflow test above.
   for (const width of [320, 375]) {
     test(`the exaggeration x-axis label stays inside its Figure at ${width} px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });

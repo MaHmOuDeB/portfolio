@@ -254,7 +254,7 @@ export function curseTable(v: CurseValues, deps: CurseDeps = STATS_RETRO): Table
   const ratios = current > 0 ? [...TABLE_RATIOS.filter((r) => !near(r)), current].sort((a, b) => a - b) : TABLE_RATIOS;
   return {
     columns: [
-      'True effect divided by standard error',
+      'True effect ÷ standard error',
       'Power',
       'Wrong sign among significant estimates',
       'Exaggeration among significant estimates',

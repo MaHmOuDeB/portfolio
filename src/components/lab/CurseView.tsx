@@ -46,7 +46,7 @@ import {
 } from '@/lib/lab/diagnostics';
 
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
-export const CURSE_X_LABEL = 'True effect divided by standard error (log scale)';
+export const CURSE_X_LABEL = 'True effect ÷ standard error (log scale)';
 
 /**
  * Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests.

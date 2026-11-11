@@ -434,7 +434,7 @@ describe('the exaggeration readout and table', () => {
   it('tables plain ratios with their results, the current setting marked, in the readout’s own words', () => {
     const t = curseTable({ trueEffect: 0.1, se: 5 });
     expect(t.columns).toEqual([
-      'True effect divided by standard error',
+      'True effect ÷ standard error',
       'Power',
       'Wrong sign among significant estimates',
       'Exaggeration among significant estimates',
@@ -586,7 +586,8 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(parts.xTicks).toEqual(['0.1', '1', '10']);
     expect(parts.yTicks[0]).toBeDefined();
     expect(parts.yTicks).toContain('0');
-    expect(SERVER).toContain('True effect divided by standard error (log scale)');
+    expect(SERVER).toContain('>True effect ÷ standard error (log scale)</text>');
+    expect(SERVER).not.toContain('divided by');
   });
 
   it('agrees with itself at the preset: dot, readout and table row', () => {
