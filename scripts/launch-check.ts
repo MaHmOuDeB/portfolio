@@ -16,15 +16,21 @@
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash;
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
+// - every site path the Home page links to resolves: each is a live route (LIVE_ROUTES), each
+//   `#fragment` is an element id in that page's built HTML, and /cv.pdf is a file in public/.
+//   External and mail links are not checked here.
 //
 // It reads secret and variable NAMES only: the Vercel CLI is never asked for JSON (which would
 // include values), gh is asked for the variables' name field alone, and no command output is
 // printed. It needs `npx vercel login` and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
+import { HOME_DESTINATIONS } from '../content/home-destinations.ts';
 import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
+import { LIVE_ROUTES } from '../src/lib/site.ts';
 import { preregHash } from '../src/lib/experiment/prereg-hash.ts';
 import { builtPages, findPlaceholders } from './launch-placeholders.ts';
 
@@ -77,6 +83,10 @@ export type LaunchDeps = {
   /** The Vercel team (vercelScopeFrom), or null when it is unknown. */
   vercelScope: string | null;
   preregHash: () => string;
+  /** The site paths the Home page links to (content/home-destinations.ts). */
+  destinations: readonly string[];
+  /** The routes that have a page (src/lib/site.ts). */
+  liveRoutes: readonly string[];
 };
 
 function defaults(): LaunchDeps {
@@ -93,7 +103,56 @@ function defaults(): LaunchDeps {
     deployedChecksLog: readFileSync(join(root, 'docs/experiment/deployed-checks.md'), 'utf8'),
     vercelScope: vercelScopeFrom(root, process.env),
     preregHash: () => preregHash(),
+    destinations: HOME_DESTINATIONS,
+    liveRoutes: LIVE_ROUTES,
   };
+}
+
+/** Whether a parsed HTML tree has an element with this id (attribute values only: text and script bodies never count). */
+function hasId(node: T.ParentNode, id: string): boolean {
+  for (const child of node.childNodes) {
+    if (!('tagName' in child)) continue;
+    const el = child as T.Element;
+    if (el.attrs.some((a) => a.name === 'id' && a.value === id)) return true;
+    if (hasId(el, id)) return true;
+    if (el.tagName === 'template' && hasId((el as T.Template).content, id)) return true;
+  }
+  return false;
+}
+
+/**
+ * Each Home destination that does not resolve yet. A path whose last segment has a file extension is
+ * a file in public/ (/cv.pdf), not a route. Any other site path must be a live route, and a fragment
+ * must be an element id in that page's built HTML (.next/server/app/<path>.html). Anything that is not
+ * a site path (an external or mail link) is skipped.
+ */
+export function destinationsUnmet(d: Pick<LaunchDeps, 'root' | 'destinations' | 'liveRoutes'>): string[] {
+  const unmet: string[] = [];
+  for (const destination of d.destinations) {
+    if (!destination.startsWith('/') || destination.startsWith('//')) continue;
+    const hashAt = destination.indexOf('#');
+    const path = hashAt === -1 ? destination : destination.slice(0, hashAt);
+    const fragment = hashAt === -1 ? '' : decodeURIComponent(destination.slice(hashAt + 1));
+    if (/\.[a-z0-9]+$/i.test(path.split('/').pop() ?? '')) {
+      const file = join(d.root, 'public', path);
+      if (!existsSync(file) || !statSync(file).isFile()) unmet.push(`home destination file missing: ${destination} (public${path})`);
+      continue;
+    }
+    if (!d.liveRoutes.includes(path)) {
+      unmet.push(`home destination is not a live route: ${destination} (its page is not built yet, or LIVE_ROUTES does not list it)`);
+      continue;
+    }
+    if (fragment === '') continue;
+    const html = join(d.root, '.next/server/app', `${path === '/' ? 'index' : path.slice(1)}.html`);
+    if (!existsSync(html)) {
+      unmet.push(`home destination has no built page: ${destination} (run npm run build first)`);
+      continue;
+    }
+    if (!hasId(parse(readFileSync(html, 'utf8')), fragment)) {
+      unmet.push(`home destination fragment missing: ${destination} (no element with id "${fragment}" in the built page)`);
+    }
+  }
+  return unmet;
 }
 
 /** The host of a Deployment cell: a URL or a bare host, lower case; null if it is neither. */
@@ -252,6 +311,9 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
 
   // Self-hosted runners.
   unmet.push(...selfHostedUnmet(d));
+
+  // The Home page's destinations.
+  unmet.push(...destinationsUnmet(d));
 
   for (const line of unmet) d.out(`unmet: ${line}`);
   if (unmet.length > 0) {

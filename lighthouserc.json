@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "startServerCommand": "npx next start -p 3124",
-      "url": ["http://localhost:3124/"],
+      "url": ["http://localhost:3124/?variant=a", "http://localhost:3124/?variant=b"],
       "numberOfRuns": 5,
       "settings": {
         "throttlingMethod": "devtools"

@@ -880,6 +880,16 @@ describe('StepDiagrams', () => {
     expect(audit(h)).toEqual([]);
   });
 
+  it('lays the three outcomes side by side only when their own container is wide enough', () => {
+    // The sticky two-column layout gives the steps a column of about 430 px at 1440 px; a viewport
+    // breakpoint there squeezed three cards into it. The diagram follows its container instead.
+    const d = doc(html(<DecisionZonesDiagram />));
+    const grid = all(d, (el) => attr(el, 'data-diagram') === 'decision-zones')[0]!;
+    expect((attr(grid, 'class') ?? '').split(/\s+/)).toEqual(expect.arrayContaining(['grid', '@min-[36rem]:grid-cols-3']));
+    expect(attr(grid, 'class')).not.toMatch(/(^|\s)(sm|md|lg):grid-cols/);
+    expect((attr(grid.parentNode as unknown as T.Element, 'class') ?? '').split(/\s+/)).toContain('@container');
+  });
+
   it('are diagram Figures: no badge, controls or table', () => {
     for (const h of [html(<HypothesisDiagram kind="topic-finding" />), html(<GroupOutlinesDiagram />), html(<DecisionZonesDiagram />)]) {
       expect(h).toContain('<figure');

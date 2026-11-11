@@ -130,14 +130,18 @@ export function DecisionZonesDiagram({ id = 'home-decision' }: { id?: string }) 
       title="Three outcomes, written down before the data"
       caption="Each bar is an interval for B minus A, and the dark vertical line is zero. The rule is part of the pre-registration."
     >
-      <div data-diagram="decision-zones" className="grid gap-4 sm:grid-cols-3">
-        {ZONES.map((z) => (
-          <div key={z.id} data-decision-zone={z.id} className={OUTLINE}>
-            <p className="text-sm font-semibold">{z.name}</p>
-            <ZoneSketch from={z.from} to={z.to} />
-            <p className="mt-2 text-sm text-muted">{z.rule}</p>
-          </div>
-        ))}
+      {/* Side by side only when the diagram's own column holds three readable cards (36rem): the sticky
+          layout gives the steps a narrow column on wide screens, where a viewport breakpoint would not. */}
+      <div className="@container">
+        <div data-diagram="decision-zones" className="grid gap-4 @min-[36rem]:grid-cols-3">
+          {ZONES.map((z) => (
+            <div key={z.id} data-decision-zone={z.id} className={OUTLINE}>
+              <p className="text-sm font-semibold">{z.name}</p>
+              <ZoneSketch from={z.from} to={z.to} />
+              <p className="mt-2 text-sm text-muted">{z.rule}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </Figure>
   );

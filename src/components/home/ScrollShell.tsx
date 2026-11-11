@@ -9,7 +9,10 @@
 // - The current step. The step navigation sets it at once and scrolls that step into view; an
 //   IntersectionObserver on a thin trigger band sets it as the page scrolls, and is ignored while the
 //   navigation's scroll runs (lib/home/scroll-controller). Nothing scrolls on its own. The current step
-//   is the list item with aria-current="step"; StepNav announces only its own uses. Accepted residual:
+//   is the list item with aria-current="step", set only while the stage is drawn: the stacked layouts
+//   (no JavaScript, reduced motion, short screens, a dropped chart) have no step navigation and nothing
+//   that moves the step, so there no step is announced as current. StepNav announces only its own
+//   uses. Accepted residual:
 //   if the reader interrupts a navigation scroll midway, the step stays the navigation's until the
 //   next step enters the trigger band (the observer reports changes only, and a fresh reading at the
 //   end of the scroll would undo a navigation to a last step the band cannot reach).
@@ -121,6 +124,8 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
   const [viewN, setViewN] = useState<number | null>(null);
   const [fading, setFading] = useState(false);
   const [late, setLate] = useState(false);
+  // Whether the stage is drawn (CSS picks the layout): only then is a step marked current.
+  const [staged, setStaged] = useState(false);
   const shell = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const controller = useRef<ScrollController | null>(null);
@@ -263,6 +268,7 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
 
     const sized = new ResizeObserver(() => {
       root.style.setProperty('--scroll-stage-h', `${box.offsetHeight}px`);
+      setStaged(box.getClientRects().length > 0);
       watch();
     });
     sized.observe(box);
@@ -315,7 +321,7 @@ export function ScrollShell({ arm, steps, charts, previews, canvas, refs }: Scro
       ) : null}
       <ol data-scroll-steps="" className="grid gap-12">
         {steps.map((s, i) => (
-          <li key={s.step} id={`home-step-${s.step}`} data-scroll-step={s.step} aria-current={s.step === current ? 'step' : undefined}>
+          <li key={s.step} id={`home-step-${s.step}`} data-scroll-step={s.step} aria-current={staged && s.step === current ? 'step' : undefined}>
             <h3 className="text-xl font-semibold">{s.heading}</h3>
             <div className="mt-3">{s.body}</div>
             {charts[i] ? (
