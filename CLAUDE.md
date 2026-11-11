@@ -263,7 +263,7 @@ page, give it the primitives catalogue above and the golden page.
   - Responsive at 375, 390, 768, 1024 and 1440 px, and at 1280x720 with 125% zoom (screen-share).
   - Content reflows without horizontal scrolling at 320 px and at 400% zoom.
   - Touch targets are at least 44 px (`min-h-(--size-target)`); icon-only controls are 44 px wide
-    too.
+    too. A link inside a sentence of running text follows WCAG's inline exception and may be the height of the line; every other target is 44 px.
   - Visible keyboard focus: never put `overflow: hidden` on an ancestor of a control.
   - WCAG AA contrast.
   - Colour-blind-safe chart series, and status is never colour alone.

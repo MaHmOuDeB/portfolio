@@ -149,30 +149,24 @@ for (const route of routes) {
       await open(page, route);
       // The skip link is intentionally clipped until focus; measure its usable visible state.
       await page.getByRole('link', { name: 'Skip to content' }).focus();
-      const collect = () => page.locator(pointerTargets).evaluateAll((els) => {
-        const seen = new Set<Element>();
-        return els.flatMap((el) => {
-          // The segment label, rather than its sr-only radio, is the actual pointer target.
-          const target = el.closest('label[data-segment]') ?? el;
-          const s = getComputedStyle(target);
-          const r = target.getBoundingClientRect();
-          if (seen.has(target) || r.width === 0 || r.height === 0 || s.display === 'none' || s.visibility === 'hidden' || target.closest('[inert]')) return [];
-          // Closed details content can retain rectangles despite not being rendered.
-          for (let ancestor: Element | null = target; ancestor; ancestor = ancestor.parentElement) {
-            if (ancestor instanceof HTMLDetailsElement && !ancestor.open && !ancestor.querySelector(':scope > summary')?.contains(target)) return [];
-          }
-          if (!target.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
-          seen.add(target);
-          if (r.width >= 44 && r.height >= 44) return [];
-          return [{ tag: el.tagName, id: el.id, href: el.getAttribute('href'), name: el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 80), width: r.width, height: r.height }];
-        });
-      });
-      const small = (await collect()).map((target) => ({ state: 'default', ...target }));
-      if (await openMenu(page)) {
-        await page.getByRole('link', { name: 'Skip to content' }).focus();
-        small.push(...(await collect()).map((target) => ({ state: 'menu-open', ...target })));
+      const small = [];
+      const exempt: string[] = [];
+      const overlaps = [];
+      for (const state of ['default', 'menu-open'] as const) {
+        if (state === 'menu-open') {
+          if (!(await openMenu(page))) break;
+          await page.getByRole('link', { name: 'Skip to content' }).focus();
+        }
+        const report = await touchTargetReport(page);
+        small.push(...report.small.map((target) => ({ state, ...target })));
+        overlaps.push(...report.overlaps.map((target) => ({ state, ...target })));
+        exempt.push(...report.exempt.map((name) => `${state}: ${name}`));
       }
-      expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px`).toEqual([]);
+      // The links in running text that the inline exception lets be the height of the line, listed so a
+      // new one shows in review.
+      const listed = `inline exception: ${exempt.length ? exempt.join('; ') : 'none'}`;
+      expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px (${listed})`).toEqual([]);
+      expect(overlaps, `${route}: a link in running text never overlaps another target (${listed})`).toEqual([]);
     });
 
     test('@matrix reflow, including the 400% CSS viewport proxy', async ({ page }) => {
@@ -217,3 +211,94 @@ for (const route of ['/privacy', '/missing-a11y-page', '/kitchen-sink']) {
     expect(bounds.right).toBeLessThanOrEqual(bounds.width);
   });
 }
+
+/**
+ * The pointer targets of the page in their visible state: those under 44 by 44 CSS px, the links in a
+ * sentence of running text that WCAG's inline exception (2.5.5 and 2.5.8) lets be the height of the
+ * line, and any such link that overlaps another target.
+ */
+async function touchTargetReport(page: Page) {
+  return page.locator(pointerTargets).evaluateAll((els) => {
+    type Box = { tag: string; id: string; href: string | null; name: string | undefined; width: number; height: number };
+    const seen = new Set<Element>();
+    const small: Box[] = [];
+    const exempt: string[] = [];
+    const overlaps: Box[] = [];
+    const visible: { el: Element; r: DOMRect }[] = [];
+    const inline: { el: Element; r: DOMRect; box: Box }[] = [];
+    const TEXT_BLOCKS = new Set(['P', 'LI', 'DD', 'FIGCAPTION', 'BLOCKQUOTE', 'TD']);
+    /**
+     * WCAG's inline exception, narrowly: an inline link with no touch-target marker whose nearest block
+     * ancestor is a text block (p, li, dd, figcaption, blockquote, td) holding text outside the link.
+     */
+    const inSentence = (el: Element): boolean => {
+      if (el.tagName !== 'A' || el.hasAttribute('data-touch-target') || getComputedStyle(el).display !== 'inline') return false;
+      let block = el.parentElement;
+      while (block && getComputedStyle(block).display.startsWith('inline')) block = block.parentElement;
+      if (!block || !TEXT_BLOCKS.has(block.tagName)) return false;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let outside = '';
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!el.contains(n)) outside += n.textContent ?? '';
+      return outside.trim() !== '';
+    };
+    for (const el of els) {
+      // The segment label, rather than its sr-only radio, is the actual pointer target.
+      const target = el.closest('label[data-segment]') ?? el;
+      const s = getComputedStyle(target);
+      const r = target.getBoundingClientRect();
+      if (seen.has(target) || r.width === 0 || r.height === 0 || s.display === 'none' || s.visibility === 'hidden' || target.closest('[inert]')) continue;
+      // Closed details content can retain rectangles despite not being rendered.
+      let closed = false;
+      for (let ancestor: Element | null = target; ancestor; ancestor = ancestor.parentElement) {
+        if (ancestor instanceof HTMLDetailsElement && !ancestor.open && !ancestor.querySelector(':scope > summary')?.contains(target)) closed = true;
+      }
+      if (closed || !target.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      seen.add(target);
+      visible.push({ el: target, r });
+      if (r.width >= 44 && r.height >= 44) continue;
+      const box = { tag: el.tagName, id: el.id, href: el.getAttribute('href'), name: el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 80), width: r.width, height: r.height };
+      if (inSentence(target)) {
+        exempt.push(box.name ?? '');
+        inline.push({ el: target, r, box });
+      } else small.push(box);
+    }
+    // An exempt link must not overlap any other target.
+    const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    for (const link of inline) {
+      if (visible.some((o) => o.el !== link.el && !o.el.contains(link.el) && !link.el.contains(o.el) && meet(link.r, o.r))) overlaps.push(link.box);
+    }
+    return { small, exempt, overlaps };
+  });
+}
+
+test.describe('the touch-target check and the inline exception', () => {
+  test('exempts only a link inside a sentence; marked, inline-block, lone and non-text-block links are still measured', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto('/kitchen-sink');
+    await waitForIslands(page);
+    await page.evaluate(() => {
+      const fixture = document.createElement('section');
+      fixture.id = 'inline-exception-fixture';
+      fixture.innerHTML = [
+        '<p>Read the <a href="/fixture-inline">inline fixture link</a> in this sentence.</p>',
+        '<p>Read the <a href="/fixture-marked" data-touch-target="">marked fixture link</a> in this sentence.</p>',
+        '<p>Read the <a href="/fixture-inline-block" style="display:inline-block">inline-block fixture link</a> in this sentence.</p>',
+        '<p><a href="/fixture-alone">lone fixture link</a></p>',
+        '<div>Read the <a href="/fixture-div">div fixture link</a> in this text.</div>',
+        '<p style="position:relative">Read the <a href="/fixture-overlap">covered fixture link</a> here.<button type="button" style="position:absolute;left:0;top:0;width:400px;height:60px">Over</button></p>',
+      ].join('');
+      document.body.append(fixture);
+    });
+    const report = await touchTargetReport(page);
+    const smallHrefs = report.small.map((t) => t.href);
+    expect(report.exempt).toContain('inline fixture link');
+    expect(smallHrefs).not.toContain('/fixture-inline');
+    for (const href of ['/fixture-marked', '/fixture-inline-block', '/fixture-alone', '/fixture-div']) expect(smallHrefs, href).toContain(href);
+    // An exempt link that overlaps another target is reported.
+    expect(report.overlaps.map((t) => t.href)).toEqual(['/fixture-overlap']);
+    // The page's own standalone links (marked as touch targets) are never exempt.
+    const standalone = await page.locator('[data-touch-target]:not(#inline-exception-fixture *)').evaluateAll((els) => els.map((el) => el.textContent?.trim().slice(0, 80)));
+    expect(standalone.length).toBeGreaterThan(0);
+    for (const name of standalone) expect(report.exempt).not.toContain(name);
+  });
+});
