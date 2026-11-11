@@ -15,18 +15,18 @@ concurrency:
 permissions:
   contents: read
 
-# Self-hosted runners. Every job except lhci and cv-pdf runs on the owner's self-hosted runners (the
-# labels self-hosted, linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon
-# Mac, one also labelled portfolio-mac-1, the other portfolio-mac-2), because this private
-# repository's hosted-runner minutes ran short. lhci stays on ubuntu-24.04 so Lighthouse scores stay
-# comparable between runs, cv-pdf is a short hosted check, and deploy.yml stays on GitHub's runners
-# because it holds the production secrets.
+# Self-hosted runners. Every job runs on the owner's self-hosted runners (the labels self-hosted,
+# linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon Mac, one also labelled
+# portfolio-mac-1, the other portfolio-mac-2), because this private repository has no hosted-runner
+# minutes left. Lighthouse is calibrated to GitHub's hosted runner (see the lhci job). deploy.yml
+# stays on GitHub's runners because it holds the production secrets.
 # A self-hosted runner executes whatever a workflow run checks out, so it must never serve a public
 # repository or a pull request from a fork: BEFORE this repository is made public, switch these
-# jobs back to `runs-on: ubuntu-24.04` and drop the e2e container's `options` caps (a 2-CPU hosted
-# runner rejects `--cpus 3`).
+# jobs back to `runs-on: ubuntu-24.04`, drop the container `options` caps (a 2-CPU hosted runner
+# rejects `--cpus 3`), and give lhci back its plain `npm run lhci` (no CPU multiplier, no
+# --no-sandbox, no container) and `needs: build`.
 # On the runners, npm, uv and Python downloads are cached on each runner's own disk (the runner sets
-# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e container sets
+# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e and lhci containers set
 # npm_config_cache to the same folder under /__w), so setup-node's GitHub cache is off for these
 # jobs: restoring and saving it over the Mac's connection took minutes. Put `cache: npm` back when
 # switching back. The time limits come from the first run on a loaded Mac with cold caches: npm ci
@@ -216,9 +216,23 @@ jobs:
 
   lhci:
     name: Lighthouse CI
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Last, so nothing else of this run competes for the Mac while Lighthouse measures. It still
+    # runs when another job failed, as long as the build it measures exists.
+    needs: [static, stats-ref, sources-remote, build, e2e, links, cv-pdf]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    # Only on instance 2, so one Lighthouse run at a time; the runner's job-started hook holds the
+    # Mac's heavy-work slot and waits (up to 40 minutes) until the other runner is idle.
+    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]
+    timeout-minutes: 60
+    # Chromium from the Playwright image (Lighthouse needs a browser; Google Chrome has no arm64
+    # Linux build), 2 CPUs like GitHub's hosted runner for private repositories, shared memory from
+    # the Docker VM for Chromium.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --cpus 2 --memory 3072m --memory-swap 3072m --ipc=host
+    env:
+      # npm's cache on the runner's own disk (/__w is the runner's work folder), kept between jobs.
+      npm_config_cache: /__w/_cache/npm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -226,7 +240,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: next-build
@@ -239,7 +252,16 @@ jobs:
       # presented, and Lantern then charges all of their download to LCP: a random outlier of about
       # +500 ms that base main hits too. A real regression raises every run, so the best run still
       # fails; tests/unit/lighthouserc.test.ts pins this shape.
-      - run: npm run lhci
+      # Calibrated to GitHub's hosted runner: Lighthouse simulates the throttled CPU by multiplying
+      # each main-thread task this machine measured by cpuSlowdownMultiplier, so the multiplier is
+      # 4 (Lighthouse's default) x benchmarkIndex here / benchmarkIndex on GitHub. GitHub's 35
+      # hosted runs (7 CI runs, 2026-11-10) had a median benchmarkIndex of 2309; this job's capped
+      # container measured 837.5 (median of 5): 4 x 837.5 / 2309 = 1.45, so 1.5.
+      # Chromium runs as root in the container, hence --no-sandbox.
+      - name: Lighthouse (calibrated to the hosted runner)
+        run: |
+          export CHROME_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          npm run lhci -- --collect.settings.chromeFlags="--no-sandbox" --collect.settings.throttling.cpuSlowdownMultiplier=1.5
       - name: Upload Lighthouse reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -297,7 +319,7 @@ jobs:
 
   cv-pdf:
     name: CV PDF check
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 5
     steps:
       # The pull request's own head commit, not the merge commit GitHub would check out, so HEAD in

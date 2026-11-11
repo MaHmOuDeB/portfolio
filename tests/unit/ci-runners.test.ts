@@ -14,11 +14,16 @@ const VITEST_CONFIG = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8');
 
 const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
 const INSTANCE_1 = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
-const E2E_RUNS_ON = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]';
+const INSTANCE_2 = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
 // Shared memory from the Docker VM (Playwright's Docker advice) and 5 GB: at 3.5 GB with Docker's
 // 64 MB /dev/shm the heaviest pages crashed the browser; at 4.5 GB they passed at the cap.
 const E2E_CAPS = '--cpus 3 --memory 5120m --memory-swap 5120m --ipc=host';
+// Lighthouse: 2 CPUs like GitHub's hosted runner for private repositories, shared memory for Chromium.
+const LHCI_CAPS = '--cpus 2 --memory 3072m --memory-swap 3072m --ipc=host';
+// 4 x benchmarkIndex of the capped lhci container (837.5, measured) / GitHub's hosted runner (2309,
+// the median of 35 hosted Lighthouse runs) = 1.45, rounded to 1.5.
+const LHCI_CPU_MULTIPLIER = '1.5';
 
 /** The text of each job under `jobs:`, by job id. */
 function jobs(workflow: string): Record<string, string> {
@@ -65,22 +70,29 @@ describe('the CI jobs and their check names', () => {
     });
   });
 
-  it('runs every job except lhci and cv-pdf on the self-hosted labels', () => {
-    for (const id of ['stats-ref', 'sources-remote', 'build']) {
+  it('runs every job on the self-hosted labels', () => {
+    for (const id of ['stats-ref', 'sources-remote', 'build', 'cv-pdf']) {
       expect(key(ci[id]!, 'runs-on'), id).toBe(SELF_HOSTED);
     }
     // Static (fixed Redis port) and links (fixed site port) only on instance 1; e2e (the longest
-    // job) only on instance 2.
+    // job) and lhci (one Lighthouse run at a time) only on instance 2.
     expect(key(ci.static!, 'runs-on')).toBe(INSTANCE_1);
     expect(key(ci.links!, 'runs-on')).toBe(INSTANCE_1);
-    expect(key(ci.e2e!, 'runs-on')).toBe(E2E_RUNS_ON);
+    expect(key(ci.e2e!, 'runs-on')).toBe(INSTANCE_2);
+    expect(key(ci.lhci!, 'runs-on')).toBe(INSTANCE_2);
   });
 
-  it('keeps lhci and cv-pdf on GitHub-hosted ubuntu-24.04 runners (Lighthouse scores stay comparable)', () => {
-    for (const id of ['lhci', 'cv-pdf']) {
-      expect(key(ci[id]!, 'runs-on'), id).toBe('ubuntu-24.04');
-      expect(ci[id], id).not.toMatch(/self-hosted|container:/);
-    }
+  it('runs Lighthouse last, capped like the hosted runner, with the calibrated CPU multiplier', () => {
+    const others = Object.keys(ci).filter((id) => id !== 'lhci');
+    expect(key(ci.lhci!, 'needs')).toBe(`[${others.join(', ')}]`);
+    expect(key(ci.lhci!, 'if')).toBe("${{ !cancelled() && needs.build.result == 'success' }}");
+    expect(ci.lhci).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n      options: ${LHCI_CAPS}\n`);
+    expect(ci.lhci).toContain(
+      `npm run lhci -- --collect.settings.chromeFlags="--no-sandbox" --collect.settings.throttling.cpuSlowdownMultiplier=${LHCI_CPU_MULTIPLIER}\n`,
+    );
+    expect(ci.lhci).toContain("export CHROME_PATH=\"$(node -e \"console.log(require('playwright-core').chromium.executablePath())\")\"");
+    // Same budgets and runs as everywhere else: lighthouserc.json is untouched (lighthouserc.test.ts).
+    expect(ci.lhci).not.toMatch(/--collect\.numberOfRuns|--assert\./);
   });
 
   it('keeps the deploy, which holds the production secrets, on GitHub-hosted runners', () => {
@@ -91,9 +103,10 @@ describe('the CI jobs and their check names', () => {
   });
 
   it('says why the jobs are self-hosted and that they go back before the repository is public', () => {
-    const header = CI.slice(0, CI.indexOf('\njobs:\n'));
-    expect(header).toMatch(/self-hosted, linux, arm64 and portfolio-mac/);
-    expect(header.replace(/\n# /g, ' ')).toContain('BEFORE this repository is made public, switch these jobs back to `runs-on: ubuntu-24.04`');
+    const header = CI.slice(0, CI.indexOf('\njobs:\n')).replace(/\n# /g, ' ');
+    expect(header).toContain('the labels self-hosted, linux, arm64 and portfolio-mac');
+    expect(header).toContain('BEFORE this repository is made public, switch these jobs back to `runs-on: ubuntu-24.04`');
+    expect(header).toContain('give lhci back its plain `npm run lhci` (no CPU multiplier');
   });
 
   it('pins every action to a full commit SHA', () => {
@@ -126,11 +139,11 @@ describe('the self-hosted adjustments', () => {
   it('caps the e2e job container, which the runner container caps do not reach', () => {
     expect(ci.e2e).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
     expect(ci.e2e).toContain(`      options: ${E2E_CAPS}\n`);
-    // Only e2e runs in a job container (composite actions break in one: see links).
-    expect(Object.entries(ci).filter(([, job]) => /^ {4}container:/m.test(job)).map(([id]) => id)).toEqual(['e2e']);
+    // Only e2e and lhci run in a job container (composite actions break in one: see links).
+    expect(Object.entries(ci).filter(([, job]) => /^ {4}container:/m.test(job)).map(([id]) => id)).toEqual(['e2e', 'lhci']);
   });
 
-  it('gives each self-hosted job a limit measured on a loaded Mac, and lhci its hosted one', () => {
+  it('gives each job a limit measured on a loaded Mac (lhci also waits for a quiet Mac)', () => {
     const limits = Object.fromEntries(Object.entries(ci).map(([id, job]) => [id, key(job, 'timeout-minutes')]));
     expect(limits).toEqual({
       static: '25',
@@ -138,18 +151,15 @@ describe('the self-hosted adjustments', () => {
       'sources-remote': '25',
       build: '25',
       e2e: '90',
-      lhci: '20',
+      lhci: '60',
       links: '25',
       'cv-pdf': '5',
     });
   });
 
-  it('caches npm on the runner\'s disk instead of through GitHub, except on hosted lhci', () => {
-    for (const [id, job] of Object.entries(ci)) {
-      if (id === 'lhci') expect(job, id).toContain('          cache: npm\n');
-      else expect(job, id).not.toMatch(/^\s+cache:/m);
-    }
-    expect(ci.e2e).toContain('      npm_config_cache: /__w/_cache/npm\n');
+  it('caches npm on the runner\'s disk instead of through GitHub', () => {
+    for (const [id, job] of Object.entries(ci)) expect(job, id).not.toMatch(/^\s+cache:/m);
+    for (const id of ['e2e', 'lhci']) expect(ci[id], id).toContain('      npm_config_cache: /__w/_cache/npm\n');
   });
 
   it('gives static room for the slower Docker VM: 25 minutes, and Vitest a 20 s test timeout', () => {
