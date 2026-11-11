@@ -206,7 +206,7 @@ describe('the server-rendered preset view', () => {
 
   it('has the open table without JavaScript and no stray number for the truth audit', () => {
     expect(html).toContain('Controls need JavaScript.');
-    expect(html).toContain(`id="${ID}-table-open-caption"`);
+    expect(html).toContain(`id="${ID}-table-caption"`);
     const findings = auditHtml(`<!doctype html><html><body>${html}</body></html>`, {
       route: '/kitchen-sink/home',
       factIds: new Set(Object.keys(FACTS)),

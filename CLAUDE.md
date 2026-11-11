@@ -141,7 +141,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `LiveStateBody` | `LiveStateBody.tsx` | The body of a live Figure in each state of the state matrix. |
 | `UpdatedLabel`, `ProgressLine` | `LiveLabels.tsx` | When live data was updated, and how far a collecting test has got. |
 | `PhaseLabel`, `TestNote` | `PhaseLabel.tsx` | The one-sentence note on what the site is testing and which group the reader is in. |
-| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. A column format (`number`, `count`, `points`, `signedPoints`, `share` or `{ fixed: n }`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter, and `{ fixed: n }` prints exactly n decimals with trailing zeros kept (`formatNumber(v, n, { fixed: true })`, which also serves an axis). |
+| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. `mode="disclosure"` draws the table once: a `details` holding only its summary (`data-js-only`), then the table's body (`data-nojs-only`), open without JavaScript and shown with it only while the summary is open (`globals.css`; print shows it too). `mode="open"` is the bare table. A column format (`number`, `count`, `points`, `signedPoints`, `share` or `{ fixed: n }`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter, and `{ fixed: n }` prints exactly n decimals with trailing zeros kept (`formatNumber(v, n, { fixed: true })`, which also serves an axis). |
 | `IntervalGlyph` | `IntervalGlyph.tsx` | The signature mark: a bar with end caps is the interval, the dot is the estimate. 48 px wide before the name in the header; under 480 px the header uses `length={28}` so it stays on one row. |
 | `ProvenanceBadge`, `Provenance` | `ProvenanceBadge.tsx` | "Simulated", "Public data" or "Live from this site". |
 | `Fact` | `Fact.tsx` | A number from the facts data, as `<data data-fact>`. |
@@ -171,7 +171,8 @@ a page needs the smallest possible bundle it can also import a component's file 
   clamped, an unknown preset gives `default`. Writes use `history.replaceState`, debounced.
 - **Provenance badge** on every chart Figure, set from the data's origin, never hand-written.
   Diagram Figures (`kind: 'diagram'`) have no badge, controls or table.
-- **Table fallback** on every chart Figure, readable without JavaScript.
+- **Table fallback** on every chart Figure, readable without JavaScript. The HTML carries it once:
+  open without JavaScript, folded behind "Show the numbers as a table" with it.
 - **States.** Every Figure has a runtime state (`default`, `no-js`, `error`). A live Figure also
   has a phase, an amount of data and a freshness. The state matrix, with its order of precedence,
   is `src/lib/figure/states.ts`, and the kitchen sink shows every state. An empty body (a Figure

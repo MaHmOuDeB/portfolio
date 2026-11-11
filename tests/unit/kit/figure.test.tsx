@@ -138,17 +138,35 @@ describe('Figure, chart kind', () => {
     expect(text(quiet)).toBe('');
   });
 
-  it('gives the table twice: open without JavaScript, below "Controls need JavaScript.", and folded with it', () => {
+  it('draws the table once: open without JavaScript, below "Controls need JavaScript.", and folded with it', () => {
     const root = chart();
-    const [noScript] = nojs(root);
-    expect(noScript).toBeDefined();
-    expect(text(noScript!)).toContain('Controls need JavaScript.');
-    expect(byTag(noScript!, 'details')).toHaveLength(0);
-    expect(openTables(noScript!)).toHaveLength(1);
-    const folded = jsOnly(root).filter((n) => byTag(n, 'details').length > 0);
-    expect(folded).toHaveLength(1);
-    expect(text(byTag(folded[0]!, 'summary')[0]!)).toBe('Show the numbers as a table');
-    // The two copies of the table do not share element ids.
+    expect(byTag(root, 'table')).toHaveLength(1);
+    const [tables] = withAttr(root, 'data-figure-tables');
+    expect(withAttr(root, 'data-figure-tables')).toHaveLength(1);
+    // The container itself is shown in both views; its parts carry the JS flags.
+    expect(hasAttr(tables!, 'data-nojs-only') || hasAttr(tables!, 'data-js-only')).toBe(false);
+    const kids = (tables!.childNodes ?? []).filter((n) => n.nodeName !== '#text');
+    expect(kids.map((n) => n.nodeName)).toEqual(['p', 'details', 'div']);
+    const [note, toggle, body] = kids as [Node, Node, Node];
+    // Without JavaScript: the note, then the table's body, open.
+    expect(hasAttr(note, 'data-nojs-only')).toBe(true);
+    expect(text(note)).toBe('Controls need JavaScript.');
+    expect(hasAttr(body, 'data-nojs-only')).toBe(true);
+    expect(hasAttr(body, 'data-table-body')).toBe(true);
+    expect(openTables(body)).toHaveLength(1);
+    // With JavaScript: a details that holds only its summary and folds the body after it.
+    expect(hasAttr(toggle, 'data-js-only')).toBe(true);
+    expect(hasAttr(toggle, 'data-table-toggle')).toBe(true);
+    expect(attr(toggle, 'open')).toBeUndefined();
+    expect(byTag(toggle, 'table')).toHaveLength(0);
+    const [summary] = byTag(toggle, 'summary');
+    expect(text(summary!)).toBe('Show the numbers as a table');
+    expect(attr(summary!, 'aria-controls')).toBe(attr(body, 'id'));
+    expect(attr(body, 'id')).toBe('demo-table-body');
+    // The caption names the table, by the Figure's title.
+    const region = find(body, (n) => attr(n, 'role') === 'region')[0]!;
+    expect(attr(region, 'aria-labelledby')).toBe('demo-table-caption');
+    expect(text(byTag(body, 'caption')[0]!)).toBe('Smaller rises need many more visitors.');
     const ids = all(root).map((n) => attr(n, 'id')).filter(Boolean);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -157,7 +175,9 @@ describe('Figure, chart kind', () => {
     const root = chart({ controls: undefined });
     expect(groups(root)).toHaveLength(0);
     expect(text(root)).not.toContain('Controls need JavaScript.');
+    expect(nojs(root)).toHaveLength(1);
     expect(openTables(nojs(root)[0]!)).toHaveLength(1);
+    expect(byTag(root, 'table')).toHaveLength(1);
   });
 
   it('forced no-js shows the open table ungated, with no controls and no disclosure', () => {

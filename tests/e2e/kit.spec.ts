@@ -60,12 +60,20 @@ test.describe('kitchen sink', () => {
     await expect(badges).toHaveText(['Simulated', 'Public data', 'Live from this site']);
     await expect(page.locator('[data-specimen="callout--titled"]')).toBeVisible();
 
-    const folded = page.locator('[data-specimen="table--disclosure"] details');
+    // The folded table is drawn once: a details holding only its summary, then the table it shows.
+    const folded = page.locator('[data-specimen="table--disclosure"]');
+    await expect(folded.locator('table')).toHaveCount(1);
     await expect(folded.locator('table')).toBeHidden();
-    const summary = folded.locator('summary');
+    const summary = folded.locator('details > summary');
     expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await summary.click();
     await expect(folded.locator('table')).toBeVisible();
+    await expect(folded.getByRole('table')).toHaveAccessibleName('Views and conversions by group in a fictional run');
+    // It opens directly under its summary.
+    const toggle = (await summary.boundingBox())!;
+    expect(Math.abs((await folded.getByRole('region').boundingBox())!.y - (toggle.y + toggle.height))).toBeLessThan(1);
+    await summary.click();
+    await expect(folded.locator('table')).toBeHidden();
     await expect(page.locator('[data-specimen="table--open"] table')).toBeVisible();
     await expect(page.locator('[data-specimen="table--open"] td[data-derived="simulated"]')).toHaveCount(12);
 

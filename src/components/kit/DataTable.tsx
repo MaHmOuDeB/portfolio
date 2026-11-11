@@ -63,11 +63,16 @@ type Props = {
   id: string;
   caption: string;
   table: TableData;
-  /** `disclosure` folds the table into a <details>; `open` is the bare table. */
+  /**
+   * `open` is the bare table. `disclosure` draws the same table once, open without JavaScript and
+   * folded behind "Show the numbers as a table" with it (see DataTable).
+   */
   mode: 'disclosure' | 'open';
+  /** `disclosure` only: one line above the open table without JavaScript ("Controls need JavaScript."). */
+  noJsNote?: string;
 };
 
-function Table({ id, caption, table }: Omit<Props, 'mode'>) {
+function Table({ id, caption, table }: Omit<Props, 'mode' | 'noJsNote'>) {
   const cell = derivedAttr(table.refs);
   if (table.formats && table.formats.length !== table.columns.length) {
     throw new Error('a table needs one format per column');
@@ -113,17 +118,38 @@ function Table({ id, caption, table }: Omit<Props, 'mode'>) {
   );
 }
 
-export function DataTable({ id, caption, table, mode }: Props) {
+/**
+ * `disclosure` draws the table once, as two siblings: a details whose summary is the toggle
+ * ([data-js-only], so it exists only with JavaScript) and the table's body after it
+ * ([data-nojs-only]). Without JavaScript, and in an island that failed to load, the body is open and
+ * the toggle is gone; with JavaScript the body shows only while the details before it is open,
+ * directly under its summary (the unlayered rules in globals.css). The details holds no content of
+ * its own, so the one table serves both views and the HTML carries it once. The summary names the
+ * body it shows with aria-controls. The top margins collapse into the caller's, so the no-JS body
+ * sits 12 px down, or 8 px under the note.
+ */
+export function DataTable({ id, caption, table, mode, noJsNote }: Props) {
   if (mode === 'open') return <Table id={id} caption={caption} table={table} />;
+  const body = `${id}-body`;
   return (
-    <details id={id}>
-      <summary
-        className="flex min-h-(--size-target) cursor-pointer items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
-        data-touch-target=""
-      >
-        Show the numbers as a table
-      </summary>
-      <Table id={id} caption={caption} table={table} />
-    </details>
+    <>
+      {noJsNote ? (
+        <p data-nojs-only="" className="mt-3 text-sm">
+          {noJsNote}
+        </p>
+      ) : null}
+      <details id={id} data-js-only="" data-table-toggle="">
+        <summary
+          aria-controls={body}
+          className="flex min-h-(--size-target) cursor-pointer items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
+          data-touch-target=""
+        >
+          Show the numbers as a table
+        </summary>
+      </details>
+      <div id={body} data-nojs-only="" data-table-body="" className={noJsNote ? 'mt-2' : 'mt-3'}>
+        <Table id={id} caption={caption} table={table} />
+      </div>
+    </>
   );
 }

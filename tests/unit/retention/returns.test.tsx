@@ -201,14 +201,14 @@ describe('the table', () => {
     expect(t.refs).toEqual(['source:retail']);
   });
 
-  it('shows the current mode in the folded and the open table', () => {
+  it('shows the current mode in its one table', () => {
     // January 2011, the month of the reversal: printed by the table's count format, under source refs.
     const cell = (html: string) => [...html.matchAll(/<td[^>]*data-derived="source:retail"[^>]*data-num=""[^>]*>([^<]+)<\/td>/g)].map((m) => m[1]);
     expect(cell(RAW)).toContain('91,254');
     expect(cell(CLEAN)).not.toContain('91,254');
     expect(cell(CLEAN)).toContain('11,758');
-    // the folded table and the open no-JS table both hold the current mode
-    expect(cell(RAW).filter((v) => v === '91,254')).toHaveLength(2);
+    // one table holds the current mode, open without JavaScript and folded with it
+    expect(cell(RAW).filter((v) => v === '91,254')).toHaveLength(1);
   });
 });
 

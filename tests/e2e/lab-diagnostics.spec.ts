@@ -62,9 +62,9 @@ async function ready(page: Page, id: Id) {
 
 /** The rows of the Figure's visible table (the open one, the folded one once opened, or the fallback's). */
 async function tableRows(page: Page, id: Id): Promise<string[][]> {
-  const summary = figure(page, id).locator('[data-js-only][data-figure-tables] summary');
+  const summary = figure(page, id).locator('[data-figure-tables] [data-table-toggle] > summary');
   if ((await summary.count()) > 0 && (await summary.isVisible())) {
-    const details = figure(page, id).locator('[data-js-only][data-figure-tables] details');
+    const details = figure(page, id).locator('[data-figure-tables] [data-table-toggle]');
     if ((await details.getAttribute('open')) === null) await summary.click();
   }
   const table = figure(page, id).locator('[data-figure-tables]:visible table, [data-figure-fallback] table').first();

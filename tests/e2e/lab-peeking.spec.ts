@@ -82,7 +82,7 @@ async function tuple(page: Page): Promise<Tuple> {
     const chart = root.querySelector<HTMLElement>('[data-peek-chart]')!;
     const dot = [...root.querySelectorAll<SVGCircleElement>('circle[data-series="current"]')].find((c) => c.closest('svg[data-chart-frame]')!.checkVisibility())!;
     const line = root.querySelector<HTMLElement>('[data-peek-result]')!;
-    const table = [...root.querySelectorAll('[data-js-only][data-figure-tables] tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent ?? ''));
+    const table = [...root.querySelectorAll('[data-figure-tables] tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent ?? ''));
     const n = (el: Element, name: string) => Number(el.getAttribute(name));
     const checked = (name: string) => root.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? '';
     return {
@@ -347,7 +347,7 @@ test.describe('Peeking Figure', () => {
       new MutationObserver(() => {
         const chart = root.querySelector<HTMLElement>('[data-peek-chart]');
         const line = root.querySelector<HTMLElement>('[data-peek-result]');
-        const rows = root.querySelectorAll('[data-js-only][data-figure-tables] tbody tr');
+        const rows = root.querySelectorAll('[data-figure-tables] tbody tr');
         if (!chart || !line) return;
         w.checks++;
         const last = rows[rows.length - 1]?.children[0]?.textContent;

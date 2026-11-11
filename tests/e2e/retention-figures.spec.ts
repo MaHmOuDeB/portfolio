@@ -57,9 +57,9 @@ async function ready(page: Page) {
 
 /** The printed cells of one cohort's row in the Figure's table that is on screen (opened if folded). */
 async function tableRow(page: Page, label: string) {
-  const summary = figure(page).locator('[data-js-only][data-figure-tables] summary');
+  const summary = figure(page).locator('[data-figure-tables] [data-table-toggle] > summary');
   if ((await summary.count()) > 0 && (await summary.isVisible())) {
-    const details = figure(page).locator('[data-js-only][data-figure-tables] details');
+    const details = figure(page).locator('[data-figure-tables] [data-table-toggle]');
     if ((await details.getAttribute('open')) === null) await summary.click();
   }
   const row = figure(page).locator('[data-figure-tables]:visible tbody tr, [data-figure-fallback] tbody tr').filter({ has: page.getByRole('cell', { name: label, exact: true }) });

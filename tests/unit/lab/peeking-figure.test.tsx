@@ -203,9 +203,9 @@ describe('every one of the 200 states', () => {
         expect(c.ghost).toEqual(values.fix !== 'naive' && L > 1 ? naive.cumulativeByLook : null);
       }
     }
-    // the table is the model's, the same in the folded and the open copy
+    // the table is the model's, drawn once (open without JavaScript, folded with it)
     const cells = [...html.matchAll(/<td[^>]*data-num=""[^>]*>([^<]*)<\/td>/g)].map((m) => m[1]);
-    expect(cells.length).toBe(2 * view.table.rows.flat().filter((v) => typeof v === 'number').length);
+    expect(cells.length).toBe(view.table.rows.flat().filter((v) => typeof v === 'number').length);
     // the caption reads its values from the tuple's metadata
     const words = prose(caption(html));
     expect(words).toContain(`both groups convert at ${pct(selected.p, 0)}`);

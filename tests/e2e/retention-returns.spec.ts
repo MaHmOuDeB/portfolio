@@ -56,7 +56,7 @@ async function ready(page: Page) {
 
 /** Opens the folded table so its cells are visible. */
 async function openTable(page: Page) {
-  const summary = figure(page).locator('[data-js-only][data-figure-tables] summary');
+  const summary = figure(page).locator('[data-figure-tables] [data-table-toggle] > summary');
   if ((await summary.count()) > 0 && (await summary.isVisible())) await summary.click();
 }
 

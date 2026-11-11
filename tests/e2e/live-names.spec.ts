@@ -62,12 +62,12 @@ for (const [phase, phaseLabel] of Object.entries(phases)) {
             });
             await measure(`${id}: all captions`, async () => {
               const captions = await specimen.locator('table caption').allTextContents();
-              expect(captions.length, id).toBe(runtime === 'default' ? 2 : 1);
+              expect(captions.length, id).toBe(1);
               for (const caption of captions) expect(caption, id).toBe(figureName);
             });
             if (runtime === 'default') {
               await measure(`${id}: open disclosure`, async () => {
-                await specimen.locator('[data-js-only] details > summary').click();
+                await specimen.locator('[data-table-toggle] > summary').click();
               });
             }
             await measure(`${id}: table and region names/counts`, async () => {
@@ -101,7 +101,7 @@ test('live examples preserve aggregate specimen, figure and table counts', async
         for (const amount of Object.keys(amounts)) {
           for (const freshness of ['fresh', 'stale', 'paused']) {
             const id = `live--${phase}--${amount}--${freshness}--default`;
-            await page.locator(`[data-specimen="${id}"] [data-js-only] details > summary`).click();
+            await page.locator(`[data-specimen="${id}"] [data-table-toggle] > summary`).click();
           }
         }
       });
