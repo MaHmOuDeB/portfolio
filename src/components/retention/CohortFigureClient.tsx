@@ -8,8 +8,9 @@
 // - CohortControls is the control row, in a group named by the Figure's title, shared by the island
 //   and the preview: the cohort picker (the kit's StepNav, Previous and Next through the cohorts in
 //   order, with the chosen cohort named above it) and Reset. Eleven cohorts do not fit a segmented
-//   row at phone or tablet widths; Previous and Next do, at 320 px. InertCohortControls is the
-//   preview's copy, with handlers that do nothing.
+//   row at phone or tablet widths; Previous and Next do, at 320 px. Previous, Next and Reset have
+//   stable ids, so the loader hands focus from a preview control to the island's control with the
+//   same id. InertCohortControls is the preview's copy, with handlers that do nothing.
 //
 // `faultAfterChange` is a test seam: the chart throws on the first render after a cohort change, so
 // the error fallback can be tested in the browser. It is only ever forwarded here under its own
@@ -54,6 +55,7 @@ export function CohortControls({
         </p>
         <div className="mt-1">
           <StepNav
+            id={`${COHORTS_ID}-cohort`}
             label="Cohort"
             current={index + 1}
             total={rows.length}
@@ -65,7 +67,7 @@ export function CohortControls({
           />
         </div>
       </div>
-      <ResetButton onReset={onReset} />
+      <ResetButton id={`${COHORTS_ID}-reset`} onReset={onReset} />
     </div>
   );
 }

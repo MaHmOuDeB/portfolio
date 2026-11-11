@@ -302,6 +302,19 @@ describe('the cohort Figure', () => {
     }
   });
 
+  it('gives Previous, Next and Reset stable ids, so the loader hands a preview control’s focus to the island’s', () => {
+    const controls = renderToStaticMarkup(<InertCohortControls rows={COHORTS} cohort={DEFAULT_COHORT_MONTH} />);
+    const ids = [...controls.matchAll(/<button[^>]*\sid="([^"]+)"[^>]*>([^<]+)<\/button>/g)].map((m) => [m[2], m[1]]);
+    expect(ids).toEqual([
+      ['Previous', 'cohorts-cohort-previous'],
+      ['Next', 'cohorts-cohort-next'],
+      ['Reset', 'cohorts-reset'],
+    ]);
+    // each id once in the whole Figure, so the handoff finds exactly one control
+    const html = cohortView(DEFAULT_COHORT_MONTH);
+    for (const [, id] of ids) expect(html.match(new RegExp(` id="${id}"`, 'g'))).toHaveLength(1);
+  });
+
   it('the seam: the view throws only once a change has happened, and the server never sets it', () => {
     expect(() => cohortView('2010-02', { faultAfterChange: true })).not.toThrow();
     expect(() => cohortView('2010-02', { faultAfterChange: true, changed: true })).toThrow(/test seam/);

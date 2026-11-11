@@ -218,14 +218,35 @@ test.describe('Cohort Figure', () => {
     expect(clipped).toBe(false);
   });
 
-  test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {
-    await withoutIdle(page);
-    await page.goto(HOST);
-    await expect(island(page)).toHaveAttribute('data-island', 'idle');
-    await figure(page).getByRole('button', { name: 'Reset' }).focus();
-    await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await expect(figure(page).getByRole('button', { name: 'Reset' })).toBeFocused();
-  });
+  // The loader hands focus from a preview control to the island's control with the same id, so
+  // Previous, Next and Reset keep focus with no help from the island.
+  for (const name of ['Previous', 'Next', 'Reset'] as const) {
+    test(`keyboard: focus on the preview's ${name} moves to the island's ${name}, never resting on <body>`, async ({ page }) => {
+      await withoutIdle(page);
+      await page.goto(HOST);
+      await expect(island(page)).toHaveAttribute('data-island', 'idle');
+      // Count the frames in which focus sits on <body>, from the moment it first enters the page.
+      await page.evaluate(() => {
+        const w = window as unknown as { bodyFrames: number; watching: boolean };
+        w.bodyFrames = 0;
+        w.watching = false;
+        document.addEventListener('focusin', () => (w.watching = true), { once: true });
+        const tick = () => {
+          if (w.watching && document.activeElement === document.body) w.bodyFrames++;
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      const target = figure(page).getByRole('button', { name, exact: true });
+      await target.focus();
+      await expect(island(page)).toHaveAttribute('data-island', 'ready');
+      await expect(target).toBeFocused();
+      // the focused control is the island's own, not a leftover preview node
+      expect(await figure(page).locator('[data-cohort-controls]').count()).toBe(1);
+      await page.waitForTimeout(200);
+      expect(await page.evaluate(() => (window as unknown as { bodyFrames: number }).bodyFrames)).toBe(0);
+    });
+  }
 
   test('Reset restores January, clears only its own keys and keeps the returns key and the hash', async ({ page }) => {
     await page.goto(`${HOST}?${ID}.cohort=2010-05&returns.mode=raw#host-cohorts`);
