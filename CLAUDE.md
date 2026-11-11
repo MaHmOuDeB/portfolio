@@ -140,7 +140,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `LiveStateBody` | `LiveStateBody.tsx` | The body of a live Figure in each state of the state matrix. |
 | `UpdatedLabel`, `ProgressLine` | `LiveLabels.tsx` | When live data was updated, and how far a collecting test has got. |
 | `PhaseLabel`, `TestNote` | `PhaseLabel.tsx` | The one-sentence note on what the site is testing and which group the reader is in. |
-| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. A column format (`number`, `count`, `points`, `signedPoints` or `share`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter. |
+| `DataTable`, `TableData`, `ColumnFormat` | `DataTable.tsx` | The table fallback of every chart. A column format (`number`, `count`, `points`, `signedPoints`, `share` or `{ fixed: n }`) says how a number cell is written; `share` prints a raw fraction as a whole percent through the facts formatter, and `{ fixed: n }` prints exactly n decimals with trailing zeros kept (`formatNumber(v, n, { fixed: true })`, which also serves an axis). |
 | `IntervalGlyph` | `IntervalGlyph.tsx` | The signature mark: a bar with end caps is the interval, the dot is the estimate. 48 px wide before the name in the header; under 480 px the header uses `length={28}` so it stays on one row. |
 | `ProvenanceBadge`, `Provenance` | `ProvenanceBadge.tsx` | "Simulated", "Public data" or "Live from this site". |
 | `Fact` | `Fact.tsx` | A number from the facts data, as `<data data-fact>`. |

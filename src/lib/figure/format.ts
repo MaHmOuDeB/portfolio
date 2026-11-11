@@ -1,6 +1,7 @@
 // Number formatting for charts and tables: en-GB, U+2212 for minus, and a value that rounds to
-// zero (including -0) prints "0" with no sign. The fact formatter in src/lib/facts/format.ts
-// serves <Fact> values; this one serves the kit's computed numbers.
+// zero (including -0) prints with no sign: "0", or its zero decimals ("0.000") when the caller asked
+// for fixed decimals. The fact formatter in src/lib/facts/format.ts serves <Fact> values; this one
+// serves the kit's computed numbers.
 const MINUS = '−';
 
 // Fraction digits for an explicit `maxDigits`; with none, a value under 1 keeps three significant
@@ -16,11 +17,12 @@ function assertFinite(v: number): void {
   if (!Number.isFinite(v)) throw new TypeError(`expected a finite number, got ${String(v)}`);
 }
 
-// Sign and magnitude as printed. `sign` is '' when the printed digits are all zero.
-function signed(v: number, min: number, max: number | undefined, plus: boolean): string {
+// Sign and magnitude as printed. Printed digits that are all zero get no sign: a bare "0", or with
+// `keepZeroDigits` the digits themselves ("0.000"), so a fixed-decimals column keeps its decimals.
+function signed(v: number, min: number, max: number | undefined, plus: boolean, keepZeroDigits = false): string {
   assertFinite(v);
   const digits = digitsOf(Math.abs(v), min, max);
-  if (!/[1-9]/.test(digits)) return '0';
+  if (!/[1-9]/.test(digits)) return keepZeroDigits ? digits : '0';
   if (v < 0) return `${MINUS}${digits}`;
   return plus ? `+${digits}` : digits;
 }
@@ -29,9 +31,20 @@ function signed(v: number, min: number, max: number | undefined, plus: boolean):
  * "1,353", "−12.5", "0.004", "0". Trailing zeros are dropped. With `maxDigits`, at most that many
  * decimals; without it, two decimals from 1 up and three significant digits below 1, so only a
  * true zero (or -0) prints "0" and a small non-zero value never does.
+ *
+ * With `{ fixed: true }`, exactly `digits` decimals (a whole number from 0 to 20, else a RangeError)
+ * and trailing zeros are kept: 0.71 at three is "0.710", 1 at one is "1.0". A value that rounds to
+ * zero, and -0, print the zero digits without a sign ("0.000"); a negative one has U+2212. Rounding
+ * is half away from zero, as in every format here.
  */
-export function formatNumber(v: number, maxDigits?: number): string {
-  return signed(v, 0, maxDigits, false);
+export function formatNumber(v: number, maxDigits?: number): string;
+export function formatNumber(v: number, digits: number, o: { fixed?: boolean }): string;
+export function formatNumber(v: number, maxDigits?: number, o: { fixed?: boolean } = {}): string {
+  if (!o.fixed) return signed(v, 0, maxDigits, false);
+  if (maxDigits === undefined || !Number.isInteger(maxDigits) || maxDigits < 0 || maxDigits > 20) {
+    throw new RangeError(`fixed decimals must be a whole number from 0 to 20, got ${String(maxDigits)}`);
+  }
+  return signed(v, maxDigits, maxDigits, false, true);
 }
 
 /** "+5", "−0.4", "0": a signed difference with up to `maxDigits` decimals, trailing zeros dropped. */

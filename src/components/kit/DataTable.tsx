@@ -12,12 +12,18 @@ import { derivedAttr, type DerivedRef } from './Derived';
  * - `points`: one decimal at most, no sign.
  * - `signedPoints`: one decimal at most with "+" or U+2212, and a bare "0" for zero.
  * - `share`: a raw fraction written as a whole percent by the facts formatter (0.2345 is "23%").
+ * - `{ fixed: n }`: exactly n decimals, a whole number from 0 to 20 (a RangeError otherwise), with
+ *   trailing zeros kept, through formatNumber's fixed option: at three, 0.71 is "0.710" and 1 is
+ *   "1.000". No "+"; U+2212 for a negative; zero, -0 and a value that rounds to zero print the zero
+ *   digits without a sign ("0.000"). For a column whose values share one precision, such as scores.
  * A table with `rowDigits` prints the `points` and `signedPoints` cells of row r with exactly that
- * many decimals instead, so a row can follow the digits rule of the interval it belongs to.
+ * many decimals instead, so a row can follow the digits rule of the interval it belongs to. It never
+ * changes a `{ fixed: n }` column, which states its own decimals.
  */
-export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints' | 'share';
+export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints' | 'share' | { fixed: number };
 
 function formatCell(v: number, format: ColumnFormat, digits?: number): string {
+  if (typeof format === 'object') return formatNumber(v, format.fixed, { fixed: true });
   if (digits !== undefined && (format === 'points' || format === 'signedPoints')) {
     return format === 'points' ? formatNumber(v, digits) : formatSignedPoints(v, digits);
   }

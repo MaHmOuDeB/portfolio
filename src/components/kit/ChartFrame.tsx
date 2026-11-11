@@ -72,7 +72,11 @@ export type ChartFrameProps = {
   /** Drawn unstretched over the marks (dots keep their shape): x via pct(ctx.xFrac(v)), y in px. */
   overlays?: (ctx: PlotContext) => ReactNode;
   annotation?: (ctx: PlotContext) => Annotation;
-  /** Draw one layout only, whatever the viewport (kitchen sink and tests). Omit for responsive. */
+  /**
+   * Draw one layout only, whatever the viewport. A public prop, used in production: a Figure with its
+   * own narrow-width breakpoint (not sm) draws each layout itself and switches between them; the
+   * kitchen sink and tests use it too. Omit for the frame's own responsive switch at sm.
+   */
   layout?: Layout;
 };
 
