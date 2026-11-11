@@ -601,9 +601,9 @@ export function RetentionLimits(): ReactNode {
       'calibration',
       <>
         The scores rank customers but are not calibrated probabilities: in the tenth of customers with the lowest
-        gradient-boosting scores, it predicted <Derived value={lowest.predicted} unit="share" decimals={1} refs={['source:retention']} /> on
-        average and <Derived value={lowest.observed} unit="share" decimals={1} refs={['source:retention']} /> ordered
-        again.
+        scores, the gradient-boosting model predicted{' '}
+        <Derived value={lowest.predicted} unit="share" decimals={1} refs={['source:retention']} /> on average and{' '}
+        <Derived value={lowest.observed} unit="share" decimals={1} refs={['source:retention']} /> ordered again.
       </>,
     ],
     [

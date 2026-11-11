@@ -151,7 +151,8 @@ describe('periods, denominators and names', () => {
     expect(findings).toContain('Across the January to November 2010 cohorts, about 20% order again in the month after their first order, and about 18% in the twelfth month after it.');
     expect(findings).toContain('Champions are 23% of customers at the September 2011 cutoff and hold 71% of spend up to it, partly by construction.');
     expect(findings).toContain('Sized to detect a rise of 5 percentage points, a holdout test of all lapsed customers needs 1,353 per group and fits in one period');
-    expect(text(section(PAGE, 'limits'))).toContain('in the tenth of customers with the lowest gradient-boosting scores, it predicted 3.1%');
+    expect(text(section(PAGE, 'limits'))).toContain('The scores rank customers but are not calibrated probabilities: in the tenth of customers with the lowest scores, the gradient-boosting model predicted 3.1% on average and 8.7% ordered again.');
+    expect(text(section(PAGE, 'limits'))).not.toContain('it predicted');
     expect(text(section(PAGE, 'method'))).toContain('I worked in five steps; most have their own period and their own group of customers:');
     expect(text(section(PAGE, 'cohort-retention'))).toContain(
       'about 20% order again in the month after their first order and about 18% in the twelfth month after it.',
