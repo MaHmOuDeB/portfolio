@@ -11,6 +11,7 @@ import type { ScrollMomentProps } from '@/components/home/ScrollMoment';
 import type { Arm } from '@/experiment.values';
 import type { HomeModel } from '@/lib/home/model';
 import { ChartErrorShell } from './ChartErrorMoment';
+import { HomeFontPreload } from './FontPreload';
 import { hostNoteModel, hostScrollModel, scrollMomentProps } from './fixtures';
 
 /**
@@ -35,6 +36,7 @@ export function HostHome({
   const Shell = breakChart ? ChartErrorShell : undefined;
   return (
     <div data-host-home={arm} className="pb-section">
+      <HomeFontPreload />
       {renderedAt !== undefined && given === undefined ? (
         <HomeSectionsView model={note} renderedAt={renderedAt} Shell={Shell} />
       ) : (
