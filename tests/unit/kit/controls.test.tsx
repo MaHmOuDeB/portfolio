@@ -206,13 +206,25 @@ describe('Slider number input text', () => {
     expect(attr(input(root, 'range'), 'aria-valuetext')).toBe('17.2413793103448 percent');
     expect(attr(input(root, 'number'), 'step')).toBe(String(100 / 29));
     expect(text(find(root, (n) => hasAttr(n, 'data-slider-readout'))[0]!)).toBe('17.2% of baseline');
-    // Only the value attribute differs from the plain markup.
-    expect(html.replace('value="17.2"', 'value="17.2413793103448"')).toBe(rise());
+    // Only the value and the valid state differ from the plain markup.
+    expect(html.replace(' aria-invalid="false"', '').replace('value="17.2"', 'value="17.2413793103448"')).toBe(rise());
   });
 
   it('formats the snapped value, not the raw prop', () => {
     expect(numberValue(rise({ value: 999, numberText: (v) => v.toFixed(1) }))).toBe('86.2');
     expect(attr(input(looks({ value: 20.4, numberText: (v) => `${v}.0` }), 'number'), 'value')).toBe('20.0');
+  });
+
+  it('states the shown text valid: a rounded value is off the step grid, which browsers expose as invalid', () => {
+    const exactInput = (html: string) => input(parse(html), 'number');
+    expect(attr(exactInput(rise({ numberText: (v) => v.toFixed(1) })), 'aria-invalid')).toBe('false');
+    // The plain value, or a formatter that gives the plain value back, is on the grid: no attribute.
+    expect(hasAttr(exactInput(rise()), 'aria-invalid')).toBe(false);
+    expect(hasAttr(exactInput(rise({ numberText: String })), 'aria-invalid')).toBe(false);
+    expect(hasAttr(exactInput(rise({ numberText: () => '17,2' })), 'aria-invalid')).toBe(false);
+    expect(hasAttr(input(looks(), 'number'), 'aria-invalid')).toBe(false);
+    // The range input never carries it.
+    expect(hasAttr(input(parse(rise({ numberText: (v) => v.toFixed(1) })), 'range'), 'aria-invalid')).toBe(false);
   });
 
   it('falls back to the plain value when numberText gives text a number input cannot hold', () => {

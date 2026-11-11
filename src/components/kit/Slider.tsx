@@ -31,6 +31,14 @@ export type SliderProps = {
    * typed is still read as a number. It must be text a number input holds (digits, one ".", a
    * leading "-", an exponent: never "1,353", "−5" or "17%"); anything else shows the plain value.
    * Default: the plain value, `String(value)`.
+   *
+   * A rounded text is off the step grid, which the browser counts as a step mismatch and exposes to
+   * screen readers as invalid; while it is shown, the input states aria-invalid="false" (a typed
+   * entry keeps the browser's own state). The arrow keys step from the value, not the text, but the
+   * spin buttons are the browser's own: their first click toward the value (up from "17.2", which is
+   * below 17.24, or down from a text above the value) lands on the value itself, so nothing moves
+   * and the input shows the plain digits until it loses focus; the next click steps. A click away
+   * from the value steps at once.
    */
   numberText?: (value: number) => string;
   /** Accessible name of the number input; default `${label}, exact value`. */
@@ -70,7 +78,11 @@ export function Slider({
   const shown = formatted !== undefined && NUMBER_TEXT.test(formatted) ? formatted : String(current);
   // The number input's text while it is being edited; null shows the current value.
   const [draft, setDraft] = useState<string | null>(null);
+  // A shown text other than the plain value is a rounding of a value on the grid: valid.
+  const formattedShown = draft === null && shown !== String(current);
   const endDrag = useRef<(() => void) | null>(null);
+  // The value the last arrow key in the number input stepped to, committed when the key is up.
+  const stepped = useRef<number | null>(null);
   useEffect(() => () => endDrag.current?.(), []);
 
   const share = max > min ? (current - min) / (max - min) : 0;
@@ -152,6 +164,7 @@ export function Slider({
           max={max}
           step={step}
           value={draft ?? shown}
+          aria-invalid={formattedShown ? false : undefined}
           disabled={disabled}
           className="min-h-(--size-target) w-20 rounded-md border border-muted bg-bg px-2 text-sm text-ink disabled:text-muted"
           onChange={(event) => {
@@ -168,7 +181,8 @@ export function Slider({
             if (event.key === 'Enter') applyDraft();
             const dir = NUMBER_STEP_KEYS.get(event.key);
             // A step that is not positive and finite is left to the browser.
-            if (!dir || event.altKey || event.ctrlKey || event.metaKey || !(step > 0 && Number.isFinite(step))) return;
+            // A key that is part of an IME composition chooses a candidate, so it is never taken over.
+            if (!dir || event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey || !(step > 0 && Number.isFinite(step))) return;
             // The arrow keys step on the grid here, not natively: from a shown text such as "17.2",
             // or a value the browser rounds differently, the native first step only lands back on
             // the current value. A typed entry steps from what was typed, as natively.
@@ -176,10 +190,15 @@ export function Slider({
             const typed = draft === null || draft.trim() === '' ? Number.NaN : Number(draft);
             const next = stepFrom(Number.isNaN(typed) ? current : typed, dir, min, max, step);
             setDraft(null);
+            stepped.current = next;
             if (next !== current) onChange(next);
           }}
           onKeyUp={(event) => {
-            if (NUMBER_STEP_KEYS.has(event.key)) onCommit?.(current);
+            if (!NUMBER_STEP_KEYS.has(event.key) || event.nativeEvent.isComposing) return;
+            // The value just stepped to, not the last render's, so a caller that defers its value
+            // still commits what the key chose.
+            onCommit?.(stepped.current ?? current);
+            stepped.current = null;
           }}
         />
         {readout ? (

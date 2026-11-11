@@ -399,6 +399,47 @@ test.describe('kitchen sink slider steps', () => {
     await page.goto('/kitchen-sink/slider-steps');
     await expect(specimen(page).locator('[data-ready]')).toHaveCount(1);
   };
+  // The browser's own constraint state of the number input: the shown "17.2" is off the step grid.
+  const stepMismatch = (page: Page) => exact(page).evaluate((el) => (el as HTMLInputElement).validity.stepMismatch);
+  // The invalid state in Chromium's accessibility tree, the one a screen reader reads.
+  const chromiumInvalid = async (page: Page) => {
+    const cdp = await page.context().newCDPSession(page);
+    const { nodes } = (await cdp.send('Accessibility.getFullAXTree')) as {
+      nodes: { role?: { value?: string }; name?: { value?: string }; properties?: { name: string; value: { value?: unknown } }[] }[];
+    };
+    const node = nodes.find((n) => n.role?.value === 'spinbutton' && n.name?.value === 'Rise to detect, percent of the baseline');
+    await cdp.detach();
+    return node?.properties?.find((p) => p.name === 'invalid')?.value.value;
+  };
+
+  test('a formatted number is stated valid to assistive technology, though off the step grid', async ({ page, browserName }) => {
+    await open(page);
+    await expect(exact(page)).toHaveValue('17.2');
+    expect(await stepMismatch(page)).toBe(true);
+    await expect(exact(page)).toHaveAttribute('aria-invalid', 'false');
+    if (browserName === 'chromium') await expect.poll(() => chromiumInvalid(page)).toBe('false');
+    // While an entry is typed, the browser's own state stands: an off-grid entry is snapped on blur.
+    await exact(page).fill('17.24');
+    await expect(exact(page)).not.toHaveAttribute('aria-invalid');
+    if (browserName === 'chromium') await expect.poll(() => chromiumInvalid(page)).toBe('true');
+    await exact(page).blur();
+    await expect(exact(page)).toHaveValue('17.2');
+    await expect(exact(page)).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  test('an arrow key that is part of an IME composition does not step', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // A dispatched event has no default action, so only the Slider's own handler could step here.
+    await exact(page).evaluate((el) => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', isComposing: true, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', isComposing: true, bubbles: true, cancelable: true }));
+    });
+    await exact(page).evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })));
+    // The uncomposed key steps (the probe that the handler is live), the composed one did not.
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(released(page)).toHaveText('Not released yet.');
+  });
 
   test('ArrowUp in the number input moves one whole point at once and shows the formatted value', async ({ page }) => {
     await open(page);

@@ -24,8 +24,10 @@ const validStep = (step: number) => step > 0 && Number.isFinite(step);
  * True when `v` is a value of snapToStep's grid, to the digits a browser keeps. A number input
  * prints min + k * step to about 15 significant digits, which can differ from snapToStep's own
  * rounding in the last digit, so an exact comparison would refuse a value the input stepped to
- * itself. The tolerance (a billionth of a step, plus the last digits of `v`) stays far below half a
- * step. With a step that is not positive and finite, any value in [min, max] is on the grid.
+ * itself. The tolerance is a billionth of a step plus a trillionth of |v|, so it stays far below half
+ * a step on any grid with fewer than about 10^11 steps between zero and `v`; the caller uses the
+ * snapped value anyway. With a step that is not positive and finite, any value in [min, max] is on
+ * the grid.
  */
 export function isOnStepGrid(v: number, min: number, max: number, step: number): boolean {
   if (!Number.isFinite(v)) return false;

@@ -104,8 +104,8 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 - Prose lives in MDX under `content/`.
 - Negative numbers use the true minus sign (U+2212). Zero has no sign: it prints "0", or "0.0"
   and so on where a fixed number of decimals is asked for, never "+0" or "-0". Every "±" names its
-  level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm`
-  and 24-hour `hh:mm`.
+  level. Timestamps render in `Europe/Berlin` inside `<time dateTime>` as `dd.mm` and 24-hour
+  `hh:mm`.
 - A date that needs its year (a legal notice's version date) prints `dd.mm.yyyy` inside
   `<time dateTime>`; live timestamps stay `dd.mm` and `hh:mm`.
 
