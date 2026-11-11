@@ -28,6 +28,8 @@ async function openMenu(page: Page): Promise<boolean> {
   if (!await menu.evaluate((el) => (el as HTMLDetailsElement).open)) {
     await menu.locator(':scope > summary').click();
   }
+  // The Menu-open scan must scan an open Menu.
+  await expect(menu).toHaveAttribute('open', '');
   return true;
 }
 
@@ -41,8 +43,10 @@ for (const route of routes) {
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('html')).toHaveAttribute('lang', /\S+/);
       for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+      // Only violations keep every node; options() replaces the options, so it comes before withTags().
       const scan = () => new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+        .options({ resultTypes: ['violations'] })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
       const scans = [{ state: 'default', result: await scan() }];
       if (await openMenu(page)) scans.push({ state: 'menu-open', result: await scan() });
       await testInfo.attach('axe-findings', { body: JSON.stringify(scans, null, 2), contentType: 'application/json' });

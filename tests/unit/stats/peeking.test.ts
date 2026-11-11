@@ -190,19 +190,29 @@ describe('simulatePeeking output', () => {
   });
 
   // Best of three timed runs against one generous limit (600 ms; about 60 to 115 ms is typical,
-  // with or without coverage instrumentation). The minimum ignores scheduling noise from other
-  // test files running in parallel, so `npm run test:cov` is not flaky, and the limit still
-  // catches an order-of-magnitude slowdown of the hot loop.
+  // with or without coverage instrumentation). Each run is timed in this thread's CPU time (user
+  // plus system), not wall-clock time: on a loaded CI host the wall-clock best of three reached 805
+  // to 1059 ms with the code unchanged, because time spent waiting for a CPU counts on the wall
+  // clock. CPU time counts only the hot loop's own work, so it stays a measure of its cost when the
+  // machine is busy, and the limit still catches an order-of-magnitude slowdown. The minimum still
+  // smooths noise such as garbage collection, and the reading must be above zero, so a broken
+  // measurement cannot pass.
   describe.each(['naive', 'obf', 'cs'] as PeekMethod[])('speed (%s)', (method) => {
     it('runs 1,000 runs of 20 looks quickly', () => {
       simulatePeeking({ seed: 9, runs: 50, looks: 20, nPerLook: 100, p: 0.35, method });
       let best = Number.POSITIVE_INFINITY;
+      let wall = Number.POSITIVE_INFINITY;
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const t0 = performance.now();
+        const w0 = performance.now();
+        const c0 = process.threadCpuUsage();
         simulatePeeking({ seed: 3, runs: 1000, looks: 20, nPerLook: 100, p: 0.35, method });
-        best = Math.min(best, performance.now() - t0);
+        const { user, system } = process.threadCpuUsage(c0);
+        best = Math.min(best, (user + system) / 1000);
+        wall = Math.min(wall, performance.now() - w0);
       }
-      expect(best).toBeLessThan(600);
+      const reading = `best of 3: ${best.toFixed(1)} ms CPU, ${wall.toFixed(1)} ms wall`;
+      expect(best, reading).toBeGreaterThan(0);
+      expect(best, reading).toBeLessThan(600);
     });
   });
 });
