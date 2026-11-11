@@ -197,8 +197,9 @@ describe('the cohort Figure', () => {
     expect(hooked).toEqual([]);
   });
 
-  it('prints mark-layer coordinates with at most two decimals, each within half a hundredth of the exact position', () => {
-    // The mark layer is 1000 units across the plot; at most 0.005 units off is far below a pixel.
+  it('prints mark-layer coordinates with at most four decimals, each within half a ten-thousandth of the exact position', () => {
+    // The mark layer is 1000 units across the plot. Four decimals is the coarsest rounding that drew
+    // the same pixels as the exact positions at every tested width in Chromium and WebKit.
     const heat = mode(SERVER, 'heatmap').body;
     const layer = heat.slice(heat.indexOf('data-mark-layer'));
     const marks = tags(layer.slice(0, layer.indexOf('</svg>')), /<rect[^>]*data-(?:cell|selected)=[^>]*>/g);
@@ -208,20 +209,20 @@ describe('the cohort Figure', () => {
       const m = (i % 12) + 1;
       for (const [name, exact] of [['x', (m - 1) * unit], ['width', unit]] as const) {
         const printed = attr(t, name)!;
-        expect(printed, `${name} of cell ${i}`).toMatch(/^\d+(\.\d{1,2})?$/);
-        expect(Math.abs(Number(printed) - exact)).toBeLessThanOrEqual(0.005 + 1e-9);
+        expect(printed, `${name} of cell ${i}`).toMatch(/^\d+(\.\d{1,4})?$/);
+        expect(Math.abs(Number(printed) - exact)).toBeLessThanOrEqual(0.00005 + 1e-9);
       }
     });
     const outline = marks.at(-1)!;
     expect(attr(outline, 'x')).toBe('0');
-    expect(attr(outline, 'width')).toMatch(/^\d+(\.\d{1,2})?$/);
-    expect(Math.abs(Number(attr(outline, 'width')) - 12 * unit)).toBeLessThanOrEqual(0.005 + 1e-9);
+    expect(attr(outline, 'width')).toMatch(/^\d+(\.\d{1,4})?$/);
+    expect(Math.abs(Number(attr(outline, 'width')) - 12 * unit)).toBeLessThanOrEqual(0.00005 + 1e-9);
     const points = attr(tags(mode(SERVER, 'line').body, /<polyline[^>]*>/g)[0]!, 'points')!.split(' ');
     expect(points).toHaveLength(12);
     points.forEach((p, i) => {
       const [x, y] = p.split(',');
-      expect(x, `point ${i}`).toMatch(/^\d+(\.\d{1,2})?$/);
-      expect(Math.abs(Number(x) - (i * 1000) / 11)).toBeLessThanOrEqual(0.005 + 1e-9);
+      expect(x, `point ${i}`).toMatch(/^\d+(\.\d{1,4})?$/);
+      expect(Math.abs(Number(x) - (i * 1000) / 11)).toBeLessThanOrEqual(0.00005 + 1e-9);
       expect(y).toMatch(/^\d+\.5$/);
     });
   });

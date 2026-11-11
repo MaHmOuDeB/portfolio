@@ -16,8 +16,9 @@
 //   line and the cohort names.
 // - Page weight: the heatmap's cells and printed values are in cohort order, then month order, so a
 //   cell pairs with its value by position and neither repeats the cohort and month as attributes.
-//   Mark-layer x positions are printed to MARK_DECIMALS places (the layer is 1000 units across the
-//   plot, so the rounding is far below a pixel); the drawn pixels are unchanged.
+//   Mark-layer x positions are printed to MARK_DECIMALS places of the 1000-unit layer: the coarsest
+//   rounding that drew the same pixels as the exact positions at every tested width, in Chromium and
+//   WebKit (two and three places moved anti-aliased edges).
 import type { ReactNode } from 'react';
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
 import type { TableData } from '@/components/kit/DataTable';
@@ -57,8 +58,8 @@ const LATER_END = MONTHS.length + 0.5;
 const ROW_PX = 26;
 const LINE_HEIGHT = 220;
 /** Decimals of a mark-layer x position or width as printed. */
-const MARK_DECIMALS = 2;
-/** A mark-layer x position or width, rounded for print: 70.18, never 70.17543859649122. */
+const MARK_DECIMALS = 4;
+/** A mark-layer x position or width, rounded for print: 70.1754, never 70.17543859649122. */
 const units = (v: number) => Number(v.toFixed(MARK_DECIMALS));
 const SELECTED = 'Selected';
 const X_LABEL = 'Months after the first order';
