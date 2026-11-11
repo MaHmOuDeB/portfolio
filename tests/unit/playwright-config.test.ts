@@ -119,6 +119,27 @@ describe('playwright.config.ts web server', () => {
   });
 });
 
+describe('playwright.config.ts screenshots', () => {
+  async function screenshotOptions(ci: string | undefined) {
+    vi.resetModules();
+    vi.stubEnv('CI', ci);
+    return (await import('../../playwright.config.ts')).default.expect?.toHaveScreenshot;
+  }
+
+  it('gives a capture 15 s in CI and keeps the default timeout locally', async () => {
+    expect(await screenshotOptions('true')).toHaveProperty('timeout', 15_000);
+    const local = await screenshotOptions(undefined);
+    expect(local).toBeDefined();
+    expect(local).not.toHaveProperty('timeout');
+  });
+
+  it('compares the same way in CI and locally', async () => {
+    const shared = { maxDiffPixelRatio: 0.001, animations: 'disabled', caret: 'hide' };
+    expect(await screenshotOptions('true')).toEqual({ ...shared, timeout: 15_000 });
+    expect(await screenshotOptions(undefined)).toEqual(shared);
+  });
+});
+
 describe('Playwright test discovery', () => {
   it(
     'without the flag no Firefox project exists, and the flag adds nothing but Firefox tests',
