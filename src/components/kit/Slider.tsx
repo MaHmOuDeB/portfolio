@@ -81,7 +81,9 @@ export function Slider({
   // A shown text other than the plain value is a rounding of a value on the grid: valid.
   const formattedShown = draft === null && shown !== String(current);
   const endDrag = useRef<(() => void) | null>(null);
-  // The value the last arrow key in the number input stepped to, committed when the key is up.
+  // The value the last arrow key in the number input stepped to, committed when the key is up. It is
+  // forgotten whenever the step can end without that key-up (focus leaves, a composition starts, or
+  // the next arrow key-down is not taken over), so a later key-up never commits an old value.
   const stepped = useRef<number | null>(null);
   useEffect(() => () => endDrag.current?.(), []);
 
@@ -176,10 +178,17 @@ export function Slider({
             const next = snap(typed);
             if (next !== current) onChange(next);
           }}
-          onBlur={applyDraft}
+          onBlur={() => {
+            stepped.current = null;
+            applyDraft();
+          }}
+          onCompositionStart={() => {
+            stepped.current = null;
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') applyDraft();
             const dir = NUMBER_STEP_KEYS.get(event.key);
+            if (dir) stepped.current = null;
             // A step that is not positive and finite is left to the browser.
             // A key that is part of an IME composition chooses a candidate, so it is never taken over.
             if (!dir || event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey || !(step > 0 && Number.isFinite(step))) return;

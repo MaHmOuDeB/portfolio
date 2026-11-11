@@ -463,6 +463,35 @@ test.describe('kitchen sink slider steps', () => {
     await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
   });
 
+  test('an arrow step whose key-up was lost is forgotten when focus leaves, so a later key-up commits the value', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // Hold ArrowUp in the number input: it steps to 20.7 and waits for the key-up to commit.
+    await page.keyboard.down('ArrowUp');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    // Focus leaves by pointer while the key is held, so the key-up lands elsewhere.
+    await page.locator('h1').click();
+    await page.keyboard.up('ArrowUp');
+    await expect(exact(page)).not.toBeFocused();
+    await expect(released(page)).toHaveText('Not released yet.');
+    // The range input moves the value on and commits it.
+    await range(page).focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+    // A stray arrow key-up in the number input (its key-down not taken over) commits the value it
+    // shows, never the step held before focus left.
+    await exact(page).focus();
+    await exact(page).evaluate(async (el) => {
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+      // Let any commit it caused render before the check.
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    });
+    await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
+    await expect(readout(page)).toHaveText('13.8% of the baseline');
+  });
+
   test('a grid value typed with every digit a browser prints updates live, before blur', async ({ page }) => {
     await open(page);
     // min + 5 steps to full double precision: off snapToStep's own rounding in the last digits.
