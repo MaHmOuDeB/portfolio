@@ -117,11 +117,18 @@ test.describe('the Retention page', () => {
   });
 
   test('no section moves when the islands load', async ({ page }) => {
-    // Hold the idle trigger, measure the server previews, then let the islands load.
+    // Hold the idle trigger, measure the server previews, then let the islands load. The islands ask
+    // for idle time only once they have hydrated, which on a loaded machine can be after the release,
+    // so a request that comes after it runs at once instead of waiting forever.
     await page.addInitScript(() => {
       const held: IdleRequestCallback[] = [];
-      (window as unknown as { releaseIdle: () => void }).releaseIdle = () => held.splice(0).forEach((cb) => cb({ didTimeout: false, timeRemaining: () => 50 }));
-      window.requestIdleCallback = (cb) => (held.push(cb), held.length);
+      let released = false;
+      const run = (cb: IdleRequestCallback) => cb({ didTimeout: false, timeRemaining: () => 50 });
+      (window as unknown as { releaseIdle: () => void }).releaseIdle = () => {
+        released = true;
+        held.splice(0).forEach(run);
+      };
+      window.requestIdleCallback = (cb) => (released ? (setTimeout(() => run(cb), 0), 0) : (held.push(cb), held.length));
       window.cancelIdleCallback = () => {};
     });
     await page.goto(ROUTE);
