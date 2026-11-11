@@ -118,7 +118,7 @@ describe('the CI workflow', () => {
   it('pins every action by a full commit SHA', () => {
     const uses = [...CI.matchAll(/^\s*(?:- )?uses: (\S+)/gm)].map((m) => m[1]!);
     expect(uses.length).toBeGreaterThan(10);
-    for (const use of uses) expect(use, use).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+    for (const use of uses) expect(use, use).toMatch(/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)?@[0-9a-f]{40}$/);
   });
 });
 
