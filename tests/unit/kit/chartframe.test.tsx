@@ -224,34 +224,52 @@ describe('ChartFrame', () => {
         label: 'Count',
         refs: ['simulated'],
       };
-      // Long labels close to both ends: 500,000 at 5% and 9,500,000 at 95% of the plot.
+      // Long labels close to both ends: 600,000 at 6% and 9,400,000 at 94% of the plot.
       const WIDE_LABELS: Partial<ChartFrameProps> = {
-        x: { domain: [0, 10_000_000], ticks: { narrow: [500_000, 9_500_000], wide: [500_000, 9_500_000] }, format: (v) => formatNumber(v, 0), label: 'Visitors', refs: ['simulated'] },
+        x: { domain: [0, 10_000_000], ticks: { narrow: [600_000, 9_400_000], wide: [600_000, 9_400_000] }, format: (v) => formatNumber(v, 0), label: 'Visitors', refs: ['simulated'] },
         y: Y,
         annotation: undefined,
       };
-      const left = Math.ceil(1 * 8.4) + 8;
-      // The narrowest column in which the centred label stays inside the frame: its half width
-      // (8.4 px a character) past the gutter, spread over the share of the plot on its side.
-      const need = (chars: number, side: number, room: number) => left + 0 + Math.ceil(((chars * 8.4) / 2 - side) / room);
 
-      it('below the column width where a centred label would cross the frame edge, anchors it at its tick, away from the edge', () => {
+      it('below the column width where a centred label would come within 4 px of the frame edge, anchors it at its tick, away from the edge', () => {
+        // Worked by hand, at 8.4 px a character. The gutter is 17 px (one digit and the 8 px gap) and
+        // there is no right margin.
+        // "600,000": half of 58.8 px, plus the 4 px gap, is 33.4 px left of its tick; 17 px of that is
+        // gutter, so the plot must give 16.4 px in its first 6%: 274 px of plot, a 291 px column.
+        // "9,400,000": half of 75.6 px, plus the gap, is 41.8 px in the last 6%: 697 px, a 714 px column.
         const [narrow, wide] = styles(WIDE_LABELS);
         for (const [rules, layout] of [[narrow, 'narrow'], [wide, 'wide']] as const) {
           expect(rules).toBe(
-            `@container (width < ${need(7, left, 0.05)}px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="first"]{text-anchor:start}}` +
-              `@container (width < ${need(9, 0, 1 - 0.95)}px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="last"]{text-anchor:end}}`,
+            `@container (width < 291px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="first"]{text-anchor:start}}` +
+              `@container (width < 714px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="last"]{text-anchor:end}}`,
           );
         }
         const xs = xTicks(WIDE_LABELS);
         expect(xs.map((t) => [text(t), attr(t, 'text-anchor'), attr(t, 'data-tick-edge')])).toEqual([
-          ['500,000', 'middle', 'first'],
-          ['9,500,000', 'middle', 'last'],
+          ['600,000', 'middle', 'first'],
+          ['9,400,000', 'middle', 'last'],
+        ]);
+      });
+
+      it('keeps the gap for a label whose estimate just fits its gutter: a "%" is wider than the digit it is counted as', () => {
+        // "300%" is counted as 33.6 px, so its half, 16.8 px, would fit the 17 px gutter; with the
+        // 4 px gap it needs 3.8 px in the first 30% of the plot: 13 px, a 30 px column.
+        const percent: Partial<ChartFrameProps> = {
+          x: { domain: [0, 1000], ticks: { narrow: [300, 1000], wide: [300, 1000] }, format: (v) => `${formatNumber(v, 0)}%`, label: 'Share', refs: ['simulated'] },
+          y: Y,
+          annotation: undefined,
+        };
+        expect(styles(percent)[1]).toBe(
+          '@container (width < 30px){[data-chart="fixture"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}',
+        );
+        expect(xTicks(percent).map((t) => [text(t), attr(t, 'text-anchor'), attr(t, 'data-tick-edge')])).toEqual([
+          ['300%', 'middle', 'first'],
+          ['1,000%', 'end', undefined],
         ]);
       });
 
       it('needs no rule where the centred label always fits in the gutter', () => {
-        // "0.1" is 12.6 px either side of its tick; the y gutter of "+40" is 34 px wide.
+        // "0.1" is 12.6 px either side of its tick, 16.6 px with the gap; the y gutter of "+40" is 34 px wide.
         const xs = xTicks({ ...LOG, y: FIXTURE.y });
         expect(attr(xs[0]!, 'data-tick-edge')).toBeUndefined();
         expect(styles({ ...LOG, y: FIXTURE.y }).join('')).not.toContain('data-tick-edge="first"');

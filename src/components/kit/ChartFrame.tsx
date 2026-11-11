@@ -19,8 +19,8 @@
 //
 // An x tick label is centred on its tick; only a tick on an end of the domain is anchored at its
 // start or end. The outermost labels are guarded the same way as the annotation: below the column
-// width where a centred label would pass the frame's edge, a container query anchors it at its tick,
-// on the side away from that edge, so it stays inside the plot and its margin.
+// width where a centred label would come within a small gap of the frame's edge, a container query
+// anchors it at its tick, on the side away from that edge, so it stays inside the plot and its margin.
 import type { ReactNode } from 'react';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
 import { derivedAttr, type DerivedRef } from './Derived';
@@ -95,6 +95,11 @@ const MARGIN_GAP = 8;
 /** Semibold text-sm (15 px) in Inter: a conservative width per character, and the gap kept clear at the plot edge. */
 const NOTE_LETTER_PX = 7.9;
 const NOTE_EDGE_GAP = 8;
+/**
+ * Kept clear between a centred outermost x tick label and the frame's edge. It also covers the width
+ * estimate, which is short for some characters: "%" is about 12.8 px wide, not a digit's 8.4.
+ */
+const TICK_EDGE_GAP = 4;
 /** The narrow layout stacks "no difference" on two lines to keep the plot wide. */
 const NARROW_ZERO_LINE = 8;
 
@@ -167,11 +172,11 @@ function xAnchor(frac: number): 'start' | 'middle' | 'end' {
 
 /**
  * The narrowest container, in px, in which a label centred on a tick stays inside the frame: its
- * estimated half width past the margin on its side must fit in the share of the plot on that side of
- * the tick. 0 when it always fits.
+ * estimated half width and the edge gap, past the margin on its side, must fit in the share of the
+ * plot on that side of the tick. 0 when it always fits.
  */
 function tickEdgeMinWidth(label: string, room: number, margin: number, left: number, right: number): number {
-  const over = (label.length * DIGIT_PX) / 2 - margin;
+  const over = (label.length * DIGIT_PX) / 2 + TICK_EDGE_GAP - margin;
   return over > 0 ? left + right + Math.ceil(over / room) : 0;
 }
 
