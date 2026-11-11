@@ -7,6 +7,10 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.{ts,tsx}'],
     passWithNoTests: false,
+    // 20 s, not Vitest's 5 s: on a loaded machine (CI's self-hosted runners under their CPU cap, or a
+    // Mac running several checks at once) the property tests in experiment/snapshot.test.ts took up
+    // to 6 s, against about 1 s on an idle hosted runner. A hung test still fails, just later.
+    testTimeout: 20_000,
     environment: 'node',
     globals: true,
     reporters: ['default', 'json'],

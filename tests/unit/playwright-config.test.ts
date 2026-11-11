@@ -104,6 +104,21 @@ describe('playwright.config.ts browser projects', () => {
   });
 });
 
+describe('playwright.config.ts web server', () => {
+  async function serverTimeout(ci: string | undefined): Promise<number | undefined> {
+    vi.resetModules();
+    vi.stubEnv('CI', ci);
+    const servers = (await import('../../playwright.config.ts')).default.webServer;
+    const site = (Array.isArray(servers) ? servers : [servers]).find((s) => s?.command?.includes('npm run build'));
+    return site?.timeout;
+  }
+
+  it('gives the build and start 10 minutes in CI and 3 locally', async () => {
+    expect(await serverTimeout('true')).toBe(600_000);
+    expect(await serverTimeout(undefined)).toBe(180_000);
+  });
+});
+
 describe('Playwright test discovery', () => {
   it(
     'without the flag no Firefox project exists, and the flag adds nothing but Firefox tests',

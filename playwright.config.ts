@@ -62,7 +62,11 @@ export default defineConfig({
       command: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/fake-upstash.ts --wait ${E2E_FAKE_UPSTASH_PORT} && npm run build && npx next start -p ${PORT}`,
       url: `http://localhost:${PORT}`,
       reuseExistingServer: false,
-      timeout: 180_000,
+      // The build happens here, so this covers `npm run build` plus `next start`. 3 minutes locally;
+      // 10 in CI, where the self-hosted runner's capped, shared Docker VM needed more than 3 while
+      // other jobs ran (the same build took 24 s on an idle runner). A hung build still fails, and
+      // well inside the job's own limit.
+      timeout: process.env.CI ? 600_000 : 180_000,
       // The only build that includes the dev-only kitchen sink. The production build never does.
       // A throwaway owner token, so the exclusion flow can be exercised end to end. Writes go to the
       // loopback fake only (EXPERIMENT_FAKE_STORE outside production).

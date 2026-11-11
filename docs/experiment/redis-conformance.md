@@ -21,14 +21,15 @@ cases, the test injects errors at the Redis call boundary inside the script.
 Wire a disposable Redis service into CI in a separate workflow change. The snippet below is ready
 to apply and changes nothing else. It has not run in CI yet: the first run is its test, so check
 that the log reports the suite's tests as passed and not skipped. The `static` job gets a service
-container (so the server is exactly 7.2) and one step; the runner only needs the client tool.
+container (so the server is exactly 7.2) and one step; the runner only needs the client tool. The
+service port is published on loopback only, so it is never reachable from the local network.
 
 ```yaml
   static:
     services:
       redis:
         image: redis:7.2
-        ports: ['16389:6379']
+        ports: ['127.0.0.1:16389:6379']
         options: >-
           --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 15
     steps:
