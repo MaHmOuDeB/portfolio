@@ -12,8 +12,9 @@ import type { Page, Request } from '@playwright/test';
 // when its path is in the chunk list of an import row of a prefetch response for another pathname.
 // When that prefetch lands is up to the router (in WebKit often after `networkidle`), so a test
 // cannot wait it out. An island's own code is a lazy import inside a client component, not a client
-// reference, so no payload lists it and it is always counted; each lazy test also asserts that the
-// scripts arriving on intent are counted.
+// reference, so no payload lists it today. If one ever did, the chunks it lists would be excused;
+// when that is all of the island's code, nothing counted arrives on intent, and each lazy test's
+// assertion on intent fails.
 
 const PREFETCH_HEADER = 'next-router-prefetch';
 const IMPORT_ROW = /^[0-9a-z]+:I\[[^,]+,(\[[^\]]*\])/gm;
