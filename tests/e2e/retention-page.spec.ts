@@ -134,18 +134,69 @@ test.describe('the Retention page', () => {
     expect(await tops()).toEqual(before);
   });
 
-  test('a cold #limits link lands on its heading and keeps it in view once the islands load', async ({ page, browserName }) => {
-    // Real defect, not in this page's code: in WebKit the view jumps about 370 px within a second of
-    // the fragment scroll, before any island loads (landed at the heading, then scrolled to the end
-    // of the page; with overflow-anchor: none it jumps the other way). Layout positions before and
-    // after are equal, so a transient layout change during hydration moves it. Chromium keeps the
-    // heading. Reported for a fix in the island wrappers; until then WebKit is a known failure.
-    test.fixme(browserName === 'webkit', 'WebKit loses the fragment position during hydration (reported)');
-    await page.goto(`${ROUTE}#limits`);
-    await expect(page.locator('#limits-title')).toBeInViewport();
-    await waitForIslands(page);
-    await expect(page.locator('#limits-title')).toBeInViewport();
-  });
+  // A cold link to a section must land on its heading and leave it there: no scroll may move the
+  // view while the page hydrates and the islands load. Every frame from the load event on records
+  // where the heading is; all of them must be the landing position. #limits sits near the end of the
+  // page, #how-i-checked-this above it and #returns-cleaning at the first island, so this is not tuned
+  // to one section.
+  const SECTION_LINKS = ['limits', 'how-i-checked-this', 'returns-cleaning'] as const;
+
+  /** Records the heading's top in every frame from the load event on. */
+  async function recordHeading(page: Page, id: string) {
+    await page.addInitScript((heading) => {
+      const tops: number[] = [];
+      (window as unknown as { headingTops: number[] }).headingTops = tops;
+      window.addEventListener('load', () => {
+        const sample = () => {
+          const h = document.getElementById(heading);
+          if (h) tops.push(Math.round(h.getBoundingClientRect().top));
+          requestAnimationFrame(sample);
+        };
+        sample();
+      });
+    }, `${id}-title`);
+  }
+
+  async function expectHeadingStill(page: Page, id: string) {
+    // A few more frames, for a late scroll to show.
+    await page.evaluate(() => new Promise((done) => {
+      let n = 0;
+      const next = () => (++n < 10 ? requestAnimationFrame(next) : done(null));
+      requestAnimationFrame(next);
+    }));
+    const tops = await page.evaluate(() => (window as unknown as { headingTops: number[] }).headingTops);
+    expect(tops.length).toBeGreaterThan(10);
+    expect(new Set(tops), `heading top per frame after load: ${tops.join(' ')}`).toEqual(new Set([tops[0]]));
+    await expect(page.locator(`#${id}-title`)).toBeInViewport();
+  }
+
+  for (const id of SECTION_LINKS) {
+    test(`a cold #${id} link keeps its heading still while the page hydrates`, async ({ page }) => {
+      // The islands are held (no idle time ever comes), so this covers hydration alone.
+      await page.addInitScript(() => {
+        window.requestIdleCallback = () => 0;
+        window.cancelIdleCallback = () => {};
+      });
+      await recordHeading(page, id);
+      await page.goto(`${ROUTE}#${id}`);
+      await page.locator('next-route-announcer').waitFor({ state: 'attached' });
+      await page.waitForTimeout(500);
+      await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+      await expectHeadingStill(page, id);
+    });
+
+    test(`a cold #${id} link keeps its heading still while the islands load`, async ({ page, browserName }) => {
+      // Known WebKit defect in the loader, not in this page: when both previews give way to their
+      // islands in one task, WebKit lays the page out midway through the islands' style (the charts'
+      // container queries) while it is shorter than the scroll position, clamps it and drops its scroll
+      // anchor, so the view ends at the page end. Reported for a fix in the loader.
+      test.fixme(browserName === 'webkit' && id === 'limits', 'WebKit moves the view when both islands swap in (reported)');
+      await recordHeading(page, id);
+      await page.goto(`${ROUTE}#${id}`);
+      await waitForIslands(page);
+      await expectHeadingStill(page, id);
+    });
+  }
 
   test('axe finds nothing, with every island loaded', async ({ page }) => {
     await page.goto(ROUTE);
