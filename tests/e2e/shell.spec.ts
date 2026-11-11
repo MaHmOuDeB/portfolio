@@ -174,6 +174,20 @@ test('a dragged figure turns off mark transitions even when a duration utility i
 const PHONE = /\+\d{2}[\d\s]{8,}|\b0\d{3}\s?\d{3,}/;
 const LABELS = ['Work', 'Lab', 'Live test', 'About'];
 
+/**
+ * Makes the page 3000 px taller without touching the DOM React hydrates. A node added to <main> before
+ * hydration is a mismatch: React client-renders the tree and drops it, and the scroll never happens.
+ * A constructable stylesheet added before the page loads is not part of that DOM (the same pattern as
+ * cardsBelowTheFold in experiment.spec.ts).
+ */
+async function addScrollHeight(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync('#main::after { content: ""; display: block; height: 3000px; }');
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  });
+}
+
 function isPhone(page: Page): boolean {
   return (page.viewportSize()?.width ?? 0) < 768;
 }
@@ -227,12 +241,8 @@ test.describe('site header', () => {
 
   test('sticky from md up on a screen at least 700 px tall, never under md or on a shorter screen', async ({ page }) => {
     test.skip(isPhone(page), 'the viewports below set their own size');
+    await addScrollHeight(page);
     await page.goto('/');
-    await page.evaluate(() => {
-      const filler = document.createElement('div');
-      filler.style.height = '3000px';
-      document.getElementById('main')?.append(filler);
-    });
     const headerTop = async (width: number, height: number) => {
       await page.setViewportSize({ width, height });
       // Set the scroll position directly so this measures sticky layout after resizing.
@@ -349,27 +359,19 @@ test('axe finds no violations with the phone Menu open', async ({ page }) => {
 test('the sticky header never covers an in-page anchor target', async ({ page }) => {
   test.skip(isPhone(page), 'the header is sticky from md up only');
   await page.setViewportSize({ width: 1024, height: 768 });
+  // The target is <main id="main"> itself, the element the skip link points at: it exists in the server
+  // HTML, so nothing is inserted into the DOM React hydrates.
+  await addScrollHeight(page);
   await page.goto('/');
-  await page.evaluate(() => {
-    const main = document.getElementById('main');
-    const target = document.createElement('a');
-    target.id = 'target';
-    target.href = '#target';
-    target.textContent = 'Focus target';
-    const filler = document.createElement('div');
-    filler.style.height = '3000px';
-    main?.prepend(target);
-    main?.append(filler);
-  });
   await page.mouse.wheel(0, 1500);
   await page.waitForFunction(() => window.scrollY >= 1000);
   // Following an in-page link scrolls the target to the top edge of the viewport.
   await page.evaluate(() => {
-    window.location.hash = 'target';
+    window.location.hash = 'main';
   });
   await page.waitForFunction(() => window.scrollY < 1000);
   const { top, header } = await page.evaluate(() => ({
-    top: document.getElementById('target')?.getBoundingClientRect().top ?? -1,
+    top: document.getElementById('main')?.getBoundingClientRect().top ?? -1,
     header: Number.parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue('--header-h'),
     ) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
