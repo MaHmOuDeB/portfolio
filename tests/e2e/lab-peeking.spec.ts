@@ -640,7 +640,7 @@ async function assertOnce50Fallback(page: Page) {
   await expect(fallbackTable).toBeVisible();
   const rows = fallbackTable.locator('tbody tr');
   await expect(rows).toHaveCount(51);
-  await expect(rows.last()).toHaveText(/^\s*50\s*One look at the end\s*5\s*$/);
+  await expect(rows.last()).toHaveText(/^\s*50\s*One look at the end\s*5\.0\s*$/);
   await expect(fallbackTable.locator('th')).toHaveText(['Look', 'Schedule', 'False winners so far (%)']);
   await expect(f.locator('[data-figure-preview]')).toHaveCount(0);
   await expect(f.locator('svg[data-chart-frame]:visible')).toHaveCount(0);

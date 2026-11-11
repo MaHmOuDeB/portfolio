@@ -110,6 +110,12 @@ function costOf(v: PeekValues): PeekCost | null {
 /** A share of runs as a percent with one decimal; exact, since a share is a whole number of runs. */
 const percent = (share: number) => Math.round(share * M.runs) / (M.runs / 100);
 
+/**
+ * The percent columns print exactly one decimal ("22.0", "5.2"), the precision every share of the
+ * runs has, so a column never mixes "22" with "22.1".
+ */
+const ONE_DECIMAL = { fixed: 1 } as const;
+
 const FIX_NAME: Record<Fix, string> = { naive: 'no fix', obf: "O'Brien-Fleming", cs: 'confidence sequence' };
 
 function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableData {
@@ -123,7 +129,7 @@ function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableD
         ...ghost.map((g, i): (string | number)[] => [i + 1, 'Peeking daily, no fix', g]),
         [v.looks, 'One look at the end', percent(selected.falsePositiveRate)],
       ],
-      formats: ['count', 'number', 'points'],
+      formats: ['count', 'number', ONE_DECIMAL],
       note: 'Shares of the simulated runs. Looking once means a single check, made after as many visitors as the daily schedule has at its last look.',
       refs: PEEK_REFS,
     };
@@ -132,7 +138,7 @@ function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableD
     return {
       columns: ['Look', 'False winners so far, no fix (%)'],
       rows: ghost.map((g, i) => [i + 1, g]),
-      formats: ['count', 'points'],
+      formats: ['count', ONE_DECIMAL],
       note: 'Shares of the simulated runs flagged as a winner at or before each look.',
       refs: PEEK_REFS,
     };
@@ -141,7 +147,7 @@ function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableD
   return {
     columns: ['Look', 'False winners so far, no fix (%)', `False winners so far, ${FIX_NAME[v.fix]} (%)`],
     rows: ghost.map((g, i) => [i + 1, g, chosen[i]!]),
-    formats: ['count', 'points', 'points'],
+    formats: ['count', ONE_DECIMAL, ONE_DECIMAL],
     note: 'Shares of the simulated runs flagged as a winner at or before each look.',
     refs: PEEK_REFS,
   };

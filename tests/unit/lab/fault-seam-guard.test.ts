@@ -979,6 +979,38 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     expect(a.reachable.some((f) => f.includes('kitchen-sink'))).toBe(false);
   });
 
+  it('reaches every seam component from the production routes now that they render them, with no activation', () => {
+    // /lab renders the planner, peeking, split-check and exaggeration Figures, /lab/peeking the
+    // peeking Figure, and /work/retention the returns and cohort Figures and the win-back planner:
+    // every affected component is in the production graph, and none is activated there.
+    const a = analyse(DISK, REPO, pageExtensions);
+    expect(show(a.violations)).toEqual([]);
+    expect(a.roots).toEqual(expect.arrayContaining(['src/app/lab/page.tsx', 'src/app/lab/peeking/page.tsx', 'src/app/work/retention/page.tsx']));
+    expect(a.affected).toEqual(
+      expect.arrayContaining([
+        'src/components/retention/ReturnsFigure.tsx#ReturnsFigure',
+        'src/components/retention/ReturnsView.tsx#ReturnsFigureView',
+        'src/components/retention/CohortFigure.tsx#CohortFigure',
+        'src/components/retention/CohortView.tsx#CohortFigureView',
+        'src/components/lab/FullPlanner.tsx#FullPlanner',
+        'src/components/lab/FullPlannerControls.tsx#FullPlannerIsland',
+        'src/components/lab/FullPlannerClient.tsx#FullPlannerClient',
+        'src/components/lab/FullPlannerView.tsx#SizingFigureView',
+        'src/components/lab/DurationFigure.tsx#DurationFigure',
+        'src/components/lab/FullPlannerView.tsx#DurationFigureView',
+        'src/components/figures/PeekingFigure.tsx#PeekingFigure',
+        'src/components/figures/PeekingFigureClient.tsx#PeekingIsland',
+        'src/components/figures/PeekingView.tsx#PeekingFigureView',
+        'src/components/lab/SrmFigure.tsx#SrmFigure',
+        'src/components/lab/SrmView.tsx#SrmFigureView',
+        'src/components/lab/CurseFigure.tsx#CurseFigure',
+        'src/components/lab/CurseView.tsx#CurseFigureView',
+      ]),
+    );
+    expect(a.reachable).toEqual(expect.arrayContaining(['src/components/lab/LabPage.tsx', 'src/components/retention/RetentionPage.tsx']));
+    expect(a.reachable.some((f) => f.includes('kitchen-sink'))).toBe(false);
+  });
+
   it('finds the seam components from the source when a route renders them, and accepts their forwarding', () => {
     const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/retention/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
@@ -998,8 +1030,8 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     );
   });
 
-  it('finds the Lab diagnostics’ seam components from their dev host, and accepts their forwarding', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/diagnostics/page.dev.tsx']);
+  it('finds the Lab diagnostics’ seam components from the Lab host, and accepts their forwarding', () => {
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
     expect(a.affected).toEqual(
       expect.arrayContaining([

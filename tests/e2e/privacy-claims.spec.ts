@@ -64,6 +64,55 @@ for (const route of LIVE_ROUTES) {
   });
 }
 
+// The static analysis pages: after every Figure on them is used (each slider moved by key, each
+// option switched and each Reset pressed), still no request to another site, no beacon or other call
+// to the site's API, nothing stored and no CSP violation. The Lab and Retention pages read no live
+// data and count nothing.
+for (const route of ['/lab', '/lab/peeking?peeking.preset=interview', '/work/retention']) {
+  test(`${route}: every control used, still no beacon, no foreign request and nothing stored`, async ({ page, baseURL }) => {
+    test.slow();
+    const seen = await record(page);
+    const response = await page.goto(route);
+    expect(response?.ok(), route).toBe(true);
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
+    const figures = page.locator('main figure[data-figure]');
+    const count = await figures.count();
+    expect(count).toBeGreaterThan(0);
+    let used = 0;
+    for (let i = 0; i < count; i++) {
+      const f = figures.nth(i);
+      const ranges = f.locator('input[type="range"]:enabled');
+      for (let r = 0; r < (await ranges.count()); r++) {
+        await ranges.nth(r).focus();
+        await page.keyboard.press('ArrowLeft');
+        used++;
+      }
+      const radios = f.locator('input[type="radio"]:enabled:not(:checked)');
+      if ((await radios.count()) > 0) {
+        await radios.first().locator('xpath=ancestor::label[1]').click();
+        used++;
+      }
+      const reset = f.getByRole('button', { name: 'Reset' });
+      if ((await reset.count()) > 0) {
+        await reset.click();
+        used++;
+      }
+    }
+    expect(used, 'controls used').toBeGreaterThan(count);
+    await page.waitForLoadState('networkidle');
+    await page.goto('about:blank');
+
+    const origin = new URL(baseURL!).origin;
+    const urls = seen.urls.filter((u) => !u.startsWith('about:') && !u.startsWith('data:'));
+    expect(urls.filter((u) => new URL(u).origin !== origin), 'requests to another origin').toEqual([]);
+    expect(urls.filter((u) => /^\/(api|experiment)(\/|$)/.test(new URL(u).pathname)), 'beacons or API calls').toEqual([]);
+    expect(seen.violations).toEqual([]);
+
+    await page.goto(route);
+    expect(await stored(page)).toEqual({ cookies: [], local: 0, session: 0, idb: [] });
+  });
+}
+
 test('the only cookie is the owner cookie, scoped to /api/e, and "Count this browser again" removes it', async ({ page, context, browserName }) => {
   // WebKit refuses a Secure cookie over plain http://localhost; production is https.
   test.skip(browserName === 'webkit', 'WebKit stores no Secure cookie over http');

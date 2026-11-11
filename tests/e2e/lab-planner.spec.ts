@@ -2,16 +2,18 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The full sample-size planner on the dev host /kitchen-sink/lab: a sizing Figure (`planner`:
+// The full sample-size planner on the dev host /kitchen-sink/lab, which mounts the Lab page as /lab
+// does (the planner beside the peeking, split-check and exaggeration Figures): a sizing Figure (`planner`:
 // Baseline conversion 1% to 98%, preset 29%; Rise to detect, 1 to 30 whole points, capped so the
 // target stays at or under 99%; MDE unit, points or percent of the baseline; Reset) and a duration
 // Figure (`duration`: Total visitors per day, 1 to 10,000, preset 100; Reset), one paired island.
 // The server draws the preset pair (1,353 visitors per group, 4 weeks); the island loads on intent,
-// or at once when the URL holds keys of either Figure. The same host mounts the Retention context
-// (`winback`, `winback-duration`). /kitchen-sink/lab/faults sets the test seam, so each Figure throws
-// on the first render after its own input change.
+// or at once when the URL holds keys of either Figure. The Retention context (`winback`,
+// `winback-duration`) is on the Retention page's dev host. /kitchen-sink/lab/faults sets the test
+// seam, so each Figure throws on the first render after its own input change.
 
 const HOST = '/kitchen-sink/lab';
+const RETENTION_HOST = '/kitchen-sink/retention';
 const FAULTS = '/kitchen-sink/lab/faults';
 const ID = 'planner';
 const DURATION = 'duration';
@@ -106,7 +108,7 @@ test.describe('Full planner', () => {
     await page.goto(HOST);
     await page.waitForLoadState('load');
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
-    await expect(island(page, 'winback')).toHaveAttribute('data-island', 'idle');
+    await expect(island(page, 'srm')).toHaveAttribute('data-island', 'idle');
     await page.waitForTimeout(1200);
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     const beforeIntent = scripts.length;
@@ -129,7 +131,7 @@ test.describe('Full planner', () => {
     const errors = watchErrors(page);
     await page.goto(HOST);
     await expect(island(page)).toHaveAttribute('data-island', 'ready', { timeout: 10_000 });
-    await expect(island(page, 'winback')).toHaveAttribute('data-island', 'ready', { timeout: 10_000 });
+    await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready', { timeout: 10_000 });
     await expect(readoutN(page)).toHaveText(PRESET_N);
     expect(errors).toEqual([]);
   });
@@ -146,8 +148,8 @@ test.describe('Full planner', () => {
     await expect(unit(page, 'Percent of baseline')).toBeChecked();
     await expect(result(page)).toContainText('To detect a rise of 12.5% of the baseline, from 40% to 45%.');
     await expect(readoutN(page)).not.toHaveText(PRESET_N);
-    // the other context on the page has no keys and waits for intent
-    await expect(island(page, 'winback')).toHaveAttribute('data-island', 'idle');
+    // another Figure on the page has no keys and waits for intent
+    await expect(island(page, 'srm')).toHaveAttribute('data-island', 'idle');
     expect(errors).toEqual([]);
   });
 
@@ -166,9 +168,9 @@ test.describe('Full planner', () => {
 
   test("another Figure's keys, near misses and bare keys do not load it", async ({ page }) => {
     await withoutIdle(page);
-    await page.goto(`${HOST}?winback.baseline=0.4&${ID}x.mode=relative&${DURATION}=5&traffic=9&hero-planner.baseline=0.5`);
-    // the winback key is the Retention context's own, and loads only that pair
-    await expect(island(page, 'winback')).toHaveAttribute('data-island', 'ready');
+    await page.goto(`${HOST}?srm.nA=40&winback.baseline=0.4&${ID}x.mode=relative&${DURATION}=5&traffic=9&hero-planner.baseline=0.5`);
+    // the srm key is the split check's own, and loads only that Figure
+    await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await page.waitForTimeout(800);
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await expect(readoutN(page)).toHaveText(PRESET_N);
@@ -351,6 +353,8 @@ test.describe('Full planner', () => {
       }).observe(announcement, { characterData: true, childList: true, subtree: true });
     });
 
+    // On the Lab page the planner starts below the fold: bring the slider on screen before pointing at it.
+    await rise(page).scrollIntoViewIfNeeded();
     const box = (await rise(page).boundingBox())!;
     const y = box.y + box.height / 2;
     await page.mouse.move(box.x + box.width * 0.1, y);
@@ -379,6 +383,31 @@ test.describe('Full planner', () => {
     expect(stats.animations).toBe(0);
     // the rise is on the whole-point grid and in the URL in points
     await expect.poll(() => query(page).get(`${ID}.risePoints`)).toMatch(/^\d+$/);
+  });
+
+  test('percent: the number input shows the short value; ArrowUp in it moves the rise one point and announces on release', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page);
+    await page.goto(`${HOST}?${ID}.mode=relative`);
+    await expect(island(page)).toHaveAttribute('data-island', 'ready');
+    const exact = figure(page).getByRole('spinbutton', { name: 'Rise to detect, percent of the baseline' });
+    // 5 points of 29% is 17.2413...%: the input shows it to one decimal, as the readout does
+    await expect(exact).toHaveValue('17.2');
+    await expect(exact).toHaveAttribute('aria-invalid', 'false');
+    await expect(result(page)).toContainText('To detect a rise of 17.2% of the baseline, from 29% to 34%.');
+    await exact.focus();
+    await page.keyboard.down('ArrowUp');
+    // one step is one whole point: 6 points of 29% is 20.7%, to 35%
+    await expect(result(page)).toContainText('To detect a rise of 20.7% of the baseline, from 29% to 35%.');
+    await expect(exact).toHaveValue('20.7');
+    await expect(rise(page)).toHaveAttribute('aria-valuetext', '20.7% of the baseline, to 35%');
+    await expect(live(page)).toHaveText('');
+    await page.keyboard.up('ArrowUp');
+    await expect(live(page)).toHaveText(SIZING_RESULT);
+    await expect(live(page)).toContainText('to detect a rise of 20.7% of the baseline, from 29% to 35%');
+    await expect.poll(() => query(page).get(`${ID}.risePoints`)).toBe('6');
+    await expect(exact).toBeFocused();
+    expect(errors).toEqual([]);
   });
 
   test('traffic: a key release on the duration slider announces the weeks, and the sizing stays put', async ({ page }) => {
@@ -508,9 +537,10 @@ test.describe('Full planner', () => {
   test('Retention context: customers per group from the observed baseline, the sourced target and its own keys', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
-    await page.goto(`${HOST}?winback-duration.traffic=50`);
+    await page.goto(`${RETENTION_HOST}?winback-duration.traffic=50`);
     await expect(island(page, 'winback')).toHaveAttribute('data-island', 'ready');
-    await expect(island(page)).toHaveAttribute('data-island', 'idle');
+    // the Retention page's own Figures have no keys and wait for intent
+    await expect(island(page, 'returns')).toHaveAttribute('data-island', 'idle');
     await expect(readoutN(page, 'winback')).toHaveText(PRESET_N);
     await expect(figure(page, 'winback').locator('[data-figure-body]')).toContainText('customers per group');
     await expect(result(page, 'winback')).toContainText('Hypothetical uplift');
@@ -535,44 +565,47 @@ test.describe('Full planner', () => {
     expect(errors).toEqual([]);
   });
 
-  test('no number escapes its source marker, shown or hidden, before and after the islands load', async ({ page }) => {
-    await withoutIdle(page);
-    await page.goto(HOST);
-    const stray = () =>
-      page.evaluate(() => {
-        const out: string[] = [];
-        for (const root of document.querySelectorAll('[data-full-planner]')) {
-          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-            const parent = n.parentElement!;
-            if (parent.closest('code')) continue;
-            if (/\d/.test(n.textContent ?? '') && !parent.closest('[data-derived], [data-fact]')) out.push(n.textContent!.trim());
-          }
-          for (const el of root.querySelectorAll('*')) {
-            for (const name of ['aria-label', 'aria-valuetext', 'title']) {
-              const v = el.getAttribute(name);
-              if (v && /\d/.test(v) && !el.closest('[data-derived], [data-fact]')) out.push(`${name}=${v}`);
+  for (const [host, id] of [[HOST, ID], [RETENTION_HOST, 'winback']] as const) {
+    test(`no number escapes its source marker, shown or hidden, before and after the islands load (${id})`, async ({ page }) => {
+      await withoutIdle(page);
+      await page.goto(host);
+      const stray = () =>
+        page.evaluate(() => {
+          const out: string[] = [];
+          for (const root of document.querySelectorAll('[data-full-planner]')) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+              const parent = n.parentElement!;
+              if (parent.closest('code')) continue;
+              if (/\d/.test(n.textContent ?? '') && !parent.closest('[data-derived], [data-fact]')) out.push(n.textContent!.trim());
+            }
+            for (const el of root.querySelectorAll('*')) {
+              for (const name of ['aria-label', 'aria-valuetext', 'title']) {
+                const v = el.getAttribute(name);
+                if (v && /\d/.test(v) && !el.closest('[data-derived], [data-fact]')) out.push(`${name}=${v}`);
+              }
             }
           }
-        }
-        return out;
-      });
-    expect(await stray()).toEqual([]);
-    await ready(page);
-    await ready(page, 'winback');
-    await figure(page).locator('label', { hasText: 'Percent of baseline' }).click();
-    expect(await stray()).toEqual([]);
-  });
+          return out;
+        });
+      expect(await stray()).toEqual([]);
+      await ready(page, id);
+      await figure(page, id).locator('label', { hasText: 'Percent of baseline' }).click();
+      expect(await stray()).toEqual([]);
+    });
+  }
 
   test('axe finds no violations in the previews or the loaded islands', async ({ page }) => {
-    // Two full-page scans of a page with four Figures, as the kit's own axe tests allow for.
+    // Two full-page scans of the Lab page (five Figures), as the kit's own axe tests allow for.
     test.setTimeout(90_000);
     await withoutIdle(page);
     await page.goto(HOST);
     await expectNoA11yViolations(page);
     await ready(page);
-    await ready(page, 'winback');
     await figure(page).locator('label', { hasText: 'Percent of baseline' }).click();
+    // Scan the page at rest at the top: wherever the click left the view, the links just above the
+    // planner can sit under the sticky header, which axe counts as obscured targets.
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expectNoA11yViolations(page);
   });
 });

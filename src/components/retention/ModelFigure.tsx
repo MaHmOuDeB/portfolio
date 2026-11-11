@@ -12,7 +12,8 @@ import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/Chart
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
 import { Figure } from '@/components/kit/Figure';
-import { formatValue, type FactId } from '@/lib/facts';
+import type { FactId } from '@/lib/facts';
+import { formatNumber } from '@/lib/figure/format';
 import { factText } from '@/lib/facts/text';
 import { pct } from '@/lib/figure/scales';
 import { RETENTION, figureProvenance, numericFact } from '@/lib/retention/data';
@@ -55,7 +56,7 @@ function ModelChart() {
       x={{
         domain: [0.5, 1],
         ticks: { wide: [0.5, 0.6, 0.7, 0.8, 0.9, 1], narrow: [0.5, 0.6, 0.7, 0.8, 0.9, 1] },
-        format: (v) => formatValue(v, 'decimal', { decimals: 1 }),
+        format: (v) => formatNumber(v, 1, { fixed: true }),
         label: 'ROC AUC on the later test period',
         refs: REFS,
       }}

@@ -2,12 +2,13 @@
 // and the four public-data Figures in the analysis template's order: a summary, then the problem,
 // the data, the method, one section per analysis step, the findings, how I checked this, the limits
 // and the links. Every number on it is a <Fact> or a <Derived> (the build's truth audit), the
-// win-back part is a sizing only, and nothing on it comes from the live experiment.
+// win-back part is a sizing only (with a planner of a hypothetical uplift beside the sourced sizing),
+// and nothing on it comes from the live experiment.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { RETENTION_SECTIONS, RetentionPage } from '@/components/retention/RetentionPage';
+import { RETENTION_SECTIONS, RetentionCaseStudy, RetentionPage } from '@/components/retention/RetentionPage';
 import { REVERSAL_SQL_READ_AT } from '../../../content/retention';
 import { FACTS, FACT_DISPLAYS, getFact } from '@/lib/facts';
 import { RETENTION } from '@/lib/retention/data';
@@ -35,7 +36,8 @@ const section = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</section>', start));
 };
 
-const PAGE = renderToStaticMarkup(<RetentionPage />);
+// The page as it ships: the composition with its win-back planner.
+const PAGE = renderToStaticMarkup(<RetentionCaseStudy />);
 const PAGE_TEXT = text(PAGE);
 const ctx = { route: '/work/retention', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
@@ -111,6 +113,8 @@ describe('the outline', () => {
       ['cohort-retention', 'cohorts'],
       ['customer-segments', 'rfm'],
       ['repeat-order-model', 'models'],
+      ['win-back-sizing', 'winback'],
+      ['win-back-sizing', 'winback-duration'],
     ];
     for (const [sectionId, figureId] of placed) {
       const s = section(PAGE, sectionId);
@@ -256,9 +260,55 @@ describe('the win-back section', () => {
     expect(t).not.toMatch(/revenue|£|GBP|spend/i);
   });
 
-  it('has no planner controls of its own, and links to the Lab', () => {
-    expect(s).not.toMatch(/<input|<button|role="group"|role="radiogroup"/);
-    expect(s).toMatch(/<a [^>]*href="\/lab"/);
+  it('has controls only inside its planner Figures, and links to the Lab and to the Home planner', () => {
+    const outside = s.replace(/<figure [\s\S]*?<\/figure>/g, '');
+    expect(outside).not.toMatch(/<input|<button|role="group"|role="radiogroup"/);
+    expect(s).toMatch(/<a [^>]*href="\/lab"[^>]*>Try other baselines and rises in the Lab(&#x27;|')s sample-size planner<\/a>/);
+    const home = /<a [^>]*href="([^"]+)"[^>]*>The same arithmetic as the Home planner<\/a>/.exec(s);
+    expect(home?.[1]).toBe('/#hero-planner');
+    expect(home![0]).toContain('data-touch-target=""');
+    // the links follow the planner, and the targeting evidence follows them
+    expect(s.indexOf('data-figure="winback-duration"')).toBeLessThan(s.indexOf('href="/lab"'));
+    expect(s.indexOf('href="/lab"')).toBeLessThan(s.indexOf('href="/#hero-planner"'));
+    expect(s.indexOf('href="/#hero-planner"')).toBeLessThan(s.indexOf('lapsed-targeting'));
+  });
+
+  it('plans 29% plus 5 points, to 34%, at 1,353 customers per group, labelled a hypothetical uplift and Simulated', () => {
+    const sizing = /<figure [^>]*data-figure="winback"[\s\S]*?<\/figure>/.exec(s)![0];
+    const duration = /<figure [^>]*data-figure="winback-duration"[\s\S]*?<\/figure>/.exec(s)![0];
+    const n = getFact('retention.winback.n_per_arm').value as number;
+    expect(n).toBe(1353);
+    expect(sizing).toMatch(new RegExp(`<data data-planner-n="" data-num="" value="${n}"[^>]*data-derived="simulated"[^>]*>1,353</data>`));
+    expect(text(sizing)).toContain('customers per group');
+    expect(text(sizing)).toContain('To detect a rise of 5 points, from 29% to 34%.');
+    for (const f of [sizing, duration]) {
+      expect(text(f)).toContain('Simulated');
+      expect(text(f)).toContain('Hypothetical uplift');
+      expect(f).not.toMatch(/Public data/);
+    }
+    // the caption says the uplift is hypothetical and not anyone's response, on the observed reactivation baseline
+    const caption = text(/<figcaption[\s\S]*?<\/figcaption>/.exec(sizing)![0]);
+    expect(caption).toContain('The preset is a hypothetical uplift on an observed baseline.');
+    expect(caption).toContain('is the share of lapsed customers in the case study');
+    expect(caption).toContain('is an uplift to plan for, not the effect of any offer. Nobody was contacted and no test was run.');
+    expect(caption).not.toMatch(/returns|returned/i);
+    // the sourced baseline and the target keep their fact refs in the caption
+    expect(sizing).toContain('data-fact="retention.winback.baseline_rate"');
+    expect(sizing).toContain('<data value="0.34" data-derived="retention.winback.baseline_rate retention.winback.uplift_pp">34%</data>');
+  });
+
+  it('keeps the public-data sizing table beside the planner, with its own badge, before the planner', () => {
+    const table = s.indexOf('id="holdout-sizes-heading"');
+    expect(table).toBeGreaterThan(-1);
+    expect(table).toBeLessThan(s.indexOf('data-figure="winback"'));
+    const block = s.slice(table, s.indexOf('data-figure="winback"'));
+    expect(text(block)).toContain('Public data');
+    expect(block).not.toMatch(/Simulated/);
+    // the source row at the sized uplift is the fact; other rows are the export's own, not recomputed here
+    const sized = RETENTION.tables.holdout_sizes.find(
+      (h) => h.group === 'all lapsed customers' && h.uplift_pp === getFact('retention.winback.uplift_pp').value,
+    );
+    expect(sized?.customers_per_arm).toBe(getFact('retention.winback.n_per_arm').value);
   });
 
   it('places a planner when one is given, inside the section', () => {
@@ -369,7 +419,7 @@ describe('the route and the host', () => {
   const host = readFileSync(join(repo, 'src/app/kitchen-sink/retention/page.dev.tsx'), 'utf8');
 
   it('the route is a plain static page that renders the composition', async () => {
-    expect(route).toMatch(/<RetentionPage \/>/);
+    expect(route).toMatch(/<RetentionCaseStudy \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(|faultAfterChange/);
     const mod = (await import('@/app/work/retention/page')) as {
       default: () => React.ReactNode;
@@ -382,7 +432,7 @@ describe('the route and the host', () => {
   });
 
   it('the dev host renders the same composition', () => {
-    expect(host).toMatch(/<RetentionPage \/>/);
+    expect(host).toMatch(/<RetentionCaseStudy \/>/);
     expect(host).not.toMatch(/faultAfterChange/);
   });
 });

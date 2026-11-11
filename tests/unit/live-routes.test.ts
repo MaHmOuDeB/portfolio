@@ -41,3 +41,7 @@ test('the home page is the per-group page, and no other page sits at /', () => {
 test('the Retention case study ships at /work/retention', () => {
   expect(LIVE_ROUTES).toContain('/work/retention');
 });
+
+test('the Lab ships at /lab, and its peeking example at /lab/peeking for the interview link', () => {
+  expect(LIVE_ROUTES).toEqual(expect.arrayContaining(['/lab', '/lab/peeking']));
+});

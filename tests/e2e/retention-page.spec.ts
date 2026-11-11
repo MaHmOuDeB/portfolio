@@ -7,7 +7,8 @@ import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 // The Retention case study at /work/retention, the reference page later pages copy, and its dev
 // host /kitchen-sink/retention, which mounts the same composition. The page is static: prose,
 // four public-data Figures (each loads its island on intent, or at once for its own URL keys), two
-// open tables and a list of links. Nothing on it comes from the live experiment.
+// open tables, the win-back planner (a hypothetical uplift, two simulated Figures loaded as one
+// island) and a list of links. Nothing on it comes from the live experiment.
 
 const ROUTE = '/work/retention';
 const HOST = '/kitchen-sink/retention';
@@ -28,7 +29,9 @@ const SECTIONS = [
   ['sources', 'Sources and links'],
 ] as const;
 const LINKS = ['Problem', 'Data', 'Method', 'Cleaning', 'Cohorts', 'Segments', 'Model', 'Win-back sizing', 'Findings', 'How I checked this', 'Limits', 'Sources'];
-const FIGURES = ['returns', 'cohorts', 'rfm', 'models'];
+const FIGURES = ['returns', 'cohorts', 'rfm', 'models', 'winback', 'winback-duration'];
+// The Figures that load an island: returns, cohorts and the win-back planner pair.
+const ISLANDS = 3;
 
 const sectionLinks = (page: Page) => page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
 
@@ -67,6 +70,8 @@ test.describe('the Retention page', () => {
       ['cohort-retention', 'cohorts'],
       ['customer-segments', 'rfm'],
       ['repeat-order-model', 'models'],
+      ['win-back-sizing', 'winback'],
+      ['win-back-sizing', 'winback-duration'],
     ]);
   });
 
@@ -133,11 +138,11 @@ test.describe('the Retention page', () => {
     });
     await page.goto(ROUTE);
     const tops = () => page.evaluate(() => [...document.querySelectorAll('main section[id]')].map((s) => [s.id, (s as HTMLElement).offsetTop]));
-    await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(ISLANDS);
     const before = await tops();
     await page.evaluate(() => (window as unknown as { releaseIdle: () => void }).releaseIdle());
     await waitForIslands(page);
-    await expect(page.locator('[data-island="ready"]')).toHaveCount(2);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(ISLANDS);
     expect(await tops()).toEqual(before);
   });
 
@@ -188,7 +193,7 @@ test.describe('the Retention page', () => {
       await page.goto(`${ROUTE}#${id}`);
       await page.locator('next-route-announcer').waitFor({ state: 'attached' });
       await page.waitForTimeout(500);
-      await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+      await expect(page.locator('[data-island="idle"]')).toHaveCount(ISLANDS);
       await expectHeadingStill(page, id);
     });
 
@@ -227,6 +232,13 @@ test.describe('the Retention page', () => {
     }
     expect(visible).toContain('public dataset, rebuilt in 2026');
     expect(visible).toContain('I sized a possible holdout test; nobody was contacted and no test was run.');
+    // the planner beside it is a hypothetical uplift, simulated, on the observed reactivation baseline
+    for (const id of ['winback', 'winback-duration']) {
+      await expect(page.locator(`figure[data-figure="${id}"] [data-figure-result]`)).toContainText('Hypothetical uplift');
+      // the Figure's own badge (and the one beside its result line)
+      await expect(page.locator(`figure[data-figure="${id}"]`).getByText('Simulated', { exact: true }).first()).toBeVisible();
+    }
+    await expect(page.locator('figure[data-figure="winback"] [data-planner-n]')).toHaveText('1,353');
     // no raw Home model in the page or its payload
     expect(served).not.toMatch(/splitStatus|testNote/);
   });

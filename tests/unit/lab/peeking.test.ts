@@ -6,7 +6,10 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import fc from 'fast-check';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { DataTable } from '@/components/kit/DataTable';
 import {
   PEEK_MAX_LOOKS,
   PEEK_PRESET,
@@ -246,7 +249,7 @@ describe('the table fallback', () => {
     const v = computePeek(PEEK_PRESET);
     expect(v.table.refs).toEqual(['simulated']);
     expect(v.table.columns).toHaveLength(2);
-    expect(v.table.formats).toEqual(['count', 'points']);
+    expect(v.table.formats).toEqual(['count', { fixed: 1 }]);
     expect(v.table.rows).toHaveLength(20);
     expect(v.table.rows[0]).toEqual([1, pct(v.naive.cumulativeByLook[0]!)]);
     expect(v.table.rows[19]).toEqual([20, 22.1]);
@@ -256,7 +259,7 @@ describe('the table fallback', () => {
     for (const fix of ['obf', 'cs'] as const) {
       const v = computePeek({ looks: 50, mode: 'daily', fix });
       expect(v.table.columns).toHaveLength(3);
-      expect(v.table.formats).toEqual(['count', 'points', 'points']);
+      expect(v.table.formats).toEqual(['count', { fixed: 1 }, { fixed: 1 }]);
       expect(v.table.rows).toEqual(
         v.naive.cumulativeByLook.map((g, i) => [i + 1, pct(g), pct(v.selected.cumulativeByLook[i]!)]),
       );
@@ -268,7 +271,7 @@ describe('the table fallback', () => {
   it('once: the daily ghost by look, then the one look at the end as its own row, with no empty cell', () => {
     const v = computePeek({ looks: 20, mode: 'once', fix: 'obf' });
     expect(v.table.columns).toEqual(['Look', 'Schedule', 'False winners so far (%)']);
-    expect(v.table.formats).toEqual(['count', 'number', 'points']);
+    expect(v.table.formats).toEqual(['count', 'number', { fixed: 1 }]);
     expect(v.table.rows).toEqual([
       ...v.naive.cumulativeByLook.map((g, i) => [i + 1, 'Peeking daily, no fix', pct(g)]),
       [20, 'One look at the end', pct(v.selected.falsePositiveRate)],
@@ -278,6 +281,27 @@ describe('the table fallback', () => {
       expect(rows).toHaveLength(looks + 1);
       expect(rows.every((r) => typeof r[0] === 'number' && typeof r[1] === 'string' && typeof r[2] === 'number')).toBe(true);
     }
+  });
+
+  it('prints every percent with exactly one decimal, so no column mixes "22" with "22.1"', () => {
+    const views = [
+      { looks: 20, mode: 'daily', fix: 'naive' },
+      { looks: 50, mode: 'daily', fix: 'obf' },
+      { looks: 10, mode: 'daily', fix: 'cs' },
+      { looks: 50, mode: 'once', fix: 'naive' },
+    ] as const;
+    for (const values of views) {
+      const html = renderToStaticMarkup(createElement(DataTable, { id: 't', caption: 'c', table: computePeek(values).table, mode: 'open' }));
+      const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((c) => c[1]!)).filter((r) => r.length > 0);
+      expect(rows.length).toBeGreaterThan(0);
+      const percents = rows.flatMap((r) => r.slice(1).filter((c) => /\d/.test(c)));
+      expect(percents.length, JSON.stringify(values)).toBeGreaterThan(0);
+      for (const p of percents) expect(p, JSON.stringify(values)).toMatch(/^\d+\.\d$/);
+    }
+    // the preset's last look, 22.1%, and once/50's one look at the end, 5.0%
+    expect(renderToStaticMarkup(createElement(DataTable, { id: 't', caption: 'c', table: computePeek({ looks: 50, mode: 'once', fix: 'naive' }).table, mode: 'open' }))).toMatch(
+      />One look at the end<\/td><td[^>]*>5\.0<\/td><\/tr><\/tbody>/,
+    );
   });
 
   it('keeps its words free of numerals (numbers live in the cells, marked simulated), and never says 25%', () => {

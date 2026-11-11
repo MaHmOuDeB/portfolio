@@ -375,6 +375,19 @@ export function RetentionLabLink(): ReactNode {
   );
 }
 
+/**
+ * The link to the Home page's planner: the win-back planner above computes with the same formula. The
+ * two share the arithmetic, not their inputs: here the baseline is the observed share of lapsed
+ * customers who ordered again, and the rise a hypothetical uplift.
+ */
+export function RetentionHomePlannerLink(): ReactNode {
+  return (
+    <TextLink href="/#hero-planner" standalone>
+      The same arithmetic as the Home planner
+    </TextLink>
+  );
+}
+
 /** Data, cleaning, cohorts, segments, model and sizing, as the source code does them: the parts the page places under their own headings, in one block. */
 export function RetentionMethod(): ReactNode {
   return (

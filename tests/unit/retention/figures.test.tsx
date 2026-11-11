@@ -428,6 +428,11 @@ describe('the model Figure', () => {
     expect(labels).toEqual(['0.762', '0.793']);
     // no interval drawn on an AUC that has none of its own
     expect(MODELS).not.toMatch(/data-interval|data-ci/);
+    // the axis prints one fixed decimal at every tick, so the end of the track reads "1.0"
+    const ticks = tags(MODELS, /<text[^>]*data-tick="x"[^>]*>[^<]*<\/text>/g).map(text);
+    expect(ticks.length).toBe(6 * layouts);
+    expect(ticks.slice(0, 6)).toEqual(['0.5', '0.6', '0.7', '0.8', '0.9', '1.0']);
+    expect(new Set(ticks)).toEqual(new Set(['0.5', '0.6', '0.7', '0.8', '0.9', '1.0']));
   });
 
   it('gives the gain and its interval through their facts, scoped to test-sample variability', () => {
@@ -448,13 +453,13 @@ describe('the model Figure', () => {
     expect(c).toContain('nobody was contacted');
     expect(c).toContain('a prediction, not an effect of contact');
     expect(text(MODELS)).not.toMatch(/response rate|responded|uplift/i);
-    // the table is the sourced models table: all three models, all customers and lapsed only (the
-    // kit's number format prints the export's 0.71 without a trailing zero)
+    // the table is the sourced models table: all three models, all customers and lapsed only, every
+    // AUC to three fixed decimals, so the export's 0.71 prints "0.710" beside "0.706"
     expect(modelsTable().rows).toHaveLength(3);
     expect(openCells(MODELS, 'models').map((c) => c.text)).toEqual([
       'Baseline: most recent buyer first', '0.762', '0.685',
       'Logistic regression', '0.792', '0.706',
-      'Gradient boosting', '0.793', '0.71',
+      'Gradient boosting', '0.793', '0.710',
     ]);
     expect(untracedData(MODELS)).toEqual([]);
   });
