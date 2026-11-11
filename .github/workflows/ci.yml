@@ -457,8 +457,10 @@ jobs:
     # when lhci was skipped because the marker of an earlier pass on this exact commit exists and
     # names it. It fails when lhci failed, or was skipped because another job failed or because
     # `update-baselines` is on ("not measured"). Merge on this check, not on "Lighthouse CI".
+    # `always()`: it also runs in a cancelled run and fails there, because GitHub shows a skipped
+    # check as passing.
     needs: [build, lhci]
-    if: ${{ !cancelled() }}
+    if: ${{ always() }}
     runs-on: [self-hosted, linux, arm64, portfolio-mac]
     timeout-minutes: 5
     steps:

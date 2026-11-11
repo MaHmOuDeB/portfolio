@@ -229,7 +229,7 @@ describe('the CI jobs and their check names', () => {
   it('turns the Lighthouse outcome into one gate result on a self-hosted runner', () => {
     const gate = ci['lhci-gate']!;
     expect(key(gate, 'needs')).toBe('[build, lhci]');
-    expect(key(gate, 'if')).toBe('${{ !cancelled() }}');
+    expect(key(gate, 'if')).toBe('${{ always() }}');
     expect(gate).toMatch(
       /- name: Restore the Lighthouse pass marker\n {8}id: marker\n {8}if: \$\{\{ github\.event_name == 'pull_request' && needs\.lhci\.result == 'skipped' && needs\.build\.outputs\.lhci-passed == 'true' \}\}\n {8}uses: actions\/cache\/restore@[0-9a-f]{40} # v[\d.]+\n {8}with:\n {10}path: \.lhci-passed\n {10}key: lhci-passed-\$\{\{ github\.sha \}\}\n/,
     );
