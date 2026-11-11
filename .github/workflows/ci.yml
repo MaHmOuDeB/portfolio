@@ -252,16 +252,11 @@ jobs:
       # presented, and Lantern then charges all of their download to LCP: a random outlier of about
       # +500 ms that base main hits too. A real regression raises every run, so the best run still
       # fails; tests/unit/lighthouserc.test.ts pins this shape.
-      # Calibrated to GitHub's hosted runner: Lighthouse simulates the throttled CPU by multiplying
-      # each main-thread task this machine measured by cpuSlowdownMultiplier, so the multiplier is
-      # 4 (Lighthouse's default) x benchmarkIndex here / benchmarkIndex on GitHub. GitHub's 35
-      # hosted runs (7 CI runs, 2026-11-10) had a median benchmarkIndex of 2309; this job's capped
-      # container measured 837.5 (median of 5): 4 x 837.5 / 2309 = 1.45, so 1.5.
-      # Chromium runs as root in the container, hence --no-sandbox.
+      # Calibrated to GitHub's hosted runner (CPU multiplier 1.5 from the measured benchmark
+      # indexes), with a benchmark guard: a run measured on a busier machine than the calibration
+      # fails as "machine too busy to measure", never as a budget failure. See the script.
       - name: Lighthouse (calibrated to the hosted runner)
-        run: |
-          export CHROME_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
-          npm run lhci -- --collect.settings.chromeFlags="--no-sandbox" --collect.settings.throttling.cpuSlowdownMultiplier=1.5
+        run: bash scripts/lhci-calibrated.sh
       - name: Upload Lighthouse reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

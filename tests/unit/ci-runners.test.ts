@@ -11,6 +11,7 @@ const CI = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
 const DEPLOY = readFileSync(join(ROOT, '.github/workflows/deploy.yml'), 'utf8');
 const REDIS_DOC = readFileSync(join(ROOT, 'docs/experiment/redis-conformance.md'), 'utf8');
 const VITEST_CONFIG = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8');
+const LHCI_SCRIPT = readFileSync(join(ROOT, 'scripts/lhci-calibrated.sh'), 'utf8');
 
 const SELF_HOSTED = '[self-hosted, linux, arm64, portfolio-mac]';
 const INSTANCE_1 = '[self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]';
@@ -82,17 +83,19 @@ describe('the CI jobs and their check names', () => {
     expect(key(ci.lhci!, 'runs-on')).toBe(INSTANCE_2);
   });
 
-  it('runs Lighthouse last, capped like the hosted runner, with the calibrated CPU multiplier', () => {
+  it('runs Lighthouse last, capped like the hosted runner, through the calibrated, guarded script', () => {
     const others = Object.keys(ci).filter((id) => id !== 'lhci');
     expect(key(ci.lhci!, 'needs')).toBe(`[${others.join(', ')}]`);
     expect(key(ci.lhci!, 'if')).toBe("${{ !cancelled() && needs.build.result == 'success' }}");
     expect(ci.lhci).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n      options: ${LHCI_CAPS}\n`);
-    expect(ci.lhci).toContain(
-      `npm run lhci -- --collect.settings.chromeFlags="--no-sandbox" --collect.settings.throttling.cpuSlowdownMultiplier=${LHCI_CPU_MULTIPLIER}\n`,
-    );
-    expect(ci.lhci).toContain("export CHROME_PATH=\"$(node -e \"console.log(require('playwright-core').chromium.executablePath())\")\"");
+    // The calibrated run, its benchmark guard and the multiplier live in one script, which
+    // tests/unit/lhci-calibrated.test.ts exercises.
+    expect(ci.lhci).toMatch(/^ {8}run: bash scripts\/lhci-calibrated\.sh$/m);
+    expect(LHCI_SCRIPT).toMatch(new RegExp(`^MULTIPLIER=${LHCI_CPU_MULTIPLIER.replace('.', '\\.')}$`, 'm'));
+    expect(LHCI_SCRIPT).toContain("export CHROME_PATH=\"$(node -e \"console.log(require('playwright-core').chromium.executablePath())\")\"");
+    expect(ci.lhci).not.toMatch(/npm run lhci|lhci autorun/);
     // Same budgets and runs as everywhere else: lighthouserc.json is untouched (lighthouserc.test.ts).
-    expect(ci.lhci).not.toMatch(/--collect\.numberOfRuns|--assert\./);
+    expect(`${ci.lhci}${LHCI_SCRIPT}`).not.toMatch(/numberOfRuns|--assert\.|minScore|maxNumericValue/);
   });
 
   it('keeps the deploy, which holds the production secrets, on GitHub-hosted runners', () => {
