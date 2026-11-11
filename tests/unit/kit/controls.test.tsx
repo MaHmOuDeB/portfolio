@@ -242,6 +242,34 @@ describe('Segmented', () => {
   it('disables the whole group when disabled', () => {
     expect(hasAttr(byTag(fix('none', true), 'fieldset')[0]!, 'disabled')).toBe(true);
   });
+
+  it('gives every radio the id name-value, so a preview radio can hand focus to the island radio', () => {
+    const radios = byTag(fix('none'), 'input').filter((n) => attr(n, 'type') === 'radio');
+    expect(radios.map((r) => attr(r, 'id'))).toEqual(['fix-none', 'fix-obf', 'fix-cs']);
+  });
+
+  it('takes the option value as given in the id', () => {
+    const power = [
+      { value: '0.8', label: '80%' },
+      { value: '0.9', label: '90%' },
+    ] as const;
+    const root = parse(
+      renderToStaticMarkup(<Segmented name="demo-power" legend="Power" options={power} value="0.8" onChange={noop} />),
+    );
+    const radios = byTag(root, 'input').filter((n) => attr(n, 'type') === 'radio');
+    expect(radios.map((r) => attr(r, 'id'))).toEqual(['demo-power-0.8', 'demo-power-0.9']);
+  });
+
+  it('still wraps each radio in its label (click-to-select), with no for attribute', () => {
+    const labels = byTag(fix('none'), 'label');
+    expect(labels).toHaveLength(FIX.length);
+    labels.forEach((label, i) => {
+      const inputs = byTag(label, 'input');
+      expect(inputs).toHaveLength(1);
+      expect(attr(inputs[0]!, 'id')).toBe(`fix-${FIX[i]!.value}`);
+      expect(hasAttr(label, 'for')).toBe(false);
+    });
+  });
 });
 
 describe('ResetButton', () => {
@@ -254,5 +282,20 @@ describe('ResetButton', () => {
     expect(hasAttr(button!, 'data-js-only')).toBe(true);
     expect(attr(button!, 'class')).toContain('min-h-(--size-target)');
     expect(attr(button!, 'class')).toContain('border-muted');
+  });
+
+  it('has no id attribute when none is given', () => {
+    const html = renderToStaticMarkup(<ResetButton onReset={noop} />);
+    expect(hasAttr(byTag(parse(html), 'button')[0]!, 'id')).toBe(false);
+    expect(html).not.toMatch(/\sid=/);
+  });
+
+  it('carries exactly the id it is given, and nothing else changes', () => {
+    const html = renderToStaticMarkup(<ResetButton id="x-reset" onReset={noop} />);
+    const ids = find(parse(html), (n) => hasAttr(n, 'id'));
+    expect(ids).toHaveLength(1);
+    expect(ids[0]!.nodeName).toBe('button');
+    expect(attr(ids[0]!, 'id')).toBe('x-reset');
+    expect(html.replace(' id="x-reset"', '')).toBe(renderToStaticMarkup(<ResetButton onReset={noop} />));
   });
 });

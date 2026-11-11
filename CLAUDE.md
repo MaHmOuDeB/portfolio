@@ -147,8 +147,8 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Derived`, `derivedAttr`, `DerivedRef` | `Derived.tsx` | A computed, simulated, live or build number, as `data-derived`. |
 | `Stat` | `Stat.tsx` | A large number with its label and source line. |
 | `Slider`, `SliderProps` | `Slider.tsx` (client) | A native range input joined to a number input. |
-| `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. |
-| `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. |
+| `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. Each radio's id is `${name}-${value}`, so a `name` is used once per page. |
+| `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. An optional `id` is set on the button. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. |
 | `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. |
 | `useFigureParams` | `useFigureParams.ts` (client) | Reads and writes a Figure's URL state. Call it inside a `<Suspense>` boundary. |
