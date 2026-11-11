@@ -17,6 +17,8 @@ import { CHART_ERROR_STATE, scrollMomentProps, SCROLL_STATES } from '@/app/kitch
 import { HomeChart, chartLayout, plotHeight } from '@/components/home/HomeChart';
 import { ScrollMoment, ScrollMomentView, type ScrollMomentProps } from '@/components/home/ScrollMoment';
 import type { ScrollShellProps } from '@/components/home/ScrollShell';
+import { EXPERIMENT } from '@/experiment.values';
+import { confidenceModel } from '@/lib/figure/cs-band';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel, type HomeMode, type HomeModel } from '@/lib/home/model';
 import { narrativeFixture, type NarrativeFixture } from '@/lib/home/narrative-fixtures';
@@ -348,6 +350,56 @@ describe('what the client half receives', () => {
   it('a held chart gets no tick start even if the server allowed one', () => {
     expect(shellProps(scrollMomentProps(mode('held'), { tickAllowed: true })).charts[2]!.tickFrom).toBeNull();
   });
+});
+
+describe('the caption explains the projected area, saying only what the chart draws', () => {
+  const PROJECTION =
+    'While the test runs, a shaded area after the last look is a projection, not data: it runs to the planned views per group, ends at the interval projected there and stays inside the last interval.';
+  const captionText = (m: HomeModel) => {
+    const figure = all(doc(html(m)), has('data-figure', 'home-chart'))[0]!;
+    const caption = figure.childNodes.filter((c): c is El => 'tagName' in c && c.tagName === 'figcaption')[0]!;
+    return squash(text(caption));
+  };
+
+  it.each(WITH_CHART.map((m) => [m.mode, m] as const))('%s: the caption carries the projection clause after the band sentence', (_, m) => {
+    expect(captionText(m)).toContain(`never widened at a look. ${PROJECTION}`);
+  });
+
+  // The clause is true of what the kit draws (cs-band confidenceModel, ConfidenceChart Marks): from
+  // the last look's interval to the planned views per group (capPerArm), ending at the estimate ±
+  // the projected half-width, cut to the last interval; drawn only while the test runs.
+  const RUNNING: readonly HomeModel[] = [mode('ab'), mode('calibration')];
+  it.each(RUNNING.map((m) => [m.mode, m] as const))('%s, running: the drawn projection matches each word of the clause', (_, m) => {
+    const snap = scrollMomentProps(m).charts[2]!.snapshot;
+    const cm = confidenceModel(snap)!;
+    const p = cm.projection!;
+    expect(p.fromN).toBe(cm.current.n);
+    expect(p.toN).toBe(snap.capPerArm);
+    expect(p.toN).toBe(EXPERIMENT.capPerArm);
+    expect([p.fromLower, p.fromUpper]).toEqual([cm.current.lower, cm.current.upper]);
+    const at = Math.min(cm.current.upper, Math.max(cm.current.lower, cm.current.estimate));
+    expect(p.toLower).toBe(Math.max(cm.current.lower, at - snap.projectedHalfWidthAtCap));
+    expect(p.toUpper).toBe(Math.min(cm.current.upper, at + snap.projectedHalfWidthAtCap));
+    expect(p.toLower).toBeGreaterThanOrEqual(cm.current.lower);
+    expect(p.toUpper).toBeLessThanOrEqual(cm.current.upper);
+    expect(html(m)).toContain('data-cs="projection"');
+  });
+
+  it('a running chart whose last look has reached the planned views draws no projected area', () => {
+    const m = SCROLL_STATES.find((s) => s.id === 'ab-many-looks')!.model();
+    const snap = scrollMomentProps(m).charts[2]!.snapshot;
+    expect(confidenceModel(snap)!.current.n).toBeGreaterThanOrEqual(snap.capPerArm);
+    expect(confidenceModel(snap)!.projection).toBeUndefined();
+    expect(html(m)).not.toContain('data-cs="projection"');
+  });
+
+  it.each([mode('held'), mode('ship-b'), simulated(toHomeModel(narrativeFixture('paused-ship-b'), 'b'))].map((m) => [m.mode, m] as const))(
+    '%s: a stopped chart draws no projected area',
+    (_, m) => {
+      expect(html(m)).toContain('data-home-chart');
+      expect(html(m)).not.toContain('data-cs="projection"');
+    },
+  );
 });
 
 function squash(s: string): string {

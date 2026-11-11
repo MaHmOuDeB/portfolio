@@ -1,10 +1,11 @@
 // The Home host's fixed inputs: the note under the hero and the scroll moment are drawn from
 // fictional snapshots, never from the site's store, so the host looks the same on every run. Later
 // sections of the Home page join the host here as they are built.
+import { homeScrollProps } from '@/components/home/HomeSections';
 import type { ScrollMomentProps } from '@/components/home/ScrollMoment';
+import { EXPERIMENT } from '@/experiment.values';
 import { FIXTURE_AB, buildFixture, snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel, type HomeModel } from '@/lib/home/model';
-import { chartAriaLabel, chartSnapshot, homeChartTable, homeSteps } from '@/lib/home/scroll';
 import { STEP_STATES } from './steps/states';
 
 /** The note's model: a calibration that is collecting, seen from group A. */
@@ -36,20 +37,13 @@ function manyLooks(): HomeModel {
 export const CHART_ERROR_STATE = 'chart-error';
 
 /**
- * The scroll moment's props for a model, as the Home page composes them: the five steps, and for each
- * step the live chart the server sliced for it (null where it has none). The counted-view tick is not
- * allowed on the host (no visit is counted here) unless a state asks for it: the tick's browser specs
- * then send the counted-view event themselves.
+ * The scroll moment's props for a model, as the Home page composes them (homeScrollProps): the five
+ * steps, and for each step the live chart the server sliced for it (null where it has none). The
+ * counted-view tick is not allowed on the host (no visit is counted here) unless a state asks for it:
+ * the tick's browser specs then send the counted-view event themselves.
  */
 export function scrollMomentProps(model: HomeModel, { tickAllowed = false }: { tickAllowed?: boolean } = {}): ScrollMomentProps {
-  const steps = homeSteps(model);
-  const charts = steps.map(({ step }) => {
-    const snapshot = chartSnapshot(model, step);
-    return snapshot === null
-      ? null
-      : { snapshot, table: homeChartTable(snapshot, model.refs), ariaLabel: chartAriaLabel(model, step), tickAllowed };
-  });
-  return { arm: model.arm, steps, charts, refs: model.refs };
+  return homeScrollProps(model, { tickAllowed });
 }
 
 const abModel = () => STEP_STATES.find((s) => s.id === 'ab')!.model();
@@ -65,15 +59,30 @@ function twoCharts(model: HomeModel): ScrollMomentProps {
   return { ...props, charts: props.charts.map((c, i) => (i === 4 ? paused : c)) };
 }
 
+/** The A/B fixture with a day that reached the daily entry ceiling (left out of its looks). */
+const ceilingModel = () => simulated(toHomeModel(snapshotFixture('ab', { ceilingDays: ['2026-12-02'] }), 'b'));
+const atRead = (m: HomeModel) => m.readAt;
+const staleAtRender = (m: HomeModel) => new Date(Date.parse(m.readAt) + (EXPERIMENT.staleAfterMinutes + 1) * 60_000).toISOString();
+
 /**
  * The scroll-moment pages' states: every step state, then the chart geometry cases, the A/B whose
  * live chart fails after hydration, the A/B with the visitor tick allowed, and the cross-fade's two
- * layers. `props` composes the moment where the page's default (no tick) does not fit.
+ * layers. `props` composes the moment where the page's default (no tick) does not fit. The `home-*`
+ * states leave the tick to the home page's own rule (HomeSectionsView) at a fixed render time
+ * (`renderedAt`): fresh with enough data (allowed), a ceiling day, and stale when rendered.
  */
-export const SCROLL_STATES: readonly { id: string; model: () => HomeModel; props?: (m: HomeModel) => ScrollMomentProps }[] = [
+export const SCROLL_STATES: readonly {
+  id: string;
+  model: () => HomeModel;
+  props?: (m: HomeModel) => ScrollMomentProps;
+  renderedAt?: (m: HomeModel) => string;
+}[] = [
   ...STEP_STATES,
   { id: 'ab-many-looks', model: manyLooks },
   { id: CHART_ERROR_STATE, model: abModel },
   { id: 'ab-tick', model: abModel, props: (m) => scrollMomentProps(m, { tickAllowed: true }) },
   { id: 'ab-two-charts', model: abModel, props: twoCharts },
+  { id: 'home-fresh', model: abModel, renderedAt: atRead },
+  { id: 'home-ceiling-day', model: ceilingModel, renderedAt: atRead },
+  { id: 'home-stale-at-render', model: abModel, renderedAt: staleAtRender },
 ];

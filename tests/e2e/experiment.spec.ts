@@ -94,7 +94,12 @@ async function cardsBelowTheFold(page: Page): Promise<void> {
   }, CARDS);
 }
 
-/** What a featured case-study card will be: a same-origin link marked as a card, in the cards region. */
+/**
+ * A card that leads to an existing page: a same-origin link marked as a card, added to the cards
+ * region beside the real ones (whose case-study pages do not exist yet, so a click on them ends on
+ * the 404 page; tests/e2e/home.spec.ts clicks a real one). `ADDED_CARD` selects it alone.
+ */
+const ADDED_CARD = '[data-experiment-click="card"][href="/privacy"]';
 async function addCard(page: Page): Promise<void> {
   await page.evaluate((selector) => {
     const a = document.createElement('a');
@@ -263,7 +268,7 @@ test.describe('a counted visit', () => {
       await route.continue();
     });
     // Playwright scrolls the card into view and clicks at once: well inside the 1 s dwell.
-    await page.locator('[data-experiment-click="card"]').click({ noWaitAfter: true });
+    await page.locator(ADDED_CARD).click({ noWaitAfter: true });
 
     const isCardBatch = (b: Batch) => {
       const types = b.pv === entry.pv ? b.events.map((e) => e.type) : [];
@@ -314,7 +319,7 @@ test.describe('a counted visit', () => {
           && request.method() === 'POST' && request.resourceType() === 'beacon';
       }, { timeout: 10_000 });
       const [, , unload] = await Promise.all([
-        page.waitForURL('**/privacy'), page.locator('[data-experiment-click="card"]').click(), webkitUnload,
+        page.waitForURL('**/privacy'), page.locator(ADDED_CARD).click(), webkitUnload,
       ]);
       if (clientNetwork) {
         await expect.poll(() => clientNetwork.events.some((event) => {
@@ -347,7 +352,7 @@ test.describe('a counted visit', () => {
     await page.goto('/');
     const entry = await countedEntry(page, sent);
     await addCard(page);
-    await Promise.all([page.waitForURL('**/privacy'), page.locator('[data-experiment-click="card"]').click()]);
+    await Promise.all([page.waitForURL('**/privacy'), page.locator(ADDED_CARD).click()]);
     // A batch sent while the page unloads is not reported to the test (Playwright sees no request a
     // document sends during its pagehide), so the store tells: the card counted, and it can count
     // only on an inview counted for the same view (otherwise it is an orphan).

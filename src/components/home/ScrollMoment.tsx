@@ -21,6 +21,10 @@
 // boundary, so nothing in the shell is known to throw there.
 // The title is a level-2 heading, so the steps' h3 headings and their diagrams' h4 titles nest under
 // it rather than under the last case-study card.
+// The caption says only what the kit draws (lib/figure/cs-band `confidenceModel`, ConfidenceChart):
+// the band is the running intersection, and while the test runs (not paused, held or decided) the
+// projected area goes from the last look's interval to the planned views per group (`capPerArm`),
+// ending at the estimate ± the projected half-width cut to the last interval.
 // This receives no Home model: only the group, the steps, the chart entries the server sliced
 // (`chartSnapshot`, `homeChartTable`, `chartAriaLabel` in src/lib/home/scroll.tsx, with `tickAllowed`)
 // and the refs.
@@ -141,7 +145,9 @@ export function ScrollMomentView({ arm, steps, charts, refs, Shell }: ScrollMome
           caption={
             <>
               When a band is shown, it is the <Derived value={1 - EXPERIMENT.alpha} unit="share" refs={BUILD} /> confidence sequence of
-              B − A in percentage points, never widened at a look.
+              B − A in percentage points, never widened at a look. While the test runs, a shaded area after the last look is a
+              projection, not data: it runs to the planned views per group, ends at the interval projected there and stays inside the
+              last interval.
             </>
           }
           provenance={refs.includes('live') ? 'live' : 'simulated'}
