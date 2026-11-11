@@ -486,7 +486,7 @@ describe('the workflows', () => {
 
   it('pins every action by a full commit SHA', () => {
     for (const yaml of [CI, DEPLOY]) {
-      for (const m of yaml.matchAll(/^\s*(?:- )?uses: (\S+)/gm)) expect(m[1], m[1]).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+      for (const m of yaml.matchAll(/^\s*(?:- )?uses: (\S+)/gm)) expect(m[1], m[1]).toMatch(/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)?@[0-9a-f]{40}$/);
     }
   });
 

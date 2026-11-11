@@ -58,6 +58,7 @@ flowchart TD
 | `build` | Production build, absence of development showcase routes, design lint and truth audit. |
 | `e2e` | Playwright in its pinned container, including visual checks and controlled baseline updates. |
 | `lhci` | Lighthouse against the production build. |
+| `lhci-gate` | One Lighthouse result per commit: passes when Lighthouse passed in this run, or in an earlier run of the same pull request commit; fails when it was not measured or failed. |
 | `links` | Lychee against the locally served build. |
 | `cv-pdf` | Records the checked-out commit, its tree and the hashes of the CV checker, its claim manifest and the CV PDF; passes while no PDF is in the tree, and fails on a PDF until its check is active. |
 | `build-isolation` | Runs the deploy's build wrapper with the real Vercel CLI on a synthetic pulled environment and fails unless the store's write credentials (`KV_REST_API_TOKEN`, `KV_URL`, `REDIS_URL`) are absent from every process of the build. |

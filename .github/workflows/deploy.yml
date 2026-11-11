@@ -26,7 +26,7 @@ jobs:
       && github.event.workflow_run.event == 'push'
       && github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       # After launch only the commit named in the repository variable LAUNCH_SHA may deploy
       # production: a CI run that was queued or in flight when LAUNCHED became "true", or a re-run
