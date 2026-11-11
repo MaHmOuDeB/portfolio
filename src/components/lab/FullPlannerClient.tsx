@@ -3,8 +3,9 @@
 // The full planner's paired island, loaded by EagerOrIntent (FullPlannerControls imports it
 // lazily; the server never imports it). It owns the sizing values once, with their URL state
 // (`?planner.baseline=0.3&planner.risePoints=4&planner.mode=relative`), and hands the visitors per
-// group to the duration Figure, which owns only its traffic. It announces the sizing result on a
-// committed change only: slider release, a key release, a typed value, a unit change or Reset.
+// group to the duration Figure, which owns only its traffic. It announces the sizing result, with
+// the weeks it leads to at the traffic on screen, on a committed change only: slider release, a key
+// release, a typed value, a unit change or Reset.
 //
 // - Joint URL state: a baseline change can lower the rise (the target never passes 99%), so every
 //   change writes the whole normalized triple, and neither state nor URL ever holds an unnormalized
@@ -19,12 +20,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import {
+  DURATION_PRESETS,
   FULL_PLAN_PRESETS,
   FULL_PLAN_SCHEMA,
   PLANNER_NOUN,
   fullPlanModel,
-  fullPlanSentence,
   normalizeFullPlan,
+  pairedSentence,
   type FullPlanValues,
   type PlannerContext,
 } from '@/lib/lab/full-planner';
@@ -108,6 +110,10 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
   const [changed, setChanged] = useState(false);
   const noun = PLANNER_NOUN[context];
   const current = () => latest.current;
+  // The duration Figure's traffic on screen: a sizing change moves its weeks, so the sizing
+  // announcement says them too (the duration Figure announces only its own changes).
+  const trafficShownRef = useRef(DURATION_PRESETS.default.traffic);
+  const announce = (next: FullPlanValues) => setAnnouncement(pairedSentence(next, trafficShownRef.current, noun));
 
   // The whole normalized triple, every time: a stale or capped URL pair is replaced by the one on screen.
   const apply = (next: FullPlanValues) => {
@@ -118,7 +124,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
   };
   const commit = (next: FullPlanValues) => {
     setChanged(true);
-    setAnnouncement(fullPlanSentence(next, noun));
+    announce(next);
   };
 
   return (
@@ -149,13 +155,19 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
                 reset();
                 const restored = normalizeFullPlan(FULL_PLAN_PRESETS[preset]!);
                 latest.current = restored;
-                setAnnouncement(fullPlanSentence(restored, noun));
+                announce(restored);
               })
             }
           />
         }
       />
-      <DurationFigure id={durationId} context={context} nPerArm={fullPlanModel(shown).nPerArm} faultAfterChange={faultAfterChange} />
+      <DurationFigure
+        id={durationId}
+        context={context}
+        nPerArm={fullPlanModel(shown).nPerArm}
+        trafficShownRef={trafficShownRef}
+        faultAfterChange={faultAfterChange}
+      />
     </div>
   );
 }

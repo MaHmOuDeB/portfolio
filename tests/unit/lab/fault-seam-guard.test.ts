@@ -1607,7 +1607,7 @@ export function FullPlanner({ id = 'planner', faultAfterChange }: { id?: string;
     expect(a.violations.map((v) => [v.file, v.line, v.rule])).toEqual([['src/app/page.tsx', 3, 'activation']]);
   });
 
-  it('the island forwarding the seam to the duration Figure under another name fails', () => {
+  it('the island forwarding the seam to the duration Figure with a defaulting expression fails', () => {
     const files = labPage('return <FullPlanner />;');
     files['src/components/lab/FullPlannerClient.tsx'] = files['src/components/lab/FullPlannerClient.tsx']!.replace(
       '<DurationFigure nPerArm={1} faultAfterChange={faultAfterChange} />',

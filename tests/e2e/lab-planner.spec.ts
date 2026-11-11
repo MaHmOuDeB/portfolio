@@ -19,7 +19,10 @@ const PRESET_N = '1,353';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const SIZING_FAILURE = 'The sizing readout failed after a change (test seam)';
 const DURATION_FAILURE = 'The duration readout failed after a change (test seam)';
-const SIZING_RESULT = /^[\d,]+ visitors per group to detect a rise of .+, from \d+% to \d+%$/;
+// The sizing announcement, which also says the weeks the change leads to at the traffic on screen.
+const SIZING_RESULT = /^[\d,]+ visitors per group to detect a rise of .+, from \d+% to \d+%; both groups fill in \d+ weeks? at [\d,]+ visitors a day$/;
+// A message only the statistics side ships (durationWeeks), so only the island's code holds it.
+const STATS_MARKER = 'entryViewsPerDay must be a finite number above 0';
 
 const figure = (page: Page, id = ID) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id = ID) => page.locator('[data-island]', { has: figure(page, id) });
@@ -110,14 +113,15 @@ test.describe('Full planner', () => {
     await ready(page);
     await expect(readoutN(page)).toHaveText(PRESET_N);
     await expect(weeks(page)).toHaveText('4');
-    // The island's code is the chunk that holds its Figures (the seam's message is compiled into
-    // it): it was requested after the pointer arrived, and no script before then holds it. A slow
-    // engine may still fetch other page chunks late; only the island's code is held back.
-    const holdsIsland = async (url: string) => (await (await request.get(url)).text()).includes(SIZING_FAILURE);
-    const before = await Promise.all(scripts.slice(0, beforeIntent).map(holdsIsland));
-    const after = await Promise.all(scripts.slice(beforeIntent).map(holdsIsland));
-    expect(before.filter(Boolean)).toEqual([]);
-    expect(after.filter(Boolean).length).toBeGreaterThan(0);
+    // The island's code is what holds its Figures (the seam's message is compiled into them) and
+    // the statistics (durationWeeks' message): both were requested after the pointer arrived, and no
+    // script before then holds either. A slow engine may still fetch other page chunks late; only the
+    // island's code is held back. Two markers, so a split of the views from the statistics is caught.
+    const bodies = await Promise.all(scripts.map(async (url) => (await request.get(url)).text()));
+    for (const marker of [SIZING_FAILURE, STATS_MARKER]) {
+      expect(bodies.slice(0, beforeIntent).filter((b) => b.includes(marker)), marker).toEqual([]);
+      expect(bodies.slice(beforeIntent).some((b) => b.includes(marker)), marker).toBe(true);
+    }
     expect(errors).toEqual([]);
   });
 
@@ -195,7 +199,7 @@ test.describe('Full planner', () => {
     await expect(readoutN(page)).toHaveText(before!);
     await expect(result(page)).toContainText('To detect a rise of 13.3% of the baseline, from 30% to 34%.');
     await expect(figure(page).locator('[data-slider-readout]').nth(1)).toHaveText('13.3% of baseline');
-    await expect(live(page)).toHaveText(`${before} visitors per group to detect a rise of 13.3% of the baseline, from 30% to 34%`);
+    await expect(live(page)).toHaveText(`${before} visitors per group to detect a rise of 13.3% of the baseline, from 30% to 34%; both groups fill in 7 weeks at 100 visitors a day`);
     await expect.poll(() => query(page).get(`${ID}.mode`)).toBe('relative');
     expect(query(page).get(`${ID}.baseline`)).toBe('0.3');
     expect(query(page).get(`${ID}.risePoints`)).toBe('4');
@@ -247,7 +251,8 @@ test.describe('Full planner', () => {
     await expect(baseline(page)).toHaveValue('0.29');
     await expect(unit(page, 'Points')).toBeChecked();
     await expect(readoutN(page)).toHaveText(PRESET_N);
-    await expect(live(page)).toHaveText('1,353 visitors per group to detect a rise of 5 points, from 29% to 34%');
+    // the weeks at the traffic still on screen: 2 x 1,353 at 500 a day is 1 week
+    await expect(live(page)).toHaveText('1,353 visitors per group to detect a rise of 5 points, from 29% to 34%; both groups fill in 1 week at 500 visitors a day');
     expect(ownKeys(page, ID)).toEqual([]);
     expect(query(page).get(`${DURATION}.traffic`)).toBe('500');
     await expect(traffic(page)).toHaveValue('500');
@@ -277,7 +282,11 @@ test.describe('Full planner', () => {
     await page.keyboard.press('ArrowRight');
     await expect(baseline(page)).toHaveValue('0.3');
     await expect(live(page)).toHaveText(SIZING_RESULT);
-    await expect(live(page)).toHaveText(/from 30% to 35%$/);
+    // the sizing change moves the weeks too, so the one announcement says both; the duration
+    // Figure's own region stays quiet, so nothing is announced twice
+    await expect(live(page)).toHaveText(/from 30% to 35%; both groups fill in \d+ weeks? at 100 visitors a day$/);
+    const shownWeeks = await weeks(page).textContent();
+    await expect(live(page)).toHaveText(new RegExp(`fill in ${shownWeeks} weeks? at`));
     await expect(live(page)).toHaveAttribute('data-derived', 'simulated');
     await expect(live(page, DURATION)).toHaveText('');
   });
@@ -308,7 +317,7 @@ test.describe('Full planner', () => {
       if (control === 'unit radio') {
         await page.keyboard.press('ArrowRight');
         await expect(unit(page, 'Percent of baseline')).toBeChecked();
-        await expect(live(page)).toHaveText(/of the baseline, from 29% to 34%$/);
+        await expect(live(page)).toHaveText(/of the baseline, from 29% to 34%; both groups fill in 4 weeks at 100 visitors a day$/);
       }
     });
   }
@@ -359,7 +368,7 @@ test.describe('Full planner', () => {
     await page.mouse.up();
     await expect(figure(page)).not.toHaveAttribute('data-dragging');
     await expect(live(page)).toHaveText(SIZING_RESULT);
-    await expect(live(page)).toHaveText(/% of the baseline, from 29% to \d+%$/);
+    await expect(live(page)).toHaveText(/% of the baseline, from 29% to \d+%; both groups fill in \d+ weeks? at 100 visitors a day$/);
     const stats = await page.evaluate(() => {
       const w = window as unknown as { lat: number[]; announcedDuringDrag: string[]; animationsDuringDrag: number };
       return { lat: w.lat, announced: w.announcedDuringDrag, animations: w.animationsDuringDrag };
@@ -504,13 +513,25 @@ test.describe('Full planner', () => {
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     await expect(readoutN(page, 'winback')).toHaveText(PRESET_N);
     await expect(figure(page, 'winback').locator('[data-figure-body]')).toContainText('customers per group');
-    await expect(result(page, 'winback')).toContainText('Hypothetical uplift, observed baseline');
+    await expect(result(page, 'winback')).toContainText('Hypothetical uplift');
     const caption = figure(page, 'winback').locator('figcaption > p').first();
     await expect(caption).toContainText('Nobody was contacted and no test was run.');
     await expect(caption.locator('[data-fact="retention.winback.baseline_rate"]')).toHaveText('29%');
     await expect(caption.locator('data[data-derived="retention.winback.baseline_rate retention.winback.uplift_pp"]')).toHaveText('34%');
     await expect(traffic(page, 'winback-duration')).toHaveValue('50');
     await expect(figure(page, 'winback-duration').locator('figcaption > p').first()).toContainText('If 50 customers a day enter the test');
+    await expect(figure(page, 'winback-duration').locator('figcaption > p').first()).toContainText('window for ordering again');
+    await expect(figure(page, 'winback-duration').getByRole('heading', { level: 3 })).toHaveText(
+      'The fewer customers a day, the more weeks it takes to fill both groups.',
+    );
+    // once the baseline moves off the observed one, nothing beside the live results calls it observed
+    await typeExact(page, 'Baseline conversion, exact value', '0.6', 'winback');
+    await expect(result(page, 'winback')).toContainText('from 60% to 65%.');
+    for (const id of ['winback', 'winback-duration']) {
+      await expect(result(page, id)).toContainText('Hypothetical uplift');
+      await expect(result(page, id)).not.toContainText('observed');
+    }
+    await expect(live(page, 'winback')).toHaveText(/^[\d,]+ customers per group to detect a rise of 5 points, from 60% to 65%; both groups fill in 9 weeks at 50 customers a day$/);
     expect(errors).toEqual([]);
   });
 

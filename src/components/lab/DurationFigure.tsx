@@ -7,9 +7,11 @@
 // traffic only; the sizing Figure's own Reset leaves the traffic alone.
 //
 // It passes `preview={false}` to the Figure: if its readout throws after a change, the fallback
-// shows the kit's sentence and the current table, never a preset readout beside it.
+// shows the kit's sentence and the current table, never a preset readout beside it. The traffic on
+// screen is shared with the island through `trafficShownRef`, so the sizing announcement can say the
+// weeks a sizing change leads to.
 // `faultAfterChange` (a test seam, absent in production) is forwarded unchanged to the view.
-import { useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { DURATION_PRESETS, DURATION_SCHEMA, PLANNER_NOUN, durationSentence, normalizeTraffic, type PlannerContext } from '@/lib/lab/full-planner';
@@ -22,12 +24,17 @@ export type DurationFigureProps = {
   context: PlannerContext;
   /** The sizing Figure's current result. */
   nPerArm: number;
+  /** Where the island reads the traffic on screen, for the sizing announcement. */
+  trafficShownRef: RefObject<number>;
   faultAfterChange?: true;
 };
 
-export function DurationFigure({ id, context, nPerArm, faultAfterChange }: DurationFigureProps) {
+export function DurationFigure({ id, context, nPerArm, trafficShownRef, faultAfterChange }: DurationFigureProps) {
   const { values, preset, set, reset } = useFigureParams(id, DURATION_SCHEMA, DURATION_PRESETS);
   const traffic = normalizeTraffic(values.traffic);
+  useEffect(() => {
+    trafficShownRef.current = traffic;
+  }, [trafficShownRef, traffic]);
   const [announcement, setAnnouncement] = useState('');
   const [changed, setChanged] = useState(false);
   const noun = PLANNER_NOUN[context];

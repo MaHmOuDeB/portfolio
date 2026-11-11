@@ -26,6 +26,7 @@ import {
   durationTable,
   fullPlanModel,
   fullPlanSentence,
+  pairedSentence,
   fullPlanTable,
   normalizeFullPlan,
   normalizeTraffic,
@@ -289,6 +290,15 @@ describe('tables and sentences', () => {
     expect(durationSentence(1353, 100)).toBe('4 weeks at 100 visitors a day to reach 1,353 visitors per group');
     expect(durationSentence(1, 10_000)).toBe('1 week at 10,000 visitors a day to reach 1 visitor per group');
   });
+
+  it('the sizing announcement also says the weeks at the current traffic, since a sizing change moves them', () => {
+    expect(pairedSentence(PRESET, 100)).toBe('1,353 visitors per group to detect a rise of 5 points, from 29% to 34%; both groups fill in 4 weeks at 100 visitors a day');
+    expect(pairedSentence({ ...PRESET, mode: 'relative' }, 500, 'customers')).toBe(
+      '1,353 customers per group to detect a rise of 17.2% of the baseline, from 29% to 34%; both groups fill in 1 week at 500 customers a day',
+    );
+    // the traffic is normalized like the duration Figure's own
+    expect(pairedSentence(PRESET, Number.NaN)).toBe(pairedSentence(PRESET, 100));
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -379,20 +389,34 @@ describe('the server-rendered preset views', () => {
     const r = textOf(render('retention').duration);
     expect(r).toContain('100 customers a day');
     expect(r).toContain('split equally between groups');
+    // a win-back result is known only after the window for ordering again: the Lab's per-visit case has no such wait
+    expect(r).toContain("Each customer's result is known only once their window for ordering again has passed, so the test runs that much longer after the last one enters.");
+    expect(d).not.toContain('window for ordering again');
+    const titles = (html: string) => [...html.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => m[1]!);
+    expect(titles(render('retention').duration)).toEqual(['The fewer customers a day, the more weeks it takes to fill both groups.']);
+    expect(titles(render('hypothetical').duration)).toEqual(['The fewer visitors a day, the more weeks a test needs.']);
   });
 
-  it('hypothetical: the inputs are hypothetical, not results from a test or the case studies', () => {
+  it('hypothetical: the inputs are hypothetical, not results from a real test', () => {
     const s = textOf(render('hypothetical').sizing);
     expect(s).toContain('Hypothetical test');
-    expect(s).toContain('not results from a real test');
+    expect(s).toContain('A hypothetical test: the baseline conversion and the rise are numbers to plan with, not results from a real test.');
+    // the preset equals the Retention sizing, so the Lab note does not deny coming from the case studies
+    expect(s).not.toContain('case studies');
     expect(s).not.toMatch(/lapsed|win-back|offer/i);
   });
 
   it('retention: a hypothetical uplift on the observed baseline, with the source facts and the 34% target derived from them', () => {
     const { sizing } = render('retention');
     const s = textOf(sizing);
-    expect(s).toContain('Hypothetical uplift');
-    expect(s).toContain('observed baseline');
+    // the label beside the live result says only what stays true when the baseline moves
+    const result = sizing.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
+    expect(textOf(result)).toContain('Hypothetical uplift');
+    expect(textOf(result)).not.toContain('observed');
+    // the caption scopes "observed" to the preset, and the share to the window
+    const tight = s.replace(/ ([,;.])/g, '$1');
+    expect(tight).toContain('The preset is a hypothetical uplift on an observed baseline. Its baseline, 29%, is the share of lapsed customers');
+    expect(tight).toContain('who ordered again within the window;');
     expect(s).toContain('Nobody was contacted and no test was run.');
     expect(sizing).toContain('data-fact="retention.winback.baseline_rate"');
     expect(sizing).toContain('data-fact="retention.winback.uplift_pp"');

@@ -50,6 +50,17 @@ export function fullPlanSentence(v: FullPlanValues, noun: PlannerNoun = 'visitor
   return `${formatNumber(plan.nPerArm, 0)} ${noun} per group to detect a rise of ${riseText(n)}, from ${percentText(n.baseline)} to ${percentText(plan.target)}`;
 }
 
+/**
+ * The sizing announcement with the weeks it implies at the duration Figure's current traffic, since
+ * a committed sizing change moves the duration readout too: "...from 29% to 34%; both groups fill in
+ * 4 weeks at 100 visitors a day".
+ */
+export function pairedSentence(v: FullPlanValues, traffic: number, noun: PlannerNoun = 'visitors'): string {
+  const t = normalizeTraffic(traffic);
+  const { weeks } = durationModel(fullPlanModel(v).nPerArm, t);
+  return `${fullPlanSentence(v, noun)}; both groups fill in ${weeksText(weeks)} at ${formatNumber(t, 0)} ${noun} a day`;
+}
+
 /** The sizing table: the inputs in both units and the result. The unit shown does not change it. */
 export function fullPlanTable(v: FullPlanValues, noun: PlannerNoun = 'visitors'): TableData {
   const n = normalizeFullPlan(v);

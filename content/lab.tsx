@@ -21,7 +21,7 @@ type PlannerCopy = {
   sizingTitle: string;
   /** The duration Figure's title. */
   durationTitle: string;
-  /** The words beside each Figure's Simulated badge. */
+  /** The words beside each Figure's Simulated badge: true whatever the controls are set to. */
   label: string;
   /** The duration control's label. */
   trafficLabel: string;
@@ -37,8 +37,8 @@ export const PLANNER_COPY: Record<PlannerContext, PlannerCopy> = {
   },
   retention: {
     sizingTitle: 'Smaller rises need more customers per group.',
-    durationTitle: 'The fewer customers a day, the more weeks a test needs.',
-    label: 'Hypothetical uplift, observed baseline',
+    durationTitle: 'The fewer customers a day, the more weeks it takes to fill both groups.',
+    label: 'Hypothetical uplift',
     trafficLabel: 'Total customers per day',
   },
 };
@@ -61,15 +61,14 @@ function SourcedTarget() {
 export function SizingContextNote({ context }: { context: PlannerContext }): ReactNode {
   return context === 'retention' ? (
     <>
-      A hypothetical uplift on an observed baseline. The preset baseline,{' '}
+      The preset is a hypothetical uplift on an observed baseline. Its baseline,{' '}
       <Fact id="retention.winback.baseline_rate" />, is the share of lapsed customers in the case study&apos;s public
-      dataset who ordered again; a rise of <Fact id="retention.winback.uplift_pp" /> points, to <SourcedTarget />, is an
+      dataset who ordered again within the window; a rise of <Fact id="retention.winback.uplift_pp" /> points, to <SourcedTarget />, is an
       uplift to plan for, not the effect of any offer. Nobody was contacted and no test was run.
     </>
   ) : (
     <>
-      A hypothetical test: the baseline conversion and the rise are numbers to plan with, not results from a real test
-      or from the case studies.
+      A hypothetical test: the baseline conversion and the rise are numbers to plan with, not results from a real test.
     </>
   );
 }
@@ -104,6 +103,13 @@ export function DurationCaption({ context, traffic }: { context: PlannerContext;
       , this is how long both groups take to reach the size from the planner above, in whole weeks, rounded up. The
       traffic is a number to plan with, not a promise of actual traffic: it assumes every one of them enters the test
       and the same number arrives every day.
+      {context === 'retention' ? (
+        <>
+          {' '}
+          Each customer&apos;s result is known only once their window for ordering again has passed, so the test runs
+          that much longer after the last one enters.
+        </>
+      ) : null}
     </>
   );
 }
