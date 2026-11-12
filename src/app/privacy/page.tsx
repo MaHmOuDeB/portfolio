@@ -5,11 +5,10 @@ import { Callout } from '@/components/kit/Callout';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../../content/privacy';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../content/seo';
 
-export const metadata: Metadata = {
-  title: PRIVACY.title,
-  description: 'What this site collects, why, and for how long.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/privacy'), canonicalOrigin());
 
 /** "26.10.2026" for "2026-10-26". */
 function versionDate(iso: string): string {

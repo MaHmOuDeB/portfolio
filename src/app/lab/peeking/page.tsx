@@ -3,11 +3,10 @@
 // the browser.
 import type { Metadata } from 'next';
 import { LabPeekingPage } from '@/components/lab/LabPage';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../../content/seo';
 
-export const metadata: Metadata = {
-  title: 'Peeking at results, in the Lab',
-  description: 'What checking a running test every day does to its false positives, on a seeded simulation.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/lab/peeking'), canonicalOrigin());
 
 export default function LabPeekingRoute() {
   return <LabPeekingPage />;

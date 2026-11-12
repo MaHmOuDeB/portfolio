@@ -12,15 +12,16 @@ import { notFound } from 'next/navigation';
 import { ExperimentBeacon } from '@/components/experiment/ExperimentBeacon';
 import { HomeSections } from '@/components/home/HomeSections';
 import type { Arm } from '@/experiment.values';
-import { serverEnv } from '@/lib/env';
 import { getExperimentSnapshot } from '@/lib/experiment/live';
-import { homeMetadata } from '@/lib/home/metadata';
 import { toHomeModel } from '@/lib/home/model';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../../content/seo';
 
 export const revalidate = 300;
 export const dynamicParams = false;
 
-export const metadata: Metadata = homeMetadata(serverEnv());
+// The same metadata for both groups: canonical /, indexable, no snapshot read.
+export const metadata: Metadata = pageMetadata(seoEntry('/'), canonicalOrigin());
 
 export function generateStaticParams(): { arm: Arm }[] {
   return [{ arm: 'a' }, { arm: 'b' }];

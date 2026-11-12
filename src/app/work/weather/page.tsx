@@ -1,13 +1,11 @@
 // The Weather build note. A plain static page: the composition reads only the vendored weather
 // export at build time and has no island.
 import type { Metadata } from 'next';
-import { WEATHER_TITLE, WeatherPage } from '@/components/weather/WeatherPage';
+import { WeatherPage } from '@/components/weather/WeatherPage';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../../content/seo';
 
-export const metadata: Metadata = {
-  title: WEATHER_TITLE,
-  description:
-    'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/work/weather'), canonicalOrigin());
 
 export default function WeatherRoute() {
   return <WeatherPage />;
