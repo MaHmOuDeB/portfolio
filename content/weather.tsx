@@ -197,7 +197,13 @@ export const WEATHER_LIMITS: readonly [key: string, body: ReactNode][] = [
   ],
 ];
 
-/** The dataset link and its licence. */
+/** The pipeline's public repository, at the commit this page was checked against. */
+export const WEATHER_REPO = {
+  base: 'https://github.com/MaHmOuDeB/weather-sql-pipeline',
+  commit: 'ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+} as const;
+
+/** The dataset link and its licence, then the repository at a fixed commit. */
 export function WeatherSources(): ReactNode {
   if (WEATHER_DATASET.licenceStated) throw new Error('weather: the export now states a licence; update the page');
   return (
@@ -208,6 +214,11 @@ export function WeatherSources(): ReactNode {
         </TextLink>
       </li>
       <li className="mt-2">Its licence: not stated.</li>
+      <li className="mt-2">
+        <TextLink href={`${WEATHER_REPO.base}/tree/${WEATHER_REPO.commit}`} standalone external>
+          <span>The pipeline&apos;s repository, at a fixed commit</span>
+        </TextLink>
+      </li>
     </ul>
   );
 }

@@ -150,7 +150,7 @@ for (const note of NOTES) {
   });
 }
 
-test('the links that leave the site are ordinary links: n8n names a fixed commit, Weather the dataset', async ({ page }) => {
+test('the links that leave the site are ordinary links: n8n names a fixed commit, Weather the dataset and a fixed commit', async ({ page }) => {
   await page.goto('/work/n8n');
   const repoLinks = page.locator('section#sources a[href^="https://github.com/"]');
   await expect(repoLinks).toHaveCount(3);
@@ -160,7 +160,11 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
   }
   await page.goto('/work/weather');
   const external = await page.locator('main a[href^="http"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(external).toEqual(['https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository']);
+  expect(external).toEqual([
+    'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
+    'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+  ]);
+  for (const a of await page.locator('main a[href^="http"]').all()) await expect(a).toHaveAttribute('rel', 'noopener');
 });
 
 test.describe('MarketingWS build note', () => {

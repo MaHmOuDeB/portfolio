@@ -1,7 +1,8 @@
 // The Weather build note at /work/weather: a public dataset rebuilt in 2026, told as a data-quality
 // pipeline (the schema, the checks by level and the quarantine policy). Every number is a <Fact> from
 // the vendored weather export or a <Derived> that names it; the page shows counts and rules, never a
-// row of the data, and its sources are the dataset link and its licence.
+// row of the data, and its sources are the dataset link, its licence and the repository at a fixed
+// commit.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -11,6 +12,7 @@ import { getFact } from '@/lib/facts';
 import { LIVE_ROUTES } from '@/lib/site';
 import { weather } from '@/lib/sources';
 import { WEATHER_DATASET, checkLevels } from '@/lib/weather/checks';
+import { WEATHER_REPO } from '../../../content/weather.tsx';
 import { WORK_GROUPS } from '../../../content/work.tsx';
 import {
   BUILD_NOTE_LINKS,
@@ -100,7 +102,10 @@ describe('the copy, word for word', () => {
       'limits',
       "Limits The quarantine rule is one threshold on wind speed. It catches readings that are plainly impossible, not a sensor that is slightly off. The checks show that the data is complete, consistent and plausible, not that it is right: a wrong reading within its range passes. The dataset's Kaggle page gives no licence, so this page shows counts and rules, never rows of the data.",
     ],
-    ['sources', 'Sources and links The data: Global Weather Repository, on Kaggle Its licence: not stated.'],
+    [
+      'sources',
+      "Sources and links The data: Global Weather Repository, on Kaggle Its licence: not stated. The pipeline's repository, at a fixed commit",
+    ],
   ])('%s', (id, expected) => {
     expect(text(section(PAGE, id))).toBe(expected);
   });
@@ -232,11 +237,24 @@ describe('truth', () => {
 });
 
 describe('links', () => {
-  it('makes every link a 44 px target and marks the dataset as another site', () => {
+  it('makes every link a 44 px target and marks the dataset and the repository as other sites', () => {
     const anchors = [...PAGE.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
-    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 1);
+    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 2);
     for (const a of anchors) expect(a, a).toContain('data-touch-target=""');
     expect(anchors.find((a) => a.includes('kaggle.com'))).toContain('rel="noopener"');
+    expect(anchors.find((a) => a.includes('github.com'))).toContain('rel="noopener"');
+  });
+
+  it('links the repository at one fixed commit, never a branch', () => {
+    expect(WEATHER_REPO).toEqual({
+      base: 'https://github.com/MaHmOuDeB/weather-sql-pipeline',
+      commit: 'ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+    });
+    const hrefs = [...section(PAGE, 'sources').matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
+    expect(hrefs).toEqual([
+      weather._meta.dataset.url,
+      'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+    ]);
   });
 });
 
