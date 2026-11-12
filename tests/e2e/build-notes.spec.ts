@@ -346,3 +346,39 @@ test.describe('the Docproof build note', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// The real screenshots: each loads from this site and none makes the page scroll sideways at 320 px.
+const SHOTS = [
+  { route: '/work/marketingws', ids: ['marketingwsBrief', 'marketingwsDraft'] },
+  { route: '/work/weather', ids: ['weatherChecks'] },
+  { route: '/work/n8n', ids: ['n8nDecision'] },
+] as const;
+
+for (const { route, ids } of SHOTS) {
+  test.describe(`${route} screenshots`, () => {
+    test('each image loads: 200 and a natural width', async ({ page }) => {
+      await page.goto(route);
+      for (const id of ids) {
+        const img = page.locator(`figure[data-note-shot="${id}"] img`);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
+        const src = (await img.getAttribute('src'))!;
+        expect((await page.request.get(src)).status()).toBe(200);
+      }
+    });
+
+    test('reflow at 320 px: nothing scrolls sideways', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 800 });
+      await page.goto(route);
+      for (const id of ids) await page.locator(`figure[data-note-shot="${id}"] img`).scrollIntoViewIfNeeded();
+      expect(await noSideScroll(page)).toBe(true);
+    });
+  });
+}
+
+test('the footer carries the colophon line on every page', async ({ page }) => {
+  for (const route of ['/', '/work/weather']) {
+    await page.goto(route);
+    await expect(page.getByRole('contentinfo')).toContainText('Built with Claude Code as pair-programmer.');
+  }
+});
