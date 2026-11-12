@@ -153,7 +153,8 @@ function rec(id: string, bindingId: string, claim: string, token: string, o: Par
   for (let i = 0; i <= (o.nth ?? 0); i++) at = claim.indexOf(token, at + 1);
   if (at < 0) throw new Error(`token ${token} not in claim`);
   const start = [...claim.slice(0, at)].length;
-  const { nth: _nth, ...rest } = o;
+  const rest: Partial<Rec> & { nth?: number } = { ...o };
+  delete rest.nth;
   return { id, bindingId, token, span: { start, end: start + [...token].length }, normalizedClaim: claim, subject: 'Example Co', meaning: id, ...rest };
 }
 
@@ -289,7 +290,7 @@ describe('check-web-cv: inputs and modes', () => {
     failsWith(check(null, { pdf, args: meta({ sha256: sha256('x'), renderedAt: '2026-11-12T10:00:00Z', web: true }) }), 'names another PDF');
     failsWith(check(null, { pdf, args: meta({ sha256: sha256(pdf), renderedAt: '2026-11-12T10:00:00Z', web: false }) }), 'web: true');
     failsWith(
-      check(null, { pdf, args: meta({ sha256: sha256(pdf), renderedAt: '2026-11-12T10:00:00Z', web: true, source: '/Users/x/private/cv.docx' }) }),
+      check(null, { pdf, args: meta({ sha256: sha256(pdf), renderedAt: '2026-11-12T10:00:00Z', web: true, source: 'cv.docx' }) }),
       'exactly sha256, renderedAt and web',
     );
   });
