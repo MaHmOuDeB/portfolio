@@ -145,7 +145,7 @@ describe('the directory', () => {
       expect(svgs[0], row.key).not.toMatch(/role=|aria-label=/);
       const link = /<h3[^>]*>\s*<a [^>]*>([\s\S]*?)<\/a>\s*<\/h3>/.exec(row.body)?.[1] ?? '';
       expect(link.indexOf('<svg'), row.key).toBeGreaterThan(-1);
-      expect(link.indexOf('<svg'), row.key).toBeLessThan(link.indexOf(row.links[0]![1].slice(0, 4)));
+      expect(link.indexOf('<svg'), row.key).toBeLessThan(link.indexOf(row.links[0]![1]!.slice(0, 4)));
     }
   });
 
