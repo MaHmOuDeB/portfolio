@@ -1,13 +1,13 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The benchmark guard of the self-hosted Lighthouse run (scripts/lhci-calibrated.sh). Lighthouse's
-// simulated throttling multiplies every main-thread task it measured by the CPU multiplier, so the
-// multiplier only reproduces GitHub's hosted runner while this machine is as fast as when it was
-// calibrated: benchmark index 2810.5 (Lighthouse's own speed score: the median of 15 runs in the
-// capped lhci job container while the Lighthouse lock kept the Mac quiet). A run whose median index
-// is more than 20% away from that was measured on a busier (or otherwise different) machine than
-// the calibration, and its scores do not compare.
+// The benchmark guard of the local calibrated Lighthouse run (scripts/lhci-calibrated.sh; CI does
+// not use it). Lighthouse's simulated throttling multiplies every main-thread task it measured by
+// the CPU multiplier, so the multiplier only reproduces GitHub's hosted runner while this machine is
+// as fast as when it was calibrated: benchmark index 2810.5 (Lighthouse's own speed score: the
+// median of 15 runs in a capped Docker container on a quiet Mac). A run whose median index is more
+// than 20% away from that was measured on a busier (or otherwise different) machine than the
+// calibration, and its scores do not compare.
 //
 //   node scripts/lhci-benchmark-guard.ts <folder of lhr-*.json>
 //
