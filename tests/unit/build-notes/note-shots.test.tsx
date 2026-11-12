@@ -17,17 +17,17 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const EXPECTED = {
   marketingwsBrief: {
     src: '/images/notes/marketingws-brief-light.png',
-    alt: 'The Brief form in MarketingWS, filled in for a LinkedIn post in a professional tone, in English, about a neighbourhood bike repair café that opens on Saturdays, for students and young professionals in Berlin, with the instruction to be friendly, use no emojis and end with the opening hours, ten in the morning to two in the afternoon.',
+    alt: 'The Brief form in MarketingWS, filled in for a LinkedIn post in a professional tone, in English, about a neighbourhood bike repair café that opens on Saturdays, for students and young professionals in Berlin, with the instruction to be friendly, use no emojis and end with the opening hours.',
     caption: 'The brief: a campaign type, a platform, a tone, a language and a few lines on the offer.',
   },
   marketingwsDraft: {
     src: '/images/notes/marketingws-first-draft-light.png',
-    alt: 'The First draft panel in MarketingWS: a short LinkedIn post about the bike repair café, with a placeholder where a percentage would go, three hashtags and the opening hours, ten in the morning to two in the afternoon at the end.',
+    alt: 'The First draft panel in MarketingWS: a short LinkedIn post about the bike repair café, with a placeholder where a percentage would go, hashtags and the opening hours at the end.',
     caption: 'The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one.',
   },
   weatherChecks: {
     src: '/images/notes/weather-quality-checks-dark.png',
-    alt: "Terminal output of the weather pipeline's data-quality checks. Fifteen lines read OK, two read WARN (rows quarantined as sensor errors with wind above one hundred and fifty kilometres per hour, and locations observed fewer than twenty times) and one reads INFO (condition spellings merged), followed by the row counts of the staging, dimension, fact and quarantine tables.",
+    alt: "Terminal output of the weather pipeline's data-quality checks. Most lines read OK, some read WARN (rows quarantined as sensor errors with very high wind, and locations observed only a few times) and another reads INFO (condition spellings merged), followed by the row counts of the staging, dimension, fact and quarantine tables.",
     caption:
       'The data-quality step of the pipeline, run on the public weather dataset I rebuilt in 2026. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
   },
