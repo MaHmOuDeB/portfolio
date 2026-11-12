@@ -102,7 +102,7 @@ describe('the copy, word for word', () => {
     ],
     [
       'limits',
-      'Limits No production or client validation: the stack ran with Docker on my own computer, not a hosted server, and every invoice it has seen was a generated sample. Not a certified XRechnung validator: the checks are structural, arithmetic and master-data only, with no OCR for scanned PDFs, no accounting-software link and no Outlook or IMAP intake. It needs a self-hosted n8n that allows the zlib module and an SMTP account, and its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in testing mode its sign-in expires after about a week.',
+      'Limits No production or client validation: the stack ran with Docker on my own computer, not a hosted server, and every invoice it has seen was a generated sample. Not a certified XRechnung validator: the checks are structural, arithmetic and master-data only, with no OCR for scanned PDFs, no accounting-software link and no Outlook or IMAP intake. It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in testing mode its sign-in expires after about a week.',
     ],
     [
       'sources',

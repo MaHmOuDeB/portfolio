@@ -3,7 +3,7 @@
 // quarantine policy. Every number is a <Fact> from the vendored weather export, or a <Derived> that
 // names it; the stages were checked against the pipeline's code at the pinned commit (sql/01 to 03,
 // src/pipeline.py, tests/test_pipeline.py and the CI workflow). The page shows counts and rules,
-// never a row of the data: Kaggle states no licence for the dataset.
+// never a row of the data: the dataset's Kaggle page gives no licence.
 import type { ReactNode } from 'react';
 import { derivedAttr, Derived } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
@@ -22,10 +22,10 @@ const RebuildYear = () => (
 /** The line under the title: the Work page's description, word for word. */
 export function WeatherIntro(): ReactNode {
   return (
-    <>
+    <p>
       A tested SQL pipeline on a public dataset of weather observations, rebuilt in <RebuildYear />: a star schema,
       data-quality checks and a quarantine for sensor errors.
-    </>
+    </p>
   );
 }
 
@@ -62,8 +62,8 @@ export const WEATHER_ARCHITECTURE: readonly [key: string, body: ReactNode][] = [
     'stages',
     <>
       Python loads the file into DuckDB and runs three SQL steps. Staging gives the columns types and plain names, and
-      merges condition spellings that differ only in case or spacing. The model builds a star schema: places,
-      weather conditions and a fact table of observations.
+      merges condition spellings that differ only in case or in leading and trailing spaces. The model builds a
+      star schema: places, weather conditions and a fact table of observations.
     </>,
   ],
   [
@@ -192,12 +192,12 @@ export const WEATHER_LIMITS: readonly [key: string, body: ReactNode][] = [
   [
     'licence',
     <>
-      Kaggle states no licence for this dataset, so this page shows counts and rules, never rows of the data.
+      The dataset&apos;s Kaggle page gives no licence, so this page shows counts and rules, never rows of the data.
     </>,
   ],
 ];
 
-/** The dataset link; there is no repository link on this page. */
+/** The dataset link and its licence. */
 export function WeatherSources(): ReactNode {
   if (WEATHER_DATASET.licenceStated) throw new Error('weather: the export now states a licence; update the page');
   return (

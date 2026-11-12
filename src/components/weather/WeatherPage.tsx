@@ -24,12 +24,19 @@ import {
   WeatherRole,
   WeatherSources,
 } from '../../../content/weather';
-import { BUILD_NOTE_SECTIONS, BuildNote, EVIDENCE, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
+import {
+  BUILD_NOTE_SECTIONS,
+  BuildNote,
+  DiagramConnector,
+  DiagramStep,
+  EVIDENCE,
+  NoteList,
+  Paragraphs,
+  TEXT,
+} from '../build-notes/BuildNote';
 
 export { WEATHER_TITLE };
 export const WEATHER_SECTIONS = BUILD_NOTE_SECTIONS;
-
-const BOX = 'min-w-0 rounded-sm border border-line p-3';
 
 /** The stages as an ordered list, so the diagram is its own text alternative. */
 function PipelineDiagram() {
@@ -38,13 +45,10 @@ function PipelineDiagram() {
       <ol className="grid max-w-text gap-0">
         {WEATHER_PIPELINE.map((stage, i) => (
           <li key={stage.id} data-stage={stage.id}>
-            {i > 0 ? <div data-connector="" aria-hidden="true" className="ml-6 h-4 border-l border-muted" /> : null}
+            {i > 0 ? <DiagramConnector /> : null}
             <div className={stage.nodes.length > 1 ? 'grid gap-3 xs:grid-cols-2' : ''}>
               {stage.nodes.map((n) => (
-                <div key={n.name} className={BOX}>
-                  <p className="text-sm font-semibold">{n.name}</p>
-                  <p className="mt-1 text-sm text-muted">{n.detail}</p>
-                </div>
+                <DiagramStep key={n.name} name={n.name} detail={n.detail} />
               ))}
             </div>
           </li>

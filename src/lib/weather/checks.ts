@@ -26,7 +26,7 @@ export function checkLevels(): readonly { level: CheckLevel; count: number }[] {
   return CHECK_LEVELS.map((level) => ({ level, count: counts.get(level)! }));
 }
 
-/** The dataset as the export names it. Kaggle states no licence for it ("Not stated ..."). */
+/** The dataset as the export names it. Its Kaggle page gives no licence ("Not stated ..."). */
 export const WEATHER_DATASET: { name: string; url: string; licenceStated: boolean } = {
   name: weather._meta.dataset.name,
   url: weather._meta.dataset.url,

@@ -1,7 +1,7 @@
 // The Weather build note at /work/weather: a public dataset rebuilt in 2026, told as a data-quality
 // pipeline (the schema, the checks by level and the quarantine policy). Every number is a <Fact> from
 // the vendored weather export or a <Derived> that names it; the page shows counts and rules, never a
-// row of the data, and it links the dataset but not a repository.
+// row of the data, and its sources are the dataset link and its licence.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -98,7 +98,7 @@ describe('the copy, word for word', () => {
     ],
     [
       'limits',
-      'Limits The quarantine rule is one threshold on wind speed. It catches readings that are plainly impossible, not a sensor that is slightly off. The checks show that the data is complete, consistent and plausible, not that it is right: a wrong reading within its range passes. Kaggle states no licence for this dataset, so this page shows counts and rules, never rows of the data.',
+      "Limits The quarantine rule is one threshold on wind speed. It catches readings that are plainly impossible, not a sensor that is slightly off. The checks show that the data is complete, consistent and plausible, not that it is right: a wrong reading within its range passes. The dataset's Kaggle page gives no licence, so this page shows counts and rules, never rows of the data.",
     ],
     ['sources', 'Sources and links The data: Global Weather Repository, on Kaggle Its licence: not stated.'],
   ])('%s', (id, expected) => {
@@ -109,7 +109,7 @@ describe('the copy, word for word', () => {
     const s = section(PAGE, 'architecture');
     const prose = text(s.replace(/<figure [\s\S]*?<\/figure>/, ''));
     expect(prose).toBe(
-      'Architecture Python loads the file into DuckDB and runs three SQL steps. Staging gives the columns types and plain names, and merges condition spellings that differ only in case or spacing. The model builds a star schema: places, weather conditions and a fact table of observations. A reading with wind above 150 km/h goes to a quarantine table with its reason, never into the fact table. The checks run last.',
+      'Architecture Python loads the file into DuckDB and runs three SQL steps. Staging gives the columns types and plain names, and merges condition spellings that differ only in case or in leading and trailing spaces. The model builds a star schema: places, weather conditions and a fact table of observations. A reading with wind above 150 km/h goes to a quarantine table with its reason, never into the fact table. The checks run last.',
     );
     expect(s.indexOf('<p')).toBeLessThan(s.indexOf('data-figure="weather-pipeline"'));
   });

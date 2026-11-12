@@ -18,21 +18,19 @@ import {
   N8nRole,
   N8nSources,
 } from '../../../content/n8n';
-import { BUILD_NOTE_SECTIONS, BuildNote, EVIDENCE, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
+import {
+  BUILD_NOTE_SECTIONS,
+  BuildNote,
+  DiagramConnector,
+  DiagramStep,
+  EVIDENCE,
+  NoteList,
+  Paragraphs,
+  TEXT,
+} from '../build-notes/BuildNote';
 
 export { N8N_TITLE };
 export const N8N_SECTIONS = BUILD_NOTE_SECTIONS;
-
-const BOX = 'min-w-0 rounded-sm border border-line p-3';
-
-function StepBox({ name, detail }: { name: string; detail: string }) {
-  return (
-    <div className={BOX}>
-      <p className="text-sm font-semibold">{name}</p>
-      <p className="mt-1 text-sm text-muted">{detail}</p>
-    </div>
-  );
-}
 
 /** The intake and the alerts, each an ordered list of steps joined by hidden connectors. */
 function FlowDiagram() {
@@ -47,15 +45,15 @@ function FlowDiagram() {
             <ol aria-label={track.label} className="mt-2">
               {track.steps.map((step, i) => (
                 <li key={Array.isArray(step) ? 'outcomes' : (step as { name: string }).name}>
-                  {i > 0 ? <div data-connector="" aria-hidden="true" className="ml-6 h-4 border-l border-muted" /> : null}
+                  {i > 0 ? <DiagramConnector /> : null}
                   {Array.isArray(step) ? (
                     <div className="grid gap-3 xs:grid-cols-2">
                       {(step as readonly { name: string; detail: string }[]).map((s) => (
-                        <StepBox key={s.name} {...s} />
+                        <DiagramStep key={s.name} {...s} />
                       ))}
                     </div>
                   ) : (
-                    <StepBox {...(step as { name: string; detail: string })} />
+                    <DiagramStep {...(step as { name: string; detail: string })} />
                   )}
                 </li>
               ))}

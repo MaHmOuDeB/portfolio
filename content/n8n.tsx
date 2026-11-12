@@ -19,10 +19,10 @@ export const N8N_REPO = {
 /** The line under the title: the Work page's description, word for word. */
 export function N8nIntro(): ReactNode {
   return (
-    <>
+    <p>
       Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with{' '}
       <Fact id="profile.n8n.automated_tests" /> automated tests. A portfolio project with no production use.
-    </>
+    </p>
   );
 }
 
@@ -154,9 +154,9 @@ export const N8N_LIMITS: readonly [key: string, body: ReactNode][] = [
   [
     'needs',
     <>
-      It needs a self-hosted n8n that allows the zlib module and an SMTP account, and its mails are English only. The
-      Gmail intake was proven on one test mailbox, and while the Google app is in testing mode its sign-in expires
-      after about a week.
+      It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP
+      account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app
+      is in testing mode its sign-in expires after about a week.
     </>,
   ],
 ];

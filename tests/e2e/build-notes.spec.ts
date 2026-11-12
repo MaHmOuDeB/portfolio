@@ -5,12 +5,13 @@ import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 import { NAV } from '../../src/lib/site';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The build notes under /work: short static pages in the build-note template (the problem, the
-// architecture as a diagram, how I checked it, the outcome, the limits, the sources and links). Each note links to
-// other sites only as ordinary links, so loading and reading one never makes a request off the site.
-// The Weather and n8n notes have no island: prose, one diagram Figure drawn as ordered lists, and on
-// Weather an open table of checks by level.
+// The build notes under /work: short static pages in the one build-note frame, under the section
+// names they share (the problem, the architecture with its diagram, how I checked this, the outcome,
+// the limits, the sources and links). They hold no interactive Figure and nothing from the live
+// experiment, and link to other sites only as ordinary links, so loading and reading one never makes
+// a request off the site. One describe block per note (the Weather and n8n blocks come from one loop).
 
+/** The sections every build note has, in page order: anchor and heading. */
 const SECTIONS = [
   ['problem', 'The problem'],
   ['architecture', 'Architecture'],
@@ -19,6 +20,7 @@ const SECTIONS = [
   ['limits', 'Limits'],
   ['sources', 'Sources and links'],
 ] as const;
+/** The section links' labels, in the same order. */
 const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources'];
 
 const NOTES = [
@@ -163,15 +165,6 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
 
 test.describe('MarketingWS build note', () => {
   const ROUTE = '/work/marketingws';
-  const SECTIONS = [
-    ['problem', 'The problem'],
-    ['architecture', 'Architecture'],
-    ['how-i-checked-this', 'How I checked this'],
-    ['outcome', 'Outcome'],
-    ['limits', 'Limits'],
-    ['sources', 'Sources and links'],
-  ] as const;
-  const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources'];
   const STEPS = ['Brief', 'Draft', 'Check', 'Translate', 'Output'];
   const GROQ_NOTE = "The live demo depends on Groq's free tier.";
 
@@ -280,14 +273,6 @@ test.describe('MarketingWS build note', () => {
 test.describe('the Docproof build note', () => {
   const ROUTE = '/work/docproof';
   const TITLE = 'Docproof: a multi-agent document pipeline';
-  const SECTIONS = [
-    ['problem', 'The problem'],
-    ['architecture', 'Architecture'],
-    ['how-i-checked-this', 'How I checked this'],
-    ['outcome', 'Outcome'],
-    ['limits', 'Limits'],
-    ['sources', 'Sources and links'],
-  ] as const;
 
   test('outline: one h1, the sections in template order, the diagram in the architecture section', async ({ page }) => {
     const response = await page.goto(ROUTE);
@@ -322,7 +307,7 @@ test.describe('the Docproof build note', () => {
 
   test('section links: in page order, and one lands its heading in view', async ({ page }) => {
     await page.goto(ROUTE);
-    await expect(sectionLinks(page)).toHaveText(['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources']);
+    await expect(sectionLinks(page)).toHaveText(LINKS);
     await sectionLinks(page).filter({ hasText: 'Limits' }).click();
     await expect(page).toHaveURL(/#limits$/);
     await expect(page.locator('#limits-title')).toBeInViewport();
