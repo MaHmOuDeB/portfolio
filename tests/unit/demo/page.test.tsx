@@ -15,6 +15,7 @@ import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { LAB_SECTIONS } from '../../../content/lab';
 import { DEMO_COPY, FORCED_LINKS, LAB_LINKS, PLANNER_LINK, ForcedNote } from '../../../content/demo';
 import { DEMO_TITLE, DemoPage } from '@/components/demo/DemoPage';
+import { TextLink } from '@/components/kit/TextLink';
 import { FeaturedCases } from '@/components/home/FeaturedCases';
 import { EXPERIMENT, type Arm, type ExperimentPhase } from '@/experiment.values';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
@@ -170,6 +171,20 @@ describe('DemoPage', () => {
       expect(text(item.slice(item.indexOf('</a>'))), href).toBe(purpose);
       expect(purpose, href).not.toMatch(/\d/);
     }
+  });
+
+  it('draws the forced links as plain anchors (a full load the proxy assigns) with the kit link look', () => {
+    const classes = (html: string) => new Set(/class="([^"]*)"/.exec(html)![1]!.split(/\s+/));
+    const kit = links(renderToStaticMarkup(<TextLink href="/lab" standalone>x</TextLink>))[0]!;
+    const found = links(PAGE);
+    for (const l of found.filter((x) => FORCED_HREFS.includes(x.href as (typeof FORCED_HREFS)[number]))) {
+      expect(l.html, l.href).toContain('data-full-load=""');
+      expect(classes(l.html), l.href).toEqual(classes(kit.html));
+    }
+    // the Lab links are next/link (the kit's TextLink), whose Figures read the query in the browser
+    for (const l of found.filter((x) => !x.href.startsWith('/?'))) expect(l.html, l.href).not.toContain('data-full-load');
+    const source = readFileSync(join(repo, 'src/components/demo/DemoPage.tsx'), 'utf8');
+    expect(/function ForcedLinks[\s\S]*?\n\}/.exec(source)![0]).not.toMatch(/TextLink|<Link/);
   });
 
   it('shows the forced links with what they show and why they never count', () => {

@@ -20,7 +20,7 @@ const PEEKING = ['Peeking at results', '/lab/peeking?peeking.preset=interview'] 
 const PLANNER = ['Sample size for a small rise', '/lab?planner.baseline=0.05&planner.risePoints=1&duration.traffic=1000#sample-size'] as const;
 const LAB = ['All the examples in the Lab', '/lab'] as const;
 const HREFS = [...FORCED.map(([, , href]) => href), PEEKING[1], PLANNER[1], LAB[1]];
-// Every event a counted view could add to the store.
+// The entry, then every event a counted view could add to the store.
 const OUTCOMES = ['entry', 'inview', 'engaged', 'card', 'secondary', 'contact', 'cv'] as const;
 const CARDS = '[data-experiment="cards"]';
 
@@ -57,10 +57,18 @@ async function visitor(page: Page, headers: Record<string, string> | undefined):
   return sent;
 }
 
-/** What the store holds for this view, per event: the group it was claimed for, or null. */
-async function claims(ns: string, pv: string): Promise<(string | null)[]> {
-  const view = await readView(read, { ns, pv, closed: false, expiry: false });
-  return OUTCOMES.map((type) => view.claims[type] ?? null);
+/**
+ * What the store holds for this view. The event route reserves every entry before it looks at the
+ * reason to refuse it (a `pending:<owner>` claim that dedupes a re-sent entry and expires with the
+ * view's id), and only a counted entry turns that claim into its group. So a view that was not
+ * counted has no entry claim or an unfinished reservation with an expiry, and no other claim.
+ */
+async function expectNotCounted(ns: string, pv: string): Promise<void> {
+  const view = await readView(read, { ns, pv, closed: false, expiry: true });
+  const entry = view.claims.entry ?? null;
+  expect(entry === null || /^pending:[0-9a-f]+$/.test(entry), `entry claim ${entry}`).toBe(true);
+  if (entry !== null) expect(view.entryExpiry, 'the reservation expires').toBeGreaterThan(0);
+  expect(OUTCOMES.slice(1).map((type) => view.claims[type] ?? null)).toEqual(OUTCOMES.slice(1).map(() => null));
 }
 
 const main = (page: Page) => page.getByRole('main');
@@ -103,6 +111,8 @@ test.describe('/demo', () => {
 
       await main(page).getByRole('link', { name: label, exact: true }).click();
       await page.waitForURL((url) => url.pathname === '/' && url.search === `?variant=${arm}`);
+      // a full document load of the forced address, which the proxy assigned (not a soft navigation)
+      expect(await page.evaluate(() => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).name)).toMatch(new RegExp(`/\\?variant=${arm}$`));
 
       // The real beacon: one refused entry, for the asked group, refused as forced by the server.
       await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(0);
@@ -126,10 +136,31 @@ test.describe('/demo', () => {
       await page.goto('about:blank');
       await page.waitForTimeout(500);
       expect(sent.map((s) => s.batch.events), 'one refused entry and nothing else').toEqual([[{ type: 'entry', reject: 'forced' }]]);
-      expect(await claims(first.batch.ns, first.batch.pv)).toEqual(OUTCOMES.map(() => null));
+      await expectNotCounted(first.batch.ns, first.batch.pv);
       expect(await context.cookies()).toEqual([]);
     });
   }
+
+  test('clicking the forced links in turn in one tab always opens the asked group', async ({ page, extraHTTPHeaders }) => {
+    // The prefetches of / (the header wordmark) and of both links are in place before any click, so
+    // a link that reused a cached payload would show the wrong group here.
+    const sent = await visitor(page, extraHTTPHeaders);
+    await page.goto(DEMO);
+    await page.waitForLoadState('networkidle');
+    for (const [arm, label] of [FORCED[1], FORCED[0], FORCED[1], FORCED[0]]) {
+      const from = sent.length;
+      await main(page).getByRole('link', { name: label, exact: true }).click();
+      await page.waitForURL((url) => url.pathname === '/' && url.search === `?variant=${arm}`);
+      await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(from);
+      expect(sent[from]!.batch.arm, label).toBe(arm);
+      expect(sent[from]!.batch.events, label).toEqual([{ type: 'entry', reject: 'forced' }]);
+      // answered before leaving, so no unload flush of this view lands among the next click's batches
+      expect(await sent[from]!.response, label).toEqual({ ok: false, reason: 'forced' });
+      await page.goBack();
+      await expect(page).toHaveURL(/\/demo$/);
+      await page.waitForLoadState('networkidle');
+    }
+  });
 
   test('the peeking link opens the interview preset after hydration', async ({ page }) => {
     await page.goto(DEMO);

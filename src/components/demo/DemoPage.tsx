@@ -7,6 +7,12 @@
 // links force a group through the address (`?variant=`), the contract the proxy and the beacon already
 // have; which headlines that view shows depends on the configured phase, which the note under the
 // links states from the frozen configuration. Server component; its copy is content/demo.tsx.
+//
+// The two home-page links are plain anchors, so a click is a full document request that the proxy
+// assigns. A next/link soft navigation is not enough: the group pages never read the query, so the
+// client router may answer `/?variant=b` from a payload it already holds for `/` (the header's
+// wordmark and the other forced link prefetch the same route), and show the other group. The Lab
+// links stay next/link: their Figures read the query in the browser.
 import type { ReactNode } from 'react';
 import { TextLink } from '@/components/kit/TextLink';
 import { EXPERIMENT } from '@/experiment.values';
@@ -38,8 +44,27 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
-/** A list of site links, each on its own 44 px row, with its sentence under it when it has one. */
-function Links({ links }: { links: readonly (DemoLink | LabLink)[] }) {
+// The kit's standalone TextLink look, for an anchor that must not go through next/link.
+const PLAIN_LINK =
+  'inline-flex min-h-(--size-target) min-w-(--size-target) max-w-full items-center gap-2 wrap-anywhere text-muted underline decoration-muted hover:text-ink focus-visible:text-ink';
+
+/** The forced home-page links: full document loads, each on its own 44 px row. */
+function ForcedLinks({ links }: { links: readonly DemoLink[] }) {
+  return (
+    <ul>
+      {links.map((link) => (
+        <li key={link.href} className="mt-3 first:mt-0">
+          <a href={link.href} className={PLAIN_LINK} data-touch-target="" data-full-load="">
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The Lab links, each on its own 44 px row with its sentence under it. */
+function LabLinks({ links }: { links: readonly LabLink[] }) {
   return (
     <ul>
       {links.map((link) => (
@@ -47,7 +72,7 @@ function Links({ links }: { links: readonly (DemoLink | LabLink)[] }) {
           <TextLink href={link.href} standalone>
             {link.label}
           </TextLink>
-          {'purpose' in link ? <p className="text-base">{link.purpose}</p> : null}
+          <p className="text-base">{link.purpose}</p>
         </li>
       ))}
     </ul>
@@ -68,13 +93,13 @@ export function DemoPage(): ReactNode {
 
       <Section id="home-groups" title={DEMO_COPY.forcedTitle}>
         <ForcedLead />
-        <Links links={FORCED_LINKS} />
+        <ForcedLinks links={FORCED_LINKS} />
         <ForcedNote phase={EXPERIMENT.phase} />
         <ForcedExclusion />
       </Section>
 
       <Section id="lab-examples" title={DEMO_COPY.labTitle}>
-        <Links links={LAB_LINKS} />
+        <LabLinks links={LAB_LINKS} />
         <LabNote />
       </Section>
     </article>
