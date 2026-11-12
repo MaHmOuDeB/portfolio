@@ -122,8 +122,9 @@ There are two import paths, so that a page using a server-safe component does no
 controls' JavaScript:
 
 - `@/components/kit` (`index.ts`) re-exports only server-safe modules. None of them is a client
-  module, and none has a `'use client'` directive. The one that uses a client module is `Figure`
-  (it wraps its chart in the error boundary); a page that uses `Figure` needs that boundary anyway.
+  module, and none has a `'use client'` directive. Two use a client module: `Figure` (it wraps its
+  chart in the error boundary, which a page that uses `Figure` needs anyway) and `TextArea` (its live
+  `CharacterCount`).
 - `@/components/kit/client` (`client.ts`) re-exports the client modules (marked client below): the
   controls, the error boundary, `LoadOnIntent` and the `useFigureParams` hook. Each of those files
   keeps its own `'use client'` directive.
@@ -157,7 +158,13 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `ButtonLink`, `buttonClass` | `ButtonLink.tsx` | A link drawn as a button, and the class list for a real `<button>` that must match. |
 | `TextLink` | `TextLink.tsx` | An inline link. |
 | `Callout` | `Callout.tsx` | A short note with a rule at the left, for limits and caveats. |
-| `Icon`, `IconName` | `Icon.tsx` | The one outline icon set; always decorative. |
+| `Icon`, `IconName` | `Icon.tsx` | The one outline icon set; always decorative. `alert` and `check` sit only beside the status word they repeat, in its colour (`text-warn`, `text-ok`; colour and alignment on a wrapping span, since `Icon` has no `className`); `chevron` only marks a `SelectField`, in `muted`. |
+| `Field`, `fieldControlClass` | `Field.tsx` | The anatomy every form field shares, top to bottom: label (`text-sm font-medium`, ink, no colon or asterisk), hint, error (above the control: alert icon, sr-only "Error: ", `text-warn`), control, counter. `aria-describedby` lists only the parts that exist, in that order; an error adds `aria-invalid` and a 2 px warn rule at the left. `fieldControlClass` is the control box: `border-muted`, ink on hover, warn when invalid, `rounded-md`, 18 px text (no iOS zoom), 44 px, the global focus ring and no shadow. |
+| `TextField` | `TextField.tsx` | A text or e-mail input in the `Field` anatomy: required, uncontrolled (`defaultValue`, so a no-JS re-render keeps the visitor's text), no placeholder. The form is `noValidate`, so only the site's own messages show. |
+| `TextArea` | `TextArea.tsx` | A textarea in the `Field` anatomy, eight rows, `resize-y`, with a visible `limit` (refs from the caller) and no native `maxLength`, so a paste is never cut off. Its counter is `CharacterCount`. |
+| `SelectField` | `SelectField.tsx` | A native select in the `Field` anatomy: "Choose one" first (empty, selected while nothing is chosen, never disabled or hidden, drawn muted), a muted `chevron` icon over its right edge (never a background image). |
+| `SubmitButton` | `SubmitButton.tsx` | A submit button drawn with `buttonClass('primary')`, `min-w-36`, never full width and never an icon. `pending` swaps the label (`pendingLabel`) and sets `aria-disabled`, never `disabled`, so focus stays; `disabled` is the tokens' disabled state (kitchen sink only). |
+| `CharacterCount` | `CharacterCount.tsx` (client) | The TextArea's counter: "Up to <limit> characters" on the server and without JavaScript, then "<n> characters left", "No characters left" or "<n> characters too many" (warn, alert icon, and a warn border on the textarea). Read on focus through `aria-describedby`; a separate polite node repeats it about a second after typing stops, only in the last tenth of the limit or over it. Only the number carries `data-num` and the caller's refs. |
 
 ### Figure rules
 
