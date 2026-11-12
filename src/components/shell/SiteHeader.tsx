@@ -1,5 +1,5 @@
-// Wordmark, navigation and the CV link: "CV (PDF)" when the build has a checked PDF, else "CV" to
-// the CV page (src/lib/cv-pdf.ts), so it never points at a missing file. From md up the full navigation shows; under md the same list
+// Wordmark, navigation and the CV link, which always opens the CV page (the PDF, when the build has
+// one, is offered there). From md up the full navigation shows; under md the same list
 // lives behind Menu. The header sticks only where it is safe (globals.css): at least md wide and 700 px
 // tall. On a shorter screen it would take too much of the page, so it scrolls away there.
 // The glyph before the name shows at every width: 48 px from xs (480 px) up, and a 28 px variant of the
@@ -8,8 +8,7 @@
 import Link from 'next/link';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
-import { cvNavLink } from '@/lib/cv-pdf';
-import { SITE } from '@/lib/site';
+import { CV_LINK, SITE } from '@/lib/site';
 import { MenuDisclosure } from './MenuDisclosure';
 import { NavLinks } from './NavLinks';
 
@@ -17,7 +16,6 @@ import { NavLinks } from './NavLinks';
 const PHONE_GLYPH_LENGTH = 28;
 
 export function SiteHeader() {
-  const cv = cvNavLink();
   return (
     <header data-site-header="" className="z-(--z-header) border-b border-line bg-bg md:h-(--header-h)">
       <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8">
@@ -38,15 +36,15 @@ export function SiteHeader() {
           <nav aria-label="Main" className="hidden md:block">
             <NavLinks className="flex items-center gap-6" />
           </nav>
-          {/* The icon needs room the phone header does not have, so each size gets its own link. */}
+          {/* The phone header needs the tighter padding, so each size gets its own link. */}
           <div className="hidden md:block">
-            <ButtonLink href={cv.href} variant="secondary" icon={cv.download ? 'download' : undefined} download={cv.download}>
-              {cv.label}
+            <ButtonLink href={CV_LINK.href} variant="secondary">
+              {CV_LINK.label}
             </ButtonLink>
           </div>
           <div className="md:hidden">
-            <ButtonLink href={cv.href} variant="secondary" download={cv.download} compact>
-              {cv.label}
+            <ButtonLink href={CV_LINK.href} variant="secondary" compact>
+              {CV_LINK.label}
             </ButtonLink>
           </div>
           <MenuDisclosure>

@@ -12,7 +12,9 @@ export const NAV = [
   { label: 'About', href: '/about' },
 ] as const;
 
-export const CV_LINK = { label: 'CV (PDF)', href: '/cv.pdf' } as const;
+// The CV link of the header and the hero: always the CV page, whether or not the build has a PDF.
+// The CV page and About offer the PDF itself when there is one (src/lib/cv-pdf.ts).
+export const CV_LINK = { label: 'CV', href: '/cv' } as const;
 
 // The only contact details on the site: LinkedIn is the contact route. No e-mail address, phone
 // number or street address.

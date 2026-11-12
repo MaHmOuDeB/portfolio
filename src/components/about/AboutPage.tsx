@@ -7,12 +7,12 @@
 // optimiser to those widths), loads lazily and is never cropped further than its 4:5 file.
 import Image from 'next/image';
 import type { ReactNode } from 'react';
-import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
-import { CV_PAGE_HREF, cvPdf } from '@/lib/cv-pdf';
+import { cvPdf } from '@/lib/cv-pdf';
 import { CV_LINK } from '@/lib/site';
 import { ABOUT_STORY, LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
 import { aboutPhoto } from '../../../content/about-photo';
+import { CvDownload } from './CvDownload';
 import { TimelineRow } from './TimelineRow';
 
 export const ABOUT_TITLE = 'About';
@@ -83,7 +83,7 @@ export function AboutPage(): ReactNode {
             alt={aboutPhoto.alt}
             width={PHOTO_WIDTH}
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
-            className="h-auto w-full max-w-[30rem] rounded-sm print:max-w-48"
+            className="h-auto w-full max-w-120 rounded-sm print:max-w-48"
           />
         </div>
       </div>
@@ -107,16 +107,10 @@ export function AboutPage(): ReactNode {
       <Section id="cv">
         <p className="max-w-text">My CV as a page you can read or print.</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
-          <TextLink href={CV_PAGE_HREF} standalone>
+          <TextLink href={CV_LINK.href} standalone>
             Read my CV
           </TextLink>
-          {pdf ? (
-            <div data-cv-download="" className="print:hidden">
-              <ButtonLink href={CV_LINK.href} variant="secondary" icon="download" download>
-                {CV_LINK.label}
-              </ButtonLink>
-            </div>
-          ) : null}
+          {pdf ? <CvDownload pdf={pdf} variant="secondary" /> : null}
         </div>
       </Section>
     </article>

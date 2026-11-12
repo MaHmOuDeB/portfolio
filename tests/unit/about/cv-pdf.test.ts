@@ -1,13 +1,14 @@
-// Whether the site links the CV as a PDF. The PDF and its metadata file are written together by the
-// render wrapper; the build reads both once (next.config.ts) and embeds the result, so every page,
-// including one regenerated later, agrees. Anything missing, malformed or mismatched means "no PDF":
-// the header and the hero then link the CV page instead, so no link points at a missing file.
+// Whether the site offers the CV as a PDF. The PDF and its metadata file are written together by the
+// render wrapper; the build reads both once (next.config.ts) and embeds the result with the file's
+// size, so every page, including one regenerated later, agrees. Anything missing, malformed or
+// mismatched means "no PDF": no page then offers a download, so no link points at a missing file.
+// The header and the hero link the CV page in either case.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CV_PAGE_HREF, cvNavLink, cvPdf, parseCvPdf } from '@/lib/cv-pdf';
+import { CV_PDF_HREF, cvPdf, cvPdfSize, parseCvPdf } from '@/lib/cv-pdf';
 import { cvPdfEnv, readCvPdf } from '@/lib/cv-pdf-file';
 import { CV_LINK } from '@/lib/site';
 
@@ -34,8 +35,8 @@ afterAll(() => {
 const goodMeta = () => ({ sha256: sha256(PDF), renderedAt: RENDERED, web: true });
 
 describe('readCvPdf: the checked PDF and its metadata, read at build time', () => {
-  it('returns the hash and render time when both files exist and agree', () => {
-    expect(readCvPdf(site({ pdf: PDF, meta: goodMeta() }))).toEqual({ sha256: sha256(PDF), renderedAt: RENDERED });
+  it('returns the hash, the render time and the size when both files exist and agree', () => {
+    expect(readCvPdf(site({ pdf: PDF, meta: goodMeta() }))).toEqual({ sha256: sha256(PDF), renderedAt: RENDERED, bytes: PDF.length });
   });
 
   it('is null with no PDF, with a PDF but no metadata, or with metadata but no PDF', () => {
@@ -66,21 +67,36 @@ describe('readCvPdf: the checked PDF and its metadata, read at build time', () =
 
   it('cvPdfEnv is the JSON the build embeds, or an empty string', () => {
     expect(cvPdfEnv(site({}))).toBe('');
-    expect(JSON.parse(cvPdfEnv(site({ pdf: PDF, meta: goodMeta() })))).toEqual({ sha256: sha256(PDF), renderedAt: RENDERED });
+    expect(JSON.parse(cvPdfEnv(site({ pdf: PDF, meta: goodMeta() })))).toEqual({ sha256: sha256(PDF), renderedAt: RENDERED, bytes: PDF.length });
   });
 });
 
 describe('parseCvPdf: the embedded value', () => {
   it('parses what cvPdfEnv wrote and rejects anything else', () => {
-    const good = { sha256: sha256(PDF), renderedAt: RENDERED };
+    const good = { sha256: sha256(PDF), renderedAt: RENDERED, bytes: PDF.length };
     expect(parseCvPdf(JSON.stringify(good))).toEqual(good);
-    for (const bad of [undefined, '', '{', 'null', '[]', '{}', JSON.stringify({ ...good, sha256: 'abc' }), JSON.stringify({ ...good, extra: 1 })]) {
+    const noBytes: Partial<typeof good> = { ...good };
+    delete noBytes.bytes;
+    for (const bad of [
+      undefined,
+      '',
+      '{',
+      'null',
+      '[]',
+      '{}',
+      JSON.stringify({ ...good, sha256: 'abc' }),
+      JSON.stringify({ ...good, extra: 1 }),
+      JSON.stringify(noBytes),
+      JSON.stringify({ ...good, bytes: 0 }),
+      JSON.stringify({ ...good, bytes: 1.5 }),
+      JSON.stringify({ ...good, bytes: '12' }),
+    ]) {
       expect(parseCvPdf(bad), String(bad)).toBeNull();
     }
   });
 });
 
-describe('cvNavLink: the CV link in the header and the hero', () => {
+describe('cvPdf: the PDF this build offers', () => {
   let saved: string | undefined;
   beforeEach(() => {
     saved = process.env.CV_PDF;
@@ -90,19 +106,32 @@ describe('cvNavLink: the CV link in the header and the hero', () => {
     else process.env.CV_PDF = saved;
   });
 
-  it('with a checked PDF: "CV (PDF)", a download of /cv.pdf', () => {
-    process.env.CV_PDF = JSON.stringify({ sha256: sha256(PDF), renderedAt: RENDERED });
-    expect(cvPdf()).not.toBeNull();
-    expect(cvNavLink()).toEqual({ label: CV_LINK.label, href: CV_LINK.href, download: true });
-  });
-
-  it('without one: "CV", the CV page, never a link to a missing file', () => {
+  it('reads the embedded value; nothing, or anything broken, is no PDF', () => {
+    const good = { sha256: sha256(PDF), renderedAt: RENDERED, bytes: PDF.length };
+    process.env.CV_PDF = JSON.stringify(good);
+    expect(cvPdf()).toEqual(good);
     delete process.env.CV_PDF;
     expect(cvPdf()).toBeNull();
-    expect(cvNavLink()).toEqual({ label: 'CV', href: CV_PAGE_HREF, download: false });
-    expect(CV_PAGE_HREF).toBe('/cv');
     process.env.CV_PDF = '{"broken"';
-    expect(cvNavLink().href).toBe(CV_PAGE_HREF);
+    expect(cvPdf()).toBeNull();
+  });
+
+  it('the file is /cv.pdf; the CV link of the header is always the CV page', () => {
+    expect(CV_PDF_HREF).toBe('/cv.pdf');
+    expect(CV_LINK).toEqual({ label: 'CV', href: '/cv' });
+  });
+});
+
+describe('cvPdfSize: the size on the download button', () => {
+  it('whole kilobytes under a megabyte, at least 1 KB', () => {
+    expect(cvPdfSize(1)).toEqual({ value: 1, unit: 'count', decimals: 0, label: 'KB' });
+    expect(cvPdfSize(86_016)).toEqual({ value: 84, unit: 'count', decimals: 0, label: 'KB' });
+    expect(cvPdfSize(1024 * 1023)).toEqual({ value: 1023, unit: 'count', decimals: 0, label: 'KB' });
+  });
+
+  it('megabytes to one decimal from 1,024 KB up', () => {
+    expect(cvPdfSize(1024 * 1024)).toEqual({ value: 1, unit: 'decimal', decimals: 1, label: 'MB' });
+    expect(cvPdfSize(1.26 * 1024 * 1024)).toEqual({ value: 1.3, unit: 'decimal', decimals: 1, label: 'MB' });
   });
 });
 

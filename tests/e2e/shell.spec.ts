@@ -1,5 +1,4 @@
 import { expect } from '@playwright/test';
-import { E2E_CV_LINK } from './cv-link';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
@@ -201,11 +200,10 @@ test.describe('site header', () => {
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toHaveAttribute('href', '/');
     const nav = header.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link')).toHaveText(LABELS);
-    // "CV (PDF)", a download, once the build has a checked PDF; until then "CV", the CV page.
-    const cv = header.getByRole('link', { name: E2E_CV_LINK.label, exact: true });
-    await expect(cv).toHaveAttribute('href', E2E_CV_LINK.href);
-    if (E2E_CV_LINK.download) await expect(cv).toHaveAttribute('download', '');
-    else await expect(cv).not.toHaveAttribute('download');
+    // "CV", the CV page, in every build; the PDF is offered on that page.
+    const cv = header.getByRole('link', { name: 'CV', exact: true });
+    await expect(cv).toHaveAttribute('href', '/cv');
+    await expect(cv).not.toHaveAttribute('download');
     await expect(header.locator('summary')).toBeHidden();
   });
 
@@ -215,7 +213,7 @@ test.describe('site header', () => {
     const header = page.getByRole('banner');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
-    await expect(header.getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'CV', exact: true })).toBeVisible();
     await expect(header.locator('summary')).toHaveText('Menu');
   });
 

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { aboutPhoto } from '../../content/about-photo.ts';
-import { E2E_CV_LINK } from './cv-link';
+import { E2E_CV_PDF } from './cv-link';
 import { expectNoA11yViolations, test } from './fixtures';
 
 // The About page and the printable CV page. Both are static: prose, a timeline, lists and, on
@@ -69,7 +69,10 @@ test.describe('About and CV', () => {
       await expect(page.locator('[data-site-header]')).toBeHidden();
       await expect(page.getByRole('contentinfo')).toBeHidden();
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      await expect(page.locator('[data-cv-download]')).toBeHidden();
+      // The download button exists only when the build has a checked PDF; then print hides it.
+      const download = page.locator('[data-cv-download]');
+      await expect(download).toHaveCount(E2E_CV_PDF ? 1 : 0);
+      if (E2E_CV_PDF) await expect(download).toBeHidden();
       await page.emulateMedia({ media: 'screen' });
       await expect(page.locator('[data-site-header]')).toBeVisible();
     });
@@ -97,12 +100,14 @@ test.describe('About and CV', () => {
     expect(box.width).toBeLessThanOrEqual(480);
   });
 
-  test('/cv: the header CV link and the page agree on whether a PDF exists', async ({ page }) => {
-    await page.goto('/cv');
-    const header = page.locator('[data-site-header]');
-    await expect(header.getByRole('link', { name: E2E_CV_LINK.label, exact: true }).first()).toHaveAttribute('href', E2E_CV_LINK.href);
-    await expect(page.getByRole('main').locator('a[href="/cv.pdf"]')).toHaveCount(E2E_CV_LINK.download ? 1 : 0);
-  });
+  for (const route of ROUTES) {
+    test(`${route}: the header links the CV page, and the page offers the PDF only when the build has one`, async ({ page }) => {
+      await page.goto(route);
+      const header = page.locator('[data-site-header]');
+      await expect(header.getByRole('link', { name: 'CV', exact: true }).first()).toHaveAttribute('href', '/cv');
+      await expect(page.locator('a[href="/cv.pdf"]')).toHaveCount(E2E_CV_PDF ? 1 : 0);
+    });
+  }
 
   test('/about links the CV page, which opens', async ({ page }) => {
     await page.goto('/about');

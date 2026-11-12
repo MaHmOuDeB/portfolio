@@ -1,14 +1,14 @@
 // The CV as a page: the same claims as the web CV PDF, in the CV's order (summary, experience,
 // skills, education, languages, projects), readable on screen and printable. Static: the text comes
 // from content/about.tsx. Each claim carries data-cv-claim, so the tests can hold it against the
-// PDF. The PDF is offered only when the build found a checked one (src/lib/cv-pdf.ts). The contact
-// route is LinkedIn: the CV prints no e-mail address and no phone number. When printed, the site header, footer and buttons
-// drop away (globals.css and print:hidden) and entries do not split across pages.
+// PDF. When the build found a checked PDF (src/lib/cv-pdf.ts), one primary button at the top offers
+// it with its size; otherwise there is none. The contact route is LinkedIn. When printed, the site
+// header, footer and buttons drop away (globals.css and print:hidden) and entries do not split
+// across pages.
 import type { ReactNode } from 'react';
-import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
-import { CONTACT, CV_LINK, SITE } from '@/lib/site';
+import { CONTACT, SITE } from '@/lib/site';
 import {
   CV_EDUCATION,
   CV_EXPERIENCE,
@@ -19,6 +19,7 @@ import {
   type CvClaim,
   type CvEntry,
 } from '../../../content/about';
+import { CvDownload } from './CvDownload';
 import { Months } from './Months';
 
 /** The sections in page order. */
@@ -149,21 +150,19 @@ export function CvPage(): ReactNode {
         </p>
         <ul className="mt-2 flex flex-wrap gap-x-6">
           <li data-cv-contact="">
-            <TextLink href={CONTACT.linkedin} standalone>
+            <TextLink href={CONTACT.linkedin} standalone external icon="linkedin">
               {bare(CONTACT.linkedin)}
             </TextLink>
           </li>
           <li>
-            <TextLink href={CONTACT.github} standalone>
+            <TextLink href={CONTACT.github} standalone external icon="github">
               {bare(CONTACT.github)}
             </TextLink>
           </li>
         </ul>
         {pdf ? (
-          <div data-cv-download="" className="mt-4 print:hidden">
-            <ButtonLink href={CV_LINK.href} variant="secondary" icon="download" download>
-              {CV_LINK.label}
-            </ButtonLink>
+          <div className="mt-4">
+            <CvDownload pdf={pdf} variant="primary" />
           </div>
         ) : null}
       </header>

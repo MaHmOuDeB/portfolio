@@ -246,7 +246,7 @@ describe('all Home copy', () => {
 });
 
 describe('HOME_DESTINATIONS', () => {
-  it('lists each site path once: the reserved work slugs, the lab, the live test and the CV file', () => {
+  it('lists each site path once: the reserved work slugs, the lab, the live test and the CV page', () => {
     expect(HOME_DESTINATIONS).toEqual([
       '/work/audible#why-so-many',
       '/work/audible#automation',
@@ -256,7 +256,7 @@ describe('HOME_DESTINATIONS', () => {
       '/work/marketingws',
       '/lab',
       '/experiment',
-      '/cv.pdf',
+      '/cv',
     ]);
     expect(new Set(HOME_DESTINATIONS).size).toBe(HOME_DESTINATIONS.length);
   });

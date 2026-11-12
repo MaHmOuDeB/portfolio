@@ -12,7 +12,7 @@ test('identity strings match the spec', () => {
 test('navigation labels and targets', () => {
   expect(NAV.map((item) => item.label)).toEqual(['Work', 'Lab', 'Live test', 'About']);
   expect(NAV.map((item) => item.href)).toEqual(['/work', '/lab', '/experiment', '/about']);
-  expect(CV_LINK).toEqual({ label: 'CV (PDF)', href: '/cv.pdf' });
+  expect(CV_LINK).toEqual({ label: 'CV', href: '/cv' });
   expect(PRIVACY_HREF).toBe('/privacy');
 });
 

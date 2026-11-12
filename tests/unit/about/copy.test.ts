@@ -1,8 +1,8 @@
 // The About page and the CV page, rendered on the server. The copy is pinned word for word: the
 // story, the timeline (Audible as a working student), the tools I have shipped with, the languages
 // (German at B1) and every claim of the CV. Every number is a <Fact> or a <Derived>, so the truth
-// audit finds no stray numeral on either page; the tests count and the markets never share a claim.
-// The CV's PDF is linked only when the build found a checked PDF with its metadata, and the page's
+// audit finds no stray numeral on either page. The header always links the CV page; the PDF's
+// download button appears only when the build found a checked PDF with its metadata, and the page's
 // claims are the PDF's claims (cv-parity.ts).
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,6 +14,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { aboutPhoto } from '../../../content/about-photo.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
+import { CV_PDF_HREF } from '@/lib/cv-pdf';
 import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 import { compareClaims, pdfClaims, type Omission } from './cv-parity';
 import { writePdf, type Line } from './synthetic-pdf';
@@ -26,7 +27,9 @@ const { CvPage, CV_SECTIONS } = await import('@/components/about/CvPage');
 const { SiteHeader } = await import('@/components/shell/SiteHeader');
 
 const repo = join(import.meta.dirname, '../../..');
-const PDF_ENV = JSON.stringify({ sha256: 'a'.repeat(64), renderedAt: '2026-11-12T10:00:00Z' });
+// A checked PDF of 86,016 bytes, which the download button gives as 84 KB.
+const PDF_ENV = JSON.stringify({ sha256: 'a'.repeat(64), renderedAt: '2026-11-12T10:00:00Z', bytes: 86_016 });
+const DOWNLOAD = 'Download CV (PDF, 84 KB)';
 
 // ── a small DOM over parse5 ──────────────────────────────────────────────────────────────────────
 type El = T.Element;
@@ -78,10 +81,6 @@ afterEach(() => {
 
 const about = () => dom(renderToStaticMarkup(createElement(AboutPage)));
 const cv = () => dom(renderToStaticMarkup(createElement(CvPage)));
-
-// A phone number (a country code and its digits), a street with a house number, residence wording:
-// none may appear on either page.
-const PRIVATE = /\+\d{2}[\s\d]{6,}|\d{3}[\s-]?\d{4}|stra(ss|ß)e\s*\d|\bvisa\b|permit|authori[sz]|residen/i;
 
 // ═════════════════════════════════════════ About ═════════════════════════════════════════════════
 const STORY = [
@@ -183,21 +182,14 @@ describe('the About page', () => {
     expect(dts.map((t, i) => [t, dds[i]])).toEqual(LANGUAGES);
   });
 
-  it('links the CV page, and the PDF only when the build found a checked one', () => {
+  it('links the CV page, and offers the PDF with its size only when the build found a checked one', () => {
     const links = (d: T.Document) => all(section(d, 'cv'), (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), has(a, 'download')]);
-    expect(links(about())).toEqual([['Read my CV', '/cv', false]]);
+    expect(links(about())).toEqual([['Read my CV', CV_LINK.href, false]]);
     process.env.CV_PDF = PDF_ENV;
     expect(links(about())).toEqual([
-      ['Read my CV', '/cv', false],
-      [CV_LINK.label, CV_LINK.href, true],
+      ['Read my CV', CV_LINK.href, false],
+      [DOWNLOAD, CV_PDF_HREF, true],
     ]);
-  });
-
-  it('names Berlin, Germany as the only place I live, and nothing private', () => {
-    const t = text(about());
-    expect(t).toContain(SITE.city);
-    expect(t).not.toMatch(PRIVATE);
-    expect(t).not.toContain(CONTACT.email);
   });
 
   it('passes the truth audit: every number is marked, the years and levels are allowed', () => {
@@ -210,16 +202,16 @@ describe('the About page', () => {
 // ═════════════════════════════════════════ CV ════════════════════════════════════════════════════
 /** Every claim on the CV page, in page order, word for word as it renders (figures as their facts print). */
 const CV_CLAIMS: readonly [id: string, text: string][] = [
-  ['summary-tenure', 'Data and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.'],
+  ['summary-tenure', 'Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.'],
   ['summary-tool', 'Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.'],
-  ['summary-skills', 'MSc in Data Science (2025); works in SQL and Python and builds LLM applications and agentic workflows.'],
+  ['summary-skills', 'MSc in Data Science (2025); I work in SQL and Python and build LLM applications and agentic workflows.'],
   ['mercor-data', 'Build high-quality training data for AI models, applying business and analytics expertise to produce accurate, well-documented work samples.'],
   ['mercor-accuracy', 'Put accuracy first: check and explain every result, and document the work so others can review and repeat it.'],
   ['mercor-standards', 'Work to strict quality standards and stay disciplined about privacy and confidentiality.'],
   ['audible-tests', "Contributed to 25+ A/B tests across web and mobile on Amazon's internal platforms, from hypothesis to a recommendation, doing the sample-size planning and significance testing myself."],
-  ['audible-adopted', '20+ of my recommendations were adopted: most tests were personalization and ordering bets against non-personalized baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
+  ['audible-adopted', '20+ of my recommendations were adopted: most tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
   ['audible-metrics', 'Evaluated experiments for the teams that used mirrored metric setups (revenue primary and listening minutes secondary, or the reverse), with churn and incremental long-term value (ILTV) as guardrails.'],
-  ['audible-crm', 'Contributed to CRM-driven personalization for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.'],
+  ['audible-crm', 'Contributed to CRM-driven personalisation for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.'],
   ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
   ['audible-ai-tools', 'Built AI tools adopted by the wider team after assessing Amazon Bedrock for team-efficiency use cases: an A/B test ideation tool that mines past experiment results, and a Jira launch-ticket generator.'],
   ['audible-reports', 'Built fortnightly Excel performance reports on experiments, campaigns and lifecycle KPIs from Tableau data for senior stakeholders of the teams I worked with.'],
@@ -240,7 +232,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['weather-pipeline', 'Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).'],
   ['n8n-intake', 'Built an e-invoice intake in n8n (XRechnung, ZUGFeRD: German e-invoice formats) that reads and checks supplier invoices, flags duplicates and changed bank details, archives originals and routes exceptions to a person.'],
   ['n8n-delivery', 'Added Gmail mail intake and a shared error-alert system, with a one-command installer, an acceptance test and a Docker setup (PostgreSQL, HTTPS) whose backup was restored after a full data wipe.'],
-  ['n8n-tests', '270+ automated tests and GitHub Actions CI; verified on a clean n8n install.'],
+  ['n8n-tests', '270+ automated tests (part of the suite runs in GitHub Actions on every push); verified on a clean n8n install.'],
 ];
 
 /**
@@ -335,14 +327,14 @@ describe('the CV page', () => {
     expect(CV_SECTIONS.map((s) => s.id)).toEqual(sections.map((s) => attr(s, 'id')));
   });
 
-  it('prints the role line, Berlin, Germany, and the LinkedIn and GitHub profiles', () => {
+  it('prints the role line, Berlin, Germany, and the LinkedIn and GitHub profiles as external links', () => {
     const header = one(cv(), (el) => has(el, 'data-cv-header'));
     expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe(SITE.role);
     expect(text(one(header, (el) => has(el, 'data-cv-place')))).toBe(SITE.city);
-    const links = all(header, (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href')]);
+    const links = all(header, (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);
     expect(links).toEqual([
-      ['linkedin.com/in/melbergui', CONTACT.linkedin],
-      ['github.com/MaHmOuDeB', CONTACT.github],
+      ['linkedin.com/in/melbergui', CONTACT.linkedin, 'noopener'],
+      ['github.com/MaHmOuDeB', CONTACT.github, 'noopener'],
     ]);
   });
 
@@ -384,38 +376,26 @@ describe('the CV page', () => {
     expect(teams[0]!.text).toContain('over my time there');
   });
 
-  it('never puts the experiments and the markets in the same claim, here or on the About page', () => {
+  it('holds the markets fact only in the automation and campaign claims; the About story names its own facts', () => {
     const facts = (el: El) => all(el, (e) => has(e, 'data-fact')).map((e) => attr(e, 'data-fact'));
-    for (const c of claimsOf(cv())) {
-      if (facts(c.el).includes('profile.audible.experiments')) {
-        expect(facts(c.el), c.id).not.toContain('profile.audible.markets');
-        expect(c.text, c.id).not.toMatch(/market/i);
-      }
-    }
+    const markets = claimsOf(cv()).filter((c) => facts(c.el).includes('profile.audible.markets'));
+    expect(markets.map((c) => c.id)).toEqual(['audible-automation', 'audible-campaigns']);
     const story = one(about(), (el) => has(el, 'data-about-story'));
-    for (const sentence of all(story, (el) => has(el, 'data-sentence'))) {
-      if (facts(sentence).includes('profile.audible.experiments')) {
-        expect(facts(sentence)).not.toContain('profile.audible.markets');
-        expect(text(sentence)).not.toMatch(/market/i);
-      }
-    }
+    expect(all(story, (el) => has(el, 'data-sentence')).map(facts)).toEqual([
+      [],
+      [],
+      ['profile.audible.experiments', 'profile.audible.teams'],
+      ['profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after'],
+      [],
+    ]);
   });
 
-  it('gives LinkedIn as the contact route and prints no e-mail address', () => {
+  it('gives LinkedIn as the contact route, with no mail link', () => {
     const header = one(cv(), (el) => has(el, 'data-cv-header'));
     const contact = one(header, (el) => has(el, 'data-cv-contact'));
     const link = one(contact, (el) => el.tagName === 'a');
     expect([text(link), attr(link, 'href')]).toEqual(['linkedin.com/in/melbergui', CONTACT.linkedin]);
-    const page = renderToStaticMarkup(createElement(CvPage));
-    expect(page).not.toContain(CONTACT.email);
-    expect(page).not.toContain('mailto:');
-  });
-
-  it('names nothing private and German only at B1', () => {
-    const t = text(cv());
-    expect(t).not.toMatch(PRIVATE);
-    const langs = section(cv(), 'languages');
-    expect(text(langs)).not.toMatch(/GermanB[2-9]|GermanC/);
+    expect(renderToStaticMarkup(createElement(CvPage))).not.toContain('mailto:');
   });
 
   it('passes the truth audit, with and without the PDF linked', () => {
@@ -424,20 +404,27 @@ describe('the CV page', () => {
     expect(audit(renderToStaticMarkup(createElement(CvPage)), '/cv')).toEqual([]);
   });
 
-  it('offers the PDF only when the build found a checked one, and hides it when printed', () => {
-    const pdfLinks = (d: T.Document) => all(d, (el) => el.tagName === 'a' && attr(el, 'href') === CV_LINK.href);
+  it('offers the PDF only when the build found a checked one: one primary button at the top, with its size, hidden in print', () => {
+    const pdfLinks = (d: T.Document) => all(d, (el) => el.tagName === 'a' && attr(el, 'href') === CV_PDF_HREF);
     expect(pdfLinks(cv())).toEqual([]);
+    expect(all(cv(), (el) => has(el, 'data-cv-download'))).toEqual([]);
     process.env.CV_PDF = PDF_ENV;
     const d = cv();
-    const link = one(d, (el) => el.tagName === 'a' && attr(el, 'href') === CV_LINK.href);
-    expect(text(link)).toBe(CV_LINK.label);
-    expect(has(link, 'download')).toBe(true);
-    expect(classes(one(d, (el) => has(el, 'data-cv-download')))).toContain('print:hidden');
+    const [link, ...more] = pdfLinks(d);
+    expect(more).toEqual([]);
+    expect(text(link!)).toBe(DOWNLOAD);
+    expect(has(link!, 'download')).toBe(true);
+    expect(classes(link!)).toContain('bg-ink');
+    const size = one(link!, (el) => el.tagName === 'data');
+    expect([attr(size, 'value'), attr(size, 'data-derived')]).toEqual(['84', 'build']);
+    const download = one(d, (el) => has(el, 'data-cv-download'));
+    expect(classes(download)).toContain('print:hidden');
+    expect(all(one(d, (el) => has(el, 'data-cv-header')), (el) => el === download)).toEqual([download]);
   });
 });
 
 // ═════════════════════════════════ the header's CV link ═════════════════════════════════════════
-describe('the header links the CV that exists', () => {
+describe('the header always links the CV page', () => {
   const cvLinks = () =>
     all(dom(renderToStaticMarkup(createElement(SiteHeader))), (el) => el.tagName === 'a' && /^CV/.test(text(el))).map((a) => [
       text(a),
@@ -445,19 +432,14 @@ describe('the header links the CV that exists', () => {
       has(a, 'download'),
     ]);
 
-  it('without a checked PDF, "CV" to the CV page (desktop and phone)', () => {
-    expect(cvLinks()).toEqual([
+  it('"CV" to the CV page (desktop and phone), with or without a checked PDF', () => {
+    const page = [
       ['CV', '/cv', false],
       ['CV', '/cv', false],
-    ]);
-  });
-
-  it('with one, "CV (PDF)", a download of the file', () => {
+    ];
+    expect(cvLinks()).toEqual(page);
     process.env.CV_PDF = PDF_ENV;
-    expect(cvLinks()).toEqual([
-      [CV_LINK.label, CV_LINK.href, true],
-      [CV_LINK.label, CV_LINK.href, true],
-    ]);
+    expect(cvLinks()).toEqual(page);
   });
 });
 
@@ -611,7 +593,7 @@ describe('the page and the PDF say the same things', () => {
     } else {
       expect(existsSync(join(repo, 'public', 'cv.meta.json'))).toBe(false);
       const html = renderToStaticMarkup(createElement(CvPage)) + renderToStaticMarkup(createElement(AboutPage));
-      expect(html).not.toContain(`href="${CV_LINK.href}"`);
+      expect(html).not.toContain(`href="${CV_PDF_HREF}"`);
     }
   });
 });

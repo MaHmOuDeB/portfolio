@@ -206,7 +206,7 @@ once its file exists.
 | Export | File | Role |
 |---|---|---|
 | `LiveNote` | `src/components/home/LiveNote.tsx` | The Home note on the live test, from the server-only Home model (`src/lib/home/model.ts`): nothing before the start, the kit's `PhaseLabel` while the test runs, and a stated reason with a link to `/experiment` when it is stopped, unreadable or finished. Every count prints by the small-count rule (`src/lib/home/counts.ts`). |
-| `Hero` | `src/components/home/Hero.tsx` | The Home hero, the same for every visitor: the name across the page (a non-breaking space in the surname), then from `lg` the identity (role, place, proof line with "Why so many?", Try the lab, CV (PDF) from `md`, LinkedIn) in 7 of 12 columns and `HeroSimulator` in 5. |
+| `Hero` | `src/components/home/Hero.tsx` | The Home hero, the same for every visitor: the name across the page (a non-breaking space in the surname), then from `lg` the identity (role, place, proof line with "Why so many?", Try the lab, CV from `md`, LinkedIn) in 7 of 12 columns and `HeroSimulator` in 5. |
 | `CaseCard` | `src/components/home/CaseCard.tsx` | One featured case study: glyph, headline, description and the card link (`data-experiment-click="card"`). Both headline strings share one grid cell, so the card has the same size in both groups; the other group's string is `visibility: hidden` and `aria-hidden`, and the headline holds no link. |
 | `FeaturedCases` | `src/components/home/FeaturedCases.tsx` | The cards region the experiment watches (`data-experiment="cards"`, labelled "Featured case studies"): three `CaseCard`s, stacked below `lg`, three columns sharing rows (subgrid) from `lg`. |
 | `Tools` | `src/components/home/Tools.tsx` | "Tools I've built": one row per tool in `content/home.ts`, its name linking to its page and one line with its figures as Facts. |
@@ -251,8 +251,9 @@ once its file exists.
 | `DetectableFigure` | `src/components/live-page/DetectableFigure.tsx` | The smallest lift each number of views per group would detect 8 times in 10 at the committed planning click rate, for one look at that size, with the current size marked when the published data gives it; otherwise a sentence says why (no views, a small group, beyond the range, no data). |
 | `ResultsFigure` | `src/components/live-page/ResultsFigure.tsx` | The results under the confidence sequence: the kit's `ConfidenceChart` only when `kitSafe` and its copy is true for the state (no own-view mark); otherwise a page-owned Figure with the last interval drawn (the kit's `NowRow`) or the hollow mark and a sentence, and a table of published cells. Nothing for a placeholder, a failed split check or a failed calibration. |
 | `Colophon` | `src/components/live-page/Colophon.tsx` | The stack (versions from `package.json`) and the deploy's test and audit results from the build metadata embedded at build time (`readBuildMeta`, `src/lib/live-page/build-meta-file.ts`); without it, "Test and audit results are added when the site is deployed." Lighthouse is labelled a CI lab run. |
-| `AboutPage`, `ABOUT_SECTIONS`, `ABOUT_TITLE` | `src/components/about/AboutPage.tsx` | The About page: the photograph (`next/image` at 480 px, 960 px for dense screens, lazy, alt text from `content/about-photo.ts`) beside a five-sentence story, then Timeline, Tools I have shipped with, Languages and CV sections, each a `<section>` named by its h2. Prose from `content/about.tsx`. The PDF button shows only when the build has a checked PDF. |
-| `CvPage`, `CV_SECTIONS` | `src/components/about/CvPage.tsx` | The printable CV page: the web CV PDF's claims (each marked `data-cv-claim`), in the CV's order, from `content/about.tsx`. The contact route is LinkedIn: no e-mail address and no phone number. The PDF button shows only when the build has a checked PDF. Printing drops the site header, footer and buttons. |
+| `AboutPage`, `ABOUT_SECTIONS`, `ABOUT_TITLE` | `src/components/about/AboutPage.tsx` | The About page: the photograph (`next/image` at 480 px, 960 px for dense screens, lazy, alt text from `content/about-photo.ts`) beside a five-sentence story, then Timeline, Tools I have shipped with, Languages and CV sections, each a `<section>` named by its h2. Prose from `content/about.tsx`. The CV section links the CV page, and shows `CvDownload` only when the build has a checked PDF. |
+| `CvPage`, `CV_SECTIONS` | `src/components/about/CvPage.tsx` | The printable CV page: the web CV PDF's claims (each marked `data-cv-claim`), in the CV's order, from `content/about.tsx`. The contact route is LinkedIn. When the build has a checked PDF, `CvDownload` sits at the top as the one primary button. Printing drops the site header, footer and buttons. |
+| `CvDownload` | `src/components/about/CvDownload.tsx` | The CV PDF's download button, "Download CV (PDF, <size>)", the size from the build (`data-derived="build"`); hidden in print. Rendered only when the build has a checked PDF. |
 | `TimelineRow` | `src/components/about/TimelineRow.tsx` | A row on the About timeline: the months, the role (h3) and where. |
 | `Months` | `src/components/about/Months.tsx` | A month range ("Aug 2023 – Apr 2025", "Oct 2026 – present"), each month in a `<time>`. |
 
@@ -289,7 +290,7 @@ page, give it the primitives catalogue above and the golden page.
 
 - **Vocabulary.** Visitor-facing copy says "group". Code says "arm".
 - **Copy.** First person, plain, sentence case. Status is a word ("SRM passed"), and colour only
-  repeats it. Navigation is exactly Work, Lab, Live test, About, CV (PDF), Menu.
+  repeats it. Navigation is exactly Work, Lab, Live test, About, CV, Menu.
 - **Motion.**
   - The Home scroll moment is the only motion the visitor doesn't trigger. No other page has any.
   - All other motion answers a visitor's action.

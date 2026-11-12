@@ -4,8 +4,8 @@
 //
 // The CV page carries the same claims as the web CV PDF, word for word, except where the PDF prints
 // a figure the site has no fact for: there the page leaves the figure out (tests/unit/about lists
-// each one). The teams are always the ones I worked with over my time at Audible, one after another;
-// the tests count and the markets never share a sentence.
+// each one). The teams are the ones I worked with over my time at Audible, one after another, and
+// the markets figure belongs to the automation tool and the campaign work.
 import type { ReactNode } from 'react';
 import { Derived } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
@@ -103,7 +103,7 @@ export const CV_SUMMARY: readonly CvClaim[] = [
     id: 'summary-tenure',
     body: (
       <>
-        Data and growth analyst with nearly two years at Audible (Amazon): contributed to{' '}
+        Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to{' '}
         <Fact id="profile.audible.experiments" /> A/B tests across web and mobile and worked with{' '}
         <Fact id="profile.audible.teams" /> teams over my time there.
       </>
@@ -120,7 +120,7 @@ export const CV_SUMMARY: readonly CvClaim[] = [
   },
   {
     id: 'summary-skills',
-    body: <>MSc in Data Science (2025); works in SQL and Python and builds LLM applications and agentic workflows.</>,
+    body: <>MSc in Data Science (2025); I work in SQL and Python and build LLM applications and agentic workflows.</>,
   },
 ];
 
@@ -163,7 +163,7 @@ export const CV_EXPERIENCE: readonly CvEntry[] = [
         body: (
           <>
             <Fact id="profile.audible.recommendations_adopted" /> of my recommendations were adopted: most tests were
-            personalization and ordering bets against non-personalized baselines, ideas came from a pre-vetted
+            personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted
             pipeline, and neutral results could ship when guardrails held and there was a product reason.
           </>
         ),
@@ -174,7 +174,7 @@ export const CV_EXPERIENCE: readonly CvEntry[] = [
       },
       {
         id: 'audible-crm',
-        body: 'Contributed to CRM-driven personalization for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.',
+        body: 'Contributed to CRM-driven personalisation for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.',
       },
       {
         id: 'audible-automation',
@@ -428,8 +428,8 @@ export const CV_PROJECTS: readonly CvEntry[] = [
         id: 'n8n-tests',
         body: (
           <>
-            <Fact id="profile.n8n.automated_tests" /> automated tests and GitHub Actions CI; verified on a clean n8n
-            install.
+            <Fact id="profile.n8n.automated_tests" /> automated tests (part of the suite runs in GitHub Actions on
+            every push); verified on a clean n8n install.
           </>
         ),
       },

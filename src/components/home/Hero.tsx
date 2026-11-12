@@ -6,16 +6,13 @@ import { HOME_HERO } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
-import { cvNavLink } from '@/lib/cv-pdf';
-import { CONTACT, SITE } from '@/lib/site';
+import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 import { HeroSimulator } from './HeroSimulator';
 import { Parts } from './Parts';
 
 const NAME = SITE.name.replace('El Bergui', 'El\u00a0Bergui');
 
 export function Hero() {
-  // The CV PDF once the build has a checked one; until then the CV page.
-  const cv = cvNavLink();
   return (
     <section data-hero="" aria-labelledby="hero-name" className="pt-8 md:pt-12">
       <h1 id="hero-name" className="text-display-sm font-semibold md:text-display">
@@ -40,8 +37,8 @@ export function Hero() {
               {HOME_HERO.lab}
             </ButtonLink>
             <div data-hero-cv="" className="hidden md:block">
-              <ButtonLink href={cv.href} variant="secondary" download={cv.download}>
-                {cv.label}
+              <ButtonLink href={CV_LINK.href} variant="secondary">
+                {CV_LINK.label}
               </ButtonLink>
             </div>
             <ButtonLink href={CONTACT.linkedin} variant="secondary" external>

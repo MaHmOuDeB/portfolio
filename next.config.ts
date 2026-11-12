@@ -21,8 +21,9 @@ const nextConfig: NextConfig = {
   // while the build loads this config and written into the build output, so the Live test page's
   // ISR regenerations never read a file at run time. "null" for a build with no file and no deploy
   // signal; a deploy build without a valid file fails here (scripts/embed-build-meta.ts).
-  // The CV PDF this build links, read once here so every page agrees (src/lib/cv-pdf.ts): the
-  // checked PDF's metadata as JSON, or an empty string when there is no PDF with matching metadata.
+  // The CV PDF this build offers, read once here so every page agrees (src/lib/cv-pdf.ts): the
+  // checked PDF's metadata and size as JSON, or an empty string when there is no PDF with matching
+  // metadata.
   env: { BUILD_META_JSON: embeddedBuildMeta(process.env, readFileSync), CV_PDF: cvPdfEnv(process.cwd()) },
 };
 
