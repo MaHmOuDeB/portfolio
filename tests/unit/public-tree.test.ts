@@ -13,7 +13,7 @@ const FORBIDDEN: readonly [name: string, pattern: RegExp][] = [
   ['the copy deck', /copy[ -]deck/i],
   ['a ruling or review document', /RULING-|DECISIONS|APPLIED|claim-ledger/],
   ['a design gate', /gate2|\bGate \d/i],
-  ['the fact sheet', /fact sheet/i],
+  ['the fact sheet', /fact[ -]sheet/i],
   ['a private path', /private\//],
   ['a plan number', /\bPlan \d/],
   ['a task number', /\bTask \d/],
@@ -45,7 +45,7 @@ describe('findReferences', () => {
   it('finds each kind of private reference with its line', () => {
     const samples = [
       '// see states.md', '// motion.md says', 'the Copy Deck', 'copy-deck', 'RULING-x', 'DECISIONS', 'APPLIED', 'claim-ledger',
-      'gate2-review', 'checked at Gate 2', 'Fact sheet', 'private/specs', 'Plan 05', 'Task 12', 'design-lint-rules.md',
+      'gate2-review', 'checked at Gate 2', 'Fact sheet', 'fact-sheet', 'private/specs', 'Plan 05', 'Task 12', 'design-lint-rules.md',
     'components.md',
     ];
     for (const sample of samples) {
