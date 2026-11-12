@@ -928,7 +928,7 @@ describe('cv-sync.sh', () => {
     const s = syncSetup();
     const link = join(s.dir, 'into-repo');
     symlinkSync(join(ROOT, 'scripts', 'cv'), link);
-    const copy = spawnSync('bash', [join(ROOT, 'scripts/cv-sync.sh'), '--renderer', s.renderer, '--input', s.input, '--output', join(s.dir, 'x.pdf'), '--input-sha256', sha256(readFileSync(s.input)), '--synthetic-docx', s.synthetic, '--synthetic-present', s.present, '--original-renderer', s.original, '--evidence', join(link, 'evidence.json'), '--dry-run', '--lint-only'], {
+    const copy = spawnSync('bash', [SYNC, '--renderer', s.renderer, '--input', s.input, '--output', join(s.dir, 'x.pdf'), '--input-sha256', sha256(readFileSync(s.input)), '--synthetic-docx', s.synthetic, '--synthetic-present', s.present, '--original-renderer', s.original, '--evidence', join(link, 'evidence.json'), '--dry-run', '--lint-only'], {
       encoding: 'utf8',
       env: { PATH: process.env.PATH, TRUTH_DENYLIST: DENY } as unknown as NodeJS.ProcessEnv,
     });
