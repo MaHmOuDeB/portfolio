@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { FACTS } from '../../src/lib/facts/index.ts';
-import { auditHtml, routeOf, type AuditContext, type Finding } from '../../scripts/truth-audit.ts';
+import { auditHtml, auditScript, routeOf, type AuditContext, type Finding } from '../../scripts/truth-audit.ts';
 
 const FIXTURES = new URL('../fixtures/truth-audit/', import.meta.url).pathname;
 const SCRIPT = new URL('../../scripts/truth-audit.ts', import.meta.url).pathname;
@@ -235,6 +235,26 @@ describe('framework routes', () => {
   });
 });
 
+describe('auditScript', () => {
+  const route = '/_next/static/chunks/abc.js';
+
+  it('reports a deny-list term in a client script by its index only, and no numeral', () => {
+    const js = 'var a={from:"x"},b=1353,c="Second  TERM here";';
+    const findings = auditScript(js, { route, denylist: ['first term', 'second term'] });
+    expect(findings).toEqual([{ route, kind: 'denylisted', detail: 'deny-list term #2' }]);
+    expect(JSON.stringify(findings).toLowerCase()).not.toContain('second term');
+  });
+
+  it('matches a deny-list line as literal text, not as a pattern', () => {
+    expect(auditScript('var a="abc";', { route, denylist: ['a.c'] })).toEqual([]);
+    expect(auditScript('var a="a.c";', { route, denylist: ['a.c'] })).toEqual([{ route, kind: 'denylisted', detail: 'deny-list term #1' }]);
+  });
+
+  it('finds nothing without a deny-list', () => {
+    expect(auditScript('var secretword=1;', { route, denylist: [] })).toEqual([]);
+  });
+});
+
 describe('routeOf', () => {
   it('maps built html files to routes', () => {
     expect(routeOf('.next/server/app/work/retention.html')).toBe('/work/retention');
@@ -316,6 +336,34 @@ describe('truth-audit CLI', () => {
     expect(r.status).toBe(1);
     expect(r.stdout.trim().split('\n')).toEqual(['/[deny-list term #1]-notes stray-number "1,353" in text']);
     expect((r.stdout + r.stderr).toLowerCase()).not.toContain('secretword');
+  });
+
+  const script = (path: string, text: string) => {
+    const file = join(dir, '.next/static', path);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  };
+
+  it('checks the public client scripts against the deny-list, by index only', () => {
+    build({ 'index.html': 'clean' });
+    script('chunks/a1.js', 'var x="Secretword",n=1353;');
+    script('chunks/b2.js', 'var y=42;');
+    const r = run({ CI: 'true', TRUTH_DENYLIST: 'Secretword' });
+    expect(r.status).toBe(1);
+    expect(r.stdout.trim().split('\n')).toEqual([
+      '/_next/static/chunks/a1.js denylisted deny-list term #1',
+      'client scripts: 2 checked against the deny-list',
+    ]);
+    expect((r.stdout + r.stderr).toLowerCase()).not.toContain('secretword');
+  });
+
+  it('passes clean client scripts, numerals and all', () => {
+    build({ 'index.html': 'clean' });
+    script('chunks/a1.js', 'var n=1353,m=0.85;');
+    const r = run({ CI: 'true', TRUTH_DENYLIST: 'Secretword' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('client scripts: 1 checked against the deny-list');
+    expect(r.stdout).toContain('truth audit: 1 pages, 0 findings');
   });
 
   it('fails when there are no built pages to audit', () => {
