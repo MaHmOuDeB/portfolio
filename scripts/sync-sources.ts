@@ -6,7 +6,7 @@
 //   npm run sources:sync -- --check                       verify the vendored files (no network, no clones)
 //   npm run sources:sync -- --verify-remote               compare the lock with raw.githubusercontent.com
 //
-// Local clones live at ${SOURCES_ROOT ?? ~/code}/<repo name>.
+// Local clones live in a folder of local clones (SOURCES_ROOT), one per repo, named after it.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
