@@ -750,22 +750,38 @@ test.describe('kit extension: chart overrides', () => {
 // diagnostics host holds two chart Figures, each a query container, above the page end. Idle time
 // is held, the reader goes to the page end, and then both islands are released in one task, so
 // they load and swap their previews together. Every frame from the release records the scroll
-// position; all of them must be the starting one.
+// position; all of them must be the starting one. Once both are in, neither loader may still hold
+// its preview's height.
 test.describe('loader: islands that arrive together', () => {
   const HOST = '/kitchen-sink/lab/diagnostics';
 
-  /** Holds every idle callback until `releaseIdle()`; a request after the release runs at once. */
+  /**
+   * Holds every idle callback until `releaseIdle()`; a request after the release runs at once. A
+   * cancelled request never runs.
+   */
   async function holdIdle(page: Page) {
     await page.addInitScript(() => {
-      const held: IdleRequestCallback[] = [];
+      const held = new Map<number, IdleRequestCallback>();
+      let next = 0;
       let released = false;
       const run = (cb: IdleRequestCallback) => cb({ didTimeout: false, timeRemaining: () => 50 });
       (window as unknown as { releaseIdle: () => void }).releaseIdle = () => {
         released = true;
-        held.splice(0).forEach(run);
+        const due = [...held.values()];
+        held.clear();
+        due.forEach(run);
       };
-      window.requestIdleCallback = (cb) => (released ? (setTimeout(() => run(cb), 0), 0) : (held.push(cb), held.length));
-      window.cancelIdleCallback = () => {};
+      window.requestIdleCallback = (cb) => {
+        const handle = ++next;
+        held.set(handle, cb);
+        if (released) {
+          setTimeout(() => {
+            if (held.delete(handle)) run(cb);
+          }, 0);
+        }
+        return handle;
+      };
+      window.cancelIdleCallback = (handle) => void held.delete(handle);
     });
   }
 
@@ -801,8 +817,13 @@ test.describe('loader: islands that arrive together', () => {
       requestAnimationFrame(next);
     }));
     const ys = await page.evaluate(() => (window as unknown as { scrollYs: number[] }).scrollYs);
-    expect(ys.length).toBeGreaterThan(10);
+    // At least the ten frames above; the swap itself can land before the first sampled frame, and
+    // every sample is checked against the position before the release.
+    expect(ys.length).toBeGreaterThanOrEqual(10);
     const moved = ys.filter((y) => Math.abs(y - start) > 1);
     expect(moved, `scrollY per frame from ${start}: ${ys.join(' ')}`).toEqual([]);
+    // The height each loader held for its island during the swap has been let go.
+    const held = await page.locator('[data-island="ready"]').evaluateAll((roots) => roots.map((r) => (r as HTMLElement).style.minHeight));
+    expect(held).toEqual(['', '']);
   });
 });

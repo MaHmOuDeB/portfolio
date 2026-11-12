@@ -25,19 +25,23 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 const IDLE_TIMEOUT_MS = 2000;
 
 /**
- * Keeps `box` at least `height` tall until its last child (the island just inserted) has been laid
- * out: the island's first ResizeObserver callback, which comes after that layout and before the paint,
- * lets it go. Writes only; it reads no style or layout.
+ * Keeps `box` at least `height` tall until the island just inserted in it has been laid out. While the
+ * reservation is set the box is at least `height` tall, so a ResizeObserver on the box always notifies
+ * after the next layout (which includes the island) and before that frame's paint, whatever the
+ * island's own elements are; that notification lets the reservation go. A second animation frame is a
+ * backstop: by then the first frame has laid the island out (a single frame would be too early, its
+ * callbacks run before that layout). Writes only; it reads no style or layout.
  */
 function reserveUntilLaidOut(box: HTMLElement, height: number) {
-  const island = box.lastElementChild;
-  if (island === null || height <= 0 || typeof ResizeObserver !== 'function') return;
+  if (height <= 0 || typeof ResizeObserver !== 'function') return;
   box.style.minHeight = `${height}px`;
-  const release = new ResizeObserver(() => {
+  const release = new ResizeObserver(() => done());
+  function done() {
     release.disconnect();
     box.style.minHeight = '';
-  });
-  release.observe(island);
+  }
+  release.observe(box);
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(done));
 }
 
 /** Commits with the island, never before it: tells the root to drop the preview. */
@@ -93,8 +97,8 @@ function Island({
   // through the island's style, to evaluate container queries (every chart is a query container);
   // without the reserved height that half-built page is shorter than the scroll position of a reader
   // who followed a link to a section further down, WebKit clamps the position and drops its scroll
-  // anchor, and the view ends at the page end. The reservation is released in the island's first
-  // ResizeObserver callback, after that layout and before the paint, so no frame shows it.
+  // anchor, and the view ends at the page end. The reservation is released by a ResizeObserver on the
+  // root, after that layout and before the paint, so no frame shows it.
   // Nothing here reads style or layout: an island must not force layout in its own mount effects. A
   // forced layout here lays out the preview and the island one above the other; Chromium picks its
   // scroll anchor inside that stacked page, and when the preview leaves, the anchor moves up by the
