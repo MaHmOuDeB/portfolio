@@ -32,7 +32,7 @@ export const DECISION_LABEL: Record<FrameworkDecision, string> = {
   ship: 'Ship: the main metric rose, guardrail intact',
   'ship-neutral': 'May ship: neutral on the main metric, guardrail intact',
   harm: 'Stop: the main metric fell',
-  hold: 'Hold: the guardrail moved past its limit',
+  hold: "Hold: the guardrail's upper end is past its limit",
 };
 
 /** The colour that repeats the decision word: never the only signal. */

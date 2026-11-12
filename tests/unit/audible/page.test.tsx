@@ -345,7 +345,7 @@ describe('the ship-rule section and its Figure', () => {
       ship: 'Ship: the main metric rose, guardrail intact',
       'ship-neutral': 'May ship: neutral on the main metric, guardrail intact',
       harm: 'Stop: the main metric fell',
-      hold: 'Hold: the guardrail moved past its limit',
+      hold: "Hold: the guardrail's upper end is past its limit",
     });
     const cases: [FrameworkValues, keyof typeof DECISION_LABEL][] = [
       [{ primaryLower: 1, primaryUpper: 4, guardrailUpper: 1 }, 'ship'],

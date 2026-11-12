@@ -15,7 +15,7 @@ const SENTENCE = 'This chart could not load. The numbers are in the table below.
 const SEAM_FAILURE = 'The ship-rule chart failed after a change (test seam)';
 const SHIP = 'Ship: the main metric rose, guardrail intact.';
 const MAY_SHIP = 'May ship: neutral on the main metric, guardrail intact.';
-const HOLD = 'Hold: the guardrail moved past its limit.';
+const HOLD = "Hold: the guardrail's upper end is past its limit.";
 const STOP = 'Stop: the main metric fell.';
 const AUTOMATION_CAPTION = 'Illustrative reconstruction using approximate reported timings; not measured telemetry.';
 
@@ -125,7 +125,7 @@ test.describe('Audible method page', () => {
     await page.keyboard.press('End');
     await expect(result(page)).toContainText(HOLD);
     await expect(live(page)).toHaveText(
-      'Hold: the guardrail moved past its limit. Session completion: +1.0 to +4.0 points; help requests: at most +10.0 points, against a limit of +2.',
+      "Hold: the guardrail's upper end is past its limit. Session completion: +1.0 to +4.0 points; help requests: at most +10.0 points, against a limit of +2.",
     );
     await expect(live(page)).toHaveAttribute('data-derived', 'simulated');
     await expect.poll(() => query(page).get(`${ID}.guardrail`)).toBe('10');
@@ -204,7 +204,7 @@ test.describe('Audible method page', () => {
     await expect(live(page)).toHaveText('');
     await page.mouse.up();
     await expect(figure(page)).not.toHaveAttribute('data-dragging');
-    await expect(live(page)).toHaveText(/^Hold: the guardrail moved past its limit\./);
+    await expect(live(page)).toHaveText(/^Hold: the guardrail's upper end is past its limit\./);
     const stats = await page.evaluate(() => {
       const w = window as unknown as { lat: number[]; announced: string[]; animations: number };
       return { lat: w.lat, announced: w.announced, animations: w.animations };
