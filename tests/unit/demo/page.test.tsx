@@ -78,7 +78,7 @@ const INTRO =
   'I open these links when I share my screen in an interview. This page is not in the menu, and search engines are asked not to list it.';
 const FORCED_LEAD = 'Each link opens the home page as one group of the live test sees it.';
 const FORCED_EXCLUDED =
-  'Views opened through these links are never counted in the live test. When the home page reports such a view, it says the group was chosen in the address, or that a program drives the browser; when the browser asks not to be tracked, it sends nothing. In every case the view stays out of the results. This page itself sends nothing to the live test.';
+  'Views opened through these links are never counted in the live test. Whatever the home page sends about such a view says that it cannot count, and the server leaves it out of the results. This page itself sends nothing to the live test.';
 const PHASE_NOTE: Record<ExperimentPhase, string> = {
   calibration: "Until the A/B test starts, both groups see group A's headlines, so both links show the same headlines.",
   ab: "Once the A/B test has started, each link shows its own group's headlines.",

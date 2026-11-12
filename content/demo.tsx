@@ -65,10 +65,9 @@ export function ForcedNote({ phase }: { phase: ExperimentPhase }): ReactNode {
 export function ForcedExclusion(): ReactNode {
   return (
     <p>
-      Views opened through these links are never counted in the live test. When the home page reports such a view,
-      it says the group was chosen in the address, or that a program drives the browser; when the browser asks not
-      to be tracked, it sends nothing. In every case the view stays out of the results. This page itself sends
-      nothing to the live test.
+      Views opened through these links are never counted in the live test. Whatever the home page sends about such a
+      view says that it cannot count, and the server leaves it out of the results. This page itself sends nothing to
+      the live test.
     </p>
   );
 }
