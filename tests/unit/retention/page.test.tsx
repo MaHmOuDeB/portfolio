@@ -199,26 +199,20 @@ describe('truth', () => {
 
   const ariaText = [...PAGE.matchAll(/aria-label="([^"]*)"/g)].map((m) => decode(m[1]!)).join(' ');
 
-  it.each([
-    ['we decided', /we decided/i],
-    ['the business', /the business/i],
-    ['rolled out', /rolled out/i],
-    ['launched', /launched/i],
-    ['customers responded', /customers responded/i],
-    ['money saved', /\bsaved\b|revenue caused|caused revenue|money/i],
-    ['ran a test', /\bran\b|\brun a test\b/i],
-    ['designed', /\bdesign(ed)?\b/i],
-    ['two orders', /two orders/i],
-    ['top fifth', /top fifth/i],
-    ['top-spending', /top[- ]spending/i],
-    ['per arm', /per arm|\barm\b/i],
-    ['Pulse or Weather', /Pulse|Weather|Audible/],
-    ['the live test', /paused|A\/A|calibration run|calibration phase|live test|Live from this site/i],
-    ['a raw Home model', /splitStatus|testNote|"phase"/],
-  ])('never says %s, in the text or in an accessible name', (_, pattern) => {
-    expect(PAGE_TEXT).not.toMatch(pattern);
-    expect(ariaText).not.toMatch(pattern);
-    expect(decode(PAGE)).not.toMatch(pattern);
+  it('says nothing of the live test and carries no raw Home-model field, in the text or an accessible name', () => {
+    for (const pattern of [/paused|A\/A|calibration run|calibration phase|live test|Live from this site/i, /splitStatus|testNote|"phase"/]) {
+      expect(PAGE_TEXT, String(pattern)).not.toMatch(pattern);
+      expect(ariaText, String(pattern)).not.toMatch(pattern);
+      expect(decode(PAGE), String(pattern)).not.toMatch(pattern);
+    }
+  });
+
+  // Every heading, paragraph, list item and caption, in page order, exactly as a visitor reads it,
+  // so any change to the wording is a deliberate change to this file.
+  it('pins the prose of every section, as a visitor reads it', async () => {
+    const blocks = [...PAGE.matchAll(/<(h2|h3|p|li|figcaption)\b[^>]*>([\s\S]*?)<\/\1>/g)].map((m) => `${m[1]}: ${text(m[2]!)}`);
+    expect(blocks.length).toBeGreaterThan(40);
+    await expect(`${blocks.join('\n')}\n`).toMatchFileSnapshot('./__snapshots__/retention-prose.txt');
   });
 
   it('has no table header that says anyone was contacted', () => {
