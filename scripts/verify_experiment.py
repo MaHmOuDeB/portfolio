@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sys
 from datetime import date, datetime, timedelta
@@ -1086,7 +1087,12 @@ def check_calibration(data: Data, checks: list) -> None:
     if cal is None:
         check(checks, "calibration-rule", "fail", "the A/A publishes no calibration check")
         return
+    if d.get("closureMismatch"):
+        check(checks, "calibration-rule", "indeterminate", "the published stop rests on a stored closure that the current analysis did not confirm")
+        return
     looks, held, failed = data.looks, d["held"], cal["failed"]
+    # A stop recorded only as a stored closure: failed, with its day, but no failure in the looks.
+    stored = failed is None and d["status"] == "aa-failed" and d["frozenAt"] is not None
     problems = []
     expected = ("none", None)
     if failed is not None:
@@ -1100,7 +1106,7 @@ def check_calibration(data: Data, checks: list) -> None:
             problems.append("the frozen day is not the failing look")
         if d["status"] != "aa-failed":
             problems.append("the A/A failed but the state does not say so")
-    elif d["frozenAt"] is not None:
+    elif d["frozenAt"] is not None and not stored:
         problems.append("a frozen day is published without a failure")
     counted = any(c != 0 for c in (d["current"]["a"]["entry"], d["current"]["b"]["entry"]))
     if d["status"] == "before-data" and counted:
@@ -1110,7 +1116,7 @@ def check_calibration(data: Data, checks: list) -> None:
     if d["status"] not in ("before-data", "calibration", "aa-failed"):
         problems.append(f"the state {d['status']} is not an A/A state")
     clean = held is None and d["bandConflictOn"] is None and d["inconsistentOn"] is None
-    ready = cal["evaluatedOn"] is not None and cal["srmPassed"] and cal["intervalContainsZero"] is True and failed is None and clean
+    ready = cal["evaluatedOn"] is not None and cal["srmPassed"] and cal["intervalContainsZero"] is True and failed is None and clean and not stored
     if cal["ready"] != ready:
         problems.append("the published readiness does not follow from the published check")
     if failed is not None and failed["reason"] == "srm" and cal["srmPassed"]:
@@ -1134,12 +1140,14 @@ def check_calibration(data: Data, checks: list) -> None:
         check(checks, "calibration-rule", "indeterminate", why)
         return
     result = verdict(outcomes, lambda o: o == expected)
-    if result == "pass" and failed is None and d["status"] == "aa-failed":
+    if result == "pass" and stored:
+        check(checks, "calibration-rule", "indeterminate", f"the A/A is published as stopped on {d['frozenAt']} by a recorded closure, not by the published looks, so the stop cannot be recomputed; the looks themselves pass the rule")
+    elif result == "pass" and failed is None and d["status"] == "aa-failed":
         check(checks, "calibration-rule", "indeterminate", "the A/A is published as failed by a recorded note, not by the published looks; the looks themselves pass the rule")
     elif result == "pass":
-        say = "no look fails the A/A rule" if expected[0] == "none" else f"the last look is the first to fail the A/A rule ({expected[0]})"
+        words = "no look fails the A/A rule" if expected[0] == "none" else f"the last look is the first to fail the A/A rule ({expected[0]})"
         held_note = "; the failing look is a data fault and is not published" if held is not None else ""
-        check(checks, "calibration-rule", "pass", f"walking the {len(looks)} published looks in order: {say}, as published{held_note}")
+        check(checks, "calibration-rule", "pass", f"walking the {len(looks)} published looks in order: {words}, as published{held_note}")
     elif result == "fail":
         check(checks, "calibration-rule", "fail", "the A/A rule applied to the published looks does not give the published result")
     else:
@@ -1147,8 +1155,12 @@ def check_calibration(data: Data, checks: list) -> None:
 
 
 def ended(data: Data) -> bool:
+    """Whether the analysis itself has ended (its counts are then the last look's). A stop recorded
+    only as a stored closure in the A/A sets a frozen day but does not end the analysis."""
     d = data.d
-    return d["held"] is not None or d["frozenAt"] is not None or (data.ab and d["srm"]["firstFlaggedOn"] is not None)
+    cal = d["calibration"]
+    frozen = d["frozenAt"] is not None and (data.ab or (cal is not None and cal["failed"] is not None))
+    return d["held"] is not None or frozen or (data.ab and d["srm"]["firstFlaggedOn"] is not None)
 
 
 def basis(data: Data):
@@ -1512,13 +1524,33 @@ def main(argv=None) -> int:
         parser.error("give the data file, --reference, or both")
     try:
         return run(args)
+    except BrokenPipeError:
+        # The reader closed the output (for example `| head -1`): nothing more can be said.
+        silence_stdout()
+        return 2
     except Exception as e:  # noqa: BLE001 - the last resort: never a traceback, never exit 1
         message = f"internal error ({type(e).__name__}): the verifier could not finish; this says nothing about the data"
-        if args.json:
-            print(json.dumps({"verifier": VERIFIER, "result": "error", "checks": [], "errors": [message]}, indent=2))
-        else:
-            say(f"ERROR          {message}", sys.stderr)
+        try:
+            if args.json:
+                print(json.dumps({"verifier": VERIFIER, "result": "error", "checks": [], "errors": [message]}, indent=2))
+            else:
+                say(f"ERROR          {message}", sys.stderr)
+            # Anything already buffered for a closed stdout would fail again at exit.
+            sys.stdout.flush()
+        except OSError:
+            silence_stdout()
         return 2
+
+
+def silence_stdout() -> None:
+    """Point stdout at the null device, so the interpreter's final flush of a closed pipe cannot
+    raise again at exit."""
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, sys.stdout.fileno())
+    except (OSError, ValueError, AttributeError):
+        pass
+    sys.stdout = open(os.devnull, "w")
 
 
 def run(args) -> int:

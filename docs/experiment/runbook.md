@@ -384,6 +384,9 @@ Its limits, stated in each check's reason:
 - While the test is blinded no outcome is published, so no interval can be recomputed.
 - A look the analysis stopped at for a data fault, and every look after a decision, is not
   published: a held analysis or a split flag after the decision is reported, not recomputed.
+- A stop recorded only as a stored closure (the A/A shown as failed on a day the published looks do
+  not explain) is reported as indeterminate, not recomputed; so is any state whose stored closure
+  the current analysis did not confirm (`closureMismatch`).
 - Leaving out a day that reached the daily ceiling changes the analysed totals by amounts that are
   not published, so blinding and the detectable effect at the current size are then indeterminate.
 - It does not recompute the design hash (`prereg.configSha256`): compare it with the hash at the

@@ -3,8 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EXPERIMENT, TAU2, type ExperimentConfig } from '@/experiment.config';
+import type { ServerEnv } from '@/lib/env';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from '@/lib/experiment/events';
-import { NO_FLAGS } from '@/lib/experiment/flags';
+import { NO_FLAGS, type ExperimentFlags } from '@/lib/experiment/flags';
+import { fieldName, keys } from '@/lib/experiment/keys';
+import { getExperimentSnapshot } from '@/lib/experiment/live';
+import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { toPublicData, type PublicData } from '@/lib/experiment/public-data';
 import { buildSnapshot, type ExperimentSnapshot } from '@/lib/experiment/snapshot';
 import type { CounterRows, DayCounts, GroupCounts } from '@/lib/experiment/store';
@@ -197,12 +201,47 @@ const SCENARIOS: Record<string, Scenario> = {
   placeholder: { config: EXPERIMENT, now: '2026-11-01T12:00:00+01:00', days: [], source: 'unavailable', start: '2026-11-01T12:00:00+01:00' },
 };
 
+// States only the site's store reader produces: an A/A stopped by a stored closed marker. Built
+// through the real read path (getExperimentSnapshot) over an in-memory store, as the live page
+// would read it, then published by toPublicData.
+const STORE_ENV: ServerEnv = { vercelEnv: 'production', fakeStore: false, kvUrl: 'https://store.invalid', kvToken: 'write', kvReadOnlyToken: 'read' };
+const STORE_NOW = new Date('2026-11-20T10:00:00Z');
+async function storedAaClosure(flags: ExperimentFlags): Promise<PublicData> {
+  const redis = createMemoryRedis({ now: () => STORE_NOW.getTime() });
+  // The last completed look has 45 analysed views a group; today's partial row lifts the current
+  // counts past 50, so the analysis is unblinded on today's counts, not on the last look.
+  const rows = [
+    { day: '2026-11-04', a: quiet(54, 45, 40, 6), b: quiet(54, 45, 41, 7) },
+    { day: '2026-11-20', a: quiet(12, 10, 9, 1), b: quiet(12, 10, 9, 2) },
+  ];
+  for (const r of rows) {
+    for (const arm of ['a', 'b'] as const) {
+      for (const [metric, n] of Object.entries(r[arm]) as [keyof GroupCounts, number][]) {
+        if (n > 0) await redis.command(['HINCRBY', keys.counters(AA.namespace), fieldName({ kind: 'day', day: r.day, arm, metric }), n]);
+      }
+    }
+  }
+  await redis.command(['SET', keys.closed(AA.namespace), JSON.stringify({ kind: 'aa-failed', day: '2026-11-06' })]);
+  const s = await getExperimentSnapshot({
+    env: STORE_ENV, mode: 'store', read: redis, write: null, flags: async () => flags, now: () => STORE_NOW, log: () => {}, config: AA, schedule: () => {},
+  });
+  return toPublicData(s, BUILD, AA);
+}
+const STORED: Record<string, () => Promise<PublicData>> = {
+  // The stored stop is the only explanation left (no flag, no failure in the looks).
+  'aa-stored-closure': () => storedAaClosure(NO_FLAGS),
+  // A flag on another day disagrees with the stored stop.
+  'aa-closure-mismatch': () => storedAaClosure({ ...NO_FLAGS, aaFailed: { on: '2026-11-07T09:00:00+01:00', reason: 'a beacon fault' } }),
+};
+const ALL_FIXTURES = [...Object.keys(SCENARIOS), ...Object.keys(STORED)];
+
 const fixturePath = (name: string) => join(FIXTURES, `${name}.json`);
 const fixture = (name: string) => JSON.parse(readFileSync(fixturePath(name), 'utf8')) as PublicData;
 
 if (UPDATE) {
   mkdirSync(FIXTURES, { recursive: true });
   for (const [name, s] of Object.entries(SCENARIOS)) writeFileSync(fixturePath(name), `${JSON.stringify(publish(s), null, 2)}\n`);
+  for (const [name, make] of Object.entries(STORED)) writeFileSync(fixturePath(name), `${JSON.stringify(await make(), null, 2)}\n`);
 }
 
 // --- tests ------------------------------------------------------------------------------------
@@ -210,6 +249,19 @@ if (UPDATE) {
 describe('the saved fixtures', () => {
   it.each(Object.keys(SCENARIOS))('%s is exactly what the site publishes for its scenario', (name) => {
     expect(fixture(name)).toEqual(publish(SCENARIOS[name]!));
+  });
+
+  it.each(Object.keys(STORED))('%s is exactly what the site reads from its store and publishes', async (name) => {
+    expect(fixture(name)).toEqual(await STORED[name]!());
+  });
+
+  it('hold the stored A/A closure states', () => {
+    const stored = fixture('aa-stored-closure');
+    expect(stored).toMatchObject({ status: 'aa-failed', frozenAt: '2026-11-06', blinded: false });
+    expect(stored.calibration).toMatchObject({ failed: null, ready: false });
+    expect(stored).not.toHaveProperty('closureMismatch');
+    expect(stored.looks.at(-1)!.a.inview).toBeLessThan(50);
+    expect(fixture('aa-closure-mismatch')).toMatchObject({ status: 'aa-failed', frozenAt: '2026-11-06', closureMismatch: true });
   });
 
   it('cover the cases the verifier must handle', () => {
@@ -254,7 +306,7 @@ describe('the verifier against the frozen reference values', () => {
 });
 
 describe('the verifier on published data', () => {
-  it.each(Object.keys(SCENARIOS))('finds no disagreement in %s and exits 0', (name) => {
+  it.each(ALL_FIXTURES)('finds no disagreement in %s and exits 0', (name) => {
     const { status, report: r } = report([fixturePath(name)]);
     expect(failures(r)).toEqual([]);
     expect(r.errors).toEqual([]);
@@ -479,6 +531,20 @@ describe('faults, late flags and calibration', () => {
     expect(check(r, 'after-decision').result).toBe('indeterminate');
   });
 
+  it('reports a stop recorded only as a stored closure, rather than recomputing or failing it', () => {
+    const stored = report([fixturePath('aa-stored-closure')]).report;
+    expect(check(stored, 'calibration-rule').result).toBe('indeterminate');
+    expect(check(stored, 'calibration-rule').reason).toMatch(/recorded closure/);
+    // The site's blinding and detectable effect rest on today's counts: the stop does not end the
+    // analysis it reports on.
+    expect(check(stored, 'blinding').result).toBe('pass');
+    expect(check(stored, 'detectable-at-current').result).toBe('pass');
+    const mismatch = report([fixturePath('aa-closure-mismatch')]).report;
+    for (const id of ['calibration-rule', 'blinding', 'detectable-at-current', 'final-descriptive']) {
+      expect(check(mismatch, id).result, id).toBe('indeterminate');
+    }
+  });
+
   it('recomputes the A/A rule', () => {
     const r = report([fixturePath('aa-ready')]).report;
     expect(check(r, 'calibration-rule').result).toBe('pass');
@@ -595,6 +661,38 @@ describe('invalid payloads', () => {
       expect(r.stderr).not.toMatch(/Traceback/);
       expect(`${r.stdout}${r.stderr}`).toMatch(/internal error \(TypeError\)/);
     }
+  });
+});
+
+describe('a closed output pipe', () => {
+  /** Runs main with a stdout that raises BrokenPipeError, as `| head -1` would after it exits. */
+  const brokenPipe = (fail: boolean, mode: string[]) => {
+    const code = [
+      'import sys',
+      `sys.path.insert(0, ${JSON.stringify(join(ROOT, 'scripts'))})`,
+      'import verify_experiment as v',
+      'class Closed:',
+      '    def write(self, s):',
+      '        raise BrokenPipeError(32, "Broken pipe")',
+      '    def flush(self):',
+      '        raise BrokenPipeError(32, "Broken pipe")',
+      ...(fail ? ['def boom(d):', '    raise TypeError("boom")', 'v.verify_data = boom'] : []),
+      'sys.stdout = Closed()',
+      `sys.exit(v.main(${JSON.stringify([fixturePath('open'), ...mode])}))`,
+    ].join('\n');
+    return spawnSync('python3', ['-I', '-c', code], { encoding: 'utf8', cwd: ROOT });
+  };
+
+  it.each([[[]], [['--json']]])('exits 2 quietly when the report cannot be written (%j)', (mode) => {
+    const r = brokenPipe(false, mode);
+    expect(r.status, r.stderr).toBe(2);
+    expect(r.stderr).not.toMatch(/Traceback|Exception ignored/);
+  });
+
+  it.each([[[]], [['--json']]])('exits 2 quietly when the internal-error message cannot be written (%j)', (mode) => {
+    const r = brokenPipe(true, mode);
+    expect(r.status, r.stderr).toBe(2);
+    expect(r.stderr).not.toMatch(/Traceback|Exception ignored/);
   });
 });
 
