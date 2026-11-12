@@ -113,7 +113,7 @@ describe('the architecture diagram', () => {
         'checks',
         'Checks Every edit touches only its target, every figure is in the fact base, no known gap is claimed and every word reaches the PDF.',
       ],
-      ['report', 'Report Pass or fail, naming each failing line, with the PDF and page images for a person to look at.'],
+      ['report', 'Report Pass or fail, naming each failing line, with the PDF and page images to look at.'],
     ]);
     expect(text(fig.slice(fig.indexOf('<figcaption')))).toBe(
       'A failed check sends the document back to the orchestrator, never on to the reader.',
@@ -131,14 +131,14 @@ describe('the copy', () => {
   it('describes the architecture', () => {
     const s = section(PAGE, 'architecture');
     expect(text(s.slice(0, s.indexOf('<figure'))).replace(/^Architecture /, '')).toBe(
-      'One Markdown file, the fact base, is the only source of truth. It also lists known gaps: things a document must never claim. A Python command-line tool builds Word files from structured data, edits them in place and typesets designed PDFs with headless Chrome. Claude Code agents work through that tool. An author drafts and edits; a claim auditor checks every claim against the fact base and never edits; a context-free reviewer reads the result without the fact base, as a stranger would. The orchestrator, a person or a Claude Code command, weighs their findings, applies only the true fixes through the tool and runs the checks again.',
+      'One Markdown file, the fact base, is the only source of truth. It also lists known gaps: things a document must never claim. A Python command-line tool builds Word files from structured data, writes surgical edits to a new file that leaves everything else byte for byte the same, and typesets designed PDFs with headless Chrome. Claude Code agents work through that tool. An author drafts and edits; a claim auditor checks every claim against the fact base and never edits; a context-free reviewer reads the result without the fact base, as a stranger would. The orchestrator, a person or a Claude Code command, weighs their findings, applies only the true fixes through the tool and runs the checks again.',
     );
   });
 
   it('says how I checked this, before the recorded run', () => {
     const s = section(PAGE, 'how-i-checked-this');
     expect(text(s.slice(0, s.indexOf('<h3'))).replace(/^How I checked this /, '')).toBe(
-      'The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before and after and fails if anything other than its target changed. A person still looks at the rendered pages; no check replaces that. Below is one run of the verify check, recorded for this page on a fictional notice from a community garden with two planted errors: a number the fact base does not hold and a known gap.',
+      'The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before and after and fails if anything other than its target changed. The rendered pages are still looked at, by the author agent or whoever runs the tools; no check replaces that. Below is one run of the verify check, recorded for this page on a fictional notice from a community garden with two planted errors: a number the fact base does not hold and a known gap.',
     );
   });
 
@@ -151,9 +151,9 @@ describe('the copy', () => {
   it('gives four concrete limits', () => {
     const items = [...section(PAGE, 'limits').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => text(m[1]!));
     expect(items).toEqual([
-      'The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left to the auditor agent and to the person who reviews.',
+      'The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left to the auditor agent and to the orchestrator.',
       'A passing run shows only that the document agrees with the fact base, not that the fact base is true.',
-      'The tools read and write Word files in their own structure; a document made elsewhere works only if it follows that structure.',
+      'The tools read and write Word files in their own structure; a document made elsewhere works if it follows that structure, and the editing commands expect it.',
       'It was tested with Claude models. Other assistants are supported by design, through a plain-text prompt and a JSON reply, but not tested.',
     ]);
   });

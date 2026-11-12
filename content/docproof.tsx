@@ -47,8 +47,8 @@ export function DocproofArchitecture(): ReactNode {
     <>
       <p className={ITEM}>
         One Markdown file, the fact base, is the only source of truth. It also lists known gaps: things a document must
-        never claim. A Python command-line tool builds Word files from structured data, edits them in place and
-        typesets designed PDFs with headless Chrome.
+        never claim. A Python command-line tool builds Word files from structured data, writes surgical edits to a new
+        file that leaves everything else byte for byte the same, and typesets designed PDFs with headless Chrome.
       </p>
       <p className={ITEM}>
         Claude Code agents work through that tool. An author drafts and edits; a claim auditor checks every claim
@@ -79,7 +79,7 @@ export const ARCHITECTURE_STAGES: readonly { id: string; name: string; body: str
   {
     id: 'report',
     name: 'Report',
-    body: 'Pass or fail, naming each failing line, with the PDF and page images for a person to look at.',
+    body: 'Pass or fail, naming each failing line, with the PDF and page images to look at.',
   },
 ];
 
@@ -90,8 +90,8 @@ export function DocproofVerification(): ReactNode {
       <p className={ITEM}>
         The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push
         that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before
-        and after and fails if anything other than its target changed. A person still looks at the rendered pages; no
-        check replaces that.
+        and after and fails if anything other than its target changed. The rendered pages are still looked at, by the
+        author agent or whoever runs the tools; no check replaces that.
       </p>
       <p className={ITEM}>
         Below is one run of the verify check, recorded for this page on a fictional notice from a community garden with
@@ -220,15 +220,15 @@ export function DocproofLimits(): ReactNode {
       <>
         The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true
         number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left
-        to the auditor agent and to the person who reviews.
+        to the auditor agent and to the orchestrator.
       </>,
     ],
     ['source', <>A passing run shows only that the document agrees with the fact base, not that the fact base is true.</>],
     [
       'format',
       <>
-        The tools read and write Word files in their own structure; a document made elsewhere works only if it follows
-        that structure.
+        The tools read and write Word files in their own structure; a document made elsewhere works if it follows that
+        structure, and the editing commands expect it.
       </>,
     ],
     [
