@@ -14,7 +14,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { aboutPhoto } from '../../../content/about-photo.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
-import { CONTACT, CV_LINK, CV_SHOWS_EMAIL, SITE } from '@/lib/site';
+import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 import { compareClaims, pdfClaims, type Omission } from './cv-parity';
 import { writePdf, type Line } from './synthetic-pdf';
 
@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 const about = () => dom(renderToStaticMarkup(createElement(AboutPage)));
-const cv = (props: { showEmail?: boolean } = {}) => dom(renderToStaticMarkup(createElement(CvPage, props)));
+const cv = () => dom(renderToStaticMarkup(createElement(CvPage)));
 
 // A phone number (a country code and its digits), a street with a house number, residence wording:
 // none may appear on either page.
@@ -401,14 +401,14 @@ describe('the CV page', () => {
     }
   });
 
-  it('keeps the e-mail address off the page while the switch is off, and prints it when it is on', () => {
-    expect(CV_SHOWS_EMAIL).toBe(false);
-    const off = renderToStaticMarkup(createElement(CvPage));
-    expect(off).not.toContain(CONTACT.email);
-    expect(off).not.toContain('mailto:');
-    const on = one(cv({ showEmail: true }), (el) => has(el, 'data-cv-header'));
-    const mail = one(on, (el) => el.tagName === 'a' && (attr(el, 'href') ?? '').startsWith('mailto:'));
-    expect([text(mail), attr(mail, 'href')]).toEqual([CONTACT.email, `mailto:${CONTACT.email}`]);
+  it('gives LinkedIn as the contact route and prints no e-mail address', () => {
+    const header = one(cv(), (el) => has(el, 'data-cv-header'));
+    const contact = one(header, (el) => has(el, 'data-cv-contact'));
+    const link = one(contact, (el) => el.tagName === 'a');
+    expect([text(link), attr(link, 'href')]).toEqual(['linkedin.com/in/melbergui', CONTACT.linkedin]);
+    const page = renderToStaticMarkup(createElement(CvPage));
+    expect(page).not.toContain(CONTACT.email);
+    expect(page).not.toContain('mailto:');
   });
 
   it('names nothing private and German only at B1', () => {
@@ -418,7 +418,7 @@ describe('the CV page', () => {
     expect(text(langs)).not.toMatch(/GermanB[2-9]|GermanC/);
   });
 
-  it('passes the truth audit with the switch off, and with the PDF linked', () => {
+  it('passes the truth audit, with and without the PDF linked', () => {
     expect(audit(renderToStaticMarkup(createElement(CvPage)), '/cv')).toEqual([]);
     process.env.CV_PDF = PDF_ENV;
     expect(audit(renderToStaticMarkup(createElement(CvPage)), '/cv')).toEqual([]);

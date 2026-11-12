@@ -1,14 +1,14 @@
 // The CV as a page: the same claims as the web CV PDF, in the CV's order (summary, experience,
 // skills, education, languages, projects), readable on screen and printable. Static: the text comes
 // from content/about.tsx. Each claim carries data-cv-claim, so the tests can hold it against the
-// PDF. The PDF is offered only when the build found a checked one (src/lib/cv-pdf.ts); the e-mail
-// address prints only when CV_SHOWS_EMAIL is on. When printed, the site header, footer and buttons
+// PDF. The PDF is offered only when the build found a checked one (src/lib/cv-pdf.ts). The contact
+// route is LinkedIn: the CV prints no e-mail address and no phone number. When printed, the site header, footer and buttons
 // drop away (globals.css and print:hidden) and entries do not split across pages.
 import type { ReactNode } from 'react';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
-import { CONTACT, CV_LINK, CV_SHOWS_EMAIL, SITE } from '@/lib/site';
+import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 import {
   CV_EDUCATION,
   CV_EXPERIENCE,
@@ -127,7 +127,7 @@ function Terms({ items }: { items: readonly (readonly [term: string, description
   );
 }
 
-export function CvPage({ showEmail = CV_SHOWS_EMAIL }: { showEmail?: boolean }): ReactNode {
+export function CvPage(): ReactNode {
   const pdf = cvPdf();
   return (
     <article aria-labelledby="cv-title" className="max-w-figure py-12 md:py-section print:py-0">
@@ -142,14 +142,7 @@ export function CvPage({ showEmail = CV_SHOWS_EMAIL }: { showEmail?: boolean }):
           {SITE.city}
         </p>
         <ul className="mt-2 flex flex-wrap gap-x-6">
-          {showEmail ? (
-            <li>
-              <TextLink href={`mailto:${CONTACT.email}`} standalone>
-                {CONTACT.email}
-              </TextLink>
-            </li>
-          ) : null}
-          <li>
+          <li data-cv-contact="">
             <TextLink href={CONTACT.linkedin} standalone>
               {bare(CONTACT.linkedin)}
             </TextLink>
