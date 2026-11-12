@@ -194,6 +194,56 @@ describe('fix round 1: quoted hypothesis, read time, decision label, verifier li
   });
 });
 
+describe('ledger fix round: sentences true to the code and the pre-registration', () => {
+  it('the exclusions caption names the two rows that do not count entries, and the rate limit counts requests', () => {
+    const d = displayOf(withExclusions(cal(60, 60)));
+    const h = page(d);
+    expect(sectionText(h, 'funnel')).toContain(
+      'Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full, later entries are turned away without being counted under any reason. The rows are not visitors lost and do not add up: one visitor can appear under several reasons, and some visits never reach the server at all.',
+    );
+    const rows = elements(byId(h, 'live-exclusions')!).filter((el) => el.tagName === 'tr').map((tr) => elements(tr).filter((c) => c.tagName === 'td').map(text));
+    expect(rows.find((r) => r[0] === 'Over the rate limit')?.[2]).toBe('Too many requests from one network address in a minute');
+    expect(everything(h)).not.toContain('Too many events');
+  });
+
+  it('a failed split check makes a non-chance cause likely, and names the false-flag chance', () => {
+    const h = page(displayOf(snapshotFixture('ab')));
+    const t = sectionText(h, 'split-check');
+    expect(t).toContain(
+      'The split check (sample ratio mismatch, SRM) asks whether the two groups got the share of views chance would give them. If it fails, the split is further from even than chance would plausibly give, so something may have moved views between the groups, and no result is shown. Because it is checked at every completed day, the chance of a false flag over the whole run is about 1% to 3%.',
+    );
+    expect(t).not.toContain('something other than chance moved');
+    const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8').replace(/\s+/g, ' ');
+    expect(prereg).toContain('the chance of a false flag over the whole run is about 1% to 3%');
+  });
+
+  it('the detectable caption no longer says the sequential rule needs a larger lift', () => {
+    const t = sectionText(page(displayOf(snapshotFixture('calibration'))), 'detectable');
+    expect(t).toContain('It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.');
+    expect(t).not.toMatch(/needs a larger lift/);
+  });
+
+  it('the earliest end is the earliest date the A/B time limit can fall, and a decision can end the test sooner', () => {
+    const t = sectionText(page(displayOf(snapshotFixture('calibration'))), 'decision');
+    expect(t).toMatch(
+      /Earliest end: \d{2}\.\d{2}\. During the calibration this is the earliest date the A\/B test’s time limit can fall; a decision can end the test sooner\./,
+    );
+    expect(t).not.toContain('whole run can end');
+    expect(sectionText(page(displayOf(snapshotFixture('ab'))), 'decision')).not.toContain('time limit can fall');
+  });
+
+  it('the verifier has three outcomes, and a small-cell check can fail', () => {
+    const t = sectionText(page(displayOf(snapshotFixture('ab'))), 'check-it-yourself');
+    expect(t).toContain(
+      'Each check agrees with the published value to within a hundred-millionth, or the script reports it as failed; a check the published data cannot settle is reported as indeterminate, with its reason.',
+    );
+    expect(t).toContain(
+      'Where a check depends on a count shown as “<5”, the script tries every value the cell may hold. The check passes when all of them give the published result, fails when none does, and is reported as indeterminate otherwise. It never prints those values.',
+    );
+    expect(t).not.toContain('passes only when');
+  });
+});
+
 describe('the detectable-effect caption', () => {
   it('names the 15% planning rate during the calibration, from the published configuration', () => {
     const d = displayOf(snapshotFixture('calibration'));

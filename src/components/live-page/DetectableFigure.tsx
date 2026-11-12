@@ -69,8 +69,7 @@ export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, 
     <>
       The smallest lift this many views per group would detect {power} times in {ten}, assuming{' '}
       {phase === 'ab' ? <>the planning click rate from the calibration, {rate}</> : <>the planning click rate of {rate}</>}, at one look.
-      It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule,
-      which needs a larger lift.
+      It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.
     </>
   );
   const atNow = atCurrent !== null ? <Derived value={atCurrent} unit="pp" decimals={1} refs={both} /> : null;

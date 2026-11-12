@@ -149,7 +149,9 @@ function SplitCheck({ d }: { d: LivePageDisplay }) {
   const lead = (
     <p className={P}>
       The split check (sample ratio mismatch, SRM) asks whether the two groups got the share of views chance would give them. If it
-      fails, something other than chance moved views between the groups, so no result is shown.
+      fails, the split is further from even than chance would plausibly give, so something may have moved views between the groups,
+      and no result is shown. Because it is checked at every completed day, the chance of a false flag over the whole run is about{' '}
+      <N v={1} />% to <N v={3} />%.
     </p>
   );
   let status: ReactNode;
@@ -207,7 +209,7 @@ function Decision({ d }: { d: LivePageDisplay }) {
       {showEnd ? (
         <p id="decision-end" className={`${P} mt-3`}>
           {d.plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end'}: <When iso={d.plannedEnd} refs={configRefs} />.
-          {d.plannedEndKind === 'earliest' ? ' During the calibration this is the earliest the whole run can end.' : null}
+          {d.plannedEndKind === 'earliest' ? ' During the calibration this is the earliest date the A/B test’s time limit can fall; a decision can end the test sooner.' : null}
         </p>
       ) : null}
     </>
@@ -261,11 +263,12 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
       <p className={`${P} mt-3`}>
         The script uses the Python standard library only and imports nothing from this site. It recomputes the split check, both
         intervals over the daily looks, the decision and the detectable effect, and checks the publishing rules. Each check agrees
-        with the published value to within a hundred-millionth, or the script reports it as failed.
+        with the published value to within a hundred-millionth, or the script reports it as failed; a check the published data
+        cannot settle is reported as indeterminate, with its reason.
       </p>
       <p className={`${P} mt-3`}>
         Where a check depends on a count shown as “<SmallLabel />”, the script tries every value the cell may hold. The check passes
-        only when all of them give the published result, and is reported as indeterminate otherwise. It never prints those values.
+        when all of them give the published result, fails when none does, and is reported as indeterminate otherwise. It never prints those values.
         Its own tests run it on saved copies of published data, built by the site’s code from known counts.
       </p>
       {source === 'fixture' ? (

@@ -25,7 +25,7 @@ const REASONS: Record<RejectReason, [string, string]> = {
   self: ['My own devices', 'Browsers I excluded on the exclusion page'],
   forced: ['Forced demo views', 'A group asked for in the address'],
   not_entry: ['Not an entry view', 'A view that is not a fresh arrival on the home page'],
-  rate_limited: ['Over the rate limit', 'Too many events from one network address in a minute'],
+  rate_limited: ['Over the rate limit', 'Too many requests from one network address in a minute'],
   ceiling: ['After the daily ceiling', 'Entries after the day’s limit was reached'],
 };
 const ORDER: readonly RejectReason[] = ['bot', 'internal', 'self', 'forced', 'not_entry', 'rate_limited', 'ceiling'];
@@ -111,8 +111,10 @@ export function FunnelFigure({ data, refs, runtime }: Props) {
         always <Derived value={0} unit="count" refs={BUILD} />.
       </p>
       <p className={`${P} mt-3`}>
-        Each row counts entries turned away for one reason. The rows are not visitors lost and do not add up: one visitor can
-        appear under several reasons, and some visits never reach the server at all.
+        Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per
+        network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full,
+        later entries are turned away without being counted under any reason. The rows are not visitors lost and do not add up:
+        one visitor can appear under several reasons, and some visits never reach the server at all.
       </p>
     </div>
   );
