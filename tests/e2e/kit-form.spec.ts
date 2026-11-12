@@ -57,10 +57,13 @@ test.describe('kit form fields', () => {
     expect(await css(page, input, 'font-size')).toBe('18px');
     expect((await page.locator(input).boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await css(page, input, 'box-shadow')).toBe('none');
-    await page.locator(input).hover();
-    await expect.poll(() => css(page, input, 'border-top-color')).toBe(await token(page, 'ink'));
-    await page.mouse.move(0, 0);
-    await expect.poll(() => css(page, input, 'border-top-color')).toBe(await token(page, 'muted'));
+    // Tailwind's hover: applies only where the device can hover; a touch phone has no hover state.
+    if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
+      await page.locator(input).hover();
+      await expect.poll(() => css(page, input, 'border-top-color')).toBe(await token(page, 'ink'));
+      await page.mouse.move(0, 0);
+      await expect.poll(() => css(page, input, 'border-top-color')).toBe(await token(page, 'muted'));
+    }
     await page.locator(input).focus();
     await expect(page.locator(input)).toBeFocused();
     expect(await css(page, input, 'outline-style')).toBe('solid');
@@ -143,13 +146,16 @@ test.describe('kit form fields', () => {
     expect(await button.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(ink);
     expect(await pending.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(ink);
     await expect(pending).toHaveAttribute('aria-disabled', 'true');
-    await expect(pending).toBeEnabled();
+    // aria-disabled, not disabled: it stays in the tab order and keeps its name for a screen reader.
+    expect(await pending.evaluate((el: HTMLButtonElement) => el.disabled)).toBe(false);
     expect((await pending.boundingBox())!.width).toBeCloseTo((await button.boundingBox())!.width, 0);
-    const box = (await button.boundingBox())!;
-    await button.hover();
-    await expect.poll(() => button.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, 'muted'));
-    const after = (await button.boundingBox())!;
-    expect([after.x, after.y, after.width, after.height]).toEqual([box.x, box.y, box.width, box.height]);
+    if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
+      const box = (await button.boundingBox())!;
+      await button.hover();
+      await expect.poll(() => button.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, 'muted'));
+      const after = (await button.boundingBox())!;
+      expect([after.x, after.y, after.width, after.height]).toEqual([box.x, box.y, box.width, box.height]);
+    }
     await pending.focus();
     await expect(pending).toBeFocused();
     const disabled = specimen(page, 'submit--disabled').getByRole('button');
@@ -178,18 +184,19 @@ test.describe('kit form fields', () => {
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
     // The longest option's text fits inside the select beside the chevron.
-    const fits = await specimen(page, 'select--chosen').getByRole('combobox').evaluate((select) => {
+    const fit = await specimen(page, 'select--chosen').getByRole('combobox').evaluate((select) => {
       const s = getComputedStyle(select);
       const probe = document.createElement('span');
-      probe.style.font = s.font;
+      for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'fontFeatureSettings', 'fontVariationSettings', 'fontOpticalSizing'] as const) probe.style[p] = s[p];
       probe.style.whiteSpace = 'nowrap';
+      probe.style.position = 'absolute';
       probe.textContent = 'Question about a project';
-      document.body.append(probe);
+      select.parentElement!.append(probe);
       const text = probe.getBoundingClientRect().width;
       probe.remove();
-      return text <= select.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+      return { text, room: select.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight), client: select.clientWidth, pl: s.paddingLeft, pr: s.paddingRight, fontSize: s.fontSize };
     });
-    expect(fits).toBe(true);
+    expect(fit.text, JSON.stringify(fit)).toBeLessThanOrEqual(fit.room);
     // One line: the button is no taller than the 44 px target.
     expect((await specimen(page, 'submit--pending').getByRole('button').boundingBox())!.height).toBeLessThan(48);
   });

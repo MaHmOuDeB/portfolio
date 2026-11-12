@@ -116,6 +116,7 @@ describe('TextArea and its counter', () => {
     const n = byTag(count, 'data')[0]!;
     expect(attr(n, 'data-derived')).toBe('build');
     expect(hasAttr(n, 'data-num')).toBe(true);
+    expect(attr(n, 'data-num')).toBe('');
     expect(attr(n, 'value')).toBe('4000');
     expect(classes(count)).toEqual(expect.arrayContaining(['mt-2', 'text-sm', 'text-muted']));
     // The counter is described, not live; the one polite node beside it starts empty.

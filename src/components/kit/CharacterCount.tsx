@@ -61,7 +61,7 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
   }, [controlId, limit]);
 
   const number = (n: number) => (
-    <data value={n} data-num {...derivedAttr(refs)}>
+    <data value={n} data-num="" {...derivedAttr(refs)}>
       {format(n)}
     </data>
   );
