@@ -2,7 +2,7 @@
 // and the four public-data Figures in the analysis template's order: a summary, then the problem,
 // the data, the method, one section per analysis step, the findings, how I checked this, the limits
 // and the links. Every number on it is a <Fact> or a <Derived> (the build's truth audit), the
-// win-back part is a sizing only (with a planner of a hypothetical uplift beside the sourced sizing),
+// win-back part is a sample-size calculation (with a planner of a hypothetical uplift beside it),
 // and nothing on it comes from the live experiment.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,7 +1,6 @@
 // The Retention page's sourced prose sections. Every number is a <Fact> or a <Derived> with real
-// refs (the same truth audit the build runs), and the wording keeps the honesty rules: a public
-// dataset rebuilt in 2026, a sized (never run) win-back test, prediction rather than treatment
-// effect, and the exact Champions definition.
+// refs (the same truth audit the build runs), and the tests pin the wording of the dataset, the
+// win-back sample size, the model's predictions and the exact Champions definition.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReactNode } from 'react';

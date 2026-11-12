@@ -68,7 +68,7 @@ describe('auditHtml', () => {
   it('flags an empty data-derived and an unknown ref', () => {
     expect(audit('derived-bad')).toEqual([
       { route: '/', kind: 'bad-derived', detail: 'data-derived is empty' },
-      { route: '/', kind: 'bad-derived', detail: 'data-derived "source:hillstrom"' },
+      { route: '/', kind: 'bad-derived', detail: 'data-derived "source:unlisted"' },
     ]);
   });
 

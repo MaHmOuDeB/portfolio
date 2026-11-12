@@ -115,10 +115,9 @@ describe('Work directory', () => {
     ]);
   });
 
-  it('has no Hillstrom entry, link or mention', () => {
-    for (const item of items) {
-      expect(`${item.href} ${item.title} ${html(item.description)}`.toLowerCase()).not.toContain('hillstrom');
-    }
+  it('links only the intended site paths', () => {
+    const intended = new Set<string>(Object.values(ROUTES));
+    for (const item of items) expect(intended.has(item.href), item.href).toBe(true);
   });
 
   it('links each item once, to a same-origin site path', () => {

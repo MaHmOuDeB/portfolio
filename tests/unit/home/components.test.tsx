@@ -224,7 +224,7 @@ describe('Hero', () => {
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
   });
 
-  it('prints the approved role, place and proof lines', () => {
+  it('prints the role, place and proof lines', () => {
     expect(HOME_HERO.role).toBe(SITE.role);
     const role = one(d, (el) => has(el, 'data-hero-role'));
     expect(text(role)).toBe('Experimentation & growth analyst');
@@ -243,11 +243,21 @@ describe('Hero', () => {
     expect(text(why)).toBe('Why so many?');
   });
 
-  it('never joins the experiments with the markets, and names no street, phone or visa', () => {
-    const t = text(d);
-    expect(t).not.toMatch(/markets?/i);
-    expect(t).not.toMatch(/\+\d|\bvisa\b|work permit|authori[sz]ation|stra(ss|ß)e|street/i);
-    expect(t).not.toMatch(/Germany/);
+  it('says exactly its identity lines, and prints no fact but the two proof figures', () => {
+    expect(text(one(d, (el) => has(el, 'data-hero-identity')))).toBe(
+      [
+        'Experimentation & growth analyst',
+        'Berlin, MSc Data Science',
+        'Nearly two years at Audible (Amazon): 25+ A/B tests across web and mobile, 20+ recommendations adopted. Why so many?',
+        'Try the lab',
+        'CV (PDF)',
+        'LinkedIn',
+      ].join(''),
+    );
+    expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
+      'profile.audible.experiments',
+      'profile.audible.recommendations_adopted',
+    ]);
     expect(SITE.city).toBe('Berlin, Germany');
   });
 

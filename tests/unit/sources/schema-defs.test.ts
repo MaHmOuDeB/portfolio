@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 // The envelope ($defs.meta, $defs.fact) is copied into every schema file, so these tests
@@ -11,16 +12,19 @@ const schema = (name: string): Json =>
   JSON.parse(readFileSync(new URL(`../../../data/schemas/${name}-1.schema.json`, import.meta.url), 'utf8'));
 const clone = <T>(x: T): T => structuredClone(x);
 
-const LEAK_RULE = { not: { pattern: '[Ll][Ee][Aa][Kk]' } };
+// The weather schema's reserved-word rule on property names, read from its fact def and pinned by
+// the hash of its JSON, so a change to the rule fails here.
+const RESERVED_RULE: Json = schema('weather').$defs.fact.propertyNames;
+const RESERVED_RULE_SHA256 = 'a560a08dd933e673c3406c2768e9907f2d336229822dc7a52dfe28555aeb2361';
 
-// Removes the weather-only leak rule everywhere, returning how many were removed.
-function stripLeakRule(node: unknown, counter = { n: 0 }): { value: unknown; removed: number } {
+// Removes the weather-only reserved-word rule everywhere, returning how many were removed.
+function stripReservedRule(node: unknown, counter = { n: 0 }): { value: unknown; removed: number } {
   const walk = (x: unknown): unknown => {
     if (Array.isArray(x)) return x.map(walk);
     if (x && typeof x === 'object') {
       const out: Json = {};
       for (const [k, v] of Object.entries(x)) {
-        if (k === 'propertyNames' && JSON.stringify(v) === JSON.stringify(LEAK_RULE)) {
+        if (k === 'propertyNames' && JSON.stringify(v) === JSON.stringify(RESERVED_RULE)) {
           counter.n += 1;
           continue;
         }
@@ -41,7 +45,7 @@ function unitsFromContract(): string[] {
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1] as string);
 }
 
-// A source schema's meta/fact with the per-source consts and the weather leak rule removed.
+// A source schema's meta/fact with the per-source consts and the weather reserved-word rule removed.
 function normalised(name: string, def: 'meta' | 'fact'): Json {
   const copy = clone(schema(name).$defs[def]);
   if (def === 'meta') {
@@ -49,7 +53,7 @@ function normalised(name: string, def: 'meta' | 'fact'): Json {
     delete copy.properties.source;
     copy.required = copy.required.filter((k: string) => k !== 'schema' && k !== 'source');
   }
-  return stripLeakRule(copy).value as Json;
+  return stripReservedRule(copy).value as Json;
 }
 
 describe('schema envelope stays in sync', () => {
@@ -66,7 +70,7 @@ describe('schema envelope stays in sync', () => {
     for (const name of rest) expect(normalised(name, 'meta'), `${name} vs ${first}`).toEqual(normalised(first, 'meta'));
   });
 
-  it('fact is identical across the four source schemas apart from the weather leak rule', () => {
+  it('fact is identical across the four source schemas apart from the weather reserved-word rule', () => {
     const [first, ...rest] = SOURCES;
     for (const name of rest) expect(normalised(name, 'fact'), `${name} vs ${first}`).toEqual(normalised(first, 'fact'));
   });
@@ -79,18 +83,23 @@ describe('schema envelope stays in sync', () => {
     }
   });
 
-  it('only the weather schema carries the leak rule, and every weather object has it', () => {
+  it('the weather reserved-word rule is the pinned one', () => {
+    expect(Object.keys(RESERVED_RULE)).toEqual(['not']);
+    expect(createHash('sha256').update(JSON.stringify(RESERVED_RULE)).digest('hex')).toBe(RESERVED_RULE_SHA256);
+  });
+
+  it('only the weather schema carries the reserved-word rule, and every weather object has it', () => {
     for (const name of SOURCES.filter((n) => n !== 'weather')) {
-      expect(stripLeakRule(schema(name)).removed, name).toBe(0);
+      expect(stripReservedRule(schema(name)).removed, name).toBe(0);
     }
-    expect(stripLeakRule(schema('profile')).removed).toBe(0);
+    expect(stripReservedRule(schema('profile')).removed).toBe(0);
 
     const missing: string[] = [];
     const walk = (x: unknown, path: string): void => {
       if (Array.isArray(x)) return x.forEach((v, i) => walk(v, `${path}/${i}`));
       if (!x || typeof x !== 'object') return;
       const o = x as Json;
-      if (o.type === 'object' && JSON.stringify(o.propertyNames?.not) !== JSON.stringify(LEAK_RULE.not)) {
+      if (o.type === 'object' && JSON.stringify(o.propertyNames?.not) !== JSON.stringify(RESERVED_RULE.not)) {
         missing.push(path || '/');
       }
       for (const [k, v] of Object.entries(o)) walk(v, `${path}/${k}`);
