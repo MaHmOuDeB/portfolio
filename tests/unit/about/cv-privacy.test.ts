@@ -641,7 +641,15 @@ describe('check-web-cv: images, hidden strings and layers', () => {
 
   it('is not desynchronised by a string that ends in "stream", and reads pdfinfo\'s JavaScript line', () => {
     failsWith(check(doc({ info: { Title: 'Ada stream\n' }, javascript: true })), /active or hidden content|pdfinfo reports JavaScript/);
-    failsWith(check(doc({ info: { Title: 'Ada stream\n' }, javascript: true })), 'pdfinfo reports JavaScript');
+    // Whether pdfinfo itself sees this fixture's JavaScript depends on the poppler version (24.02 on
+    // Ubuntu 24.04 does not), so a wrapper reports it, to prove the checker reads pdfinfo's line.
+    const dir = tmp();
+    const real = spawnSync('sh', ['-c', 'command -v pdfinfo'], { encoding: 'utf8' }).stdout.trim();
+    mkdirSync(join(dir, 'bin'));
+    writeFileSync(join(dir, 'bin', 'pdfinfo'), `#!/bin/sh\n'${real}' "$@" | sed 's/^JavaScript:.*$/JavaScript:     yes/'\n`);
+    chmodSync(join(dir, 'bin', 'pdfinfo'), 0o755);
+    const env = { PATH: `${join(dir, 'bin')}:${process.env.PATH}` };
+    failsWith(check(doc({ info: { Title: 'Ada stream\n' } }), { env }), 'pdfinfo reports JavaScript');
   });
 });
 
@@ -922,11 +930,15 @@ describe('cv-sync.sh', () => {
     const r = sync(s, { inputSha: sha256('x') });
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('is not a readable regular file');
-    const t = syncSetup();
-    chmodSync(t.renderer, 0o000);
-    expect(sync(t).status).toBe(1);
-    expect(existsSync(t.output)).toBe(false);
-    expect(existsSync(t.log)).toBe(false);
+    // root reads a file whatever its mode (the CI container runs as root), so the unreadable case
+    // can only be shown as another user.
+    if (process.getuid?.() !== 0) {
+      const t = syncSetup();
+      chmodSync(t.renderer, 0o000);
+      expect(sync(t).status).toBe(1);
+      expect(existsSync(t.output)).toBe(false);
+      expect(existsSync(t.log)).toBe(false);
+    }
   });
 
   it('refuses evidence at a path git would track, even through a symlink', () => {
