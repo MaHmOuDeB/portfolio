@@ -164,6 +164,31 @@ describe('auditHtml', () => {
   });
 });
 
+// "n8n" is a product name whose middle letter is a digit. The allow entry covers that digit only
+// inside the exact name, so the name passes in text, the head and accessible names on any page,
+// while a real stray number, or a digit glued to the name, still fails.
+describe('the product name n8n', () => {
+  it('passes the name in text, in the title, in meta text and in an accessible name', () => {
+    const head = '<title>n8n Workflow Library</title><meta name="description" content="Automation in n8n.">';
+    const body =
+      '<h1>n8n Workflow Library</h1><p>Built for a self-hosted n8n (n8n, n8n-workflow-library).</p><a aria-label="The n8n repository" href="/x">x</a>';
+    expect(auditHtml(page(body, head), ctx({ route: '/work/n8n' }))).toEqual([]);
+    expect(auditHtml(page('<p>Use n8n.</p>'), ctx({ route: '/about' }))).toEqual([]);
+  });
+
+  it('still flags a stray 8 next to the name, and a digit glued to it', () => {
+    expect(auditHtml(page('<p>n8n runs 8 workflows.</p>'), ctx())).toEqual([stray('"8" in text')]);
+    expect(auditHtml(page('<p>Version n8n2 and xn8n and N8N.</p>'), ctx())).toEqual([
+      stray('"8" in text'),
+      stray('"2" in text'),
+      stray('"8" in text'),
+      stray('"8" in text'),
+    ]);
+    expect(auditHtml(page('<p>8</p>'), ctx())).toEqual([stray('"8" in text')]);
+    expect(auditHtml(page('<p aria-label="8 checks">x</p>'), ctx())).toEqual([stray('"8" in aria-label')]);
+  });
+});
+
 describe('framework routes', () => {
   const global = { route: '/_global-error' };
   const html = page('<p>Ran 500 tests</p>', '<title>500: This page couldn’t load</title>');

@@ -9,6 +9,8 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const ALLOW: readonly { pattern: RegExp; routes?: readonly string[]; reason: string }[] = [
   { pattern: /(?<![\d.,])\b20(0[89]|[12]\d|30)\b(?![.,]\d)/, reason: 'year' },
   { pattern: /\b[ABC][12]\b/, reason: 'CEFR level' },
+  // A product name whose middle letter is a digit: only the exact word n8n, never a digit glued to it.
+  { pattern: /\bn8n\b/, reason: 'the product name n8n' },
   // The privacy notice cites the law by article and section number; a citation is not a claim.
   { pattern: /\bArt\. \d+(?:\(\d+\))*(?:\([a-z]\))?/, routes: ['/privacy'], reason: 'GDPR article citation' },
   { pattern: /§\d+\(\d+\) No\. \d+ TDDDG/, routes: ['/privacy'], reason: 'TDDDG section citation' },

@@ -65,17 +65,13 @@ const textOf = (href: string) => {
 const factIdsIn = (node: ReactNode) => [...html(node).matchAll(/data-fact="([^"]+)"/g)].map((m) => m[1]);
 
 /**
- * The directory as one document, the way a page would print it, for the site's own truth audit.
- * The product name n8n is a name, not a figure, so its digit is taken out before the audit counts.
+ * The directory as one document, the way a page would print it, for the site's own truth audit. The
+ * product name n8n stays as it is: the audit's allow-list covers the digit of that exact name only.
  */
 const directoryHtml = () => {
   const itemHtml = (i: (typeof items)[number]) => `<h3>${html(i.title)}</h3><p>${html(i.description)}</p>`;
   const body = WORK_GROUPS.map((g) => `<h2>${html(g.label)}</h2>${g.items.map(itemHtml).join('')}`).join('');
-  // Only in text, never inside a tag: the fact id keeps its name.
-  return `<!doctype html><html><head><title>Work</title></head><body><main>${body}</main></body></html>`.replace(
-    /\bn8n\b(?![^<]*>)/g,
-    'n-n',
-  );
+  return `<!doctype html><html><head><title>Work</title></head><body><main>${body}</main></body></html>`;
 };
 const auditContext = {
   route: '/work',
