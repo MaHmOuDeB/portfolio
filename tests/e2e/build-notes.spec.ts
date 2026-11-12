@@ -6,7 +6,7 @@ import { NAV } from '../../src/lib/site';
 import { expectNoA11yViolations, test } from './fixtures';
 
 // The build notes under /work: short static pages in the build-note template (the problem, the
-// architecture as a diagram, how I checked it, the outcome, the limits, the code). Each note links to
+// architecture as a diagram, how I checked it, the outcome, the limits, the sources and links). Each note links to
 // other sites only as ordinary links, so loading and reading one never makes a request off the site.
 // The Weather and n8n notes have no island: prose, one diagram Figure drawn as ordered lists, and on
 // Weather an open table of checks by level.
@@ -159,9 +159,9 @@ test.describe('MarketingWS build note', () => {
     ['how-i-checked-this', 'How I checked this'],
     ['outcome', 'Outcome'],
     ['limits', 'Limits'],
-    ['code-and-demo', 'Code and demo'],
+    ['sources', 'Sources and links'],
   ] as const;
-  const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Code and demo'];
+  const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources'];
   const STEPS = ['Brief', 'Draft', 'Check', 'Translate', 'Output'];
   const GROQ_NOTE = "The live demo depends on Groq's free tier.";
 
@@ -189,7 +189,7 @@ test.describe('MarketingWS build note', () => {
 
   test('the free-tier note stands beside the demo link, and the links leave the site as plain links', async ({ page }) => {
     await page.goto(ROUTE);
-    const code = page.getByRole('region', { name: 'Code and demo', exact: true });
+    const code = page.getByRole('region', { name: 'Sources and links', exact: true });
     const demo = code.getByRole('link', { name: 'The live demo, on another site' });
     await expect(demo).toHaveAttribute('href', 'https://marketing-ws.vercel.app/');
     await expect(demo).toHaveAttribute('rel', 'noopener');

@@ -1,7 +1,8 @@
 // The MarketingWS build note. It copies the Retention page's structure (one h1 with a line under
 // it, the section links, then one <section id> per part, each labelled by its own h2) in the
 // build-note template: the problem, the architecture with its diagram, how I checked it, the
-// outcome, at least two limits, then the code and the demo. The prose comes from
+// outcome, at least two limits, then the sources and links. The section names and anchors are the ones
+// every build note shares. The prose comes from
 // content/marketingws.tsx. The page prints no figure, has no interactive part and no motion, and
 // links to other sites only as ordinary links.
 import type { ReactNode } from 'react';
@@ -29,7 +30,7 @@ export const MARKETINGWS_SECTIONS = [
   { id: 'how-i-checked-this', title: 'How I checked this', link: 'How I checked this' },
   { id: 'outcome', title: 'Outcome', link: 'Outcome' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
-  { id: 'code-and-demo', title: 'Code and demo', link: 'Code and demo' },
+  { id: 'sources', title: 'Sources and links', link: 'Sources' },
 ] as const;
 
 type SectionId = (typeof MARKETINGWS_SECTIONS)[number]['id'];
@@ -140,7 +141,7 @@ export function MarketingwsPage(): ReactNode {
         </Prose>
       </Section>
 
-      <Section id="code-and-demo">
+      <Section id="sources">
         <Prose>
           <MarketingwsLinks />
         </Prose>

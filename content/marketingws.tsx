@@ -9,9 +9,9 @@ import { TextLink } from '@/components/kit/TextLink';
 /** The public repository, at the commit of its README and code that this note describes. */
 export const MARKETINGWS_REPO = 'https://github.com/MaHmOuDeB/MarketingWS';
 export const MARKETINGWS_COMMIT = 'ab61983188d9d9fa5b04b2c4d1b67b1fbcd91d80';
-/** The commit the tag of the evaluated thesis version points to. */
+/** The commit the annotated tag of the evaluated thesis version points to (the tag peeled, not the tag object). */
 export const MARKETINGWS_THESIS_TAG = 'thesis-2025';
-export const MARKETINGWS_THESIS_COMMIT = '36f65252fcd81f81b388f3a64067a0be1db172cf';
+export const MARKETINGWS_THESIS_COMMIT = 'dfcc064955f4511ccc1d1b1e4de6626fc3b2759f';
 /** The live demo, another site. It was checked to answer before this link was added. */
 export const MARKETINGWS_DEMO = 'https://marketing-ws.vercel.app/';
 
@@ -66,7 +66,7 @@ export const MARKETINGWS_STEPS: readonly { id: string; name: string; text: strin
   {
     id: 'check',
     name: 'Check',
-    text: 'Figures and promises the brief does not support become placeholders such as [X%]; a short model review catches invented features.',
+    text: "Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features.",
   },
   {
     id: 'translate',
@@ -126,7 +126,7 @@ export function MarketingwsLimits(): ReactNode {
     ],
     [
       'translations',
-      <>I have no evaluation of the translated copy by native readers, so I make no claim about its quality.</>,
+      <>I have no evaluation of the rebuild&apos;s translations by native readers, so I make no claim about their quality.</>,
     ],
   ];
   return (
@@ -163,7 +163,7 @@ export function MarketingwsLinks(): ReactNode {
         </li>
       </ul>
       <p className="mt-4">
-        Without an API key it runs in an offline demo mode; the repository&apos;s README explains how to run it locally.
+        Run locally without an API key, the app starts in an offline demo mode; the repository&apos;s README explains how.
       </p>
     </>
   );
