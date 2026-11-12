@@ -43,4 +43,9 @@ describe('.vercelignore', () => {
     }
     expect(ignored('private/notes.md')).toBe(true);
   });
+
+  it('excludes the local Claude Code instructions', () => {
+    expect(ignored('CLAUDE.local.md')).toBe(true);
+    expect(ignored('CLAUDE.md')).toBe(false);
+  });
 });

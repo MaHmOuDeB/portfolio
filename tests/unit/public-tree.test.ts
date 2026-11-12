@@ -19,12 +19,10 @@ const FORBIDDEN: readonly [name: string, pattern: RegExp][] = [
   ['a task number', /\bTask \d/],
 ];
 
-// Files that may name a term, with the reason. The CLAUDE.md import line is allowed separately.
+// Files that may name a term, with the reason.
 const EXEMPT: Readonly<Record<string, { terms: readonly string[]; reason: string }>> = {
-  'tests/unit/claude-md.test.ts': { terms: ['a private path'], reason: 'checks that CLAUDE.md keeps its one private import' },
   'tests/unit/vercelignore.test.ts': { terms: ['a private path'], reason: 'tests that the private folder is excluded from deploys' },
 };
-const IMPORT_LINE = '@~/code/portfolio/private/CLAUDE.private.md';
 
 const BINARY = /\.(?:png|jpe?g|webp|ico|woff2?|pdf)$/i;
 const SCANNED = /^(?:src\/|docs\/|scripts\/|tests\/|CLAUDE\.md$|package\.json$)/;
@@ -36,9 +34,8 @@ export function findReferences(file: string, text: string): Hit[] {
   const exempt = EXEMPT[file]?.terms ?? [];
   const hits: Hit[] = [];
   text.split('\n').forEach((raw, i) => {
-    const line = file === 'CLAUDE.md' ? raw.replace(IMPORT_LINE, '') : raw;
     for (const [what, pattern] of FORBIDDEN) {
-      if (!exempt.includes(what) && pattern.test(line)) hits.push({ file, line: i + 1, what, text: raw.trim().slice(0, 100) });
+      if (!exempt.includes(what) && pattern.test(raw)) hits.push({ file, line: i + 1, what, text: raw.trim().slice(0, 100) });
     }
   });
   return hits;
@@ -56,10 +53,9 @@ describe('findReferences', () => {
     }
   });
 
-  it('allows the CLAUDE.md import line and nothing else private in it', () => {
-    expect(findReferences('CLAUDE.md', `${IMPORT_LINE}\n`)).toEqual([]);
+  it('gives CLAUDE.md no exemption: an import from the private folder is flagged there too', () => {
+    expect(findReferences('CLAUDE.md', '@~/code/x/private/rules.md\n')).toHaveLength(1);
     expect(findReferences('CLAUDE.md', 'see private/notes')).toHaveLength(1);
-    expect(findReferences('src/x.ts', IMPORT_LINE)).toHaveLength(1);
   });
 
   it('lets only the listed file name a private path', () => {

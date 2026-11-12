@@ -3,7 +3,6 @@
 Guidance for Claude Code in this repository: the portfolio site of Mahmoud El Bergui, an
 experimentation and growth analyst in Berlin.
 
-@~/code/portfolio/private/CLAUDE.private.md
 @AGENTS.md
 
 > **Status:** the walking skeleton (CI, tests and tooling) and the Figure kit are in place. Pages
