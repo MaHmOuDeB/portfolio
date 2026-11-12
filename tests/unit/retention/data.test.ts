@@ -198,9 +198,10 @@ describe('models', () => {
     expect(printed).toEqual([
       'Baseline: most recent buyer first', '0.762', '0.685',
       'Logistic regression', '0.792', '0.706',
-      'Gradient boosting', '0.793', '0.71',
+      'Gradient boosting', '0.793', '0.710',
     ]);
     expect(printed.some((p) => p.includes('%'))).toBe(false);
+    expect(t.formats).toEqual(['number', { fixed: 3 }, { fixed: 3 }]);
   });
 });
 

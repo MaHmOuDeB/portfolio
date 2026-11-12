@@ -101,6 +101,9 @@ export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRis
             return `${riseText({ baseline, risePoints: points, mode: values.mode })}, to ${percentText(targetRate(baseline, points))}`;
           }}
           readout={(v) => (relative ? `${relativeText(v)} of baseline` : pointsText(v))}
+          // In percent the value is a whole point's share of the baseline (17.2413...): the number
+          // input shows it to one decimal, as the readout does. Points are whole numbers already.
+          numberText={relative ? (v) => formatNumber(v, 1) : undefined}
           numberLabel={relative ? 'Rise to detect, percent of the baseline' : 'Rise to detect, points'}
           refs={FULL_PLANNER_REFS}
         />

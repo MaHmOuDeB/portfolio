@@ -3,11 +3,13 @@ import type { Page } from '@playwright/test';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
+import { auditLive } from './truth-live';
 
 // The Retention case study at /work/retention, the reference page later pages copy, and its dev
 // host /kitchen-sink/retention, which mounts the same composition. The page is static: prose,
 // four public-data Figures (each loads its island on intent, or at once for its own URL keys), two
-// open tables and a list of links. Nothing on it comes from the live experiment.
+// open tables, the win-back planner (a hypothetical uplift, two simulated Figures loaded as one
+// island) and a list of links. Nothing on it comes from the live experiment.
 
 const ROUTE = '/work/retention';
 const HOST = '/kitchen-sink/retention';
@@ -28,7 +30,9 @@ const SECTIONS = [
   ['sources', 'Sources and links'],
 ] as const;
 const LINKS = ['Problem', 'Data', 'Method', 'Cleaning', 'Cohorts', 'Segments', 'Model', 'Win-back sizing', 'Findings', 'How I checked this', 'Limits', 'Sources'];
-const FIGURES = ['returns', 'cohorts', 'rfm', 'models'];
+const FIGURES = ['returns', 'cohorts', 'rfm', 'models', 'winback', 'winback-duration'];
+// The Figures that load an island: returns, cohorts and the win-back planner pair.
+const ISLANDS = 3;
 
 const sectionLinks = (page: Page) => page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
 
@@ -67,6 +71,8 @@ test.describe('the Retention page', () => {
       ['cohort-retention', 'cohorts'],
       ['customer-segments', 'rfm'],
       ['repeat-order-model', 'models'],
+      ['win-back-sizing', 'winback'],
+      ['win-back-sizing', 'winback-duration'],
     ]);
   });
 
@@ -133,11 +139,11 @@ test.describe('the Retention page', () => {
     });
     await page.goto(ROUTE);
     const tops = () => page.evaluate(() => [...document.querySelectorAll('main section[id]')].map((s) => [s.id, (s as HTMLElement).offsetTop]));
-    await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(ISLANDS);
     const before = await tops();
     await page.evaluate(() => (window as unknown as { releaseIdle: () => void }).releaseIdle());
     await waitForIslands(page);
-    await expect(page.locator('[data-island="ready"]')).toHaveCount(2);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(ISLANDS);
     expect(await tops()).toEqual(before);
   });
 
@@ -188,7 +194,7 @@ test.describe('the Retention page', () => {
       await page.goto(`${ROUTE}#${id}`);
       await page.locator('next-route-announcer').waitFor({ state: 'attached' });
       await page.waitForTimeout(500);
-      await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+      await expect(page.locator('[data-island="idle"]')).toHaveCount(ISLANDS);
       await expectHeadingStill(page, id);
     });
 
@@ -227,8 +233,40 @@ test.describe('the Retention page', () => {
     }
     expect(visible).toContain('public dataset, rebuilt in 2026');
     expect(visible).toContain('I sized a possible holdout test; nobody was contacted and no test was run.');
+    // the planner beside it is a hypothetical uplift, simulated, on the observed reactivation baseline
+    for (const id of ['winback', 'winback-duration']) {
+      await expect(page.locator(`figure[data-figure="${id}"] [data-figure-result]`)).toContainText('Hypothetical uplift');
+      // the Figure's own badge (and the one beside its result line)
+      await expect(page.locator(`figure[data-figure="${id}"]`).getByText('Simulated', { exact: true }).first()).toBeVisible();
+    }
+    await expect(page.locator('figure[data-figure="winback"] [data-planner-n]')).toHaveText('1,353');
     // no raw Home model in the page or its payload
     expect(served).not.toMatch(/splitStatus|testNote/);
+  });
+
+  test('the hydrated page stays true after the win-back planner is used: each slider, the unit and both Resets', async ({ page }) => {
+    test.slow();
+    await page.goto(ROUTE);
+    await waitForIslands(page);
+    await auditLive(page, ROUTE, 'islands loaded');
+    const sizing = page.locator('figure[data-figure="winback"]');
+    const duration = page.locator('figure[data-figure="winback-duration"]');
+    // both sizing sliders and the traffic, each one step by key (the key release commits)
+    for (const [f, name] of [[sizing, 'Baseline conversion'], [sizing, 'Rise to detect'], [duration, 'Total customers per day']] as const) {
+      await f.getByRole('slider', { name }).focus();
+      await page.keyboard.press('ArrowRight');
+    }
+    await expect(sizing.locator('[data-figure-result]')).toContainText('from 30% to 36%.');
+    await expect(sizing.locator('[data-figure-announcement]')).not.toHaveText('');
+    await expect(duration.locator('[data-figure-announcement]')).not.toHaveText('');
+    await auditLive(page, ROUTE, 'baseline, rise and traffic moved');
+    await sizing.locator('label', { hasText: 'Percent of baseline' }).click();
+    await expect(sizing.locator('[data-figure-result]')).toContainText('of the baseline, from 30% to 36%.');
+    await auditLive(page, ROUTE, 'rise shown in percent of the baseline');
+    for (const f of [sizing, duration]) await f.getByRole('button', { name: 'Reset' }).click();
+    await expect(sizing.locator('[data-figure-result]')).toContainText('To detect a rise of 5 points, from 29% to 34%.');
+    await expect(sizing.locator('[data-figure-body] [data-planner-n]')).toHaveText('1,353');
+    await auditLive(page, ROUTE, 'after both Resets');
   });
 
   test('nothing of the live experiment: no beacon, no live note, no request to the experiment endpoints', async ({ page }) => {

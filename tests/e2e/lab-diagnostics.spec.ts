@@ -1,14 +1,16 @@
 import { expect } from '@playwright/test';
 import type { Browser, Page } from '@playwright/test';
+import { dotGeometry } from './curse-geometry';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 
-// The Lab's two diagnostics on the dev host /kitchen-sink/lab/diagnostics: the split check (`srm`,
+// The Lab's two diagnostics on the dev host /kitchen-sink/lab, which mounts the Lab page as /lab does
+// (their sections are #split-check and #exaggeration): the split check (`srm`,
 // preset 100 against 100 at an even split) and exaggeration (`curse`, preset effect 1 and standard
 // error 1). The server draws each preset; each island loads on intent, or at once when the URL holds
 // its own keys. /kitchen-sink/lab/diagnostics/faults sets the test seam, so each chart throws on the
 // first render after its own control changes.
 
-const HOST = '/kitchen-sink/lab/diagnostics';
+const HOST = '/kitchen-sink/lab';
 const FAULTS = '/kitchen-sink/lab/diagnostics/faults';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const SRM_TITLE = 'A split far from the expected share is flagged for a closer look';
@@ -68,54 +70,6 @@ async function tableRows(page: Page, id: Id): Promise<string[][]> {
   return table.locator('tbody tr').evaluateAll((rows) => rows.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent!.trim())));
 }
 
-/**
- * The dot and its ring against the plot of the visible exaggeration chart. The plot is measured from
- * the frame: its left and right edges are the frame's padding (the kit's gutters), its bottom is the
- * baseline and its top is the plot height above it (a nested SVG's bounding box is its content, so
- * the mark layer cannot be measured directly). The ring is the dot's stroke, painted under the fill.
- */
-async function dotGeometry(page: Page) {
-  return figure(page, 'curse').evaluate((root) => {
-    const svg = [...root.querySelectorAll<SVGSVGElement>('svg[data-chart-frame]')].find((s) => s.getClientRects().length > 0)!;
-    const dot = svg.querySelector<SVGCircleElement>('[data-curse-dot]');
-    if (!dot) return null;
-    const frame = svg.getBoundingClientRect();
-    const pad = getComputedStyle(svg);
-    const base = svg.querySelector('[data-baseline]')!.getBoundingClientRect();
-    const bottom = (base.top + base.bottom) / 2;
-    const height = svg.querySelector<SVGSVGElement>('[data-mark-layer]')!.height.baseVal.value;
-    const plot = { left: frame.left + parseFloat(pad.paddingLeft), right: frame.right - parseFloat(pad.paddingRight), top: bottom - height, bottom };
-    const d = dot.getBoundingClientRect();
-    const cs = getComputedStyle(dot);
-    const ring = parseFloat(cs.strokeWidth) / 2;
-    const outer = { left: d.left - ring, right: d.right + ring, top: d.top - ring, bottom: d.bottom + ring };
-    const cx = (d.left + d.right) / 2;
-    const cy = (d.top + d.bottom) / 2;
-    const fig = root.getBoundingClientRect();
-    // clipped: an ancestor that does not show overflow and does not hold the whole ring
-    const clippedBy: string[] = [];
-    for (let el: Element | null = dot.parentElement; el && el !== document.documentElement; el = el.parentElement) {
-      const o = getComputedStyle(el);
-      if (o.overflowX === 'visible' && o.overflowY === 'visible') continue;
-      const r = el.getBoundingClientRect();
-      if (outer.left < r.left - 0.5 || outer.right > r.right + 0.5 || outer.top < r.top - 0.5 || outer.bottom > r.bottom + 0.5) clippedBy.push(el.tagName);
-    }
-    const ticks = [...svg.querySelectorAll('[data-tick]')].map((t) => t.getBoundingClientRect());
-    return {
-      ratio: Number(dot.dataset.ratio),
-      value: Number(dot.dataset.exaggeration),
-      centreInPlot: cx >= plot.left - 0.5 && cx <= plot.right + 0.5 && cy >= plot.top - 0.5 && cy <= plot.bottom + 0.5,
-      atLeftEdge: Math.abs(cx - plot.left) <= 1,
-      atRightEdge: Math.abs(cx - plot.right) <= 1,
-      ringBelowPlotTop: outer.top >= plot.top - 0.5,
-      inFigure: outer.left >= fig.left - 0.5 && outer.right <= fig.right + 0.5,
-      inViewport: outer.left >= 0 && outer.right <= document.documentElement.clientWidth,
-      clippedBy,
-      overlapsTick: ticks.some((t) => outer.left < t.right && t.left < outer.right && outer.top < t.bottom && t.top < outer.bottom),
-      ring: { stroke: cs.stroke, width: cs.strokeWidth, order: cs.paintOrder },
-    };
-  });
-}
 
 /** Focuses a control and waits for its island: a focus that lands before hydration loads nothing, so it is retried. */
 async function focusAndLoad(page: Page, id: Id, control: string) {
@@ -249,7 +203,7 @@ test.describe('Split check Figure', () => {
 
   test('keyboard: an arrow key changes a count, announces on release and writes only its own keys', async ({ page }) => {
     await withoutIdle(page);
-    await page.goto(`${HOST}?curse.se=2#host-split`);
+    await page.goto(`${HOST}?curse.se=2#split-check`);
     await focusAndLoad(page, 'srm', 'srm-nA');
     await expect(range(page, 'srm-nA')).toBeFocused();
     await page.keyboard.press('ArrowRight');
@@ -261,11 +215,11 @@ test.describe('Split check Figure', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('srm.nA')).toBe('101');
     const url = new URL(page.url());
     expect(url.searchParams.get('curse.se')).toBe('2');
-    expect(url.hash).toBe('#host-split');
+    expect(url.hash).toBe('#split-check');
   });
 
   test('Reset restores the preset, clears only its own keys and keeps the other Figure’s key and the hash', async ({ page }) => {
-    await page.goto(`${HOST}?srm.nA=120&srm.nB=60&curse.se=2#host-split`);
+    await page.goto(`${HOST}?srm.nA=120&srm.nB=60&curse.se=2#split-check`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await reset(page, 'srm').click();
     await expect(result(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
@@ -273,7 +227,7 @@ test.describe('Split check Figure', () => {
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith('srm.'))).toEqual([]);
     expect(url.searchParams.get('curse.se')).toBe('2');
-    expect(url.hash).toBe('#host-split');
+    expect(url.hash).toBe('#split-check');
   });
 
   test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {
@@ -393,7 +347,7 @@ test.describe('Exaggeration Figure', () => {
 
   test('keyboard: changing the error announces the new result on release; Reset restores the preset and only its own keys', async ({ page }) => {
     await withoutIdle(page);
-    await page.goto(`${HOST}?srm.nA=7#host-exaggeration`);
+    await page.goto(`${HOST}?srm.nA=7#exaggeration`);
     await focusAndLoad(page, 'curse', 'curse-se');
     await expect(range(page, 'curse-se')).toBeFocused();
     await page.keyboard.press('ArrowRight');
@@ -409,7 +363,7 @@ test.describe('Exaggeration Figure', () => {
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith('curse.'))).toEqual([]);
     expect(url.searchParams.get('srm.nA')).toBe('7');
-    expect(url.hash).toBe('#host-exaggeration');
+    expect(url.hash).toBe('#exaggeration');
   });
 
   test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {

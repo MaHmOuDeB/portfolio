@@ -106,7 +106,8 @@ export function modelsTable(): TableData {
   return {
     columns: ['Model', 'ROC AUC, all customers', 'ROC AUC, lapsed customers only'],
     rows: models.map((m) => [m.model, finite(m.roc_auc, `${m.model} AUC`, true), finite(m.lapsed_roc_auc, `${m.model} lapsed AUC`, true)]),
-    formats: ['number', 'number', 'number'],
+    // Every AUC has three decimals in the export, so each prints three, "0.710" among them.
+    formats: ['number', { fixed: 3 }, { fixed: 3 }],
     note: 'How well each model ranks the customers who ordered again within the window, scored on a later period than it learned from. Ranking accuracy, not a response to any offer.',
     refs: ['source:retention', 'retention.model.rule_auc', 'retention.model.gb_auc'],
   };

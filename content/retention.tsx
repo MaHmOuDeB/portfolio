@@ -369,8 +369,21 @@ export function RetentionTargeting(): ReactNode {
 /** The link to the Lab, where the same sizing can be tried with other numbers. */
 export function RetentionLabLink(): ReactNode {
   return (
-    <TextLink href="/lab" standalone>
+    <TextLink href="/lab#sample-size" standalone>
       Try other baselines and rises in the Lab&apos;s sample-size planner
+    </TextLink>
+  );
+}
+
+/**
+ * The link to the Home page's planner: the win-back planner above computes with the same formula. The
+ * two share the arithmetic, not their inputs: here the baseline is the observed share of lapsed
+ * customers who ordered again, and the rise a hypothetical uplift.
+ */
+export function RetentionHomePlannerLink(): ReactNode {
+  return (
+    <TextLink href="/#hero-planner" standalone>
+      The same arithmetic as the Home planner
     </TextLink>
   );
 }

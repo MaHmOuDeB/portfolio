@@ -1,7 +1,7 @@
 // The Retention case study. A plain static page: the composition reads only the vendored exports at
 // build time, and each Figure's island reads its own URL state in the browser.
 import type { Metadata } from 'next';
-import { RETENTION_TITLE, RetentionPage } from '@/components/retention/RetentionPage';
+import { RETENTION_TITLE, RetentionCaseStudy } from '@/components/retention/RetentionPage';
 
 export const metadata: Metadata = {
   title: RETENTION_TITLE,
@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function RetentionRoute() {
-  return <RetentionPage />;
+  return <RetentionCaseStudy />;
 }

@@ -113,3 +113,75 @@ export function DurationCaption({ context, traffic }: { context: PlannerContext;
     </>
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// The Lab page: its intro, its four examples in page order with what each one is for, and its limits.
+// Plain words only: every number on the page is in the Figures, each with its own source marker.
+
+/** The page's opening, under its heading. */
+export function LabIntro(): ReactNode {
+  return (
+    <p>
+      I use these examples to show what a test can and cannot tell me. Each one runs on numbers you set or on a
+      simulation; none of them is data from a real test.
+    </p>
+  );
+}
+
+/** The four examples in page order: the section's anchor and heading, and one plain sentence on what it is for. */
+export const LAB_SECTIONS = [
+  {
+    id: 'sample-size',
+    title: 'Sample size and duration',
+    figure: 'planner',
+    purpose: 'How many visitors each group needs to detect a given rise, and how many weeks that takes at a given traffic.',
+  },
+  {
+    id: 'peeking-at-results',
+    title: 'Peeking at results',
+    figure: 'peeking',
+    purpose: 'What checking a running test every day does to its false positives, and what each fix costs.',
+  },
+  {
+    id: 'split-check',
+    title: 'Split check',
+    figure: 'srm',
+    purpose: 'Whether the groups got the share of visitors they were meant to get, or whether the assignment and the logging need a closer look.',
+  },
+  {
+    id: 'exaggeration',
+    title: 'Exaggeration',
+    figure: 'curse',
+    purpose: 'Why an effect that passes the threshold in a test with little power looks bigger than it is.',
+  },
+] as const;
+
+/** What the examples cannot show. */
+export function LabLimits(): ReactNode {
+  return (
+    <ul className="list-disc pl-5">
+      <li className="mt-2 first:mt-0">
+        The numbers here are simulated or hypothetical. None of them comes from a real test or from this site&apos;s
+        live test.
+      </li>
+      <li className="mt-2 first:mt-0">
+        The planner assumes two groups of equal size, a result read once at the end and the same traffic every day.
+        Checking the result as it comes in needs a different plan, as the peeking example shows.
+      </li>
+      <li className="mt-2 first:mt-0">
+        The peeking results come from one seeded simulation with one conversion rate and one number of visitors per
+        look. Other settings give other rates, and the Monte Carlo range covers only the simulation&apos;s own noise.
+      </li>
+      <li className="mt-2 first:mt-0">
+        The split check and the exaggeration example use standard approximations: a chi-square test on counts, and an
+        estimate that is normally distributed with a known standard error. What they show is a reason to look closer,
+        not a verdict on a real test.
+      </li>
+    </ul>
+  );
+}
+
+/** The opening of the peeking example's own page, the interview link. */
+export function LabPeekingIntro(): ReactNode {
+  return <p>One example from the Lab: what checking a running test every day does to its false positives.</p>;
+}
