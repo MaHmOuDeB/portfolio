@@ -36,6 +36,16 @@ function recordRequests(page: Page): string[] {
 const sectionLinks = (page: Page) => page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
+/** The page's sections with their headings, its Figures, and every link in the main landmark. */
+function composition(page: Page) {
+  return page.evaluate(() => ({
+    sections: [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
+    headings: [...document.querySelectorAll('main h2, main h3')].map((h) => `${h.tagName} ${h.textContent?.trim()}`),
+    figures: [...document.querySelectorAll('main figure[data-figure]')].map((f) => [f.closest('section[id]')?.id, f.getAttribute('data-figure')]),
+    links: [...document.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href')),
+  }));
+}
+
 for (const note of NOTES) {
   test.describe(note.title, () => {
     test('outline: one h1, the build-note sections in order, no skipped heading level', async ({ page }) => {
@@ -264,5 +274,86 @@ test.describe('MarketingWS build note', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(ROUTE);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
+test.describe('the Docproof build note', () => {
+  const ROUTE = '/work/docproof';
+  const TITLE = 'Docproof: a multi-agent document pipeline';
+  const SECTIONS = [
+    ['problem', 'The problem'],
+    ['architecture', 'Architecture'],
+    ['verification', 'How it is verified'],
+    ['outcome', 'Outcome'],
+    ['limits', 'Limits'],
+    ['links', 'Links'],
+  ] as const;
+
+  test('outline: one h1, the sections in template order, the diagram in the architecture section', async ({ page }) => {
+    const response = await page.goto(ROUTE);
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveTitle(TITLE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+    const { sections, headings, figures, links } = await composition(page);
+    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    for (const [id, title] of SECTIONS) {
+      await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
+    }
+    const levels = headings.map((h) => Number(h.slice(1, 2)));
+    expect(levels[0]).toBe(2);
+    expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
+    expect(figures).toEqual([['architecture', 'docproof-architecture']]);
+    expect(links).toEqual([...SECTIONS.map(([id]) => `#${id}`), '/work']);
+  });
+
+  test('the recorded run: inputs, command and output as labelled regions a keyboard reaches', async ({ page }) => {
+    await page.goto(ROUTE);
+    await expect(page.getByRole('heading', { level: 3, name: 'A recorded run of the verify check' })).toBeVisible();
+    const output = page.getByRole('region', { name: 'The command and its output' });
+    await expect(output).toContainText('$ python3 -m docproof verify notice.docx --facts fact-base.md');
+    await expect(output).toContainText('VERIFY FAILED');
+    for (const name of ['The fact base', 'The notice, one paragraph per line', 'The command and its output']) {
+      const region = page.getByRole('region', { name });
+      await region.focus();
+      await expect(region).toBeFocused();
+    }
+  });
+
+  test('section links: in page order, and one lands its heading in view', async ({ page }) => {
+    await page.goto(ROUTE);
+    await expect(sectionLinks(page)).toHaveText(['Problem', 'Architecture', 'Verification', 'Outcome', 'Limits', 'Links']);
+    await sectionLinks(page).filter({ hasText: 'Limits' }).click();
+    await expect(page).toHaveURL(/#limits$/);
+    await expect(page.locator('#limits-title')).toBeInViewport();
+  });
+
+  test('reflows at 320 px without horizontal page scroll; touch targets are at least 44 px', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto(ROUTE);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    for (const link of await page.locator('main a[href]').all()) {
+      const box = await link.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('reads the same without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(ROUTE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page.getByRole('region', { name: 'The command and its output' })).toContainText('VERIFY FAILED');
+    await context.close();
+  });
+
+  test('passes the truth audit on the served HTML and has no accessibility violations', async ({ page }) => {
+    const response = await page.goto(ROUTE);
+    const html = await response!.text();
+    const ctx = { route: ROUTE, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
+    expect(auditHtml(html, ctx)).toEqual([]);
+    await expectNoA11yViolations(page);
   });
 });
