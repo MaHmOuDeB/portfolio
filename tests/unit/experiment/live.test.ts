@@ -497,14 +497,22 @@ describe('the source', () => {
     // The snapshot holds p-values and exact outcome counts; only the blinded data.json route reads it,
     // and the home page, which projects it at once into the server-only Home model (toHomeModel copies
     // no p-value, chi-square or outcome count; tests/unit/home/page.test.tsx checks the serialized
-    // client props). The home page may use it in exactly that one form.
+    // client props). The home page may use it in exactly that one form, and so may the Live test page.
     const HOME = join(SRC, 'app/v/[arm]/page.tsx');
     expect(readFileSync(HOME, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
       'getExperimentSnapshot',
       'getExperimentSnapshot',
     ]);
     expect(readFileSync(HOME, 'utf8')).toContain('toHomeModel(await getExperimentSnapshot(), arm)');
-    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME]);
+    // The Live test page reads it once and projects it at once, on the server, into the display shape
+    // (toLivePageDisplay keeps published cells only; tests/unit/live-page/page.test.tsx checks it).
+    const LIVE_TEST = join(SRC, 'app/experiment/page.tsx');
+    expect(readFileSync(LIVE_TEST, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
+      'getExperimentSnapshot',
+      'getExperimentSnapshot',
+    ]);
+    expect(readFileSync(LIVE_TEST, 'utf8')).toContain('toLivePageDisplay(toLivePageModel(await getExperimentSnapshot()');
+    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME, LIVE_TEST]);
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);

@@ -12,14 +12,17 @@
 #
 # It deliberately sets no VERCEL_ENV and no KV_REST_API_URL: this job proves the environment
 # isolation, it is not a rehearsal of the production build (which would need the production
-# canonical host). Anything else a deploy-style build needs before `vercel build` (for example a
-# build-metadata file) belongs in this script, so the workflow itself does not change.
+# canonical host). Anything else a deploy-style build needs before `vercel build` belongs in this
+# script, so the workflow itself does not change. `vercel build` sets VERCEL, which next.config.ts
+# reads as a deploy build: such a build fails without public/build-meta.json (the deploy writes it
+# with npm run build:meta from the CI reports), so this script writes a synthetic one, whose
+# all-zero commit and round counts name no real run.
 #
-# It refuses to overwrite an existing pulled environment.
+# It refuses to overwrite an existing pulled environment or build-metadata file.
 set -euo pipefail
 
-if [ -e .vercel/.env.production.local ] || [ -e .vercel/project.json ]; then
-  echo "build-isolation-fixture: .vercel/.env.production.local or .vercel/project.json already exists; not overwriting it" >&2
+if [ -e .vercel/.env.production.local ] || [ -e .vercel/project.json ] || [ -e public/build-meta.json ]; then
+  echo "build-isolation-fixture: .vercel/.env.production.local, .vercel/project.json or public/build-meta.json already exists; not overwriting it" >&2
   exit 1
 fi
 
@@ -32,4 +35,6 @@ printf '%s\n' '{"projectId":"prj_build_isolation","orgId":"team_build_isolation"
   echo 'KV_REST_API_READ_ONLY_TOKEN="synthetic-read-token"'
 } > .vercel/.env.production.local
 chmod 600 .vercel/.env.production.local
-echo "build-isolation-fixture: wrote .vercel/project.json and .vercel/.env.production.local (synthetic values)"
+mkdir -p public
+printf '%s\n' '{"commit":"0000000000000000000000000000000000000000","builtAt":"2026-01-01T00:00:00.000Z","unitTests":{"passed":1,"total":1},"e2eTests":{"passed":1,"total":1},"axeViolations":0,"lighthouse":{"performance":100,"accessibility":100,"bestPractices":100,"seo":100},"lighthouseLabel":"CI lab run (mobile, simulated throttling)"}' > public/build-meta.json
+echo "build-isolation-fixture: wrote .vercel/project.json, .vercel/.env.production.local and public/build-meta.json (synthetic values)"

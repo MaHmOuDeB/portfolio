@@ -30,6 +30,7 @@ export const PRIVACY_HREF = '/privacy';
 export const LIVE_ROUTES: readonly string[] = [
   '/',
   '/exclude',
+  '/experiment',
   '/lab',
   '/lab/peeking',
   '/privacy',

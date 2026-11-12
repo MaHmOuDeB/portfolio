@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isBuildMeta } from '../../src/lib/live-page/build-meta-shape.ts';
 import { WRITE_CREDENTIALS, checkCanary, keysOf, main, withoutWriteCredentials } from '../../scripts/build-env-isolation.ts';
 
 // The deploy builds with `vercel build`, which loads the environment `vercel pull` wrote to
@@ -449,7 +450,7 @@ describe('the workflows', () => {
     expect(job).not.toContain('secrets.');
   });
 
-  it('the fixture script writes project settings and all three write credentials plus the read-only token, synthetic and without VERCEL_ENV', () => {
+  it('the fixture script writes project settings, all three write credentials plus the read-only token and build metadata, synthetic and without VERCEL_ENV', () => {
     const dir = mkdtempSync(join(tmpdir(), 'build-isolation-fixture-'));
     try {
       const r = spawnSync('bash', [FIXTURE], { cwd: dir, encoding: 'utf8' });
@@ -460,6 +461,11 @@ describe('the workflows', () => {
       expect([...keysOf(env)].sort()).toEqual(['KV_REST_API_READ_ONLY_TOKEN', 'KV_REST_API_TOKEN', 'KV_URL', 'REDIS_URL']);
       expect(env).not.toMatch(/VERCEL_ENV|KV_REST_API_URL/);
       expect(env).toMatch(/@store\.invalid:/);
+      // `vercel build` sets VERCEL, so the build embeds public/build-meta.json and fails without it:
+      // the fixture writes synthetic, valid build metadata.
+      const meta: unknown = JSON.parse(readFileSync(join(dir, 'public/build-meta.json'), 'utf8'));
+      expect(isBuildMeta(meta)).toBe(true);
+      expect((meta as { commit: string }).commit).toBe('0'.repeat(40));
       // It never overwrites a real pull.
       const again = spawnSync('bash', [FIXTURE], { cwd: dir, encoding: 'utf8' });
       expect(again.status).toBe(1);

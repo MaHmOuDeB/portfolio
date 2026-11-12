@@ -65,7 +65,7 @@ a courtesy there, not a requirement.
   billing including script calls, transaction wrappers and any replica writes.
 - Ensure older writers cannot overlap this writer in the same namespace (see the runbook, "Before
   the first live write").
-- With a Global database, check that the incremental static regeneration of `/v/a`, `/v/b` and
-  `/experiment/data.json` runs once globally and not once per region. It sets the page-read budget
+- With a Global database, check that the incremental static regeneration of `/v/a`, `/v/b`,
+  `/experiment/data.json` and `/experiment` runs once globally and not once per region. It sets the page-read budget
   (`MONTHLY_PAGE_READ_BUDGET`); if each region regenerates separately, the monthly page reads
   multiply by the number of regions and the command budget no longer holds.

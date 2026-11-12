@@ -11,6 +11,8 @@ export const ALLOW: readonly { pattern: RegExp; routes?: readonly string[]; reas
   { pattern: /\bArt\. \d+(?:\(\d+\))*(?:\([a-z]\))?/, routes: ['/privacy'], reason: 'GDPR article citation' },
   { pattern: /§\d+\(\d+\) No\. \d+ TDDDG/, routes: ['/privacy'], reason: 'TDDDG section citation' },
   { pattern: /\bIPv[46]\b/, routes: ['/privacy'], reason: 'protocol name' },
+  // The Live test page shows the command that runs the verification script.
+  { pattern: /\bpython3\b/, routes: ['/experiment'], reason: 'command name' },
 ];
 
 // Routes the site does not author. The stray-number check is skipped on them; the deny-list, banned

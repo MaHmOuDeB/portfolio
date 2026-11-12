@@ -39,6 +39,14 @@ describe('next.config', () => {
     expect(config.pageExtensions).toEqual([...DEFAULTS, 'dev.tsx']);
   });
 
+  it('embeds the build metadata at build time: "null" for a build with no file and no deploy signal', async () => {
+    vi.stubEnv('VERCEL', '');
+    vi.stubEnv('VERCEL_ENV', '');
+    const config = await loadConfig();
+    vi.unstubAllEnvs();
+    expect(config.env).toEqual({ BUILD_META_JSON: 'null' });
+  });
+
   it('hides the X-Powered-By header', async () => {
     const config = await loadConfig();
     expect(config.poweredByHeader).toBe(false);
