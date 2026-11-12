@@ -338,7 +338,7 @@ pre-registration, in Python with the standard library only: it imports nothing f
 no package and makes no network request. Anyone can run it; run it after each phase change and
 before writing about a result.
 
-In Terminal (any folder with a copy of the repository; Python 3.9 or later):
+In Terminal, from the root of a copy of the repository (Python 3.9 or later):
 
 ```sh
 curl -sSf https://<canonical domain>/experiment/data.json -o data.json
@@ -357,16 +357,20 @@ intervals, the split check and the detectable effect, each within 1e-8. `--json`
 as JSON instead of one line per check.
 
 What it recomputes: the mixing variances from the planning rates and caps; the split check at the
-look it rests on; both intervals, intersected over the cumulative daily looks in order (each look
-is a running total, never a day's own count); the decision walk, or the A/A rule in the
-calibration; blinding; the intention-to-treat rates; the detectable effect. It also checks the
+look it rests on, and which split failed; both intervals, intersected over the cumulative daily
+looks in order (each look is a running total, never a day's own count); the decision walk, or the
+A/A rule in the calibration; blinding; the intention-to-treat rates; the detectable effect; and
+whether the final CV and contact counts should be there. It also checks the
 publishing rules: no count from 1 to 4 printed as itself, no outcome while blinded or below 50
 analysed views a group, no p-value, no look on a day that reached the daily ceiling.
 
 Each check prints PASS, FAIL, INDETERMINATE or NOT-APPLICABLE with its reason. The exit status is
 0 when nothing disagrees (some checks may still be indeterminate), 1 when a recomputed value
 differs from the published one by more than 1e-8 or a publishing rule is broken, and 2 when the file
-is not valid `experiment-data/1` (including any NaN or infinite number) or cannot be read.
+cannot be read or is not valid `experiment-data/1` (not UTF-8 text, any NaN or infinite number, a
+minimum per group below 5) or the script itself fails ("internal error", which says nothing about
+the data). Exit 1 always means a check disagrees. Text from the file is printed as plain ASCII,
+with every other character escaped.
 
 Its limits, stated in each check's reason:
 
@@ -382,6 +386,12 @@ Its limits, stated in each check's reason:
   not published, so blinding and the detectable effect at the current size are then indeterminate.
 - It does not recompute the design hash (`prereg.configSha256`): compare it with the hash at the
   end of `docs/experiment/prereg.md` at the tag the file names.
+- Some published fields cannot be recomputed from the file: the calibration's `days` and
+  `evaluatedOn` (they need the calibration's start day, which is not published) and the final CV
+  and contact counts (they are in no look; only whether they should be there is checked). The
+  detectable-effect points are checked one by one, so a missing point is not noticed.
+- The one-minute margin after the planned end, before a test is read as inconclusive, is the
+  site's own constant and is not in the file; the script uses the same minute.
 
 The saved fixtures in `tests/fixtures/experiment-verifier/` are real published data, built by the
 site's own code from known counts; `tests/unit/live-page/verifier.test.ts` runs the script on them

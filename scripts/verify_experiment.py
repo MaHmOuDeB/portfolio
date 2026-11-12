@@ -28,8 +28,10 @@ implementation agrees with them before trusting it.
 
 Exit status: 0 when nothing disagrees (some checks may be indeterminate, each with its reason);
 1 when a recomputed value disagrees with the published one (beyond 1e-8) or a published rule is
-broken; 2 when the file cannot be read or is not valid `experiment-data/1` (including any
-non-finite number).
+broken; 2 when the file cannot be read or is not valid `experiment-data/1` (not UTF-8, any
+non-finite number, a minimum per group below 5), or when the script itself fails ("internal
+error"). Exit 1 always means a check disagrees, never a fault of the script. Text from the file is
+printed as plain ASCII, with every other character escaped.
 """
 from __future__ import annotations
 
@@ -176,18 +178,31 @@ def load_json(path: str):
         return value
 
     try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
+        with open(path, "rb") as f:
+            raw = f.read()
     except OSError as e:
         raise Invalid(f"cannot read the file: {e.strerror}") from None
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise Invalid("the file is not UTF-8 text (a compressed or differently encoded download?)") from None
     try:
         return json.loads(text, parse_constant=constant, parse_float=number)
     except json.JSONDecodeError as e:
         raise Invalid(f"not valid JSON: {e.msg} at line {e.lineno}") from None
+    except RecursionError:
+        raise Invalid("the JSON is nested too deeply to read") from None
+    except ValueError:
+        raise Invalid("a number in the file is too long to read") from None
 
 
 def is_number(v) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(float(v))
+    except OverflowError:
+        return False
 
 
 def is_count(v) -> bool:
@@ -340,7 +355,9 @@ def validate(d) -> list:
     if V.obj(c, "$.config", keys):
         for k in ("alpha", "power", "srmFlagP"):
             V.number(c[k], f"$.config.{k}", 0, 1, True, True)
-        for k in ("minPerGroup", "capPerArm", "entryCapPerArm", "dailyEntryCeiling"):
+        # A "<5" cell must be comparable with the minimum: it is below any minimum of 5 or more.
+        V.count(c["minPerGroup"], "$.config.minPerGroup", 5)
+        for k in ("capPerArm", "entryCapPerArm", "dailyEntryCeiling"):
             V.count(c[k], f"$.config.{k}", 1)
         if V.obj(c["ab"], "$.config.ab", ("capMonths",)):
             V.count(c["ab"]["capMonths"], "$.config.ab.capMonths", 1)
@@ -541,6 +558,16 @@ class Data:
         return None
 
     @staticmethod
+    def order_unconfirmed(look) -> bool:
+        """True when a look's counts may or may not keep their order, depending on its "<5" cells."""
+        for arm in ("a", "b"):
+            g = look[arm]
+            for small, big in (("inview", "entry"), ("card", "inview"), ("engaged", "entry")):
+                if small in g and bounds(g[small])[0] <= bounds(g[big])[1] and bounds(g[small])[1] > bounds(g[big])[0]:
+                    return True
+        return False
+
+    @staticmethod
     def inconsistent(look) -> bool:
         """True when a look's counts break an event's dependency whatever its "<5" cells hold."""
         for arm in ("a", "b"):
@@ -671,18 +698,16 @@ def check_small_cells(d: dict, checks: list) -> None:
 
 def check_no_p_values(d: dict, checks: list) -> None:
     found = []
-
-    def walk(v, path: str) -> None:
+    stack = [(d, "$")]
+    while stack:
+        v, path = stack.pop()
         if isinstance(v, dict):
             for k, x in v.items():
                 if k == "p" or re.fullmatch(r"p[-_]?values?", k, re.IGNORECASE):
                     found.append(f"{path}.{k}")
-                walk(x, f"{path}.{k}")
+                stack.append((x, f"{path}.{k}"))
         elif isinstance(v, list):
-            for i, x in enumerate(v):
-                walk(x, f"{path}[{i}]")
-
-    walk(d, "$")
+            stack.extend((x, f"{path}[{i}]") for i, x in enumerate(v))
     if found:
         check(checks, "no-p-values", "fail", "a p-value is published at " + ", ".join(found))
     else:
@@ -904,6 +929,8 @@ def decision_walks(data: Data):
     """Every outcome the published looks allow under the pre-registered rules, as a list of
     (kind, look index), or (None, reason) when they cannot be enumerated."""
     looks = data.looks
+    if any(Data.order_unconfirmed(look) for look in looks):
+        return None, 'the order of counts within a look cannot be confirmed for every allowed value of its "<5" cells, so a data fault there cannot be ruled out'
     idx = evaluated_indices(data)
     if idx is None:
         return None, 'whether a look is analysed depends on a "<5" cell'
@@ -1078,6 +1105,8 @@ def check_calibration(data: Data, checks: list) -> None:
     counted = any(c != 0 for c in (d["current"]["a"]["entry"], d["current"]["b"]["entry"]))
     if d["status"] == "before-data" and counted:
         problems.append("the state is before-data but views are counted")
+    if d["status"] == "calibration" and not counted:
+        problems.append("the state is calibrating but nothing is counted, which is before-data")
     if d["status"] not in ("before-data", "calibration", "aa-failed"):
         problems.append(f"the state {d['status']} is not an A/A state")
     clean = held is None and d["bandConflictOn"] is None and d["inconsistentOn"] is None
@@ -1238,6 +1267,61 @@ def check_detectable(data: Data, checks: list) -> None:
         check(checks, "detectable-at-current", "indeterminate", f"the detectable effect now: {SOME_REASON}")
 
 
+def check_flagged_base(data: Data, checks: list) -> None:
+    d = data.d
+    srm = d["srm"]
+    base, look = srm["flaggedBase"], srm["flaggedLook"]
+    if srm["firstFlaggedOn"] is None:
+        if base is None and look is None:
+            check(checks, "flagged-base", "not-applicable", "no failed split check is published")
+        else:
+            check(checks, "flagged-base", "fail", "a failed split or its look is published without the day it failed")
+        return
+    if look is None or look["day"] != srm["firstFlaggedOn"] or base is None:
+        check(checks, "flagged-base", "fail", "the failed split check lacks its look or which split failed")
+        return
+    results = []
+    for ea, eb, ia, ib in product(options(look["a"]["entry"]), options(look["b"]["entry"]), options(look["a"]["inview"]), options(look["b"]["inview"])):
+        fe, fi = data.flagged(ea, eb), data.flagged(ia, ib)
+        results.append("both" if fe and fi else "entry" if fe else "analysed" if fi else None)
+    result = verdict(results, lambda r: r == base)
+    small = not exact(look["a"]["entry"], look["b"]["entry"], look["a"]["inview"], look["b"]["inview"])
+    if result == "pass":
+        how = SMALL_REASON + " gives it" if small else "recomputed"
+        check(checks, "flagged-base", "pass", f"look {look['day']}: the failed split ({base} views) is {how}")
+    elif result == "fail":
+        check(checks, "flagged-base", "fail", f"look {look['day']}: " + (NONE_REASON if small else f"the published failed split ({base}) does not match the recomputed one"))
+    else:
+        check(checks, "flagged-base", "indeterminate", f"look {look['day']}: which split failed: {SOME_REASON}")
+
+
+def check_final_descriptive(data: Data, checks: list) -> None:
+    d = data.d
+    if d.get("closureMismatch"):
+        check(checks, "final-descriptive", "indeterminate", "the published state rests on a stored closure the current analysis did not confirm")
+        return
+    cal = d["calibration"]
+    ended_now = not data.placeholder and (
+        (d["status"] in ("ship-b", "stop-for-harm") and d["frozenAt"] is not None)
+        or (cal is not None and cal["failed"] is not None)
+        or (data.ab and d["held"] is not None)
+        or d["status"] in ("aa-failed", "inconclusive")
+    )
+    last = data.looks[-1] if data.looks else None
+    shown = last is not None and "card" in last["a"]
+    want = ended_now and shown
+    fd = d["finalDescriptive"]
+    if (fd is not None) != want:
+        word = "missing although the test has ended with outcomes at its last look" if want else "published although the test has not ended, or its last look has no outcomes"
+        check(checks, "final-descriptive", "fail", f"the final CV and contact counts are {word}")
+    elif fd is not None and fd["day"] != last["day"]:
+        check(checks, "final-descriptive", "fail", "the final CV and contact counts are not from the last look")
+    elif fd is not None:
+        check(checks, "final-descriptive", "pass", f"present for the last look {last['day']}, as the rule requires; the counts themselves are in no look, so they cannot be recomputed")
+    else:
+        check(checks, "final-descriptive", "pass", "absent, as the rule requires until the test has ended")
+
+
 def check_faults(data: Data, checks: list) -> None:
     d = data.d
     held = d["held"]
@@ -1308,6 +1392,8 @@ def verify_data(d: dict) -> list:
     check_blinding(data, checks)
     check_itt(data, checks)
     check_detectable(data, checks)
+    check_flagged_base(data, checks)
+    check_final_descriptive(data, checks)
     check_faults(data, checks)
     if data.placeholder:
         for c in checks:
@@ -1352,8 +1438,8 @@ def verify_reference(ref) -> list:
             if (want is None) != (got is None) or (want is not None and not close(got, want)):
                 bad.append(c)
         check(checks, "reference-detectable-effect", "fail" if bad else "pass", f"{len(bad)} of {len(cases)} cases differ" if bad else say(cases, "detectable effects (and undetectable cases)"))
-    except (KeyError, TypeError, ValueError, ZeroDivisionError) as e:
-        raise Invalid(f"a reference case is malformed: {e}") from None
+    except (KeyError, TypeError, ValueError, ArithmeticError) as e:
+        raise Invalid(f"a reference case is malformed or too large to compute ({type(e).__name__})") from None
     return checks
 
 
@@ -1381,17 +1467,39 @@ SUMMARY = {
 }
 
 
+def safe(text: str) -> str:
+    """Printable ASCII only: every other character (control characters, escape sequences, non-ASCII,
+    lone surrogates) is written as a Python-style escape, so text from the file cannot reach the
+    terminal as anything but plain characters."""
+    out = []
+    for ch in text:
+        o = ord(ch)
+        if 0x20 <= o < 0x7F:
+            out.append(ch)
+        elif o < 0x100:
+            out.append(f"\\x{o:02x}")
+        elif o < 0x10000:
+            out.append(f"\\u{o:04x}")
+        else:
+            out.append(f"\\U{o:08x}")
+    return "".join(out)
+
+
+def say(line: str = "", stream=None) -> None:
+    print(safe(line), file=stream or sys.stdout)
+
+
 def print_text(d, checks: list, errors: list, result: str) -> None:
     if isinstance(d, dict) and not errors:
-        print(f"Experiment data ({d['schema']}): namespace {d['namespace']}, phase {d['configPhase']}, state {d['status']}, read at {d['readAt']}")
-        print(f"Pre-registration {d['prereg']['tag']} ({d['prereg']['version']}), design hash {d['prereg']['configSha256']}")
-        print()
+        say(f"Experiment data ({d['schema']}): namespace {d['namespace']}, phase {d['configPhase']}, state {d['status']}, read at {d['readAt']}")
+        say(f"Pre-registration {d['prereg']['tag']} ({d['prereg']['version']}), design hash {d['prereg']['configSha256']}")
+        say()
     for e in errors:
-        print(f"ERROR          {e}")
+        say(f"ERROR          {e}")
     for c in checks:
-        print(f"{c['result'].upper():<15}{c['id']}: {c['reason']}")
-    print()
-    print(f"Result: {SUMMARY[result]}")
+        say(f"{c['result'].upper():<15}{c['id']}: {c['reason']}")
+    say()
+    say(f"Result: {SUMMARY[result]}")
 
 
 def main(argv=None) -> int:
@@ -1402,7 +1510,18 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.data is None and args.reference is None:
         parser.error("give the data file, --reference, or both")
+    try:
+        return run(args)
+    except Exception as e:  # noqa: BLE001 - the last resort: never a traceback, never exit 1
+        message = f"internal error ({type(e).__name__}): the verifier could not finish; this says nothing about the data"
+        if args.json:
+            print(json.dumps({"verifier": VERIFIER, "result": "error", "checks": [], "errors": [message]}, indent=2))
+        else:
+            say(f"ERROR          {message}", sys.stderr)
+        return 2
 
+
+def run(args) -> int:
     checks: list = []
     errors: list = []
     d = None
@@ -1421,7 +1540,7 @@ def main(argv=None) -> int:
             checks.extend(verify_data(d))
     result = summarise(checks, errors)
     if args.json:
-        print(json.dumps({"verifier": VERIFIER, "result": result, "checks": checks, "errors": errors}, indent=2, ensure_ascii=False))
+        print(json.dumps({"verifier": VERIFIER, "result": result, "checks": checks, "errors": errors}, indent=2))
     else:
         print_text(d, checks, errors, result)
     return {"agrees": 0, "indeterminate": 0, "disagrees": 1, "invalid": 2}[result]

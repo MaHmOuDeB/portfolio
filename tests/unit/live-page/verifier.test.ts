@@ -45,11 +45,19 @@ function report(args: string[]): { status: number | null; report: Report; stdout
 
 const tmp = mkdtempSync(join(tmpdir(), 'verifier-'));
 let written = 0;
-function writeTmp(value: unknown, raw?: string): string {
+function writeTmp(value: unknown, raw?: string | Buffer): string {
   const file = join(tmp, `payload-${(written += 1)}.json`);
   writeFileSync(file, raw ?? JSON.stringify(value, null, 2));
   return file;
 }
+
+/** The raw bytes of a run, both modes, for checks on what reaches the terminal. */
+function runBytes(args: string[]): { status: number | null; stdout: Buffer; stderr: string } {
+  const r = spawnSync('python3', ['-I', SCRIPT, ...args], { cwd: ROOT });
+  if (r.error) throw r.error;
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr.toString('utf8') };
+}
+const NON_ASCII_OR_CONTROL = /[^\n\x20-\x7e]/;
 
 const check = (r: Report, id: string): Check => {
   const found = r.checks.find((c) => c.id === id);
@@ -97,6 +105,24 @@ const smallCard = (hidden: number): Scenario => ({
   config: AB,
   now: '2026-12-02T12:00:00+01:00',
   days: [row('2026-12-01', quiet(60, 55, 50, hidden), quiet(62, 58, 52, 9)), row('2026-12-02', quiet(3, 2, 2, 0), quiet(4, 3, 3, 1))],
+});
+
+/** Group A's engaged views at the one evaluated look are `hidden` (1 to 4). */
+const smallEngaged = (hidden: number): Scenario => ({
+  config: AB,
+  now: '2026-12-02T12:00:00+01:00',
+  days: [row('2026-12-01', quiet(60, 55, hidden, 8), quiet(62, 58, 52, 9)), row('2026-12-02', quiet(3, 2, 2, 0), quiet(4, 3, 3, 1))],
+});
+
+/** Group A's card count is hidden at two evaluated looks: `first` then the running total `second`. */
+const twoSmallCards = ([first, second]: [number, number]): Scenario => ({
+  config: AB,
+  now: '2026-12-03T12:00:00+01:00',
+  days: [
+    row('2026-12-01', quiet(60, 55, 50, first), quiet(62, 58, 52, 9)),
+    row('2026-12-02', quiet(10, 8, 8, second - first), quiet(10, 9, 9, 2)),
+    row('2026-12-03', quiet(1, 1, 1, 0), quiet(1, 1, 1, 0)),
+  ],
 });
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -278,6 +304,33 @@ describe('the verifier on published data', () => {
     expect(r.status).toBe(1);
   });
 
+  it('checks which split failed at the flagged look', () => {
+    expect(check(report([fixturePath('held-fault')]).report, 'flagged-base').result).toBe('pass');
+    const d = fixture('held-fault');
+    d.srm.flaggedBase = 'entry';
+    const r = report([writeTmp(d)]);
+    expect(check(r.report, 'flagged-base').result).toBe('fail');
+    expect(r.status).toBe(1);
+    expect(check(report([fixturePath('open')]).report, 'flagged-base').result).toBe('not-applicable');
+  });
+
+  it('checks when the final CV and contact counts must be present', () => {
+    expect(check(report([fixturePath('ship-b')]).report, 'final-descriptive').result).toBe('pass');
+    expect(check(report([fixturePath('open')]).report, 'final-descriptive').result).toBe('pass');
+    const missing = fixture('ship-b');
+    missing.finalDescriptive = null;
+    expect(check(report([writeTmp(missing)]).report, 'final-descriptive').result).toBe('fail');
+    const early = fixture('open');
+    early.finalDescriptive = { day: early.looks[2]!.day, a: { cv: 0, contact: 0 }, b: { cv: 0, contact: 0 } };
+    expect(check(report([writeTmp(early)]).report, 'final-descriptive').result).toBe('fail');
+  });
+
+  it('fails an A/A published as calibrating with nothing counted', () => {
+    const d = fixture('placeholder');
+    d.status = 'calibration';
+    expect(check(report([writeTmp(d)]).report, 'calibration-rule').result).toBe('fail');
+  });
+
   it('agrees within 1e-8 and fails beyond it', () => {
     const near = fixture('open');
     near.primary!.lower += 1e-10;
@@ -360,7 +413,11 @@ describe('suppressed cells', () => {
     expect(check(r, 'split-check-entry').reason).toMatch(/every allowed value/);
     // On analysed views (1 to 4 against 20) the flag depends on the hidden value.
     expect(check(r, 'split-check-analysed').result).toBe('indeterminate');
-    expect(check(r, 'decision').result).not.toBe('fail');
+    // Its entry and analysed views are both "<5", so their order cannot be confirmed: the walk
+    // cannot rule out a data fault there.
+    expect(check(r, 'looks-consistent').result).toBe('indeterminate');
+    expect(check(r, 'decision').result).toBe('indeterminate');
+    expect(check(r, 'decision').reason).toMatch(/order/);
   });
 
   it('fails when no allowed completion reproduces the published value', () => {
@@ -374,6 +431,27 @@ describe('suppressed cells', () => {
   it('gives the same report whatever count lies behind "<5", so it discloses none', () => {
     const outputs = [1, 2, 3, 4].map((hidden) => {
       const file = writeTmp(publish(smallCard(hidden)));
+      return [run([file]).stdout, report([file]).stdout];
+    });
+    for (const o of outputs) expect(o).toEqual(outputs[0]);
+  });
+
+  it('gives the same report whatever engaged count lies behind "<5"', () => {
+    const outputs = [1, 2, 3, 4].map((hidden) => {
+      const file = writeTmp(publish(smallEngaged(hidden)));
+      return [run([file]).stdout, report([file]).stdout];
+    });
+    expect(fixture('open').looks[0]!.a.engaged).not.toBe('<5');
+    expect(publish(smallEngaged(2)).looks[0]!.a.engaged).toBe('<5');
+    for (const o of outputs) expect(o).toEqual(outputs[0]);
+  });
+
+  it('gives the same report whatever running totals lie behind "<5" cells at several looks', () => {
+    const pairs: [number, number][] = [[1, 1], [1, 4], [2, 3], [4, 4]];
+    const outputs = pairs.map((pair) => {
+      const d = publish(twoSmallCards(pair));
+      expect(d.looks.slice(0, 2).map((l) => l.a.card)).toEqual(['<5', '<5']);
+      const file = writeTmp(d);
       return [run([file]).stdout, report([file]).stdout];
     });
     for (const o of outputs) expect(o).toEqual(outputs[0]);
@@ -446,6 +524,91 @@ describe('invalid payloads', () => {
 
   it('exits 2 when the file cannot be read', () => {
     expect(run([join(tmp, 'missing.json')]).status).toBe(2);
+  });
+
+  /** Exit 2 with no traceback, in both modes, and only printable ASCII on stdout. */
+  const cleanlyInvalid = (file: string, message: RegExp) => {
+    for (const mode of [[], ['--json']]) {
+      const r = runBytes([file, ...mode]);
+      expect(r.status, r.stderr).toBe(2);
+      expect(r.stderr).not.toMatch(/Traceback/);
+      expect(r.stdout.toString('latin1')).not.toMatch(NON_ASCII_OR_CONTROL);
+      expect(r.stdout.toString('utf8')).toMatch(message);
+    }
+    const { report: rep } = report([file]);
+    expect(rep.result).toBe('invalid');
+  };
+
+  it('rejects a file that is not UTF-8 text, such as Latin-1 or unexpanded gzip', () => {
+    cleanlyInvalid(writeTmp(null, Buffer.from('{"schema": "caf\xe9"}', 'latin1')), /not UTF-8/);
+    cleanlyInvalid(writeTmp(null, Buffer.from([0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03])), /not UTF-8/);
+  });
+
+  it('rejects JSON nested too deeply to read', () => {
+    cleanlyInvalid(writeTmp(null, `${'['.repeat(200_000)}${']'.repeat(200_000)}`), /nested too deeply/);
+  });
+
+  it('rejects an integer too long to read, and one too large for a float', () => {
+    cleanlyInvalid(writeTmp(null, `{"schema": ${'9'.repeat(5000)}}`), /too long/);
+    const text = readFileSync(fixturePath('open'), 'utf8');
+    cleanlyInvalid(writeTmp(null, text.replace(/"alpha": [0-9.e-]+/, `"alpha": 1${'0'.repeat(400)}`)), /config\.alpha/);
+  });
+
+  it('prints a key holding a lone surrogate escaped, in both modes', () => {
+    const text = readFileSync(fixturePath('open'), 'utf8').replace('"entry": 120,', '"entry": 120, "\\ud800": 1,');
+    expect(text).toContain('"\\ud800": 1');
+    cleanlyInvalid(writeTmp(null, text), /is not a published count/);
+  });
+
+  it('rejects a minimum per group below 5, which a "<5" cell could not be compared with', () => {
+    const d = fixture('open');
+    d.config.minPerGroup = 1;
+    d.looks[0]!.a.inview = '<5';
+    d.looks[0]!.a.card = '<5';
+    cleanlyInvalid(writeTmp(d), /minPerGroup/);
+  });
+
+  it('rejects a reference case too large to compute', () => {
+    const text = readFileSync(REFERENCE, 'utf8').replace(/"nA": 500,/, `"nA": 1${'0'.repeat(400)},`);
+    expect(text).toContain('"nA": 10000');
+    const file = writeTmp(null, text);
+    for (const mode of [[], ['--json']]) {
+      const r = runBytes(['--reference', file, ...mode]);
+      expect(r.status, r.stderr).toBe(2);
+      expect(r.stderr).not.toMatch(/Traceback/);
+    }
+  });
+
+  it('maps any unexpected error to exit 2 with a one-line message, never exit 1', () => {
+    for (const mode of [[], ['--json']]) {
+      const code = [
+        'import sys',
+        `sys.path.insert(0, ${JSON.stringify(join(ROOT, 'scripts'))})`,
+        'import verify_experiment as v',
+        'def boom(d):',
+        '    raise TypeError("boom")',
+        'v.verify_data = boom',
+        `sys.exit(v.main(${JSON.stringify([fixturePath('open'), ...mode])}))`,
+      ].join('\n');
+      const r = spawnSync('python3', ['-I', '-c', code], { encoding: 'utf8', cwd: ROOT });
+      expect(r.status, r.stderr).toBe(2);
+      expect(r.stderr).not.toMatch(/Traceback/);
+      expect(`${r.stdout}${r.stderr}`).toMatch(/internal error \(TypeError\)/);
+    }
+  });
+});
+
+describe('text from the payload', () => {
+  it('escapes control characters before printing them', () => {
+    const d = fixture('open');
+    d.prereg.tag = '\u001b[31mRED\u001b[0m';
+    for (const mode of [[], ['--json']]) {
+      const r = runBytes([writeTmp(d), ...mode]);
+      expect(r.status).toBe(0);
+      expect(r.stdout.includes(0x1b)).toBe(false);
+      expect(r.stdout.toString('latin1')).not.toMatch(NON_ASCII_OR_CONTROL);
+    }
+    expect(runBytes([writeTmp(d)]).stdout.toString('utf8')).toContain('\\x1b[31mRED');
   });
 });
 
