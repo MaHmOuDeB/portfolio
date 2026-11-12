@@ -92,11 +92,11 @@ describe('the copy, word for word', () => {
   it.each([
     [
       'problem',
-      'The problem The data is one wide file from Kaggle, the Global Weather Repository. A few of its readings cannot be true: one reports wind at 2,963 km/h. Kept, it distorts any summary of wind; deleted quietly, it leaves no trace. I wanted a warehouse that is written only when the data passes its checks, and a place where doubtful readings stay visible.',
+      'The problem The data is one wide file from Kaggle, the Global Weather Repository. A few of its readings cannot be true: one reports wind at 2,963 km/h. Kept, it distorts any summary of wind; deleted quietly, it leaves no trace. I wanted a warehouse that is written only when the data passes its error-level checks, and a place where doubtful readings stay visible.',
     ],
     [
       'outcome',
-      'Outcome On the full dataset, 8,725 observations of 236 places in 191 countries, over six weeks, load into the star schema, and all 14 error-level checks pass. The quarantine holds 5 readings, with wind between 172 km/h and 2,963 km/h. A warning flags 43 places observed fewer than 20 times, which limits any comparison between places.',
+      'Outcome On the full dataset, 8,725 observations of 236 places in 191 countries, over six weeks, go through the pipeline, and all 14 error-level checks pass. The quarantine holds 5 of them, with wind between 172 km/h and 2,963 km/h; every other reading loads into the star schema. A warning flags 43 places observed fewer than 20 times, which limits any comparison between places.',
     ],
     [
       'limits',

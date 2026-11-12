@@ -1,9 +1,10 @@
 // The Weather build note's sourced prose: a public dataset of weather observations rebuilt in 2026
 // as a tested SQL pipeline. It tells the pipeline, the star schema, the checks by level and the
-// quarantine policy. Every number is a <Fact> from the vendored weather export, or a <Derived> that
-// names it; the stages were checked against the pipeline's code at the pinned commit (sql/01 to 03,
-// src/pipeline.py, tests/test_pipeline.py and the CI workflow). The page shows counts and rules,
-// never a row of the data: the dataset's Kaggle page gives no licence.
+// quarantine policy. Every number is a <Fact> from the vendored weather export (the commit pinned in
+// sources.lock.json), or a <Derived> that names it; the stages were checked against the pipeline's
+// code at that export's commit (sql/01 to 03, src/pipeline.py, tests/test_pipeline.py and the CI
+// workflow). The page shows counts and rules, never a row of the data: the dataset's Kaggle page
+// gives no licence.
 import type { ReactNode } from 'react';
 import { derivedAttr, Derived } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
@@ -51,8 +52,8 @@ export const WEATHER_PROBLEM: readonly [key: string, body: ReactNode][] = [
   [
     'goal',
     <>
-      I wanted a warehouse that is written only when the data passes its checks, and a place where doubtful readings
-      stay visible.
+      I wanted a warehouse that is written only when the data passes its error-level checks, and a place where
+      doubtful readings stay visible.
     </>,
   ],
 ];
@@ -158,15 +159,16 @@ export const WEATHER_OUTCOME: readonly [key: string, body: ReactNode][] = [
     'loaded',
     <>
       On the full dataset, <Fact id="weather.data.observations" /> observations of <Fact id="weather.data.locations" />{' '}
-      places in <Fact id="weather.data.countries" /> countries, over six weeks, load into the star schema, and all{' '}
+      places in <Fact id="weather.data.countries" /> countries, over six weeks, go through the pipeline, and all{' '}
       <Fact id="weather.checks.error_count" /> error-level checks pass.
     </>,
   ],
   [
     'held',
     <>
-      The quarantine holds <Fact id="weather.quarantine.rows" /> readings, with wind between{' '}
-      <Fact id="weather.quarantine.min_wind_kmh" /> and <Fact id="weather.quarantine.max_wind_kmh" />. A warning flags{' '}
+      The quarantine holds <Fact id="weather.quarantine.rows" /> of them, with wind between{' '}
+      <Fact id="weather.quarantine.min_wind_kmh" /> and <Fact id="weather.quarantine.max_wind_kmh" />; every other
+      reading loads into the star schema. A warning flags{' '}
       <Fact id="weather.checks.sparse_locations" /> places observed fewer than{' '}
       <Derived value={sparsePlaceThreshold()} unit="count" refs={['source:weather']} /> times, which limits any
       comparison between places.
@@ -197,7 +199,7 @@ export const WEATHER_LIMITS: readonly [key: string, body: ReactNode][] = [
   ],
 ];
 
-/** The pipeline's public repository, at the commit this page was checked against. */
+/** The pipeline's public repository, at a fixed commit of its default branch. */
 export const WEATHER_REPO = {
   base: 'https://github.com/MaHmOuDeB/weather-sql-pipeline',
   commit: 'ca40977d159ca4d662a93e6768a0b2d01babd6b5',
