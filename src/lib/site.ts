@@ -33,6 +33,7 @@ export const LIVE_ROUTES: readonly string[] = [
   '/',
   '/about',
   '/cv',
+  '/demo',
   '/exclude',
   '/experiment',
   '/lab',
