@@ -5,9 +5,11 @@ experiment: the secrets, the firewall rule, the domains, leaving my own browsers
 the launch check, and what to do if the A/A calibration fails. Nothing here contains a secret
 value, and no value should ever be pasted into a chat, an issue, a commit or a log.
 
-Where a step says "Terminal", it means the Terminal app on my Mac, in the `portfolio` folder
-(`cd ~/code/portfolio`). Where it says "Vercel", it means the dashboard at
-<https://vercel.com/dashboard>, team `mahmoud-s-team`, project `portfolio`.
+Two placeholders stand for values of my own setup: `<repo checkout>` is the folder that holds my
+clone of this repository, and `<team>` is the slug of the Vercel team that owns the project.
+Where a step says "Terminal", it means a terminal in `<repo checkout>` (`cd <repo checkout>`).
+Where it says "Vercel", it means the dashboard at <https://vercel.com/dashboard>, team `<team>`,
+project `portfolio`.
 
 ## 1. Create the secrets (once, before launch)
 
@@ -33,7 +35,7 @@ gh auth login
 In Terminal:
 
 ```sh
-openssl rand -hex 32 | npx vercel env add RATELIMIT_HMAC_KEY production --scope mahmoud-s-team
+openssl rand -hex 32 | npx vercel env add RATELIMIT_HMAC_KEY production --scope <team>
 ```
 
 ### `INTERNAL_TRAFFIC_SECRET` (the same value in Vercel and GitHub)
@@ -45,7 +47,7 @@ and the file is then deleted:
 umask 077
 its=$(mktemp)
 openssl rand -hex 32 > "$its"
-npx vercel env add INTERNAL_TRAFFIC_SECRET production --scope mahmoud-s-team < "$its"
+npx vercel env add INTERNAL_TRAFFIC_SECRET production --scope <team> < "$its"
 gh secret set INTERNAL_TRAFFIC_SECRET --repo MaHmOuDeB/portfolio < "$its"
 rm "$its"
 ```
@@ -58,7 +60,7 @@ rm "$its"
 umask 077
 ex=$(mktemp)
 openssl rand -hex 32 > "$ex"
-npx vercel env add EXCLUDE_TOKEN production --scope mahmoud-s-team < "$ex"
+npx vercel env add EXCLUDE_TOKEN production --scope <team> < "$ex"
 open -e "$ex"
 ```
 
@@ -85,7 +87,7 @@ rm "$ex"
 ### Check the names (never the values)
 
 ```sh
-npx --no-install vercel env ls production --project portfolio --scope mahmoud-s-team
+npx --no-install vercel env ls production --project portfolio --scope <team>
 gh secret list --repo MaHmOuDeB/portfolio
 ```
 
@@ -203,7 +205,7 @@ reason; then ask Claude to write what you saw into the privacy page.
 Optional read-only check of the production store (it prints only two status lines):
 
 ```sh
-npx vercel env pull .env.production.local --environment=production --scope mahmoud-s-team && node --env-file=.env.production.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/experiment-check.ts --storage; rm .env.production.local
+npx vercel env pull .env.production.local --environment=production --scope <team> && node --env-file=.env.production.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/experiment-check.ts --storage; rm .env.production.local
 ```
 
 Expected before launch: `redis: ok (0 fields in exp:aa-v1)` and
