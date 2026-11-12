@@ -26,11 +26,8 @@ function When({ iso, refs }: { iso: string; refs: readonly DerivedRef[] }) {
 /** A Berlin calendar day ("2026-12-02"), printed as its date. */
 const Day = ({ day, refs }: { day: string; refs: readonly DerivedRef[] }) => <When iso={berlinStartOfDay(day)} refs={refs} />;
 
-/**
- * The refs of a value read outside the snapshot's counts: the stored stop day (read from the store,
- * though its snapshot is a placeholder) and the configured A/B start. Fictional pages stay simulated.
- */
-const ownRefs = (d: LivePageDisplay, ref: 'live' | 'build'): readonly DerivedRef[] => (d.refs.includes('simulated') ? ['simulated'] : [ref]);
+/** The configured A/B start is a build value; fictional pages stay simulated. */
+const startRefs = (d: LivePageDisplay): readonly DerivedRef[] => (d.refs.includes('simulated') ? ['simulated'] : ['build']);
 
 const BASE_WORDS = { entry: 'entry views', analysed: 'analysed views', both: 'entry and analysed views' } as const;
 /** A stored reason, without its own closing full stop (the sentence adds one). */
@@ -67,17 +64,9 @@ function stateSentence(d: LivePageDisplay): ReactNode {
     case 'not-started':
       return 'The experiment has not started. Nothing is counted yet.';
     case 'closure-check':
-      return (
-        <>
-          Counting has stopped for this run. I am checking the stored result before showing it.
-          {d.closedOn !== null ? (
-            <>
-              {' Counting stopped on '}
-              <Day day={d.closedOn} refs={ownRefs(d, 'live')} />.
-            </>
-          ) : null}
-        </>
-      );
+      // No day: the stored day is the deciding look's, and the route stops counting only once the stop
+      // is stored, up to a day later. The Home note prints no day either.
+      return 'Counting has stopped for this run. I am checking the stored result before showing it.';
     case 'unavailable':
       return d.closedConfirmed
         ? 'The live counts could not be loaded, and counting has closed.'
@@ -144,7 +133,7 @@ function stateSentence(d: LivePageDisplay): ReactNode {
       if (d.mode === 'ab') {
         return d.abStartedOn !== null ? (
           <>
-            A/B started <When iso={d.abStartedOn} refs={ownRefs(d, 'build')} />.
+            A/B started <When iso={d.abStartedOn} refs={startRefs(d)} />.
           </>
         ) : (
           'The A/B test is running.'

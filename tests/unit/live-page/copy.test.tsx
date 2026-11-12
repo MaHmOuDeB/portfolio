@@ -140,6 +140,27 @@ describe('StateExplanation: the exact copy of each state', () => {
     expect(h).not.toContain('data-derived="live">300');
   });
 
+  it.each([
+    // Entry views even (260 a group), analysed views 200 to 60: only the analysed split fails.
+    ['analysed', { entry: 200, inview: 150, engaged: 150, card: 300 }, { entry: 200, inview: 10, engaged: 10, card: 1 }, 'analysed views'],
+    // Entry 360 to 80 and analysed 250 to 60: both splits fail.
+    ['both', { entry: 300, inview: 200, engaged: 200, card: 300 }, { entry: 20, inview: 10, engaged: 10, card: 1 }, 'entry and analysed views'],
+  ] as const)('held with a failed split on %s views: names that base, prints no count (the real reader)', async (base, a, b, words) => {
+    const redis = createMemoryRedis();
+    // A clean first day, then more card clicks than analysed views in group A: held on 02.12.
+    await seed(redis, FIXTURE_AB.namespace, [INCONSISTENT[0]!, { day: '2026-12-02', a, b }]);
+    const s = await read(redis, { config: FIXTURE_AB, now: AB_NOW });
+    const d = displayOf(s);
+    expect(d).toMatchObject({ mode: 'held', split: { base, day: '2026-12-02' } });
+    const h = html(s);
+    expect(sentence(h)).toBe(
+      `The test stopped because the counts failed a consistency check. Results use only the data up to the last check that passed. The check failed on 02.12. The split check also failed on 02.12, on ${words}.`,
+    );
+    // No count from the fault on: the only marked values are the two dates.
+    expect(h).not.toMatch(/<data|data-num/);
+    expect(everything(h)).not.toMatch(/views at that check|in group A/);
+  });
+
   it('a failed split names its base and day, with the published cells', async () => {
     const at = async (a: G, b: G) => {
       const redis = createMemoryRedis();
@@ -152,6 +173,11 @@ describe('StateExplanation: the exact copy of each state', () => {
     const small = await at({ entry: 60, inview: 3, engaged: 3 }, { entry: 4, inview: 2, engaged: 2 });
     expect(sentence(small)).toBe(
       'The split check failed, so no result is shown. It failed on 01.12, on entry views. Entry views at that check: 60 in group A and <5 in group B.',
+    );
+    // Entry 40 to 3 and analysed 30 to 2: both splits fail, and each base gets its own count sentence.
+    const both = await at({ entry: 40, inview: 30, engaged: 30 }, { entry: 3, inview: 2, engaged: 2 });
+    expect(sentence(both)).toBe(
+      'The split check failed, so no result is shown. It failed on 01.12, on entry and analysed views. Entry views at that check: 40 in group A and <5 in group B. Analysed views at that check: 30 in group A and <5 in group B.',
     );
   });
 
@@ -244,7 +270,7 @@ describe('StateExplanation: the exact copy of each state', () => {
 });
 
 describe('StateExplanation: the stored-stop check (closure mismatch)', () => {
-  const CHECKING = 'Counting has stopped for this run. I am checking the stored result before showing it. Counting stopped on 02.12.';
+  const CHECKING = 'Counting has stopped for this run. I am checking the stored result before showing it.';
   const NO_PROMISE = /next update|resum|will appear|paused/i;
 
   async function abWithMarker(o: { kind: 'decision' | 'held' | 'aa-failed'; rows: boolean; flags?: ExperimentFlags; now?: string }) {
@@ -261,7 +287,7 @@ describe('StateExplanation: the stored-stop check (closure mismatch)', () => {
     ['a stored decision and no counts', { kind: 'decision', rows: false }],
     ['a stored hold and no counts', { kind: 'held', rows: false }],
     ['a stored calibration failure in the A/B', { kind: 'aa-failed', rows: false }],
-  ] as const)('%s: the check sentence with the stored day, no promise, no moving date', async (_name, o) => {
+  ] as const)('%s: the check sentence, no date, no promise', async (_name, o) => {
     const first = await abWithMarker(o);
     const later = await abWithMarker({ ...o, now: '2026-12-05T12:00:00+01:00' });
     for (const s of [first, later]) {
@@ -271,7 +297,9 @@ describe('StateExplanation: the stored-stop check (closure mismatch)', () => {
       expect(sentence(h)).toBe(CHECKING);
       expect(next(h)).toBeNull();
       expect(everything(h)).not.toMatch(NO_PROMISE);
-      expect(times(h)).toEqual([{ dateTime: '2026-12-02T00:00:00+01:00', refs: 'live', text: '02.12' }]);
+      // The stored day is not printed: the route stops counting only when the stop is stored, up to a day later.
+      expect(times(h)).toEqual([]);
+      expect(text(parse(h))).not.toMatch(/\d/);
     }
     expect(html(first)).toBe(html(later));
   });

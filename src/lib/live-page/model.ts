@@ -72,7 +72,7 @@ export type LivePageDisplay = {
   readAt: string;
   countingClosed: boolean;
   closedConfirmed: boolean;
-  /** The stored stop day of a stored-stop check (mode closure-check); null otherwise. */
+  /** The stored stop day of a stored-stop check (mode closure-check); null otherwise. Data only: the page does not print it. */
   closedOn: string | null;
   calibration: HomeModel['calibration'];
   splitStatus: HomeModel['splitStatus'];

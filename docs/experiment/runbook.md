@@ -252,7 +252,10 @@ A failed calibration stops counting and shows why on the site. To restart after 
 
 1. In `src/experiment.values.ts`, set `namespace` to `'aa-v1.1'`, the pre-registration version to
    `'v1.1'` and its tag to `'prereg-v1.1'`, and set `calibration.startedOn` to the new start (a
-   date and time with its offset, for example `2026-12-07T00:00:00+01:00`).
+   date and time with its offset, for example `2026-12-07T00:00:00+01:00`). The new start is the
+   day this commit is deployed, never a later day, and the same holds for `ab.startedOn` in the
+   switch to the A/B: before its start date the site says the experiment has not started, which is
+   false once a run has begun.
 2. Run `npm run prereg:hash`, write the new hash at the end of `docs/experiment/prereg.md`, and add
    a short note there on what failed and what changed.
 3. Commit, merge, tag `prereg-v1.1` on the merge commit (as in step 7) and let it deploy.
