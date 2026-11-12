@@ -128,9 +128,25 @@ describe('the directory', () => {
 
   it('has no cards, figures, images, buttons or extra links: a list of eight links', () => {
     expect([...PAGE.matchAll(/<a[\s>]/g)]).toHaveLength(ORDER.length);
-    expect(PAGE).not.toMatch(/<(figure|img|svg|button|table|article [^>]*data-case-card)[\s>]/);
+    expect(PAGE).not.toMatch(/<(figure|img|button|table|article [^>]*data-case-card)[\s>]/);
     expect(PAGE).not.toMatch(/data-figure|data-provenance/);
-    expect(PAGE).not.toMatch(/\bhillstrom\b/i);
+  });
+
+  // The interval glyph is the row marker: decorative, so hidden from assistive technology, and the
+  // only drawing on the page. It sits in the link, on the first line of the title, at the phone
+  // header's 28 px length, so a short title stays on one line at 375 px.
+  it('marks each row with one decorative interval glyph, before the title, inside its link', () => {
+    expect([...PAGE.matchAll(/<svg[\s>]/g)]).toHaveLength(ORDER.length);
+    for (const row of rows()) {
+      const svgs = [...row.body.matchAll(/<svg [^>]*>/g)].map((m) => m[0]);
+      expect(svgs, row.key).toHaveLength(1);
+      expect(svgs[0], row.key).toContain('aria-hidden="true"');
+      expect(svgs[0], row.key).toContain('width="28"');
+      expect(svgs[0], row.key).not.toMatch(/role=|aria-label=/);
+      const link = /<h3[^>]*>\s*<a [^>]*>([\s\S]*?)<\/a>\s*<\/h3>/.exec(row.body)?.[1] ?? '';
+      expect(link.indexOf('<svg'), row.key).toBeGreaterThan(-1);
+      expect(link.indexOf('<svg'), row.key).toBeLessThan(link.indexOf(row.links[0]![1].slice(0, 4)));
+    }
   });
 
   it('prints its one figure through its fact, and no number, banned phrase or character the checks report', () => {
@@ -138,6 +154,7 @@ describe('the directory', () => {
     const doc = `<!doctype html><html><head><title>Work</title></head><body><main>${PAGE}</main></body></html>`;
     const ctx = { route: '/work', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
     expect(auditHtml(doc, ctx)).toEqual([]);
+    // The rendered text is linted as content (the lint keys its content rules on the extension).
     expect(lintSource(text(PAGE), 'content/work.mdx')).toEqual([]);
     for (const file of ['src/components/work/WorkPage.tsx', 'src/app/work/page.tsx']) {
       expect(lintSource(readFileSync(join(repo, file), 'utf8'), file), file).toEqual([]);

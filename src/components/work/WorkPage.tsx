@@ -1,21 +1,35 @@
 // The Work directory: every case study and build note, in the two groups of content/work.tsx and in
 // its order (the live test, Audible, Retention and Pulse, then the tools, n8n last). It copies the
 // golden page's frame (one h1 with a one-line intro, then one <section id> per part, each named by
-// its own h2) and the Home page's "Tools I've built" rows: a ruled list, the title as the item's one
-// link (an h3) and the sourced line beside it from 768 px up. No cards, figures or outcome numbers:
-// each line is the page's own description, and its one figure is a Fact. Server-safe, no hooks.
+// its own h2) and a ruled list under an ink rule: each row is the interval glyph as its marker, the
+// title as the row's one link (an h3) and the sourced line beside it from 768 px up. No dates, cards,
+// figures or outcome numbers: each line is the page's own description, and its one figure is a
+// Fact. Server-safe, no hooks.
 import type { ReactNode } from 'react';
+import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
 import { WORK_GROUPS } from '../../../content/work.tsx';
 
 export const WORK_TITLE = 'Work';
 
+/** The anchor id of each group, by its label, so a reordered group keeps its own anchor. */
+const SECTION_IDS: Readonly<Record<string, string>> = {
+  'Experimentation & analytics': 'experimentation',
+  "Tools I've built": 'tools',
+};
+
 /** The groups in page order: the section's anchor id and its heading (the group label). */
-export const WORK_SECTIONS = WORK_GROUPS.map((group, i) => {
-  const id = (['experimentation', 'tools'] as const)[i];
+export const WORK_SECTIONS = WORK_GROUPS.map((group) => {
+  const id = SECTION_IDS[group.label];
   if (!id) throw new Error(`work: no section id for group "${group.label}"`);
   return { id, label: group.label, items: group.items };
 });
+
+/**
+ * The row marker's width: the phone header's 28 px glyph (same bar, caps, dot and halo), so a short
+ * title keeps one line beside it at 375 px. Decorative beside a title, so aria-hidden.
+ */
+const MARKER_LENGTH = 28;
 
 const TEXT = 'max-w-text';
 
@@ -50,7 +64,13 @@ export function WorkPage(): ReactNode {
               >
                 <h3 className="text-lg font-semibold md:col-span-5">
                   <TextLink href={item.href} standalone>
-                    {item.title}
+                    {/* One flex item, so the marker flows on the title's first line when it wraps. */}
+                    <span>
+                      <span data-work-glyph="" className="mr-3 inline-flex align-middle">
+                        <IntervalGlyph length={MARKER_LENGTH} />
+                      </span>
+                      <span data-work-title="">{item.title}</span>
+                    </span>
                   </TextLink>
                 </h3>
                 <p className={`${TEXT} text-base text-muted md:col-span-7 md:pt-2`}>{item.description}</p>

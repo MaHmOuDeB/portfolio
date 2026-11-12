@@ -86,6 +86,42 @@ test.describe('the Work page', () => {
     }
   });
 
+  test('each row has one hidden glyph marker, on the first line of its title, at 375 px and on desktop', async ({ page }) => {
+    for (const width of [375, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(ROUTE);
+      const rows = await page.locator('main [data-work-item]').evaluateAll((lis) =>
+        lis.map((li) => {
+          const svgs = [...li.querySelectorAll('svg')];
+          const glyph = svgs[0]!.getBoundingClientRect();
+          const title = li.querySelector('[data-work-title]')!;
+          const range = document.createRange();
+          range.selectNodeContents(title);
+          const first = range.getClientRects()[0]!;
+          const mid = glyph.top + glyph.height / 2;
+          return {
+            count: svgs.length,
+            hidden: svgs[0]!.getAttribute('aria-hidden'),
+            onFirstLine: mid >= first.top && mid <= first.bottom,
+            before: glyph.right <= first.left,
+          };
+        }),
+      );
+      expect(rows, `${width}px`).toHaveLength(LINKS.length);
+      for (const row of rows) expect(row, `${width}px`).toEqual({ count: 1, hidden: 'true', onFirstLine: true, before: true });
+    }
+    // At 375 px a short title stays on one line beside its marker.
+    await page.setViewportSize({ width: 375, height: 900 });
+    await page.goto(ROUTE);
+    const live = page.locator('main [data-work-item="/experiment"] [data-work-title]');
+    const lines = await live.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+    });
+    expect(lines).toBe(1);
+  });
+
   test('no axe violations', async ({ page }) => {
     await page.goto(ROUTE);
     await expectNoA11yViolations(page);
