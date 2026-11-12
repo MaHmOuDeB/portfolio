@@ -276,6 +276,10 @@ test.describe('kitchen sink controls', () => {
       .evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value));
     expect(checked).toEqual(['none', 'obf', 'cs']);
     await expect(page.locator('[data-specimen="controls--segmented-disabled"] fieldset')).toHaveAttribute('disabled');
+    // the line that says why describes the disabled group
+    await expect(page.locator('[data-specimen="controls--segmented-disabled"] fieldset')).toHaveAccessibleDescription(
+      'One look at the end needs no fix.',
+    );
     for (const radio of await page.locator('[data-specimen="controls--segmented-disabled"] input').all()) {
       await expect(radio).toBeDisabled();
     }
@@ -471,17 +475,19 @@ test.describe('kitchen sink slider steps', () => {
     await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
   });
 
-  test('an arrow step whose key-up was lost is forgotten when focus leaves, so a later key-up commits the value', async ({ page }) => {
+  test('an arrow step whose key-up was lost is committed when focus leaves, and a later key-up commits the value shown', async ({ page }) => {
     await open(page);
     await exact(page).focus();
     // Hold ArrowUp in the number input: it steps to 20.7 and waits for the key-up to commit.
     await page.keyboard.down('ArrowUp');
     await expect(readout(page)).toHaveText('20.7% of the baseline');
-    // Focus leaves by pointer while the key is held, so the key-up lands elsewhere.
+    await expect(released(page)).toHaveText('Not released yet.');
+    // Focus leaves by pointer while the key is held, so the key-up lands elsewhere: the blur commits
+    // the step the visitor already sees.
     await page.locator('h1').click();
     await page.keyboard.up('ArrowUp');
     await expect(exact(page)).not.toBeFocused();
-    await expect(released(page)).toHaveText('Not released yet.');
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
     // The range input moves the value on and commits it.
     await range(page).focus();
     await page.keyboard.press('ArrowLeft');
@@ -498,6 +504,55 @@ test.describe('kitchen sink slider steps', () => {
     });
     await expect(released(page)).toHaveText('Released at 13.8% of the baseline');
     await expect(readout(page)).toHaveText('13.8% of the baseline');
+  });
+
+  test('an entry typed after a step whose key-up was lost replaces it: a later blur commits nothing old', async ({ page }) => {
+    await open(page);
+    await exact(page).focus();
+    // ArrowUp steps to 20.7 and its key-up never comes (a system shortcut can swallow one).
+    await page.keyboard.down('ArrowUp');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    // The visitor types another value and commits it with Enter.
+    await exact(page).fill('24');
+    await page.keyboard.press('Enter');
+    await expect(readout(page)).toHaveText('24.1% of the baseline');
+    await expect(released(page)).toHaveText('Released at 24.1% of the baseline');
+    // Focus leaves: the step from before the entry must not be committed over it.
+    await page.locator('h1').click();
+    await expect(exact(page)).not.toBeFocused();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await expect(released(page)).toHaveText('Released at 24.1% of the baseline');
+    await expect(readout(page)).toHaveText('24.1% of the baseline');
+    await page.keyboard.up('ArrowUp');
+  });
+
+  test('a range step whose key-up was lost is committed when focus leaves', async ({ page }) => {
+    await open(page);
+    await range(page).focus();
+    // Hold ArrowRight on the range input: the browser steps it to 20.7, the key-up would commit.
+    await page.keyboard.down('ArrowRight');
+    await expect(readout(page)).toHaveText('20.7% of the baseline');
+    await expect(released(page)).toHaveText('Not released yet.');
+    await page.locator('h1').click();
+    await page.keyboard.up('ArrowRight');
+    await expect(range(page)).not.toBeFocused();
+    await expect(released(page)).toHaveText('Released at 20.7% of the baseline');
+    // A press and release on the range input still commits once its key is up.
+    await range(page).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(released(page)).toHaveText('Released at 17.2% of the baseline');
+  });
+
+  test('focus that leaves either input with no step held and nothing typed commits nothing', async ({ page }) => {
+    await open(page);
+    for (const input of [range(page), exact(page)]) {
+      await input.focus();
+      await page.locator('h1').click();
+      await expect(input).not.toBeFocused();
+    }
+    // Let any commit the blurs caused render before the check.
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await expect(released(page)).toHaveText('Not released yet.');
   });
 
   test('a grid value typed with every digit a browser prints updates live, before blur', async ({ page }) => {

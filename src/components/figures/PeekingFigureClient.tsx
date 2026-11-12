@@ -8,7 +8,8 @@
 //   the model (tests/unit/lab/peeking-bundle.test.ts).
 // - PeekingControls is the control row, in a group named by the Figure's title, shared by the island
 //   and the preview: Looks, Schedule, Fix and Reset. Looking once disables Fix and says why; the
-//   line holding the reason keeps its room while it is hidden, so the row never moves.
+//   line holding the reason keeps its room while it is hidden, so the row never moves, and while
+//   Fix is disabled the reason describes the Fix group.
 //   InertPeekingControls is the preview's copy, with handlers that do nothing.
 //
 // `faultAfterChange` is a test seam: the island's chart throws on the first render after a committed
@@ -52,6 +53,7 @@ export type PeekingControlsProps = {
 
 export function PeekingControls({ id, values, onLooks, onLooksCommit, onMode, onFix, onReset }: PeekingControlsProps) {
   const once = values.mode === 'once';
+  const reasonId = `${id}-fix-reason`;
   return (
     <div
       role="group"
@@ -75,9 +77,9 @@ export function PeekingControls({ id, values, onLooks, onLooksCommit, onMode, on
         />
       </div>
       <Segmented name={`${id}-mode`} legend="Schedule" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
-      <Segmented name={`${id}-fix`} legend="Fix" options={FIX_OPTIONS} value={values.fix} onChange={onFix} disabled={once} />
+      <Segmented name={`${id}-fix`} legend="Fix" options={FIX_OPTIONS} value={values.fix} onChange={onFix} disabled={once} disabledReasonId={reasonId} />
       <ResetButton onReset={onReset} />
-      <p data-peek-fix-reason="" className={cx('w-full text-sm text-muted', once ? undefined : 'invisible')} aria-hidden={once ? undefined : true}>
+      <p id={reasonId} data-peek-fix-reason="" className={cx('w-full text-sm text-muted', once ? undefined : 'invisible')} aria-hidden={once ? undefined : true}>
         {ONCE_FIX_REASON}
       </p>
     </div>

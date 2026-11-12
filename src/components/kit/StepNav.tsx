@@ -5,7 +5,8 @@
 // never fights a scroll that moves `current` from outside. The position is announced through a
 // polite live region only after such a use. At an end the button is aria-disabled, not disabled,
 // so focus is not dropped there, and a click does nothing. Hidden without JavaScript, where the
-// steps are stacked still frames.
+// steps are stacked still frames. With an `id`, Previous and Next carry the ids `${id}-previous` and
+// `${id}-next`, so a loader can hand focus from a preview's button to the island's.
 import { useState } from 'react';
 import { buttonClass } from '@/components/kit/ButtonLink';
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
@@ -22,6 +23,8 @@ export type StepNavProps = {
   label: string;
   /** Where the printed position comes from, for data-derived. */
   refs: readonly DerivedRef[];
+  /** With it, Previous and Next get the ids `${id}-previous` and `${id}-next`; the nav has none. Without it, no ids. */
+  id?: string;
 };
 
 const BUTTON = cx(
@@ -29,7 +32,7 @@ const BUTTON = cx(
   'aria-disabled:cursor-not-allowed aria-disabled:border-line aria-disabled:text-muted aria-disabled:hover:bg-transparent',
 );
 
-export function StepNav({ current, total, onChange, label, refs }: StepNavProps) {
+export function StepNav({ current, total, onChange, label, refs, id }: StepNavProps) {
   const at = normalizeSteps(current, total);
   // The counter changes on every use, so the same text announced twice (3 of 5, then an outside
   // change, then 3 of 5 again) is a new node in the live region and is read again.
@@ -58,6 +61,7 @@ export function StepNav({ current, total, onChange, label, refs }: StepNavProps)
     >
       <button
         type="button"
+        id={id === undefined ? undefined : `${id}-previous`}
         data-touch-target
         className={BUTTON}
         aria-disabled={at.current <= 1 ? 'true' : undefined}
@@ -70,6 +74,7 @@ export function StepNav({ current, total, onChange, label, refs }: StepNavProps)
       </span>
       <button
         type="button"
+        id={id === undefined ? undefined : `${id}-next`}
         data-touch-target
         className={BUTTON}
         aria-disabled={at.current >= at.total ? 'true' : undefined}

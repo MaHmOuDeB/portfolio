@@ -118,6 +118,30 @@ describe('StepNav', () => {
     }
   });
 
+  it('has no id on any element when none is given', () => {
+    const html = markup(3, 5);
+    expect(find(parse(html), (n) => hasAttr(n, 'id'))).toHaveLength(0);
+    expect(html).not.toMatch(/\sid=/);
+  });
+
+  it('with an id, gives Previous and Next the ids id-previous and id-next, so a preview button can hand focus to the island button', () => {
+    const withId = (current: number) =>
+      renderToStaticMarkup(
+        <StepNav id="x-step" current={current} total={5} onChange={noop} label="Fictional steps" refs={['simulated']} />,
+      );
+    // The same ids at every position, including an end where a button is aria-disabled.
+    for (const current of [1, 3, 5]) {
+      const html = withId(current);
+      const ids = find(parse(html), (n) => hasAttr(n, 'id'));
+      expect(ids.map((n) => [n.nodeName, text(n), attr(n, 'id')])).toEqual([
+        ['button', 'Previous', 'x-step-previous'],
+        ['button', 'Next', 'x-step-next'],
+      ]);
+      // Nothing else changes: without the two ids the markup is the no-id markup.
+      expect(html.replace(' id="x-step-previous"', '').replace(' id="x-step-next"', '')).toBe(markup(current, 5));
+    }
+  });
+
   it('passes the truth audit with its marker, and would fail without it', () => {
     const page = (body: string) =>
       `<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body>${body}</body></html>`;

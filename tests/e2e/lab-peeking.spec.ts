@@ -301,6 +301,8 @@ test.describe('Peeking Figure', () => {
     await expect(fix).toHaveAttribute('disabled', '');
     for (const name of ['None', "O'Brien-Fleming", 'Confidence sequence']) await expect(radio(page, name)).toBeDisabled();
     await expect(figure(page).getByText('One look at the end needs no fix.')).toBeVisible();
+    // the reason describes the disabled group, so a screen reader that meets the group reads it
+    await expect(fix).toHaveAccessibleDescription('One look at the end needs no fix.');
     await expect(looks(page)).toBeEnabled();
     await expect(radio(page, "O'Brien-Fleming")).toBeChecked();
     await expect(result(page)).toContainText('found a false winner at one look after 2,000 visitors per group');
@@ -314,6 +316,8 @@ test.describe('Peeking Figure', () => {
     await expect(radio(page, "O'Brien-Fleming")).toBeChecked();
     await expect(result(page)).toContainText('close to or under the nominal 5%.');
     await expect(figure(page).getByText('One look at the end needs no fix.')).toBeHidden();
+    // the hidden reason no longer describes the enabled group
+    await expect(fix).toHaveAccessibleDescription('');
   });
 
   test('once at 20 and at 50 looks: chart, result, table and caption agree, with 2,000 and 5,000 per group', async ({ page }) => {

@@ -25,6 +25,7 @@ const looksText = (n: number) => `${n} looks`;
 const REFS = ['simulated'] as const;
 // The release line prints a number outside the Slider, so it carries its own marker.
 const SIMULATED = derivedAttr(REFS);
+const DISABLED_REASON_ID = 'sink-fix-disabled-reason';
 const row = 'flex flex-wrap items-end gap-x-6 gap-y-4';
 const sliderBox = 'w-full xs:w-80';
 
@@ -80,9 +81,11 @@ function LooksAt({ id, initial, disabled }: { id: string; initial: number; disab
   );
 }
 
-function FixAt({ name, initial, disabled }: { name: string; initial: Fix; disabled?: boolean }) {
+function FixAt({ name, initial, disabled, reasonId }: { name: string; initial: Fix; disabled?: boolean; reasonId?: string }) {
   const [fix, setFix] = useState<Fix>(initial);
-  return <Segmented name={name} legend="Fix" options={FIX_OPTIONS} value={fix} onChange={setFix} disabled={disabled} />;
+  return (
+    <Segmented name={name} legend="Fix" options={FIX_OPTIONS} value={fix} onChange={setFix} disabled={disabled} disabledReasonId={reasonId} />
+  );
 }
 
 export function ControlsSection() {
@@ -115,8 +118,15 @@ export function ControlsSection() {
           ))}
         </div>
       </Specimen>
-      <Specimen id="controls--segmented-disabled" title="Segmented, disabled" note="The whole group is disabled.">
-        <FixAt name="sink-fix-disabled" initial={PRESET_FIX} disabled />
+      <Specimen
+        id="controls--segmented-disabled"
+        title="Segmented, disabled"
+        note="The whole group is disabled. The line under it says why, and describes the group for assistive technology."
+      >
+        <FixAt name="sink-fix-disabled" initial={PRESET_FIX} disabled reasonId={DISABLED_REASON_ID} />
+        <p id={DISABLED_REASON_ID} className="mt-2 text-sm text-muted">
+          One look at the end needs no fix.
+        </p>
       </Specimen>
     </>
   );

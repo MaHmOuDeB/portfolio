@@ -344,6 +344,31 @@ describe('Segmented', () => {
   });
 });
 
+describe('Segmented disabled reason', () => {
+  const draw = (disabled: boolean | undefined, disabledReasonId?: string) =>
+    renderToStaticMarkup(
+      <Segmented name="fix" legend="Fix" options={FIX} value="none" onChange={noop} disabled={disabled} disabledReasonId={disabledReasonId} />,
+    );
+  const fieldset = (html: string) => byTag(parse(html), 'fieldset')[0]!;
+
+  it('describes the disabled group by the element that says why, so assistive technology reads the reason', () => {
+    expect(attr(fieldset(draw(true, 'fix-reason')), 'aria-describedby')).toBe('fix-reason');
+  });
+
+  it('drops the description while the group is enabled, so a hidden reason is never read', () => {
+    for (const disabled of [false, undefined]) {
+      expect(hasAttr(fieldset(draw(disabled, 'fix-reason')), 'aria-describedby')).toBe(false);
+      expect(draw(disabled, 'fix-reason')).toBe(draw(disabled));
+    }
+  });
+
+  it('changes nothing else: without the id, a disabled group renders the markup it always did', () => {
+    const html = draw(true, 'fix-reason');
+    expect(html.replace(' aria-describedby="fix-reason"', '')).toBe(draw(true));
+    expect(draw(true)).not.toContain('aria-describedby');
+  });
+});
+
 describe('ResetButton', () => {
   it('is a 44 px secondary button that says Reset', () => {
     const root = parse(renderToStaticMarkup(<ResetButton onReset={noop} />));

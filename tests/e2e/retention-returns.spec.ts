@@ -194,6 +194,38 @@ test.describe('Returns-cleaning Figure', () => {
     });
   }
 
+  // The last month's tick sits just inside the plot's end, and the chart has no right margin: centred
+  // on its tick the label would run past the frame, so the frame anchors it at its tick with a
+  // container rule. Checked on the server-drawn chart, where a phone and a wide screen both need it.
+  for (const width of [320, 1440]) {
+    test(`the last month label ends at its tick and stays inside the frame at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(HOST);
+      const last = await figure(page)
+        .locator('svg[data-chart-frame]:visible')
+        .evaluate((frame) => {
+          const box = frame.getBoundingClientRect();
+          const style = getComputedStyle(frame);
+          const [left, right] = [Number.parseFloat(style.paddingLeft), Number.parseFloat(style.paddingRight)];
+          const tick = [...frame.querySelectorAll<SVGTextElement>('[data-tick="x"]')].at(-1)!;
+          const r = tick.getBoundingClientRect();
+          const tickX = box.left + left + (Number.parseFloat(tick.getAttribute('x')!) / 100) * (box.width - left - right);
+          return {
+            text: tick.textContent,
+            edge: tick.getAttribute('data-tick-edge'),
+            attribute: tick.getAttribute('text-anchor'),
+            anchor: getComputedStyle(tick).textAnchor,
+            pastFrame: r.right - box.right,
+            fromTick: r.right - tickX,
+          };
+        });
+      expect(last.text).toBe('Dec 2011');
+      expect(last.pastFrame, `"Dec 2011" is ${last.pastFrame.toFixed(1)} px past the frame`).toBeLessThanOrEqual(0.5);
+      expect({ edge: last.edge, attribute: last.attribute, anchor: last.anchor }).toEqual({ edge: 'last', attribute: 'middle', anchor: 'end' });
+      expect(Math.abs(last.fromTick), `the label ends ${last.fromTick.toFixed(1)} px from its tick`).toBeLessThanOrEqual(1);
+    });
+  }
+
   test('no motion: switching modes moves no mark and starts no animation, on a stable axis', async ({ page }) => {
     await page.goto(HOST);
     await ready(page);

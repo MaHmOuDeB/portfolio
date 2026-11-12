@@ -17,7 +17,12 @@ export type SliderProps = {
   value: number;
   /** Every input, snapped. */
   onChange: (value: number) => void;
-  /** Pointer up, key up, number-input blur: when to announce the result. */
+  /**
+   * Pointer up, key up, number-input blur: when to announce the result. A key that moved the value
+   * and is still held when focus leaves (its key-up lands elsewhere) commits on that blur. One
+   * gesture can commit the same value twice (that blur, then the key-up landing on the other input),
+   * so a commit of an unchanged value must be harmless.
+   */
   onCommit?: (value: number) => void;
   /** aria-valuetext, e.g. "20 looks". */
   valueText: (value: number) => string;
@@ -81,24 +86,30 @@ export function Slider({
   // A shown text other than the plain value is a rounding of a value on the grid: valid.
   const formattedShown = draft === null && shown !== String(current);
   const endDrag = useRef<(() => void) | null>(null);
-  // The value the last arrow key in the number input stepped to, committed when the key is up. It is
-  // forgotten whenever the step can end without that key-up (focus leaves, a composition starts, or
-  // the next arrow key-down is not taken over), so a later key-up never commits an old value.
+  // The value the last arrow key in the number input stepped to, committed when the key is up. If
+  // focus leaves first, the blur commits it, then forgets it. It is also forgotten, uncommitted,
+  // whenever something else takes over before that key-up (an entry is typed, a composition starts,
+  // or the next arrow key-down is not taken over), so a later key-up or blur never commits an old
+  // value.
   const stepped = useRef<number | null>(null);
+  // A move key is down on the range input and its key-up has not come: blur commits the value then.
+  const rangeHeld = useRef(false);
   useEffect(() => () => endDrag.current?.(), []);
 
   const share = max > min ? (current - min) / (max - min) : 0;
   // The thumb's centre runs from half a thumb to the far end minus half a thumb.
   const fill = { width: `calc(var(--spacing) * 2.5 + (100% - var(--spacing) * 5) * ${share})` } as CSSProperties;
 
-  const applyDraft = () => {
-    if (draft === null) return;
+  /** Applies and commits a typed entry; true when it committed one. */
+  const applyDraft = (): boolean => {
+    if (draft === null) return false;
     setDraft(null);
     const typed = draft.trim() === '' ? Number.NaN : Number(draft);
-    if (Number.isNaN(typed)) return; // an empty or unreadable entry reverts to the current value
+    if (Number.isNaN(typed)) return false; // an empty or unreadable entry reverts to the current value
     const next = snap(typed);
     if (next !== current) onChange(next);
     onCommit?.(next);
+    return true;
   };
 
   return (
@@ -131,8 +142,19 @@ export function Slider({
             aria-valuetext={valueText(current)}
             className="relative min-h-(--size-target) w-full cursor-pointer appearance-none rounded-sm bg-transparent disabled:cursor-not-allowed"
             onChange={(event) => onChange(snap(event.currentTarget.valueAsNumber))}
+            onKeyDown={(event) => {
+              if (MOVE_KEYS.has(event.key)) rangeHeld.current = true;
+            }}
             onKeyUp={(event) => {
-              if (MOVE_KEYS.has(event.key)) onCommit?.(snap(event.currentTarget.valueAsNumber));
+              if (!MOVE_KEYS.has(event.key)) return;
+              rangeHeld.current = false;
+              onCommit?.(snap(event.currentTarget.valueAsNumber));
+            }}
+            onBlur={(event) => {
+              // Focus left while a move key was held: the value it moved to is shown, so commit it.
+              if (!rangeHeld.current) return;
+              rangeHeld.current = false;
+              onCommit?.(snap(event.currentTarget.valueAsNumber));
             }}
             onPointerDown={(event) => {
               const input = event.currentTarget;
@@ -170,6 +192,8 @@ export function Slider({
           disabled={disabled}
           className="min-h-(--size-target) w-20 rounded-md border border-muted bg-bg px-2 text-sm text-ink disabled:text-muted"
           onChange={(event) => {
+            // An entry replaces a step whose key-up never came: only the entry is committed from here.
+            stepped.current = null;
             setDraft(event.currentTarget.value);
             // A complete entry on the step grid (as the browser prints it, or as the spinner steps to
             // it) updates live; anything else waits for blur or Enter.
@@ -179,8 +203,10 @@ export function Slider({
             if (next !== current) onChange(next);
           }}
           onBlur={() => {
+            const held = stepped.current;
             stepped.current = null;
-            applyDraft();
+            // A typed entry commits itself; otherwise a step whose key-up never came commits here.
+            if (!applyDraft() && held !== null) onCommit?.(held);
           }}
           onCompositionStart={() => {
             stepped.current = null;

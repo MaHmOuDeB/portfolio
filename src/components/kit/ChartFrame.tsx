@@ -16,6 +16,11 @@
 // in (its estimated width against the room on its side of the anchor, plus the margins) and a container
 // query hides it below that. The finding is still in the chart's accessible name, the Figure's title and
 // its result line; a hidden annotation never lands on a tick, a margin word or a mark, or outside the frame.
+//
+// An x tick label is centred on its tick; only a tick on an end of the domain is anchored at its
+// start or end. The outermost labels are guarded the same way as the annotation: below the column
+// width where a centred label would come within a small gap of the frame's edge, a container query
+// anchors it at its tick, on the side away from that edge, so it stays inside the plot and its margin.
 import type { ReactNode } from 'react';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
 import { derivedAttr, type DerivedRef } from './Derived';
@@ -90,6 +95,11 @@ const MARGIN_GAP = 8;
 /** Semibold text-sm (15 px) in Inter: a conservative width per character, and the gap kept clear at the plot edge. */
 const NOTE_LETTER_PX = 7.9;
 const NOTE_EDGE_GAP = 8;
+/**
+ * Kept clear between a centred outermost x tick label and the frame's edge. It also covers the width
+ * estimate, which is short for some characters: "%" is about 12.8 px wide, not a digit's 8.4.
+ */
+const TICK_EDGE_GAP = 4;
 /** The narrow layout stacks "no difference" on two lines to keep the plot wide. */
 const NARROW_ZERO_LINE = 8;
 
@@ -155,9 +165,38 @@ function tickLabels(axis: 'x' | 'y', ticks: readonly number[], format: (v: numbe
   return labels;
 }
 
-function xAnchor(i: number, count: number, frac: number): 'start' | 'middle' | 'end' {
-  if (count === 1) return frac === 0 ? 'start' : frac === 1 ? 'end' : 'middle';
-  return i === 0 ? 'start' : i === count - 1 ? 'end' : 'middle';
+/** Centred on its tick, except a tick on an end of the domain, which starts or ends there. */
+function xAnchor(frac: number): 'start' | 'middle' | 'end' {
+  return frac <= 0 ? 'start' : frac >= 1 ? 'end' : 'middle';
+}
+
+/**
+ * The narrowest container, in px, in which a label centred on a tick stays inside the frame: its
+ * estimated half width and the edge gap, past the margin on its side, must fit in the share of the
+ * plot on that side of the tick. 0 when it always fits.
+ */
+function tickEdgeMinWidth(label: string, room: number, margin: number, left: number, right: number): number {
+  const over = (label.length * DIGIT_PX) / 2 + TICK_EDGE_GAP - margin;
+  return over > 0 ? left + right + Math.ceil(over / room) : 0;
+}
+
+type TickEdge = { index: number; edge: 'first' | 'last'; min: number };
+
+/** The outermost centred x tick labels that a narrow column would push past the frame's edge. */
+function tickEdges(fracs: readonly number[], labels: readonly string[], left: number, right: number): TickEdge[] {
+  const last = fracs.length - 1;
+  if (last < 0) return [];
+  const guard = (index: number, edge: TickEdge['edge']): TickEdge | null => {
+    const frac = fracs[index]!;
+    if (xAnchor(frac) !== 'middle') return null;
+    const min = edge === 'first' ? tickEdgeMinWidth(labels[index]!, frac, left, left, right) : tickEdgeMinWidth(labels[index]!, 1 - frac, right, left, right);
+    return min > 0 ? { index, edge, min } : null;
+  };
+  const first = guard(0, 'first');
+  const end = guard(last, 'last');
+  // One tick is both: the side that needs the wider column decides.
+  if (last === 0) return first && (!end || first.min >= end.min) ? [first] : end ? [end] : [];
+  return [first, end].filter((e): e is TickEdge => e !== null);
 }
 
 /** The stretched layer for marks: <svg viewBox="0 0 1000 h" preserveAspectRatio="none">. */
@@ -208,9 +247,21 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   const hideNote = Number.isFinite(noteMin)
     ? `@container (width < ${noteMin}px){[data-chart="${cssString(p.id)}"] svg[data-layout="${layout}"] [data-annotation]{display:none}}`
     : `[data-chart="${cssString(p.id)}"] svg[data-layout="${layout}"] [data-annotation]{display:none}`;
+  // Below its width an outermost centred x tick label is anchored at its tick, away from the edge.
+  const xFracs = xTicks.map((v) => xFrac(v));
+  const edges = tickEdges(xFracs, xLabels, left, right);
+  const edgeAt = new Map(edges.map((e) => [e.index, e.edge]));
+  const edgeRules = edges
+    .map(
+      (e) =>
+        `@container (width < ${e.min}px){[data-chart="${cssString(p.id)}"] svg[data-layout="${layout}"] [data-tick-edge="${e.edge}"]{text-anchor:${e.edge === 'first' ? 'start' : 'end'}}}`,
+    )
+    .join('');
 
   return (
     <>
+      {/* Before the frame, so the frame stays the last element of its layout. */}
+      {edgeRules ? <style>{edgeRules}</style> : null}
       <svg
         data-chart-frame=""
         data-layout={layout}
@@ -290,9 +341,10 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
               data-num=""
               {...xTick}
               className={LABEL}
-              x={pct(xFrac(v))}
+              x={pct(xFracs[i]!)}
               y={height + X_TICK_BASELINE}
-              textAnchor={xAnchor(i, xTicks.length, xFrac(v))}
+              textAnchor={xAnchor(xFracs[i]!)}
+              data-tick-edge={edgeAt.get(i)}
             >
               {xLabels[i]}
             </text>
