@@ -142,10 +142,11 @@ function Dashboard({ view, saved, detail, handlers }: DashboardProps) {
                 data-js-only=""
                 aria-expanded={open}
                 aria-controls={`${PULSE_ID}-detail-${chart.key}`}
+                aria-label={`Detail: ${chart.label}`}
                 className={BUTTON}
                 onClick={handlers ? () => handlers.onDetail(chart.key) : undefined}
               >
-                Detail<span className="sr-only">: {chart.label}</span>
+                Detail
               </button>
             </div>
             <div className="mt-2">

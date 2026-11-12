@@ -358,7 +358,11 @@ describe('the dashboard Figure', () => {
     const dashboard = /<div role="region" aria-labelledby="pulse-dashboard-title"[\s\S]*?<div role="region" aria-labelledby="pulse-stream-title"/.exec(figure)![0];
     expect(dashboard).toMatch(/<h4 id="pulse-dashboard-title"[^>]*>Dashboard<\/h4>/);
     const buttons = [...dashboard.matchAll(/<button ([^>]*)>([\s\S]*?)<\/button>/g)].map((m) => [m[1]!, text(m[2]!)]);
-    expect(buttons.map(([, label]) => label)).toEqual(['Detail: Sign-ups', 'Detail: Trials started', 'Export CSV', 'Save view', 'Load saved view']);
+    // The accessible name: aria-label where there is one (it starts with the visible word), otherwise the text.
+    // An sr-only span would not do: browsers put a space before an absolutely positioned child ("Detail : ...").
+    const name = ([attrs, visible]: string[]) => /aria-label="([^"]*)"/.exec(attrs!)?.[1] ?? visible!;
+    expect(buttons.map(name)).toEqual(['Detail: Sign-ups', 'Detail: Trials started', 'Export CSV', 'Save view', 'Load saved view']);
+    expect(buttons.slice(0, 2).map(([, visible]) => visible)).toEqual(['Detail', 'Detail']);
     for (const [attrs] of buttons) expect(attrs).toContain('type="button"');
     const load = buttons.find(([, label]) => label === 'Load saved view')![0];
     expect(load).toMatch(/disabled=""/);

@@ -273,7 +273,10 @@ test.describe('Pulse case study', () => {
     });
     await segment(page, 'channel', 'search').click();
     await expect(result(page)).toHaveText('Showing Search over the last 30d.');
-    const stats = await page.evaluate(() => (window as unknown as { lat: number[]; animations: number }));
+    const stats = await page.evaluate(() => {
+      const w = window as unknown as { lat: number[]; animations: number };
+      return { lat: w.lat, animations: w.animations };
+    });
     expect(stats.lat.length).toBeGreaterThan(0);
     expect(Math.max(...stats.lat)).toBeLessThan(200);
     expect(stats.animations).toBe(0);
