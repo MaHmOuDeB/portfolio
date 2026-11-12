@@ -62,6 +62,18 @@ describe('the frame', () => {
     ]);
   });
 
+  it('draws no heading, link or role line for a body that renders nothing', () => {
+    for (const empty of [null, false, true, '']) {
+      const html = renderToStaticMarkup(
+        <BuildNote slug="t" title="T" intro={<p>I.</p>} role={empty} sections={{ problem: 'P', limits: empty }} />,
+      );
+      expect(outline(html).map(([id]) => id), String(empty)).toEqual(['problem']);
+      expect(sectionLinks(html), String(empty)).toEqual([['#problem', 'Problem']]);
+      expect(html, String(empty)).not.toContain('id="limits"');
+      expect(html, String(empty)).not.toContain('data-note-role');
+    }
+  });
+
   it('draws one diagram step style and a hidden connector', () => {
     const step = renderToStaticMarkup(<DiagramStep name="Name" detail="Detail." />);
     expect(step).toBe(

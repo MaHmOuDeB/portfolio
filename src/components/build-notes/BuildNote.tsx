@@ -68,6 +68,9 @@ export function Paragraphs({ items }: { items: readonly [key: string, body: Reac
   );
 }
 
+/** Whether a body has something to draw: null, undefined, true, false and '' draw nothing in React. */
+const drawn = (body: ReactNode): boolean => body !== null && body !== undefined && typeof body !== 'boolean' && body !== '';
+
 export function BuildNote({
   slug,
   title,
@@ -82,10 +85,10 @@ export function BuildNote({
   intro: ReactNode;
   /** One short paragraph under the intro: what the project is and what I did. */
   role?: ReactNode;
-  /** The body of each section the note has; a section left out is neither drawn nor linked. */
+  /** The body of each section the note has; a section left out (or empty) is neither drawn nor linked. */
   sections: Readonly<Partial<Record<BodyId, ReactNode>>>;
 }): ReactNode {
-  const present = BUILD_NOTE_SECTIONS.filter((s) => sections[s.id] !== undefined);
+  const present = BUILD_NOTE_SECTIONS.filter((s) => drawn(sections[s.id]));
   return (
     <article aria-labelledby={`${slug}-title`} className="py-12 md:py-section">
       <div className={TEXT}>
@@ -93,7 +96,7 @@ export function BuildNote({
           {title}
         </h1>
         <div className="mt-4 text-lg text-muted">{intro}</div>
-        {role === undefined ? null : (
+        {!drawn(role) ? null : (
           <p data-note-role="" className="mt-4">
             {role}
           </p>
