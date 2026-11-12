@@ -5,9 +5,11 @@ import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 import { NAV } from '../../src/lib/site';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The Weather and n8n build notes at /work/weather and /work/n8n. Both are static pages with no
-// island: prose, one diagram Figure drawn as ordered lists, and on Weather an open table of checks
-// by level. They follow the build-note outline and share its section links.
+// The build notes under /work: short static pages in the build-note template (the problem, the
+// architecture as a diagram, how I checked it, the outcome, the limits, the code). Each note links to
+// other sites only as ordinary links, so loading and reading one never makes a request off the site.
+// The Weather and n8n notes have no island: prose, one diagram Figure drawn as ordered lists, and on
+// Weather an open table of checks by level.
 
 const SECTIONS = [
   ['problem', 'The problem'],
@@ -23,6 +25,13 @@ const NOTES = [
   { route: '/work/weather', title: 'Weather data quality', figure: 'weather-pipeline', table: 'check-levels' },
   { route: '/work/n8n', title: 'n8n Workflow Library', figure: 'n8n-flow', table: null },
 ] as const;
+
+/** Every request URL the page makes from its first byte. */
+function recordRequests(page: Page): string[] {
+  const urls: string[] = [];
+  page.on('request', (r) => urls.push(r.url()));
+  return urls;
+}
 
 const sectionLinks = (page: Page) => page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
@@ -140,4 +149,120 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
   await page.goto('/work/weather');
   const external = await page.locator('main a[href^="http"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   expect(external).toEqual(['https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository']);
+});
+
+test.describe('MarketingWS build note', () => {
+  const ROUTE = '/work/marketingws';
+  const SECTIONS = [
+    ['problem', 'The problem'],
+    ['architecture', 'Architecture'],
+    ['how-i-checked-this', 'How I checked this'],
+    ['outcome', 'Outcome'],
+    ['limits', 'Limits'],
+    ['code-and-demo', 'Code and demo'],
+  ] as const;
+  const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Code and demo'];
+  const STEPS = ['Brief', 'Draft', 'Check', 'Translate', 'Output'];
+  const GROQ_NOTE = "The live demo depends on Groq's free tier.";
+
+  test('outline: one h1, the six sections in order, the diagram in the architecture section', async ({ page }) => {
+    const response = await page.goto(ROUTE);
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveTitle('MarketingWS');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('MarketingWS');
+    for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+    const sections = await page.evaluate(() =>
+      [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
+    );
+    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    for (const [id, title] of SECTIONS) {
+      await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
+    }
+    const figure = page.getByRole('figure', { name: 'Every draft is checked against the brief' });
+    await expect(figure).toBeVisible();
+    await expect(page.locator('#architecture figure[data-figure="marketingws-steps"]')).toHaveCount(1);
+    // the diagram is a list a screen reader reads in order; it has no badge, controls or table
+    await expect(figure.getByRole('listitem')).toHaveCount(STEPS.length);
+    for (const [i, name] of STEPS.entries()) await expect(figure.getByRole('listitem').nth(i)).toContainText(name);
+    await expect(figure.locator('table, [data-provenance], [role="group"]')).toHaveCount(0);
+  });
+
+  test('the free-tier note stands beside the demo link, and the links leave the site as plain links', async ({ page }) => {
+    await page.goto(ROUTE);
+    const code = page.getByRole('region', { name: 'Code and demo', exact: true });
+    const demo = code.getByRole('link', { name: 'The live demo, on another site' });
+    await expect(demo).toHaveAttribute('href', 'https://marketing-ws.vercel.app/');
+    await expect(demo).toHaveAttribute('rel', 'noopener');
+    // `has` is matched inside each list item, so its locator starts from the page, not from the region
+    const demoItem = code.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'The live demo, on another site' }) });
+    await expect(demoItem).toHaveCount(1);
+    await expect(demoItem).toContainText(GROQ_NOTE);
+    for (const name of ['The MarketingWS repository, at the commit this page describes', 'The thesis version, under the tag thesis-2025']) {
+      await expect(code.getByRole('link', { name })).toHaveAttribute('href', /^https:\/\/github\.com\/MaHmOuDeB\/MarketingWS\/tree\/[0-9a-f]{40}$/);
+    }
+    // nothing is embedded
+    await expect(page.locator('main iframe, main img, main video, main object, main embed')).toHaveCount(0);
+  });
+
+  test('reading the page makes only same-origin requests: none to the demo or the repository', async ({ page, baseURL }) => {
+    const urls = recordRequests(page);
+    await page.goto(ROUTE);
+    await page.waitForLoadState('networkidle');
+    await page.mouse.wheel(0, 4000);
+    // pointing at and focusing the outbound links fetches nothing either
+    for (const link of await page.locator('main a[href^="https://"]').all()) {
+      await link.hover();
+      await link.focus();
+    }
+    await page.waitForLoadState('networkidle');
+    const origin = new URL(baseURL!).origin;
+    const foreign = urls.filter((u) => !u.startsWith('data:') && new URL(u).origin !== origin);
+    expect(foreign).toEqual([]);
+    expect(urls.length).toBeGreaterThan(0);
+  });
+
+  test('section links: in order, and the keyboard reaches each and follows one', async ({ page, browserName }) => {
+    const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
+    await page.goto(ROUTE);
+    await expect(sectionLinks(page)).toHaveText(LINKS);
+    await sectionLinks(page).first().focus();
+    for (const label of LINKS.slice(1)) {
+      await page.keyboard.press(key);
+      await expect(page.locator(':focus')).toHaveText(label);
+    }
+    await sectionLinks(page).filter({ hasText: 'Limits' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#limits$/);
+    await expect(page.locator('#limits-title')).toBeInViewport();
+  });
+
+  test('axe finds nothing', async ({ page }) => {
+    await page.goto(ROUTE);
+    await page.evaluate(() => document.fonts.ready);
+    await expectNoA11yViolations(page);
+  });
+
+  test('the served and the hydrated page pass the truth audit', async ({ page, request }) => {
+    const ctx = { route: ROUTE, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
+    expect(auditHtml(await (await request.get(ROUTE)).text(), ctx)).toEqual([]);
+    await page.goto(ROUTE);
+    expect(auditHtml(await page.content(), ctx)).toEqual([]);
+  });
+
+  test('without JavaScript: every section and every step of the diagram', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(ROUTE);
+    for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    const figure = page.locator('figure[data-figure="marketingws-steps"]');
+    for (const name of STEPS) await expect(figure.getByText(name, { exact: true })).toBeVisible();
+    await expect(page.getByText(GROQ_NOTE, { exact: true })).toBeVisible();
+    await context.close();
+  });
+
+  test('reflow at 320 px: the document never scrolls sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(ROUTE);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
 });
