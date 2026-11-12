@@ -161,6 +161,39 @@ describe('the carried planning copy', () => {
   });
 });
 
+describe('fix round 1: quoted hypothesis, read time, decision label, verifier link', () => {
+  it('quotes the pre-registration\'s hypothesis exactly', () => {
+    const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8');
+    const hypothesis = 'Featured case-study cards that state the finding get more clicks than cards that name the topic.';
+    expect(prereg).toContain(hypothesis);
+    expect(sectionText(page(displayOf(snapshotFixture('ab'))), 'plan')).toContain(
+      `The pre-registration fixes the design, the numbers I plan with, the decision rule and what I will do in each outcome. Its hypothesis: “${hypothesis}”`,
+    );
+  });
+
+  it('says when the numbers were read and what a failed read does', () => {
+    const t = sectionText(page(displayOf(snapshotFixture('ab'))), 'where-it-stands');
+    expect(t).toMatch(/These numbers were read on \d{2}\.\d{2} at \d{2}:\d{2}\. The page reads the data again at most every five minutes, when someone opens it\. If a read fails, it keeps showing the numbers it last read, with this time\./);
+    expect(t).not.toMatch(/rebuilt/);
+  });
+
+  it('a page-drawn decision is "final" only once its stop is confirmed', () => {
+    const d = displayOf(snapshotFixture('ship-b'));
+    const unsafe = { ...d, kitSafe: false as const, kitSnapshot: null, closedConfirmed: false };
+    const t = sectionText(page(unsafe), 'results');
+    expect(t).not.toMatch(/final/i);
+    expect(t).toContain('The latest interval, while the result is being confirmed');
+    expect(sectionText(page({ ...unsafe, closedConfirmed: true }), 'results')).toContain('The final interval');
+  });
+
+  it('links the verifier at the build commit, else at the tag', () => {
+    const s = snapshotFixture('ab');
+    const withCommit = page(displayOf(s, configOf(s), 'abcdef0123456789abcdef0123456789abcdef01'));
+    expect(withCommit).toContain(`href="${CONTACT.github}/portfolio/blob/abcdef0123456789abcdef0123456789abcdef01/scripts/verify_experiment.py"`);
+    expect(page(displayOf(s))).toContain(`href="${CONTACT.github}/portfolio/blob/${EXPERIMENT.prereg.tag}/scripts/verify_experiment.py"`);
+  });
+});
+
 describe('the detectable-effect caption', () => {
   it('names the 15% planning rate during the calibration, from the published configuration', () => {
     const d = displayOf(snapshotFixture('calibration'));
@@ -396,8 +429,8 @@ describe('the pre-registration and build lines', () => {
 const META: BuildMeta = {
   commit: '0123456789abcdef0123456789abcdef01234567',
   builtAt: '2026-11-12T08:00:00.000Z',
-  unitTests: { passed: 4206, total: 4206 },
-  e2eTests: { passed: 310, total: 312 },
+  unitTests: { passed: 4409, total: 4409, skipped: 40 },
+  e2eTests: { passed: 312, total: 312, skipped: 3, flaky: 2 },
   axeViolations: 0,
   lighthouse: { performance: 98, accessibility: 100, bestPractices: 100, seo: 100 },
   lighthouseLabel: LIGHTHOUSE_LABEL,
@@ -419,11 +452,21 @@ describe('the colophon', () => {
   it('with build metadata: its values, the lab label and its commit', () => {
     const h = page(displayOf(snapshotFixture('ab')), { meta: META });
     expect(text(byId(h, 'colophon-results')!).replace(/\s+/g, ' ')).toBe(
-      'Unit tests: 4,206 of 4,206 passed. Browser tests: 310 of 312 passed. Accessibility checks (axe): 0 violations. ' +
+      'Unit tests: 4,409 of 4,409 that ran passed; 40 skipped. Browser tests: 312 of 312 that ran passed, 2 of them after a retry; 3 skipped. ' +
+        'Accessibility checks (axe): 0 violations. ' +
         'Lighthouse, CI lab run (mobile, simulated throttling): performance 98, accessibility 100, best practices 100, SEO 100. ' +
         'These results are for commit 0123456.',
     );
     expect(audit(h)).toEqual([]);
+  });
+
+  it('a green run reads as green: no skip or retry clause when there is none, and a failure is counted as one', () => {
+    const clean = { ...META, unitTests: { passed: 12, total: 12, skipped: 0 }, e2eTests: { passed: 4, total: 4, skipped: 0, flaky: 0 } };
+    expect(text(byId(page(displayOf(snapshotFixture('ab')), { meta: clean }), 'colophon-results')!).replace(/\s+/g, ' ')).toMatch(
+      /^Unit tests: 12 of 12 that ran passed\. Browser tests: 4 of 4 that ran passed\. Accessibility/,
+    );
+    const failed = { ...clean, unitTests: { passed: 11, total: 12, skipped: 0 } };
+    expect(text(byId(page(displayOf(snapshotFixture('ab')), { meta: failed }), 'colophon-results')!)).toContain('Unit tests: 11 of 12 that ran passed.');
   });
 });
 

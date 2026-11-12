@@ -34,13 +34,23 @@ describe('buildMeta', () => {
 
   it('counts unit and e2e tests from the reports', () => {
     const meta = buildMeta(base);
-    expect(meta.unitTests).toEqual({ passed: 12, total: 12 });
-    expect(meta.e2eTests).toEqual({ passed: 4, total: 4 });
+    expect(meta.unitTests).toEqual({ passed: 12, total: 12, skipped: 0 });
+    expect(meta.e2eTests).toEqual({ passed: 4, total: 4, skipped: 0, flaky: 0 });
   });
 
-  it('counts flaky and unexpected e2e results in the total, not the passed count', () => {
+  // Vitest's numTotalTests counts skipped and to-do tests too: a green run with skips is not failures.
+  it('counts the unit tests that ran as the total, and skipped and to-do tests apart', () => {
+    const vitestJson = { numPassedTests: 4409, numFailedTests: 0, numPendingTests: 38, numTodoTests: 2, numTotalTests: 4449 };
+    expect(buildMeta({ ...base, vitestJson }).unitTests).toEqual({ passed: 4409, total: 4409, skipped: 40 });
+    const failing = { ...vitestJson, numPassedTests: 4407, numFailedTests: 2 };
+    expect(buildMeta({ ...base, vitestJson: failing }).unitTests).toEqual({ passed: 4407, total: 4409, skipped: 40 });
+    expect(() => buildMeta({ ...base, vitestJson: { ...vitestJson, numTotalTests: 4450 } })).toThrow(/unit test report/);
+  });
+
+  // A flaky test passed on a retry: it is a pass, carried apart; only unexpected results failed.
+  it('counts flaky e2e results as passed after a retry, failures in the total only, skipped apart', () => {
     const e2eJson = { ...e2eWith({ annotations: annotation('0') }), stats: { expected: 5, unexpected: 2, flaky: 1, skipped: 3 } };
-    expect(buildMeta({ ...base, e2eJson }).e2eTests).toEqual({ passed: 5, total: 8 });
+    expect(buildMeta({ ...base, e2eJson }).e2eTests).toEqual({ passed: 6, total: 8, skipped: 3, flaky: 1 });
   });
 
   it('reads axe violations from test annotations, once per test', () => {

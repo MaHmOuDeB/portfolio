@@ -163,7 +163,8 @@ export function ResultsFigure({ display: d, runtime }: { display: LivePageDispla
   const last = d.series[d.series.length - 1];
   if (last !== undefined) {
     const stoppedEarly = d.mode === 'held' || d.mode === 'paused' || d.mode === 'settings-unreadable';
-    const final = d.outcome !== null || (closedNoDecision && d.closedConfirmed);
+    // "final" only once the stop is confirmed: a derived decision is still being confirmed.
+    const final = d.closedConfirmed && (d.outcome !== null || closedNoDecision);
     const label = stoppedEarly ? 'last' : final ? 'final' : 'now';
     const title =
       d.mode === 'held'
@@ -174,7 +175,7 @@ export function ResultsFigure({ display: d, runtime }: { display: LivePageDispla
             ? 'The last interval before the settings could not be read'
             : final
               ? 'The final interval'
-              : closedNoDecision
+              : closedNoDecision || d.outcome !== null
                 ? 'The latest interval, while the result is being confirmed'
                 : 'The latest interval';
     const reach = Math.max(1, Math.abs(last.lower), Math.abs(last.upper)) * 1.15;

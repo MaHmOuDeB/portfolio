@@ -90,7 +90,8 @@ function WhereItStands({ d }: { d: LivePageDisplay }) {
             <time dateTime={d.readAt} {...derivedAttr(d.refs)}>
               {berlinTime(d.readAt)}
             </time>
-            . The page is rebuilt from the data every few minutes.
+            . The page reads the data again at most every five minutes, when someone opens it. If a read fails, it keeps
+            showing the numbers it last read, with this time.
           </p>
         ) : null}
       </div>
@@ -104,8 +105,8 @@ function Plan({ d }: { d: LivePageDisplay }) {
   return (
     <>
       <p className={P}>
-        The pre-registration sets out the hypothesis, the metrics, the method, the stopping rules and the limits. The hypothesis:
-        case-study cards that state their finding get more clicks than cards that name their topic.
+        The pre-registration fixes the design, the numbers I plan with, the decision rule and what I will do in each outcome. Its
+        hypothesis: “Featured case-study cards that state the finding get more clicks than cards that name the topic.”
       </p>
       <div id="plan-planning" className="mt-4 space-y-3">
         <p className={P}>
@@ -240,7 +241,12 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
           copy of the repository:
         </p>
       )}
-      <pre className="mt-3 max-w-figure overflow-x-auto rounded-sm border border-line p-3 text-sm" tabIndex={0} aria-label="Commands">
+      <pre
+        className="mt-3 max-w-figure overflow-x-auto rounded-sm border border-line p-3 text-sm"
+        tabIndex={0}
+        role="region"
+        aria-label="Commands"
+      >
         <code>
           {host !== null ? (
             <>
@@ -268,7 +274,7 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
         <p className={`${P} mt-3`}>This build reads a local test store, so its numbers are simulated, not visitors.</p>
       ) : null}
       <div className={TEXT}>
-        <TextLink href={`${REPO}/blob/main/scripts/verify_experiment.py`} external standalone>
+        <TextLink href={`${REPO}/blob/${d.public.prereg.commit ?? d.public.prereg.tag}/scripts/verify_experiment.py`} external standalone>
           Read the script
         </TextLink>
       </div>

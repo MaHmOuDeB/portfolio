@@ -1,7 +1,10 @@
 // The Live test page's colophon: the stack (versions from package.json) and the deploy's test and
-// audit results, embedded into the build (readBuildMeta). A build with no metadata (every local, CI
-// and e2e build) says the results are added on deploy, with no number; a deploy build without them
-// fails before it gets here. The Lighthouse scores are a CI lab run, never field data. Server-safe.
+// audit results, embedded into the build (readBuildMeta). A build with no metadata file and no deploy
+// signal (local, e2e and the CI build job) says the results are added on deploy, with no number; a
+// deploy build without them fails before it gets here (the CI build-isolation job writes a synthetic
+// file). Test counts are of the tests that ran; skipped tests and passes after a retry are said apart,
+// so a green run never reads as failures. The Lighthouse scores are a CI lab run, never field data.
+// Server-safe.
 import { Derived } from '@/components/kit/Derived';
 import type { BuildMeta } from '@/lib/live-page/build-meta-shape';
 import pkg from '../../../package.json';
@@ -10,6 +13,13 @@ import { BUILD, MarkedText } from './Values';
 const P = 'max-w-text text-base';
 
 const Count = ({ n }: { n: number }) => <Derived value={n} unit="count" refs={BUILD} />;
+/** The tests that did not run, said apart so a green run never reads as failures; nothing when none. */
+const Skipped = ({ n }: { n: number }) =>
+  n > 0 ? (
+    <>
+      ; <Count n={n} /> skipped
+    </>
+  ) : null;
 
 export function Colophon({ meta }: { meta: BuildMeta | null }) {
   const v = (s: string) => <MarkedText value={s} refs={BUILD} />;
@@ -25,8 +35,15 @@ export function Colophon({ meta }: { meta: BuildMeta | null }) {
         </p>
       ) : (
         <p id="colophon-results" className={`${P} mt-3`}>
-          Unit tests: <Count n={meta.unitTests.passed} /> of <Count n={meta.unitTests.total} /> passed. Browser tests:{' '}
-          <Count n={meta.e2eTests.passed} /> of <Count n={meta.e2eTests.total} /> passed. Accessibility checks (axe):{' '}
+          Unit tests: <Count n={meta.unitTests.passed} /> of <Count n={meta.unitTests.total} /> that ran passed
+          <Skipped n={meta.unitTests.skipped} />. Browser tests: <Count n={meta.e2eTests.passed} /> of <Count n={meta.e2eTests.total} /> that ran
+          passed
+          {meta.e2eTests.flaky > 0 ? (
+            <>
+              , <Count n={meta.e2eTests.flaky} /> of them after a retry
+            </>
+          ) : null}
+          <Skipped n={meta.e2eTests.skipped} />. Accessibility checks (axe):{' '}
           <Count n={meta.axeViolations} /> violations. Lighthouse, {meta.lighthouseLabel}: performance <Count n={meta.lighthouse.performance} />,
           accessibility <Count n={meta.lighthouse.accessibility} />, best practices <Count n={meta.lighthouse.bestPractices} />, SEO{' '}
           <Count n={meta.lighthouse.seo} />. These results are for commit <MarkedText value={meta.commit} shown={meta.commit.slice(0, 7)} refs={BUILD} />.

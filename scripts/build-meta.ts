@@ -25,18 +25,32 @@ function isObject(value: unknown): value is Json {
 
 const count = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
+/**
+ * Vitest's report: `numTotalTests` also counts skipped and to-do tests, so the total printed is the
+ * tests that ran (passed plus failed) and the skipped ones are carried apart.
+ */
 function unitTests(report: unknown): BuildMeta['unitTests'] {
-  const tally = isObject(report) ? { passed: report.numPassedTests, total: report.numTotalTests } : null;
-  if (!isTally(tally)) throw new Error('build-meta: the unit test report is missing or malformed');
+  if (!isObject(report)) throw new Error('build-meta: the unit test report is missing or malformed');
+  const { numPassedTests: passed, numFailedTests: failed, numPendingTests: pending, numTodoTests: todo, numTotalTests: all } = report;
+  if (![passed, failed, pending, todo, all].every(count)) throw new Error('build-meta: the unit test report is missing or malformed');
+  const [p, f, s, t, n] = [passed, failed, pending, todo, all] as number[];
+  if (p! + f! + s! + t! !== n) throw new Error('build-meta: the unit test report does not add up');
+  const tally = { passed: p!, total: p! + f!, skipped: s! + t! };
+  if (!isTally(tally)) throw new Error('build-meta: the unit test report ran no tests');
   return tally;
 }
 
+/**
+ * Playwright's report: `expected` passed at once, `flaky` passed after a retry, `unexpected` failed.
+ * Passed is both kinds of pass, with the retried ones carried apart; the total is the tests that ran.
+ */
 function e2eTests(report: Json): BuildMeta['e2eTests'] {
   const stats = report.stats;
-  if (!isObject(stats) || !count(stats.expected) || !count(stats.unexpected) || !count(stats.flaky)) {
+  if (!isObject(stats) || !count(stats.expected) || !count(stats.unexpected) || !count(stats.flaky) || !count(stats.skipped)) {
     throw new Error('build-meta: the e2e report is malformed');
   }
-  const tally = { passed: stats.expected, total: stats.expected + stats.unexpected + stats.flaky };
+  const passed = stats.expected + stats.flaky;
+  const tally = { passed, total: passed + stats.unexpected, skipped: stats.skipped, flaky: stats.flaky };
   if (!isTally(tally)) throw new Error('build-meta: the e2e report ran no tests');
   return tally;
 }

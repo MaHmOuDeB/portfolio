@@ -9,8 +9,10 @@ export const LIGHTHOUSE_LABEL = 'CI lab run (mobile, simulated throttling)';
 export type BuildMeta = {
   commit: string;
   builtAt: string;
-  unitTests: { passed: number; total: number };
-  e2eTests: { passed: number; total: number };
+  /** `total` is the tests that ran (passed plus failed); skipped and to-do tests are counted apart. */
+  unitTests: { passed: number; total: number; skipped: number };
+  /** `passed` includes `flaky` (passed after a retry); `total` is passed plus failed. */
+  e2eTests: { passed: number; total: number; skipped: number; flaky: number };
   axeViolations: number;
   lighthouse: { performance: number; accessibility: number; bestPractices: number; seo: number };
   lighthouseLabel: typeof LIGHTHOUSE_LABEL;
@@ -24,9 +26,11 @@ const score = (v: unknown): v is number => count(v) && v <= 100;
 /** A full git commit SHA. */
 export const isCommit = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{40}$/.test(v);
 
-/** Passed and total from a run that ran at least one test. */
-export const isTally = (v: unknown): v is { passed: number; total: number } =>
-  isObject(v) && count(v.passed) && count(v.total) && v.total >= 1 && v.passed <= v.total;
+/** Passed and total (the tests that ran) from a run that ran at least one test, and the skipped ones. */
+export const isTally = (v: unknown): v is { passed: number; total: number; skipped: number } =>
+  isObject(v) && count(v.passed) && count(v.total) && count(v.skipped) && v.total >= 1 && v.passed <= v.total;
+
+const isE2eTally = (v: unknown): v is BuildMeta['e2eTests'] => isTally(v) && count((v as Json).flaky) && ((v as Json).flaky as number) <= v.passed;
 
 export function isBuildMeta(v: unknown): v is BuildMeta {
   if (!isObject(v)) return false;
@@ -37,7 +41,7 @@ export function isBuildMeta(v: unknown): v is BuildMeta {
     /^\d{4}-\d{2}-\d{2}T/.test(v.builtAt) &&
     Number.isFinite(Date.parse(v.builtAt)) &&
     isTally(v.unitTests) &&
-    isTally(v.e2eTests) &&
+    isE2eTally(v.e2eTests) &&
     count(v.axeViolations) &&
     isObject(l) &&
     score(l.performance) &&

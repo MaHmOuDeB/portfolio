@@ -9,8 +9,8 @@ import { LIGHTHOUSE_LABEL, type BuildMeta } from '@/lib/live-page/build-meta-sha
 const META: BuildMeta = {
   commit: '0123456789abcdef0123456789abcdef01234567',
   builtAt: '2026-11-12T08:00:00.000Z',
-  unitTests: { passed: 12, total: 12 },
-  e2eTests: { passed: 4, total: 4 },
+  unitTests: { passed: 12, total: 12, skipped: 0 },
+  e2eTests: { passed: 4, total: 4, skipped: 0, flaky: 0 },
   axeViolations: 0,
   lighthouse: { performance: 100, accessibility: 95, bestPractices: 93, seo: 99 },
   lighthouseLabel: LIGHTHOUSE_LABEL,
@@ -52,11 +52,13 @@ describe('embeddedBuildMeta', () => {
     ['whitespace', '  \n'],
     ['malformed', '{"commit":'],
     ['not build metadata', '{"commit":"abc"}'],
-    ['a zero-test report', JSON.stringify({ ...META, unitTests: { passed: 0, total: 0 } })],
-    ['passed above total', JSON.stringify({ ...META, e2eTests: { passed: 5, total: 4 } })],
+    ['a zero-test report', JSON.stringify({ ...META, unitTests: { passed: 0, total: 0, skipped: 0 } })],
+    ['passed above total', JSON.stringify({ ...META, e2eTests: { passed: 5, total: 4, skipped: 0, flaky: 0 } })],
     ['a short commit', JSON.stringify({ ...META, commit: 'unknown' })],
     ['no Lighthouse scores', JSON.stringify({ ...META, lighthouse: null })],
     ['a score out of range', JSON.stringify({ ...META, lighthouse: { ...META.lighthouse, seo: 101 } })],
+    ['no skipped count', JSON.stringify({ ...META, unitTests: { passed: 12, total: 12 } })],
+    ['more retried than passed', JSON.stringify({ ...META, e2eTests: { passed: 1, total: 4, skipped: 0, flaky: 2 } })],
     ['another label', JSON.stringify({ ...META, lighthouseLabel: 'field data' })],
   ])('throws on a file that is %s, with or without a deploy signal', (_name, content) => {
     expect(() => embeddedBuildMeta({}, file(content))).toThrow(/build-meta/);

@@ -310,8 +310,8 @@ limit reaches about 239,000 by day 20.
    count passing 250,000.
 3. If the count passes 70% before the 20th of a month, look for a flood (the Vercel Firewall
    should have stopped it, step 2) before anything else. When the quota runs out, counting stops
-   for the rest of the month in both groups alike and the live test page says it is paused or
-   unreadable; nothing is lost silently, but the run's views are fewer.
+   for the rest of the month in both groups alike and the live test page keeps showing its last good
+   numbers, with the time they were read; nothing is lost silently, but the run's views are fewer.
 
 ## 11. Before the first live write: no older writer may run
 

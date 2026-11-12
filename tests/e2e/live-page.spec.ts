@@ -54,9 +54,10 @@ test.describe('the Live test page', () => {
     expect(data.schema).toBe('experiment-data/1');
   });
 
-  test('prints counts as published cells, and the payload holds no exact count from 1 to 4', async ({ request }) => {
+  test('the served HTML, with its React payload, holds no snapshot field, own-view mark or quota claim', async ({ request }) => {
     const html = await (await request.get(ROUTE)).text();
-    // The serialized React payload is in the HTML's scripts: no snapshot key and no own-view mark.
+    // The serialized React payload is in the HTML's scripts. A leaked count would arrive as rendered
+    // text: the next test checks every count cell, and the unit tests check every client prop.
     expect(html).not.toMatch(/\\?"(nA|nB|yourViewN|kitSnapshot|chi2|p)\\?":\s*[1-4]\b/);
     expect(html).not.toContain('yourViewN');
     expect(html).not.toContain('data-your-view');

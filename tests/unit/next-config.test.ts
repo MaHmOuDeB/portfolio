@@ -1,5 +1,16 @@
 import { CSP } from '@/lib/csp';
 
+// The config embeds public/build-meta.json, which is git-ignored and may exist in a working tree
+// (after a local npm run build:meta). These tests read the config as a build with no such file.
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>();
+  const readFileSync = ((path: unknown, ...rest: unknown[]) => {
+    if (path === 'public/build-meta.json') throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    return (fs.readFileSync as (...a: unknown[]) => unknown)(path, ...rest);
+  }) as typeof fs.readFileSync;
+  return { ...fs, readFileSync, default: { ...fs, readFileSync } };
+});
+
 const DEFAULTS = ['tsx', 'ts', 'jsx', 'js'];
 
 let saved: string | undefined;
