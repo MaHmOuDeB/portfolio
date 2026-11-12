@@ -199,8 +199,9 @@ a page needs the smallest possible bundle it can also import a component's file 
 Page-level parts built from the kit. They live outside the kit (`src/components/home`,
 `src/components/figures`, `src/components/retention`, `src/components/lab`,
 `src/components/live-page`, `src/components/audible`, `src/components/build-notes`,
-`src/components/marketingws`, `src/components/docproof`, `src/components/weather` and
-`src/components/n8n`), and each is listed here once its file exists.
+`src/components/marketingws`, `src/components/docproof`, `src/components/weather`,
+`src/components/n8n`, `src/components/work` and `src/components/about`), and each is listed here
+once its file exists.
 
 | Export | File | Role |
 |---|---|---|
@@ -250,6 +251,10 @@ Page-level parts built from the kit. They live outside the kit (`src/components/
 | `DetectableFigure` | `src/components/live-page/DetectableFigure.tsx` | The smallest lift each number of views per group would detect 8 times in 10 at the committed planning click rate, for one look at that size, with the current size marked when the published data gives it; otherwise a sentence says why (no views, a small group, beyond the range, no data). |
 | `ResultsFigure` | `src/components/live-page/ResultsFigure.tsx` | The results under the confidence sequence: the kit's `ConfidenceChart` only when `kitSafe` and its copy is true for the state (no own-view mark); otherwise a page-owned Figure with the last interval drawn (the kit's `NowRow`) or the hollow mark and a sentence, and a table of published cells. Nothing for a placeholder, a failed split check or a failed calibration. |
 | `Colophon` | `src/components/live-page/Colophon.tsx` | The stack (versions from `package.json`) and the deploy's test and audit results from the build metadata embedded at build time (`readBuildMeta`, `src/lib/live-page/build-meta-file.ts`); without it, "Test and audit results are added when the site is deployed." Lighthouse is labelled a CI lab run. |
+| `AboutPage`, `ABOUT_SECTIONS`, `ABOUT_TITLE` | `src/components/about/AboutPage.tsx` | The About page: the photograph (`next/image` at 480 px, 960 px for dense screens, lazy, alt text from `content/about-photo.ts`) beside a five-sentence story, then Timeline, Tools I have shipped with, Languages and CV sections, each a `<section>` named by its h2. Prose from `content/about.tsx`. The PDF button shows only when the build has a checked PDF. |
+| `CvPage`, `CV_SECTIONS` | `src/components/about/CvPage.tsx` | The printable CV page: the web CV PDF's claims (each marked `data-cv-claim`), in the CV's order, from `content/about.tsx`. The e-mail address prints only when `CV_SHOWS_EMAIL` (`src/lib/site.ts`) is on; the PDF button only when the build has a checked PDF. Printing drops the site header, footer and buttons. |
+| `TimelineRow` | `src/components/about/TimelineRow.tsx` | A row on the About timeline: the months, the role (h3) and where. |
+| `Months` | `src/components/about/Months.tsx` | A month range ("Aug 2023 – Apr 2025", "Oct 2026 – present"), each month in a `<time>`. |
 
 ## Golden-page rule
 

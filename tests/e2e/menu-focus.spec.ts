@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { E2E_CV_LINK } from './cv-link';
 import { test } from './fixtures';
 
 test.use({ viewport: { width: 375, height: 812 } });
@@ -41,7 +42,7 @@ test('Menu closes on forward keyboard exit without stealing destination focus', 
 test('Menu closes on backward keyboard exit without restoring summary focus', async ({ page, browserName }) => {
   const { menu } = await openMenu(page);
   await page.keyboard.press(tabKey(browserName, true));
-  await expect(page.getByRole('banner').getByRole('link', { name: 'CV (PDF)' })).toBeFocused();
+  await expect(page.getByRole('banner').getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeFocused();
   await expect(menu).not.toHaveAttribute('open', '');
 });
 

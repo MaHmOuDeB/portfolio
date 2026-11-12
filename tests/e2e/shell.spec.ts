@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { E2E_CV_LINK } from './cv-link';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
@@ -193,26 +194,28 @@ function isPhone(page: Page): boolean {
 }
 
 test.describe('site header', () => {
-  test('desktop: wordmark, full navigation in order, CV (PDF), no Menu', async ({ page }) => {
+  test('desktop: wordmark, full navigation in order, the CV link, no Menu', async ({ page }) => {
     test.skip(isPhone(page), 'desktop layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toHaveAttribute('href', '/');
     const nav = header.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link')).toHaveText(LABELS);
-    const cv = header.getByRole('link', { name: 'CV (PDF)' });
-    await expect(cv).toHaveAttribute('href', '/cv.pdf');
-    await expect(cv).toHaveAttribute('download', '');
+    // "CV (PDF)", a download, once the build has a checked PDF; until then "CV", the CV page.
+    const cv = header.getByRole('link', { name: E2E_CV_LINK.label, exact: true });
+    await expect(cv).toHaveAttribute('href', E2E_CV_LINK.href);
+    if (E2E_CV_LINK.download) await expect(cv).toHaveAttribute('download', '');
+    else await expect(cv).not.toHaveAttribute('download');
     await expect(header.locator('summary')).toBeHidden();
   });
 
-  test('phone: full navigation is hidden, wordmark, CV (PDF) and Menu are shown', async ({ page }) => {
+  test('phone: full navigation is hidden, wordmark, the CV link and Menu are shown', async ({ page }) => {
     test.skip(!isPhone(page), 'phone layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
-    await expect(header.getByRole('link', { name: 'CV (PDF)' })).toBeVisible();
+    await expect(header.getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeVisible();
     await expect(header.locator('summary')).toHaveText('Menu');
   });
 

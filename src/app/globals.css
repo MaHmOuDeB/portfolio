@@ -410,3 +410,14 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     background: CanvasText;
   }
 }
+
+/*
+ * Print. The About and CV pages are printable: the site header and footer drop away, so a printed
+ * page holds the content only. A page's own buttons carry print:hidden.
+ */
+@media print {
+  [data-site-header],
+  body > footer {
+    display: none;
+  }
+}

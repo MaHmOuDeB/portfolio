@@ -11,6 +11,7 @@ import { HEADLINES, HOME_CASES, HOME_HERO, HOME_TOOLS, headlineText, type Study 
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import type { Arm } from '@/experiment.values';
+import { CV_PAGE_HREF, cvNavLink, cvPdf } from '@/lib/cv-pdf';
 import { CONTACT, CV_LINK, SITE } from '@/lib/site';
 
 // The planner island reads the URL with next/navigation, which has no router in a unit test. Its
@@ -261,12 +262,15 @@ describe('Hero', () => {
     expect(SITE.city).toBe('Berlin, Germany');
   });
 
-  it('links Try the lab, CV (PDF) and LinkedIn; the CV button is hidden on phones', () => {
+  it('links Try the lab, the CV and LinkedIn; the CV button is hidden on phones', () => {
     const lab = one(d, (el) => el.tagName === 'a' && text(el) === 'Try the lab');
     expect(attr(lab, 'href')).toBe(HOME_LINKS.lab);
-    const cv = one(d, (el) => el.tagName === 'a' && text(el).includes(CV_LINK.label));
-    expect(attr(cv, 'href')).toBe(CV_LINK.href);
-    expect(has(cv, 'download')).toBe(true);
+    // "CV (PDF)", a download, once the build has a checked PDF; until then "CV", the CV page.
+    const link = cvNavLink();
+    expect(link.href).toBe(cvPdf() ? CV_LINK.href : CV_PAGE_HREF);
+    const cv = one(d, (el) => el.tagName === 'a' && text(el) === link.label);
+    expect(attr(cv, 'href')).toBe(link.href);
+    expect(has(cv, 'download')).toBe(link.download);
     const cvWrap = one(d, (el) => has(el, 'data-hero-cv'));
     expect(classes(cvWrap)).toEqual(expect.arrayContaining(['hidden', 'md:block']));
     const linkedin = one(d, (el) => el.tagName === 'a' && text(el) === 'LinkedIn');

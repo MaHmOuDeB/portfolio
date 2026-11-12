@@ -55,7 +55,14 @@ describe('next.config', () => {
     vi.stubEnv('VERCEL_ENV', '');
     const config = await loadConfig();
     vi.unstubAllEnvs();
-    expect(config.env).toEqual({ BUILD_META_JSON: 'null' });
+    // The one env object also carries the CV PDF's metadata (CV_PDF), read by cvPdfEnv.
+    expect(Object.keys(config.env ?? {}).sort()).toEqual(['BUILD_META_JSON', 'CV_PDF']);
+    expect(config.env?.BUILD_META_JSON).toBe('null');
+  });
+
+  it('serves images at 480 and 960 px only, as AVIF where the browser takes it', async () => {
+    const config = await loadConfig();
+    expect(config.images).toEqual({ deviceSizes: [480, 960], imageSizes: [], formats: ['image/avif'], qualities: [75] });
   });
 
   it('hides the X-Powered-By header', async () => {

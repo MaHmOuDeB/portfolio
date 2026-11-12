@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { E2E_CV_LINK } from './cv-link';
 import type { Browser, BrowserContextOptions, Page } from '@playwright/test';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 
@@ -291,8 +292,8 @@ test.describe('Home hero', () => {
         expect(box.y + box.height, await el.innerText()).toBeLessThanOrEqual(812);
       }
       // The CV link is in the header on phones, not repeated in the hero.
-      await expect(hero.getByRole('link', { name: 'CV (PDF)' })).toBeHidden();
-      await expect(page.locator('[data-site-header]').getByRole('link', { name: 'CV (PDF)' })).toBeVisible();
+      await expect(hero.getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeHidden();
+      await expect(page.locator('[data-site-header]').getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeVisible();
       await expect(hero.getByRole('link', { name: 'LinkedIn' })).toBeVisible();
       await page.context().close();
     }
@@ -315,7 +316,7 @@ test.describe('Home hero', () => {
       const unit = (columns.width - 11 * gap) / 12;
       expect(Math.abs(identity.width - (7 * unit + 6 * gap)), `${width} seven columns`).toBeLessThanOrEqual(TOLERANCE);
       expect(Math.abs(evidence.width - (5 * unit + 4 * gap)), `${width} five columns`).toBeLessThanOrEqual(TOLERANCE);
-      await expect(hero.getByRole('link', { name: 'CV (PDF)' })).toBeVisible();
+      await expect(hero.getByRole('link', { name: E2E_CV_LINK.label, exact: true })).toBeVisible();
       await page.context().close();
     }
   });

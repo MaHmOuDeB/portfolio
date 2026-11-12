@@ -21,6 +21,12 @@ export const CONTACT = {
   github: 'https://github.com/MaHmOuDeB',
 } as const;
 
+/**
+ * Whether the CV page prints the e-mail address. Off until Mahmoud decides whether the public CV
+ * shows it; the footer's Email link is unaffected. The one switch for it.
+ */
+export const CV_SHOWS_EMAIL = false;
+
 export const PRIVACY_HREF = '/privacy';
 
 // The routes that have a page today. next/link prefetches every in-view site link, and a prefetch of
@@ -29,6 +35,8 @@ export const PRIVACY_HREF = '/privacy';
 // equal to the pages under src/app: add a route here when its page lands.
 export const LIVE_ROUTES: readonly string[] = [
   '/',
+  '/about',
+  '/cv',
   '/exclude',
   '/experiment',
   '/lab',
