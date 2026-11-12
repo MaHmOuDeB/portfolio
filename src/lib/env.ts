@@ -39,6 +39,11 @@ export interface ServerEnv {
    * only outside production and only for a loopback host.
    */
   resendApiUrl?: string;
+  /**
+   * SEO_TEST_ORIGIN_HOST: the host of the canonical origin in a build that is not production (a
+   * preview, a local or CI build). Production refuses it (lib/seo/metadata.ts canonicalOrigin).
+   */
+  seoTestOriginHost?: string;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -81,5 +86,6 @@ export function serverEnv(): ServerEnv {
     resendApiKey: nonEmpty(process.env.RESEND_API_KEY),
     contactToEmail: nonEmpty(process.env.CONTACT_TO_EMAIL),
     resendApiUrl: nonEmpty(process.env.RESEND_API_URL),
+    seoTestOriginHost: nonEmpty(process.env.SEO_TEST_ORIGIN_HOST),
   };
 }

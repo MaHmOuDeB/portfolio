@@ -20,6 +20,7 @@ const VARS = [
   'RESEND_API_KEY',
   'CONTACT_TO_EMAIL',
   'RESEND_API_URL',
+  'SEO_TEST_ORIGIN_HOST',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -60,6 +61,7 @@ describe('serverEnv', () => {
       resendApiKey: undefined,
       contactToEmail: undefined,
       resendApiUrl: undefined,
+      seoTestOriginHost: undefined,
     });
   });
 
@@ -81,6 +83,7 @@ describe('serverEnv', () => {
     process.env.RESEND_API_KEY = 'test-value-resend';
     process.env.CONTACT_TO_EMAIL = 'test-value-inbox';
     process.env.RESEND_API_URL = 'test-value-resend-url';
+    process.env.SEO_TEST_ORIGIN_HOST = 'test-value-seo-host';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -100,6 +103,7 @@ describe('serverEnv', () => {
       resendApiKey: 'test-value-resend',
       contactToEmail: 'test-value-inbox',
       resendApiUrl: 'test-value-resend-url',
+      seoTestOriginHost: 'test-value-seo-host',
     });
   });
 
