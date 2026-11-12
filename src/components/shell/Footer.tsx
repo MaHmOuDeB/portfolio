@@ -1,4 +1,5 @@
-// Contact and privacy, with visible labels only. The contact form and LinkedIn are the contact routes.
+// Contact and privacy, and the one colophon line, with visible labels only. The contact form and
+// LinkedIn are the contact routes.
 import { TextLink } from '@/components/kit/TextLink';
 import { CONTACT, CONTACT_HREF, PRIVACY_HREF } from '@/lib/site';
 
@@ -18,6 +19,7 @@ export function Footer() {
         <TextLink href={PRIVACY_HREF} standalone>
           Privacy
         </TextLink>
+        <p className="text-sm text-muted">Built with Claude Code as pair-programmer.</p>
       </div>
     </footer>
   );
