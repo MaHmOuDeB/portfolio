@@ -29,22 +29,15 @@ export function WeatherIntro(): ReactNode {
   );
 }
 
-export const WEATHER_SUMMARY: readonly [label: string, body: ReactNode][] = [
-  [
-    'My role',
+/** The line on my role under the intro. */
+export function WeatherRole(): ReactNode {
+  return (
     <>
       A personal project, rebuilt in <RebuildYear /> from my Master&apos;s project. I built the pipeline, the schema,
       the checks and the tests.
-    </>,
-  ],
-  [
-    'Result',
-    <>
-      All <Fact id="weather.checks.error_count" /> error-level checks pass on the full dataset;{' '}
-      <Fact id="weather.quarantine.rows" /> readings are held back as sensor errors.
-    </>,
-  ],
-];
+    </>
+  );
+}
 
 export const WEATHER_PROBLEM: readonly [key: string, body: ReactNode][] = [
   [
@@ -165,7 +158,8 @@ export const WEATHER_OUTCOME: readonly [key: string, body: ReactNode][] = [
     'loaded',
     <>
       On the full dataset, <Fact id="weather.data.observations" /> observations of <Fact id="weather.data.locations" />{' '}
-      places in <Fact id="weather.data.countries" /> countries, over six weeks, load into the star schema.
+      places in <Fact id="weather.data.countries" /> countries, over six weeks, load into the star schema, and all{' '}
+      <Fact id="weather.checks.error_count" /> error-level checks pass.
     </>,
   ],
   [

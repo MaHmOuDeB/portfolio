@@ -18,10 +18,10 @@ import {
   WEATHER_PIPELINE_CAPTION,
   WEATHER_PIPELINE_TITLE,
   WEATHER_PROBLEM,
-  WEATHER_SUMMARY,
   WEATHER_TESTS,
   WEATHER_TITLE,
   WeatherIntro,
+  WeatherRole,
   WeatherSources,
 } from '../../../content/weather';
 import { BUILD_NOTE_SECTIONS, BuildNote, EVIDENCE, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
@@ -83,7 +83,7 @@ export function WeatherPage(): ReactNode {
       slug="weather"
       title={WEATHER_TITLE}
       intro={<WeatherIntro />}
-      summary={WEATHER_SUMMARY}
+      role={<WeatherRole />}
       sections={{
         problem: <Paragraphs items={WEATHER_PROBLEM} />,
         architecture: (

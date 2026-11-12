@@ -13,9 +13,9 @@ import {
   N8N_LIMITS,
   N8N_OUTCOME,
   N8N_PROBLEM,
-  N8N_SUMMARY,
   N8N_TITLE,
   N8nIntro,
+  N8nRole,
   N8nSources,
 } from '../../../content/n8n';
 import { BUILD_NOTE_SECTIONS, BuildNote, EVIDENCE, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
@@ -73,7 +73,7 @@ export function N8nPage(): ReactNode {
       slug="n8n"
       title={N8N_TITLE}
       intro={<N8nIntro />}
-      summary={N8N_SUMMARY}
+      role={<N8nRole />}
       sections={{
         problem: <Paragraphs items={N8N_PROBLEM} />,
         architecture: (

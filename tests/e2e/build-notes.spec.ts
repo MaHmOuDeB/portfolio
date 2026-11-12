@@ -10,7 +10,6 @@ import { expectNoA11yViolations, test } from './fixtures';
 // by level. They follow the build-note outline and share its section links.
 
 const SECTIONS = [
-  ['summary', 'Summary'],
   ['problem', 'The problem'],
   ['architecture', 'Architecture'],
   ['how-i-checked-this', 'How I checked this'],
@@ -55,7 +54,7 @@ for (const note of NOTES) {
       await page.goto(note.route);
       await expect(sectionLinks(page)).toHaveText(LINKS);
       const hrefs = await sectionLinks(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-      expect(hrefs).toEqual(SECTIONS.slice(1).map(([id]) => `#${id}`));
+      expect(hrefs).toEqual(SECTIONS.map(([id]) => `#${id}`));
       for (const href of hrefs) await expect(page.locator(href!)).toHaveCount(1);
       await sectionLinks(page).filter({ hasText: 'Limits' }).click();
       await expect(page).toHaveURL(/#limits$/);

@@ -40,7 +40,7 @@ describe('the outline', () => {
     expect(text(intro)).toBe(text(renderToStaticMarkup(<>{work.description}</>)));
   });
 
-  it('follows the build-note template: summary, problem, architecture, checks, outcome, limits, links', () => {
+  it('follows the build-note template: problem, architecture, checks, outcome, limits, links', () => {
     const sections = outline(PAGE);
     expect(sections.map(([id, , , title]) => [id, title])).toEqual(BUILD_NOTE_SECTIONS.map(([id, title]) => [id, title]));
     for (const [id, labelledBy, headingId] of sections) {
@@ -51,9 +51,9 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length);
   });
 
-  it('has section links to every section after the summary, in page order', () => {
+  it('has section links to every section, in page order', () => {
     const links = sectionLinks(PAGE);
-    expect(links.map(([href]) => href)).toEqual(BUILD_NOTE_SECTIONS.slice(1).map(([id]) => `#${id}`));
+    expect(links.map(([href]) => href)).toEqual(BUILD_NOTE_SECTIONS.map(([id]) => `#${id}`));
     expect(links.map(([, label]) => label)).toEqual(BUILD_NOTE_LINKS);
     for (const [href] of links) expect(PAGE).toContain(`id="${href.slice(1)}"`);
   });
@@ -75,17 +75,14 @@ describe('the outline', () => {
   });
 });
 
-describe('the summary', () => {
-  it('says my role and the result; the line under the title says what it does', () => {
-    const s = section(PAGE, 'summary');
-    expect([...s.matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((m) => decode(m[1]!))).toEqual(['My role', 'Result']);
-    expect(text(s)).toBe(
-      [
-        'Summary',
-        "My role A personal project, rebuilt in 2026 from my Master's project. I built the pipeline, the schema, the checks and the tests.",
-        'Result All 14 error-level checks pass on the full dataset; 5 readings are held back as sensor errors.',
-      ].join(' '),
+describe('the line on my role', () => {
+  it('says what I did, right under the intro, and the page has no Summary section', () => {
+    const role = /<p data-note-role=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE)![1]!;
+    expect(text(role)).toBe(
+      "A personal project, rebuilt in 2026 from my Master's project. I built the pipeline, the schema, the checks and the tests.",
     );
+    expect(PAGE.indexOf('data-note-role')).toBeLessThan(PAGE.indexOf('<nav aria-label="On this page"'));
+    expect(PAGE).not.toMatch(/id="summary"|>Summary</);
   });
 });
 
@@ -97,7 +94,7 @@ describe('the copy, word for word', () => {
     ],
     [
       'outcome',
-      'Outcome On the full dataset, 8,725 observations of 236 places in 191 countries, over six weeks, load into the star schema. The quarantine holds 5 readings, with wind between 172 km/h and 2,963 km/h. A warning flags 43 places observed fewer than 20 times, which limits any comparison between places.',
+      'Outcome On the full dataset, 8,725 observations of 236 places in 191 countries, over six weeks, load into the star schema, and all 14 error-level checks pass. The quarantine holds 5 readings, with wind between 172 km/h and 2,963 km/h. A warning flags 43 places observed fewer than 20 times, which limits any comparison between places.',
     ],
     [
       'limits',

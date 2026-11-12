@@ -51,9 +51,8 @@ export const audit = (markup: string, route: string) =>
     denylist: [],
   });
 
-/** The build-note template: summary, problem, architecture, verification, outcome, limits, links. */
+/** The build-note sections: problem, architecture, verification, outcome, limits, links. */
 export const BUILD_NOTE_SECTIONS = [
-  ['summary', 'Summary'],
   ['problem', 'The problem'],
   ['architecture', 'Architecture'],
   ['how-i-checked-this', 'How I checked this'],

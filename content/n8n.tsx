@@ -26,22 +26,16 @@ export function N8nIntro(): ReactNode {
   );
 }
 
-export const N8N_SUMMARY: readonly [label: string, body: ReactNode][] = [
-  [
-    'My role',
+/** The line on my role under the intro. */
+export function N8nRole(): ReactNode {
+  return (
     <>
-      A personal project, built in 2026. I set the requirements and made the design decisions; Claude Code was my pair
-      programmer.
-    </>,
-  ],
-  [
-    'Where it stands',
-    <>
-      A public, MIT-licensed repository of three automations for a self-hosted n8n; no real customer, no production
-      use, no real invoices.
-    </>,
-  ],
-];
+      A personal project, built in 2026: three automations for a self-hosted n8n in a public, MIT-licensed repository,
+      with no real customer, no production use and no real invoices. I set the requirements and made the design
+      decisions; Claude Code was my pair programmer.
+    </>
+  );
+}
 
 export const N8N_PROBLEM: readonly [key: string, body: ReactNode][] = [
   [

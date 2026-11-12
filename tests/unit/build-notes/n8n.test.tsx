@@ -44,7 +44,7 @@ describe('the outline', () => {
     expect(WORK_GROUPS.flatMap((g) => g.items).at(-1)?.href).toBe(ROUTE);
   });
 
-  it('follows the build-note template: summary, problem, architecture, checks, outcome, limits, links', () => {
+  it('follows the build-note template: problem, architecture, checks, outcome, limits, links', () => {
     const sections = outline(PAGE);
     expect(sections.map(([id, , , title]) => [id, title])).toEqual(BUILD_NOTE_SECTIONS.map(([id, title]) => [id, title]));
     for (const [id, labelledBy, headingId] of sections) {
@@ -55,9 +55,9 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length);
   });
 
-  it('has section links to every section after the summary, in page order', () => {
+  it('has section links to every section, in page order', () => {
     const links = sectionLinks(PAGE);
-    expect(links.map(([href]) => href)).toEqual(BUILD_NOTE_SECTIONS.slice(1).map(([id]) => `#${id}`));
+    expect(links.map(([href]) => href)).toEqual(BUILD_NOTE_SECTIONS.map(([id]) => `#${id}`));
     expect(links.map(([, label]) => label)).toEqual(BUILD_NOTE_LINKS);
   });
 
@@ -79,16 +79,12 @@ describe('the outline', () => {
 });
 
 describe('the copy, word for word', () => {
-  it('summary', () => {
-    const s = section(PAGE, 'summary');
-    expect([...s.matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((m) => decode(m[1]!))).toEqual(['My role', 'Where it stands']);
-    expect(text(s)).toBe(
-      [
-        'Summary',
-        'My role A personal project, built in 2026. I set the requirements and made the design decisions; Claude Code was my pair programmer.',
-        'Where it stands A public, MIT-licensed repository of three automations for a self-hosted n8n; no real customer, no production use, no real invoices.',
-      ].join(' '),
+  it('the line on my role, right under the intro; no Summary section', () => {
+    const role = /<p data-note-role=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE)![1]!;
+    expect(text(role)).toBe(
+      'A personal project, built in 2026: three automations for a self-hosted n8n in a public, MIT-licensed repository, with no real customer, no production use and no real invoices. I set the requirements and made the design decisions; Claude Code was my pair programmer.',
     );
+    expect(PAGE).not.toMatch(/id="summary"|>Summary</);
   });
 
   it.each([
