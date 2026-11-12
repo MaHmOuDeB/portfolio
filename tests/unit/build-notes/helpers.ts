@@ -23,7 +23,7 @@ export const section = (markup: string, id: string) => {
 
 /** Each section as [id, aria-labelledby, h2 id, h2 text], in page order. */
 export const outline = (markup: string) =>
-  [...markup.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"[^>]*>([^<]+)<\/h2>/g)].map((m) => [
+  [...markup.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"[^>]*>([^<]+)<\/h2>/g)].map((m): [id: string, labelledBy: string, headingId: string, title: string] => [
     m[1]!,
     m[2]!,
     m[3]!,
@@ -34,7 +34,7 @@ export const outline = (markup: string) =>
 export const sectionLinks = (markup: string) => {
   const nav = /<nav aria-label="On this page"[^>]*>([\s\S]*?)<\/nav>/.exec(markup);
   if (!nav) throw new Error('no section links');
-  return [...nav[1]!.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1]!, text(m[2]!)]);
+  return [...nav[1]!.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m): [href: string, label: string] => [m[1]!, text(m[2]!)]);
 };
 
 /** The words of the prose a visitor reads: the article without its diagram and its tables. */
