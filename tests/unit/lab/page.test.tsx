@@ -125,7 +125,7 @@ describe('the Lab page', () => {
     for (const { id, html } of all) {
       expect(text(html), id).toContain('Simulated');
       expect(html, id).not.toMatch(/Public data|Live from this site/);
-      const nojs = /<div data-nojs-only=""[^>]*data-figure-tables=""[^>]*>([\s\S]*?)<\/table>/.exec(html);
+      const nojs = /<div data-figure-tables=""[^>]*>[\s\S]*?<div [^>]*data-nojs-only=""[^>]*data-table-body=""[^>]*>([\s\S]*?)<\/table>/.exec(html);
       expect(nojs, `${id}: the open table`).not.toBeNull();
       expect(nojs![1]!, id).toMatch(/<tbody>[\s\S]*<td/);
     }
@@ -164,7 +164,7 @@ describe('the peeking page', () => {
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
     const { html } = figures(PEEKING)[0]!;
     expect(text(html)).toContain('Simulated');
-    expect(html).toMatch(/<div data-nojs-only=""[^>]*data-figure-tables=""[\s\S]*?<tbody>/);
+    expect(html).toMatch(/<div data-figure-tables=""[^>]*>[\s\S]*?<div [^>]*data-nojs-only=""[^>]*data-table-body=""[\s\S]*?<tbody>/);
   });
 
   it('the interview link opens the same view as the default: daily, 20 looks, no fix', () => {
