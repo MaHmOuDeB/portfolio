@@ -6,6 +6,7 @@
 // load. At 1024x576 CSS px (1280x720 at 125%), every link is visible and reachable with the keyboard.
 import { expect, type Page, type Request } from '@playwright/test';
 import { createRedisRest } from '../../src/lib/experiment/redis-rest';
+import { fieldName, keys } from '../../src/lib/experiment/keys';
 import { readView } from '../../src/lib/experiment/store';
 import { EXPERIMENT } from '../../src/experiment.values';
 import { E2E_FAKE_UPSTASH_URL, E2E_KV_READ_TOKEN } from './constants';
@@ -61,7 +62,11 @@ async function visitor(page: Page, headers: Record<string, string> | undefined):
  * What the store holds for this view. The event route reserves every entry before it looks at the
  * reason to refuse it (a `pending:<owner>` claim that dedupes a re-sent entry and expires with the
  * view's id), and only a counted entry turns that claim into its group. So a view that was not
- * counted has no entry claim or an unfinished reservation with an expiry, and no other claim.
+ * counted has no entry claim or an unfinished reservation with an expiry, and no other claim. The
+ * claims stand for the counters: the route moves a group's entry and outcome counters only when it
+ * turns the claim into a group (the reject check runs before the daily count and the finalising
+ * step), and an outcome counts only on a counted entry of the same view. The day's group rows are
+ * not compared directly, because parallel tests share the store; the forced tally is (forcedTally).
  */
 async function expectNotCounted(ns: string, pv: string): Promise<void> {
   const view = await readView(read, { ns, pv, closed: false, expiry: true });
@@ -69,6 +74,14 @@ async function expectNotCounted(ns: string, pv: string): Promise<void> {
   expect(entry === null || /^pending:[0-9a-f]+$/.test(entry), `entry claim ${entry}`).toBe(true);
   if (entry !== null) expect(view.entryExpiry, 'the reservation expires').toBeGreaterThan(0);
   expect(OUTCOMES.slice(1).map((type) => view.claims[type] ?? null)).toEqual(OUTCOMES.slice(1).map(() => null));
+}
+
+/** The store's total of entries refused as forced, in the configured round: it only ever rises. */
+async function forcedTally(): Promise<number> {
+  const fields = (await read.command(['HGETALL', keys.counters(EXPERIMENT.namespace)])) as string[] | null;
+  const list = fields ?? [];
+  const at = list.indexOf(fieldName({ kind: 'rejection', reason: 'forced' }));
+  return at === -1 ? 0 : Number(list[at + 1]);
 }
 
 const main = (page: Page) => page.getByRole('main');
@@ -108,6 +121,7 @@ test.describe('/demo', () => {
       await page.goto(DEMO);
       await page.waitForLoadState('networkidle');
       expect(sent, 'the demo page itself posts nothing').toEqual([]);
+      const forcedBefore = await forcedTally();
 
       await main(page).getByRole('link', { name: label, exact: true }).click();
       await page.waitForURL((url) => url.pathname === '/' && url.search === `?variant=${arm}`);
@@ -120,6 +134,9 @@ test.describe('/demo', () => {
       expect(first.batch.events).toEqual([{ type: 'entry', reject: 'forced' }]);
       expect(first.batch.arm).toBe(arm);
       expect(await first.response).toEqual({ ok: false, reason: 'forced' });
+      // the server tallied the refusal under forced, in the configured round, before it answered
+      expect(first.batch.ns).toBe(EXPERIMENT.namespace);
+      expect(await forcedTally()).toBeGreaterThan(forcedBefore);
 
       // The frozen design: group A's headlines in both groups while calibrating, the asked group's in the A/B.
       const shown = EXPERIMENT.phase === 'calibration' ? 'a' : arm;
