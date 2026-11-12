@@ -44,10 +44,13 @@ for (const note of NOTES) {
       await expect(page.locator(`section#architecture figure[data-figure="${note.figure}"]`)).toHaveCount(1);
     });
 
-    test('the header marks Work as the current section', async ({ page }) => {
+    test('the header marks Work as the current section, in the bar and in the menu', async ({ page }) => {
       await page.goto(note.route);
       const work = NAV.find((n) => n.label === 'Work')!;
-      await expect(page.getByRole('banner').getByRole('link', { name: work.label, exact: true }).first()).toHaveAttribute('aria-current', 'page');
+      // Below the menu breakpoint the links sit in the closed menu, so they are found by href, not by role.
+      const links = page.locator(`[data-site-header] a[href="${work.href}"]`);
+      await expect(links).not.toHaveCount(0);
+      for (const link of await links.all()) await expect(link).toHaveAttribute('aria-current', 'page');
     });
 
     test('section links: in order, every target exists, and a link lands its heading below the header', async ({ page }) => {
