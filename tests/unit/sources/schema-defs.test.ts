@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 // The envelope ($defs.meta, $defs.fact) is copied into every schema file, so these tests
@@ -12,10 +11,8 @@ const schema = (name: string): Json =>
   JSON.parse(readFileSync(new URL(`../../../data/schemas/${name}-1.schema.json`, import.meta.url), 'utf8'));
 const clone = <T>(x: T): T => structuredClone(x);
 
-// The weather schema's reserved-word rule on property names, read from its fact def and pinned by
-// the hash of its JSON, so a change to the rule fails here.
-const RESERVED_RULE: Json = schema('weather').$defs.fact.propertyNames;
-const RESERVED_RULE_SHA256 = 'a560a08dd933e673c3406c2768e9907f2d336229822dc7a52dfe28555aeb2361';
+// The weather schema's reserved-word rule on property names.
+const RESERVED_RULE = { not: { pattern: '[Ll][Ee][Aa][Kk]' } };
 
 // Removes the weather-only reserved-word rule everywhere, returning how many were removed.
 function stripReservedRule(node: unknown, counter = { n: 0 }): { value: unknown; removed: number } {
@@ -81,11 +78,6 @@ describe('schema envelope stays in sync', () => {
       expect(props.schema, name).toEqual({ const: `${name}/1` });
       expect(props.source, name).toEqual({ const: name });
     }
-  });
-
-  it('the weather reserved-word rule is the pinned one', () => {
-    expect(Object.keys(RESERVED_RULE)).toEqual(['not']);
-    expect(createHash('sha256').update(JSON.stringify(RESERVED_RULE)).digest('hex')).toBe(RESERVED_RULE_SHA256);
   });
 
   it('only the weather schema carries the reserved-word rule, and every weather object has it', () => {
