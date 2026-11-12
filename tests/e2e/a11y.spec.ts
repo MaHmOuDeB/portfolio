@@ -240,7 +240,13 @@ const HOME_INLINE: readonly InlineEntry[] = [
   { name: 'Live test page', while: { selector: '[data-scroll-step="2"]', text: /fewer than/ } },
   { name: 'Why so many?' },
 ];
-const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = { '/': HOME_INLINE, '/?variant=a': HOME_INLINE, '/?variant=b': HOME_INLINE };
+// The Audible page's summary gives its adoption figure the same "Why so many?" link, in its sentence.
+const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
+  '/': HOME_INLINE,
+  '/?variant=a': HOME_INLINE,
+  '/?variant=b': HOME_INLINE,
+  '/work/audible': [{ name: 'Why so many?' }],
+};
 
 /**
  * The pointer targets of the page in their visible state: those under 44 by 44 CSS px, the links in a

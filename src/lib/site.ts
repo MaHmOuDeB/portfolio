@@ -33,6 +33,7 @@ export const LIVE_ROUTES: readonly string[] = [
   '/lab',
   '/lab/peeking',
   '/privacy',
+  '/work/audible',
   '/work/docproof',
   '/work/marketingws',
   '/work/n8n',
