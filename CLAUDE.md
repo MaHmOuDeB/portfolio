@@ -200,8 +200,8 @@ Page-level parts built from the kit. They live outside the kit (`src/components/
 `src/components/figures`, `src/components/retention`, `src/components/lab`,
 `src/components/live-page`, `src/components/audible`, `src/components/build-notes`,
 `src/components/marketingws`, `src/components/docproof`, `src/components/weather`,
-`src/components/n8n`, `src/components/work`, `src/components/about` and `src/components/demo`), and
-each is listed here once its file exists.
+`src/components/n8n`, `src/components/work`, `src/components/about`, `src/components/demo` and
+`src/components/pulse`), and each is listed here once its file exists.
 
 | Export | File | Role |
 |---|---|---|
@@ -257,6 +257,11 @@ each is listed here once its file exists.
 | `CvDownload` | `src/components/about/CvDownload.tsx` | The CV PDF's download button, "Download CV (PDF, <size>)", the size from the build (`data-derived="build"`); hidden in print. Rendered only when the build has a checked PDF. |
 | `TimelineRow` | `src/components/about/TimelineRow.tsx` | A row on the About timeline: the months, the role (h3) and where. |
 | `Months` | `src/components/about/Months.tsx` | A month range ("Aug 2023 – Apr 2025", "Oct 2026 – present"), each month in a `<time>`. |
+| `PulsePage`, `PULSE_SECTIONS`, `PULSE_TITLE`, `PULSE_METADATA_TITLE` | `src/components/pulse/PulsePage.tsx` | The Pulse case study at `/work/pulse`, in the golden page's composition: the h1 is the event count as a `Fact` and the claim it heads, then the summary, the section links and one `<section id>` per part. The event table (`taxonomyTable` in `src/lib/pulse/tables.ts`: the export's rows word for word, `source:pulse` on every cell, no provenance badge) sits in the same section as the sentences that call its questions design hypotheses. Its prose comes from `content/pulse.tsx`. |
+| `PulseFigure` | `src/components/pulse/PulseFigure.tsx` | The Pulse dashboard Figure (`pulse`, "Simulated"): the server reads the taxonomy (`src/lib/pulse/taxonomy.ts`, server only) and draws the preset, all channels over 30d, with an empty event list; the island gets only the taxonomy rows, for its bus. Its `faultAfterChange` prop is a test seam that only a dev host may set. |
+| `PulseFigureClient`, `PulseControls`, `InertPulseControls`, `PulseIsland` | `src/components/pulse/PulseFigureClient.tsx` (client) | Places the island with `EagerOrIntent` (`ids={[PULSE_ID]}`). The one control row: Channel, Date range (the source's 7d, 30d and 90d, marked `source:pulse`) and Reset, URL keys `pulse.channel` and `pulse.range` (`src/lib/pulse/dashboard.ts`). |
+| `PulseInteractive` | `src/components/pulse/PulseInteractive.tsx` (client) | The lazy island: one bus per mount (`createPulseBus` in `src/lib/pulse/bus.ts`), the event stream in its own state through `src/lib/pulse/session.ts`. It sends Viewed Dashboard once per mount and each action's event from its handler; Reset restores the preset, drops the saved view and the open detail, empties the stream and sends one new Viewed Dashboard. Export CSV saves the rows shown, made in memory. Nothing is stored or requested, and only the view is in the URL. |
+| `PulseFigureView`, `PulseResult`, `PulseStream`, `RangeText`, `PULSE_FIGURE_TITLE` | `src/components/pulse/PulseView.tsx` | The shared, hook-free view: two line charts of made-up daily numbers on fixed value axes, each with a Detail button; Export CSV, Save view and Load saved view (disabled, with its reason, until a view is saved) as native buttons in the labelled dashboard content, not in the control row; and the last 20 events, newest first, not a live region, with each property value marked by its refs and the local demo prompt version. |
 
 ## Golden-page rule
 

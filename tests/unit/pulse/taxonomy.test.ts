@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
+import * as names from '@/lib/pulse/names';
 import * as taxonomyModule from '@/lib/pulse/taxonomy';
 import { PULSE_EVENT_NAMES, PULSE_TAXONOMY_REFS, pulseTaxonomy } from '@/lib/pulse/taxonomy';
 import { pulse } from '@/lib/sources';
@@ -105,6 +106,15 @@ function importsOf(file: string): string[] {
 
 describe('the taxonomy module imports', () => {
   it('reads the export only through the one source loader, with nothing else imported', () => {
-    expect(importsOf(join(ROOT, 'src/lib/pulse/taxonomy.ts')).sort()).toEqual(['@/components/kit/Derived', '@/lib/sources']);
+    expect(importsOf(join(ROOT, 'src/lib/pulse/taxonomy.ts')).sort()).toEqual(['@/lib/pulse/names', '@/lib/sources']);
+  });
+
+  it('takes its names and refs from the browser-safe names module, which imports only a type', () => {
+    expect(PULSE_EVENT_NAMES).toBe(names.PULSE_EVENT_NAMES);
+    expect(PULSE_TAXONOMY_REFS).toBe(names.PULSE_TAXONOMY_REFS);
+    expect(Object.keys(names).sort()).toEqual(['PULSE_EVENT_NAMES', 'PULSE_TAXONOMY_REFS']);
+    const file = join(ROOT, 'src/lib/pulse/names.ts');
+    expect(importsOf(file)).toEqual(['@/components/kit/Derived']);
+    expect(readFileSync(file, 'utf8')).toMatch(/^import type \{ DerivedRef \} from '@\/components\/kit\/Derived';$/m);
   });
 });

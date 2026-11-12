@@ -44,6 +44,7 @@ export const LIVE_ROUTES: readonly string[] = [
   '/work/docproof',
   '/work/marketingws',
   '/work/n8n',
+  '/work/pulse',
   '/work/retention',
   '/work/weather',
 ];
