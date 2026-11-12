@@ -105,6 +105,19 @@ describe('the privacy page', () => {
     expect(elements(section).some((el) => attr(el, 'data-launch-placeholder') !== undefined)).toBe(false);
     const links = elements(section).filter((el) => el.tagName === 'a');
     expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT.linkedin]);
+    expect(links.map((a) => text(a))).toEqual(['linkedin.com/in/melbergui']);
+  });
+
+  it('says exactly how messages are handled', () => {
+    const paragraphs = all.filter((el) => el.tagName === 'p').map((el) => text(el));
+    for (const sentence of [
+      'Replying to your messages: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.',
+      'Messages you send me on LinkedIn are processed by LinkedIn under its own terms.',
+      'Messages: deleted when the conversation is over, unless I need to keep them.',
+      'You can reach me through my LinkedIn profile:',
+    ]) {
+      expect(paragraphs, sentence).toContain(sentence);
+    }
   });
 
   it('marks every numeral as derived from the build or as a time, except legal citations', () => {
@@ -148,7 +161,9 @@ describe('the privacy page', () => {
     const objection = elements(rights).filter((el) => el.tagName === 'p' && /object at any time/.test(text(el)));
     expect(objection).toHaveLength(1);
     expect(text(objection[0]!)).toMatch(/Art\. 6\(1\)\(f\) GDPR \(Art\. 21 GDPR\)/);
-    expect(text(objection[0]!)).toMatch(/Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn/);
+    expect(text(objection[0]!)).toBe(
+      'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn.',
+    );
     expect(text(objection[0]!)).not.toMatch(/Art\. 15/);
   });
 
