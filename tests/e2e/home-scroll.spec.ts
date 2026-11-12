@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
 import { test } from './fixtures';
+import { markSlow } from './slow';
 
 // The Home scroll moment's shell on the dev host (/kitchen-sink/home/scroll/<state>, the Home page's
 // parts with a fictional state). The server sends both layouts; CSS picks one before the first paint,
@@ -77,13 +78,17 @@ async function layoutOf(page: Page) {
 }
 
 /**
- * The accessible chart tables in the moment: rendered (no display: none ancestor), whether folded in
- * their disclosure or open. The chart's tables carry the Figure's id.
+ * The accessible chart tables in the moment: rendered (no display: none ancestor, apart from the
+ * body of a folded table, which its summary opens), whether folded or open. The chart's tables carry
+ * the Figure's id.
  */
 async function chartTables(page: Page): Promise<number> {
   return page.evaluate(() => {
+    // A folded table counts: its body is hidden only until the summary drawn before it opens it.
+    const folded = (e: Element) => e.matches('[data-table-body]') && e.previousElementSibling?.matches('[data-table-toggle]') === true
+      && getComputedStyle(e.previousElementSibling).display !== 'none';
     const rendered = (el: Element) => {
-      for (let e: Element | null = el; e; e = e.parentElement) if (getComputedStyle(e).display === 'none') return false;
+      for (let e: Element | null = el; e; e = e.parentElement) if (getComputedStyle(e).display === 'none' && !folded(e)) return false;
       return true;
     };
     return [...document.querySelectorAll('[data-scroll-moment] caption')]
@@ -155,7 +160,7 @@ test.describe('home scroll moment shell', () => {
   test('reduced motion and no JavaScript get the stacked frames at every size', async ({ browser, baseURL }) => {
     // Six pages, each waiting for its charts' code, which loads at idle time away from the moment
     // (2 s in WebKit, which has no idle callback): a longer time budget, the same assertions.
-    test.slow();
+    markSlow('six pages, each waiting for chart code that loads at idle time (2 s in WebKit)');
     for (const size of [{ width: 375, height: 667 }, { width: 1024, height: 576 }, { width: 1440, height: 900 }]) {
       for (const options of [{ reducedMotion: 'reduce' as const }, { javaScriptEnabled: false }]) {
         const page = await open(browser, baseURL, AB, size, options);
@@ -965,7 +970,7 @@ test.describe('home scroll moment interaction', () => {
   }
 
   test("375x667: a chart whose code never arrives drops the moment to its stacked frames after the wait", async ({ browser, baseURL }) => {
-    test.slow();
+    markSlow('waits out the 5 s late-chart timer on top of the page load');
     const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     const first = await firstLoadChunks(page, AB);
@@ -990,7 +995,7 @@ test.describe('home scroll moment interaction', () => {
   });
 
   test('375x667: the drop after the wait is final, even when the chart code arrives later', async ({ browser, baseURL }) => {
-    test.slow();
+    markSlow('waits out the 5 s late-chart timer, then for the held chart code to arrive');
     const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     const first = await firstLoadChunks(page, AB);

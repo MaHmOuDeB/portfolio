@@ -41,7 +41,17 @@ export default defineConfig({
   // Baselines are generated only in the CI container; a label on the PR regenerates them.
   updateSnapshots: updateSnapshotsMode(process.env),
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: 'disabled', caret: 'hide' },
+    // In CI a capture gets 15 s instead of the default 5 s. A capture that differs from its baseline
+    // needs two more equal shots (after 100 and 250 ms) before it is judged. Whole visual tests
+    // averaged 0.12 to 0.26 s a capture on a hosted runner and up to 0.99 s on the self-hosted one,
+    // and at a load average of 100 to 160 single captures ran out of the 5 s; three times the
+    // default leaves that loop room. Locally the default stays.
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.001,
+      animations: 'disabled',
+      caret: 'hide',
+      ...(process.env.CI ? { timeout: 15_000 } : {}),
+    },
   },
   reporter: [['list'], ['json', { outputFile: 'reports/e2e.json' }]],
   use: {

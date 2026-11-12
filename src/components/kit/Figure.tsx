@@ -3,19 +3,20 @@
 // and the table fallback. One contract, so a new Figure is a content task. Shared: no hooks, so the
 // server renders static Figures and an island renders its interactive one with the same markup.
 //
-// - The table is given twice: open inside [data-nojs-only] under "Controls need JavaScript." (said
-//   only when there are controls), and folded inside [data-js-only]. The unlayered JS-flag rules in
-//   globals.css show one of them.
+// - The table is drawn once (DataTable's disclosure mode): open without JavaScript, under "Controls
+//   need JavaScript." (said only when there are controls), and folded behind "Show the numbers as a
+//   table" with it. The unlayered JS-flag rules in globals.css pick the view; the HTML and the
+//   island's payload carry the numbers once.
 // - A forced runtime (kitchen sink, tests): `no-js` renders the no-JS view ungated, with no controls
 //   and no disclosure; `error` renders the error fallback in place of the chart, with no controls,
-//   no lead, no result and no second table. A real error caught by the boundary looks the same:
+//   no lead, no result and no table of its own (the fallback has one). A real error caught by the boundary looks the same:
 //   globals.css hides the lead, controls, result and tables of a Figure that holds a fallback. The
 //   fallback's preview is `preview`, else the children: an island Figure passes the server's preset
 //   chart.
 // - The announcement region is polite and starts empty: the state a page loads in is plain text and
 //   is not announced. The island sets `announcement` on commit only (slider release, toggle, Reset).
 //   It carries the table's refs, so the truth audit covers the numbers it speaks.
-// - figcaption is the figure's last child, as HTML requires, so the tables sit inside it, after the
+// - figcaption is the figure's last child, as HTML requires, so the table sits inside it, after the
 //   caption and the badge ("Show the numbers as a table" ends the caption).
 import type { ReactNode } from 'react';
 import { resolveFigureBody, type FigureState } from '@/lib/figure/states';
@@ -134,14 +135,7 @@ export function Figure(p: FigureProps) {
   };
   const caption = fallback.tableCaption ?? 'The numbers in this chart';
   const freshness = state.live?.freshness;
-  const openTable = (
-    <>
-      {p.controls ? <p className="text-sm">{NO_JS_NOTE}</p> : null}
-      <div className="mt-2">
-        <DataTable id={`${p.id}-table-open`} caption={caption} table={p.table} mode="open" />
-      </div>
-    </>
-  );
+  const tableId = `${p.id}-table`;
 
   return (
     <figure {...root}>
@@ -189,17 +183,21 @@ export function Figure(p: FigureProps) {
         </div>
         {failed ? null : noJs ? (
           <div data-figure-tables="" className="mt-3">
-            {openTable}
+            {p.controls ? <p className="text-sm">{NO_JS_NOTE}</p> : null}
+            <div className="mt-2">
+              <DataTable id={tableId} caption={caption} table={p.table} mode="open" />
+            </div>
           </div>
         ) : (
-          <>
-            <div data-nojs-only="" data-figure-tables="" className="mt-3">
-              {openTable}
-            </div>
-            <div data-js-only="" data-figure-tables="" className="mt-1">
-              <DataTable id={`${p.id}-table`} caption={caption} table={p.table} mode="disclosure" />
-            </div>
-          </>
+          <div data-figure-tables="" className="mt-1">
+            <DataTable
+              id={tableId}
+              caption={caption}
+              table={p.table}
+              mode="disclosure"
+              noJsNote={p.controls ? NO_JS_NOTE : undefined}
+            />
+          </div>
         )}
       </figcaption>
     </figure>

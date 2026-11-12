@@ -144,7 +144,7 @@ describe('DataTable share format', () => {
         </Figure>,
       );
     for (const html of [figure(), figure('no-js')]) {
-      const at = html.indexOf('id="shares-table-open-caption"');
+      const at = html.indexOf('id="shares-table-caption"');
       expect(at).toBeGreaterThanOrEqual(0);
       const open = html.slice(at);
       expect(cells(open).slice(0, 6)).toEqual(['Group one', '23%', 'Group two', '21%', 'Group three', '0%']);

@@ -133,7 +133,7 @@ test.describe('the Lab routes', () => {
         const own = served.slice(start, served.indexOf('</figure>', start));
         expect(own, `${path} ${id}`).toContain('Simulated');
         expect(own, `${path} ${id}`).not.toMatch(/Public data|Live from this site/);
-        expect(own, `${path} ${id}`).toMatch(/data-nojs-only=""[^>]*data-figure-tables=""[\s\S]*?<tbody>[\s\S]*?<td/);
+        expect(own, `${path} ${id}`).toMatch(/data-figure-tables=""[\s\S]*?data-nojs-only=""[^>]*data-table-body=""[\s\S]*?<tbody>[\s\S]*?<td/);
       }
       await page.goto(path);
       await waitForIslands(page);

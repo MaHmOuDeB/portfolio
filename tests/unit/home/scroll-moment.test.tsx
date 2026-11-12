@@ -102,14 +102,14 @@ describe('ScrollMoment: the server markup both layouts share', () => {
     expect(squash(text(caption[0]!))).toContain('confidence sequence of B − A in percentage points, never widened at a look.');
     expect(squash(text(caption[0]!))).not.toContain('narrowed at each look');
     expect(squash(text(caption[0]!))).toContain('Simulated');
-    // The live chart's numbers: one open table (no-JS) and one folded table (JS), both in the caption;
-    // CSS shows one. No other table in the moment carries the chart's caption.
+    // The live chart's numbers: one table in the caption, open without JavaScript and folded with it.
+    // No other table in the moment carries the chart's caption.
     const captionOf = (t: El) => attr(all(t, (el) => el.tagName === 'caption')[0]!, 'id') ?? '';
     const tables = all(d, (el) => el.tagName === 'table' && captionOf(el).startsWith('home-chart-'));
-    expect(tables.map(captionOf).sort()).toEqual(['home-chart-table-caption', 'home-chart-table-open-caption']);
+    expect(tables.map(captionOf)).toEqual(['home-chart-table-caption']);
     const chartCaption = squash(text(all(tables[0]!, (el) => el.tagName === 'caption')[0]!));
     const sameCaption = all(d, (el) => el.tagName === 'caption' && squash(text(el)) === chartCaption);
-    expect(sameCaption).toHaveLength(2);
+    expect(sameCaption).toHaveLength(1);
     for (const t of tables) expect(contains(caption[0]!, t)).toBe(true);
   });
 

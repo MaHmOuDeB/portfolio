@@ -84,17 +84,43 @@ describe('DataTable', () => {
     expect(heads.every((h) => attr(h, 'scope') === 'col')).toBe(true);
   });
 
-  it('disclosure mode wraps the table in a details with a 44 px summary', () => {
+  it('disclosure mode draws the table once: a closed details with a 44 px summary, then the body it folds', () => {
     const html = renderToStaticMarkup(<DataTable id="t1" caption="Views by group" table={table} mode="disclosure" />);
     const root = parse(html);
+    expect(find(root, 'table')).toHaveLength(1);
     const [details] = find(root, 'details');
     expect(details).toBeDefined();
+    expect(attr(details!, 'id')).toBe('t1');
+    expect(attr(details!, 'data-js-only')).toBeDefined();
+    expect(attr(details!, 'data-table-toggle')).toBeDefined();
+    expect(attr(details!, 'open')).toBeUndefined();
+    // The details holds only its summary; the table is its next sibling.
+    expect(find(details!, 'table')).toHaveLength(0);
     const [summary] = find(details!, 'summary');
     expect(text(summary!)).toBe('Show the numbers as a table');
     expect(attr(summary!, 'class')).toContain('min-h-(--size-target)');
     expect(attr(summary!, 'data-touch-target')).toBeDefined();
-    expect(find(details!, 'table')).toHaveLength(1);
-    expect(attr(details!, 'open')).toBeUndefined();
+    expect(attr(summary!, 'aria-controls')).toBe('t1-body');
+    const body = find(root, 'div').find((n) => attr(n, 'data-table-body') !== undefined)!;
+    expect(attr(body, 'id')).toBe('t1-body');
+    expect(attr(body, 'data-nojs-only')).toBeDefined();
+    expect(attr(body, 'class')).toBe('mt-3');
+    expect(find(body, 'table')).toHaveLength(1);
+    expect(html.indexOf('<details')).toBeLessThan(html.indexOf('data-table-body'));
+    expect(html).not.toContain('Controls need JavaScript.');
+  });
+
+  it('disclosure mode puts a no-JS note above the open table and closes the gap under it', () => {
+    const html = renderToStaticMarkup(
+      <DataTable id="t1" caption="Views by group" table={table} mode="disclosure" noJsNote="Controls need JavaScript." />,
+    );
+    const root = parse(html);
+    const note = find(root, 'p').find((n) => text(n) === 'Controls need JavaScript.')!;
+    expect(attr(note, 'data-nojs-only')).toBeDefined();
+    expect(attr(note, 'class')).toBe('mt-3 text-sm');
+    const body = find(root, 'div').find((n) => attr(n, 'data-table-body') !== undefined)!;
+    expect(attr(body, 'class')).toBe('mt-2');
+    expect(html.indexOf('Controls need JavaScript.')).toBeLessThan(html.indexOf('<details'));
   });
 
   it('every cell carries the refs from the caller and numbers go through formatNumber', () => {

@@ -1,6 +1,7 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { expectNoA11yViolations, test } from './fixtures';
+import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 import { watchScripts } from './island-code';
 
 // The "Figures" section of the kitchen sink (Review Focus 5): two interactive demo Figures, `demo`
@@ -166,6 +167,7 @@ test.describe('kitchen sink Figures', () => {
       await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
       await expect(f.getByText('Controls need JavaScript.')).toBeVisible();
       await expect(f.locator('[data-nojs-only] table')).toBeVisible();
+      await expect(f.locator('table')).toHaveCount(1);
       await expect(f.locator('details')).toBeHidden();
       await expect(f.getByRole('group', { name: 'Controls' })).toBeHidden();
       await expect(f.locator('svg[data-chart-frame]:visible')).toHaveCount(1);
@@ -368,6 +370,9 @@ test.describe('kitchen sink Figures', () => {
     await expect(page.locator('[data-island="failed"]', { has: figure(page, 'demo') })).toHaveCount(1);
     await expect(figure(page, 'demo').getByText('Controls need JavaScript.')).toBeVisible();
     await expect(figure(page, 'demo').locator('[data-nojs-only] table')).toBeVisible();
+    // The one table is open and its disclosure is gone, as without JavaScript.
+    await expect(figure(page, 'demo').locator('table')).toHaveCount(1);
+    await expect(figure(page, 'demo').locator('summary')).toBeHidden();
     await expect(figure(page, 'demo').getByRole('group', { name: 'Controls' })).toBeHidden();
     await expect(figure(page, 'demo').locator('svg[data-chart-frame]:visible')).toHaveCount(1);
     // The rest of the page is untouched.
@@ -403,6 +408,144 @@ test.describe('kitchen sink Figures', () => {
     await figure(page, 'thrower').getByRole('button', { name: 'Make this chart fail' }).press('Enter');
     await expect(figure(page, 'thrower').getByRole('status')).toBeVisible();
     await expectNoA11yViolations(page);
+  });
+});
+
+// The table fallback is drawn once (DataTable's disclosure mode): a details that holds only its
+// summary, then the table's body. Without JavaScript the body is open and the summary gone; with it
+// the body shows only while the details is open, directly under the summary.
+test.describe('kit: the table fallback, drawn once', () => {
+  const TABLE_FIGURES = ['static', 'demo'] as const;
+  const tables = (page: Page, id: string) => figure(page, id).locator('figcaption > [data-figure-tables]');
+  /** Where the table parts sit inside their Figure: offsets from the figcaption's top, and heights. */
+  const geometry = (page: Page, id: string) =>
+    figure(page, id).evaluate((f) => {
+      const caption = f.querySelector(':scope > figcaption')!.getBoundingClientRect();
+      const box = (el: Element | null) => {
+        const r = el?.getBoundingClientRect();
+        return r && r.height > 0 ? { top: Math.round(r.top - caption.top), height: Math.round(r.height) } : null;
+      };
+      return {
+        caption: Math.round(caption.height),
+        summary: box(f.querySelector('[data-table-toggle] > summary')),
+        body: box(f.querySelector('[data-table-body]')),
+      };
+    });
+  const axe = (page: Page, ...ids: string[]) =>
+    ids
+      .reduce((builder, id) => builder.include(`figure[data-figure="${id}"]`), new AxeBuilder({ page }))
+      .options({ resultTypes: ['violations'] })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+
+  test('with JavaScript: one table, folded until the summary opens it, named by its caption', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    await ready(page, 'demo');
+    for (const id of TABLE_FIGURES) {
+      const f = figure(page, id);
+      await expect(f.locator('table')).toHaveCount(1);
+      await expect(f.locator('table')).toBeHidden();
+      await expect(f.getByText('Controls need JavaScript.')).toBeHidden();
+      const summary = f.locator('[data-table-toggle] > summary');
+      await expect(summary).toHaveText('Show the numbers as a table');
+      await expect(summary).toHaveAttribute('aria-controls', `${id}-table-body`);
+      expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await summary.click();
+      await expect(f.locator('[data-table-toggle]')).toHaveAttribute('open', '');
+      const table = f.getByRole('table');
+      await expect(table).toBeVisible();
+      await expect(table).toHaveAccessibleName(await f.locator('h4').innerText());
+      await expect(f.getByRole('region', { name: await f.locator('h4').innerText() })).toBeVisible();
+      // The body sits directly under the summary, as it did inside the details.
+      const g = await geometry(page, id);
+      expect(g.body!.top - (g.summary!.top + g.summary!.height), id).toBe(0);
+      expect((await axe(page, id)).violations, id).toEqual([]);
+      await summary.click();
+      await expect(f.locator('table')).toBeHidden();
+    }
+  });
+
+  test('the keyboard opens the table, and its region takes focus next', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    const summary = figure(page, 'static').locator('[data-table-toggle] > summary');
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    await expect(figure(page, 'static').getByRole('table')).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(figure(page, 'static').getByRole('region')).toBeFocused();
+  });
+
+  test('without JavaScript: one open table, named, with no disclosure', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto('/kitchen-sink');
+    for (const id of TABLE_FIGURES) {
+      const f = figure(page, id);
+      await expect(f.locator('table')).toHaveCount(1);
+      await expect(f.getByRole('table')).toBeVisible();
+      await expect(f.getByRole('table')).toHaveAccessibleName(await f.locator('h4').innerText());
+      await expect(f.locator('summary')).toBeHidden();
+    }
+    // The note sits 12 px under the badge row and the table 8 px under the note, as before; a Figure
+    // without controls has its table 12 px under the badge row.
+    const gap = (id: string) =>
+      tables(page, id).evaluate((t) => {
+        const row = t.previousElementSibling!.getBoundingClientRect();
+        const first = [...t.children].find((c) => c.getClientRects().length > 0)!.getBoundingClientRect();
+        return Math.round(first.top - row.bottom);
+      });
+    expect(await gap('demo')).toBe(12);
+    expect(await gap('static')).toBe(12);
+    const note = figure(page, 'demo').getByText('Controls need JavaScript.');
+    const noteBox = (await note.boundingBox())!;
+    expect(Math.round((await figure(page, 'demo').locator('[data-table-body]').boundingBox())!.y - (noteBox.y + noteBox.height))).toBe(8);
+    await context.close();
+  });
+
+  test('the table parts do not move when the page hydrates', async ({ page }) => {
+    // First, in a page of its own, the server HTML with the JavaScript flag set (the inline script
+    // runs) and no code loaded: what a reader sees before hydration.
+    const unhydrated = await page.context().newPage();
+    await unhydrated.route('**/_next/static/**/*.js', (route) => route.abort());
+    await unhydrated.goto('/kitchen-sink');
+    await expect(unhydrated.locator('html')).toHaveAttribute('data-js', '');
+    await unhydrated.evaluate(() => document.fonts.ready);
+    const before = await Promise.all(TABLE_FIGURES.map((id) => geometry(unhydrated, id)));
+    await unhydrated.close();
+    // Then the hydrated page, with every island swapped in.
+    await page.goto('/kitchen-sink');
+    await page.evaluate(() => document.fonts.ready);
+    await waitForIslands(page);
+    const after = await Promise.all(TABLE_FIGURES.map((id) => geometry(page, id)));
+    expect(after).toEqual(before);
+    for (const g of after) expect(g.body).toBeNull();
+  });
+
+  test('the no-JS view, drawn by the CSS without the JavaScript flag: axe finds nothing', async ({ page }) => {
+    // axe runs in the page, so it cannot scan a page loaded without JavaScript. The no-JS view is
+    // chosen by CSS alone (html:not([data-js])), so removing the flag draws it for the scan.
+    test.setTimeout(90_000);
+    await page.goto('/kitchen-sink');
+    await waitForIslands(page);
+    await page.evaluate(() => document.documentElement.removeAttribute('data-js'));
+    for (const id of TABLE_FIGURES) {
+      await expect(figure(page, id).getByRole('table')).toBeVisible();
+      await expect(figure(page, id).locator('summary')).toBeHidden();
+    }
+    await expect(figure(page, 'demo').getByText('Controls need JavaScript.')).toBeVisible();
+    expect((await axe(page, ...TABLE_FIGURES)).violations).toEqual([]);
+  });
+
+  test('in print the table shows and the summary does not', async ({ page }) => {
+    await page.goto('/kitchen-sink');
+    await page.emulateMedia({ media: 'print' });
+    for (const id of TABLE_FIGURES) {
+      await expect(figure(page, id).getByRole('table')).toBeVisible();
+      await expect(figure(page, id).locator('summary')).toBeHidden();
+      await expect(figure(page, id).getByText('Controls need JavaScript.')).toBeHidden();
+    }
+    await page.emulateMedia({ media: 'screen' });
+    for (const id of TABLE_FIGURES) await expect(figure(page, id).locator('table')).toBeHidden();
   });
 });
 

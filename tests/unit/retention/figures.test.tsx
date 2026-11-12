@@ -40,9 +40,9 @@ const result = (html: string) => html.match(/<p data-figure-result=""[^>]*>([\s\
 const caption = (html: string) => html.match(/<figcaption[^>]*><p[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
 const attr = (tag: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1];
 const tags = (html: string, selector: RegExp) => [...html.matchAll(selector)].map((m) => m[0]);
-/** The open (no-JS) table's cells, as printed. */
+/** The table's cells, as printed (the one table, open without JavaScript). */
 function openCells(html: string, id: string) {
-  const at = html.indexOf(`id="${id}-table-open-caption"`);
+  const at = html.indexOf(`id="${id}-table-caption"`);
   expect(at).toBeGreaterThanOrEqual(0);
   const table = html.slice(at, html.indexOf('</table>', at));
   return [...table.matchAll(/<td([^>]*)>([^<]*)<\/td>/g)].map((m) => ({ attrs: m[1]!, text: m[2]! }));

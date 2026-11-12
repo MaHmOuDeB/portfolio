@@ -14,7 +14,7 @@
 // - the GitHub repository variables the deploy reads exist, by name: LAUNCHED, and LAUNCH_SHA, the
 //   commit the deploy workflow lets deploy production once LAUNCHED is true;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
-//   hash.
+//   hash;
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
 //
 // It reads secret and variable NAMES only: the Vercel CLI is never asked for JSON (which would

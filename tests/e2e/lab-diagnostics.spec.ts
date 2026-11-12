@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import type { Browser, Page } from '@playwright/test';
 import { dotGeometry } from './curse-geometry';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
+import { markSlow } from './slow';
 
 // The Lab's two diagnostics on the dev host /kitchen-sink/lab, which mounts the Lab page as /lab does
 // (their sections are #split-check and #exaggeration): the split check (`srm`,
@@ -61,9 +62,9 @@ async function ready(page: Page, id: Id) {
 
 /** The rows of the Figure's visible table (the open one, the folded one once opened, or the fallback's). */
 async function tableRows(page: Page, id: Id): Promise<string[][]> {
-  const summary = figure(page, id).locator('[data-js-only][data-figure-tables] summary');
+  const summary = figure(page, id).locator('[data-figure-tables] [data-table-toggle] > summary');
   if ((await summary.count()) > 0 && (await summary.isVisible())) {
-    const details = figure(page, id).locator('[data-js-only][data-figure-tables] details');
+    const details = figure(page, id).locator('[data-figure-tables] [data-table-toggle]');
     if ((await details.getAttribute('open')) === null) await summary.click();
   }
   const table = figure(page, id).locator('[data-figure-tables]:visible table, [data-figure-fallback] table').first();
@@ -503,8 +504,8 @@ test.describe('Both diagnostics together', () => {
   }
 
   test('wide: chart text inside each Figure and apart, at the matrix widths and the screen-share size', async ({ page }) => {
-    // Six (or three) page loads with both islands each: WebKit in the container needs more than 30 s.
-    test.slow();
+    // Six page loads with both islands each: WebKit in the container needs more than 30 s.
+    markSlow('six page loads with both islands each: WebKit in the container needs more than 30 s');
     for (const [width, height] of [[375, 900], [390, 900], [768, 900], [1024, 900], [1440, 900], [1024, 576]] as const) {
       await page.setViewportSize({ width, height });
       await page.goto(HOST);
@@ -517,8 +518,8 @@ test.describe('Both diagnostics together', () => {
   });
 
   test('no number escapes its source marker, shown or hidden, and every chart name is digit-free', async ({ page }) => {
-    // Six (or three) page loads with both islands each: WebKit in the container needs more than 30 s.
-    test.slow();
+    // Three page loads with both islands each: WebKit in the container needs more than 30 s.
+    markSlow('three page loads with both islands each: WebKit in the container needs more than 30 s');
     for (const query of ['', '?srm.nA=3&srm.nB=1&curse.trueEffect=0.1&curse.se=5', '?srm.nA=0&srm.nB=0&curse.trueEffect=0']) {
       await page.goto(`${HOST}${query}`);
       for (const id of ['srm', 'curse'] as const) {
@@ -577,7 +578,7 @@ test.describe('Both diagnostics together', () => {
 
   test('axe finds no violations in the previews or the loaded islands', async ({ page }) => {
     // Four axe passes over two full pages: WebKit in the container needs more than 30 s under load.
-    test.slow();
+    markSlow('four axe passes over two full pages: WebKit in the container needs more than 30 s under load');
     await withoutIdle(page);
     for (const width of [375, 1440]) {
       await page.setViewportSize({ width, height: 900 });

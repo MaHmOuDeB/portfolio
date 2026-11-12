@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
+import { markSlow } from './slow';
 
 // Forced groups exercise the public home route; a direct group path intentionally returns 404.
 const routes = [...new Set([...LIVE_ROUTES.filter((route) => route !== '/'), '/', '/?variant=a', '/?variant=b', '/no-such-page', '/kitchen-sink', '/kitchen-sink/live'])];
@@ -10,10 +11,16 @@ const controls = 'a[href], button, input:not([type="hidden"]), select, textarea,
 const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"]';
 // The 144-specimen dev page is the heaviest in the matrix. Its whole-page axe scans and its tab walk
 // (two animation frames per stop, 163 stops) took 17 to 44 s each in the e2e container on a quiet
-// machine, and over the 120 s budget on a heavily loaded one. test.slow() triples the budget of
-// those two tests (360 s); the work and every assertion stay the same.
+// machine, and over the 120 s budget on a heavily loaded one. markSlow triples the budget of those
+// two tests (360 s); the work and every assertion stay the same.
 const HEAVY_ROUTES = new Set(['/kitchen-sink/live']);
 const HEAVY_REASON = '144 live specimens: 17 to 44 s on a quiet machine, over 120 s under heavy load';
+// The tab walk's wait, per stop, for focus scrolling to settle. A settled stop passes on its first
+// two frames. markSlow does not scale an expect timeout, and on a heavily loaded runner the default
+// 5 s failed a correct walk of /kitchen-sink, a page not marked slow, so this applies on every
+// route: three times the default, the factor markSlow gives a test. A scroll that never settles
+// still fails.
+const SETTLE_TIMEOUT = 15_000;
 
 async function open(page: Page, route: string): Promise<void> {
   const response = await page.goto(route);
@@ -38,7 +45,7 @@ for (const route of routes) {
     test.setTimeout(120_000);
 
     test('@matrix axe and page structure', async ({ page }, testInfo) => {
-      test.slow(HEAVY_ROUTES.has(route), HEAVY_REASON);
+      markSlow(HEAVY_REASON, HEAVY_ROUTES.has(route));
       await open(page, route);
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('html')).toHaveAttribute('lang', /\S+/);
@@ -64,7 +71,7 @@ for (const route of routes) {
     });
 
     test('@matrix keyboard rings, clipping and sticky-header obstruction', async ({ page, browserName }, testInfo) => {
-      test.slow(HEAVY_ROUTES.has(route), HEAVY_REASON);
+      markSlow(HEAVY_REASON, HEAVY_ROUTES.has(route));
       await open(page, route);
       const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
       await page.keyboard.press(key);
@@ -80,7 +87,7 @@ for (const route of routes) {
           await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
             const before = scrollY;
             requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
-          }))).toBe(true);
+          })), { timeout: SETTLE_TIMEOUT }).toBe(true);
           const result = await page.evaluate(() => {
             const el = document.activeElement as HTMLElement | null;
             if (!el || el === document.body) return null;

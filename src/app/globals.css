@@ -130,6 +130,28 @@ html:not([data-js]) [data-js-only] {
 }
 
 /*
+ * A folded table (DataTable's disclosure mode, components/kit/DataTable.tsx) is drawn once: a details
+ * holding only its summary ([data-js-only]) and the table's body after it ([data-nojs-only]). Without
+ * JavaScript, and in an island that failed to load, the rules above leave the body open. With
+ * JavaScript the body shows only while the details before it is open, directly under its summary.
+ * In print the body shows and the summary does not, so a printed page carries every table.
+ */
+html[data-js] [data-table-toggle][open] + [data-table-body] {
+  display: revert-layer;
+  margin-top: 0;
+}
+
+@media print {
+  html[data-js] [data-table-toggle] {
+    display: none;
+  }
+
+  html[data-js] [data-table-toggle] + [data-table-body] {
+    display: revert-layer;
+  }
+}
+
+/*
  * While a slider is dragged, marks follow the pointer without easing; while a Figure resets
  * (data-instant, set by instantly() in components/kit/Figure.tsx) the preset lands at once.
  */

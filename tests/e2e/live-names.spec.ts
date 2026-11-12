@@ -62,12 +62,12 @@ for (const [phase, phaseLabel] of Object.entries(phases)) {
             });
             await measure(`${id}: all captions`, async () => {
               const captions = await specimen.locator('table caption').allTextContents();
-              expect(captions.length, id).toBe(runtime === 'default' ? 2 : 1);
+              expect(captions.length, id).toBe(1);
               for (const caption of captions) expect(caption, id).toBe(figureName);
             });
             if (runtime === 'default') {
               await measure(`${id}: open disclosure`, async () => {
-                await specimen.locator('[data-js-only] details > summary').click();
+                await specimen.locator('[data-table-toggle] > summary').click();
               });
             }
             await measure(`${id}: table and region names/counts`, async () => {
@@ -79,7 +79,8 @@ for (const [phase, phaseLabel] of Object.entries(phases)) {
         }
       }
       await measure('phase aggregate table counts', async () => {
-        await expect(section.locator('[data-specimen] table')).toHaveCount(24);
+        // One table per Figure: the six default runtimes no longer carry a second, folded copy.
+        await expect(section.locator('[data-specimen] table')).toHaveCount(18);
         await expect(section.getByRole('table')).toHaveCount(18);
       });
     });
@@ -101,13 +102,14 @@ test('live examples preserve aggregate specimen, figure and table counts', async
         for (const amount of Object.keys(amounts)) {
           for (const freshness of ['fresh', 'stale', 'paused']) {
             const id = `live--${phase}--${amount}--${freshness}--default`;
-            await page.locator(`[data-specimen="${id}"] [data-js-only] details > summary`).click();
+            await page.locator(`[data-specimen="${id}"] [data-table-toggle] > summary`).click();
           }
         }
       });
     }
     await measure('whole-page aggregate table counts', async () => {
-      await expect(page.locator('[data-specimen] table')).toHaveCount(192);
+      // One table per Figure: the 48 default runtimes no longer carry a second, folded copy.
+      await expect(page.locator('[data-specimen] table')).toHaveCount(144);
       await expect(page.getByRole('table')).toHaveCount(144);
     });
   });

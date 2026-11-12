@@ -367,6 +367,21 @@ describe('the server-rendered preset views', () => {
     expect(duration).toMatch(/role="group" aria-labelledby="duration-title" data-planner-controls=""/);
   });
 
+  // The island draws the same control rows, so the loader hands focus from a preview control to
+  // the island's by these ids.
+  it.each([
+    ['hypothetical', 'planner', 'duration'],
+    ['retention', 'winback', 'winback-duration'],
+  ] as const)('%s: gives each unit radio and both Resets an id, unique on the pair, for the focus handoff', (context, id, durationId) => {
+    const { sizing, duration, html } = render(context);
+    expect(sizing).toMatch(new RegExp(`<input type="radio" id="${id}-mode-absolute"[^>]*value="absolute"`));
+    expect(sizing).toMatch(new RegExp(`<input type="radio" id="${id}-mode-relative"[^>]*value="relative"`));
+    expect(sizing).toMatch(new RegExp(`<button type="button" id="${id}-reset"[^>]*>Reset</button>`));
+    expect(duration).toMatch(new RegExp(`<button type="button" id="${durationId}-reset"[^>]*>Reset</button>`));
+    const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('shows the formula in code marked simulated, with alpha 5%, power 80% and the stated assumptions', () => {
     const { sizing } = render('hypothetical');
     const formula = SAMPLE_SIZE_FORMULA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -201,14 +201,14 @@ describe('the table', () => {
     expect(t.refs).toEqual(['source:retail']);
   });
 
-  it('shows the current mode in the folded and the open table', () => {
+  it('shows the current mode in its one table', () => {
     // January 2011, the month of the reversal: printed by the table's count format, under source refs.
     const cell = (html: string) => [...html.matchAll(/<td[^>]*data-derived="source:retail"[^>]*data-num=""[^>]*>([^<]+)<\/td>/g)].map((m) => m[1]);
     expect(cell(RAW)).toContain('91,254');
     expect(cell(CLEAN)).not.toContain('91,254');
     expect(cell(CLEAN)).toContain('11,758');
-    // the folded table and the open no-JS table both hold the current mode
-    expect(cell(RAW).filter((v) => v === '91,254')).toHaveLength(2);
+    // one table holds the current mode, open without JavaScript and folded with it
+    expect(cell(RAW).filter((v) => v === '91,254')).toHaveLength(1);
   });
 });
 
@@ -246,6 +246,16 @@ describe('the controls', () => {
     expect(checked(CLEAN)).toBe('clean');
     expect(checked(RAW)).toBe('raw');
     expect(text(CLEAN)).toContain('Reset');
+  });
+
+  // The island draws the same ReturnsControls, so the loader hands focus from a preview control to
+  // the island's by these ids.
+  it('give each radio and Reset an id, unique on the Figure, for the focus handoff', () => {
+    expect(CLEAN).toMatch(/<input type="radio" id="returns-mode-raw"[^>]*value="raw"/);
+    expect(CLEAN).toMatch(/<input type="radio" id="returns-mode-clean"[^>]*value="clean"/);
+    expect(CLEAN).toMatch(/<button type="button" id="returns-reset"[^>]*>Reset<\/button>/);
+    const ids = [...CLEAN.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('reads a hostile or unknown URL as the clean preset', () => {
