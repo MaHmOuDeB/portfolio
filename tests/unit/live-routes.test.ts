@@ -53,3 +53,7 @@ test('the Docproof build note ships at /work/docproof', () => {
 test('the Live test page ships at /experiment', () => {
   expect(LIVE_ROUTES).toContain('/experiment');
 });
+
+test('the Work directory ships at /work, the navigation target', () => {
+  expect(LIVE_ROUTES).toContain('/work');
+});

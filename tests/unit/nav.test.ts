@@ -19,10 +19,10 @@ describe('prefetchFor', () => {
     expect(prefetchFor('/')).toBeUndefined();
     expect(prefetchFor('/#main')).toBeUndefined();
     expect(prefetchFor('/privacy?x=1')).toBeUndefined();
+    expect(prefetchFor('/work')).toBeUndefined();
   });
 
   it('turns prefetch off for a route a later plan builds, so it never 404s in the console', () => {
-    expect(prefetchFor('/work')).toBe(false);
     expect(prefetchFor('/about?x=1')).toBe(false);
   });
 });
