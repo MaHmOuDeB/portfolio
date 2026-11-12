@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Line, type Link, type PdfSpec, writePdf } from './synthetic-pdf.ts';
@@ -284,7 +284,9 @@ describe('check-web-cv: inputs and modes', () => {
       passes(check(base(), { args: ['--claims-out', ignored] }));
       expect(existsSync(ignored)).toBe(true);
     } finally {
-      rmSync(hadReports ? ignored : reports, { force: true, recursive: !hadReports });
+      rmSync(ignored, { force: true });
+      // Only an empty folder is removed, so nothing else written there is lost.
+      if (!hadReports && readdirSync(reports).length === 0) rmdirSync(reports);
     }
     // A symlink outside the repository that points into it is resolved first.
     const link = join(tmp(), 'into-repo');
