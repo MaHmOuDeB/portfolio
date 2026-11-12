@@ -174,6 +174,10 @@ npm run build
 npm run launch:check -- --canonical <canonical domain>
 ```
 
+It reads the Vercel team from `VERCEL_SCOPE` (for example `VERCEL_SCOPE=<team> npm run launch:check
+-- ...`), or else from `.vercel/project.json`, which `npx vercel link` writes; without either it
+reports the team as unknown.
+
 It prints one `unmet:` line for each launch condition that is not met yet, and ends with "all
 launch conditions met" once none is left. It checks:
 

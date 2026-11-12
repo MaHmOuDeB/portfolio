@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EXPERIMENT, type ExperimentConfig } from '../../src/experiment.values.ts';
-import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, main, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
+import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, main, vercelScopeFrom, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
 import type { LaunchFact } from '../../content/privacy.ts';
 
 const STARTED = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-09T00:00:00+01:00' } } as unknown as ExperimentConfig;
@@ -31,7 +31,7 @@ function built(html: string) {
 }
 
 function vercelTable(names: readonly string[]): string {
-  return ['> Environment Variables found for mahmoud-s-team/portfolio', '', ' name   value   environments   created', ...names.map((n) => ` ${n}   Encrypted   Production   1d ago`)].join('\n');
+  return ['> Environment Variables found for example-team/portfolio', '', ' name   value   environments   created', ...names.map((n) => ` ${n}   Encrypted   Production   1d ago`)].join('\n');
 }
 
 function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; lines: string[]; calls: string[][] } {
@@ -50,7 +50,7 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
   };
   built('<main><h1>Privacy</h1></main>');
   return {
-    deps: { root, out: (l) => lines.push(l), run, config: STARTED, facts: VERIFIED, deployedChecksLog: PASSED_LOG, preregHash: () => HASH, ...over },
+    deps: { root, out: (l) => lines.push(l), run, config: STARTED, facts: VERIFIED, deployedChecksLog: PASSED_LOG, preregHash: () => HASH, vercelScope: 'example-team', ...over },
     lines,
     calls,
   };
@@ -70,6 +70,20 @@ describe('launch:check', () => {
     const vercel = d.calls.find((c) => c.includes('vercel'))!;
     expect(vercel).toEqual(expect.arrayContaining(['env', 'ls', 'production']));
     expect(vercel.some((a) => a === '--json' || a.startsWith('--format') || a === '-F')).toBe(false);
+  });
+
+  it('lists the Vercel variables in the given team', () => {
+    const d = deps();
+    main(ARGS, d.deps);
+    const vercel = d.calls.find((c) => c.includes('vercel'))!;
+    expect(vercel.slice(vercel.indexOf('--scope'), vercel.indexOf('--scope') + 2)).toEqual(['--scope', 'example-team']);
+  });
+
+  it('names an unknown Vercel team and does not call the Vercel CLI', () => {
+    const d = deps({ vercelScope: null });
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.join('\n')).toMatch(/^unmet: the Vercel team is unknown: set VERCEL_SCOPE, or run npx vercel link/m);
+    expect(d.calls.some((c) => c.includes('vercel'))).toBe(false);
   });
 
   it('names an unset calibration start', () => {
@@ -284,5 +298,29 @@ describe('the scripts load under Node type stripping', () => {
     const none = spawnSync(process.execPath, [...flags, 'scripts/launch-placeholders.ts', '--root', root], { cwd: ROOT, encoding: 'utf8' });
     expect(none.status).toBe(1);
     expect(none.stdout).toMatch(/no built pages/);
+  });
+});
+
+describe('vercelScopeFrom', () => {
+  it('takes VERCEL_SCOPE first, trimmed', () => {
+    mkdirSync(join(root, '.vercel'), { recursive: true });
+    writeFileSync(join(root, '.vercel/project.json'), JSON.stringify({ orgId: 'team_fromfile', projectId: 'prj_x' }));
+    expect(vercelScopeFrom(root, { VERCEL_SCOPE: ' example-team ' })).toBe('example-team');
+  });
+
+  it('falls back to the orgId in .vercel/project.json', () => {
+    mkdirSync(join(root, '.vercel'), { recursive: true });
+    writeFileSync(join(root, '.vercel/project.json'), JSON.stringify({ orgId: 'team_fromfile', projectId: 'prj_x' }));
+    expect(vercelScopeFrom(root, {})).toBe('team_fromfile');
+    expect(vercelScopeFrom(root, { VERCEL_SCOPE: '' })).toBe('team_fromfile');
+  });
+
+  it('is null without either, or with an unreadable or empty project file', () => {
+    expect(vercelScopeFrom(root, {})).toBeNull();
+    mkdirSync(join(root, '.vercel'), { recursive: true });
+    writeFileSync(join(root, '.vercel/project.json'), '{not json');
+    expect(vercelScopeFrom(root, {})).toBeNull();
+    writeFileSync(join(root, '.vercel/project.json'), JSON.stringify({ orgId: '' }));
+    expect(vercelScopeFrom(root, {})).toBeNull();
   });
 });
