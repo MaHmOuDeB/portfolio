@@ -94,7 +94,13 @@ function ProjectEntry({ entry }: { entry: CvEntry }) {
   return (
     <article aria-labelledby={`cv-${entry.id}`} className="mt-6 break-inside-avoid first:mt-0">
       <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
-        {entry.href ? <TextLink href={entry.href}>{entry.title}</TextLink> : entry.title}
+        {entry.href ? (
+          <TextLink href={entry.href} standalone>
+            {entry.title}
+          </TextLink>
+        ) : (
+          entry.title
+        )}
       </h3>
       <p data-cv-where="" className="text-muted">
         {entry.where}
