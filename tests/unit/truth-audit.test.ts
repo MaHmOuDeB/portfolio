@@ -366,6 +366,18 @@ describe('truth-audit CLI', () => {
     expect(r.stdout).toContain('truth audit: 1 pages, 0 findings');
   });
 
+  it('fails with a deny-list when there are no client scripts to check', () => {
+    build({ 'index.html': 'clean' });
+    const r = run({ CI: 'true', TRUTH_DENYLIST: 'Secretword' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('no client scripts under .next/static');
+    mkdirSync(join(dir, '.next/static/css'), { recursive: true });
+    writeFileSync(join(dir, '.next/static/css/a.css'), 'p{margin:0}');
+    const again = run({ CI: 'true', TRUTH_DENYLIST: 'Secretword' });
+    expect(again.status).toBe(1);
+    expect(again.stderr).toContain('no client scripts under .next/static');
+  });
+
   it('fails when there are no built pages to audit', () => {
     const r = run({});
     expect(r.status).toBe(1);

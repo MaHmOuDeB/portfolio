@@ -255,6 +255,11 @@ function main(): number {
     findings.push(...auditScript(readFileSync(join(staticDir, s), 'utf8'), { route, denylist }));
   }
   for (const f of findings) console.log(`${redact(f.route, denylist)} ${f.kind} ${redact(f.detail, denylist)}`);
+  // Fail closed: with a deny-list, a build without client scripts means the scan did not happen.
+  if (denylist.length > 0 && scripts.length === 0) {
+    console.error('no client scripts under .next/static to check against the deny-list (run npm run build first)');
+    return 1;
+  }
   if (scripts.length > 0) console.log(`client scripts: ${scripts.length} checked against the deny-list`);
   if (findings.length > 0) return 1;
   console.log(`truth audit: ${pages.length} pages, 0 findings`);
