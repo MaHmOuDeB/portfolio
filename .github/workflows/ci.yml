@@ -2,65 +2,63 @@ name: CI
 
 on:
   # `labeled` and `unlabeled` re-run the checks when the `update-baselines` label is added or removed
-  # (see the e2e job): removing it must re-run CI in the normal mode, where a wrong baseline fails.
+  # (see the e2e jobs): removing it must re-run CI in the normal mode, where a wrong baseline fails.
+  # Only `pull_request`, never `pull_request_target`: a pull request from a fork runs its own code
+  # with a read-only token and without the repository's secrets.
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
+# A newer push to the same pull request (refs/pull/<n>/merge) or to main cancels the run it
+# supersedes; runs of different pull requests, forks included, never share a group.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: the token can only read the contents. No job needs more: the artifacts of this
+# run and the Actions cache use the run's own runtime token, not these permissions.
 permissions:
   contents: read
 
-# Self-hosted runners. Every job but lhci runs on the owner's self-hosted runners (the labels
-# self-hosted, linux, arm64 and portfolio-mac: two runner containers on one Apple-silicon Mac, one
-# also labelled portfolio-mac-1, the other portfolio-mac-2), because hosted-runner minutes are
-# limited in this private repository. deploy.yml stays on GitHub's runners because it holds the
-# production secrets.
-# lhci already runs on GitHub's hosted runner (`runs-on: ubuntu-24.04`, plain `npm run lhci`): a
-# Lighthouse measurement needs a quiet machine, which the shared Mac is not, and the Lighthouse
-# budgets were calibrated on the hosted runner. It is the one CI job that spends hosted minutes, so
-# it runs only after every other job has passed, and not while the `update-baselines` label is on or
-# on a pull request commit that already passed it (see the job). The self-hosted "Lighthouse gate"
-# job turns each outcome into one result: a label skip fails as not measured, a skip on an earlier
-# pass of the same commit passes, so a skipped lhci is never read as a pass.
-# scripts/lhci-calibrated.sh and scripts/lhci-benchmark-guard.ts (the CPU multiplier and benchmark
-# guard that approximated the hosted runner on the Mac) and the runners' Lighthouse quiet lock are
-# no longer used by CI; they stay for local calibration runs until a later clean-up removes them.
-# A self-hosted runner executes whatever a workflow run checks out, so it must never serve a public
-# repository or a pull request from a fork: BEFORE this repository is made public, switch these jobs
-# back to `runs-on: ubuntu-24.04` and drop the e2e container `options` caps (a 2-CPU hosted runner
-# rejects `--cpus 3`).
-# On the runners, npm, uv and Python downloads are cached on each runner's own disk (the runner sets
-# npm_config_cache, UV_CACHE_DIR and UV_PYTHON_INSTALL_DIR; the e2e container sets npm_config_cache
-# to the same folder under /__w), so setup-node's GitHub cache is off for the self-hosted jobs:
-# restoring and saving it over the Mac's connection took minutes. lhci, on the hosted runner,
-# restores node_modules from GitHub's cache on pull requests (its own key, exact match, checked
-# against the lockfile) and installs fresh on a push to main. Put `cache: npm` back on the others
-# when switching back (build-isolation included: back to ubuntu-24.04 with `cache: npm`). The time
-# limits of the self-hosted jobs come from the first run on a loaded Mac with cold caches: npm ci up
-# to 9 minutes, the first Node download 5, the first Python and wheels over 9.
-# Artifact storage is billed whichever runner uploads. Reports that deploy.yml reads (report-vitest,
-# report-e2e, report-lhci) are kept 3 days on pull requests and longer on main pushes; the visual
-# baselines are uploaded only while the `update-baselines` label is on.
+# Runners. Every job runs on GitHub's hosted runner (`runs-on: ubuntu-24.04`), the layout for a
+# public repository: there the standard hosted runners are free, and every pull request, one from a
+# fork included, runs on a disposable GitHub machine. In a private repository the same layout spends
+# the account's hosted minutes. deploy.yml runs on the hosted runner too and holds the production
+# secrets; it follows only a green push run on main.
+# setup-node caches npm's download folder through GitHub's cache (`cache: npm`) in every job but
+# lhci, which restores node_modules itself (its own key, exact match, checked against the lockfile)
+# on pull requests and installs fresh on a push to main. A pull request's cache entries are scoped
+# to that pull request, so one from a fork cannot reach main's.
+# The end-to-end suite runs in 4 parallel shards ("End-to-end tests (shard n of 4)"), each in the
+# pinned Playwright container. The "End-to-end tests" job, the required check, merges their blob
+# reports into the one JSON report deploy.yml reads (report-e2e, reports/e2e.json), merges the
+# baselines they regenerated into one visual-baselines artifact, and fails unless every shard
+# passed.
+# lhci measures on the hosted runner, where the Lighthouse budgets were calibrated (plain
+# `npm run lhci`). It runs only after every other job has passed, and not while the
+# `update-baselines` label is on or on a pull request commit that already passed it (see the job).
+# The "Lighthouse gate" job turns each outcome into one result: a label skip fails as not measured,
+# a skip on an earlier pass of the same commit passes, so a skipped lhci is never read as a pass.
+# scripts/lhci-calibrated.sh and scripts/lhci-benchmark-guard.ts are not used by CI; they stay for
+# local calibration runs on a Mac.
+# The truth audit's deny-list secret is never printed, and its absence fails closed in this
+# repository; on a pull request from a fork, which gets no secrets, the deny-list part is skipped
+# with a notice and runs on the push to main (see the build job).
+# Reports that deploy.yml reads (report-vitest, report-e2e, report-lhci) are kept 3 days on pull
+# requests and longer on main pushes; the shards' blob reports and baselines live one day, and the
+# visual baselines are uploaded only while the `update-baselines` label is on.
 # tests/unit/ci-runners.test.ts pins this layout.
 jobs:
   static:
     name: Static checks and unit tests
-    # Only on the runner instance labelled portfolio-mac-1, so two static jobs never run at once:
-    # the runners share the Docker VM's network, where port 16389 can be published only once.
-    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]
-    # 25, not 15: on the Mac's Docker VM `npm ci` alone took 2 to 8 minutes, depending on the load.
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     services:
       redis:
         image: redis:7.2
-        # Loopback only: unbound, Docker Desktop would publish the port on every interface of the
-        # Mac. It stays fixed because Docker Desktop reports a port it picks by the Mac's number,
-        # which is not the port in the Docker VM, where the runner's steps run.
+        # Loopback only, on the fixed port the conformance step below and
+        # docs/experiment/redis-conformance.md name.
         ports: ['127.0.0.1:16389:6379']
         options: >-
           --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 15
@@ -71,6 +69,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -93,7 +92,7 @@ jobs:
           redis-cli -p 16389 info server | grep -E '^redis_version:7\.2\.'
           REDIS_CONFORMANCE_URL=redis://127.0.0.1:16389 npm test -- tests/unit/experiment/redis-conformance.test.ts --reporter=default
       # deploy.yml reads it from the push run on main; on a pull request only a person might, so it
-      # is kept 3 days there (artifact storage is billed).
+      # is kept 3 days there.
       - name: Upload unit test report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -105,8 +104,8 @@ jobs:
 
   stats-ref:
     name: Statistics reference data
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -125,8 +124,8 @@ jobs:
 
   sources-remote:
     name: Pinned sources exist on GitHub
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -134,6 +133,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
       # Fetches each pinned export from raw.githubusercontent.com and compares its sha256 with
       # sources.lock.json, so a commit that exists only on a laptop, or was force-pushed away, fails.
@@ -141,18 +141,18 @@ jobs:
 
   build:
     name: Production build
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     outputs:
       lhci-passed: ${{ steps.lhci-passed.outputs.cache-hit }}
     steps:
       # Whether Lighthouse already passed on this exact commit in an earlier run of this pull
       # request (the marker the lhci job saves after its assertions passed). A lookup only, nothing
-      # is downloaded, so it costs no hosted minute; a miss or a cache error leaves the output empty
-      # and Lighthouse runs. Never on a push to main, which always measures. The `lhci-remeasure`
-      # label skips the lookup, so a re-run measures again (or delete the marker: `gh cache delete
-      # lhci-passed-<sha>`). Code in the pull request could save this key too; the push to main
-      # still measures, so a forged marker cannot reach a deploy.
+      # is downloaded; a miss or a cache error leaves the output empty and Lighthouse runs. Never on
+      # a push to main, which always measures. The `lhci-remeasure` label skips the lookup, so a
+      # re-run measures again (or delete the marker: `gh cache delete lhci-passed-<sha>`). Code in
+      # the pull request could save this key too (in its own pull request's cache scope); the push
+      # to main still measures, so a forged marker cannot reach a deploy.
       - name: Look up a Lighthouse pass for this commit
         id: lhci-passed
         if: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'lhci-remeasure') }}
@@ -167,18 +167,32 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
       - run: npm run build
       - name: Check the build has no kitchen sink
         run: npm run assert:no-kitchen-sink
       - run: npm run lint:design
-      # Fails if TRUTH_DENYLIST is missing; findings name a deny-list term only by its index, so
-      # the public log never holds a term. The secret is not exposed to pull requests from forks,
-      # where the audit fails with "TRUTH_DENYLIST missing in CI".
+      # The deny-list reaches this step alone and is never printed: findings name a deny-list term
+      # only by its index, so the public log never holds a term. In this repository (a push, or a
+      # pull request from one of its own branches) a missing or empty TRUTH_DENYLIST fails the step
+      # before the audit runs. A pull request from a fork gets no secrets: there the audit runs
+      # without the deny-list (CI=false makes the script skip it instead of failing), with a notice;
+      # the push to main after the merge runs it in full and gates the deploy.
       - name: Truth audit
-        run: npm run truth:audit
         env:
           TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}
+          FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ "$FORK_PR" = true ]; then
+            echo "::notice title=Truth audit::Pull request from a fork: the TRUTH_DENYLIST secret is not available to it, so the deny-list check is skipped. The rest of the audit runs here; the push to main runs the deny-list."
+            TRUTH_DENYLIST='' CI=false npm run truth:audit
+          elif [ -z "${TRUTH_DENYLIST//[[:space:]]/}" ]; then
+            echo "::error title=Truth audit::TRUTH_DENYLIST is missing or empty in this repository; failing closed."
+            exit 1
+          else
+            npm run truth:audit
+          fi
       - name: Upload build output
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -190,27 +204,27 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  e2e:
-    name: End-to-end tests
-    # Only on the instance labelled portfolio-mac-2, so the longest job never holds instance 1,
-    # where static (a required check) has to run.
-    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-2]
-    # The suite takes 37 to 49 minutes on a hosted runner (and longer while several PRs run at once);
-    # at 50 it was cancelled mid-run. 90 leaves room for growth without hiding a hung run for long.
-    timeout-minutes: 90
+  e2e-shard:
+    name: End-to-end tests (shard ${{ matrix.shard }} of 4)
+    runs-on: ubuntu-24.04
+    # A shard runs about a quarter of the suite, which took 37 to 49 minutes in one job on the
+    # 2-CPU hosted runner of a private repository; 30 leaves room for the container pull, npm ci
+    # and the build without hiding a hung run for long.
+    timeout-minutes: 30
+    # Every shard runs to the end, so one failure does not hide another; the "End-to-end tests"
+    # job below fails unless all of them passed.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
-      # A job container is a sibling of the runner container, so the runner's caps do not reach it:
-      # these hold it to 3 of the Docker VM's 8 CPUs and 5 GB. --ipc=host is what Playwright's
-      # Docker guide recommends for Chromium. At 3.5 GB with Docker's 64 MB /dev/shm the heaviest
-      # pages crashed the browser ("Target crashed"); at 4.5 GB with --ipc=host they passed, but
-      # the container's memory peaked at its cap, hence 5 GB.
-      options: --cpus 3 --memory 5120m --memory-swap 5120m --ipc=host
+      # Shared memory from the host, as Playwright's Docker guide recommends for Chromium (Docker's
+      # default 64 MB /dev/shm crashed the heaviest pages).
+      options: --ipc=host
     env:
-      # npm's cache on the runner's own disk (/__w is the runner's work folder), kept between jobs.
-      npm_config_cache: /__w/_cache/npm
       # The `update-baselines` label on the PR regenerates every visual baseline in this container.
-      # While the label is on, updateSnapshots is 'all', so the job is green whatever the visual
+      # While the label is on, updateSnapshots is 'all', so the shards are green whatever the visual
       # diffs are: remove the label (and commit the reviewed baselines) before merging. Removing it
       # re-runs CI, where a missing or different baseline fails (updateSnapshots is 'none' in CI).
       UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
@@ -221,16 +235,85 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
-      # Two workers: Playwright's default is half the CPUs it sees, which are the Docker VM's 8, not
-      # the container's 3, and more workers than two time out on the live page in the Docker VM.
-      - run: npm run test:e2e -- --workers=2
+      # Every baseline written after this marker was regenerated by this shard.
+      - name: Mark the start of the tests
+        run: touch "$RUNNER_TEMP/e2e-start"
+      # Two workers on the runner's 4 CPUs (each shard also builds and serves the site). The blob
+      # reporter replaces the config's JSON report; the "End-to-end tests" job merges the shards'
+      # blobs into reports/e2e.json. --trace=off: a blob carries its tests' attachments, and a trace
+      # records request headers (the x-internal HMAC header among them), so none is recorded here.
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4 --workers=2 --reporter=list,blob --trace=off
         env:
           HOME: /root
-      # Only the JSON report is uploaded. test-results/ and playwright-report/ are deliberately
-      # left out: Playwright traces record request headers, including the x-internal HMAC header.
-      # deploy.yml reads it from the push run on main; on a pull request only a person might, so it
-      # is kept 3 days there (artifact storage is billed).
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report
+          if-no-files-found: error
+          retention-days: 1
+      # Only while the `update-baselines` label is on: the baselines this shard wrote (newer than the
+      # marker), at their paths under tests/e2e/__screenshots__. Each test runs in exactly one
+      # shard, so no two shards write the same file. Never test-results/ or traces.
+      - name: Collect the regenerated baselines
+        if: ${{ !cancelled() && env.UPDATE_BASELINES == '1' }}
+        run: |
+          mkdir -p baselines-changed
+          if [ -d tests/e2e/__screenshots__ ]; then
+            (cd tests/e2e/__screenshots__ && find . -type f -newer "$RUNNER_TEMP/e2e-start" -exec cp --parents -t ../../../baselines-changed {} +)
+          fi
+          echo "Regenerated baselines in this shard: $(find baselines-changed -type f | wc -l | tr -d ' ')"
+      - name: Upload the regenerated baselines
+        if: ${{ !cancelled() && env.UPDATE_BASELINES == '1' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-baselines-shard-${{ matrix.shard }}
+          path: baselines-changed
+          if-no-files-found: ignore
+          retention-days: 1
+
+  e2e:
+    name: End-to-end tests
+    # The required check for the whole suite. `always()`: it also runs when a shard failed or the
+    # run was cancelled, and then fails, because GitHub shows a skipped check as passing.
+    needs: e2e-shard
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      UPDATE_BASELINES: ${{ contains(github.event.pull_request.labels.*.name, 'update-baselines') && '1' || '0' }}
+    steps:
+      # The first steps keep the default condition: they are skipped in a cancelled run, where only
+      # the last step runs (and fails).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Download the shards' blob reports
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+      # One JSON report for the whole suite, at the path the config's own JSON reporter uses, so
+      # scripts/build-meta.ts reads the same counts and axe annotations as from a single run. It
+      # exits 1 when a test failed, after writing the report.
+      - name: Merge the reports
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: reports/e2e.json
+        run: npx --no-install playwright merge-reports --reporter=json all-blob-reports
+      # Only the JSON report is uploaded. Blob internals, test-results/ and playwright-report/ are
+      # deliberately left out. deploy.yml reads it from the push run on main; on a pull request only
+      # a person might, so it is kept 3 days there.
       - name: Upload e2e report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -239,10 +322,16 @@ jobs:
           path: reports/e2e.json
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 3 || 14 }}
-      # Visual baselines, to download, review and commit (never generate them on a Mac). Only the
-      # screenshots folder is uploaded, never test-results/ or traces. Only while the
-      # `update-baselines` label is on: without it Playwright writes nothing there, so the folder
-      # holds only the committed baselines (the differing screenshots go to test-results/).
+      # Visual baselines, to download, review and commit (never generate them on a Mac): the
+      # committed folder with every shard's regenerated baselines laid over it, the same folder a
+      # single run would have left. Only while the `update-baselines` label is on.
+      - name: Lay the shards' baselines over the committed ones
+        if: ${{ !cancelled() && env.UPDATE_BASELINES == '1' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: visual-baselines-shard-*
+          path: tests/e2e/__screenshots__
+          merge-multiple: true
       - name: Upload visual baselines
         if: ${{ !cancelled() && env.UPDATE_BASELINES == '1' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -251,13 +340,24 @@ jobs:
           path: tests/e2e/__screenshots__
           if-no-files-found: warn
           retention-days: 7
+      - name: Every shard passed
+        if: ${{ always() }}
+        env:
+          SHARDS: ${{ needs.e2e-shard.result }}
+        run: |
+          if [ "$SHARDS" = success ]; then
+            echo "Every end-to-end shard passed."
+            exit 0
+          fi
+          echo "::error::Not every end-to-end shard passed (shards: ${SHARDS})."
+          exit 1
 
   lhci:
     name: Lighthouse CI
-    # The one job on GitHub's hosted runner (see the top of the jobs), billed per started minute. It
-    # waits for every other job and runs only when all of them passed: no hosted minute goes to a
-    # run that is already red, and the workflow's concurrency group cancels a superseded run,
-    # usually long before it gets here. The price is a few minutes of wall-clock time after e2e.
+    # It waits for every other job, the four e2e shards and their merge included, and runs only
+    # when all of them passed: a red run is not merge evidence, and the workflow's concurrency
+    # group cancels a superseded run, usually long before it gets here. The price is a few minutes
+    # of wall-clock time after e2e.
     # It is skipped in two cases; the Lighthouse gate job below turns each into one unambiguous
     # result, so a skipped lhci is never read as a pass. (1) While the `update-baselines` label is
     # on: that run's e2e is green whatever the screenshots show, so the run is not merge evidence
@@ -265,11 +365,11 @@ jobs:
     # gates the merge. (2) On a pull request, when the build job found the marker of an earlier pass
     # on this exact commit (a label event, a re-run of all jobs): the gate passes only on that
     # proof. A push to main never uses the marker and always measures; the deploy reads its report.
-    needs: [static, stats-ref, sources-remote, build, e2e, links, cv-pdf, build-isolation]
+    needs: [static, stats-ref, sources-remote, build, e2e-shard, e2e, links, cv-pdf, build-isolation]
     if: ${{ !cancelled() && needs.build.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && needs.build.outputs.lhci-passed != 'true' && !contains(github.event.pull_request.labels.*.name, 'update-baselines') }}
     runs-on: ubuntu-24.04
     # Hosted runs took 71 to 167 seconds (55 runs, 2026-10-06 to 2026-11-10); 10 leaves room for a
-    # node_modules cache miss and caps what a hung run can cost.
+    # node_modules cache miss and caps a hung run.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -278,9 +378,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-      # The build job's output, built on the self-hosted linux/arm64 runner. It holds no native
-      # binary: the server output loads only Next's own JavaScript and Node's built-in modules from
-      # node_modules, which is restored or installed below for this x64 runner.
+      # The build job's output, built on the same runner image. It holds no native binary: the
+      # server output loads only Next's own JavaScript and Node's built-in modules from
+      # node_modules, which is restored or installed below.
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: next-build
@@ -342,7 +442,7 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 3 || 7 }}
       # Only after every assertion passed: marks this exact commit as measured, so a later run of it
-      # in this pull request skips the hosted job (see the build job's lookup).
+      # in this pull request skips the lhci job (see the build job's lookup).
       - name: Record the Lighthouse pass for this commit
         if: ${{ success() && github.event_name == 'pull_request' }}
         run: echo "$GITHUB_SHA" > .lhci-passed
@@ -356,12 +456,8 @@ jobs:
   links:
     name: Link check
     needs: build
-    # Only on the instance labelled portfolio-mac-1, so two link checks never run at once: the
-    # runners share the Docker VM's network, where `next start -p 3123` can listen only once.
-    # Not in a job container: there the runner hands composite actions their host path as
-    # github.action_path, so lychee-action's entrypoint is "No such file" (exit 127).
-    runs-on: [self-hosted, linux, arm64, portfolio-mac, portfolio-mac-1]
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -369,6 +465,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: next-build
@@ -401,7 +498,7 @@ jobs:
 
   cv-pdf:
     name: CV PDF check
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       # The pull request's own head commit, not the merge commit GitHub would check out, so HEAD in
@@ -411,8 +508,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       # Reserved for the check of the real CV PDF; checker-only until that check and the PDF arrive
-      # together (see the script). The deny-list goes to this step alone. The secret is not exposed
-      # to pull requests from forks.
+      # together (see the script, which does not read the deny-list yet). The deny-list goes to this
+      # step alone. The secret is not exposed to pull requests from forks.
       - name: Actual CV PDF check (checker-only)
         env:
           TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}
@@ -422,10 +519,9 @@ jobs:
 
   build-isolation:
     name: Build token isolation
-    # On the self-hosted runners like build (any instance), with a limit like build's: npm ci plus a
-    # Next build. Only synthetic values reach it (no secret), and the deploy itself stays hosted.
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
-    timeout-minutes: 25
+    # Like build: npm ci plus a Next build. Only synthetic values reach it (no secret).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -433,6 +529,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
       # A synthetic stand-in for `vercel pull --environment=production`, made by a script so no
       # secret is needed and a later change can extend the fixture without editing this workflow:
@@ -452,16 +549,16 @@ jobs:
 
   lhci-gate:
     name: Lighthouse gate
-    # One unambiguous Lighthouse result for this commit, on a self-hosted runner (free). It passes
-    # only when lhci passed in this run, or, on a pull request without the `update-baselines` label,
-    # when lhci was skipped because the marker of an earlier pass on this exact commit exists and
-    # names it. It fails when lhci failed, or was skipped because another job failed or because
-    # `update-baselines` is on ("not measured"). Merge on this check, not on "Lighthouse CI".
-    # `always()`: it also runs in a cancelled run and fails there, because GitHub shows a skipped
-    # check as passing.
+    # One unambiguous Lighthouse result for this commit. It passes only when lhci passed in this
+    # run, or, on a pull request without the `update-baselines` label, when lhci was skipped
+    # because the marker of an earlier pass on this exact commit exists and names it. It fails when
+    # lhci failed, or was skipped because another job (an e2e shard included: lhci needs them all)
+    # failed or because `update-baselines` is on ("not measured"). Merge on this check, not on
+    # "Lighthouse CI". `always()`: it also runs in a cancelled run and fails there, because GitHub
+    # shows a skipped check as passing.
     needs: [build, lhci]
     if: ${{ always() }}
-    runs-on: [self-hosted, linux, arm64, portfolio-mac]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       # The marker itself (a few bytes), only when lhci was skipped on a pull request after the build
