@@ -81,7 +81,9 @@ test.describe('/demo', () => {
 
   test('sends nothing to /api/e and stores nothing in the browser', async ({ page, context, extraHTTPHeaders }) => {
     const sent = await visitor(page, extraHTTPHeaders);
-    await page.goto(DEMO);
+    // the page itself, not the 404 page: an absent route would pass the rest vacuously
+    expect((await page.goto(DEMO))?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interview links');
     await page.waitForLoadState('networkidle');
     await page.mouse.wheel(0, 2000);
     await page.mouse.click(5, 5);
@@ -92,7 +94,7 @@ test.describe('/demo', () => {
     expect(await context.cookies()).toEqual([]);
   });
 
-  for (const [arm, label, href] of FORCED) {
+  for (const [arm, label] of FORCED) {
     test(`"${label}" opens group ${arm}, the beacon refuses the view as forced, and nothing of it is counted`, async ({ page, context, extraHTTPHeaders }) => {
       const sent = await visitor(page, extraHTTPHeaders);
       await page.goto(DEMO);
