@@ -224,9 +224,12 @@ describe('truth', () => {
     for (const c of weather.tables.checks) expect(PAGE_TEXT).not.toContain(c.name);
   });
 
-  it('has exactly one link that leaves the page: the dataset, from the export', () => {
+  it('has exactly two links that leave the page: the dataset, from the export, and the repository at a fixed commit', () => {
     const hrefs = [...PAGE.matchAll(/href="([^"]+)"/g)].map((m) => m[1]!);
-    expect(hrefs.filter((h) => !h.startsWith('#'))).toEqual([WEATHER_DATASET.url]);
+    expect(hrefs.filter((h) => !h.startsWith('#'))).toEqual([
+      WEATHER_DATASET.url,
+      'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+    ]);
     expect(WEATHER_DATASET.url).toBe(weather._meta.dataset.url);
   });
 
