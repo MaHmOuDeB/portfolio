@@ -378,7 +378,9 @@ Its limits, stated in each check's reason:
   value the cell may hold (1 to 4, never below an earlier look's running total). The check passes
   only when every allowed value gives the published result, fails when none does, and is otherwise
   indeterminate. It never prints those values and never uses a published interval to narrow them,
-  so it cannot recover a hidden count, and neither can its output.
+  so it cannot recover a hidden count, and neither can its output. The published file itself can
+  narrow one, and its notes say so: the interval can, and so can the split check's status, which is
+  published even when a count it rests on is shown as "<5".
 - While the test is blinded no outcome is published, so no interval can be recomputed.
 - A look the analysis stopped at for a data fault, and every look after a decision, is not
   published: a held analysis or a split flag after the decision is reported, not recomputed.

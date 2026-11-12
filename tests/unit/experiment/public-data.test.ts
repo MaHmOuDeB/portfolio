@@ -214,6 +214,12 @@ describe('toPublicData', () => {
     expect(d.notes.join(' ')).toMatch(/interval/);
   });
 
+  it('says that the split-check status can narrow a count shown as "<5"', () => {
+    expect(d.notes).toContain(
+      'Whether the split check failed is published even when a count it rests on is shown as "<5", so the split-check status itself can narrow such a count, as the interval can.',
+    );
+  });
+
   it('publishes no decision for a placeholder, and says why it has no data', () => {
     const after = buildSnapshot({ counters: counters([]), flags: NO_FLAGS, now: '2027-07-01T12:00:00+02:00', start: START, source: 'unavailable', config: AB });
     expect(after.status).toBe('inconclusive');

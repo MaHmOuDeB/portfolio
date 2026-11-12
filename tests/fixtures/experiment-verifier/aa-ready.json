@@ -16,7 +16,8 @@
     "Counts are totals per Berlin day with no identifiers. They are not anonymous: someone who knows when a person visited could link a change between two days to that visit.",
     "A count from 1 to 4 is shown as \"<5\", and no total or ratio of shown counts is given that would undo it. The interval estimate, read with the analysed views, can still imply a small card-click count; the interval is what this file is for.",
     "CV and contact clicks are given only as final totals, once the test has ended.",
-    "The split check gives its chi-square statistic, not a p-value."
+    "The split check gives its chi-square statistic, not a p-value.",
+    "Whether the split check failed is published even when a count it rests on is shown as \"<5\", so the split-check status itself can narrow such a count, as the interval can."
   ],
   "config": {
     "alpha": 0.05,
