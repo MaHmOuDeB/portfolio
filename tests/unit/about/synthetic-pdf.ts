@@ -5,7 +5,15 @@
 import { deflateSync } from 'node:zlib';
 
 export type Line = { text: string; x?: number; y?: number; size?: number };
-export type Link = { page: number; uri: string; rect?: [number, number, number, number]; hex?: boolean; obfuscateName?: boolean };
+export type Link = {
+  page: number;
+  uri: string;
+  rect?: [number, number, number, number];
+  hex?: boolean;
+  obfuscateName?: boolean;
+  /** A /Contents string on the link annotation (never shown on the page). */
+  contents?: string;
+};
 export type PdfSpec = {
   pages: Line[][];
   links?: Link[];
@@ -16,6 +24,16 @@ export type PdfSpec = {
   objectStream?: boolean;
   /** A text annotation (a note) on page 1 whose contents never reach the page text. */
   note?: string;
+  /** Raw annotation dictionaries added to page 1 (for example an unlisted subtype). */
+  rawAnnots?: string[];
+  /** Raw text appended to the catalog dictionary (for example /OCProperties). */
+  catalogExtra?: string;
+  /** An outline (bookmark) with this title. */
+  outlineTitle?: string;
+  /** Draw a 2x2 image XObject on page 1. */
+  image?: boolean;
+  /** Draw a 2x2 inline image (BI ... ID ... EI) on page 1. */
+  inlineImage?: boolean;
 };
 
 // WinAnsiEncoding for the few non-Latin-1 characters the fixtures use.
@@ -34,6 +52,11 @@ function encode(text: string): Buffer {
 }
 
 const literal = (s: string) => Buffer.concat([Buffer.from('('), encode(s), Buffer.from(')')]);
+/** A text string: a literal when WinAnsi can hold it, else UTF-16BE with a byte-order mark, in hex. */
+const textString = (s: string) =>
+  [...s].every((c) => WIN_ANSI[c] !== undefined || c.codePointAt(0)! <= 0xff)
+    ? literal(s)
+    : Buffer.from(`<feff${Buffer.from(s, 'utf16le').swap16().toString('hex')}>`);
 const hexString = (s: string) => Buffer.from(`<${Buffer.from(s, 'latin1').toString('hex')}>`);
 
 export function writePdf(spec: PdfSpec): Buffer {
@@ -62,7 +85,9 @@ export function writePdf(spec: PdfSpec): Buffer {
       Buffer.concat([
         Buffer.from(`<< /Type /Annot /Subtype /Link /Rect [${x0} ${y0} ${x1} ${y1}] /Border [0 0 0] /A << /S /URI ${key} `),
         link.hex ? hexString(link.uri) : literal(link.uri),
-        Buffer.from(' >> >>'),
+        Buffer.from(' >>'),
+        link.contents === undefined ? Buffer.alloc(0) : Buffer.concat([Buffer.from(' /Contents '), textString(link.contents)]),
+        Buffer.from(' >>'),
       ]),
     );
   }
@@ -74,10 +99,29 @@ export function writePdf(spec: PdfSpec): Buffer {
     annotsByPage.set(1, list);
     objects.set(noteId, Buffer.concat([Buffer.from('<< /Type /Annot /Subtype /Text /Rect [10 10 20 20] /Contents '), literal(spec.note), Buffer.from(' >>')]));
   }
+  for (const raw of spec.rawAnnots ?? []) {
+    const id = next++;
+    const list = annotsByPage.get(1) ?? [];
+    list.push(id);
+    annotsByPage.set(1, list);
+    objects.set(id, Buffer.from(raw, 'latin1'));
+  }
+  let outlinesId: number | undefined;
+  if (spec.outlineTitle !== undefined) {
+    outlinesId = next++;
+    const item = next++;
+    objects.set(outlinesId, Buffer.from(`<< /Type /Outlines /First ${item} 0 R /Last ${item} 0 R /Count 1 >>`));
+    objects.set(item, Buffer.concat([Buffer.from('<< /Title '), textString(spec.outlineTitle), Buffer.from(` /Parent ${outlinesId} 0 R >>`)]));
+  }
+  let imageId: number | undefined;
+  if (spec.image) {
+    imageId = next++;
+    objects.set(imageId, Buffer.from('<< /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 4 >>\nstream\n\x10\x80\x80\x10\nendstream', 'latin1'));
+  }
   let infoId: number | undefined;
   if (spec.info) {
     infoId = next++;
-    const parts = Object.entries(spec.info).map(([k, v]) => Buffer.concat([Buffer.from(`/${k} `), literal(v), Buffer.from(' ')]));
+    const parts = Object.entries(spec.info).map(([k, v]) => Buffer.concat([Buffer.from(`/${k} `), textString(v), Buffer.from(' ')]));
     objects.set(infoId, Buffer.concat([Buffer.from('<< '), ...parts, Buffer.from('>>')]));
   }
   let jsId: number | undefined;
@@ -86,7 +130,12 @@ export function writePdf(spec: PdfSpec): Buffer {
     objects.set(jsId, Buffer.from('<< /S /JavaScript /JS (app.alert\\(1\\)) >>'));
   }
 
-  objects.set(1, Buffer.from(`<< /Type /Catalog /Pages 2 0 R${jsId ? ` /OpenAction ${jsId} 0 R` : ''} >>`));
+  objects.set(
+    1,
+    Buffer.from(
+      `<< /Type /Catalog /Pages 2 0 R${jsId ? ` /OpenAction ${jsId} 0 R` : ''}${outlinesId ? ` /Outlines ${outlinesId} 0 R` : ''}${spec.catalogExtra ? ` ${spec.catalogExtra}` : ''} >>`,
+    ),
+  );
   objects.set(2, Buffer.from(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`));
   objects.set(3, Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
   spec.pages.forEach((lines, i) => {
@@ -95,7 +144,7 @@ export function writePdf(spec: PdfSpec): Buffer {
     objects.set(
       id,
       Buffer.from(
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${content} 0 R` +
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >>${i === 0 && imageId ? ` /XObject << /Im1 ${imageId} 0 R >>` : ''} >> /Contents ${content} 0 R` +
           (annots ? ` /Annots [${annots.map((a) => `${a} 0 R`).join(' ')}]` : '') +
           ' >>',
       ),
@@ -107,6 +156,8 @@ export function writePdf(spec: PdfSpec): Buffer {
       y = at - 14;
       ops.push(Buffer.from(`BT /F1 ${line.size ?? 10} Tf ${line.x ?? 72} ${at} Td `), literal(line.text), Buffer.from(' Tj ET\n'));
     }
+    if (i === 0 && imageId) ops.push(Buffer.from('q 40 0 0 40 450 760 cm /Im1 Do Q\n'));
+    if (i === 0 && spec.inlineImage) ops.push(Buffer.from('q 40 0 0 40 450 700 cm BI /W 2 /H 2 /CS /G /BPC 8 ID \x10\x80\x80\x10 EI Q\n', 'latin1'));
     const body = Buffer.concat(ops);
     objects.set(content, Buffer.concat([Buffer.from(`<< /Length ${body.length} >>\nstream\n`), body, Buffer.from('\nendstream')]));
   });

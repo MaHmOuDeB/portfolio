@@ -272,9 +272,21 @@ describe('check-web-cv: inputs and modes', () => {
         { id: 'retention-share', normalizedClaim: SHARE },
       ],
     });
-    const inside = join(ROOT, 'reports', `claims-${process.pid}.json`);
-    failsWith(check(base(), { args: ['--claims-out', inside] }), 'must lie outside this repository');
-    expect(existsSync(inside)).toBe(false);
+    // A path git would track is refused; a git-ignored one, or one outside the repository, is fine.
+    const tracked = join(ROOT, 'scripts', 'cv', `claims-${process.pid}.json`);
+    failsWith(check(base(), { args: ['--claims-out', tracked] }), 'must not be a path git would track');
+    expect(existsSync(tracked)).toBe(false);
+    const ignored = join(ROOT, 'reports', `claims-${process.pid}.json`);
+    try {
+      passes(check(base(), { args: ['--claims-out', ignored] }));
+      expect(existsSync(ignored)).toBe(true);
+    } finally {
+      rmSync(ignored, { force: true });
+    }
+    // A symlink outside the repository that points into it is resolved first.
+    const link = join(tmp(), 'into-repo');
+    symlinkSync(join(ROOT, 'scripts', 'cv'), link);
+    failsWith(check(base(), { args: ['--claims-out', join(link, 'claims.json')] }), 'must not be a path git would track');
   });
 
   it('checks the PDF hash and the metadata file', () => {
@@ -379,7 +391,7 @@ describe('check-web-cv: links, actions and metadata', () => {
 
   it('fails on JavaScript and on a note annotation', () => {
     failsWith(check(withLinks([], { javascript: true })), 'active or hidden content');
-    failsWith(check(withLinks([], { note: 'hidden note' })), 'annotation type not allowed (Text)');
+    failsWith(check(withLinks([], { note: 'hidden note' })), 'annotation that is not a link (/Text)');
   });
 
   it('lints the document metadata', () => {
@@ -588,12 +600,105 @@ describe('check-web-cv: layout and bindings', () => {
   });
 });
 
+// ───────────────────────────── hidden content and images ─────────────────────────────
+describe('check-web-cv: images, hidden strings and layers', () => {
+  const doc = (extra: Partial<PdfSpec>): PdfSpec => ({ pages: [lines(base())], ...extra });
+
+  it('fails on an image XObject and on an inline image', () => {
+    failsWith(check(doc({ image: true })), 'pdf: image');
+    failsWith(check(doc({ inlineImage: true })), 'pdf: image');
+    failsWith(check(doc({ image: true }), { args: ['--lint-only'] }), 'pdf: image');
+  });
+
+  it('lints every string in the objects, not only the page text', () => {
+    const url = 'https://example.org/ada';
+    const listed = { ...MANIFEST(), links: [url] };
+    failsWith(check(doc({ links: [{ page: 1, uri: url, contents: 'Holds a work permit' }] }), { manifest: listed }), 'object string: residence-term');
+    failsWith(check(doc({ outlineTitle: 'Call +44 20 7946 0000' })), 'object string: phone');
+    failsWith(check(doc({ outlineTitle: 'another secret phrase' })), 'object string: denylist #2');
+    passes(check(doc({ outlineTitle: 'Experience' })));
+  });
+
+  it('allows link annotations only', () => {
+    failsWith(check(doc({ rawAnnots: ['<< /Type /Annot /Subtype /Foo /Rect [0 0 10 10] >>'] })), 'annotation that is not a link');
+    failsWith(check(doc({ rawAnnots: ['<< /Subtype /Bar /Rect [0 0 10 10] >>'] })), 'annotation that is not a link');
+  });
+
+  it('fails on optional-content layers', () => {
+    failsWith(check(doc({ catalogExtra: '/OCProperties << /OCGs [] /D << >> >>' })), 'active or hidden content (/OCProperties)');
+  });
+
+  it('fails on text outside the page box', () => {
+    const page = lines(base());
+    page.push({ text: 'Off the page', x: 72, y: 900 });
+    failsWith(check({ pages: [page] }), 'text outside the page box');
+  });
+
+  it('is not desynchronised by a string that ends in "stream", and reads pdfinfo\'s JavaScript line', () => {
+    failsWith(check(doc({ info: { Title: 'Ada stream\n' }, javascript: true })), /active or hidden content|pdfinfo reports JavaScript/);
+    failsWith(check(doc({ info: { Title: 'Ada stream\n' }, javascript: true })), 'pdfinfo reports JavaScript');
+  });
+});
+
+describe('check-web-cv: wider lints', () => {
+  const lintOnly = (text: string) => check({ pages: [[{ text: 'Ada Example' }, { text }]] }, { args: ['--lint-only'] });
+  const cases: [string, string][] = [
+    ['+44–20–7946–0000', 'phone'],
+    ['0049 30 1234 5678', 'phone'],
+    ['+49 (0)30 1234-5678', 'phone'],
+    ['030.1234.5678', 'phone'],
+    ['030/12345678', 'phone'],
+    ['Kirchweg 5', 'street-address'],
+    ['Musterstr 12', 'street-address'],
+    ['Am Markt 3', 'street-address'],
+    ['Berlin 10115', 'postcode-city'],
+    ['10115, BERLIN', 'postcode-city'],
+    ['Opportunity Card holder', 'residence-term'],
+    ['Chancenkarte', 'residence-term'],
+    ['Eligible to work in the EU', 'residence-term'],
+    ['Settlement permit', 'residence-term'],
+    ['Citizenship: none', 'residence-term'],
+    ['Nationality: none', 'residence-term'],
+    ['Permit under § 20', 'residence-term'],
+    ['German: upper intermediate', 'german-above-b1'],
+    ['Full professional German', 'german-above-b1'],
+    ['Goethe-Zertifikat C1', 'german-above-b1'],
+    ['German proficiency', 'german-above-b1'],
+  ];
+  it.each(cases)('fails on %s', (text, rule) => {
+    const r = lintOnly(text);
+    failsWith(r, `: ${rule}`);
+  });
+
+  it('keeps ordinary words and dates', () => {
+    passes(lintOnly('Spring 2024 cohort, mentoring juniors, engineering work'));
+  });
+
+  it('maps Unicode dashes and spaces in metadata and link targets', () => {
+    const page = [lines(base())];
+    failsWith(check({ pages: page, info: { Author: 'Ada +44 (0) 20‑7946‑0000' } }), 'metadata: phone');
+    const url = 'https://example.org/44%E2%80%9320%E2%80%937946%E2%80%930000';
+    failsWith(check({ pages: page, links: [{ page: 1, uri: url }] }, { manifest: { ...MANIFEST(), links: [url] } }), 'link target: phone');
+  });
+});
+
+describe('check-web-cv: the year exemption', () => {
+  it('needs a record for a year-like figure outside a date context', () => {
+    failsWith(check(withBullet('Cut costs by (2000) units.')), 'numeral at 14-18 has no approval record');
+    failsWith(check(withBullet('Grew the list to 2000')), 'numeral at 17-21 has no approval record');
+  });
+
+  it('exempts degree years, ranges and month dates', () => {
+    passes(check(withBullet('Finished the MSc in Data Science (2025), 2023 – Present, Apr 2023.')));
+  });
+});
+
 // ───────────────────────────── cv-sync.sh ─────────────────────────────
 // A stub renderer stands in for the private one. It writes a synthetic PDF whose text it reads
 // from the "DOCX" (a plain text file here): with --web it drops lines marked SENSITIVE, without it
 // keeps them. Environment switches make it misbehave in the ways the wrapper must catch.
 const STUB = String.raw`
-import os, sys, json, zlib
+import os, sys, json
 args = sys.argv[1:]
 log = os.environ.get("STUB_LOG")
 if log:
@@ -606,8 +711,10 @@ if os.environ.get("STUB_FAIL"):
     sys.exit(3)
 docx, pdf = args[0], args[1]
 web = "--web" in args[2:] and not os.environ.get("STUB_IGNORE_WEB")
+if not web and os.environ.get("STUB_EMPTY_NONWEB"):
+    sys.exit(0)
 here = os.path.dirname(os.path.abspath(__file__))
-font = open(os.path.join(here, "assets", "font.bin")).read()
+open(os.path.join(here, "assets", "font.bin")).read()
 lines = [l for l in open(docx).read().splitlines() if l.strip()]
 if web:
     lines = [l for l in lines if not l.startswith("SENSITIVE ")]
@@ -618,7 +725,7 @@ if tamper and "synthetic" in os.path.basename(docx):
         f.write("# changed\n")
 ops = b""
 y = 800
-for l in lines + ["font " + font.strip()]:
+for l in lines:
     t = l.encode("latin-1").replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
     ops += b"BT /F1 10 Tf 72 %d Td (" % y + t + b") Tj ET\n"
     y -= 14
@@ -635,84 +742,166 @@ out += b"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % x
 open(pdf, "wb").write(out)
 `;
 
-type Sync = { dir: string; renderer: string; original: string; input: string; synthetic: string; present: string; output: string; evidence: string; log: string };
+// The hook records its arguments and the checker it was given, then exits with HOOK_EXIT.
+const HOOK = `#!/usr/bin/env bash
+printf '%s\\n' "$@" > "$HOOK_LOG"
+printf '%s\\n' "$CV_CHECKER" >> "$HOOK_LOG"
+exit "\${HOOK_EXIT:-0}"
+`;
 
+type Sync = {
+  dir: string;
+  repo: string;
+  sync: string;
+  renderer: string;
+  original: string;
+  input: string;
+  synthetic: string;
+  present: string;
+  output: string;
+  evidence: string;
+  log: string;
+  hook: string;
+  hookLog: string;
+};
+
+/** A throwaway copy of the repository's checker and wrapper, with a layout that fits the stub. */
 function syncSetup(): Sync {
   const dir = tmp();
+  const repo = join(dir, 'repo');
+  mkdirSync(join(repo, 'scripts', 'cv'), { recursive: true });
+  mkdirSync(join(repo, 'src', 'lib', 'facts'), { recursive: true });
+  mkdirSync(join(repo, 'public'));
+  for (const f of ['scripts/check-web-cv.py', 'scripts/cv-sync.sh', 'src/lib/facts/facts.generated.ts']) {
+    writeFileSync(join(repo, f), readFileSync(join(ROOT, f)));
+  }
+  writeFileSync(
+    join(repo, 'scripts/cv/claim-layout.json'),
+    JSON.stringify({
+      version: 1,
+      links: [],
+      sections: [{ sectionId: 'summary', heading: 'Summary' }],
+      summaryBindings: [{ bindingId: 'summary-reports', sectionId: 'summary', normalizedClaim: 'Wrote reports for the product team.', subject: 'Example Co' }],
+    }),
+  );
+  writeFileSync(join(repo, 'scripts/cv/numeral-allowlist.json'), JSON.stringify({ entries: [] }));
   for (const name of ['web', 'original']) {
     mkdirSync(join(dir, name, 'assets'), { recursive: true });
     writeFileSync(join(dir, name, 'render.py'), STUB);
     writeFileSync(join(dir, name, 'assets', 'font.bin'), 'synthetic-font\n');
   }
-  // The "original" renderer: the same stub, so its non-web output matches.
   const s: Sync = {
     dir,
+    repo,
+    sync: join(repo, 'scripts/cv-sync.sh'),
     renderer: join(dir, 'web', 'render.py'),
     original: join(dir, 'original', 'render.py'),
     input: join(dir, 'approved.docx'),
     synthetic: join(dir, 'synthetic.docx'),
     present: join(dir, 'present.txt'),
-    output: join(dir, 'out', 'cv.pdf'),
+    output: join(repo, 'public', 'cv.pdf'),
     evidence: join(dir, 'evidence.json'),
     log: join(dir, 'stub.log'),
+    hook: join(dir, 'hook.sh'),
+    hookLog: join(dir, 'hook.log'),
   };
-  mkdirSync(join(dir, 'out'));
-  writeFileSync(s.input, 'Ada Example\nWrote reports for the product team.\n');
+  writeFileSync(s.input, 'Ada Example\nSummary\nWrote reports for the product team.\n');
   writeFileSync(
     s.synthetic,
     'Synthetic Person\nSENSITIVE Phone +44 20 7946 0000\nSENSITIVE Musterstraße 12, 10115 Berlin\nSENSITIVE Holds a work permit\nInnocuous approved line\n',
   );
   writeFileSync(s.present, 'Synthetic Person\nInnocuous approved line\n');
+  writeFileSync(s.hook, HOOK);
+  chmodSync(s.hook, 0o755);
   return s;
 }
 
-const LINT_ONLY_MANIFEST = { version: 1, sections: [{ sectionId: 'all', heading: 'Nothing' }], summaryBindings: [] };
-
-function sync(s: Sync, o: { args?: string[]; env?: Record<string, string | undefined>; drop?: string[]; inputSha?: string } = {}) {
+type SyncOptions = { args?: string[]; env?: Record<string, string | undefined>; drop?: string[]; inputSha?: string; output?: string };
+function sync(s: Sync, o: SyncOptions = {}) {
   const full: Record<string, string> = {
     '--renderer': s.renderer,
     '--input': s.input,
-    '--output': s.output,
+    '--output': o.output ?? s.output,
     '--input-sha256': o.inputSha ?? sha256(readFileSync(s.input)),
     '--synthetic-docx': s.synthetic,
     '--synthetic-present': s.present,
     '--original-renderer': s.original,
     '--evidence': s.evidence,
+    '--validate-cmd': s.hook,
   };
   const args = Object.entries(full)
     .filter(([k]) => !(o.drop ?? []).includes(k))
     .flat();
-  return spawnSync('bash', [SYNC, ...args, ...(o.args ?? ['--lint-only'])], {
+  return spawnSync('bash', [s.sync, ...args, ...(o.args ?? [])], {
     encoding: 'utf8',
-    env: { PATH: process.env.PATH, TRUTH_DENYLIST: DENY, STUB_LOG: s.log, ...o.env } as unknown as NodeJS.ProcessEnv,
+    env: { PATH: process.env.PATH, TRUTH_DENYLIST: DENY, STUB_LOG: s.log, HOOK_LOG: s.hookLog, ...o.env } as unknown as NodeJS.ProcessEnv,
   });
 }
+const meta = (s: Sync) => join(s.repo, 'public', 'cv.meta.json');
 
 describe('cv-sync.sh', () => {
-  it('accepts the renderer on the synthetic input, then renders the approved input from the same snapshot', () => {
+  it('accepts the renderer on the synthetic input, renders the input from the same snapshot, checks it in full, runs the validate hook, then installs', () => {
     const s = syncSetup();
     const r = sync(s);
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
     const pdf = readFileSync(s.output);
-    expect(JSON.parse(readFileSync(join(s.dir, 'out', 'cv.meta.json'), 'utf8'))).toEqual({
+    expect(JSON.parse(readFileSync(meta(s), 'utf8'))).toEqual({
       sha256: sha256(pdf),
       renderedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
       web: true,
     });
     const calls = readFileSync(s.log, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[]);
     const real = calls.at(-1)!;
-    // Absolute snapshot renderer path is the script itself; arguments: snapshot DOCX, PDF, --web.
     expect(real).toHaveLength(3);
     expect(real[0]).toMatch(/^\/.*\/input\.docx$/);
     expect(real[1]).toMatch(/^\/.*\.pdf$/);
     expect(real[2]).toBe('--web');
+    // The hook got the candidate PDF (absolute, the same bytes as the installed file) and the checker.
+    const [hookPdf, checker] = readFileSync(s.hookLog, 'utf8').trim().split('\n');
+    expect(hookPdf).toMatch(/^\/.*candidate\.pdf$/);
+    expect(checker).toBe(join(s.repo, 'scripts/check-web-cv.py'));
     const evidence = JSON.parse(readFileSync(s.evidence, 'utf8'));
     expect(evidence.result).toBe('pass');
     expect(evidence.candidatePdfSha256).toBe(sha256(pdf));
+    expect(evidence.validateCmdSha256).toBe(sha256(HOOK));
     expect(evidence.inputSha256).toBe(sha256(readFileSync(s.input)));
     expect(Object.keys(evidence.snapshot)).toEqual(['render.py', 'assets/font.bin']);
     expect(JSON.stringify(evidence)).not.toMatch(/Ada Example|Wrote reports/);
+  });
+
+  it('refuses to install with --lint-only, --manifest or --records, or without a validate hook', () => {
+    for (const args of [['--lint-only'], ['--manifest', '/tmp/m.json'], ['--records', '/tmp/r.json']]) {
+      const s = syncSetup();
+      expect(sync(s, { args }).status, args[0]).toBe(2);
+      expect(existsSync(s.output)).toBe(false);
+    }
+    const s = syncSetup();
+    expect(sync(s, { drop: ['--validate-cmd'] }).status).toBe(2);
+    expect(existsSync(s.output)).toBe(false);
+  });
+
+  it('does not install when the validate hook fails', () => {
+    const s = syncSetup();
+    const r = sync(s, { env: { HOOK_EXIT: '1' } });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('the validate hook failed');
+    expect(existsSync(s.output)).toBe(false);
+    expect(existsSync(meta(s))).toBe(false);
+  });
+
+  it('allows --lint-only in a dry run, which writes the candidate outside the repository and installs nothing', () => {
+    const s = syncSetup();
+    const out = join(s.dir, 'dry', 'cv.pdf');
+    mkdirSync(join(s.dir, 'dry'));
+    const r = sync(s, { args: ['--dry-run', '--lint-only'], output: out, drop: ['--validate-cmd'] });
+    expect(r.stderr).toBe('');
+    expect(r.status).toBe(0);
+    expect(existsSync(out)).toBe(true);
+    expect(existsSync(join(s.dir, 'dry', 'cv.meta.json'))).toBe(false);
+    const inside = syncSetup();
+    expect(sync(inside, { args: ['--dry-run', '--lint-only'] }).status).toBe(2);
+    expect(existsSync(inside.output)).toBe(false);
   });
 
   it('rejects missing, relative or unreadable paths before rendering, leaving no output', () => {
@@ -722,7 +911,7 @@ describe('cv-sync.sh', () => {
       expect(existsSync(s.output)).toBe(false);
     }
     const s = syncSetup();
-    const relative = spawnSync('bash', [SYNC, '--renderer', 'render.py', '--input', s.input, '--output', s.output, '--input-sha256', 'x', '--evidence', s.evidence], { encoding: 'utf8' });
+    const relative = spawnSync('bash', [s.sync, '--renderer', 'render.py', '--input', s.input, '--output', s.output, '--input-sha256', 'x', '--evidence', s.evidence], { encoding: 'utf8' });
     expect(relative.status).toBe(2);
     rmSync(s.input);
     const r = sync(s, { inputSha: sha256('x') });
@@ -733,6 +922,18 @@ describe('cv-sync.sh', () => {
     expect(sync(t).status).toBe(1);
     expect(existsSync(t.output)).toBe(false);
     expect(existsSync(t.log)).toBe(false);
+  });
+
+  it('refuses evidence at a path git would track, even through a symlink', () => {
+    const s = syncSetup();
+    const link = join(s.dir, 'into-repo');
+    symlinkSync(join(ROOT, 'scripts', 'cv'), link);
+    const copy = spawnSync('bash', [join(ROOT, 'scripts/cv-sync.sh'), '--renderer', s.renderer, '--input', s.input, '--output', join(s.dir, 'x.pdf'), '--input-sha256', sha256(readFileSync(s.input)), '--synthetic-docx', s.synthetic, '--synthetic-present', s.present, '--original-renderer', s.original, '--evidence', join(link, 'evidence.json'), '--dry-run', '--lint-only'], {
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH, TRUTH_DENYLIST: DENY } as unknown as NodeJS.ProcessEnv,
+    });
+    expect(copy.status).toBe(1);
+    expect(copy.stderr).toContain('--evidence must not be a path git would track');
   });
 
   it('rejects a changed approved input before rendering it', () => {
@@ -752,10 +953,15 @@ describe('cv-sync.sh', () => {
     expect(existsSync(s.output)).toBe(false);
   });
 
-  it('rejects a failing renderer', () => {
+  it('rejects a failing renderer, and renderers that write no non-web PDF', () => {
     const s = syncSetup();
     expect(sync(s, { env: { STUB_FAIL: '1' } }).status).toBe(1);
     expect(existsSync(s.output)).toBe(false);
+    const e = syncSetup();
+    const r = sync(e, { env: { STUB_EMPTY_NONWEB: '1' } });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('no non-web PDF');
+    expect(existsSync(e.output)).toBe(false);
   });
 
   it('rejects a renderer or asset changed after acceptance', () => {
@@ -776,21 +982,13 @@ describe('cv-sync.sh', () => {
     expect(r.stderr).toContain('non-web output differs from the original renderer');
   });
 
-  it('does not install a candidate that fails the checker', () => {
+  it('does not install a candidate that fails the full check', () => {
     const s = syncSetup();
-    writeFileSync(s.input, 'Ada Example\nA passionate analyst.\n');
+    writeFileSync(s.input, 'Ada Example\nSummary\nA passionate analyst.\n');
     const r = sync(s);
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('candidate PDF failed the checker');
     expect(existsSync(s.output)).toBe(false);
-  });
-
-  it('runs the full check on the candidate unless told otherwise', () => {
-    const s = syncSetup();
-    const m = join(s.dir, 'manifest.json');
-    writeFileSync(m, JSON.stringify(LINT_ONLY_MANIFEST));
-    const r = sync(s, { args: ['--manifest', m] });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toContain('candidate PDF failed the checker');
+    expect(existsSync(s.hookLog)).toBe(false);
   });
 });

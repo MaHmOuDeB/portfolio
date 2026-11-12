@@ -3,7 +3,8 @@
 #
 #   scripts/cv-sync.sh --renderer ABS --input ABS --output PDF --input-sha256 HEX \
 #     --synthetic-docx ABS --synthetic-present ABS --original-renderer ABS --evidence ABS \
-#     [--manifest PATH] [--records PATH] [--claims-out ABS] [--lint-only]
+#     --validate-cmd ABS
+#   scripts/cv-sync.sh ... --dry-run [--validate-cmd ABS] [--manifest PATH] [--records PATH] [--lint-only]
 #
 # --renderer           the private renderer with a --web mode (python3 RENDERER DOCX PDF --web); it
 #                      prints its renderer-relative asset files when called with --declare-assets
@@ -14,9 +15,15 @@
 # --synthetic-present  lines that must survive the web render of the synthetic DOCX
 # --original-renderer  the renderer the private one was copied from; non-web output must match it
 # --evidence           a private JSON file for the run's evidence: tool versions, hashes, results,
-#                      never document text; it must lie outside this repository
-# --manifest, --records, --claims-out and --lint-only are passed to scripts/check-web-cv.py for the
-# candidate PDF. TRUTH_DENYLIST must be set, as for the checker.
+#                      never document text; it must not be a path git would track here
+# --validate-cmd       an executable run as `ABS <candidate.pdf>` (with CV_CHECKER set to this
+#                      repository's checker) after the full check passed; the PDF is installed only
+#                      when it exits 0. Required for an install.
+# --dry-run            render and check only: the candidate is written to --output, which must not
+#                      be a path git would track here, and no metadata is written. Only a dry run
+#                      accepts --manifest, --records and --lint-only (passed to the checker).
+# The install always runs the full check with this repository's claim layout and records.
+# TRUTH_DENYLIST must be set, as for the checker.
 #
 # Order: validate every path (exit 2 on usage, 1 on an unreadable file, nothing rendered); copy the
 # DOCX and check its hash; snapshot the renderer with its declared assets and hash them; accept the
@@ -42,12 +49,13 @@ die() {
   exit 1
 }
 
-renderer='' input='' output='' input_sha='' synthetic='' present='' original='' evidence=''
+renderer='' input='' output='' input_sha='' synthetic='' present='' original='' evidence='' validate_cmd=''
+dry_run=0
 check_args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --renderer | --input | --output | --input-sha256 | --synthetic-docx | --synthetic-present | \
-      --original-renderer | --evidence | --manifest | --records | --claims-out)
+      --original-renderer | --evidence | --validate-cmd | --manifest | --records)
       [ $# -ge 2 ] || usage
       case "$1" in
         --renderer) renderer="$2" ;;
@@ -58,11 +66,13 @@ while [ $# -gt 0 ]; do
         --synthetic-present) present="$2" ;;
         --original-renderer) original="$2" ;;
         --evidence) evidence="$2" ;;
+        --validate-cmd) validate_cmd="$2" ;;
         *) check_args+=("$1" "$2") ;;
       esac
       shift 2
       ;;
     --lint-only) check_args+=("$1"); shift ;;
+    --dry-run) dry_run=1; shift ;;
     *) usage ;;
   esac
 done
@@ -74,6 +84,27 @@ for v in renderer input synthetic present original evidence; do
   case "${!v}" in /*) ;; *) usage ;; esac
 done
 [[ "$input_sha" =~ ^[0-9a-f]{64}$ ]] || usage
+if [ "$dry_run" -eq 0 ]; then
+  # An install runs the full check with this repository's layout and records, then the hook.
+  [ ${#check_args[@]} -eq 0 ] || usage
+  [ -n "$validate_cmd" ] || usage
+fi
+if [ -n "$validate_cmd" ]; then
+  case "$validate_cmd" in /*) ;; *) usage ;; esac
+fi
+
+# Whether a file at the path (symlinks resolved) would sit in this repository and not be ignored.
+git_would_track() {
+  python3 -I - "$ROOT" "$1" <<'PY'
+import os, subprocess, sys
+root, path = os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])
+if os.path.commonpath([root, path]) != root:
+    sys.exit(1)
+r = subprocess.run(["git", "-C", root, "check-ignore", "-q", "--", os.path.relpath(path, root)], capture_output=True)
+sys.exit(1 if r.returncode == 0 else 0)
+PY
+}
+if [ "$dry_run" -eq 1 ] && git_would_track "$output"; then usage; fi
 
 for pair in "--renderer:$renderer" "--input:$input" "--synthetic-docx:$synthetic" \
   "--synthetic-present:$present" "--original-renderer:$original"; do
@@ -84,8 +115,11 @@ out_dir="$(cd "$(dirname "$output")" 2>/dev/null && pwd)" || die "--output names
 output="$out_dir/$(basename "$output")"
 case "$output" in *.pdf) ;; *) die "--output must end in .pdf" ;; esac
 meta="${output%.pdf}.meta.json"
-case "$evidence/" in "$ROOT"/*) die "--evidence must lie outside this repository" ;; esac
 [ -d "$(dirname "$evidence")" ] || die "--evidence names a folder that does not exist"
+if git_would_track "$evidence"; then die "--evidence must not be a path git would track"; fi
+if [ -n "$validate_cmd" ]; then
+  [ -f "$validate_cmd" ] && [ -x "$validate_cmd" ] || die "--validate-cmd is not an executable regular file"
+fi
 for tool in python3 pdftotext pdfinfo; do
   command -v "$tool" >/dev/null 2>&1 || die "$tool not found"
 done
@@ -104,6 +138,7 @@ write_evidence() {
   for ((i = 0; i < ${#snap_names[@]}; i++)); do snap+="${snap_names[$i]}"$'\t'"${snap_hashes[$i]}"$'\n'; done
   EV_RESULT="$result" EV_REASON="$reason" EV_SNAPSHOT="$snap" EV_INPUT="$(sha "$work/input.docx" 2>/dev/null || true)" \
     EV_SYNTHETIC="$(sha "$synthetic")" EV_CHECKER="$(sha "$CHECKER")" EV_CANDIDATE="$candidate_sha" \
+    EV_VALIDATE="$([ -n "$validate_cmd" ] && sha "$validate_cmd" || true)" EV_DRY="$dry_run" \
     EV_RENDERED="$rendered_at" python3 -I - "$evidence" <<'PY'
 import json, os, subprocess, sys
 def version(cmd):
@@ -127,6 +162,8 @@ data = {
     "syntheticSha256": e["EV_SYNTHETIC"],
     "checkerSha256": e["EV_CHECKER"],
     "candidatePdfSha256": e["EV_CANDIDATE"],
+    "validateCmdSha256": e["EV_VALIDATE"],
+    "dryRun": e["EV_DRY"] == "1",
     "renderedAt": e["EV_RENDERED"],
 }
 with open(sys.argv[1], "w") as f:
@@ -192,8 +229,10 @@ while IFS= read -r line; do
 done <"$present"
 render "$snap" "$work/synthetic.docx" "$work/synthetic-nonweb.pdf" ||
   fail_ev "synthetic acceptance failed: the renderer exited with an error in non-web mode"
+[ -s "$work/synthetic-nonweb.pdf" ] || fail_ev "synthetic acceptance failed: no non-web PDF"
 render "$original" "$work/synthetic.docx" "$work/synthetic-original.pdf" ||
   fail_ev "synthetic acceptance failed: the original renderer exited with an error"
+[ -s "$work/synthetic-original.pdf" ] || fail_ev "synthetic acceptance failed: no non-web PDF from the original renderer"
 [ "$(text_of "$work/synthetic-nonweb.pdf")" = "$(text_of "$work/synthetic-original.pdf")" ] ||
   fail_ev "synthetic acceptance failed: the non-web output differs from the original renderer"
 if python3 -I "$CHECKER" "$work/synthetic-nonweb.pdf" --lint-only >/dev/null 2>&1; then
@@ -210,7 +249,20 @@ render "$snap" "$work/input.docx" "$work/candidate.pdf" --web || fail_ev "the re
 candidate_sha="$(sha "$work/candidate.pdf")"
 python3 -I "$CHECKER" "$work/candidate.pdf" --expect-sha256 "$candidate_sha" ${check_args[@]+"${check_args[@]}"} >/dev/null ||
   fail_ev "the candidate PDF failed the checker"
+if [ -n "$validate_cmd" ]; then
+  CV_CHECKER="$CHECKER" "$validate_cmd" "$work/candidate.pdf" >&2 || fail_ev "the validate hook failed"
+  [ "$(sha "$work/candidate.pdf")" = "$candidate_sha" ] || fail_ev "the candidate changed during validation"
+fi
 same_hashes || fail_ev "the renderer or an asset changed after acceptance"
+
+if [ "$dry_run" -eq 1 ]; then
+  cp "$work/candidate.pdf" "$output.tmp.$$"
+  mv "$output.tmp.$$" "$output"
+  result=pass
+  write_evidence
+  echo "$NAME: dry run: wrote the checked candidate (sha256 $candidate_sha); nothing installed"
+  exit 0
+fi
 
 # 6. Install: the PDF, then its metadata, each by an atomic rename; then confirm the bytes.
 rendered_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -218,7 +270,10 @@ cp "$work/candidate.pdf" "$output.tmp.$$"
 mv "$output.tmp.$$" "$output"
 printf '{\n "sha256": "%s",\n "renderedAt": "%s",\n "web": true\n}\n' "$candidate_sha" "$rendered_at" >"$meta.tmp.$$"
 mv "$meta.tmp.$$" "$meta"
-[ "$(sha "$output")" = "$candidate_sha" ] || fail_ev "the installed PDF is not the checked candidate"
+if [ "$(sha "$output")" != "$candidate_sha" ]; then
+  rm -f "$output" "$meta"
+  fail_ev "the installed PDF is not the checked candidate; removed it and its metadata"
+fi
 result=pass
 write_evidence
 echo "$NAME: installed the checked PDF (sha256 $candidate_sha) and its metadata"

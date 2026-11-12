@@ -4,7 +4,7 @@
 
 Options:
   --claims-out PATH     write the parsed claims as {"claims": [{"id", "normalizedClaim"}]} to PATH,
-                        which must lie outside this repository
+                        which must not be a path git would track in this repository
   --manifest PATH       the claim layout (default scripts/cv/claim-layout.json)
   --records PATH        the numeral approval records (default scripts/cv/numeral-allowlist.json)
   --facts PATH          the generated facts module (default src/lib/facts/facts.generated.ts)
@@ -22,7 +22,12 @@ every link and action inside the file (compressed object streams included):
 - wording: no banned phrase, no significance threshold, no German level above B1, no page-number
   footer;
 - links: only https and mailto links, each listed in the manifest's "links"; no JavaScript, launch,
-  form, embedded-file or other active content, no annotation other than a link, no encryption;
+  form, embedded-file, optional-content or other active content, no annotation other than a link, no
+  encryption, and pdfinfo must report no JavaScript, no form and no encryption;
+- hidden content: no image (embedded or inline, also per pdfimages -list); every readable string in
+  the file's objects (annotation contents, outline titles, alternate text) is linted like page text;
+  no text outside the page box (pdftotext over a crop far larger than the page must find nothing
+  more than the normal extraction);
 - structure: every section, entry and claim of the manifest is found once, in order, on its page,
   with its bullet marker; a page continuation only where the manifest declares it;
 - numerals: every numeral (digits or a number word) that is not a date, a year or a CEFR level is
@@ -40,6 +45,7 @@ import re
 import subprocess
 import sys
 import unicodedata
+import urllib.parse
 import zlib
 from pathlib import Path
 
@@ -76,29 +82,39 @@ WORD_TOKEN = re.compile(rf"\b(?:{'|'.join(NUMBER_WORDS)})\b", re.I)
 # link targets after invisible characters are removed.
 PHONE_PREFIXED = re.compile(r"(?:\+|\b00)\d[\d \t().\/-]{5,}\d")
 PHONE_RUN = re.compile(r"\d[\d \t().\/-]{6,}\d")
+STREET_SUFFIX = r"(?:straße|strasse|str\.?|allee|platz|gasse|damm|chaussee|weg|ufer|steig|pfad|markt|hof|(?<![aeiouy])ring)"
 STREET = [
-    re.compile(r"\b[A-ZÄÖÜ][a-zäöüß]+(?:straße|strasse|str\.|allee|platz|gasse|damm|chaussee)\s*\d{1,4}\s?[a-z]?\b"),
-    re.compile(r"\b(?:Straße|Strasse|Str\.|Allee|Weg|Platz|Gasse|Damm|Ufer|Ring|Chaussee)\s+\d{1,4}[a-z]?\b"),
+    re.compile(r"\b[A-ZÄÖÜ][a-zäöüß]{2,}" + STREET_SUFFIX + r"\s*\d{1,4}\s?[a-z]?\b"),
+    re.compile(r"\b(?:Straße|Strasse|Str\.|Allee|Weg|Platz|Gasse|Damm|Ufer|Ring|Chaussee|Steig|Pfad|Markt|Hof)\s+\d{1,4}[a-z]?\b"),
+    re.compile(r"\b(?:Am|An der|An den|Auf der|Auf dem|Im|In der|In den|Unter den|Zum|Zur|Hinter der|Vor dem)\s+"
+               r"[A-ZÄÖÜ][\wäöüß-]*\s+\d{1,4}[a-z]?\b"),
     re.compile(r"\b\d{1,5}\s+(?:[A-Z][a-z]+\s+){1,3}(?:Street|St\.|Road|Rd\.|Avenue|Ave\.|Lane|Boulevard|Blvd\.|Drive)\b"),
 ]
-POSTCODE_CITY = re.compile(r"\b(?:D-)?\d{5}\s+[A-ZÄÖÜ][a-zäöüß]+")
+POSTCODE_CITY = [
+    re.compile(r"\b(?:D-)?\d{5},?\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]+"),
+    re.compile(r"\b[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]+,?\s+(?:D-)?\d{5}\b"),
+]
 RESIDENCE = re.compile(
-    r"\bvisa\b|\bwork[\s-]+permit|\bresidence[\s-]+permit|AufenthG|Aufenthalts\w*|Arbeitserlaubnis|"
-    r"Beschäftigungserlaubnis|Niederlassungserlaubnis|Fiktionsbescheinigung|\bblue[\s-]+card\b|\bblaue[\s-]+karte\b|"
-    r"\bauthori[sz]ed\s+to\s+work\b|\bwork\s+authori[sz]ation\b|\bright\s+to\s+work\b|\bsponsorship\b",
+    r"\bvisa\b|\bwork[\s-]+permit|\bresidence[\s-]+permit|\bsettlement[\s-]+permit|AufenthG|Aufenthalts\w*|"
+    r"Arbeitserlaubnis|Arbeitsvisum|Beschäftigungserlaubnis|Niederlassungserlaubnis|Fiktionsbescheinigung|"
+    r"Chancenkarte|\bopportunity[\s-]+card\b|\bblue[\s-]+card\b|\bblaue[\s-]+karte\b|\bauthori[sz]ed\s+to\s+work\b|"
+    r"\bwork\s+authori[sz]ation\b|\bright\s+to\s+work\b|\beligible\s+to\s+work\b|\bsponsorship\b|\bresiden(?:t|ts|cy)\b|"
+    r"\bcitizenship\b|\bnationality\b|Staatsangehörigkeit|§",
     re.I,
 )
 BANNED = re.compile(r"\bAI[\s\-‐-―−]*powered\b|\bpassionate\b|\brockstar\b", re.I)
 SIGNIFICANCE = re.compile(
     r"\bp(?:[\s-]*value)?\s*[<≤=]\s*0?[.,]?\d|\bsignificance\s+(?:threshold|level)\b|\balpha\s*=|α\s*=", re.I
 )
-GERMAN_ABOVE_B1 = re.compile(
-    r"\b(?:B2|C1|C2|fluent|native|proficient|advanced|business[\s-]+fluent|verhandlungssicher|fließend|"
-    r"Muttersprache|Muttersprachler\w*)\b",
-    re.I,
+GERMAN_LEVEL_WORDS = (
+    r"B2|C1|C2|fluent|fluency|native|proficient|proficiency|advanced|business[\s-]+fluent|upper[\s-]+intermediate|"
+    r"full[\s-]+professional|professional\s+working|verhandlungssicher|fließend|Muttersprache|Muttersprachler\w*"
 )
-GERMAN_ABOVE_B1_BEFORE = re.compile(
-    r"\b(?:B2|C1|C2|fluent|native|proficient|advanced|business[\s-]+fluent)\s+(?:in\s+)?(?:German|Deutsch)\b", re.I
+GERMAN_ABOVE_B1 = re.compile(rf"\b(?:{GERMAN_LEVEL_WORDS})\b", re.I)
+GERMAN_ABOVE_B1_BEFORE = re.compile(rf"\b(?:{GERMAN_LEVEL_WORDS})\s+(?:in\s+)?(?:German|Deutsch)\b", re.I)
+# A German certificate at B2 or above, named without the language word.
+GERMAN_CERTIFICATE = re.compile(
+    r"\bGoethe[\s-]*Zertifikat\s*(?:B2|C1|C2)\b|\btelc\b[^.\n]{0,20}?\b(?:B2|C1|C2)\b|\bTestDaF\b|\bDSH(?:-[123])?\b", re.I
 )
 PAGE_OF = re.compile(r"\b(?:Page|Seite)\s+\d+\s+(?:of|von)\s+\d+\b", re.I)
 FOOTER_FRACTION = re.compile(r"(?:^|\s)\d+\s*/\s*\d+\s*$")
@@ -108,12 +124,9 @@ ACTIONS = (
     "RichMediaExecute SetOCGState Trans GoTo3DView Thread"
 ).split()
 FORBIDDEN_KEYS = re.compile(
-    rb"/(?:JavaScript|JS|Launch|EmbeddedFiles?|RichMedia\w*|AcroForm|XFA|AA|Encrypt|OpenAction)(?![A-Za-z0-9])"
+    rb"/(?:JavaScript|JS|Launch|EmbeddedFiles?|RichMedia\w*|AcroForm|XFA|AA|Encrypt|OpenAction|OCProperties|OCG|OCMD|OC)"
+    rb"(?![A-Za-z0-9])"
 )
-ANNOT_SUBTYPES = (
-    "Text FreeText FileAttachment Widget Screen Popup Sound Movie RichMedia Redact Stamp Ink Caret Highlight "
-    "Underline Squiggly StrikeOut Line Square Circle Polygon PolyLine Watermark 3D TrapNet PrinterMark Projection"
-).split()
 
 
 class Fail(Exception):
@@ -127,6 +140,24 @@ def fail(msg: str) -> "Fail":
 # ───────────────────────────── text helpers ─────────────────────────────
 def clean(s: str) -> str:
     return INVISIBLE.sub("", unicodedata.normalize("NFC", s))
+
+
+def lint_view(s: str) -> str:
+    """The text the lints read: NFKC, no format characters (category Cf: zero-width, bidi marks, soft
+    hyphen), every dash, the minus sign and the middle dots read as "-", every space as " "."""
+    s = unicodedata.normalize("NFKC", s)
+    out = []
+    for c in s:
+        cat = unicodedata.category(c)
+        if cat == "Cf":
+            continue
+        if cat == "Pd" or c in "\u2212\u00b7\u2027\u2219":
+            out.append("-")
+        elif cat == "Zs":
+            out.append(" ")
+        else:
+            out.append(c)
+    return "".join(out)
 
 
 def collapse(s: str) -> str:
@@ -159,21 +190,37 @@ def _next_word(s: str, j: int) -> str:
     return m.group(1).lower() if m else ""
 
 
+RANGE_END = r"(?:(?:19|20)\d\d|(?:[A-Z][a-z]{2,8}\.?\s+(?:19|20)\d\d)|Present|present|today|now|heute)"
+DEGREE = re.compile(r"\b(?:MSc|BSc|MA|BA|MBA|PhD|M\.Sc\.|B\.Sc\.|degree|Master's|Bachelor's|Master|Bachelor)\b[^()]{0,40}\(\s*$")
+
+
+def year_in_date_context(s: str, start: int, end: int) -> bool:
+    """A year counts as a date only after a month, as either end of a range (to another year, a
+    month and year, or Present), in parentheses after a degree, after in/since/from/until followed
+    by a connective or punctuation, or in a date column (at the end of a line after a wide gap)."""
+    before, after = s[:start], s[end:]
+    if re.search(r"([A-Za-z]+)\.?\s+$", before) and _prev_word(s, start) in MONTHS:
+        return True
+    if re.match(r"\s*[–—-]\s*" + RANGE_END + r"\b", after):
+        return True
+    if re.search(r"(?:(?:19|20)\d\d|[A-Z][a-z]{2,8}\.?\s+(?:19|20)\d\d)\s*[–—-]\s*$", before):
+        return True
+    if DEGREE.search(before) and re.match(r"\s*\)", after):
+        return True
+    if re.search(r"\b(?:in|since|from|until)\s+$", before, re.I):
+        nxt_c = _next_char(s, end)
+        if nxt_c in ".,;:" or _next_word(s, end) in YEAR_NEXT_WORDS:
+            return True
+    if re.search(r"\S {2,}$", before) and after.strip() == "":
+        return True
+    return False
+
+
 def exempt(s: str, start: int, end: int) -> bool:
     """A date, a year or a CEFR level: the only numerals that need no approval record."""
     tok = s[start:end]
     if re.fullmatch(r"(?:19|20)\d\d", tok):
-        prev_c, next_c = _prev_char(s, start), _next_char(s, end)
-        if re.search(r"([A-Za-z]+)\.?\s+$", s[:start]) and _prev_word(s, start) in MONTHS:
-            return True
-        if prev_c in "(–—-" or next_c in "–—-)" or next_c == "":
-            return True
-        before = s[:start]
-        if re.search(r"\b(?:in|since|from|until)\s+$", before, re.I):
-            nxt = _next_word(s, end)
-            if next_c in ".,;:" or nxt in YEAR_NEXT_WORDS:
-                return True
-        return False
+        return year_in_date_context(s, start, end)
     if re.fullmatch(r"(?:0?[1-9]|1[0-2])/(?:19|20)\d\d", tok):
         return True
     if re.fullmatch(r"(?:0?[1-9]|[12]\d|3[01])\.(?:0?[1-9]|1[0-2])\.(?:19|20)\d\d", tok):
@@ -213,13 +260,13 @@ def phone(s: str) -> bool:
 
 def lint(s: str, denylist: list[str]) -> list[str]:
     """Rule ids that fire on s (each once); a deny-list hit is 'denylist #i'."""
-    s = clean(s)
+    s = lint_view(s)
     hits = []
     if phone(s):
         hits.append("phone")
     if any(p.search(s) for p in STREET):
         hits.append("street-address")
-    if POSTCODE_CITY.search(s):
+    if any(p.search(s) for p in POSTCODE_CITY):
         hits.append("postcode-city")
     if RESIDENCE.search(s):
         hits.append("residence-term")
@@ -227,7 +274,7 @@ def lint(s: str, denylist: list[str]) -> list[str]:
         hits.append("banned-phrase")
     if SIGNIFICANCE.search(s):
         hits.append("significance-threshold")
-    if german_above_b1(s):
+    if german_above_b1(s) or GERMAN_CERTIFICATE.search(s):
         hits.append("german-above-b1")
     if PAGE_OF.search(s):
         hits.append("page-footer")
@@ -239,7 +286,7 @@ def lint(s: str, denylist: list[str]) -> list[str]:
 
 
 def parse_denylist(raw: str | None) -> list[str]:
-    return [collapse(clean(t).lower()) for t in (raw or "").split("\n") if t.strip()]
+    return [collapse(lint_view(t).lower()) for t in (raw or "").split("\n") if t.strip()]
 
 
 # ───────────────────────────── PDF inspection ─────────────────────────────
@@ -329,29 +376,139 @@ def decode_names(data: bytes) -> bytes:
     )
 
 
-def object_bytes(data: bytes) -> tuple[bytes, list[str]]:
-    """The PDF's object syntax with stream bodies removed and object streams inflated, plus the
-    text of any XMP metadata stream."""
+WHITESPACE = b"\x00\t\n\x0c\r "
+DELIMITERS = b"()<>[]{}/%"
+NON_LINK_SUBTYPES = {
+    b"Link", b"Image", b"Form", b"Type0", b"Type1", b"Type1C", b"Type3", b"TrueType", b"MMType1", b"CIDFontType0",
+    b"CIDFontType0C", b"CIDFontType2", b"OpenType", b"XML", b"PS",
+}
+
+
+def _regular(c: int) -> bool:
+    return c not in WHITESPACE and c not in DELIMITERS
+
+
+def _keyword_at(data: bytes, i: int, word: bytes) -> bool:
+    j = i + len(word)
+    return data.startswith(word, i) and (i == 0 or not _regular(data[i - 1])) and (j >= len(data) or not _regular(data[j]))
+
+
+class Walk:
+    """One pass over PDF object syntax that never reads inside a string or a comment: it keeps the
+    syntax without comments and stream bodies, every string (decoded), every stream (its dictionary
+    and raw body) and every top-level object's body by number. A stream starts only at the keyword
+    "stream" right after a dictionary's ">>"."""
+
+    def __init__(self, data: bytes):
+        self.syntax = bytearray()
+        self.strings: list[str] = []
+        self.streams: list[tuple[bytes, bytes]] = []
+        self.objects: dict[int, bytes] = {}
+        n, i, obj_at, obj_num = len(data), 0, -1, None
+        while i < n:
+            c = data[i]
+            if c == 0x25:  # % comment, to the end of the line
+                while i < n and data[i] not in b"\r\n":
+                    i += 1
+                continue
+            if c == 0x28:  # ( literal string
+                raw, j = pdf_literal(data, i)
+                self.strings.append(pdf_text_string(raw))
+                self.syntax += data[i:j]
+                i = j
+                continue
+            if c == 0x3C and data[i + 1 : i + 2] == b"<":  # << dictionary start
+                self.syntax += b"<<"
+                i += 2
+                continue
+            if c == 0x3C:  # <hex string>
+                got = pdf_string_at(data, i)
+                if got is None:
+                    raise fail("malformed hex string in the PDF")
+                self.strings.append(got[0])
+                self.syntax += data[i : got[1]]
+                i = got[1]
+                continue
+            if _keyword_at(data, i, b"obj"):
+                m = re.search(rb"(\d+)\s+(\d+)\s+$", bytes(self.syntax[-40:]))
+                obj_num = int(m.group(1)) if m else None
+                self.syntax += b"obj"
+                obj_at = len(self.syntax)
+                i += 3
+                continue
+            if _keyword_at(data, i, b"endobj"):
+                if obj_num is not None and obj_at >= 0:
+                    self.objects[obj_num] = bytes(self.syntax[obj_at:])
+                obj_num, obj_at = None, -1
+                self.syntax += b"endobj"
+                i += 6
+                continue
+            if _keyword_at(data, i, b"stream") and bytes(self.syntax).rstrip(WHITESPACE).endswith(b">>"):
+                head = bytes(self.syntax[obj_at:]) if obj_at >= 0 else bytes(self.syntax[-2000:])
+                j = i + 6
+                if data[j : j + 2] == b"\r\n":
+                    j += 2
+                elif data[j : j + 1] in (b"\n", b"\r"):
+                    j += 1
+                else:
+                    raise fail("a stream keyword without its end of line")
+                end = -1
+                m = re.search(rb"/Length\s+(\d+)(?!\s+\d+\s+R)", decode_names(head))
+                if m:
+                    k = j + int(m.group(1))
+                    if data[k : k + 20].lstrip(WHITESPACE).startswith(b"endstream"):
+                        end = k
+                if end < 0:
+                    end = data.find(b"endstream", j)
+                    if end < 0:
+                        raise fail("unterminated stream in the PDF")
+                self.streams.append((head, data[j:end]))
+                k = data.find(b"endstream", end)
+                i = k + len(b"endstream")
+                self.syntax += b" "
+                continue
+            self.syntax.append(c)
+            i += 1
+
+
+def object_stream_objects(head: bytes, inflated: bytes) -> dict[int, bytes]:
+    """The objects inside an inflated object stream, by number."""
+    m_n = re.search(rb"/N\s+(\d+)", head)
+    m_first = re.search(rb"/First\s+(\d+)", head)
+    if not (m_n and m_first):
+        raise fail("an object stream without /N or /First")
+    nums = [int(x) for x in inflated[: int(m_first.group(1))].split()]
+    if len(nums) != 2 * int(m_n.group(1)):
+        raise fail("an object stream whose header the checker cannot read")
+    first, out = int(m_first.group(1)), {}
+    pairs = list(zip(nums[0::2], nums[1::2]))
+    for k, (num, off) in enumerate(pairs):
+        end = pairs[k + 1][1] if k + 1 < len(pairs) else len(inflated) - first
+        out[num] = inflated[first + off : first + end]
+    return out
+
+
+def readable(s: str) -> bool:
+    """Text someone wrote, as opposed to binary (document ids) or a PDF date."""
+    if not s or re.match(r"^D:\d{4}", s):
+        return False
+    printable = sum(1 for c in s if c.isprintable() or c in "\t\n\r")
+    return printable / len(s) >= 0.9
+
+
+def inspect_objects(data: bytes) -> tuple[list[str], list[str], list[str], list[str]]:
+    """(problems, link targets, XMP texts, every readable string) from the PDF's objects."""
     if not data.startswith(b"%PDF-"):
         raise fail("not a PDF (no %PDF- header)")
-    parts, xmp, pos = [], [], 0
-    for m in re.finditer(rb"stream\r?\n", data):
-        if m.start() < pos or data[max(0, m.start() - 3) : m.start()] == b"end":
-            continue
-        head_at = data.rfind(b"obj", 0, m.start())
-        head = data[head_at : m.start()] if head_at >= 0 else b""
-        end = data.find(b"endstream", m.end())
-        if end < 0:
-            raise fail("unterminated stream in the PDF")
-        body = data[m.end() : end].rstrip(b"\r\n")
-        parts.append(data[pos : m.start()])
-        pos = end + len(b"endstream")
+    top = Walk(data)
+    syntax, strings, objects, xmp = [bytes(top.syntax)], list(top.strings), dict(top.objects), []
+    for head, body in top.streams:
         head_n = decode_names(head)
-        filters = re.findall(rb"/(\w+Decode)\b", head_n)
         is_objstm = re.search(rb"/Type\s*/ObjStm\b", head_n) is not None
         is_xmp = re.search(rb"/Type\s*/Metadata\b", head_n) is not None
         if not (is_objstm or is_xmp):
             continue
+        filters = re.findall(rb"/(\w+Decode)\b", head_n)
         if filters and filters != [b"FlateDecode"]:
             raise fail("an object or metadata stream uses a filter the checker cannot read")
         if filters and re.search(rb"/DecodeParms", head_n):
@@ -360,17 +517,18 @@ def object_bytes(data: bytes) -> tuple[bytes, list[str]]:
             inflated = zlib.decompressobj().decompress(body) if filters else body
         except zlib.error:
             raise fail("an object or metadata stream does not inflate")
-        if is_objstm:
-            parts.append(b"\n" + inflated + b"\n")
-        else:
+        if is_xmp:
             xmp.append(inflated.decode("utf8", "replace"))
-    parts.append(data[pos:])
-    return decode_names(b"".join(parts)), xmp
-
-
-def inspect_objects(data: bytes) -> tuple[list[str], list[str], list[str]]:
-    """(problems, link targets, XMP texts) from the PDF's objects."""
-    objs, xmp = object_bytes(data)
+            continue
+        inner = Walk(inflated)
+        if inner.streams:
+            raise fail("an object stream holds a stream")
+        syntax.append(bytes(inner.syntax))
+        strings += inner.strings
+        for num, body_ in object_stream_objects(head_n, inflated).items():
+            objects[num] = body_
+    objs = decode_names(b"\n".join(syntax))
+    objects = {k: decode_names(v) for k, v in objects.items()}
     problems = []
     for m in FORBIDDEN_KEYS.finditer(objs):
         problems.append(f"active or hidden content ({m.group(0).decode('latin-1')})")
@@ -378,8 +536,24 @@ def inspect_objects(data: bytes) -> tuple[list[str], list[str], list[str]]:
         if m.group(1).decode("latin-1") in ACTIONS:
             problems.append(f"action type not allowed ({m.group(1).decode('latin-1')})")
     for m in re.finditer(rb"/Subtype\s*/(\w+)", objs):
-        if m.group(1).decode("latin-1") in ANNOT_SUBTYPES:
-            problems.append(f"annotation type not allowed ({m.group(1).decode('latin-1')})")
+        if m.group(1) == b"Image":
+            problems.append("image")
+        elif m.group(1) not in NON_LINK_SUBTYPES:
+            problems.append(f"annotation that is not a link (/{m.group(1).decode('latin-1')})")
+    for num, body_ in objects.items():
+        if re.search(rb"/Type\s*/Annot\b", body_) and not re.search(rb"/Subtype\s*/Link\b", body_):
+            problems.append("annotation that is not a link")
+    for m in re.finditer(rb"/Annots\s*(\[[^\]]*\]|\d+\s+\d+\s+R)", objs):
+        ref = m.group(1)
+        if ref.startswith(b"["):
+            arr = ref
+        else:
+            arr = objects.get(int(ref.split()[0]), b"")
+        if b"<<" in arr:
+            problems.append("annotation that is not a link (inline)")
+        for r in re.finditer(rb"(\d+)\s+\d+\s+R", arr):
+            if not re.search(rb"/Subtype\s*/Link\b", objects.get(int(r.group(1)), b"")):
+                problems.append("annotation that is not a link")
     uris = []
     for m in re.finditer(rb"/URI(?![A-Za-z0-9])", objs):
         rest = objs[m.end() :].lstrip()
@@ -390,7 +564,7 @@ def inspect_objects(data: bytes) -> tuple[list[str], list[str], list[str]]:
             problems.append("a link target the checker cannot read")
             continue
         uris.append(got[0])
-    return sorted(set(problems)), uris, xmp
+    return sorted(set(problems)), uris, xmp, [t for t in strings if readable(t)]
 
 
 def pdfinfo_urls(pdf: Path) -> list[str]:
@@ -409,9 +583,10 @@ def check_link(url: str, allowed: set[str] | None, denylist: list[str]) -> list[
     problems = []
     if not re.match(r"^(?:https://|mailto:)[^\s]+$", url):
         problems.append("link scheme not allowed")
-    for rule in lint(url, denylist):
+    decoded = lint_view(urllib.parse.unquote(url))
+    for rule in set(lint(url, denylist)) | set(lint(decoded, denylist)):
         problems.append(f"link target: {rule}")
-    if re.search(r"\d{7,}|\d[\d\-.]{8,}\d", url):
+    if re.search(r"\d{7,}|\d[\d\-.]{8,}\d", decoded):
         problems.append("link target: phone")
     if allowed is not None and url not in allowed:
         problems.append("link not listed in the manifest")
@@ -840,12 +1015,24 @@ def check_pdf(args) -> list[str]:
     info = run_tool(["pdfinfo", str(pdf)])
     if not re.search(r"^Pages:\s+[1-9]\d*\s*$", info, re.M):
         raise fail("pdfinfo reports no pages")
-    if re.search(r"^Encrypted:\s+yes", info, re.M):
-        findings.append("pdf: encrypted")
+    # pdfinfo must say, line by line, that the file has no JavaScript, no form and no encryption.
+    for field, value in (("JavaScript", "no"), ("Form", "none"), ("Encrypted", "no")):
+        if not re.search(rf"^{field}:\s+{value}\s*$", info, re.M):
+            findings.append(f"pdf: pdfinfo reports {field} other than {value}")
     meta_texts = [info, run_tool(["pdfinfo", "-meta", str(pdf)])]
+    # Any image, embedded or inline, fails: the web CV has no photo.
+    image_rows = [l for l in run_tool(["pdfimages", "-list", str(pdf)]).splitlines()[2:] if l.strip()]
+    if image_rows:
+        findings.append("pdf: image")
 
-    problems, uris, xmp = inspect_objects(data)
+    problems, uris, xmp, strings = inspect_objects(data)
     findings += [f"pdf: {p}" for p in problems]
+    # Every readable string in the objects (annotation contents, outline titles, alternate text,
+    # names) is linted like page text.
+    string_rules = set()
+    for t in strings:
+        string_rules.update(lint(t, denylist))
+    findings += [f"object string: {r}" for r in sorted(string_rules)]
     listed = pdfinfo_urls(pdf)
     if any(u not in uris for u in listed):
         findings.append("links: pdfinfo lists a link the object scan did not find")
@@ -868,6 +1055,13 @@ def check_pdf(args) -> list[str]:
     pages = pages_of(text)
     if not any(l.strip() for p in pages for l in p):
         raise fail("the PDF has no extractable text")
+    # Text outside the page box is dropped by pdftotext's normal output; a crop far larger than any
+    # page brings it back, and any word that only the large crop finds fails.
+    wide = run_tool(["pdftotext", "-layout", "-x", "-20000", "-y", "-20000", "-W", "60000", "-H", "60000", str(pdf), "-"])
+    if sorted(lint_view(wide).split()) != sorted(lint_view(text).split()):
+        findings.append("pdf: text outside the page box")
+        for rule in sorted(set(lint(wide, denylist))):
+            findings.append(f"pdf: text outside the page box: {rule}")
     for pi, lines in enumerate(pages, start=1):
         nonblank = [(li, l) for li, l in enumerate(lines, start=1) if l.strip()]
         if nonblank and FOOTER_FRACTION.search(nonblank[-1][1]):
@@ -920,11 +1114,20 @@ def check_pdf(args) -> list[str]:
                 findings.append(f"page {p['page']} line {p['line']}: numeral at column {a} outside any approved claim")
 
     if args.claims_out and manifest is not None:
-        out = Path(args.claims_out).resolve()
-        if out.is_relative_to(ROOT):
-            raise fail("--claims-out must lie outside this repository")
+        out = Path(os.path.realpath(args.claims_out))
         out.write_text(json.dumps({"claims": claims_out}, ensure_ascii=False, indent=1) + "\n", "utf8")
     return findings
+
+
+def git_would_track(path: str) -> bool:
+    """Whether a file at path (symlinks resolved) would sit in this repository and not be ignored."""
+    real = os.path.realpath(path)
+    root = os.path.realpath(ROOT)
+    if os.path.commonpath([real, root]) != root:
+        return False
+    r = subprocess.run(["git", "-C", root, "check-ignore", "-q", "--", os.path.relpath(real, root)],
+                       capture_output=True, check=False)
+    return r.returncode != 0
 
 
 class Args:
@@ -982,6 +1185,9 @@ def main(argv: list[str]) -> int:
         return 1
     if not pdf.is_file():
         print(f"{NAME}: FAIL the PDF is not a regular file", file=sys.stderr)
+        return 1
+    if args.claims_out and git_would_track(args.claims_out):
+        print(f"{NAME}: FAIL --claims-out must not be a path git would track", file=sys.stderr)
         return 1
     if not parse_denylist(os.environ.get("TRUTH_DENYLIST")):
         print(f"{NAME}: FAIL TRUTH_DENYLIST is missing or empty; a PDF is never checked without it", file=sys.stderr)
