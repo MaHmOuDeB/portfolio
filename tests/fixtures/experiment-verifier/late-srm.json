@@ -1,0 +1,186 @@
+{
+  "schema": "experiment-data/1",
+  "namespace": "ab-v1",
+  "configPhase": "ab",
+  "status": "ship-b",
+  "prereg": {
+    "version": "v1",
+    "tag": "prereg-v1",
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "configSha256": "e21dedcac7a27fffb92d9bb1f46d580ff5fe75ea28ea2d012903369493d51c39"
+  },
+  "readAt": "2026-12-04T12:00:00+01:00",
+  "source": "store",
+  "unavailable": null,
+  "notes": [
+    "Counts are totals per Berlin day with no identifiers. They are not anonymous: someone who knows when a person visited could link a change between two days to that visit.",
+    "A count from 1 to 4 is shown as \"<5\", and no total or ratio of shown counts is given that would undo it. The interval estimate, read with the analysed views, can still imply a small card-click count; the interval is what this file is for.",
+    "CV and contact clicks are given only as final totals, once the test has ended.",
+    "The split check gives its chi-square statistic, not a p-value."
+  ],
+  "config": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "srmFlagP": 0.001,
+    "minPerGroup": 50,
+    "capPerArm": 225,
+    "entryCapPerArm": 375,
+    "ab": {
+      "capMonths": 6
+    },
+    "calibration": {
+      "minDays": 14,
+      "minAnalysedViews": 100
+    },
+    "guardrail": {
+      "quickExitSeconds": 5,
+      "marginPp": 10
+    },
+    "cardsInView": {
+      "visibleShare": 0.5,
+      "dwellMs": 1000,
+      "cardClickCounts": true
+    },
+    "dailyEntryCeiling": 200,
+    "planningBaselines": {
+      "primary": 0.15,
+      "guardrail": 0.5
+    },
+    "TAU2": {
+      "primary": 0.009306897137010686,
+      "guardrail": 0.010949290749424337
+    }
+  },
+  "blinded": false,
+  "funnel": {
+    "excluded": {
+      "bot": 0,
+      "internal": 0,
+      "self": 0,
+      "forced": 0,
+      "not_entry": 0,
+      "rate_limited": 0,
+      "ceiling": 0
+    }
+  },
+  "srm": {
+    "assignment": {
+      "chi2": 0,
+      "flagged": false
+    },
+    "analysed": {
+      "chi2": 0,
+      "flagged": false
+    },
+    "firstFlaggedOn": null,
+    "flaggedBase": null,
+    "flaggedLook": null,
+    "afterDecision": true
+  },
+  "looks": [
+    {
+      "day": "2026-12-01",
+      "a": {
+        "entry": 400,
+        "inview": 300,
+        "engaged": 380,
+        "card": 30,
+        "secondary": 0
+      },
+      "b": {
+        "entry": 400,
+        "inview": 300,
+        "engaged": 380,
+        "card": 150,
+        "secondary": 0
+      }
+    }
+  ],
+  "current": {
+    "a": {
+      "entry": 420,
+      "inview": 320
+    },
+    "b": {
+      "entry": 810,
+      "inview": 690
+    }
+  },
+  "primary": {
+    "estimate": 0.4,
+    "lower": 0.2976631736950893,
+    "upper": 0.5023368263049107
+  },
+  "guardrail": {
+    "estimate": 0,
+    "lower": -0.04934913348729136,
+    "upper": 0.04934913348729136
+  },
+  "itt": {
+    "a": 0.075,
+    "b": 0.375
+  },
+  "finalDescriptive": {
+    "day": "2026-12-01",
+    "a": {
+      "cv": 0,
+      "contact": 0
+    },
+    "b": {
+      "cv": 0,
+      "contact": 0
+    }
+  },
+  "decision": "ship-b",
+  "decidedOn": "2026-12-01T00:00:00+01:00",
+  "frozenAt": "2026-12-01",
+  "plannedEnd": "2027-06-01T00:00:00+02:00",
+  "plannedEndKind": "fixed",
+  "bandConflictOn": null,
+  "inconsistentOn": null,
+  "held": null,
+  "ceilingDays": [],
+  "calibration": null,
+  "detectable": {
+    "baseline": 0.15,
+    "power": 0.8,
+    "tau2": 0.009306897137010686,
+    "looks": "one look at n",
+    "points": [
+      {
+        "nPerArm": 50,
+        "effect": 0.3774604467982986
+      },
+      {
+        "nPerArm": 75,
+        "effect": 0.2917554683658482
+      },
+      {
+        "nPerArm": 100,
+        "effect": 0.24332288649566475
+      },
+      {
+        "nPerArm": 125,
+        "effect": 0.21210924640952616
+      },
+      {
+        "nPerArm": 150,
+        "effect": 0.19013266790296882
+      },
+      {
+        "nPerArm": 175,
+        "effect": 0.17368534149261655
+      },
+      {
+        "nPerArm": 200,
+        "effect": 0.16082289684081907
+      },
+      {
+        "nPerArm": 225,
+        "effect": 0.1504276615469018
+      }
+    ],
+    "atCurrent": 0.12825396821116564,
+    "atCurrentNote": null
+  }
+}

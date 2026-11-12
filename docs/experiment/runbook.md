@@ -329,3 +329,60 @@ by screen readers; the other string is `visibility: hidden` and `aria-hidden`, a
 
 To see a group's page as a visitor would, open `/?variant=a` or `/?variant=b`. A forced view is
 never counted (the beacon reports it as `forced`). A direct `/v/a` or `/v/b` is the 404 page.
+
+## 13. Check the published results independently
+
+`scripts/verify_experiment.py` recomputes the live test's published results from
+`/experiment/data.json` alone. It is a second implementation of the formulas in the
+pre-registration, in Python with the standard library only: it imports nothing from the site, needs
+no package and makes no network request. Anyone can run it; run it after each phase change and
+before writing about a result.
+
+In Terminal (any folder with a copy of the repository; Python 3.9 or later):
+
+```sh
+curl -sSf https://<canonical domain>/experiment/data.json -o data.json
+python3 scripts/verify_experiment.py data.json --reference stats-ref/reference.json
+```
+
+On a saved copy of published data, without the network:
+
+```sh
+python3 scripts/verify_experiment.py tests/fixtures/experiment-verifier/open.json --reference stats-ref/reference.json
+```
+
+`--reference` first reproduces the frozen reference values the statistics are tested against
+(`stats-ref/reference.json`, made with scipy and statsmodels): the mixing ratio, the mixture
+intervals, the split check and the detectable effect, each within 1e-8. `--json` prints the report
+as JSON instead of one line per check.
+
+What it recomputes: the mixing variances from the planning rates and caps; the split check at the
+look it rests on; both intervals, intersected over the cumulative daily looks in order (each look
+is a running total, never a day's own count); the decision walk, or the A/A rule in the
+calibration; blinding; the intention-to-treat rates; the detectable effect. It also checks the
+publishing rules: no count from 1 to 4 printed as itself, no outcome while blinded or below 50
+analysed views a group, no p-value, no look on a day that reached the daily ceiling.
+
+Each check prints PASS, FAIL, INDETERMINATE or NOT-APPLICABLE with its reason. The exit status is
+0 when nothing disagrees (some checks may still be indeterminate), 1 when a recomputed value
+differs from the published one by more than 1e-8 or a publishing rule is broken, and 2 when the file
+is not valid `experiment-data/1` (including any NaN or infinite number) or cannot be read.
+
+Its limits, stated in each check's reason:
+
+- A count from 1 to 4 is published as "<5". Where a check depends on one, the script tries every
+  value the cell may hold (1 to 4, never below an earlier look's running total). The check passes
+  only when every allowed value gives the published result, fails when none does, and is otherwise
+  indeterminate. It never prints those values and never uses a published interval to narrow them,
+  so it cannot recover a hidden count, and neither can its output.
+- While the test is blinded no outcome is published, so no interval can be recomputed.
+- A look the analysis stopped at for a data fault, and every look after a decision, is not
+  published: a held analysis or a split flag after the decision is reported, not recomputed.
+- Leaving out a day that reached the daily ceiling changes the analysed totals by amounts that are
+  not published, so blinding and the detectable effect at the current size are then indeterminate.
+- It does not recompute the design hash (`prereg.configSha256`): compare it with the hash at the
+  end of `docs/experiment/prereg.md` at the tag the file names.
+
+The saved fixtures in `tests/fixtures/experiment-verifier/` are real published data, built by the
+site's own code from known counts; `tests/unit/live-page/verifier.test.ts` runs the script on them
+and on altered copies.
