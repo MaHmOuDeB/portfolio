@@ -2,7 +2,7 @@
 // RetentionPage.tsx): the title and its intro, a summary box, the section links, then one <section>
 // per part with its own h2: problem, data, method, the ship rule with its Figure, why so many
 // recommendations were adopted, the automation tool with its Figure, findings, how I checked this,
-// limits and links. The prose comes from content/audible.tsx.
+// limits, and sources and links. The prose comes from content/audible.tsx.
 //
 // Layout: prose sits in the readable column (max-w-text); Figures run to the figure width. Sections
 // are spaced, not boxed: no card grid and no motion. No result of any real test is on this page: the
@@ -41,7 +41,7 @@ export const AUDIBLE_SECTIONS = [
   { id: 'findings', title: 'Findings', link: 'Findings' },
   { id: 'how-i-checked-this', title: 'How I checked this', link: 'How I checked this' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
-  { id: 'sources', title: 'Links', link: 'Links' },
+  { id: 'sources', title: 'Sources and links', link: 'Sources' },
 ] as const;
 
 type SectionId = (typeof AUDIBLE_SECTIONS)[number]['id'];

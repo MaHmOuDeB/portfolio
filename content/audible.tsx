@@ -43,8 +43,8 @@ export function AudibleSummary(): ReactNode {
     [
       'Method',
       <>
-        Each test was read against its team&apos;s metrics: a primary metric, secondary metrics and guardrails. I did the
-        sample-size and duration planning before a test started and the significance testing when it ended.
+        Each test was read against its team&apos;s metrics, with a primary metric and guardrails. I did the sample-size
+        and duration planning before a test started and the significance testing when it ended.
       </>,
     ],
     [
@@ -186,8 +186,9 @@ export function AudibleFindings(): ReactNode {
   return (
     <ul className="list-disc pl-6">
       <li className="mt-2 first:mt-0">
-        Adoption reflects how tests were chosen as much as how they were analysed: most were strong bets against plain
-        baselines, and the ideas were vetted before they were tested.
+        Adoption says more about how tests were chosen and when a change could ship than about a win rate: most were
+        strong bets against plain baselines, the ideas were vetted before they were tested, and a neutral result could
+        ship with guardrails intact.
       </li>
       <li className="mt-2 first:mt-0">
         The tool I owned outright changed the team&apos;s own workflow, not a product: test-account setup went from about{' '}
@@ -242,7 +243,7 @@ export function AudibleLimits(): ReactNode {
   );
 }
 
-/** Where to read on: one link per line. */
+/** Sources and links: where to read on, one link per line. */
 export function AudibleLinks(): ReactNode {
   return (
     <ul>

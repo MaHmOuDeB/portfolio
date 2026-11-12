@@ -19,6 +19,7 @@ import { FRAMEWORK_DEFAULTS, frameworkDecision, type FrameworkValues } from '@/l
 import { FRAMEWORK_ID, FRAMEWORK_PRESETS, FRAMEWORK_SCHEMA, paramsToValues } from '@/lib/audible/framework-url';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { LIVE_ROUTES } from '@/lib/site';
+import { parseFragment, type DefaultTreeAdapterTypes as P } from 'parse5';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 
 const repo = join(import.meta.dirname, '../../..');
@@ -49,6 +50,24 @@ const figureOf = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</figure>', start) + '</figure>'.length);
 };
 
+/** Every aria-label or aria-valuetext with a digit whose element and ancestors carry no data-fact or data-derived. */
+function unmarkedAriaDigits(markup: string): string[] {
+  const found: string[] = [];
+  const walk = (node: P.ParentNode, marked: boolean) => {
+    for (const child of node.childNodes) {
+      if (!('tagName' in child)) continue;
+      const el = child as P.Element;
+      const own = el.attrs.some((a) => a.name === 'data-fact' || a.name === 'data-derived');
+      for (const a of el.attrs) {
+        if ((a.name === 'aria-label' || a.name === 'aria-valuetext') && /\d/.test(a.value) && !(marked || own)) found.push(`${a.name}="${a.value}"`);
+      }
+      walk(el, marked || own);
+    }
+  };
+  walk(parseFragment(markup), false);
+  return found;
+}
+
 const PAGE = renderToStaticMarkup(<AudiblePage />);
 const ctx = { route: '/work/audible', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
@@ -63,7 +82,7 @@ const ORDER = [
   ['findings', 'Findings'],
   ['how-i-checked-this', 'How I checked this'],
   ['limits', 'Limits'],
-  ['sources', 'Links'],
+  ['sources', 'Sources and links'],
 ] as const;
 
 /** The real metric names of the role: prose may name them, the made-up Figure never does. */
@@ -116,7 +135,7 @@ describe('the outline', () => {
       'Findings',
       'How I checked this',
       'Limits',
-      'Links',
+      'Sources',
     ]);
   });
 
@@ -138,7 +157,13 @@ describe('the outline', () => {
   });
 
   it('keeps prose in the readable column, and has no motion and no card grid of its own', () => {
-    for (const [id] of ORDER) expect(section(PAGE, id), id).toMatch(/class="[^"]*max-w-text/);
+    // The summary is a readable-column box itself; every other section's body opens with a prose
+    // wrapper in the readable column, right after its heading.
+    expect(section(PAGE, 'summary')).toMatch(/^<section id="summary"[^>]*class="[^"]*max-w-text/);
+    for (const [id] of ORDER.slice(1)) {
+      const s = section(PAGE, id);
+      expect(s.slice(s.indexOf('</h2>') + '</h2>'.length), id).toMatch(/^<div class="mt-4"><div class="max-w-text">/);
+    }
     const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '');
     expect(own).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(own).not.toMatch(/grid-cols-/);
@@ -159,7 +184,7 @@ describe('the summary', () => {
       'My role':
         'A working student in marketing analytics and growth experimentation, mainly growth experimentation. I contributed to 25+ A/B tests across web and mobile, from the hypothesis to a recommendation, and worked with 3 teams over my time there, one after another.',
       Method:
-        "Each test was read against its team's metrics: a primary metric, secondary metrics and guardrails. I did the sample-size and duration planning before a test started and the significance testing when it ended.",
+        "Each test was read against its team's metrics, with a primary metric and guardrails. I did the sample-size and duration planning before a test started and the significance testing when it ended.",
       Result: 'Of my recommendations from those tests, 20+ were adopted, which means rolled out permanently. Why so many?',
       Decision: 'I made each recommendation from the analysis; my manager signed off.',
       'Next step':
@@ -228,7 +253,7 @@ describe('Audible truth', () => {
       'The metric frameworks were the teams\' own. In Onsite & App Experience, revenue was the primary metric and listening minutes the secondary one; in Early Engagement it was the other way round. Both used churn and incremental long-term value (ILTV) as guardrails: metrics that must not get worse.',
       'From the analysis I made a recommendation, and my manager signed off on the decision.',
     ]);
-    // The frameworks never reach the third team, nor every test.
+    // Only this paragraph names a metric.
     const frameworks = blocks(s).find((b) => /revenue/.test(b))!;
     expect(frameworks).not.toContain('Emerging Member Experience');
     for (const b of blocks(PAGE)) {
@@ -250,7 +275,7 @@ describe('Audible truth', () => {
 
   it('pins the findings, the checks, the links and at least two concrete limits', () => {
     expect(blocks(section(PAGE, 'findings')).map(text)).toEqual([
-      'Adoption reflects how tests were chosen as much as how they were analysed: most were strong bets against plain baselines, and the ideas were vetted before they were tested.',
+      'Adoption says more about how tests were chosen and when a change could ship than about a win rate: most were strong bets against plain baselines, the ideas were vetted before they were tested, and a neutral result could ship with guardrails intact.',
       'The tool I owned outright changed the team\'s own workflow, not a product: test-account setup went from about 20 to about 3 minutes, and it was adopted team-wide.',
     ]);
     expect(blocks(section(PAGE, 'how-i-checked-this')).map(text)).toEqual([
@@ -315,7 +340,7 @@ describe('the ship-rule section and its Figure', () => {
     );
   });
 
-  it('labels every decision as the ruling says', () => {
+  it('labels every decision', () => {
     expect(DECISION_LABEL).toEqual({
       ship: 'Ship: the main metric rose, guardrail intact',
       'ship-neutral': 'May ship: neutral on the main metric, guardrail intact',
@@ -397,7 +422,7 @@ describe('the automation Figure', () => {
   it('states the finding with Facts, badged Simulated, with the reconstruction caption', () => {
     expect(text(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(figure)![1]!)).toBe('Test-account setup fell from about 20 to about 3 minutes');
     expect(figure).toMatch(SIMULATED_BADGE);
-    expect(text(figure)).toContain(CAPTION);
+    expect(text(figure)).toContain(`Minutes to set up one test account: by hand, and with the tool. ${CAPTION}`);
   });
 
   it('keeps reported figures on profile refs and reconstructed marks on simulated refs', () => {
@@ -427,12 +452,13 @@ describe('numbers and the route', () => {
     expect(auditHtml(PAGE, ctx)).toEqual([]);
   });
 
-  it('has no unmarked digit in an aria-label or aria-valuetext', () => {
-    for (const m of PAGE.matchAll(/(aria-label|aria-valuetext)="([^"]*\d[^"]*)"/g)) {
-      const at = m.index;
-      const open = PAGE.lastIndexOf('data-derived=', at);
-      expect(open, m[0]).toBeGreaterThan(-1);
-    }
+  it('has no digit in an aria-label or aria-valuetext outside a data-fact or data-derived element', () => {
+    // The check fails on an unmarked digit, and passes one marked on the element or an ancestor.
+    expect(unmarkedAriaDigits('<div aria-label="3 things"></div>')).toEqual(['aria-label="3 things"']);
+    expect(unmarkedAriaDigits('<div data-derived="simulated"><input aria-valuetext="+1.0 points"></div>')).toEqual([]);
+    expect(unmarkedAriaDigits(PAGE)).toEqual([]);
+    // The page has such attributes to check: the sliders' value texts.
+    expect(PAGE).toMatch(/aria-valuetext="[^"]*\d/);
   });
 
   it('ships at /work/audible with its own metadata', () => {

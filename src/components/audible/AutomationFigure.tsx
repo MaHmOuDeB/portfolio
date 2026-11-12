@@ -98,7 +98,7 @@ export function AutomationFigure({ state }: { state?: FigureState } = {}) {
       table={automationTable()}
       caption={
         <>
-          Minutes to set up one test account by hand, before the tool, and with it. {AUTOMATION_CAPTION}
+          Minutes to set up one test account: by hand, and with the tool. {AUTOMATION_CAPTION}
         </>
       }
     >
