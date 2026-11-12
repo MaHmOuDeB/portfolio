@@ -28,7 +28,7 @@
           "type": "string"
         },
         "from": {
-          "const": "fact-sheet"
+          "const": "profile"
         },
         "suffix": {
           "const": "+"

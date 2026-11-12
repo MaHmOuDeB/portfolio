@@ -151,7 +151,7 @@ describe('profile allows exactly the eight approved facts', () => {
     expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts .*audible\.teams/);
   });
 
-  it('rejects a fact whose from is not fact-sheet', () => {
+  it('rejects a fact whose from is not profile', () => {
     const j = clone(base);
     j.facts['audible.markets'].from = 'results.json#/x';
     expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts\/audible\.markets\/from /);

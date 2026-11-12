@@ -49,7 +49,7 @@ describe('formatFact', () => {
     decimals: 0,
     label: 'Experiments',
     source: 'profile',
-    from: 'fact-sheet',
+    from: 'profile',
     suffix: '+',
   };
 

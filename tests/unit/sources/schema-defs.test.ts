@@ -99,10 +99,10 @@ describe('schema envelope stays in sync', () => {
     expect(missing).toEqual([]);
   });
 
-  it('profile fact differs from the source fact only in from being the const fact-sheet', () => {
+  it('profile fact differs from the source fact only in from being the const profile', () => {
     const profile = clone(schema('profile').$defs.fact);
     const source = clone(schema('retention').$defs.fact);
-    expect(profile.properties.from).toEqual({ const: 'fact-sheet' });
+    expect(profile.properties.from).toEqual({ const: 'profile' });
     expect(source.properties.from).toEqual({ type: 'string' });
     delete profile.properties.from;
     delete source.properties.from;
