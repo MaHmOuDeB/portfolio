@@ -207,8 +207,10 @@ test.describe('MarketingWS build note', () => {
     for (const name of ['The MarketingWS repository, at the commit this page describes', 'The thesis version, under the tag thesis-2025']) {
       await expect(code.getByRole('link', { name })).toHaveAttribute('href', /^https:\/\/github\.com\/MaHmOuDeB\/MarketingWS\/tree\/[0-9a-f]{40}$/);
     }
-    // nothing is embedded
-    await expect(page.locator('main iframe, main img, main video, main object, main embed')).toHaveCount(0);
+    // nothing is embedded, and the only images are the two screenshots served from this site
+    await expect(page.locator('main iframe, main video, main object, main embed')).toHaveCount(0);
+    await expect(page.locator('main img')).toHaveCount(2);
+    for (const src of await page.locator('main img').evaluateAll((l) => l.map((i) => i.getAttribute('src')))) expect(src).toMatch(/^\/images\/notes\//);
   });
 
   test('reading the page makes only same-origin requests: none to the demo or the repository', async ({ page, baseURL }) => {
