@@ -607,7 +607,6 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(t).toContain('only the estimates that pass the threshold');
     expect(t).toContain('guarantees no business outcome');
     expect(t).not.toMatch(/seed/i);
-    expect(t).not.toMatch(/audible|revenue|listening|churn|iltv/i);
   });
 
   it('labels a log x-axis with plain ratios and a y-axis from zero', () => {

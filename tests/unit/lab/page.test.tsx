@@ -137,12 +137,67 @@ describe('the Lab page', () => {
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
-  it('passes the truth audit, and says nothing of the live test, Audible or its metrics', () => {
+  it('passes the truth audit, and says nothing of the live test', () => {
     expect(audit(LAB, '/lab')).toEqual([]);
     expect(LAB).not.toMatch(/data-experiment|data-live|data-phase/);
     const all = `${text(LAB)} ${[...LAB.matchAll(/aria-label="([^"]*)"/g)].map((m) => decode(m[1]!)).join(' ')}`;
-    expect(all).not.toMatch(/Audible|revenue|listening minutes|churn|ILTV|Live from this site|AI-powered|passionate|rockstar/i);
+    expect(all).not.toMatch(/Live from this site|AI-powered|passionate|rockstar/i);
     expect(all).not.toMatch(/\barm\b|per arm/i);
+  });
+
+  // The quantities the Lab's examples measure are the hypothetical product's own: every control
+  // label, control group legend and table column header, exactly.
+  it('names only its own controls and columns', () => {
+    const names = (re: RegExp) => [...new Set([...LAB.matchAll(re)].map((m) => text(m[1]!)))].sort();
+    expect({
+      labels: names(/<label\b[^>]*>([\s\S]*?)<\/label>/g),
+      legends: names(/<legend\b[^>]*>([\s\S]*?)<\/legend>/g),
+      columns: names(/<th\b[^>]*scope="col"[^>]*>([\s\S]*?)<\/th>/g),
+    }).toEqual({
+      labels: [
+        'Baseline conversion',
+        'Baseline conversion, exact value',
+        'Confidence sequence',
+        'Expected share in group A',
+        'Expected share in group A, exact value',
+        'Group A visitors',
+        'Group A visitors, exact value',
+        'Group B visitors',
+        'Group B visitors, exact value',
+        'Look once',
+        'Looks',
+        'Looks, exact value',
+        'None',
+        "O'Brien-Fleming",
+        'Peek daily',
+        'Percent of baseline',
+        'Points',
+        'Rise to detect',
+        'Rise to detect, points',
+        'Standard error',
+        'Standard error, exact value',
+        'Total visitors per day',
+        'Total visitors per day, exact value',
+        'True effect',
+        'True effect, exact value',
+      ],
+      legends: ['Fix', 'MDE unit', 'Schedule'],
+      columns: [
+        'Exaggeration among significant estimates',
+        'Expected share',
+        'Expected visitors',
+        'False winners so far, no fix (%)',
+        'Group',
+        'Input or result',
+        'Look',
+        'Power',
+        'True effect \u00f7 standard error',
+        'Value',
+        'Visitors',
+        'Wrong sign among significant estimates',
+        'Your setting',
+      ],
+    });
   });
 });
 
