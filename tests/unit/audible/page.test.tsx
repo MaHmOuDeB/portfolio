@@ -431,7 +431,8 @@ describe('the automation Figure', () => {
     for (const [, attrs] of cells) {
       expect(attrs).toContain('data-derived="profile.audible.setup_minutes_before profile.audible.setup_minutes_after"');
     }
-    expect(cells.map((c) => c[2])).toEqual(['Before the tool', '20', 'With the tool', '3', 'Before the tool', '20', 'With the tool', '3']);
+    // the kit draws the table once, open without JavaScript and behind its summary with it
+    expect(cells.map((c) => c[2])).toEqual(['Before the tool', '20', 'With the tool', '3']);
     const ticks = [...figure.matchAll(/<text [^>]*data-tick="y"[^>]*>/g)].map((m) => m[0]);
     expect(ticks.length).toBeGreaterThan(0);
     for (const tick of ticks) expect(tick).toContain('data-derived="simulated"');
