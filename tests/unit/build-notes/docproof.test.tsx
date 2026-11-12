@@ -1,6 +1,6 @@
 // The Docproof build note at /work/docproof. It follows the build-note template (the problem, the
-// architecture with its diagram, how it is verified, the outcome, the limits and the links) in the
-// golden page's outline. The copy is pinned word for word, so any change to what the page says is a
+// architecture with its diagram, how I checked this, the outcome, the limits and the sources) in the
+// golden page's outline, with the section names every build note shares. The copy is pinned word for word, so any change to what the page says is a
 // deliberate test change. The recorded verify run is evidence: it is printed exactly as captured, on
 // the fictional document it was captured on, and a page without a captured run says "Not recorded".
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -34,10 +34,10 @@ const ctx = { route: '/work/docproof', factIds: new Set(Object.keys(FACTS)), fac
 const ORDER = [
   ['problem', 'The problem', 'Problem'],
   ['architecture', 'Architecture', 'Architecture'],
-  ['verification', 'How it is verified', 'Verification'],
+  ['how-i-checked-this', 'How I checked this', 'How I checked this'],
   ['outcome', 'Outcome', 'Outcome'],
   ['limits', 'Limits', 'Limits'],
-  ['links', 'Links', 'Links'],
+  ['sources', 'Sources and links', 'Sources'],
 ] as const;
 
 describe('the outline', () => {
@@ -124,7 +124,7 @@ describe('the architecture diagram', () => {
 describe('the copy', () => {
   it('states the problem', () => {
     expect(text(section(PAGE, 'problem')).replace(/^The problem /, '')).toBe(
-      'Language models are good at rewriting text and poor at staying true to a source. When a model drafts or edits a document, it can add a figure or a claim that the source never made, and checking every line by hand is slow. Docproof splits the work in two: deterministic tools do the parts that must be exact and can show what they changed, and agents with separate roles make the judgement calls. Nothing an agent writes reaches the reader without passing the tools’ checks.',
+      'Language models are good at rewriting text and poor at staying true to a source. When a model drafts or edits a document, it can drift into claims the source never made, and doing that work by hand is slow. Docproof splits the work in two: deterministic tools do the parts that must be exact and can show what they changed, and agents with separate roles make the judgement calls. Nothing an agent writes reaches the reader without passing the tools’ checks.',
     );
   });
 
@@ -135,9 +135,9 @@ describe('the copy', () => {
     );
   });
 
-  it('says how it is verified, before the recorded run', () => {
-    const s = section(PAGE, 'verification');
-    expect(text(s.slice(0, s.indexOf('<h3'))).replace(/^How it is verified /, '')).toBe(
+  it('says how I checked this, before the recorded run', () => {
+    const s = section(PAGE, 'how-i-checked-this');
+    expect(text(s.slice(0, s.indexOf('<h3'))).replace(/^How I checked this /, '')).toBe(
       'The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before and after and fails if anything other than its target changed. A person still looks at the rendered pages; no check replaces that. Below is one run of the verify check, recorded for this page on a fictional notice from a community garden with two planted errors: a number the fact base does not hold and a known gap.',
     );
   });
@@ -159,18 +159,19 @@ describe('the copy', () => {
   });
 
   it('links to the Work page', () => {
-    expect(text(section(PAGE, 'links')).replace(/^Links /, '')).toBe('All my work');
+    expect(text(section(PAGE, 'sources')).replace(/^Sources and links /, '')).toBe('All my work');
   });
 });
 
 describe('the recorded verify run', () => {
   const run = VERIFY_RUN!;
 
-  it('was captured on a fictional document with the README command', () => {
+  it('was captured on a fictional document with the README verify subcommand', () => {
     expect(run).not.toBeNull();
     expect(run.recordedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(run.commit).toMatch(/^[0-9a-f]{7}$/);
-    // the command as the source README documents it: `verify <doc.docx> --facts <fact-base.md>`
+    // the README's verify subcommand and arguments (`verify <doc.docx> --facts <fact-base.md>`), run
+    // through the package's module entry point
     expect(run.command).toBe('python3 -m docproof verify notice.docx --facts fact-base.md');
     expect(run.factBase).toBe(
       [
@@ -216,7 +217,7 @@ describe('the recorded verify run', () => {
   });
 
   it('shows the inputs, the command, the output and when and with which version it ran', () => {
-    const s = section(PAGE, 'verification');
+    const s = section(PAGE, 'how-i-checked-this');
     const evidence = s.slice(s.indexOf('<h3'));
     expect(text(evidence.slice(0, evidence.indexOf('</h3>')))).toBe('A recorded run of the verify check');
     const blocks = [...evidence.matchAll(/<pre [^>]*aria-label="([^"]+)"[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/g)].map((m) => [
@@ -250,7 +251,7 @@ describe('truth', () => {
     expect(derived.length).toBeGreaterThan(0);
     expect(new Set(derived)).toEqual(new Set(['build']));
     // outside the recorded run the page has no numeral but the year
-    const s = section(PAGE, 'verification');
+    const s = section(PAGE, 'how-i-checked-this');
     const rest = PAGE.replace(s.slice(s.indexOf('<h3')), '');
     expect(text(rest).match(/\d+/g)).toEqual(['2026']);
   });

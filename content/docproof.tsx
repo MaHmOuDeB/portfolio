@@ -1,5 +1,5 @@
 // The Docproof build note's prose: the line under the title, the problem, the architecture and its
-// diagram stages, how it is verified, the outcome, the limits and the links, plus one recorded run
+// diagram stages, how I checked this, the outcome, the limits and the links, plus one recorded run
 // of its verify check. Each export is a server section without its own heading, so the page decides
 // the outline and the anchors (src/components/docproof/DocproofPage.tsx). The description follows
 // the tool's source (README, docs/architecture.md and src/docproof/verify.py at the commit below).
@@ -30,7 +30,7 @@ export function DocproofProblem(): ReactNode {
     <>
       <p className={ITEM}>
         Language models are good at rewriting text and poor at staying true to a source. When a model drafts or edits a
-        document, it can add a figure or a claim that the source never made, and checking every line by hand is slow.
+        document, it can drift into claims the source never made, and doing that work by hand is slow.
       </p>
       <p className={ITEM}>
         Docproof splits the work in two: deterministic tools do the parts that must be exact and can show what they

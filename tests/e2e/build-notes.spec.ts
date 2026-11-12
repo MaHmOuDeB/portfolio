@@ -283,10 +283,10 @@ test.describe('the Docproof build note', () => {
   const SECTIONS = [
     ['problem', 'The problem'],
     ['architecture', 'Architecture'],
-    ['verification', 'How it is verified'],
+    ['how-i-checked-this', 'How I checked this'],
     ['outcome', 'Outcome'],
     ['limits', 'Limits'],
-    ['links', 'Links'],
+    ['sources', 'Sources and links'],
   ] as const;
 
   test('outline: one h1, the sections in template order, the diagram in the architecture section', async ({ page }) => {
@@ -322,7 +322,7 @@ test.describe('the Docproof build note', () => {
 
   test('section links: in page order, and one lands its heading in view', async ({ page }) => {
     await page.goto(ROUTE);
-    await expect(sectionLinks(page)).toHaveText(['Problem', 'Architecture', 'Verification', 'Outcome', 'Limits', 'Links']);
+    await expect(sectionLinks(page)).toHaveText(['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources']);
     await sectionLinks(page).filter({ hasText: 'Limits' }).click();
     await expect(page).toHaveURL(/#limits$/);
     await expect(page.locator('#limits-title')).toBeInViewport();

@@ -1,6 +1,6 @@
 // The Docproof build note. It copies the golden page's outline (src/components/retention) and
-// follows the build-note template: the problem, the architecture with its diagram, how it is
-// verified (with one recorded run of the verify check), the outcome, the limits and the links. The
+// follows the build-note template: the problem, the architecture with its diagram, how I checked
+// this (with one recorded run of the verify check), the outcome, the limits and the sources and links. The
 // prose comes from content/docproof.tsx; each section is a <section> with its own h2. A plain static
 // page: no Figure here has data, so the diagram is a diagram Figure with no badge, table or controls.
 import type { ReactNode } from 'react';
@@ -27,10 +27,10 @@ export const DOCPROOF_TITLE = 'Docproof: a multi-agent document pipeline';
 export const DOCPROOF_SECTIONS = [
   { id: 'problem', title: 'The problem', link: 'Problem' },
   { id: 'architecture', title: 'Architecture', link: 'Architecture' },
-  { id: 'verification', title: 'How it is verified', link: 'Verification' },
+  { id: 'how-i-checked-this', title: 'How I checked this', link: 'How I checked this' },
   { id: 'outcome', title: 'Outcome', link: 'Outcome' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
-  { id: 'links', title: 'Links', link: 'Links' },
+  { id: 'sources', title: 'Sources and links', link: 'Sources' },
 ] as const;
 
 type SectionId = (typeof DOCPROOF_SECTIONS)[number]['id'];
@@ -116,7 +116,7 @@ export function DocproofPage(): ReactNode {
         </div>
       </Section>
 
-      <Section id="verification">
+      <Section id="how-i-checked-this">
         <Prose>
           <DocproofVerification />
         </Prose>
@@ -135,7 +135,7 @@ export function DocproofPage(): ReactNode {
         </Prose>
       </Section>
 
-      <Section id="links">
+      <Section id="sources">
         <Prose>
           <DocproofLinks />
         </Prose>
