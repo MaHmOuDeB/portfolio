@@ -59,7 +59,7 @@ const SECTION_TEXT: Record<(typeof ORDER)[number][0], string> = {
   problem:
     "The problem Marketing copy starts from a brief: the campaign, the channel, the tone and the audience. A language model can draft from it, but it can also add figures and promises the brief never gave it. I built MarketingWS for my Master's thesis in 2025 and rebuilt it in 2026. The rebuild drafts social posts, emails and ads from a brief, revises the current draft with the marketer's feedback instead of starting again, and turns figures and promises it cannot support into placeholders.",
   architecture:
-    "Architecture The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting. Every draft is checked against the brief Brief Campaign type, platform, tone, audience and language. Draft A first draft, a revision of the current draft with feedback, or copy variants from different angles. Check Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features. Translate On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders. Output The copy, which the marketer can send back with new feedback. One request, step by step. Translation starts from the current draft rather than writing a new one.",
+    "Architecture The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting. Every draft is checked against the brief Brief Campaign type, platform, tone, audience and language. Draft A first draft, a revision of the current draft with feedback, or copy variants from different angles. Check Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features. Translate On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders. Output The copy, which the marketer can send back with new feedback. One request, step by step. Translation starts from the current draft rather than writing a new one. The brief: a campaign type, a platform, a tone, a language and a few lines on the offer. The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one. Full-size picture",
   'how-i-checked-this':
     'How I checked this Offline tests cover the service and its API with the model replaced by stand-ins, so they run in GitHub Actions without an API key. A separate behavioural evaluation calls the real model: each refinement must change the draft as asked, translations must keep placeholders and hashtags, and the copy variants must differ. It costs model calls, so it is not part of CI.',
   outcome:
@@ -122,7 +122,9 @@ describe('the copy', () => {
   });
 
   it('is a short note of about four hundred words', () => {
-    const words = PAGE_TEXT.split(' ').filter((w) => /\w/.test(w)).length;
+    // The prose: the screenshots' captions are pinned in note-shots.test.tsx.
+    const words = text(PAGE.replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
+      .split(' ').filter((w) => /\w/.test(w)).length;
     expect(words).toBeGreaterThanOrEqual(340);
     expect(words).toBeLessThanOrEqual(480);
   });
@@ -165,7 +167,7 @@ describe('the architecture diagram', () => {
 describe('links and loading', () => {
   const links = [...PAGE.matchAll(/<a ([^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({ attrs: m[1]!, body: text(m[2]!) }));
   const href = (attrs: string) => /href="([^"]*)"/.exec(attrs)?.[1] ?? '';
-  const external = links.filter((l) => !href(l.attrs).startsWith('#'));
+  const external = links.filter((l) => !href(l.attrs).startsWith('#') && !href(l.attrs).startsWith('/images/notes/'));
 
   it('links the repository and the thesis version at full commit ids, and the live demo', () => {
     expect(external.map((l) => [href(l.attrs), l.body])).toEqual([
@@ -189,9 +191,13 @@ describe('links and loading', () => {
     expect(text(item)).toBe(`The live demo, on another site ${GROQ_NOTE}`);
   });
 
-  it('embeds and loads nothing: no frame, script, image, media or stylesheet', () => {
-    expect(PAGE).not.toMatch(/<(iframe|script|img|video|audio|source|object|embed|link)[\s>]/);
-    expect(PAGE).not.toMatch(/\ssrc="/);
+  it('embeds and loads nothing but its own screenshots: no frame, script, media or stylesheet', () => {
+    expect(PAGE).not.toMatch(/<(iframe|script|video|audio|source|object|embed|link)[\s>]/);
+    // Every image is one of the two screenshots, served from this site.
+    expect([...PAGE.matchAll(/\ssrc="([^"]*)"/g)].map((m) => m[1])).toEqual([
+      '/images/notes/marketingws-brief-light.png',
+      '/images/notes/marketingws-first-draft-light.png',
+    ]);
   });
 });
 

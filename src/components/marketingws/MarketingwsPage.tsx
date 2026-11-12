@@ -16,6 +16,7 @@ import {
   STEPS_CAPTION,
   STEPS_TITLE,
 } from '../../../content/marketingws';
+import { NoteShot } from '../build-notes/NoteShot';
 import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, EVIDENCE, TEXT } from '../build-notes/BuildNote';
 
 export const MARKETINGWS_TITLE = 'MarketingWS';
@@ -62,6 +63,8 @@ export function MarketingwsPage(): ReactNode {
             <div className={EVIDENCE}>
               <StepsDiagram />
             </div>
+            <NoteShot shot="marketingwsBrief" />
+            <NoteShot shot="marketingwsDraft" />
           </>
         ),
         'how-i-checked-this': (
