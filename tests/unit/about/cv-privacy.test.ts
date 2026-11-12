@@ -276,12 +276,15 @@ describe('check-web-cv: inputs and modes', () => {
     const tracked = join(ROOT, 'scripts', 'cv', `claims-${process.pid}.json`);
     failsWith(check(base(), { args: ['--claims-out', tracked] }), 'must not be a path git would track');
     expect(existsSync(tracked)).toBe(false);
-    const ignored = join(ROOT, 'reports', `claims-${process.pid}.json`);
+    // The git-ignored folder is absent from a fresh checkout, so the check creates it.
+    const reports = join(ROOT, 'reports');
+    const hadReports = existsSync(reports);
+    const ignored = join(reports, `claims-${process.pid}.json`);
     try {
       passes(check(base(), { args: ['--claims-out', ignored] }));
       expect(existsSync(ignored)).toBe(true);
     } finally {
-      rmSync(ignored, { force: true });
+      rmSync(hadReports ? ignored : reports, { force: true, recursive: !hadReports });
     }
     // A symlink outside the repository that points into it is resolved first.
     const link = join(tmp(), 'into-repo');

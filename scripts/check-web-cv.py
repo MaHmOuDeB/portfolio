@@ -1115,6 +1115,8 @@ def check_pdf(args) -> list[str]:
 
     if args.claims_out and manifest is not None:
         out = Path(os.path.realpath(args.claims_out))
+        # The directory may be a git-ignored one that a fresh checkout does not have yet.
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({"claims": claims_out}, ensure_ascii=False, indent=1) + "\n", "utf8")
     return findings
 
