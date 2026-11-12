@@ -138,3 +138,34 @@ describe('the Guard production SHA step', () => {
     }
   });
 });
+
+// The deploy job holds the Vercel token and runs in main's cache scope, which every pull request (a
+// fork's included) can restore. npm's debug logs record each command's arguments, so a cached ~/.npm
+// with a --token argument in a log would hand the token to anyone who restores it.
+describe('the Vercel token stays out of caches, logs and arguments', () => {
+  const WRAPPER = readFileSync(join(ROOT, 'scripts/vercel-build-isolated.sh'), 'utf8');
+  const job = DEPLOY.slice(DEPLOY.indexOf('\n  deploy:\n'));
+  const code = (text: string) => text.replace(/^\s*#.*\n/gm, '');
+
+  it('saves no cache of any kind: setup-node has no cache and its automatic cache is off', () => {
+    const setup = steps().filter((s) => s.includes('uses: actions/setup-node@'));
+    expect(setup).toHaveLength(1);
+    expect(setup[0]).toMatch(/\n {8}with:\n {10}node-version-file: \.nvmrc\n {10}package-manager-cache: false\n/);
+    expect(code(DEPLOY)).not.toMatch(/^\s+cache:|cache-dependency-path|actions\/cache/m);
+  });
+
+  it('writes no npm debug log', () => {
+    const header = job.slice(0, job.indexOf('\n    steps:\n'));
+    expect(code(header)).toMatch(/\n {4}env:\n {6}npm_config_logs_max: '0'(?:\n|$)/);
+  });
+
+  it('never passes the token as an argument: the CLI reads VERCEL_TOKEN from the environment', () => {
+    for (const text of [DEPLOY, WRAPPER]) expect(code(text)).not.toMatch(/--token|-t\s+"?\$VERCEL_TOKEN/);
+    // The three Vercel steps still get it, through their own env only.
+    expect(DEPLOY.match(/^ {10}VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}$/gm)).toHaveLength(3);
+    expect(code(job.slice(0, job.indexOf('\n    steps:\n')))).not.toContain('secrets.');
+    // The pinned CLI takes the token from the environment when no --token flag is given.
+    const cli = readFileSync(join(ROOT, 'node_modules/vercel/dist/index.js'), 'utf8');
+    expect(cli).toContain('process.env.VERCEL_TOKEN&&(explicitToken=process.env.VERCEL_TOKEN,tokenSource="env")');
+  });
+});

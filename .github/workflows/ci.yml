@@ -11,9 +11,11 @@ on:
     branches: [main]
 
 # A newer push to the same pull request (refs/pull/<n>/merge) or to main cancels the run it
-# supersedes; runs of different pull requests, forks included, never share a group.
+# supersedes. The event is part of the key, so a pull request run (a fork's included) and a push
+# run on main never share a group. A fork's pull request runs its own copy of this file and could
+# still name any group; the repository's approval setting for outside contributors covers that.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 # Least privilege: the token can only read the contents. No job needs more: the artifacts of this
@@ -56,7 +58,8 @@ jobs:
     timeout-minutes: 15
     services:
       redis:
-        image: redis:7.2
+        # The tag pinned by its digest (the multi-platform index), so a re-pushed tag changes nothing.
+        image: redis:7.2@sha256:5b816bb37d9707a70f10ef5002ecf8ee431750d397010fc4314c93dca887962f
         # Loopback only, on the fixed port the conformance step below and
         # docs/experiment/redis-conformance.md name.
         ports: ['127.0.0.1:16389:6379']
@@ -218,7 +221,9 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      # The tag pinned by its digest (the multi-platform index), so a re-pushed tag changes nothing;
+      # scripts/e2e-docker.sh uses the same tag locally.
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
       # Shared memory from the host, as Playwright's Docker guide recommends for Chromium (Docker's
       # default 64 MB /dev/shm crashed the heaviest pages).
       options: --ipc=host

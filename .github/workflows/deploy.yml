@@ -27,6 +27,10 @@ jobs:
       && github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # npm writes no debug log files in this job: a log records each command's arguments, and this
+    # job holds the Vercel token.
+    env:
+      npm_config_logs_max: '0'
     steps:
       # After launch only the commit named in the repository variable LAUNCH_SHA may deploy
       # production: a CI run that was queued or in flight when LAUNCHED became "true", or a re-run
@@ -72,10 +76,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
+      # No cache in the job that holds the Vercel token: it runs in main's cache scope, which every
+      # pull request (a fork's included) can restore, so it never saves one (no `cache`, and no
+      # automatic package-manager cache either) and pays one uncached install.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          package-manager-cache: false
       - run: npm ci
       - name: Download unit test report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -102,7 +109,9 @@ jobs:
           github-token: ${{ github.token }}
       - run: npm run build:meta
       # Secrets are scoped to the three Vercel steps only, so npm install scripts and the artifact
-      # steps never see them. LAUNCHED is normalised to exactly "true" or "false" (expressions
+      # steps never see them. The Vercel CLI reads VERCEL_TOKEN from the environment (CLI 62.2.0:
+      # without --token it takes process.env.VERCEL_TOKEN as the token), so the token is never a
+      # command-line argument that a process list or an npm log could record. LAUNCHED is normalised to exactly "true" or "false" (expressions
       # compare strings case-insensitively, the script does not); production is never deployed
       # until the repository variable LAUNCHED is "true".
       - name: Pull Vercel environment
@@ -113,7 +122,7 @@ jobs:
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
-          npx --no-install vercel pull --yes --environment="$environment" --token="$VERCEL_TOKEN"
+          npx --no-install vercel pull --yes --environment="$environment"
       # The build never holds the store's write credentials (KV_REST_API_TOKEN, KV_URL, REDIS_URL),
       # only the read-only token: the wrapper builds from a copy of the pulled environment without
       # them, proves from inside every Node process of the build (Next included) that they were
@@ -162,14 +171,14 @@ jobs:
           [ -n "$args" ] || { echo "deploy-command produced no arguments" >&2; exit 1; }
           # The deployment URL is the last line of stdout; progress output goes to stderr.
           # shellcheck disable=SC2086
-          out="$(npx --no-install vercel $args --token="$VERCEL_TOKEN")"
+          out="$(npx --no-install vercel $args)"
           url="$(printf '%s\n' "$out" | tail -n1)"
           [ -n "$url" ] || { echo "vercel deploy printed no URL" >&2; exit 1; }
           # Post-deploy check (second layer, it detects rather than prevents): ask Vercel what it
           # actually created and fail closed on anything but "preview" (including no answer). If it
           # ever trips, the deployment is already live: roll back by promoting the previous one.
           if [ "$LAUNCHED" != "true" ]; then
-            inspect="$(NO_COLOR=1 FORCE_COLOR=0 npx --no-install vercel inspect "$url" --token="$VERCEL_TOKEN" 2>&1)" || {
+            inspect="$(NO_COLOR=1 FORCE_COLOR=0 npx --no-install vercel inspect "$url" 2>&1)" || {
               printf '%s\n' "$inspect" >&2
               echo "vercel inspect failed; cannot verify the deployment target of $url" >&2
               exit 1

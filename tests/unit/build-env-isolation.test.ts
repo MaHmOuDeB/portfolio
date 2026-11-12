@@ -313,6 +313,7 @@ describe('the build wrapper, with a stand-in for the Vercel CLI', { timeout: 30_
       `const fs = require('node:fs'); const { spawnSync } = require('node:child_process');
        const args = process.argv.slice(2);
        fs.writeFileSync('args.json', JSON.stringify(args));
+       fs.writeFileSync('token-env.txt', process.env.VERCEL_TOKEN === 'synthetic-cli-token' ? 'from env' : 'absent');
        const target = args.includes('--prod') ? 'production' : 'preview';
        const file = '.vercel/.env.' + target + '.local';
        for (const line of fs.readFileSync(file, 'utf8').split(/\\r?\\n/)) {
@@ -358,7 +359,9 @@ describe('the build wrapper, with a stand-in for the Vercel CLI', { timeout: 30_
         expect(r.stdout).toContain(`build-env: ${key} present in the restored file for the deployment, as pulled`);
       }
       expect(readFileSync(join(s.dir, '.vercel/.env.production.local'), 'utf8')).toBe(PULLED);
-      expect(JSON.parse(readFileSync(join(s.dir, 'args.json'), 'utf8'))).toEqual(['--prod', '--token=synthetic-cli-token']);
+      // The token reaches the CLI through its environment, never as a --token argument.
+      expect(JSON.parse(readFileSync(join(s.dir, 'args.json'), 'utf8'))).toEqual(['--prod']);
+      expect(readFileSync(join(s.dir, 'token-env.txt'), 'utf8')).toBe('from env');
       for (const text of [r.stdout, r.stderr]) {
         expect(text).not.toMatch(SECRETS);
         expect(text).not.toContain('synthetic-cli-token');
@@ -430,7 +433,7 @@ describe('the workflows', () => {
     // Nothing in the deploy calls the Vercel CLI's build directly.
     expect(DEPLOY).not.toMatch(/npx[^\n]*\svercel(?:@\S+)?\s+build\b/);
     // The pull still writes the full environment; only the build's copy loses the write credentials.
-    expect(DEPLOY).toContain('npx --no-install vercel pull --yes --environment="$environment" --token="$VERCEL_TOKEN"');
+    expect(DEPLOY).toContain('npx --no-install vercel pull --yes --environment="$environment"\n');
   });
 
   it('runs the wrapper in CI on the synthetic pulled environment from the fixture script', () => {

@@ -16,7 +16,7 @@ const PLAYWRIGHT_CONFIG = readFileSync(join(ROOT, 'playwright.config.ts'), 'utf8
 const LHCI_SCRIPT = readFileSync(join(ROOT, 'scripts/lhci-calibrated.sh'), 'utf8');
 
 const HOSTED = 'ubuntu-24.04';
-const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble';
+const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27';
 const SHARDS = 4;
 // Lighthouse measures on GitHub's hosted runner, where its budgets were calibrated. Hosted runs took
 // 71 to 167 seconds; the limit leaves room for a cold npm cache and caps what a hung run can cost.
@@ -143,12 +143,11 @@ describe('the CI jobs and their check names', () => {
     expect(key(deploy.deploy!, 'runs-on')).toBe(HOSTED);
     // Successful deploys took 2:06 to 2:11; 10 minutes caps a hung one.
     expect(key(deploy.deploy!, 'timeout-minutes')).toBe('10');
-    // The deploy holds the production secrets, so it never runs a node_modules tree from a cache
-    // (any job of a push run on main can write that scope): only npm's download cache, whose
-    // tarballs npm ci checks against the lockfile, and an unconditional clean install.
+    // The deploy holds the production secrets, so it uses no cache at all (it runs in main's cache
+    // scope, which every pull request can restore; deploy-guard.test.ts pins why) and installs clean.
     expect(DEPLOY).not.toMatch(/actions\/cache|node_modules|lhci-hosted/);
     expect(DEPLOY).toMatch(
-      /\n {6}- uses: actions\/setup-node@[0-9a-f]{40} # v[\d.]+\n {8}with:\n {10}node-version-file: \.nvmrc\n {10}cache: npm\n {6}- run: npm ci\n/,
+      /\n {6}- uses: actions\/setup-node@[0-9a-f]{40} # v[\d.]+\n {8}with:\n {10}node-version-file: \.nvmrc\n {10}package-manager-cache: false\n {6}- run: npm ci\n/,
     );
     expect(DEPLOY.match(/npm ci/g)).toHaveLength(1);
   });
@@ -332,7 +331,14 @@ describe('the sharded end-to-end suite', () => {
   });
 
   it('runs each shard in the pinned Playwright container, with shared memory and no caps', () => {
-    expect(shard).toContain(`    container:\n      image: ${PLAYWRIGHT_IMAGE}\n`);
+    expect(shard).toContain(`      image: ${PLAYWRIGHT_IMAGE}\n`);
+    expect(shard).toMatch(/\n {4}container:\n(?: {6}#.*\n)* {6}image: /);
+    // Every image in the workflow (the container and the Redis service) is pinned by digest, and the
+    // local Docker run uses the same Playwright tag.
+    const images = [...CI.matchAll(/^ +image: (\S+)$/gm)].map((m) => m[1]!);
+    expect(images).toHaveLength(2);
+    for (const image of images) expect(image, image).toMatch(/^[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}$/);
+    expect(readFileSync(join(ROOT, 'scripts/e2e-docker.sh'), 'utf8')).toContain(`IMAGE="${PLAYWRIGHT_IMAGE.split('@')[0]}"`);
     expect(shard).toMatch(/^ {6}options: --ipc=host$/m);
     expect(shard).not.toMatch(/--cpus|--memory/);
     // The image matches the installed Playwright (package-lock pins it), so the browsers fit.
@@ -503,8 +509,9 @@ describe('the trust boundary of a public repository', () => {
     expect(code(DEPLOY)).toMatch(/^permissions:\n {2}contents: read\n {2}actions: read\n\n/m);
   });
 
-  it('cancels only a superseded run of the same ref, and never a deploy', () => {
-    expect(CI).toContain('concurrency:\n  group: ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n');
+  it('cancels only a superseded run of the same event and ref, and never a deploy', () => {
+    // The event is in the key, so a pull request run and a push run on main never share a group.
+    expect(CI).toContain('concurrency:\n  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}\n  cancel-in-progress: true\n');
     expect(DEPLOY).toContain('concurrency:\n  group: deploy\n  cancel-in-progress: false\n');
   });
 
