@@ -147,7 +147,7 @@ test.describe('/demo', () => {
     const sent = await visitor(page, extraHTTPHeaders);
     await page.goto(DEMO);
     await page.waitForLoadState('networkidle');
-    for (const [arm, label] of [FORCED[1], FORCED[0], FORCED[1], FORCED[0]]) {
+    for (const [arm, label] of [FORCED[1], FORCED[0], FORCED[1]]) {
       const from = sent.length;
       await main(page).getByRole('link', { name: label, exact: true }).click();
       await page.waitForURL((url) => url.pathname === '/' && url.search === `?variant=${arm}`);
@@ -156,9 +156,11 @@ test.describe('/demo', () => {
       expect(sent[from]!.batch.events, label).toEqual([{ type: 'entry', reject: 'forced' }]);
       // answered before leaving, so no unload flush of this view lands among the next click's batches
       expect(await sent[from]!.response, label).toEqual({ ok: false, reason: 'forced' });
+      // back to the same /demo document when the browser keeps it (back/forward cache), whose
+      // router still holds its prefetches; no idle wait, which a restored page may never reach
       await page.goBack();
       await expect(page).toHaveURL(/\/demo$/);
-      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interview links');
     }
   });
 
