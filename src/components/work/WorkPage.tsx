@@ -64,8 +64,9 @@ export function WorkPage(): ReactNode {
               >
                 <h3 className="text-lg font-semibold md:col-span-5">
                   <TextLink href={item.href} standalone>
-                    {/* One flex item, so the marker flows on the title's first line when it wraps. */}
-                    <span>
+                    {/* One flex item, so the marker sits on the title's first line; a wrapped line hangs
+                        under the title, not under the marker (28 px glyph + 12 px gap = 40 px). */}
+                    <span className="pl-10 -indent-10">
                       <span data-work-glyph="" className="mr-3 inline-flex align-middle">
                         <IntervalGlyph length={MARKER_LENGTH} />
                       </span>
