@@ -1,9 +1,35 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CSS_RULES, SOURCE_RULES } from '../../scripts/design-lint.ts';
 import { entryExportNames, kitExportNames } from './kit-exports';
 
 const ROOT = join(import.meta.dirname, '../..');
+
+/** The folders of the employer case study, whose paths and exports CLAUDE.md may name as code. */
+const CASE_STUDY_FOLDERS = ['src/components/audible', 'src/lib/audible'];
+
+/** Every name a file in those folders exports. */
+function caseStudyExports(): Set<string> {
+  const names = new Set<string>();
+  for (const folder of CASE_STUDY_FOLDERS) {
+    for (const file of readdirSync(join(ROOT, folder))) {
+      const source = readFileSync(join(ROOT, folder, file), 'utf8');
+      for (const m of source.matchAll(/export (?:async )?(?:function|const|let|class|type) (\w+)/g)) names.add(m[1]!);
+    }
+  }
+  return names;
+}
+const CASE_STUDY_EXPORTS = caseStudyExports();
+
+/**
+ * The text with exactly these backticked tokens removed: a path in a case-study folder, the case-study
+ * route (with an optional fragment), and an identifier one of its files exports. Anything else stays.
+ */
+function withoutCaseStudyCode(md: string): string {
+  return md
+    .replace(/`(?:src\/(?:components|lib)\/audible(?:\/[\w./-]*)?|\/work\/audible(?:#[\w-]+)?)`/g, '``')
+    .replace(/`([A-Za-z_]\w*)`/g, (token, name: string) => (CASE_STUDY_EXPORTS.has(name) ? '``' : token));
+}
 const claudeMd = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
 
@@ -41,10 +67,31 @@ describe('CLAUDE.md', () => {
 
   it('keeps private material out of the public file', () => {
     expect(claudeMd).not.toContain('title stating the finding');
-    expect(claudeMd).not.toMatch(/audible/i);
+    // The employer's name may appear only as code: the case-study folders and route, and the names
+    // their files export, each in backticks. Any other mention fails.
+    expect(withoutCaseStudyCode(claudeMd)).not.toMatch(/audible/i);
     expect(claudeMd).not.toContain('Known');
     expect(claudeMd).not.toMatch(/known gaps/i);
     // Private paths and process documents are checked repo-wide by public-tree.test.ts.
+  });
+
+  it('lets the name through only as those code tokens', () => {
+    // Removed: the folder and route paths, and an identifier its files export.
+    expect(withoutCaseStudyCode('`src/components/audible/AudiblePage.tsx`, `src/lib/audible/framework.ts`, `src/components/audible`')).not.toMatch(/audible/i);
+    expect(withoutCaseStudyCode('`/work/audible` and `/work/audible#why-so-many`')).not.toMatch(/audible/i);
+    expect(withoutCaseStudyCode('`AudiblePage`, `AUDIBLE_SECTIONS`')).not.toMatch(/audible/i);
+    // Kept, so the guard fails: prose, an unbackticked path, another backticked word or path, an
+    // identifier no case-study file exports.
+    for (const kept of [
+      'Experimentation at Audible (Amazon).',
+      'src/components/audible/AudiblePage.tsx',
+      '`audible`',
+      '`docs/audible.md`',
+      '`AudibleRules`',
+      '`src/components/audible-notes/x.ts`',
+    ]) {
+      expect(withoutCaseStudyCode(kept), kept).toMatch(/audible/i);
+    }
   });
 
   it('follows its own copy rules: no arrows or middle dots', () => {

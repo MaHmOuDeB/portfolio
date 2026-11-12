@@ -66,6 +66,15 @@ async function ready(page: Page) {
   await expect(island(page)).toHaveAttribute('data-island', 'ready');
 }
 
+/**
+ * Waits until no colour transition is running in the Figure. A segment that has just been checked
+ * fades its colours for the fast duration; axe reading a blend half way would report a contrast
+ * that the settled state never has.
+ */
+async function settled(page: Page) {
+  await expect.poll(() => figure(page).evaluate((el) => el.getAnimations({ subtree: true }).length)).toBe(0);
+}
+
 type Tuple = {
   chart: { looks: number; mode: string; fix: string; ghostLooks: number; ghostNPerLook: number; selectedLooks: number; selectedNPerLook: number };
   dot: { look: number; value: number };
@@ -627,6 +636,7 @@ test.describe('Peeking Figure', () => {
     await expectNoA11yViolations(page);
     await label(page, 'Look once').click();
     await expect(radio(page, 'Look once')).toBeChecked();
+    await settled(page);
     await expectNoA11yViolations(page);
   });
 });

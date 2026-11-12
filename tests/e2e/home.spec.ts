@@ -166,11 +166,10 @@ test.describe('counting on the home page', () => {
     await expect.poll(() => claims(entry.ns, entry.pv, ['inview']), { timeout: 10_000 }).toEqual([entry.arm]);
     const card = page.locator('[data-case-card="audible"] [data-experiment-click="card"]');
     await expect(card).toHaveAttribute('href', '/work/audible#why-so-many');
-    const navigation = page.waitForRequest((r) => new URL(r.url()).pathname === '/work/audible');
+    // The link is prefetched, so the click navigates on the client: wait for the URL, not a request.
     await card.click();
-    await navigation;
-    // The case-study page does not exist yet: the navigation may end on the 404 page.
-    await page.waitForURL('**/work/audible**');
+    await expect(page).toHaveURL(/\/work\/audible#why-so-many$/);
+    await expect(page.locator('#why-so-many')).toBeAttached();
     await expect.poll(() => claims(entry.ns, entry.pv, ['entry', 'inview', 'card', 'secondary']), { timeout: 10_000 }).toEqual([
       entry.arm, entry.arm, entry.arm, entry.arm,
     ]);

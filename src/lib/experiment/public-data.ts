@@ -10,7 +10,9 @@
 //   published cells is published (the funnel gives only its exclusion reasons, the calibration no
 //   analysed total), and no ratio is published beside a small cell, so no identity in the file
 //   gives a "<5" cell back. The interval estimate with the analysed views can still imply a small
-//   card count; the interval is what the file is for, and the notes say so.
+//   card count; the interval is what the file is for, and the notes say so. Whether the split
+//   check failed is published even beside a "<5" count it rests on, so it too can narrow that
+//   count; the notes say that as well.
 // - Outcomes (engaged, card, secondary) are withheld, key and all, from any look with fewer than 50
 //   analysed views in either group, and from the whole file while blinded. The intervals are null
 //   and `itt` is left out while blinded. CV and contact clicks (descriptive) are never in a look:
@@ -123,6 +125,7 @@ const NOTES = [
   'A count from 1 to 4 is shown as "<5", and no total or ratio of shown counts is given that would undo it. The interval estimate, read with the analysed views, can still imply a small card-click count; the interval is what this file is for.',
   'CV and contact clicks are given only as final totals, once the test has ended.',
   'The split check gives its chi-square statistic, not a p-value.',
+  'Whether the split check failed is published even when a count it rests on is shown as "<5", so the split-check status itself can narrow such a count, as the interval can.',
 ];
 
 /** The calibration check without its analysed total, which is the sum of two published cells. */

@@ -11,7 +11,12 @@ if (process.env.CI) {
 }
 
 export default defineConfig({
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    // Next resolves 'server-only' itself (an empty module on the server, a throwing one in a client
+    // bundle); the package is not installed, so the tests use Next's own server-side copy.
+    alias: { 'server-only': 'next/dist/compiled/server-only/empty.js' },
+  },
   // JSX in .tsx tests compiles with the automatic runtime whatever tsconfig's jsx setting is.
   oxc: { jsx: { runtime: 'automatic' } },
   test: {

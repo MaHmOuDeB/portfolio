@@ -252,7 +252,10 @@ A failed calibration stops counting and shows why on the site. To restart after 
 
 1. In `src/experiment.values.ts`, set `namespace` to `'aa-v1.1'`, the pre-registration version to
    `'v1.1'` and its tag to `'prereg-v1.1'`, and set `calibration.startedOn` to the new start (a
-   date and time with its offset, for example `2026-12-07T00:00:00+01:00`).
+   date and time with its offset, for example `2026-12-07T00:00:00+01:00`). The new start is the
+   day this commit is deployed, never a later day, and the same holds for `ab.startedOn` in the
+   switch to the A/B: before its start date the site says the experiment has not started, which is
+   false once a run has begun.
 2. Run `npm run prereg:hash`, write the new hash at the end of `docs/experiment/prereg.md`, and add
    a short note there on what failed and what changed.
 3. Commit, merge, tag `prereg-v1.1` on the merge commit (as in step 7) and let it deploy.
@@ -326,3 +329,75 @@ by screen readers; the other string is `visibility: hidden` and `aria-hidden`, a
 
 To see a group's page as a visitor would, open `/?variant=a` or `/?variant=b`. A forced view is
 never counted (the beacon reports it as `forced`). A direct `/v/a` or `/v/b` is the 404 page.
+
+## 13. Check the published results independently
+
+`scripts/verify_experiment.py` recomputes the live test's published results from
+`/experiment/data.json` alone. It is a second implementation of the formulas in the
+pre-registration, in Python with the standard library only: it imports nothing from the site, needs
+no package and makes no network request. Anyone can run it; run it after each phase change and
+before writing about a result.
+
+In Terminal, from the root of a copy of the repository (Python 3.9 or later):
+
+```sh
+curl -sSf https://<canonical domain>/experiment/data.json -o data.json
+python3 scripts/verify_experiment.py data.json --reference stats-ref/reference.json
+```
+
+On a saved copy of published data, without the network:
+
+```sh
+python3 scripts/verify_experiment.py tests/fixtures/experiment-verifier/open.json --reference stats-ref/reference.json
+```
+
+`--reference` first reproduces the frozen reference values the statistics are tested against
+(`stats-ref/reference.json`, made with scipy and statsmodels): the mixing ratio, the mixture
+intervals, the split check and the detectable effect, each within 1e-8. `--json` prints the report
+as JSON instead of one line per check.
+
+What it recomputes: the mixing variances from the planning rates and caps; the split check at the
+look it rests on, and which split failed; both intervals, intersected over the cumulative daily
+looks in order (each look is a running total, never a day's own count); the decision walk, or the
+A/A rule in the calibration; blinding; the intention-to-treat rates; the detectable effect; and
+whether the final CV and contact counts should be there. It also checks the
+publishing rules: no count from 1 to 4 printed as itself, no outcome while blinded or below 50
+analysed views a group, no p-value, no look on a day that reached the daily ceiling.
+
+Each check prints PASS, FAIL, INDETERMINATE or NOT-APPLICABLE with its reason. The exit status is
+0 when nothing disagrees (some checks may still be indeterminate), 1 when a recomputed value
+differs from the published one by more than 1e-8 or a publishing rule is broken, and 2 when the file
+cannot be read or is not valid `experiment-data/1` (not UTF-8 text, any NaN or infinite number, a
+minimum per group below 5) or the script itself fails ("internal error", which says nothing about
+the data). Exit 1 always means a check disagrees. Text from the file is printed as plain ASCII,
+with every other character escaped.
+
+Its limits, stated in each check's reason:
+
+- A count from 1 to 4 is published as "<5". Where a check depends on one, the script tries every
+  value the cell may hold (1 to 4, never below an earlier look's running total). The check passes
+  only when every allowed value gives the published result, fails when none does, and is otherwise
+  indeterminate. It never prints those values and never uses a published interval to narrow them,
+  so it cannot recover a hidden count, and neither can its output. The published file itself can
+  narrow one, and its notes say so: the interval can, and so can the split check's status, which is
+  published even when a count it rests on is shown as "<5".
+- While the test is blinded no outcome is published, so no interval can be recomputed.
+- A look the analysis stopped at for a data fault, and every look after a decision, is not
+  published: a held analysis or a split flag after the decision is reported, not recomputed.
+- A stop recorded only as a stored closure (the A/A shown as failed on a day the published looks do
+  not explain) is reported as indeterminate, not recomputed; so is any state whose stored closure
+  the current analysis did not confirm (`closureMismatch`).
+- Leaving out a day that reached the daily ceiling changes the analysed totals by amounts that are
+  not published, so blinding and the detectable effect at the current size are then indeterminate.
+- It does not recompute the design hash (`prereg.configSha256`): compare it with the hash at the
+  end of `docs/experiment/prereg.md` at the tag the file names.
+- Some published fields cannot be recomputed from the file: the calibration's `days` and
+  `evaluatedOn` (they need the calibration's start day, which is not published) and the final CV
+  and contact counts (they are in no look; only whether they should be there is checked). The
+  detectable-effect points are checked one by one, so a missing point is not noticed.
+- The one-minute margin after the planned end, before a test is read as inconclusive, is the
+  site's own constant and is not in the file; the script uses the same minute.
+
+The saved fixtures in `tests/fixtures/experiment-verifier/` are real published data, built by the
+site's own code from known counts; `tests/unit/live-page/verifier.test.ts` runs the script on them
+and on altered copies.

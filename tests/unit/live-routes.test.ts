@@ -45,3 +45,7 @@ test('the Retention case study ships at /work/retention', () => {
 test('the Lab ships at /lab, and its peeking example at /lab/peeking for the interview link', () => {
   expect(LIVE_ROUTES).toEqual(expect.arrayContaining(['/lab', '/lab/peeking']));
 });
+
+test('the Docproof build note ships at /work/docproof', () => {
+  expect(LIVE_ROUTES).toContain('/work/docproof');
+});
