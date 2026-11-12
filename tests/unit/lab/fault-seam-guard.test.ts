@@ -205,6 +205,11 @@ export function analyse(host: SeamHost, root: string, pageExtensions: readonly s
       // (another alias, a typo) might be local, so it fails closed.
       const first = spec.split('/')[0]!;
       if (spec.startsWith('node:') || builtinModules.includes(first)) return { kind: 'external' };
+      // `server-only` and `client-only` are not installed: Next resolves them to its own compiled
+      // copies, so they are external when that copy exists.
+      if (spec === 'server-only' || spec === 'client-only') {
+        return host.fileExists(posix.join(root, 'node_modules/next/dist/compiled', spec, 'package.json')) ? { kind: 'external' } : { kind: 'missing' };
+      }
       const pkg = spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : first;
       return host.fileExists(posix.join(root, 'node_modules', pkg, 'package.json')) ? { kind: 'external' } : { kind: 'missing' };
     }
@@ -1120,6 +1125,7 @@ const BASE: Record<string, string> = {
   // The packages the fixtures import, as installed: a bare specifier must name one of them.
   'node_modules/react/package.json': '{}',
   'node_modules/next/package.json': '{}',
+  'node_modules/next/dist/compiled/server-only/package.json': '{}',
   'src/app/layout.tsx': `import './globals.css';
 import type { ReactNode } from 'react';
 export default function Layout({ children }: { children: ReactNode }) { return <html><body>{children}</body></html>; }`,
@@ -1508,6 +1514,10 @@ function Pick({ as: Comp }: { as: ComponentType }) { const o = JSON.parse('{}');
     expect(rules(page('return null;', `import { Evil } from '~/evil';`))).toContain('src/app/page.tsx unresolved-import');
     expect(rules(page('return null;', `import x from 'not-installed';`))).toContain('src/app/page.tsx unresolved-import');
     expect(rules(page('return null;', `import { useState } from 'react';\nimport dynamic from 'next/dynamic';\nimport { readFileSync } from 'node:fs';\nimport path from 'path';`))).toEqual([]);
+  });
+
+  it('server-only is resolved by Next from its compiled copy, not as an installed package', () => {
+    expect(rules(page('return null;', `import 'server-only';`))).toEqual([]);
   });
 
   it("Next's global-not-found and mdx-components files are roots", () => {
