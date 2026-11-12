@@ -84,6 +84,14 @@ rm "$ex"
    gh secret set VERCEL_AUTOMATION_BYPASS_SECRET --repo MaHmOuDeB/portfolio
    ```
 
+### `RESEND_API_KEY` and `CONTACT_TO_EMAIL` (the contact form)
+
+The contact form at `/contact` sends each message through Resend to my inbox. Both are Vercel
+Production secrets, set by hand and never pasted anywhere else: `RESEND_API_KEY` is the API key from
+the Resend dashboard, and `CONTACT_TO_EMAIL` is the inbox the messages go to (the address the Resend
+account is registered with). If either is missing, the form fails closed: it tells the visitor that
+nothing was sent, and the function log has one line naming the missing variable, never a value.
+
 ### Check the names (never the values)
 
 ```sh
@@ -93,7 +101,8 @@ gh secret list --repo MaHmOuDeB/portfolio
 
 The first list must show `INTERNAL_TRAFFIC_SECRET`, `EXCLUDE_TOKEN` and `RATELIMIT_HMAC_KEY`, next
 to the store's `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN` and the
-`GLOBAL_CONFIG` that came with the integrations. The second must show `INTERNAL_TRAFFIC_SECRET` and
+`GLOBAL_CONFIG` that came with the integrations, and the contact form's `RESEND_API_KEY` and
+`CONTACT_TO_EMAIL`. The second must show `INTERNAL_TRAFFIC_SECRET` and
 `VERCEL_AUTOMATION_BYPASS_SECRET`. These secrets belong to **Production only**: never add them to
 Preview or Development.
 
@@ -124,6 +133,10 @@ so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the onl
 
 Turning on the Firewall's challenge mode or Vercel BotID would set cookies on visitors' browsers.
 The privacy page says the site sets none, so either one means updating the privacy page first.
+
+The contact form's Server Action posts to `/contact`, which this rule does not cover. The form has
+its own limit instead: five messages an hour from one address, counted in each server instance's
+memory under a keyed hash that is dropped after the hour.
 
 ## 3. Domains: one canonical address
 
@@ -414,3 +427,11 @@ Its limits, stated in each check's reason:
 The saved fixtures in `tests/fixtures/experiment-verifier/` are real published data, built by the
 site's own code from known counts; `tests/unit/live-page/verifier.test.ts` runs the script on them
 and on altered copies.
+
+## 14. What counts as a contact click
+
+The descriptive "contact clicks" count a click on a `mailto:` link, on the LinkedIn or GitHub
+profile, or on a link to this site's contact form (`/contact`, with or without a query or a
+trailing slash; `src/lib/experiment/beacon.ts` `clickEvents`). Opening the form counts; sending a
+message through it sends nothing to the experiment. Like the CV clicks, they are reported without a
+decision rule and published only as final totals.

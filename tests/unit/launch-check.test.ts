@@ -223,6 +223,18 @@ describe('launch:check', () => {
     expect(out).toMatch(/^unmet: secret missing in GitHub: VERCEL_AUTOMATION_BYPASS_SECRET$/m);
   });
 
+  it("checks the contact form's two Vercel secrets by name", () => {
+    expect(VERCEL_SECRETS).toEqual(expect.arrayContaining(['RESEND_API_KEY', 'CONTACT_TO_EMAIL']));
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) =>
+      args.includes('vercel') ? { status: 0, stdout: vercelTable(VERCEL_SECRETS.filter((n) => n !== 'RESEND_API_KEY' && n !== 'CONTACT_TO_EMAIL')) } : base(cmd, args);
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.join('\n');
+    expect(out).toMatch(/^unmet: secret missing in Vercel production: RESEND_API_KEY$/m);
+    expect(out).toMatch(/^unmet: secret missing in Vercel production: CONTACT_TO_EMAIL$/m);
+  });
+
   it('a CLI that cannot list counts as unmet, with no output of its own', () => {
     const d = deps();
     const base = d.deps.run!;

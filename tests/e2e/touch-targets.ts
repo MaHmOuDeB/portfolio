@@ -18,11 +18,14 @@ export const HOME_INLINE: readonly InlineEntry[] = [
   { name: 'Live test page', while: { selector: '[data-scroll-step="2"]', text: /fewer than/ } },
   { name: 'Why so many?' },
 ];
+// The contact page names LinkedIn in its intro and the privacy notice in the note under Send message.
+const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'LinkedIn' }, { name: 'privacy notice' }];
 // The Audible page's summary gives its adoption figure the same "Why so many?" link, in its sentence.
 export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/': HOME_INLINE,
   '/?variant=a': HOME_INLINE,
   '/?variant=b': HOME_INLINE,
+  '/contact': CONTACT_INLINE,
   '/work/audible': [{ name: 'Why so many?' }],
 };
 

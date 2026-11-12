@@ -88,6 +88,17 @@ describe('clickEvents', () => {
     expect(clickEvents(CONTACT.github, ORIGIN, false)).toEqual(['contact']);
   });
 
+  it('a same-origin link to the contact form is a contact click', () => {
+    expect(clickEvents('/contact', ORIGIN, false)).toEqual(['contact']);
+    expect(clickEvents('/contact/', ORIGIN, false)).toEqual(['contact']);
+    expect(clickEvents('/contact?sent=1', ORIGIN, false)).toEqual(['contact']);
+    expect(clickEvents(`${ORIGIN}/contact#form`, ORIGIN, false)).toEqual(['contact']);
+    // Only this site's own form, and only that path.
+    expect(clickEvents('https://example.com/contact', ORIGIN, false)).toEqual([]);
+    expect(clickEvents('/contacts', ORIGIN, false)).toEqual([]);
+    expect(clickEvents('/contact/other', ORIGIN, false)).toEqual([]);
+  });
+
   it('another origin, other pages and unparsable links give nothing', () => {
     expect(clickEvents('https://example.com/work/retention', ORIGIN, true)).toEqual([]);
     expect(clickEvents('https://y.vercel.app/lab', ORIGIN, false)).toEqual([]);

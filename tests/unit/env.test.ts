@@ -17,6 +17,9 @@ const VARS = [
   'VERCEL',
   'NEXT_PHASE',
   'EXPERIMENT_CLOCK_OFFSET_MS',
+  'RESEND_API_KEY',
+  'CONTACT_TO_EMAIL',
+  'RESEND_API_URL',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -54,6 +57,9 @@ describe('serverEnv', () => {
       onVercel: false,
       buildPhase: false,
       clockOffsetMs: undefined,
+      resendApiKey: undefined,
+      contactToEmail: undefined,
+      resendApiUrl: undefined,
     });
   });
 
@@ -72,6 +78,9 @@ describe('serverEnv', () => {
     process.env.VERCEL = '1';
     process.env.NEXT_PHASE = 'phase-production-build';
     process.env.EXPERIMENT_CLOCK_OFFSET_MS = '-3600000';
+    process.env.RESEND_API_KEY = 'test-value-resend';
+    process.env.CONTACT_TO_EMAIL = 'test-value-inbox';
+    process.env.RESEND_API_URL = 'test-value-resend-url';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -88,6 +97,9 @@ describe('serverEnv', () => {
       onVercel: true,
       buildPhase: true,
       clockOffsetMs: -3_600_000,
+      resendApiKey: 'test-value-resend',
+      contactToEmail: 'test-value-inbox',
+      resendApiUrl: 'test-value-resend-url',
     });
   });
 

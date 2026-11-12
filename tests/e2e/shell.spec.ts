@@ -328,6 +328,10 @@ test.describe('footer', () => {
       'https://github.com/MaHmOuDeB',
     );
     await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    const contact = footer.getByRole('link', { name: 'Contact', exact: true });
+    await expect(contact).toHaveAttribute('href', '/contact');
+    // The contact form is the first link in the footer.
+    await expect(footer.getByRole('link').first()).toHaveAttribute('href', '/contact');
     expect(await footer.innerText()).not.toContain('@');
     for (const height of await footer
       .locator('[data-touch-target]')

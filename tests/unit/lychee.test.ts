@@ -6,7 +6,7 @@ const toml = readFileSync(join(root, '.lychee.toml'), 'utf8');
 
 // Every route the shell links to that no plan has built yet, as a path under the site root.
 // The CV PDF is not among them: a page offers it only when the build has it.
-const SHELL_LINKS = ['work', 'lab', 'experiment', 'about', 'privacy', 'cv'];
+const SHELL_LINKS = ['work', 'lab', 'experiment', 'about', 'privacy', 'contact', 'cv'];
 
 function built(path: string): boolean {
   return existsSync(join(root, 'src', 'app', path, 'page.tsx'));

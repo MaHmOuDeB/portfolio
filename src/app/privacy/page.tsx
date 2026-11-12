@@ -49,7 +49,9 @@ export default function PrivacyPage() {
       <h1 className="text-2xl font-semibold md:text-3xl">{PRIVACY.title}</h1>
       {PRIVACY.sections.map((section) => (
         <section key={section.heading} className="mt-12">
-          <h2 className="text-xl font-semibold">{section.heading}</h2>
+          <h2 id={section.id} className="text-xl font-semibold">
+            {section.heading}
+          </h2>
           {section.paragraphs.map((paragraph, i) =>
             paragraph.length === 1 &&
             typeof paragraph[0] === 'object' &&

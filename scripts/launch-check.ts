@@ -53,7 +53,7 @@ export function vercelScopeFrom(root: string, env: Readonly<Record<string, strin
 export const VERCEL_PROJECT = 'portfolio';
 export const GITHUB_REPO = 'MaHmOuDeB/portfolio';
 
-/** Set in Vercel, Production only. The store and Edge Config ones come with their integrations. */
+/** Set in Vercel, Production only. The store and Edge Config ones come with their integrations; the last two are the contact form's. */
 export const VERCEL_SECRETS = [
   'INTERNAL_TRAFFIC_SECRET',
   'EXCLUDE_TOKEN',
@@ -62,6 +62,8 @@ export const VERCEL_SECRETS = [
   'KV_REST_API_TOKEN',
   'KV_REST_API_READ_ONLY_TOKEN',
   'GLOBAL_CONFIG',
+  'RESEND_API_KEY',
+  'CONTACT_TO_EMAIL',
 ] as const;
 /** Repository secrets the CI and deploy workflows use for the experiment. */
 export const GITHUB_SECRETS = ['INTERNAL_TRAFFIC_SECRET', 'VERCEL_AUTOMATION_BYPASS_SECRET'] as const;

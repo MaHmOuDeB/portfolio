@@ -28,6 +28,15 @@ export interface ServerEnv {
    * time. Only the loopback fake store outside production honours it (lib/experiment/clock.ts).
    */
   clockOffsetMs?: number;
+  /** The contact form's Resend API key. Never logged. */
+  resendApiKey?: string;
+  /** The inbox the contact form delivers to. Never logged, never rendered. */
+  contactToEmail?: string;
+  /**
+   * RESEND_API_URL: the e2e run's loopback fake of Resend's endpoint. lib/contact/send.ts honours it
+   * only outside production and only for a loopback host.
+   */
+  resendApiUrl?: string;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -67,5 +76,8 @@ export function serverEnv(): ServerEnv {
     onVercel: process.env.VERCEL === '1',
     buildPhase: process.env.NEXT_PHASE === 'phase-production-build',
     clockOffsetMs: integerMs(nonEmpty(process.env.EXPERIMENT_CLOCK_OFFSET_MS)),
+    resendApiKey: nonEmpty(process.env.RESEND_API_KEY),
+    contactToEmail: nonEmpty(process.env.CONTACT_TO_EMAIL),
+    resendApiUrl: nonEmpty(process.env.RESEND_API_URL),
   };
 }
