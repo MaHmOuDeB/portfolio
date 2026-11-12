@@ -745,3 +745,64 @@ test.describe('kit extension: chart overrides', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// Two islands that arrive together must not move a reader who is further down the page. The Lab
+// diagnostics host holds two chart Figures, each a query container, above the page end. Idle time
+// is held, the reader goes to the page end, and then both islands are released in one task, so
+// they load and swap their previews together. Every frame from the release records the scroll
+// position; all of them must be the starting one.
+test.describe('loader: islands that arrive together', () => {
+  const HOST = '/kitchen-sink/lab/diagnostics';
+
+  /** Holds every idle callback until `releaseIdle()`; a request after the release runs at once. */
+  async function holdIdle(page: Page) {
+    await page.addInitScript(() => {
+      const held: IdleRequestCallback[] = [];
+      let released = false;
+      const run = (cb: IdleRequestCallback) => cb({ didTimeout: false, timeRemaining: () => 50 });
+      (window as unknown as { releaseIdle: () => void }).releaseIdle = () => {
+        released = true;
+        held.splice(0).forEach(run);
+      };
+      window.requestIdleCallback = (cb) => (released ? (setTimeout(() => run(cb), 0), 0) : (held.push(cb), held.length));
+      window.cancelIdleCallback = () => {};
+    });
+  }
+
+  test('a reader at the page end stays put when two islands swap in together', async ({ page }) => {
+    await holdIdle(page);
+    await page.goto(HOST);
+    await page.waitForLoadState('load');
+    // Hydrated: both loaders are waiting for idle time.
+    await page.locator('next-route-announcer').waitFor({ state: 'attached' });
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+    const start = await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      return window.scrollY;
+    });
+    // Far enough down that a page shortened by the previews would have to move the reader.
+    expect(start).toBeGreaterThan(500);
+    await page.evaluate(() => {
+      const ys: number[] = [];
+      (window as unknown as { scrollYs: number[] }).scrollYs = ys;
+      const sample = () => {
+        ys.push(window.scrollY);
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+      (window as unknown as { releaseIdle: () => void }).releaseIdle();
+    });
+    await waitForIslands(page);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(2);
+    // A few more frames, for a late scroll to show.
+    await page.evaluate(() => new Promise((done) => {
+      let n = 0;
+      const next = () => (++n < 10 ? requestAnimationFrame(next) : done(null));
+      requestAnimationFrame(next);
+    }));
+    const ys = await page.evaluate(() => (window as unknown as { scrollYs: number[] }).scrollYs);
+    expect(ys.length).toBeGreaterThan(10);
+    const moved = ys.filter((y) => Math.abs(y - start) > 1);
+    expect(moved, `scrollY per frame from ${start}: ${ys.join(' ')}`).toEqual([]);
+  });
+});

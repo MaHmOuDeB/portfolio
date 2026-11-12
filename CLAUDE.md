@@ -152,7 +152,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `Segmented`, `SegmentedProps` | `Segmented.tsx` (client) | A native radio group drawn as a segmented control. Each radio's id is `${name}-${value}`, so a `name` is used once per page. `disabledReasonId` names the element that says why a disabled group is disabled; it describes the group only while it is disabled. |
 | `ResetButton` | `ResetButton.tsx` (client) | Restores the Figure's preset. An optional `id` is set on the button. |
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. With an `id`, the buttons' ids are `${id}-previous` and `${id}-next`, so a preview's button can hand focus to the island's. |
-| `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. |
+| `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. During the swap the root keeps the preview's height until the island has been laid out, and the swap reads no style or layout, so the page never gets shorter under a reader further down. An island must not force layout in its own mount effects. |
 | `useFigureParams` | `useFigureParams.ts` (client) | Reads and writes a Figure's URL state. Call it inside a `<Suspense>` boundary. |
 | `ButtonLink`, `buttonClass` | `ButtonLink.tsx` | A link drawn as a button, and the class list for a real `<button>` that must match. |
 | `TextLink` | `TextLink.tsx` | An inline link. |
