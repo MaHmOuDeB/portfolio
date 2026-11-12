@@ -1,5 +1,5 @@
 # Pages the shell links to that do not exist yet. Each entry is removed by the plan that builds
 # that page; tests/unit/lychee.test.ts fails once the page exists and its entry is still here.
-exclude = ["linkedin\\.com", "localhost:3123/(work|about|cv\\.pdf)"]
+exclude = ["linkedin\\.com", "localhost:3123/(about|cv\\.pdf)"]
 max_retries = 2
 accept = [200, 206, 429]
