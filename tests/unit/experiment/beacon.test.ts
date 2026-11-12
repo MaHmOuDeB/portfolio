@@ -68,6 +68,19 @@ describe('clickEvents', () => {
     expect(clickEvents('/cv.pdf', ORIGIN, false)).toEqual(['cv']);
   });
 
+  it('the CV page and the CV PDF are CV clicks, with a query or a hash, from a card too', () => {
+    for (const href of ['/cv', `${ORIGIN}/cv`, '/cv?x=1', '/cv#projects', '/cv/', '/cv.pdf?v=2', '/cv.pdf#page=2', `${ORIGIN}/cv.pdf`]) {
+      expect(clickEvents(href, ORIGIN, false), href).toEqual(['cv']);
+      expect(clickEvents(href, ORIGIN, true), href).toEqual(['cv']);
+    }
+  });
+
+  it('a CV path on another origin, or a path that only starts like it, is not a CV click', () => {
+    for (const href of ['https://example.com/cv', 'https://example.com/cv.pdf', '//example.com/cv', '/cvx', '/cv.pdfx', '/cv/old', '/about/cv']) {
+      expect(clickEvents(href, ORIGIN, false), href).toEqual([]);
+    }
+  });
+
   it('mailto: and the LinkedIn and GitHub profiles are contact clicks', () => {
     expect(clickEvents('mailto:someone@example.com', ORIGIN, false)).toEqual(['contact']);
     expect(clickEvents(CONTACT.linkedin, ORIGIN, false)).toEqual(['contact']);

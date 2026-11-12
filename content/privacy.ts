@@ -90,7 +90,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         [
           "The home page runs a small experiment on its card headlines. When you open it, the page's script sends a few short messages to this site's own server. Each message holds a random id made for that one view, a label for the round of the experiment, the group you were shown, and which of these happened: the page was opened from outside the site; the cards came into view; you interacted with the page or stayed ",
           n(EXPERIMENT.guardrail.quickExitSeconds),
-          ' seconds; you clicked a featured card, a case study or the Lab, the CV, or a contact link.',
+          ' seconds; you clicked a featured card, a case study or the Lab, the CV page or the CV PDF, or a contact link.',
         ],
         [
           'If the view cannot count, the script sends one message instead, which says why: an automated browser, a group chosen through the page address, or not a fresh visit from outside the site.',
@@ -173,7 +173,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           n(EXPERIMENT.smallCellBelow),
           ' is shown as "<',
           n(EXPERIMENT.smallCellBelow),
-          '". Clicks on the CV and on contact links are published only as final totals, after the experiment ends.',
+          '". Clicks on the CV page or the CV PDF and on contact links are published only as final totals, after the experiment ends.',
         ],
         ['Edge Config holds no personal data: only whether the experiment is paused or its calibration failed, with a short reason and date.'],
         [{ launchPlaceholder: 'upstash-backups' }],

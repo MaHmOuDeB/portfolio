@@ -13,6 +13,7 @@ const CONTACT_PROFILES = [CONTACT.linkedin, CONTACT.github].map((u) => bare(new 
 /**
  * The events a click on a link means. A featured card is exposure first (amendment 3), so its
  * click sends inview before card. /work/* and /lab* are secondary; /experiment never counts.
+ * A same-origin link to /cv or /cv.pdf is a CV click; mail links and the profiles are contact clicks.
  */
 export function clickEvents(href: string, origin: string, isCard: boolean): EventType[] {
   let url: URL;
@@ -26,7 +27,8 @@ export function clickEvents(href: string, origin: string, isCard: boolean): Even
   if (url.origin !== origin) return [];
   const path = url.pathname;
   if (path === '/experiment' || path.startsWith('/experiment/')) return [];
-  if (path === '/cv.pdf') return ['cv'];
+  // The CV page (the header and hero link it) and the CV PDF, each with any query or hash.
+  if (path.replace(/\/+$/, '') === '/cv' || path === '/cv.pdf') return ['cv'];
   const secondary = /^\/work\/./.test(path) || path === '/lab' || path.startsWith('/lab/');
   if (isCard) return secondary ? ['inview', 'card', 'secondary'] : ['inview', 'card'];
   return secondary ? ['secondary'] : [];
