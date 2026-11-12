@@ -52,15 +52,13 @@ function sectionText(heading: string): string {
 /** Legal citations, protocol names and years: numerals that are not claims. */
 const CITATION = /Art\. \d+(?:\(\d+\))*(?:\([a-z]\))?|§\d+\(\d+\) No\. \d+|IPv[46]|\b20(?:0[89]|[12]\d|30)\b/g;
 
-/** Numerals in text nodes under no data-derived or time element, outside citations and the email. */
+/** Numerals in text nodes under no data-derived or time element, outside citations. */
 function unmarkedNumerals(node: T.ParentNode, marked = false, out: string[] = []): string[] {
   for (const child of node.childNodes) {
     if (child.nodeName === '#text') {
       if (marked) continue;
       const value = (child as T.TextNode).value;
-      const covered = [...value.matchAll(CITATION), ...value.matchAll(new RegExp(CONTACT.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))].map(
-        (m) => [m.index, m.index + m[0].length] as const,
-      );
+      const covered = [...value.matchAll(CITATION)].map((m) => [m.index, m.index + m[0].length] as const);
       for (const m of value.matchAll(/\d[\d.,]*/g)) {
         if (!covered.some(([a, b]) => a <= m.index && m.index < b)) out.push(`${m[0]} in "${value.trim().slice(0, 80)}"`);
       }
@@ -81,7 +79,7 @@ describe('the privacy page', () => {
   });
 
   it('names the providers, the legal bases and the browser signals it honours', () => {
-    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'Gmail', 'Global Privacy Control', 'Do Not Track']) {
+    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'LinkedIn', 'Global Privacy Control', 'Do Not Track']) {
       expect(pageText, needle).toContain(needle);
     }
   });
@@ -97,18 +95,19 @@ describe('the privacy page', () => {
     expect(pageText).not.toMatch(/\b\d{5}\s+Berlin\b/);
   });
 
-  it('shows the controller exactly as the site data gives it: name, city and email, and no placeholder', () => {
+  it('shows the controller exactly as the site data gives it: name, city and LinkedIn, and no placeholder', () => {
     const who = sectionText('Who is responsible');
     expect(who).toContain(SITE.name);
     expect(who).toContain(SITE.city);
-    expect(who).toContain(CONTACT.email);
+    expect(who).toContain('You can reach me through my LinkedIn profile:');
+    expect(who).toContain('linkedin.com/in/');
     const section = all.find((el) => el.tagName === 'section' && text(el) === who)!;
     expect(elements(section).some((el) => attr(el, 'data-launch-placeholder') !== undefined)).toBe(false);
-    const mail = elements(section).find((el) => el.tagName === 'a');
-    expect(mail && attr(mail, 'href')).toBe(`mailto:${CONTACT.email}`);
+    const links = elements(section).filter((el) => el.tagName === 'a');
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT.linkedin]);
   });
 
-  it('marks every numeral as derived from the build or as a time, except legal citations and the email address', () => {
+  it('marks every numeral as derived from the build or as a time, except legal citations', () => {
     // The unit-level rule: only <data data-derived> and <time> carry numbers...
     expect(unmarkedNumerals(doc)).toEqual([]);
     // ...and the built-page truth audit accepts the page as it is.
@@ -149,7 +148,7 @@ describe('the privacy page', () => {
     const objection = elements(rights).filter((el) => el.tagName === 'p' && /object at any time/.test(text(el)));
     expect(objection).toHaveLength(1);
     expect(text(objection[0]!)).toMatch(/Art\. 6\(1\)\(f\) GDPR \(Art\. 21 GDPR\)/);
-    expect(text(objection[0]!)).toMatch(/Global Privacy Control or Do Not Track; otherwise email me/);
+    expect(text(objection[0]!)).toMatch(/Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn/);
     expect(text(objection[0]!)).not.toMatch(/Art\. 15/);
   });
 
@@ -199,10 +198,10 @@ describe('the privacy page', () => {
     }
   });
 
-  it('links only to mailto or this site, and loads nothing itself', () => {
+  it('links only to LinkedIn or this site, and loads nothing itself', () => {
     for (const a of all.filter((el) => el.tagName === 'a')) {
       const href = attr(a, 'href') ?? '';
-      expect(href.startsWith('mailto:') || href.startsWith('/') || href.startsWith('#'), href).toBe(true);
+      expect(href === CONTACT.linkedin || href.startsWith('/') || href.startsWith('#'), href).toBe(true);
     }
     for (const el of all) expect(['img', 'iframe', 'script', 'link'].includes(el.tagName), el.tagName).toBe(false);
   });

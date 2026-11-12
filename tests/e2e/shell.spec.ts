@@ -317,10 +317,7 @@ test.describe('footer', () => {
   test('contact and privacy links, with visible labels and no address text', async ({ page }) => {
     await page.goto('/');
     const footer = page.getByRole('contentinfo');
-    await expect(footer.getByRole('link', { name: 'Email' })).toHaveAttribute(
-      'href',
-      'mailto:elberguimahmoud11@gmail.com',
-    );
+    await expect(footer.locator('a[href^="mailto:"]')).toHaveCount(0);
     await expect(footer.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
       'href',
       'https://www.linkedin.com/in/melbergui',
@@ -409,10 +406,11 @@ test.describe('not found page', () => {
     );
     await expect(main.getByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
     await expect(main.getByRole('link', { name: 'Lab' })).toHaveAttribute('href', '/lab');
-    await expect(main.getByRole('link', { name: 'Email' })).toHaveAttribute(
+    await expect(main.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
       'href',
-      'mailto:elberguimahmoud11@gmail.com',
+      'https://www.linkedin.com/in/melbergui',
     );
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
     await expect(page.getByRole('banner')).toBeVisible();
     await expect(page.getByRole('contentinfo')).toBeVisible();
     expect(await page.title()).toBe('Page not found');

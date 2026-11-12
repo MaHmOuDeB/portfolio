@@ -2,7 +2,7 @@
 // (tests/unit/privacy.test.tsx, tests/unit/privacy-claims.test.ts, tests/e2e/privacy-claims.spec.ts).
 // Any new request, storage, embed or provider changes this file, its `updatedOn` and those tests in
 // the same change. Numbers are `derived` blocks read from the pre-registered configuration. The
-// controller's name, city and email are read from src/lib/site.ts, never retyped.
+// controller's name, city and LinkedIn address are read from src/lib/site.ts, never retyped.
 //
 // Imports are relative with the .ts extension, so scripts run with Node's type stripping
 // (scripts/launch-check.ts) can read LAUNCH_FACTS.
@@ -12,7 +12,8 @@ import { CONTACT, SITE } from '../src/lib/site.ts';
 export type PrivacyBlock =
   | string
   | { derived: number; unit: 'count' }
-  | { link: { href: string; text: string } }
+  /** A link; `external` for one that leaves the site. */
+  | { link: { href: string; text: string; external?: true } }
   /** The id of a fact in LAUNCH_FACTS that is not verified yet; renders data-launch-placeholder. */
   | { launchPlaceholder: string }
   /** This version's date (PRIVACY.updatedOn), in a <time> element. */
@@ -61,11 +62,6 @@ export const LAUNCH_FACTS: readonly LaunchFact[] = [
     verified: { on: '2026-10-22', source: 'https://upstash.com/trust/dpa.pdf (April 2025): EU-US Data Privacy Framework, standard contractual clauses as fallback; the store runs in Frankfurt with no read regions (the store settings)' },
   },
   {
-    id: 'google-transfers',
-    question: 'The transfer basis Google states for Gmail',
-    verified: { on: '2026-10-26', source: 'https://policies.google.com/privacy/frameworks: Google LLC has certified that it adheres to the DPF Principles' },
-  },
-  {
     id: 'upstash-backups',
     question: 'Whether the counter database keeps backups, and for how long',
     verified: null,
@@ -78,14 +74,14 @@ const HASH_MINUTES = n(EXPERIMENT.rateLimit.keyTtlSeconds / 60);
 
 export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySection[] } = {
   title: 'Privacy',
-  updatedOn: '2026-10-26',
+  updatedOn: '2026-11-12',
   sections: [
     {
       heading: 'Who is responsible',
       paragraphs: [
         ['I am responsible for this site and for the data described here: ', SITE.name, ', ', SITE.city, '.'],
-        ['You can reach me at'],
-        [{ link: { href: `mailto:${CONTACT.email}`, text: CONTACT.email } }],
+        ['You can reach me through my LinkedIn profile:'],
+        [{ link: { href: CONTACT.linkedin, text: CONTACT.linkedin.replace(/^https:\/\/www\./, ''), external: true } }],
       ],
     },
     {
@@ -146,7 +142,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       paragraphs: [
         ["Delivering and securing the site, including Vercel's logs and the rate limit: Art. 6(1)(f) GDPR. My legitimate interest is a site that works and is not abused."],
         ["Running and publishing this site's own experiment: Art. 6(1)(f) GDPR. My legitimate interest is to measure, in the open, which card headlines work better."],
-        ['Replying to your emails: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.'],
+        ['Replying to your messages: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.'],
         ['The cookie on my own devices: §25(2) No. 2 TDDDG.'],
       ],
     },
@@ -159,7 +155,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         [
           "Upstash, Inc., USA, runs the counter database, which is stored in Frankfurt. Upstash's published data processing terms rely on the EU-US Data Privacy Framework, with the standard contractual clauses as a fallback.",
         ],
-        ['Google provides my email (Gmail); Google states that Google LLC, USA, is certified under the EU-US Data Privacy Framework.'],
+        ['Messages you send me on LinkedIn are processed by LinkedIn under its own terms.'],
         [
           'No third-party analytics, advertising or social-media service runs on this site, and nothing loads from another site. The only measurement is the experiment’s own counts described above. The links to LinkedIn and GitHub take you to those sites, under their own terms.',
         ],
@@ -171,7 +167,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         ['Per-view ids: at most ', PV_MINUTES, ' minutes.'],
         ['IP address hashes for the rate limit: at most ', HASH_MINUTES, ' minutes.'],
         ["Vercel's logs: as described above."],
-        ['Emails: deleted when the conversation is over, unless I need to keep them.'],
+        ['Messages: deleted when the conversation is over, unless I need to keep them.'],
         [
           'The counts, including those of earlier rounds of the experiment, are kept as its public record. They are published on this site at /experiment/data.json as aggregated daily counts with no identifiers, added up over time, and any count above zero and below ',
           n(EXPERIMENT.smallCellBelow),
@@ -190,7 +186,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           'You have the right to access (Art. 15 GDPR), rectification (Art. 16 GDPR), erasure (Art. 17 GDPR), restriction (Art. 18 GDPR), portability (Art. 20 GDPR) and objection (Art. 21 GDPR). You can also complain to a supervisory authority (Art. 77 GDPR), for example the Berlin Commissioner for Data Protection and Freedom of Information.',
         ],
         [
-          'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise email me.',
+          'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn.',
         ],
         [
           'I cannot tell which counts come from you, so there is nothing about you to look up (Art. 11(2) GDPR). To stop your views being counted, have your browser send Global Privacy Control or Do Not Track.',

@@ -1,7 +1,8 @@
 // The stray-number truth audit. It parses every built page under .next/server/app and fails on any
 // numeral that is not inside a data-fact / data-derived marker, not a fact display in the head and
 // not allowed by truth-audit.allow.ts; on an unknown fact id or a bad derived ref; on a deny-listed
-// term; and on a banned phrase.
+// term; on a banned phrase; and on any e-mail address anywhere in the HTML (the site's contact route
+// is LinkedIn, so no page carries one).
 //
 //   npm run build && npm run truth:audit
 //
@@ -15,7 +16,7 @@ import { FACTS, FACT_DISPLAYS } from '../src/lib/facts/facts.generated.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
 import { ALLOW, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
-export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase';
+export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase' | 'email-address';
 export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
 export type AuditContext = {
   route: string;
@@ -31,6 +32,14 @@ const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
 const stripInvisible = (s: string) => s.replace(INVISIBLE, '');
 // "AI-powered" with a space or any hyphen or dash between the words (U+2010 to U+2015, minus sign).
 const BANNED = /\bAI[\s\-\u2010-\u2015\u2212]*powered\b|\bpassionate\b|\brockstar\b/gi;
+// An e-mail address: a local part, "@", and a domain whose last label is letters. A package or font
+// version ("x@1.2.3"), a CSS at-rule ("@media") or a scoped package name ("/@scope/pkg") does not match.
+const EMAIL = /[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b/g;
+// A finding shows only the first character of the local part and the domain, never the address.
+const maskEmail = (address: string) => {
+  const at = address.lastIndexOf('@');
+  return `${address[0]}\u2026@${address.slice(at + 1)}`;
+};
 const SKIPPED = new Set(['script', 'style', 'template']);
 const SCANNED_ATTRS = ['aria-label', 'aria-valuetext', 'aria-description', 'aria-roledescription', 'alt', 'title', 'placeholder'];
 // The meta tags whose content is text a visitor or a link preview shows; og:image, og:url and the
@@ -171,6 +180,8 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   checkDenylist(textParts.join(''));
   checkDenylist(html);
   for (const i of [...denyHits].sort((a, b) => a - b)) add('denylisted', `deny-list term #${i + 1}`);
+  // The raw HTML, so an address in an href, the RSC payload or JSON-LD counts too. Each once.
+  for (const address of new Set([...html.matchAll(EMAIL)].map((m) => m[0]))) add('email-address', `"${maskEmail(address)}" in the HTML`);
   return findings;
 }
 

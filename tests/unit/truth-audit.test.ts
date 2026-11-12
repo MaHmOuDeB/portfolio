@@ -155,6 +155,23 @@ describe('auditHtml', () => {
     ]);
   });
 
+  it('flags an e-mail address anywhere in the HTML, once, and masks it in the finding', () => {
+    const address = 'someone.else@mail.example.org';
+    const html = page(
+      `<p><a href="mailto:${address}">Write</a></p><script type="application/ld+json">{"email":"${address}"}</script>`,
+    );
+    const findings = auditHtml(html, ctx());
+    expect(findings).toEqual([{ route: '/', kind: 'email-address', detail: '"s\u2026@mail.example.org" in the HTML' }]);
+    expect(JSON.stringify(findings)).not.toContain(address);
+  });
+
+  it('does not take a version, an at-rule or a scoped package for an e-mail address', () => {
+    const html = page(
+      '<p>Built with react@19.2.8.</p><style>@media (min-width: 40rem) { p { margin: 0 } }</style><script>import("/_next/@scope/pkg@1.2.3")</script>',
+    );
+    expect(auditHtml(html, ctx()).filter((f) => f.kind === 'email-address')).toEqual([]);
+  });
+
   it('allows a year in range, but not one outside it, part of a decimal, or a status code', () => {
     expect(audit('allowlisted')).toEqual([]);
     expect(auditHtml(fixture('allowlisted').replace('2030', '2031'), ctx())).toEqual([stray('"2031" in text')]);

@@ -10,7 +10,7 @@ vi.mock('@/app/fonts', () => ({ inter: { variable: 'font-inter-variable' } }));
 
 const HEADING = 'This page could not load';
 const BODY =
-  'An error stopped this page from loading. Try again. If it happens again, email me the page address.';
+  'An error stopped this page from loading. Try again. If it happens again, send me the page address on LinkedIn.';
 const STATUS_CODE = /\b(404|500)\b/;
 
 function render(element: React.ReactElement): string {
@@ -20,7 +20,8 @@ function render(element: React.ReactElement): string {
 function expectLinks(html: string): void {
   expect(html).toMatch(/<a [^>]*href="\/work"[^>]*>Work<\/a>/);
   expect(html).toMatch(/<a [^>]*href="\/lab"[^>]*>Lab<\/a>/);
-  expect(html).toMatch(new RegExp(`<a [^>]*href="mailto:${CONTACT.email}"[^>]*>Email</a>`));
+  expect(html).toMatch(new RegExp(`<a [^>]*href="${CONTACT.linkedin}"[^>]*rel="noopener"[^>]*>LinkedIn<`));
+  expect(html).not.toContain('mailto:');
 }
 
 describe('error boundary page', () => {
