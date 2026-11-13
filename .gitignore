@@ -42,6 +42,10 @@ next-env.d.ts
 reports/
 test-results/
 playwright-report/
+# The CI e2e shards' blob reports and regenerated baselines, and their merge
+blob-report/
+all-blob-reports/
+baselines-changed/
 .lighthouseci/
 
 # Python reference generator (stats-ref/)

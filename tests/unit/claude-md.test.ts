@@ -131,7 +131,7 @@ describe('CLAUDE.md', () => {
     expect(claudeMd).toContain('`TRUTH_DENYLIST`');
     expect(claudeMd).not.toMatch(/once the .* secret exists/i);
     const ci = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
-    expect(ci).toContain('run: npm run truth:audit');
+    expect(ci).toMatch(/^ {12}npm run truth:audit$/m);
     expect(ci).toContain('TRUTH_DENYLIST: ${{ secrets.TRUTH_DENYLIST }}');
   });
 });

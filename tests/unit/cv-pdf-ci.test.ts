@@ -47,11 +47,12 @@ describe('the CI workflow', () => {
 
   it('keeps every existing job and its name (they are required checks) and adds the CV PDF check', () => {
     const named = [...all].map(([id, job]) => [id, /^ {4}name: (.+)$/m.exec(job)?.[1]]);
-    expect(named.slice(0, 7)).toEqual([
+    expect(named.slice(0, 8)).toEqual([
       ['static', 'Static checks and unit tests'],
       ['stats-ref', 'Statistics reference data'],
       ['sources-remote', 'Pinned sources exist on GitHub'],
       ['build', 'Production build'],
+      ['e2e-shard', 'End-to-end tests (shard ${{ matrix.shard }} of 4)'],
       ['e2e', 'End-to-end tests'],
       ['lhci', 'Lighthouse CI'],
       ['links', 'Link check'],
