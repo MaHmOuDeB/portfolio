@@ -18,9 +18,13 @@
 //   Figure that is the first thing a visitor sees). It goes through the same `load` as the other
 //   triggers, so the preview handover, the focus handling and the failure fallback are the same. The
 //   server renders the same preview and fetches nothing: the island's code is requested by the browser.
+// - Intent shown before hydration counts too: focus already inside the preview, or an entry in one of
+//   its inputs (a typed number, a moved range, a picked radio) made before these listeners existed.
+//   The island loads at once, and its Slider and Segmented take the entry over from the preview.
 // - The root carries `data-island="idle" | "ready" | "failed"`.
 import { catchError } from 'next/error';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
+import { hasEntry } from '@/lib/figure/early-entry';
 
 const IDLE_TIMEOUT_MS = 2000;
 
@@ -80,6 +84,23 @@ function Island({
       live = false;
     };
   }, [eager, load]);
+
+  // Intent before hydration: focus that moved into the preview, or an entry made in it, before the
+  // listeners below existed. Loaded as eager is, in a microtask.
+  useEffect(() => {
+    const box = root.current;
+    if (box === null) return;
+    const active = document.activeElement;
+    const focused = active !== null && active !== document.body && box.contains(active);
+    if (!focused && ![...box.querySelectorAll('input')].some(hasEntry)) return;
+    let live = true;
+    queueMicrotask(() => {
+      if (live) load();
+    });
+    return () => {
+      live = false;
+    };
+  }, [root, load]);
 
   useEffect(() => {
     if (loading) return;

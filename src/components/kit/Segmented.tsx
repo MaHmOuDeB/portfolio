@@ -8,7 +8,10 @@
 // full-width rows, each with a radio mark, so an unselected option still reads as a choice.
 // A disabled group can name the element that says why (`disabledReasonId`): it describes the group
 // while disabled, and only then, so a hidden reason is never read.
+// A choice made before the group listened is taken up once it does (see takeEarlyPick below).
+import { useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { cx } from '@/lib/cx';
+import { hasEntry } from '@/lib/figure/early-entry';
 
 export type SegmentedProps<V extends string> = {
   name: string;
@@ -30,11 +33,67 @@ const STATE = {
   unchecked: { enabled: 'cursor-pointer border-muted text-ink hover:bg-line', disabled: 'cursor-not-allowed border-line text-muted' },
 } as const;
 
+// The root of a LoadOnIntent whose island has not replaced its preview yet.
+const IDLE_ISLAND = '[data-island="idle"]';
+
+/** The radios of the group `name` that the reader checked before anything listened. */
+function earlyPicks(radios: Iterable<Element>): HTMLInputElement[] {
+  return [...radios].filter((r): r is HTMLInputElement => r instanceof HTMLInputElement && r.type === 'radio' && r.checked && hasEntry(r));
+}
+
+/**
+ * The choice a reader made in the LoadOnIntent preview copy of this group, read while the group
+ * first renders, with the loader's root it was made in. It must be read then: the copy and this
+ * group share a name in one document, so they are one radio group, and once this group's checked
+ * radio is inserted the browser unchecks the copy's choice.
+ */
+function previewPick(name: string): { value: string; root: Element } | null {
+  if (typeof document === 'undefined') return null;
+  for (const radio of earlyPicks(document.getElementsByName(name))) {
+    const root = radio.closest(IDLE_ISLAND);
+    if (root !== null) return { value: radio.value, root };
+  }
+  return null;
+}
+
 export function Segmented<V extends string>({ name, legend, options, value, onChange, disabled, disabledReasonId }: SegmentedProps<V>) {
   // A value that is not an option (a stale or hostile URL) shows the first option as chosen.
   const selected = options.some((o) => o.value === value) ? value : options[0]?.value;
+  const box = useRef<HTMLFieldSetElement>(null);
+  const [copyPick] = useState(() => previewPick(name));
+
+  // A choice the reader made before this group listened: a radio picked (by pointer or the arrow
+  // keys) before the page hydrated, which React 19 leaves checked while the segments are still drawn
+  // as rendered and the value behind them is unchanged. Read once, in the commit where the group
+  // first appears:
+  // - in a LoadOnIntent preview it is left as it is: the loader loads the island, whose group (the
+  //   same name) takes it over from the pick read as it first rendered;
+  // - otherwise the rendered radio is checked again and the pick is passed to onChange, as its change
+  //   event would have been. A pick that is not one of the options is ignored.
+  const takeEarlyPick = useEffectEvent(() => {
+    const fieldset = box.current;
+    if (fieldset === null || disabled) return;
+    const own = fieldset.querySelectorAll('input[type="radio"]');
+    const [pick] = earlyPicks(own);
+    const root = fieldset.closest(IDLE_ISLAND);
+    let picked: string | null = null;
+    if (pick !== undefined) {
+      if (root !== null) return;
+      for (const radio of own) if (radio instanceof HTMLInputElement) radio.checked = radio.value === selected;
+      picked = pick.value;
+    } else if (copyPick !== null && root !== null && copyPick.root === root) {
+      picked = copyPick.value;
+    }
+    const option = options.find((o) => o.value === picked);
+    if (option !== undefined && option.value !== selected) onChange(option.value);
+  });
+  useLayoutEffect(() => {
+    takeEarlyPick();
+  }, []);
+
   return (
     <fieldset
+      ref={box}
       data-js-only
       disabled={disabled}
       aria-describedby={disabled && disabledReasonId ? disabledReasonId : undefined}

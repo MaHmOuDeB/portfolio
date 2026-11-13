@@ -3,9 +3,13 @@
 // A native range input joined to a number input. The range input is the interactive element; the
 // track under it is drawn, not native. Every value is snapped, so a hostile value from a prop or a
 // typed entry is clamped and never throws. Hidden without JavaScript: the server renders the preset.
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+//
+// An entry made before the Slider listened is taken up once it does (see takeEarlyEntry below): the
+// inputs show from the first paint, so a reader can type or move the range before the page hydrates.
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { cx } from '@/lib/cx';
+import { earlyTyped, hasEntry } from '@/lib/figure/early-entry';
 import { isOnStepGrid, snapToStep, stepFrom } from '@/lib/figure/snap';
 
 export type SliderProps = {
@@ -59,6 +63,24 @@ const MOVE_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'H
 const NUMBER_STEP_KEYS: ReadonlyMap<string, 1 | -1> = new Map([['ArrowUp', 1], ['ArrowDown', -1]]);
 // A valid floating-point number in HTML: the only text a number input holds.
 const NUMBER_TEXT = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/;
+// The root of a LoadOnIntent whose island has not replaced its preview yet.
+const IDLE_ISLAND = '[data-island="idle"]';
+
+/**
+ * The input holding an entry made before this Slider listened: `own` itself (hydrated with what the
+ * reader typed or moved), or else the input with the same id in the LoadOnIntent preview that this
+ * Slider's island is replacing. In the commit where an island appears, its preview is still in the
+ * document (the loader removes it in the next one), so the copy can be read then.
+ */
+function earlySource(own: HTMLInputElement): HTMLInputElement | null {
+  if (hasEntry(own)) return own;
+  const root = own.closest(IDLE_ISLAND);
+  if (root === null) return null;
+  for (const copy of root.querySelectorAll(`[id="${CSS.escape(own.id)}"]`)) {
+    if (copy !== own && copy instanceof HTMLInputElement && hasEntry(copy)) return copy;
+  }
+  return null;
+}
 
 export function Slider({
   id,
@@ -94,7 +116,58 @@ export function Slider({
   const stepped = useRef<number | null>(null);
   // A move key is down on the range input and its key-up has not come: blur commits the value then.
   const rangeHeld = useRef(false);
+  const rangeRef = useRef<HTMLInputElement>(null);
+  const numberRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => endDrag.current?.(), []);
+
+  // An entry the reader made before this Slider listened: typed in the number input, or a move of
+  // the range input. React 19 hydrates an input without touching what it holds and no handler ran, so
+  // without this the input would keep showing the entry (say "999", unclamped) while the value, the
+  // chart and the URL stayed where they were. Read once, in the commit where the Slider first
+  // appears, so that no later render has reset the input first:
+  // - In a LoadOnIntent preview, the entry is left where it is: the loader takes it as intent and
+  //   loads the island, whose Slider (the same id) takes it over.
+  // - A typed entry is handled as the number input's own handlers would have: still focused, it
+  //   stays the entry being edited (applied at once if it is on the grid) and the next blur or Enter
+  //   commits it; with focus gone, it is committed as a blur commits it, clamped and snapped, or
+  //   reverted if it is empty. A typed entry wins over a range move made before it.
+  // - A range move is applied and committed, as its key-up or pointer-up would have.
+  // Inputs of this Slider that held the entry are first set back to what was rendered; when the value
+  // changes, React writes the new one. Nothing moves without the reader's own action.
+  const takeEarlyEntry = useEffectEvent(() => {
+    const range = rangeRef.current;
+    const number = numberRef.current;
+    if (range === null || number === null || disabled) return;
+    const typed = earlySource(number);
+    const moved = typed === null ? earlySource(range) : null;
+    const source = typed ?? moved;
+    if (source === null) return;
+    // The entry is in this Slider's own inputs (hydrated in place), not in a preview copy.
+    const own = source === number || source === range;
+    if (own && source.closest(IDLE_ISLAND) !== null) return;
+    // Read before the range input is set back below.
+    const movedTo = moved === null ? current : snap(moved.valueAsNumber);
+    if (own) range.value = String(current);
+    if (typed !== null) {
+      const entry = earlyTyped(typed.value, typed.ownerDocument.activeElement === typed, { min, max, step });
+      if (entry.kind === 'draft') {
+        stepped.current = null;
+        setDraft(entry.text);
+        if (entry.live !== null && entry.live !== current) onChange(entry.live);
+        return;
+      }
+      if (own) number.value = shown;
+      if (entry.kind === 'revert') return;
+      if (entry.value !== current) onChange(entry.value);
+      onCommit?.(entry.value);
+      return;
+    }
+    if (movedTo !== current) onChange(movedTo);
+    onCommit?.(movedTo);
+  });
+  useLayoutEffect(() => {
+    takeEarlyEntry();
+  }, []);
 
   const share = max > min ? (current - min) / (max - min) : 0;
   // The thumb's centre runs from half a thumb to the far end minus half a thumb.
@@ -131,6 +204,7 @@ export function Slider({
             />
           </div>
           <input
+            ref={rangeRef}
             data-kit-range
             type="range"
             id={id}
@@ -181,6 +255,7 @@ export function Slider({
           {numberLabel ?? `${label}, exact value`}
         </label>
         <input
+          ref={numberRef}
           type="number"
           id={numberId}
           inputMode="decimal"
