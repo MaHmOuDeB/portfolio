@@ -31,6 +31,12 @@ async function readHead(page: Page): Promise<Head> {
   });
 }
 
+/**
+ * A URL in its normal form: Next prints the root canonical without its trailing slash
+ * ("https://host"), which is the same URL as "https://host/".
+ */
+const normal = (urls: readonly string[] | undefined) => (urls ?? []).map((u) => new URL(u).href);
+
 /** Width and height from a PNG's IHDR chunk. */
 function pngSize(body: Buffer): [number, number] {
   expect(body.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
@@ -50,20 +56,20 @@ test.describe('canonicalAndRobots', () => {
       const head = await readHead(page);
       const url = `${ORIGIN}${entry.path}`;
       const image = `${ORIGIN}${entry.image}`;
-      expect(head.canonicals).toEqual([url]);
+      expect(normal(head.canonicals)).toEqual([url]);
       expect(head.title).toBe(entry.title);
       expect(head.meta.description).toEqual([entry.description]);
       expect(head.meta['og:title']).toEqual([shareTitle(entry)]);
       expect(head.meta['og:description']).toEqual([entry.description]);
-      expect(head.meta['og:url']).toEqual([url]);
+      expect(normal(head.meta['og:url'])).toEqual([url]);
       expect(head.meta['og:type']).toEqual(['website']);
-      expect(head.meta['og:image']).toEqual([image]);
+      expect(normal(head.meta['og:image'])).toEqual([image]);
       expect(head.meta['og:image:width']).toEqual(['1200']);
       expect(head.meta['og:image:height']).toEqual(['630']);
       expect(head.meta['og:image:alt']).toEqual([entry.imageAlt]);
       expect(head.meta['twitter:card']).toEqual(['summary_large_image']);
       expect(head.meta['twitter:title']).toEqual([shareTitle(entry)]);
-      expect(head.meta['twitter:image']).toEqual([image]);
+      expect(normal(head.meta['twitter:image'])).toEqual([image]);
       expectIndexable(response, head);
 
       const png = await request.get(entry.image);
@@ -79,8 +85,8 @@ test.describe('canonicalAndRobots', () => {
       expect(response?.status()).toBe(200);
       expect(response?.headers()['x-arm']).toBe(arm);
       const head = await readHead(page);
-      expect(head.canonicals).toEqual([`${ORIGIN}/`]);
-      expect(head.meta['og:url']).toEqual([`${ORIGIN}/`]);
+      expect(normal(head.canonicals)).toEqual([`${ORIGIN}/`]);
+      expect(normal(head.meta['og:url'])).toEqual([`${ORIGIN}/`]);
       expectIndexable(response, head);
     });
 
