@@ -14,6 +14,7 @@ class FakeElement {
 }
 
 const scrolls: number[] = [];
+const frames: Array<() => void> = [];
 
 function stubBrowser() {
   scrolls.length = 0;
@@ -21,7 +22,9 @@ function stubBrowser() {
   vi.stubGlobal('HTMLElement', FakeElement);
   vi.stubGlobal('innerHeight', 180);
   vi.stubGlobal('getComputedStyle', () => ({ outlineStyle: 'solid', outlineWidth: '2px', outlineOffset: '2px', position: 'static' }));
-  vi.stubGlobal('document', { querySelector: () => null });
+  frames.length = 0;
+  vi.stubGlobal('requestAnimationFrame', (cb: () => void) => frames.push(cb));
+  vi.stubGlobal('document', { querySelector: () => null, activeElement: null });
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -59,6 +62,33 @@ describe('revealRegionOnFocus', () => {
     stubBrowser();
     const other = new FakeElement(false);
     revealRegionOnFocus({ target: other as unknown as EventTarget });
+    expect(scrolls).toEqual([]);
+  });
+
+  it('reveals again in the next frame, after the browser has made its own focus scroll', () => {
+    stubBrowser();
+    const region = new FakeElement(true);
+    region.top = 10;
+    (document as unknown as { activeElement: unknown }).activeElement = region;
+    revealRegionOnFocus({ target: region as unknown as EventTarget });
+    expect(scrolls).toEqual([]);
+    // WebKit aligns the box with the top edge after the focus event: the ring is cut off again.
+    region.top = 0;
+    frames.forEach((f) => f());
+    expect(scrolls).toEqual([-4]);
+  });
+
+  it('does not reveal in the next frame when nothing is cut off or focus has moved on', () => {
+    stubBrowser();
+    const region = new FakeElement(true);
+    region.top = 10;
+    (document as unknown as { activeElement: unknown }).activeElement = region;
+    revealRegionOnFocus({ target: region as unknown as EventTarget });
+    frames.forEach((f) => f());
+    expect(scrolls).toEqual([]);
+    region.top = 0;
+    (document as unknown as { activeElement: unknown }).activeElement = null;
+    frames.forEach((f) => f());
     expect(scrolls).toEqual([]);
   });
 });

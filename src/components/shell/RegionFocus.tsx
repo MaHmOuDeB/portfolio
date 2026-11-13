@@ -12,7 +12,14 @@ export const REGION_SELECTOR = '[role="region"][tabindex="0"]';
 /** Reveals the ring of a focused scrolling region; any other focus target is left alone. */
 export function revealRegionOnFocus(event: Pick<FocusEvent, 'target'>): void {
   const target = event.target;
-  if (target instanceof HTMLElement && target.matches(REGION_SELECTOR)) revealRing(target);
+  if (!(target instanceof HTMLElement) || !target.matches(REGION_SELECTOR)) return;
+  revealRing(target);
+  // WebKit makes its own focus scroll after the focus event and aligns the box, not the ring, with the
+  // edge, which undoes the scroll above. Check once more in the next frame, before it is painted; this
+  // scrolls only when part of the ring is cut off, so it changes nothing where the first pass held.
+  requestAnimationFrame(() => {
+    if (document.activeElement === target) revealRing(target);
+  });
 }
 
 export function RegionFocus(): null {
