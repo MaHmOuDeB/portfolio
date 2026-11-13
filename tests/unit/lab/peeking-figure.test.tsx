@@ -181,14 +181,19 @@ describe('every one of the 200 states', () => {
     expect(line).toContain(`(95% Monte Carlo range ${pct(view.mc.lower, 1)} to ${pct(view.mc.upper, 1)}): `);
     // the announcement is the result line in words
     expect(peekAnnouncement(view)).toBe(line);
+    const key = /<p data-nominal-key=""[^>]*>([\s\S]*?)<\/p>/.exec(html);
+    expect(key, 'the dotted-line key').not.toBeNull();
+    expect(text(key![1]!)).toBe('Dotted line: nominal 5%');
+    expect(key![1]).toMatch(/<svg aria-hidden="true"[^>]*><line [^>]*stroke-dasharray="2 3"/);
+    expect(key![1]).toContain('data-derived="simulated"');
     for (const layout of ['wide', 'narrow'] as const) {
       const c = chart(html, layout);
       expect(c.svg, layout).not.toBe('');
       // the current dot: the selected rate at the last look, orange with a background ring
       expect(c.dot).toEqual({ look: L, value: selected.falsePositiveRate, stroke: 'var(--color-bg)', fill: 'var(--color-series-2)' });
-      // the nominal line and its annotation
+      // the nominal line, keyed under the chart (no label on the chart, where it would sit on the curves)
       expect(c.nominal).toBeDefined();
-      expect(c.annotation).toBe('Dotted line: nominal 5%');
+      expect(c.annotation).toBe('');
       // y from 0 to 40%, x from look 1 to the last look (0 to 1 for one look, with one tick at 1)
       expect(c.yTicks).toEqual(layout === 'wide' ? ['10%', '20%', '30%', '40%', '0%'] : ['20%', '40%', '0%']);
       expect(c.xTicks[0]).toBe('1');
