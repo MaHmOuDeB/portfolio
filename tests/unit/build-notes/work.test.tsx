@@ -144,7 +144,7 @@ describe('the directory', () => {
   });
 
   // From md the description spans the title's row and the label's; a long one must not push the label
-  // down from its title (finding N-M3). The title's row takes only its own height, and the label's row
+  // down from its title. The title's row takes only its own height, and the label's row
   // takes the rest, with the label at its top.
   it('keeps each label right under its title, however long the description', () => {
     for (const row of [...PAGE.matchAll(/<li data-work-item="([^"]*)" class="([^"]*)"/g)]) {

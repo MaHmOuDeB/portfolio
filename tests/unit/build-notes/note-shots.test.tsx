@@ -127,15 +127,22 @@ describe('NoteShot', () => {
       if (s.maxWidth > oneX || (s.minWidth ?? 0) > oneX) over.push(id);
     }
     expect(over).toEqual(UPSCALED_UNTIL_RESHOOT);
+    // The exception is drawn at exactly its file's own pixel width, read from the PNG header, so a
+    // silent drop to any narrower width fails here.
+    const n8n = NOTE_SHOTS.n8nDecision;
+    const filePx = readFileSync(join(repo, 'public/images/notes', n8n.file)).readUInt32BE(16);
+    expect(n8n.maxWidth).toBe(filePx);
+    expect(n8n.minWidth).toBe(filePx);
   });
 
   it('keeps the terminal and canvas text at 13 px or more: a narrowest width, and a labelled scrolling frame under it', () => {
     for (const id of ['weatherChecks', 'n8nDecision'] as const) {
       const shot = NOTE_SHOTS[id];
       const textAt = (cssWidth: number) => (shot.textPx * cssWidth) / shot.width;
-      // The n8n labels are about 12.5 px, drawn one file pixel per CSS px: as large as the capture
-      // allows without upscaling. A re-shoot at a closer zoom is the carried fix.
-      if (id === 'n8nDecision') expect(textAt(shot.minWidth)).toBe(shot.textPx);
+      // The n8n labels were measured at about 12.5 px in the file, drawn one file pixel per CSS px:
+      // as large as the capture allows without upscaling, so its floor is 12 px until a re-shoot at a
+      // closer zoom.
+      if (id === 'n8nDecision') expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(12);
       else expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(13);
       expect(shot.maxWidth).toBeGreaterThanOrEqual(shot.minWidth);
       expect(shot.maxWidth).toBeLessThanOrEqual(960);

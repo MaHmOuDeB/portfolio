@@ -383,7 +383,7 @@ for (const { route, ids } of SHOTS) {
   });
 }
 
-// A screenshot's frame is a tab stop only while it scrolls (finding N-M2): the served HTML keeps it
+// A screenshot's frame is a tab stop only while it scrolls: the served HTML keeps it
 // one, so without JavaScript a keyboard can still scroll it; once hydrated it measures itself, and a
 // frame that fits drops its tab stop and its region role.
 test.describe('the screenshot frame', () => {

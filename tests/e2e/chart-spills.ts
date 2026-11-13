@@ -1,9 +1,9 @@
-// The chart labels that may run past their chart's box, pinned per route (finding N-M4). Every chart
+// The chart labels that may run past their chart's box, pinned per route. Every chart
 // label sits inside its svg's padding (CLAUDE.md, "Chart labels never sit on marks"), and the quality
 // matrix fails any label past the box, except these. Each one is a case of the frozen kit's ChartFrame
 // sizing its left gutter and right margin from per-character estimates (8.4 px a digit, 6.6 px a
 // letter) that a wide glyph such as "%" outruns; the svg is drawn overflow-visible, so the label still
-// shows whole. The kit lane codex/kit-chart-labels fixes the sizing, and with it this list empties.
+// shows whole. The chart kit's label sizing is being fixed separately, and with it this list empties.
 // A new spill fails until it is fixed or, if it is the same kit case, listed here and reviewed.
 
 /** The peeking chart's share ticks, on every page that draws it. */
