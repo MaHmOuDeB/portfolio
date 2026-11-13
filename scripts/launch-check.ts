@@ -23,7 +23,9 @@
 //
 // It reads secret and variable NAMES only: the Vercel CLI is never asked for JSON (which would
 // include values), gh is asked for the variables' name field alone, and no command output is
-// printed. It needs `npx vercel login` and `gh auth login` on this machine.
+// printed. The one value it reads is the variable CANONICAL_HOST (a public domain, not a secret),
+// to compare it with --canonical; it never prints that value either. It needs `npx vercel login`
+// and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,6 +35,7 @@ import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
 import { LIVE_ROUTES } from '../src/lib/site.ts';
 import { preregHash } from '../src/lib/experiment/prereg-hash.ts';
+import { bareHostname } from '../src/lib/seo/hostname.ts';
 import { builtPages, findPlaceholders } from './launch-placeholders.ts';
 
 /**
@@ -300,6 +303,17 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
     // Before launch LAUNCHED and LAUNCH_SHA are missing by design (MISSING_VARIABLE says why).
     for (const name of GITHUB_VARIABLES) {
       if (!have.has(name)) unmet.push(`variable missing in GitHub: ${name} (${MISSING_VARIABLE[name]})`);
+    }
+    // The domain the deploy enforces must be the one the deployed checks ran on.
+    if (have.has('CANONICAL_HOST') && canonical !== null) {
+      const value = d.run('gh', ['variable', 'get', 'CANONICAL_HOST', '--repo', GITHUB_REPO]);
+      if (value.status !== 0) {
+        unmet.push('could not read the GitHub variable CANONICAL_HOST (run gh auth login, then try again)');
+      } else if (bareHostname(value.stdout.replace(/\r?\n$/, '')) !== canonical) {
+        unmet.push(
+          `the GitHub variable CANONICAL_HOST is not the canonical domain given to --canonical (${canonical}); the production deploy would refuse every build`,
+        );
+      }
     }
   }
 

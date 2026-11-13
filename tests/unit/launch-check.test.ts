@@ -57,6 +57,7 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
     if (cmd === 'git' && args[0] === 'rev-parse') return { status: 0, stdout: 'abc\n' };
     if (cmd === 'git' && args[0] === 'ls-remote') return { status: 0, stdout: 'abc\trefs/tags/prereg-v1\n' };
     if (cmd === 'git' && args[0] === 'show') return { status: 0, stdout: `# Pre-registration\n\nPre-registration hash: ${HASH}\n` };
+    if (cmd === 'gh' && args[0] === 'variable' && args[1] === 'get') return { status: 0, stdout: 'portfolio.example\n' };
     if (cmd === 'gh' && args[0] === 'variable') return { status: 0, stdout: `${GITHUB_VARIABLES.join('\n')}\n` };
     if (cmd === 'gh') return { status: 0, stdout: GITHUB_SECRETS.map((n) => `${n}\tUpdated 2026-11-01`).join('\n') };
     if (args.includes('vercel')) return { status: 0, stdout: `${vercelTable(VERCEL_SECRETS)}\n${SECRET_VALUE}` };
@@ -272,7 +273,9 @@ describe('launch:check', () => {
     const d = deps();
     const base = d.deps.run!;
     d.deps.run = (cmd, args) =>
-      cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: `LAUNCHED\nLAUNCH_SHA\nCANONICAL_HOST\n${SECRET_VALUE}\n` } : base(cmd, args);
+      cmd === 'gh' && args[0] === 'variable' && args[1] === 'list'
+        ? { status: 0, stdout: `LAUNCHED\nLAUNCH_SHA\nCANONICAL_HOST\n${SECRET_VALUE}\n` }
+        : base(cmd, args);
     expect(main(ARGS, d.deps)).toBe(0);
     expect(d.lines.join('\n')).not.toContain(SECRET_VALUE);
     const calls: string[][] = [];
@@ -283,9 +286,54 @@ describe('launch:check', () => {
       return recordBase(cmd, args);
     };
     main(ARGS, record.deps);
+    // Values are read for CANONICAL_HOST alone, a public domain, to compare it with --canonical.
     expect(calls.filter((c) => c[0] === 'gh' && c[1] === 'variable')).toEqual([
       ['gh', 'variable', 'list', '--repo', GITHUB_REPO, '--json', 'name', '--jq', '.[].name'],
+      ['gh', 'variable', 'get', 'CANONICAL_HOST', '--repo', GITHUB_REPO],
     ]);
+  });
+
+  it('compares the CANONICAL_HOST variable with --canonical, and names a mismatch without printing the value', () => {
+    const run = (value: { status: number; stdout: string }, args = ARGS) => {
+      const d = deps();
+      const base = d.deps.run!;
+      d.deps.run = (cmd, a) => (cmd === 'gh' && a[0] === 'variable' && a[1] === 'get' ? value : base(cmd, a));
+      const status = main(args, d.deps);
+      return { status, out: d.lines.join('\n') };
+    };
+    // The same domain, in any case and with gh's trailing newline, or given to --canonical as a URL.
+    expect(run({ status: 0, stdout: 'Portfolio.Example\n' }).status).toBe(0);
+    expect(run({ status: 0, stdout: 'portfolio.example\n' }, ['--canonical', 'https://portfolio.example/']).status).toBe(0);
+    for (const other of ['www.portfolio.example\n', 'portfolio-x.vercel.app\n', 'https://portfolio.example\n', 'portfolio.example \n', '\n']) {
+      const r = run({ status: 0, stdout: other });
+      expect(r.status, JSON.stringify(other)).toBe(1);
+      expect(r.out).toMatch(
+        /^unmet: the GitHub variable CANONICAL_HOST is not the canonical domain given to --canonical \(portfolio\.example\); the production deploy would refuse every build$/m,
+      );
+      const shown = other.trim();
+      if (shown !== '' && shown !== 'portfolio.example') expect(r.out).not.toContain(shown);
+    }
+    const failed = run({ status: 1, stdout: SECRET_VALUE });
+    expect(failed.status).toBe(1);
+    expect(failed.out).toMatch(/^unmet: could not read the GitHub variable CANONICAL_HOST \(run gh auth login, then try again\)$/m);
+    expect(failed.out).not.toContain(SECRET_VALUE);
+  });
+
+  it('does not read CANONICAL_HOST when it is missing or when no --canonical is given', () => {
+    for (const [list, args] of [
+      ['LAUNCHED\nLAUNCH_SHA\n', ARGS],
+      [`${GITHUB_VARIABLES.join('\n')}\n`, []],
+    ] as const) {
+      const d = deps();
+      const base = d.deps.run!;
+      const calls: string[][] = [];
+      d.deps.run = (cmd, a) => {
+        calls.push([cmd, ...a]);
+        return cmd === 'gh' && a[0] === 'variable' && a[1] === 'list' ? { status: 0, stdout: list } : base(cmd, a);
+      };
+      main([...args], d.deps);
+      expect(calls.some((c) => c[0] === 'gh' && c[2] === 'get')).toBe(false);
+    }
   });
 
   it('a gh that cannot list the variables counts as unmet, with no output of its own', () => {
