@@ -203,12 +203,15 @@ describe('the summary', () => {
       Question: 'Which events should a product dashboard track, so that each one answers a product question?',
       'My role': 'A personal project: I designed and built the dashboard, its event taxonomy and its tracking in Amplitude.',
       Method:
-        'I tied each tracked event to a product question, rather than leaving the tracking to autocapture alone, and identified the demo user with 4 user properties, so events can be segmented by user.',
+        'I tied each tracked event to a product question, rather than leaving the tracking to autocapture alone, and identified the demo user with a user ID and 4 user properties, so events can be segmented by user.',
       Result: 'A working demo and a tracking plan, with no outcome to report: Pulse has no real users, so none of its questions has been answered.',
       'What I would recommend':
         'Name a short list of events, each with the question it should answer, and keep autocapture and Session Replay underneath it rather than in its place.',
       'Next step': 'Below: the events and their questions, then a copy of the dashboard on this page that lists each event as you use it.',
     });
+    expect(text(PAGE)).not.toContain('identified the demo user with 4 user properties');
+    // The 4 still comes from the export, as a Fact.
+    expect(/<dt[^>]*>Method<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/.exec(PAGE)![1]).toMatch(/a user ID and <data [^>]*data-fact="pulse\.identity\.user_properties"[^>]*>4<\/data> user properties/);
   });
 
   it('prints its figure as a Fact', () => {
@@ -667,21 +670,57 @@ describe('the polite announcements', () => {
     }
     expect(island).not.toMatch(/sent\./);
     expect(island).toContain('createAnnouncer(');
+    // The pending repeat frame is cancelled when the island unmounts.
+    expect(island).toMatch(/useEffect\(\(\) => \(\) => announcer\.dispose\(\), \[announcer\]\)/);
+    expect(island).toContain('window.cancelAnimationFrame');
   });
 
   /** The live region's text over time, written as React writes it: only when the string differs. */
   function region() {
     const texts = [''];
-    const frames: (() => void)[] = [];
-    const announce = createAnnouncer(
+    const frames = new Map<number, () => void>();
+    const cancelled: number[] = [];
+    let next = 0;
+    const { announce, dispose } = createAnnouncer(
       (said) => {
         if (said !== texts.at(-1)) texts.push(said);
       },
-      (fn) => frames.push(fn),
+      {
+        request: (fn) => {
+          frames.set(++next, fn);
+          return next;
+        },
+        cancel: (id) => {
+          cancelled.push(id);
+          frames.delete(id);
+        },
+      },
     );
-    const frame = () => frames.splice(0).forEach((fn) => fn());
-    return { texts, announce, frame };
+    const frame = () => {
+      const due = [...frames.values()];
+      frames.clear();
+      for (const fn of due) fn();
+    };
+    return { texts, announce, dispose, frame, frames, cancelled };
   }
+
+  it('cancels a pending repeat frame on unmount, so nothing is set after it', () => {
+    const { texts, announce, dispose, frame, frames, cancelled } = region();
+    const said = pulseMessages.exported();
+    announce(said);
+    announce(said);
+    expect(frames.size).toBe(1);
+    dispose();
+    expect(cancelled).toEqual([1]);
+    expect(frames.size).toBe(0);
+    frame();
+    expect(texts).toEqual(['', said, '']);
+    // Disposing with nothing pending cancels nothing.
+    const idle = region();
+    idle.announce(said);
+    idle.dispose();
+    expect(idle.cancelled).toEqual([]);
+  });
 
   it('changes the live region text for two identical actions in a row', () => {
     for (const said of [pulseMessages.exported(), pulseMessages.loaded({ channel: 'email', range: '7d' }), pulseMessages.reset()]) {

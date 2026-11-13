@@ -47,7 +47,7 @@ export function PulseSummary(): ReactNode {
       'Method',
       <>
         I tied each tracked event to a product question, rather than leaving the tracking to autocapture alone, and
-        identified the demo user with <Fact id="pulse.identity.user_properties" /> user properties, so events can be
+        identified the demo user with a user ID and <Fact id="pulse.identity.user_properties" /> user properties, so events can be
         segmented by user.
       </>,
     ],

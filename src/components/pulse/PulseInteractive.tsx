@@ -67,7 +67,14 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
   const [saved, setSaved] = useState<DashboardView | null>(null);
   const [detail, setDetail] = useState<ChartKey | null>(null);
   const [announcement, setAnnouncement] = useState('');
-  const [announce] = useState(() => createAnnouncer(setAnnouncement, (fn) => window.requestAnimationFrame(fn)));
+  const [announcer] = useState(() =>
+    createAnnouncer(setAnnouncement, {
+      request: (fn) => window.requestAnimationFrame(fn),
+      cancel: (id) => window.cancelAnimationFrame(id),
+    }),
+  );
+  useEffect(() => () => announcer.dispose(), [announcer]);
+  const { announce } = announcer;
   const [changed, setChanged] = useState(false);
 
   /** Sends the action's event and announces its result once. */
