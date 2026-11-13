@@ -447,8 +447,11 @@ describe('the workflows', () => {
     expect(wrapper).toBeGreaterThan(fixture);
     // The fixture lives in the script, not inline, so a later change can extend it without a workflow edit.
     expect(job).not.toContain('.env.production.local');
-    // The comment says the fixture is not a production rehearsal: no VERCEL_ENV on purpose.
-    expect(job).toMatch(/VERCEL_ENV/);
+    // The comment matches the fixture: it writes VERCEL_ENV="preview" (a Vercel build without
+    // VERCEL_ENV fails on purpose), and it is not a production rehearsal.
+    expect(job).toMatch(/VERCEL_ENV="preview"/);
+    expect(job).not.toMatch(/No\s+(?:#\s*)?VERCEL_ENV on purpose/);
+    expect(job).toMatch(/not a\s+(?:#\s*)?rehearsal\s+(?:#\s*)?of the production build/);
     // No secret of any kind reaches this job.
     expect(job).not.toContain('secrets.');
   });

@@ -33,7 +33,7 @@ check prints `PASS` or `FAIL` with its counts, and the exit code is non-zero if 
 |---|---|---|
 | `split` | 200 GETs of `/` with a desktop Chrome user agent. Both groups must appear, the split must pass the sample-ratio check, no response may set a cookie, no response may carry a `Cache-Control` that a shared cache may store (not `private`, `no-store` or `no-cache`, and any of `s-maxage`, a `max-age` above 0, or `public` without `max-age`; Vercel sends `public, max-age=0, must-revalidate`), and no single group may take every `x-vercel-cache: HIT`. It also prints the `Cache-Control` and `Vary` values it saw. | A cache is serving, or may serve, one group's page for `/` to everyone behind it, which would bias the experiment. |
 | `isr` | A direct `/v/a` must be the 404 page. Before the wait it GETs `/` until both groups have appeared once. After a 310 s wait it GETs `/` until each group has been seen at least twice: every response must be a 200, and each group must serve a copy whose `age` is under 300 s and whose `x-vercel-cache` is `HIT` or `REVALIDATED` (a copy of the cached page made after the wait; a `MISS` or `PRERENDER` copy does not count). Then `readAt` in `/experiment/data.json` must have advanced too. | If a group never serves a young copy, or `/` turns into a 404, that group's page did not regenerate. The likely cause is that the proxy also matches Vercel's revalidation request for `/v/a` or `/v/b`. The matcher exempts requests that carry `x-prerender-revalidate`; find the header Vercel actually sends (Vercel's ISR documentation), fix the matcher and run the check again. If only `data.json` fails, regeneration itself is broken, not the proxy. |
-| `headers` | `/` must carry the CSP (`connect-src 'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Strict-Transport-Security`. It prints the region part of `x-vercel-id`. | A header is missing on the platform. Run it against the custom domain as well, because HSTS has to be on the canonical host. |
+| `headers` | `/` must carry the CSP (`connect-src 'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Strict-Transport-Security`. It prints the region part of `x-vercel-id`. | A header is missing on the platform. Run it against the canonical domain as well, because HSTS has to be on the canonical host: after the first production deployment, once the probes in the runbook's "After the first production deployment" hold (the canonical domain answers `200` without a login). |
 
 ### Production checks
 
@@ -70,7 +70,7 @@ Record each result, and the date, in the log below.
     `"evt":"close"` line.
 - **`VERCEL=1` with `VERCEL_ENV` set.** A deployment where `VERCEL_ENV` is missing logs
   `"reason":"misconfigured"` and keeps its last good page. Check that no such line appears.
-- **HSTS on the custom domain.** Run `--only headers` against the canonical URL.
+- **HSTS on the canonical domain.** Run `--only headers` against the canonical URL.
 
 ## Checks recorded by hand before launch
 
@@ -80,9 +80,15 @@ once it holds (the steps are in [runbook.md](runbook.md)):
 - **`firewall`**: a Vercel Firewall rate-limit rule covers both `/api/e` and `/api/exclude`, and
   POSTs to `/contact` (the contact form). The in-code limit cannot bound what rejected requests
   cost the store, so this rule is a launch blocker.
-- **`domains`**: every other domain of the project (the `*.vercel.app` alias included, where Vercel
-  allows it) redirects to the canonical domain at the domain level, so a visit through an alias is
-  never counted as a fresh entry.
+- **`domains`**: the project has exactly one production domain, the canonical domain. Any other
+  domain of the project (an old `vercel.app` name included) redirects to it at the domain level,
+  keeping the path, so a visit through an alias is never counted as a fresh entry. The generated
+  URLs (each deployment's own URL and the `portfolio-<team>.vercel.app` alias) cannot be redirected;
+  they sit behind Vercel Authentication with Standard Protection. Record it only after the first
+  production deployment, once the runbook's probes hold: `curl -sI` on the canonical domain answers
+  `200` without a login and is not redirected, the old alias answers `3xx` to the same path on the
+  canonical domain, and a deployment URL and `portfolio-<team>.vercel.app` answer `302` to Vercel's
+  sign-in.
 
 ## Log
 
