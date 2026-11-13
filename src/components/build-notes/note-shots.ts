@@ -1,7 +1,9 @@
-// The real screenshots on the build notes: file, pixel size, the widths each is shown at (so its
-// text stays readable: at least 13 px where a narrowest width is set), alt text and caption. Every
-// file is a crop of a recorded screenshot, with its pixels untouched. The copy is pinned word for word in
-// tests/unit/build-notes/note-shots.test.tsx. No number is typed into a caption.
+// The real screenshots on the build notes: file, pixel size, the scale each was captured at, the
+// widths each is shown at (never above its 1x size, the n8n canvas aside; where a narrowest width is
+// set, the terminal text stays at 13 px or more and the n8n labels at their file size), alt text and
+// caption. Every file is a crop of a recorded screenshot, with its pixels untouched. The copy is
+// pinned word for word in tests/unit/build-notes/note-shots.test.tsx. No number is typed into a
+// caption.
 export type NoteShot = {
   /** File name under /images/notes. */
   readonly file: string;
@@ -9,10 +11,17 @@ export type NoteShot = {
   readonly width: number;
   readonly height: number;
   /**
-   * The widest the picture is shown: CSS px, or 'text' for the text column (max-w-text), so that a
-   * note's pictures share one width. It never exceeds the file's own width.
+   * The scale the screenshot was captured at: every file here comes from Playwright Chromium with
+   * deviceScaleFactor 2 (the capture notes of 12.11.2026), so its 1x size, the size of the UI it
+   * shows, is its pixel size divided by 2.
    */
-  readonly maxWidth: number | 'text';
+  readonly captureScale: number;
+  /**
+   * The widest the picture is shown, in CSS px. It is never above its 1x size (width / captureScale),
+   * so a picture is never drawn larger than the UI it shows; the n8n canvas is the one exception,
+   * pinned in tests/unit/build-notes/note-shots.test.tsx, and is drawn at its file's width.
+   */
+  readonly maxWidth: number;
   /**
    * For a picture whose text would shrink below 13 px in a narrow column: the narrowest it is drawn,
    * in CSS px. Below it the picture keeps this width and scrolls sideways in its own frame.
@@ -35,7 +44,8 @@ export const NOTE_SHOTS = {
     file: 'marketingws-brief-light.png',
     width: 720,
     height: 1222,
-    maxWidth: 'text',
+    captureScale: 2,
+    maxWidth: 360,
     alt: 'The Brief form in MarketingWS, filled in for a LinkedIn post in a professional tone, in English, about a neighbourhood bike repair café that opens on Saturdays, for students and young professionals in Berlin, with the instruction to be friendly, use no emojis and end with the opening hours.',
     caption: 'The brief: a campaign type, a platform, a tone, a language and a few lines on the offer.',
     fullSize: false,
@@ -44,7 +54,8 @@ export const NOTE_SHOTS = {
     file: 'marketingws-first-draft-light.png',
     width: 1592,
     height: 680,
-    maxWidth: 'text',
+    captureScale: 2,
+    maxWidth: 796,
     alt: 'The First draft panel in MarketingWS: a short LinkedIn post about the bike repair café, with a placeholder where a percentage would go, hashtags and the opening hours at the end.',
     caption:
       'The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one.',
@@ -55,6 +66,7 @@ export const NOTE_SHOTS = {
     file: 'weather-quality-checks-light-crop.png',
     width: 1116,
     height: 1022,
+    captureScale: 2,
     maxWidth: 558,
     minWidth: 484,
     textPx: 30,
@@ -67,8 +79,11 @@ export const NOTE_SHOTS = {
     file: 'n8n-einvoice-routing-light.png',
     width: 896,
     height: 660,
-    maxWidth: 932,
-    minWidth: 932,
+    captureScale: 2,
+    // n8n zoomed to fit, so at its 1x size (448) the node labels would be about 6 px. Until a re-shoot
+    // it is drawn at its file's width, one file pixel per CSS px, with its labels at about 12.5 px.
+    maxWidth: 896,
+    minWidth: 896,
     textPx: 12.5,
     alt: 'Part of an n8n workflow canvas: it checks the request, reads and checks the invoice row, then routes the outcome either to updating the register or to an error response.',
     caption:

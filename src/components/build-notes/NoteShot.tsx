@@ -1,10 +1,10 @@
 // A real screenshot in a build note: a figure with the picture, its caption and, for a picture whose
 // text is small beside the column, a link to the full-size file (or to a wider crop of the same
 // recording). Tokens only: a 1 px line border and the site radius, no shadow. The picture is shown
-// at its own width or the text column's, never wider than its file. A picture with a narrowest width
-// keeps that width in a narrow column and scrolls sideways in its own labelled frame, so its text
-// never drops under 13 px and the page itself still reflows at 320 px (ShotFrame, a small client
-// module). Server-safe, no hooks.
+// at most at its 1x size, its file's width over its capture scale (note-shots.ts names the one
+// exception). A picture with a narrowest width keeps that width in a narrow column and scrolls
+// sideways in its own labelled frame (ShotFrame, a small client module), so its text does not shrink
+// further and the page itself still reflows at 320 px. Server-safe, no hooks.
 import { NOTE_SHOTS, NOTE_SHOT_DIR, type NoteShot as Shot } from './note-shots';
 import { ShotFrame } from './ShotFrame';
 
@@ -25,11 +25,7 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
     />
   );
   return (
-    <figure
-      data-note-shot={shot}
-      className={s.maxWidth === 'text' ? 'mt-8 min-w-0 max-w-text' : 'mt-8 min-w-0'}
-      style={s.maxWidth === 'text' ? undefined : { maxWidth: `${s.maxWidth}px` }}
-    >
+    <figure data-note-shot={shot} className="mt-8 min-w-0" style={{ maxWidth: `${s.maxWidth}px` }}>
       {s.minWidth ? (
         <ShotFrame labelledBy={captionId}>{picture}</ShotFrame>
       ) : (
