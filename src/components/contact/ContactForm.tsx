@@ -6,7 +6,7 @@
 // own rules and words (no round trip for a missing field), shows "Sending…" while the request runs,
 // and moves focus to the status block that answers. Nothing is kept in the browser: no cookie, no
 // storage, no draft.
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { startTransition, useActionState, useEffect, useRef, useState, type FocusEvent, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { SelectField } from '@/components/kit/SelectField';
 import { SubmitButton } from '@/components/kit/SubmitButton';
 import { TextArea } from '@/components/kit/TextArea';
@@ -58,6 +58,22 @@ const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
   ),
   fast: <p>Nothing was sent, because the form was sent very soon after the page opened. Your text is still in the form, so you can send it again.</p>,
 };
+
+/**
+ * Chrome does not scroll a partly visible field on focus, so a tall field (the message) near the
+ * bottom of the screen keeps part of its focus ring off screen. When a focused field's ring does not
+ * fit, scroll it to the nearest edge, at once (no smooth scrolling); html's scroll padding leaves room
+ * for the ring there. A field taller than the screen is left where it is.
+ */
+function revealRing(event: FocusEvent<HTMLFormElement>) {
+  const el = event.target;
+  if (!(el instanceof HTMLElement) || !el.matches('input, select, textarea')) return;
+  const s = getComputedStyle(el);
+  const reach = s.outlineStyle === 'none' ? 0 : parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset);
+  const r = el.getBoundingClientRect();
+  const fits = r.height + 2 * reach <= innerHeight;
+  if (fits && (r.top - reach < 0 || r.bottom + reach > innerHeight)) el.scrollIntoView({ block: 'nearest' });
+}
 
 export function ContactForm({ issuedAt }: { issuedAt: number }) {
   const [state, formAction, pending] = useActionState(sendContact, IDLE);
@@ -148,12 +164,14 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         onSubmit={onSubmit}
         onInput={onInput}
         noValidate
+        onFocus={revealRing}
         aria-describedby={notSent ? STATUS_ID : undefined}
         className={notSent ? 'mt-8' : 'mt-12'}
       >
         <p className="text-sm text-muted">All fields are required.</p>
         <input type="hidden" name="issuedAt" value={stamp} />
-        <div className="mt-6 flex flex-col gap-6">
+        {/* One gap between every field and before the button, so the rhythm is even down the form. */}
+        <div className="mt-6 flex flex-col gap-8">
           <TextField id={fieldId('name')} name="name" label={LABELS.name} autoComplete="name" maxLength={CONTACT_LIMITS.name} defaultValue={values?.name} error={shown.errors.name} />
           <TextField
             id={fieldId('email')}
@@ -167,8 +185,6 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
             defaultValue={values?.email}
             error={shown.errors.email}
           />
-        </div>
-        <div className="mt-12 flex flex-col gap-6">
           <SelectField id={fieldId('reason')} name="reason" label={LABELS.reason} options={REASONS} defaultValue={values?.reason} error={shown.errors.reason} />
           <TextField id={fieldId('subject')} name="subject" label={LABELS.subject} autoComplete="off" maxLength={CONTACT_LIMITS.subject} defaultValue={values?.subject} error={shown.errors.subject} />
           <TextArea id={fieldId('message')} name="message" label={LABELS.message} limit={CONTACT_LIMITS.message} refs={['build']} defaultValue={values?.message} error={shown.errors.message} />
