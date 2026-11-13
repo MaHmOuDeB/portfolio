@@ -3,16 +3,17 @@
 // and /contact?sent=1 shows the "Message sent" block in place of the form. Nothing else reads the
 // query, and nothing about a visitor goes into it.
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { ContactForm } from '@/components/contact/ContactForm';
 import { SentStatus } from '@/components/contact/SentStatus';
 import { TextLink } from '@/components/kit/TextLink';
 import { issueTimestamp } from '@/lib/contact/issue';
+import { contactMetadata } from '@/lib/contact/title';
 import { CONTACT } from '@/lib/site';
 
-export const metadata: Metadata = {
-  title: 'Contact',
-  description: 'Send me a message about a role, an interview or a project.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return contactMetadata(await headers());
+}
 
 export default async function ContactPage({ searchParams }: PageProps<'/contact'>) {
   const { sent } = await searchParams;

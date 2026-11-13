@@ -1,7 +1,8 @@
 // The contact page as static HTML (no JavaScript): the form, its fields and the sent state pass the
 // truth audit, name no address, and keep the honeypot out of reach.
 import { renderToStaticMarkup } from 'react-dom/server';
-import ContactPage, { metadata } from '@/app/contact/page';
+import ContactPage from '@/app/contact/page';
+import { contactMetadata } from '@/lib/contact/title';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts/facts.generated';
 import { CONTACT_LIMITS } from '@/lib/contact/fields';
@@ -19,9 +20,16 @@ const sent = await render('1');
 
 describe('the contact page', () => {
   it('is titled Contact, with one h1 and a one-line intro', () => {
-    expect(metadata.title).toBe('Contact');
+    expect(contactMetadata(new Headers()).title).toBe('Contact');
     expect(form.match(/<h1\b/g)).toHaveLength(1);
     expect(form).toContain('>Contact</h1>');
+  });
+
+  it('titles a page rendered in answer to a form POST "Message not sent: Contact" (a sent one redirects)', () => {
+    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' })).title).toBe('Message not sent: Contact');
+    expect(contactMetadata(new Headers({ 'content-type': 'application/x-www-form-urlencoded' })).title).toBe('Message not sent: Contact');
+    expect(contactMetadata(new Headers({ accept: 'text/html' })).title).toBe('Contact');
+    expect(contactMetadata(new Headers()).description).toBe('Send me a message about a role, an interview or a project.');
   });
 
   it('passes the truth audit in both states', () => {
