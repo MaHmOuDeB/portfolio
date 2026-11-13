@@ -11,7 +11,8 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   15 px semibold, nothing under 13 px) and never scaled by a viewBox; no state shown by colour
 //   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis, no
 //   clipped line, no chart label past its chart's edge or over another label, and no sentence in a
-//   sideways-scrolling table; and control rows whose labels and Reset sit in line;
+//   sideways-scrolling table; control rows whose labels and Reset sit in line; one gap between the
+//   header's page links;
 // - each case study and build note states at least two real limits;
 // - representative states beyond the default (the ship-rule decisions, the Pulse stream, empty and
 //   error, the About photograph, the printed CV and About, the contact form's error and sent states,
@@ -112,6 +113,17 @@ async function controlRows(page: Page): Promise<string[]> {
       }
     }
     return [...out];
+  });
+}
+
+/** The visible gaps between the header's page links, label to label: one gap, whatever the label's length. */
+async function navGaps(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const labels = [...document.querySelectorAll<HTMLElement>('nav[aria-label="Main"] a > span')].filter((l) => l.getClientRects().length > 0);
+    if (labels.length < 2) return [];
+    const rects = labels.map((l) => l.getBoundingClientRect());
+    const gaps = rects.slice(1).map((r, i) => Math.round(r.left - rects[i]!.right));
+    return Math.max(...gaps) - Math.min(...gaps) > 1 ? [`header link gaps ${gaps.join(', ')} px`] : [];
   });
 }
 
@@ -260,6 +272,7 @@ async function common(page: Page, label: string) {
   expect.soft(await incompleteText(page), `${label}: incomplete text`).toEqual([]);
   expect.soft(await scrolledProse(page), `${label}: prose that scrolls sideways`).toEqual([]);
   expect.soft(await controlRows(page), `${label}: control rows out of line`).toEqual([]);
+  expect.soft(await navGaps(page), `${label}: header link gaps`).toEqual([]);
   expect.soft(await colourOnly(page), `${label}: status by colour alone`).toEqual([]);
 }
 
