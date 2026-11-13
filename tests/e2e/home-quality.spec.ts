@@ -67,6 +67,55 @@ async function openHome(browser: Browser, arm: Arm, size: Size, options: Browser
   return page;
 }
 
+/**
+ * What a Home page was rendered from, as far as it shows: the scroll moment's layout, each Figure's
+ * body and every live number (a <time> aside: it says when the page read the store, which differs
+ * between two renders of the same data). Equal for both groups when both render the same data.
+ */
+async function renderedData(page: Page): Promise<string> {
+  return page.evaluate(() => JSON.stringify({
+    moment: document.querySelector('[data-scroll-moment]')?.getAttribute('data-scroll-moment') ?? null,
+    bodies: [...document.querySelectorAll('figure[data-figure]')].map((f) => `${f.getAttribute('data-figure')}:${f.getAttribute('data-body') ?? ''}`),
+    live: [...document.querySelectorAll('[data-derived~="live"]')]
+      .filter((el) => el.closest('time') === null && el.querySelector('time') === null)
+      .map((el) => (el.textContent ?? '').trim()),
+  }));
+}
+
+/**
+ * The time one revalidation needs at most: each group's page regenerates on its own, at most
+ * `revalidate` (300 s) after its last render, on the first request after that.
+ */
+const ONE_REVALIDATION_MS = 330_000;
+
+/**
+ * Both groups' real pages, rendered from the same data. /v/a and /v/b are separate ISR pages that
+ * regenerate on their own every 300 s, while the suite's counted views change the store. A pair read
+ * across one group's regeneration holds two different states (CI: group A the build's "under 50",
+ * group B a regenerated "fewer than 5", which has no live chart and so a stacked moment 476 px
+ * shorter), and comparing their geometry measures the data, not the groups. So the pair is read
+ * again until both show the same data: the request that got the stale page has started its
+ * regeneration, so the next pair normally agrees. Only the precondition is waited for; every
+ * geometry check below stays exact.
+ */
+async function openBothGroups(browser: Browser, size: Size): Promise<Record<Arm, Page>> {
+  const deadline = Date.now() + ONE_REVALIDATION_MS;
+  for (let attempt = 1; ; attempt++) {
+    const pages = { a: await openHome(browser, 'a', size), b: await openHome(browser, 'b', size) };
+    const a = await renderedData(pages.a);
+    const b = await renderedData(pages.b);
+    if (a === b) {
+      measure('pair reads until both groups show the same data', attempt);
+      return pages;
+    }
+    measure(`pair ${attempt} rendered from different data`, { a, b });
+    await pages.a.context().close();
+    await pages.b.context().close();
+    expect(Date.now(), `group A and group B never rendered the same data within one revalidation: A ${a}, B ${b}`).toBeLessThan(deadline);
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
 type Rect = { x: number; y: number; width: number; height: number };
 
 /** Every section and card box of the home page, in page coordinates, keyed by what it is. */
@@ -152,8 +201,8 @@ test.describe('Home quality: the real page in both groups across the size matrix
   for (const size of MATRIX) {
     test(`@quality ${size.width}x${size.height} (${size.note}): reflow, targets, focus and the same geometry in both groups`, async ({ browser }, info) => {
       test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'explicit sizes, once per engine');
-      test.setTimeout(180_000);
-      const pages = { a: await openHome(browser, 'a', size), b: await openHome(browser, 'b', size) };
+      test.setTimeout(180_000 + ONE_REVALIDATION_MS);
+      const pages = await openBothGroups(browser, size);
       const geometry: Record<string, Record<string, Rect>> = {};
       for (const arm of ['a', 'b'] as const) {
         const page = pages[arm];
