@@ -38,6 +38,7 @@ import {
   SRM_SMALL_EXPECTED,
   SRM_THRESHOLD,
   curseAxis,
+  curseY,
   curseCurve,
   curseModel,
   curseResultText,
@@ -363,9 +364,10 @@ describe('the exaggeration curve', () => {
     const { points, selected } = curseCurve({ trueEffect: 1, se: 1 }, infiniteRetro);
     expect(points).toEqual([]);
     expect(selected).toBeNull();
-    // the axis still holds zero, with room above it
-    const { top, ticks } = curseAxis(points, null);
-    expect(top).toBeGreaterThan(0);
+    // the axis still holds its floor, one times the true effect (log10 0), with room above it
+    const { top, domain, ticks } = curseAxis(points, null);
+    expect(top).toBeGreaterThan(1);
+    expect(domain).toEqual([0, Math.log10(top)]);
     expect(ticks.wide[0]).toBe(0);
   });
 
@@ -383,8 +385,18 @@ describe('the exaggeration curve', () => {
     expect(points).toContainEqual(selected);
     const { top } = curseAxis(points, selected);
     expect(top).toBeGreaterThan(model.exaggeration);
-    // the dot and its ring sit wholly below the top of the plot, in both layouts
-    for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) expect(((top - model.exaggeration) / top) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+    // the dot and its ring sit wholly below the top of the log plot, in both layouts
+    for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
+      expect(((Math.log10(top) - curseY(model.exaggeration)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+    }
+  });
+
+  it('lifts the preset dot clear of the floor: on the log axis about 2.5x sits a sixth of the way up, not at the bottom', () => {
+    const { points, selected } = curseCurve(CURSE_PRESETS.default);
+    const { domain } = curseAxis(points, selected);
+    const share = curseY(selected!.exaggeration) / domain[1];
+    expect(share).toBeGreaterThan(0.12);
+    expect(share * CURSE_HEIGHT.narrow).toBeGreaterThan(25);
   });
 
   it('at effect 5 and standard error 0.1: ratio 50, the upper end, selected and inside the axis', () => {
@@ -404,12 +416,17 @@ describe('the exaggeration curve', () => {
     for (const trueEffect of [0, 0.1, 0.5, 1, 5]) {
       for (const se of [0.1, 1, 5]) {
         const { points, selected } = curseCurve({ trueEffect, se });
-        const { top, ticks } = curseAxis(points, selected);
+        const { top, domain, ticks } = curseAxis(points, selected);
         const max = Math.max(...points.map((p) => p.exaggeration));
         expect(top).toBeGreaterThan(max);
-        for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) expect(((top - max) / top) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+        for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
+          expect(((Math.log10(top) - curseY(max)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+        }
+        // ticks are log10 of 1, 2, 5, 10, 20, 50, ... up to the top: the floor first, every tick inside the domain
         expect(ticks.wide[0]).toBe(0);
-        expect(ticks.wide.at(-1)).toBeLessThanOrEqual(top);
+        expect(ticks.wide.at(-1)).toBeLessThanOrEqual(domain[1]);
+        for (const t of ticks.wide) expect([1, 2, 5]).toContain(Number((10 ** t / 10 ** Math.floor(t + 1e-9)).toPrecision(6)));
+        expect(ticks.narrow.length).toBeGreaterThanOrEqual(2);
       }
     }
   });
@@ -609,11 +626,15 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(t).not.toMatch(/seed/i);
   });
 
-  it('labels a log x-axis with plain ratios and a y-axis from zero', () => {
+  it('labels a log x-axis with plain ratios and a log y-axis from one times the true effect', () => {
     const parts = curseParts(SERVER);
     expect(parts.xTicks).toEqual(['0.1', '1', '10']);
     expect(parts.yTicks[0]).toBeDefined();
-    expect(parts.yTicks).toContain('0');
+    // the zero line of the log axis is 1x: no exaggeration; the ticks are plain multiples
+    expect(parts.yTicks).toContain('1');
+    expect(parts.yTicks).not.toContain('0');
+    expect(parts.yTicks).toEqual(expect.arrayContaining(['2', '5', '10', '100']));
+    expect(SERVER).toContain('>Exaggeration (times the true effect, log scale)</text>');
     expect(SERVER).toContain('>True effect ÷ standard error (log scale)</text>');
     expect(SERVER).not.toContain('divided by');
   });
@@ -754,5 +775,11 @@ describe('the diagnostics code the page loads at once', () => {
 
   it('would catch a leak: the statistics side does reach the statistics', () => {
     expect([...reachable([join(SRC, 'lib/lab/diagnostics.ts')])].some((f) => f.startsWith(STATS))).toBe(true);
+  });
+});
+
+describe('the exaggeration chart name', () => {
+  it('says both axes are on log scales', () => {
+    expect(renderToStaticMarkup(createElement(CurseFigure))).toContain('both on log scales: large for small ratios and close to none for large ones');
   });
 });
