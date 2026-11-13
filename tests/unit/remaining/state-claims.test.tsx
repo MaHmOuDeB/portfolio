@@ -167,6 +167,22 @@ describe('every experiment state on the Live test page, in every runtime', () =>
     }
   });
 
+  it.each(cases)('%s: every table on the page has a body row', (_name, d, runtime) => {
+    const doc = parse(liveHtml(d, runtime), { scriptingEnabled: false });
+    const empty: string[] = [];
+    const walk = (n: T.ParentNode, figure: string) => {
+      for (const c of n.childNodes) {
+        if (!('tagName' in c)) continue;
+        const el = c as T.Element;
+        const id = el.tagName === 'figure' ? (el.attrs.find((a) => a.name === 'id')?.value ?? '?') : figure;
+        if (el.tagName === 'tbody' && !el.childNodes.some((r) => 'tagName' in r && (r as T.Element).tagName === 'tr')) empty.push(id);
+        walk(el, id);
+      }
+    };
+    walk(doc, '');
+    expect(empty).toEqual([]);
+  });
+
   it('reads the states it claims to: every mode of the matrix appears', () => {
     const seen = new Set(displays.map(([, d]) => d.mode));
     for (const m of ['held', 'not-started', 'unavailable', 'settings-unreadable', 'aa-failed', 'paused', 'calibration', 'ab']) expect(seen, m).toContain(m);
