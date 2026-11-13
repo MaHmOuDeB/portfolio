@@ -26,6 +26,8 @@ export function revealRing(el: Element): void {
   if (r.height + 2 * reach > innerHeight - top) return;
   const above = r.top - reach - top;
   const below = r.bottom + reach - innerHeight;
-  if (above < 0) scrollBy({ top: above, behavior: 'instant' });
-  else if (below > 0) scrollBy({ top: below, behavior: 'instant' });
+  // Whole pixels, rounded away from the edge: the page moves by whole pixels, so a fractional amount
+  // can land a fraction short and leave a sliver of the ring cut off.
+  if (above < 0) scrollBy({ top: Math.floor(above), behavior: 'instant' });
+  else if (below > 0) scrollBy({ top: Math.ceil(below), behavior: 'instant' });
 }

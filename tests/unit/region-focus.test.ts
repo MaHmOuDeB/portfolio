@@ -50,6 +50,20 @@ describe('revealRegionOnFocus', () => {
     expect(scrolls).toEqual([2]);
   });
 
+  it('scrolls by whole pixels, rounded away from the screen edge, so no fraction of the ring stays cut off', () => {
+    // A browser moves the page by whole pixels: scrolling by -5.44 can land 0.44 px short.
+    stubBrowser();
+    const above = new FakeElement(true);
+    above.top = -1.4375;
+    revealRegionOnFocus({ target: above as unknown as EventTarget });
+    expect(scrolls).toEqual([-6]);
+    stubBrowser();
+    const below = new FakeElement(true);
+    below.top = 18.34375;
+    revealRegionOnFocus({ target: below as unknown as EventTarget });
+    expect(scrolls).toEqual([1]);
+  });
+
   it('does nothing when the whole ring is already on screen', () => {
     stubBrowser();
     const region = new FakeElement(true);
