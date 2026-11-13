@@ -207,7 +207,8 @@ test.describe('the entry rules', () => {
     const prefetches: string[] = [];
     page.on('request', (r) => {
       const url = new URL(r.url());
-      if (url.pathname === '/' && (url.searchParams.has('_rsc') || r.headers()['next-router-prefetch'] !== undefined)) prefetches.push(r.url());
+      const headers = r.headers();
+      if (url.pathname === '/' && (url.searchParams.has('_rsc') || headers.rsc !== undefined || headers['next-router-prefetch'] !== undefined)) prefetches.push(r.url());
     });
     await page.goto('/privacy');
     await page.waitForLoadState('networkidle');
