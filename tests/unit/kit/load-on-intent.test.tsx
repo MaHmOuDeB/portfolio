@@ -224,6 +224,7 @@ describe('LoadOnIntent height reservation', () => {
     style: { minHeight: string };
     getBoundingClientRect: ReturnType<typeof vi.fn>;
     contains: () => boolean;
+    querySelectorAll: () => unknown[];
     lastElementChild: unknown;
   };
   /** A root whose island added no element of its own: the loader must not depend on the island's elements. */
@@ -231,6 +232,8 @@ describe('LoadOnIntent height reservation', () => {
     style: { minHeight: '' },
     getBoundingClientRect: vi.fn(() => ({ height })),
     contains: () => false,
+    // No inputs: the loader also looks for an entry made in the preview before it listened.
+    querySelectorAll: () => [],
     lastElementChild,
   });
 

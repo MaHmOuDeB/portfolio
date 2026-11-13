@@ -4,7 +4,7 @@
 // button that changes the step from outside (which must not be announced), then the first, middle,
 // last and single-step states. The demo's step list shows aria-current="step"; the scroll moment
 // that scrolls real steps is built later. Every number here is marked 'simulated'.
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { buttonClass } from '@/components/kit/ButtonLink';
 import { derivedAttr } from '@/components/kit/Derived';
 import { StepNav } from '@/components/kit/StepNav';
@@ -16,11 +16,15 @@ const SIMULATED = derivedAttr(REFS);
 const OUTSIDE_STEP = 4;
 // Fictional step titles, in words, so the list carries no numerals of its own.
 const STEPS = ['Set the question', 'Collect the groups', 'Check the split', 'Read the estimate', 'Decide'] as const;
+const noSubscription = () => () => {};
 
 function Demo() {
   const [step, setStep] = useState(1);
+  // True once hydrated, so a test clicks or presses keys only when the handlers are attached: the
+  // buttons show from the first paint (data-js-only), and a click or key before hydration is lost.
+  const ready = useSyncExternalStore(noSubscription, () => true, () => false);
   return (
-    <div data-figure="sink-stepnav">
+    <div data-figure="sink-stepnav" {...(ready ? { 'data-ready': '' } : {})}>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         <StepNav current={step} total={STEPS.length} onChange={setStep} label="Fictional steps, demo" refs={REFS} />
         <button

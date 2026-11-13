@@ -6,7 +6,7 @@
 import { expect, type Page } from '@playwright/test';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { E2E_EXCLUDE_TOKEN as TOKEN } from './constants';
-import { test } from './fixtures';
+import { test, waitForHydration } from './fixtures';
 import { markSlow } from './slow';
 
 /** Collects every request URL and every CSP violation from the first byte of the page. */
@@ -133,6 +133,8 @@ test('the only cookie is the owner cookie, scoped to /api/e, and "Count this bro
   expect((await context.cookies()).map((c) => c.name)).toEqual(['exp-self']);
 
   await page.goto('/exclude');
+  // The button shows before hydration, and a click that comes earlier is lost.
+  await waitForHydration(page.getByRole('button', { name: 'Count this browser again' }));
   await page.getByRole('button', { name: 'Count this browser again' }).click();
   await expect(page.getByRole('status')).toHaveText('This browser is counted again.');
   expect(await context.cookies()).toEqual([]);
