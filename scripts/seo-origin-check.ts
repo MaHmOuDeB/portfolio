@@ -46,7 +46,9 @@ export function findOriginProblems(files: readonly BuiltFile[], canonicalHost: s
         if (URL_META.has(key)) onCanonical(file.path, key, ATTR('content').exec(tag)?.[1] ?? '');
       }
     } else {
-      for (const match of file.text.matchAll(/https?:\/\/[^\s<"']+/g)) onCanonical(file.path, 'URL', match[0]);
+      // The sitemap's <loc> URLs and the robots Sitemap line; the XML namespace is not a site URL.
+      for (const match of file.text.matchAll(/<loc>\s*([^<]*?)\s*<\/loc>/g)) onCanonical(file.path, 'sitemap loc', match[1]!);
+      for (const match of file.text.matchAll(/^sitemap:\s*(\S+)/gim)) onCanonical(file.path, 'robots Sitemap', match[1]!);
     }
   }
   return problems;
