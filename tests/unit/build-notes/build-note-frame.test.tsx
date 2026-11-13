@@ -99,7 +99,8 @@ describe.each(Object.entries(PAGES))('the %s note', (_, html) => {
     const figure = html.slice(html.indexOf('<figure'), html.indexOf('</figure>'));
     const boxes = [...figure.matchAll(/<div class="([^"]*rounded-sm[^"]*)"/g)].map((m) => m[1]!);
     expect(boxes.length).toBeGreaterThan(3);
-    for (const box of boxes) expect(box).toMatch(/^min-w-0 rounded-sm border border-muted p-4( h-full)?$/);
+    // One style; a branch node may add only its narrow-layout indent.
+    for (const box of boxes) expect(box).toMatch(/^min-w-0 rounded-sm border border-muted p-4( h-full| max-xs:ml-6)?$/);
     expect(figure).not.toContain('border-line');
   });
 });

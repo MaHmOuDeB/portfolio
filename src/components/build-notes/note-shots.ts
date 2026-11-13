@@ -1,6 +1,6 @@
 // The real screenshots on the build notes: file, pixel size, the widths each is shown at (so its
 // text stays readable: at least 13 px where a narrowest width is set), alt text and caption. Every
-// file is a crop of a recording in private/screenshots, with its pixels untouched. The copy is pinned word for word in
+// file is a crop of a recorded screenshot, with its pixels untouched. The copy is pinned word for word in
 // tests/unit/build-notes/note-shots.test.tsx. No number is typed into a caption.
 export type NoteShot = {
   /** File name under /images/notes. */
