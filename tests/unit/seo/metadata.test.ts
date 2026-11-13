@@ -22,6 +22,10 @@ import {
 import { findOriginProblems, main as originCheck } from '../../../scripts/seo-origin-check.ts';
 import { OG_LOCK_PATH, renderPlan } from '../../../scripts/og-render.ts';
 
+// A page that answers per request (only /contact, through headers()) is called with these headers.
+const request = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock('next/headers', () => ({ headers: async () => request.headers }));
+
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const APP = path.join(ROOT, 'src/app');
 
@@ -306,9 +310,25 @@ describe('route inventory', () => {
   });
 
   it.each(SEO_PAGES.map((entry) => [entry.path] as const))('%s exports the manifest metadata for the canonical origin', async (route) => {
-    const mod = (await import(`@/app/${pageModule(route)}/page`)) as { metadata?: unknown; generateMetadata?: unknown };
-    expect(mod.generateMetadata).toBeUndefined();
-    expect(mod.metadata).toEqual(pageMetadata(seoEntry(route), canonicalOrigin()));
+    type Generate = (props: { searchParams: Promise<Record<string, string>> }) => Promise<unknown>;
+    const mod = (await import(`@/app/${pageModule(route)}/page`)) as { metadata?: unknown; generateMetadata?: Generate };
+    const expected = pageMetadata(seoEntry(route), canonicalOrigin());
+    if (route !== '/contact') {
+      expect(mod.generateMetadata).toBeUndefined();
+      expect(mod.metadata).toEqual(expected);
+      return;
+    }
+    // /contact answers per request: a GET gets the manifest metadata exactly, and a failed form POST
+    // without JavaScript (or a sent message) only another title; the canonical stays /contact.
+    expect(mod.metadata).toBeUndefined();
+    const generate = mod.generateMetadata!;
+    const call = (headers: Headers, query: Record<string, string> = {}) => {
+      request.headers = headers;
+      return generate({ searchParams: Promise.resolve(query) });
+    };
+    expect(await call(new Headers({ accept: 'text/html' }))).toEqual(expected);
+    expect(await call(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }))).toEqual({ ...expected, title: 'Message not sent: Contact' });
+    expect(await call(new Headers(), { sent: '1' })).toEqual({ ...expected, title: 'Message sent: Contact' });
   });
 
   it('keeps each page title equal to the title its page prints', async () => {
@@ -319,7 +339,19 @@ describe('route inventory', () => {
     const { WEATHER_TITLE } = await import('../../../content/weather');
     const { N8N_TITLE } = await import('../../../content/n8n');
     const { PRIVACY } = await import('../../../content/privacy');
+    const { WORK_TITLE } = await import('@/components/work/WorkPage');
+    const { PULSE_METADATA_TITLE } = await import('@/components/pulse/PulsePage');
+    const { LIVE_TEST_TITLE } = await import('@/components/live-page/LivePage');
+    const { ABOUT_TITLE } = await import('@/components/about/AboutPage');
+    const { contactMetadata } = await import('@/lib/contact/title');
     expect(seoEntry('/').title).toBe(SITE.name);
+    expect(seoEntry('/work').title).toBe(WORK_TITLE);
+    expect(seoEntry('/work/pulse').title).toBe(PULSE_METADATA_TITLE);
+    expect(seoEntry('/experiment').title).toBe(LIVE_TEST_TITLE);
+    expect(seoEntry('/about').title).toBe(ABOUT_TITLE);
+    expect(seoEntry('/cv').title).toBe('CV');
+    expect(seoEntry('/contact').title).toBe(contactMetadata(new Headers(), false).title);
+    expect(seoEntry('/contact').description).toBe(contactMetadata(new Headers(), false).description);
     expect(seoEntry('/lab').title).toBe(LAB_TITLE);
     expect(seoEntry('/work/docproof').title).toBe(DOCPROOF_TITLE);
     expect(seoEntry('/work/marketingws').title).toBe(MARKETINGWS_TITLE);

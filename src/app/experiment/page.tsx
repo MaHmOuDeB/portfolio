@@ -4,19 +4,17 @@
 // time a failed read throws, so the regeneration fails and the last good page stays. The build
 // metadata is the value embedded at build time (readBuildMeta), never a file read here.
 import type { Metadata } from 'next';
-import { LIVE_TEST_TITLE, LivePage } from '@/components/live-page/LivePage';
+import { LivePage } from '@/components/live-page/LivePage';
 import { serverEnv } from '@/lib/env';
 import { getExperimentSnapshot } from '@/lib/experiment/live';
 import { readBuildMeta } from '@/lib/live-page/build-meta-file';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../content/seo';
 import { toLivePageDisplay, toLivePageModel } from '@/lib/live-page/model';
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: LIVE_TEST_TITLE,
-  description:
-    'The experiment this site runs on its own visitors: the pre-registered plan, the funnel, the split check, the results under a confidence sequence, and the data with a script to recompute them.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/experiment'), canonicalOrigin());
 
 export default async function LiveTestRoute() {
   const env = serverEnv();

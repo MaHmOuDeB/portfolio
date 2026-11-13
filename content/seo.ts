@@ -84,6 +84,12 @@ function entry(path: string, title: string, description: string, cardName: strin
 export const SEO_PAGES: readonly SeoEntry[] = [
   entry('/', SITE.name, SITE_SHARING_LINE, 'site'),
   entry(
+    '/work',
+    'Work',
+    "Every case study and build note on this site: experiments and analyses first, then the tools I've built.",
+    'site',
+  ),
+  entry(
     '/work/audible',
     'Experimentation at Audible (Amazon)',
     'How I plan and analyse experiments, why so many of my recommendations were adopted, a ship rule on a made-up product and the tool I built for test-account setup.',
@@ -94,6 +100,12 @@ export const SEO_PAGES: readonly SeoEntry[] = [
     'Customer retention and reactivation analysis',
     'Cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size, on a public dataset rebuilt in 2026.',
     'retention',
+  ),
+  entry(
+    '/work/pulse',
+    'Pulse: analytics instrumentation demo',
+    'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
+    'pulse',
   ),
   entry(
     '/work/weather',
@@ -131,6 +143,25 @@ export const SEO_PAGES: readonly SeoEntry[] = [
     'What checking a running test every day does to its false positives, on a seeded simulation.',
     'site',
   ),
+  entry(
+    '/experiment',
+    'Live test',
+    'The experiment this site runs on its own visitors: the pre-registered plan, the funnel, the split check, the results under a confidence sequence, and the data with a script to recompute them.',
+    'site',
+  ),
+  entry(
+    '/about',
+    'About',
+    'Experimentation and growth analyst in Berlin: my story, my timeline, the tools I have shipped with and my CV.',
+    'site',
+  ),
+  entry(
+    '/cv',
+    'CV',
+    'The CV of Mahmoud El Bergui, experimentation and growth analyst in Berlin, as a page you can read or print.',
+    'site',
+  ),
+  entry('/contact', 'Contact', 'Send me a message about a role, an interview or a project.', 'site'),
   entry('/privacy', 'Privacy', 'What this site collects, why, and for how long.', 'site'),
 ];
 
