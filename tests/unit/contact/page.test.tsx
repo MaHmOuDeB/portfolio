@@ -93,6 +93,10 @@ describe('the contact page', () => {
   it('shows the sent block in place of the form, as a group named by its h2', () => {
     expect(sent).toMatch(/<div id="contact-status"[^>]* role="group" aria-labelledby="contact-status-word"/);
     expect(sent).toMatch(/<h2 id="contact-status-word"[^>]*>.*Message sent<\/h2>/);
+    // The sent block titles the page itself, as the form does for "Message not sent", so a send with
+    // JavaScript (a client render of ?sent=1) gets the title too, not only a request for the page.
+    expect(sent).toContain('<title>Message sent: Contact</title>');
+    expect(form).not.toContain('<title>');
     expect(sent).not.toContain('<form');
     expect(sent).toContain('Message sent');
     expect(sent).toContain('Thanks, your message is on its way. I reply from my own e-mail.');

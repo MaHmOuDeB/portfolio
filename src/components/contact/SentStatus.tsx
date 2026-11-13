@@ -8,6 +8,9 @@ import { STATUS_ID, StatusBlock } from './StatusBlock';
 export function SentStatus() {
   return (
     <>
+      {/* React hoists this into the head, so a send with JavaScript (rendered on the client) is titled
+          too; generateMetadata gives the same title to a request for /contact?sent=1. */}
+      <title>Message sent: Contact</title>
       <StatusBlock tone="ok" word="Message sent" className="mt-12">
         <p>Thanks, your message is on its way. I reply from my own e-mail.</p>
         <div className="mt-2 flex flex-wrap gap-x-6">

@@ -31,7 +31,7 @@ async function fill(page: Page, v: Values): Promise<void> {
   await page.getByLabel('E-mail address').fill(v.email);
   await page.getByLabel('Why are you getting in touch?').selectOption({ label: v.reason });
   await page.getByLabel('Subject').fill(v.subject);
-  await page.getByLabel('Message').fill(v.message);
+  await page.getByLabel('Message', { exact: true }).fill(v.message);
 }
 
 /** Waits until the form is old enough to pass the minimum fill time. */
@@ -133,7 +133,7 @@ test.describe('with JavaScript', () => {
     await sendButton(page).click();
     await expect(status(page)).toBeFocused();
     await status(page).getByRole('link', { name: 'Enter your message' }).click();
-    const message = page.getByLabel('Message');
+    const message = page.getByLabel('Message', { exact: true });
     await expect(message).toBeFocused();
     // Let the scroll settle, then the label and the error above the control are both on screen.
     await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
@@ -156,7 +156,7 @@ test.describe('with JavaScript', () => {
     await sendButton(page).click();
     await expect(status(page)).toBeFocused();
     await expect(status(page)).toContainText('Nothing was sent, because the form was sent very soon after the page opened.');
-    await expect(page.getByLabel('Message')).toHaveValue(v.message);
+    await expect(page.getByLabel('Message', { exact: true })).toHaveValue(v.message);
     expect(await sentTo(v.email)).toEqual([]);
   });
 
@@ -170,7 +170,7 @@ test.describe('with JavaScript', () => {
     await expect(status(page)).toContainText('Nothing was sent: the message could not be delivered.');
     await expect(status(page).getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', CONTACT.linkedin);
     await expect(page.getByLabel('Subject')).toHaveValue(v.subject);
-    await expect(page.getByLabel('Message')).toHaveValue(v.message);
+    await expect(page.getByLabel('Message', { exact: true })).toHaveValue(v.message);
     await expect(page).toHaveTitle(/^Message not sent: Contact/);
     expect(await sentTo(v.email)).toEqual([]);
   });
@@ -234,7 +234,7 @@ test.describe('with JavaScript', () => {
     await expect(page.getByLabel('Subject')).toBeFocused();
     await page.keyboard.type(v.subject);
     await page.keyboard.press('Tab');
-    await expect(page.getByLabel('Message')).toBeFocused();
+    await expect(page.getByLabel('Message', { exact: true })).toBeFocused();
     await page.keyboard.type('One line.');
     await page.keyboard.press('Tab');
     await expect(sendButton(page)).toBeFocused();
@@ -313,7 +313,7 @@ test.describe('without JavaScript', () => {
       await expect(page.getByLabel('E-mail address')).toHaveValue(v.email);
       await expect(page.getByLabel('Why are you getting in touch?')).toHaveValue('project');
       await expect(page.getByLabel('Subject')).toHaveValue(v.subject);
-      await expect(page.getByLabel('Message')).toHaveValue(v.message);
+      await expect(page.getByLabel('Message', { exact: true })).toHaveValue(v.message);
       await expect(page).toHaveTitle(/^Message not sent: Contact/);
       expect(await sentTo(v.email)).toEqual([]);
     } finally {
