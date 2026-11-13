@@ -193,14 +193,42 @@ describe('the canonical origin check (production)', () => {
     expect(r.out).toMatch(/^::error::LAUNCHED is true but the repository variable CANONICAL_HOST is empty; nothing is deployed\.$/m);
   });
 
-  it('runs the origin check against CANONICAL_HOST, passed as one argument', () => {
-    const r = runStep(ORIGIN_CHECK, { LAUNCHED: 'true', CANONICAL_HOST: 'portfolio.example' });
-    expect(r.status).toBe(0);
-    expect(r.calls).toBe('npm run seo:origin-check -- --canonical portfolio.example\n');
-    // A hostile value stays one argument and is never run as shell.
-    const hostile = runStep(ORIGIN_CHECK, { LAUNCHED: 'true', CANONICAL_HOST: 'a.example; touch pwned' });
-    expect(hostile.calls).toContain('npm run seo:origin-check -- --canonical a.example; touch pwned\n');
-    expect(existsSync(join(dir, 'pwned'))).toBe(false);
+  it('runs the origin check against a bare CANONICAL_HOST', () => {
+    for (const host of ['portfolio.example', 'www.portfolio-site.example', 'Portfolio.Example', 'a.b.c.example']) {
+      const r = runStep(ORIGIN_CHECK, { LAUNCHED: 'true', CANONICAL_HOST: host });
+      expect(r.status, host).toBe(0);
+      expect(r.calls).toBe(`npm run seo:origin-check -- --canonical ${host}\n`);
+      rmSync(calls, { force: true });
+    }
+  });
+
+  it('refuses a CANONICAL_HOST that is not a bare hostname, naming the variable and the rule, never the value', () => {
+    for (const host of [
+      'https://portfolio.example',
+      'portfolio.example/',
+      'portfolio.example/path',
+      'portfolio.example:443',
+      ' portfolio.example',
+      'portfolio.example ',
+      'portfolio.example\n',
+      'port folio.example',
+      'portfolio',
+      '.portfolio.example',
+      'portfolio.example.',
+      'portfolio..example',
+      '-portfolio.example',
+      'user@portfolio.example',
+      'a.example; touch pwned',
+      '$(touch pwned).example',
+    ]) {
+      const r = runStep(ORIGIN_CHECK, { LAUNCHED: 'true', CANONICAL_HOST: host });
+      expect(r.status, JSON.stringify(host)).toBe(1);
+      expect(r.calls, JSON.stringify(host)).toBe('');
+      expect(r.out).toBe(
+        '::error::The repository variable CANONICAL_HOST is not a bare hostname: it must be two or more dot-separated labels of letters, digits and inner hyphens, with no scheme, slash, port, user or whitespace; nothing is deployed.\n',
+      );
+      expect(existsSync(join(dir, 'pwned'))).toBe(false);
+    }
   });
 
   it('fails the step when the origin check fails', () => {

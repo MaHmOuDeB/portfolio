@@ -292,7 +292,8 @@ deploy workflow checks both before anything is live and deploys nothing if eithe
 2. after the build, "Check the canonical origin" runs `npm run seo:origin-check -- --canonical
    "$CANONICAL_HOST"`: every built page, the sitemap and robots must name only
    `https://<CANONICAL_HOST>`, and none may carry the `.invalid` test origin. An empty
-   `CANONICAL_HOST` fails with an error that names it.
+   `CANONICAL_HOST`, or one that is not a bare hostname (a scheme, slash, port, user or space in
+   it), fails with an error that names the variable but never prints its value.
 
 So before launch I set the repository variable to the bare canonical domain, the same one I give
 `npm run launch:check -- --canonical` (no `https://`, no slash):
