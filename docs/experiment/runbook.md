@@ -168,7 +168,11 @@ start a fresh view there, so every other domain must redirect to the canonical o
    Domain**, pick the canonical domain, keep `308 Permanent Redirect`, and **Save**. If Vercel does
    not offer a redirect for the `*.vercel.app` address, leave it: the site itself sends the home
    page there to the canonical domain.
-3. Record it in the log of [deployed-checks.md](deployed-checks.md) with check `domains` and
+3. Set the GitHub variable `CANONICAL_HOST` to the canonical domain now (see "The canonical domain:
+   `CANONICAL_HOST`" in step 6), and make sure the production URL Vercel reports is that same
+   domain: Vercel picks the shortest production custom domain, so a `www.` canonical with the apex
+   attached as a redirect would make the production deploy refuse every build.
+4. Record it in the log of [deployed-checks.md](deployed-checks.md) with check `domains` and
    result `PASS`.
 
 **Standing rule: never put a proxying CDN (such as Cloudflare with the orange cloud on) in front of
@@ -224,7 +228,8 @@ launch conditions met" once none is left. It checks:
 - the GitHub repository variables `LAUNCHED` and `LAUNCH_SHA` exist (it reads their names only).
   They exist only after the launch step, where I set `LAUNCH_SHA` first and then `LAUNCHED`. Before
   that, `unmet` lines for them are expected and are never a reason to set either one;
-- the GitHub repository variable `CANONICAL_HOST` exists (it reads its name only). Unlike the two
+- the GitHub repository variable `CANONICAL_HOST` exists and names the same domain as
+  `--canonical` (it reads this one public value to compare, and never prints it). Unlike the two
   above, I set it before launch, to the canonical domain (see "The canonical domain:
   `CANONICAL_HOST`" below);
 - the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
