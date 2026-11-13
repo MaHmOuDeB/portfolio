@@ -250,7 +250,7 @@ describe('Hero', () => {
         'Berlin, MSc Data Science',
         'Nearly two years at Audible (Amazon): 25+ A/B tests across web and mobile, 20+ recommendations adopted. Why so many?',
         'Try the lab',
-        'CV (PDF)',
+        'CV',
         'LinkedIn',
       ].join(''),
     );

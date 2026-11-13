@@ -46,6 +46,8 @@ import {
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
 import { LIVE_ROUTES } from '@/lib/site';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../content/seo';
 import { parseFragment, type DefaultTreeAdapterTypes as P } from 'parse5';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 
@@ -644,7 +646,8 @@ describe('numbers and the route', () => {
 
   it('ships at /work/pulse with its own metadata', () => {
     expect(LIVE_ROUTES).toContain('/work/pulse');
-    expect(metadata).toEqual({
+    expect(metadata).toEqual(pageMetadata(seoEntry('/work/pulse'), canonicalOrigin()));
+    expect(metadata).toMatchObject({
       title: 'Pulse: analytics instrumentation demo',
       description:
         'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',

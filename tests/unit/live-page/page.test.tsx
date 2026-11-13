@@ -374,7 +374,7 @@ describe('small counts', () => {
       expect(audit(h), runtime).toEqual([]);
     }
     if (expected.length > 0) {
-      const funnel = tableById(page(d, { runtime: 'no-js' }), 'live-funnel-table-open')!;
+      const funnel = tableById(page(d, { runtime: 'no-js' }), 'live-funnel-table')!;
       const cells = elements(funnel).filter((el) => el.tagName === 'td').map((el) => text(el));
       expect(cells).toEqual(expect.arrayContaining(expected));
     }

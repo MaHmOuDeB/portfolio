@@ -18,7 +18,8 @@ describe('Footer', () => {
     expect(p).not.toMatch(/animate|transition|shadow|uppercase/);
   });
 
-  it('keeps the four links', () => {
-    for (const label of ['Email', 'LinkedIn', 'GitHub', 'Privacy']) expect(MARKUP).toContain(label);
+  it('keeps the four links, and no e-mail address', () => {
+    for (const label of ['Contact', 'LinkedIn', 'GitHub', 'Privacy']) expect(MARKUP).toContain(label);
+    expect(MARKUP).not.toMatch(/mailto:|>Email</);
   });
 });

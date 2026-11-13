@@ -83,7 +83,7 @@ test.describe('the Live test page', () => {
     const page = await context.newPage();
     await page.goto(ROUTE);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Live test');
-    await expect(page.locator('table:has(#live-funnel-table-open-caption)')).toBeVisible();
+    await expect(page.locator('table:has(#live-funnel-table-caption)')).toBeVisible();
     await expect(page.locator('#colophon-results')).toHaveText('Test and audit results are added when the site is deployed.');
     await context.close();
   });

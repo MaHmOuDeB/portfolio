@@ -136,23 +136,21 @@ describe('launch:check', () => {
     expect(d.lines.filter((l) => l.includes('home destination'))).toEqual(['unmet: home destination file missing: /cv.pdf (public/cv.pdf)']);
   });
 
-  it('reads the Home destinations and LIVE_ROUTES by default, and fails until the pages they name exist', () => {
+  it('reads the Home destinations and LIVE_ROUTES by default', () => {
+    const given = deps({ destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
+    const status = main(ARGS, given.deps);
     const d = deps();
     delete d.deps.destinations;
     delete d.deps.liveRoutes;
-    expect(main(ARGS, d.deps)).toBe(1);
-    const out = d.lines.filter((l) => l.includes('home destination'));
-    for (const path of HOME_DESTINATIONS.filter((p) => p !== '/cv.pdf' && !LIVE_ROUTES.includes(p.split('#')[0]!))) {
-      expect(out, path).toContain(`unmet: home destination is not a live route: ${path} (its page is not built yet, or LIVE_ROUTES does not list it)`);
-    }
-    expect(out.some((l) => l.includes(' /work/retention'))).toBe(false);
+    expect(main(ARGS, d.deps)).toBe(status);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual(given.lines.filter((l) => l.includes('home destination')));
   });
 
-  it('the repository today: the pages a later plan builds are named, the live ones are not', () => {
+  it('the repository today: every Home destination is a live route (a fragment still needs a build to check)', () => {
     const repo = join(import.meta.dirname, '../..');
     const out = destinationsUnmet({ root: repo, destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
-    expect(out.some((l) => l.includes('/work/audible#why-so-many'))).toBe(true);
-    expect(out.some((l) => l.includes('/work/retention'))).toBe(false);
+    expect(out.filter((l) => /not a live route|file missing/.test(l))).toEqual([]);
+    for (const line of out) expect(line).toMatch(/has no built page|fragment missing/);
   });
 
   it('never asks the Vercel CLI for values (no --json or --format)', () => {

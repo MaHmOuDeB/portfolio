@@ -521,10 +521,12 @@ describe('the source', () => {
     const FORBIDDEN = /\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/;
     // src/lib too: a wrapper there around the reader would let any page bypass this guard. The reader's
     // own folder is the source; the Home model takes the snapshot's type only (checked below); the
-    // Home fixtures build fictional snapshots for the tests and the test build's host (checked below).
+    // Home and Live test fixtures build fictional snapshots for the tests and the test build's host
+    // (checked below). The Live test model, like the Home model, takes the snapshot's type only.
     const MODEL = join(SRC, 'lib/home/model.ts');
-    const FIXTURES = [join(SRC, 'lib/home/fixtures.ts'), join(SRC, 'lib/home/narrative-fixtures.ts')];
-    const LIB_ALLOWED = new Set([MODEL, ...FIXTURES]);
+    const LIVE_MODEL = join(SRC, 'lib/live-page/model.ts');
+    const FIXTURES = [join(SRC, 'lib/home/fixtures.ts'), join(SRC, 'lib/home/narrative-fixtures.ts'), join(SRC, 'lib/live-page/fixtures.ts')];
+    const LIB_ALLOWED = new Set([MODEL, LIVE_MODEL, ...FIXTURES]);
     const lib = files(join(SRC, 'lib')).filter((f) => !f.startsWith(join(SRC, 'lib/experiment') + '/'));
     const scanned = [...files(join(SRC, 'app')), ...files(join(SRC, 'components')), ...lib];
     expect(scanned.map((f) => relative(SRC, f))).toEqual(expect.arrayContaining(['lib/home/fixtures.ts', 'lib/home/scroll.tsx', 'lib/figure/cs-band.ts']));
@@ -537,9 +539,12 @@ describe('the source', () => {
     const model = readFileSync(MODEL, 'utf8');
     expect(model.match(/^import .*experiment\/snapshot['"].*$/gm)).toEqual(["import type { ExperimentSnapshot, SrmResult } from '@/lib/experiment/snapshot';"]);
     expect(model).not.toMatch(/\bgetExperimentSnapshot\b|\bbuildSnapshot\b/);
+    const liveModel = readFileSync(LIVE_MODEL, 'utf8');
+    expect(liveModel.match(/^import .*experiment\/snapshot['"].*$/gm)).toEqual(["import type { ExperimentSnapshot } from '@/lib/experiment/snapshot';"]);
+    expect(liveModel).not.toMatch(/\bgetExperimentSnapshot\b|\bbuildSnapshot\b/);
     // The fixtures: imported only by each other and by the test build's dev-only host, never by a page that ships.
     const importers = scanned
-      .filter((f) => !FIXTURES.includes(f) && /lib\/home\/(narrative-)?fixtures['"]/.test(readFileSync(f, 'utf8')))
+      .filter((f) => !FIXTURES.includes(f) && /lib\/(home\/(narrative-)?|live-page\/)fixtures['"]/.test(readFileSync(f, 'utf8')))
       .map((f) => relative(SRC, f));
     expect(importers.length).toBeGreaterThan(0);
     expect(importers.filter((f) => !f.startsWith('app/kitchen-sink/') || /(^|\/)page\.tsx$/.test(f))).toEqual([]);
