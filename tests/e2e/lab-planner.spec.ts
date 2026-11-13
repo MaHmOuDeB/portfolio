@@ -82,7 +82,7 @@ test.describe('Full planner', () => {
     await page.goto(`${HOST}?${ID}.baseline=0.6&${ID}.mode=relative&${DURATION}.traffic=500`);
     await expect(readoutN(page)).toHaveText(PRESET_N);
     await expect(result(page)).toContainText('To detect a rise of 5 points, from 29% to 34%.');
-    await expect(result(page)).toContainText('Simulated');
+    await expect(figure(page).getByText('Simulated', { exact: true })).toHaveCount(1);
     await expect(result(page)).toContainText('Hypothetical test');
     await expect(weeks(page)).toHaveText('4');
     await expect(result(page, DURATION)).toContainText('To reach 1,353 visitors per group, 2,706 in all, at 100 visitors a day.');

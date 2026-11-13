@@ -349,7 +349,7 @@ describe('the server-rendered preset views', () => {
     expect(d).toMatch(/\b4 weeks\b/);
     for (const part of [sizing, duration]) {
       expect(part).toContain('Controls need JavaScript.');
-      expect(part.match(/data-badge="simulated"|>Simulated</g)?.length ?? 0).toBeGreaterThan(0);
+      expect(part.match(/>Simulated</g)?.length ?? 0).toBe(1);
       expect(part).not.toMatch(/Public data|Live from this site/);
     }
     expect(audit(html)).toEqual([]);
