@@ -94,4 +94,4 @@ host).
 
 | Date | Deployment | Check | Result | Notes |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-13 | Vercel project portfolio (active firewall config) | firewall | PASS | Rule "Rate limit the API", active, firewall enabled: path prefix `/api/` (covers `/api/e` and `/api/exclude`), fixed window keyed by IP, 40 requests per 600 s, action rate limit (429). Read with `vercel api /v1/security/firewall/config/active`. |
