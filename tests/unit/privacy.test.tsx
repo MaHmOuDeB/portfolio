@@ -6,6 +6,7 @@ import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../content/privacy.ts';
 import { EXPERIMENT } from '../../src/experiment.values.ts';
 import { CONTACT, CONTACT_HREF, SITE } from '../../src/lib/site.ts';
+import { clickEvents } from '../../src/lib/experiment/beacon.ts';
 import PrivacyPage, { metadata } from '../../src/app/privacy/page.tsx';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
@@ -199,6 +200,17 @@ describe('the privacy page', () => {
     expect(reads).not.toMatch(/clicks on links/);
     expect(pageText).not.toMatch(/stay in your browser/);
     expect(sectionText('What a page view sends')).toContain('The script does not send the referring site or the address of a link you click');
+  });
+
+  it('names the CV and contact clicks the beacon counts, in both places the notice describes them', () => {
+    // The notice's words and the beacon's definition (src/lib/experiment/beacon.ts clickEvents) move together.
+    const origin = 'https://site.example.com';
+    for (const href of ['/cv', '/cv/', '/cv.pdf']) expect(clickEvents(href, origin, false), href).toEqual(['cv']);
+    for (const href of ['/contact', '/contact/', CONTACT.linkedin, CONTACT.github]) expect(clickEvents(href, origin, false), href).toEqual(['contact']);
+    expect(sectionText('What a page view sends')).toContain(
+      'you clicked a featured card, a case study or the Lab, the CV page or the CV PDF, or a contact link (LinkedIn, GitHub or this site’s contact form).',
+    );
+    expect(sectionText('How long')).toContain('Clicks on the CV page or the CV PDF and on contact links are published only as final totals, after the experiment ends.');
   });
 
   it('quotes the published small-cell value exactly', () => {

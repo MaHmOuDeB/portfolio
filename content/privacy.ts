@@ -94,7 +94,7 @@ const HASH_MINUTES = n(EXPERIMENT.rateLimit.keyTtlSeconds / 60);
 
 export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySection[] } = {
   title: 'Privacy',
-  updatedOn: '2026-11-12',
+  updatedOn: '2026-11-13',
   sections: [
     {
       heading: 'Who is responsible',
