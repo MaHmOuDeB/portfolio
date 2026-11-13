@@ -3,7 +3,7 @@ import type { Page, Request } from '@playwright/test';
 // The script requests a lazy-island test may blame on the page: every script except a chunk that
 // Next's router loaded while prefetching another page.
 //
-// The router prefetches each in-view <Link> that keeps the default prefetch (the header's link to "/"):
+// The router prefetches each in-view <Link> that keeps the default prefetch (a link to a live page):
 // it fetches that route's RSC payload with a `Next-Router-Prefetch` request header and decodes it.
 // Each client reference in the payload is an import row, `<id>:I[<module>,["/_next/static/chunks/
 // <name>.js", ...],"<export>"]`, and decoding one makes React's Flight client preload its chunks

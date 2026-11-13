@@ -10,8 +10,8 @@
 //
 // The two home-page links are plain anchors, so a click is a full document request that the proxy
 // assigns. A next/link soft navigation is not enough: the group pages never read the query, so the
-// client router may answer `/?variant=b` from a payload it already holds for `/` (the header's
-// wordmark and the other forced link prefetch the same route), and show the other group. The Lab
+// client router may answer `/?variant=b` from a payload it already holds for `/` (from an earlier
+// visit to the home page), and show the other group. The Lab
 // links stay next/link: their Figures read the query in the browser.
 import type { ReactNode } from 'react';
 import { TextLink } from '@/components/kit/TextLink';
