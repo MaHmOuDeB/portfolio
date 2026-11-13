@@ -10,6 +10,7 @@ import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { Stat } from '@/components/kit/Stat';
 import { formatNumber } from '@/lib/figure/format';
+import { labelWidth } from '@/lib/figure/label-width';
 import { linearFrac, niceTicks, pct } from '@/lib/figure/scales';
 import type { FigureState } from '@/lib/figure/states';
 import { sampleSizePerArm } from '@/lib/stats';
@@ -185,7 +186,7 @@ function DefaultDemoChart({ id, model }: { id: string; model: DemoModel }) {
   const y: [number, number] = [0, model.top];
   // Match ChartFrame's current demo allocations at a 16px root, then let CSS scale the text rails.
   const leftFor = (count: number) =>
-    Math.ceil(Math.max(...niceTicks(y, count).map((v) => formatNumber(v, 0).length)) * 8.4) + 8;
+    Math.ceil(Math.max(...niceTicks(y, count).map((v) => labelWidth(formatNumber(v, 0), 13)))) + 8;
   const narrowLeft = leftFor(3);
   const wideLeft = leftFor(5);
   const noteText = {
@@ -196,7 +197,7 @@ function DefaultDemoChart({ id, model }: { id: string; model: DemoModel }) {
   const annotationRules = (['narrow', 'wide'] as const).map((layout) => {
     const left = layout === 'narrow' ? narrowLeft : wideLeft;
     const text = noteText[layout];
-    const minimum = left + Math.ceil((text.length * 7.9 + 8) / (1 - (RISE + 0.4) / RISE_MAX));
+    const minimum = left + Math.ceil((labelWidth(text, 15) + 8) / (1 - (RISE + 0.4) / RISE_MAX));
     return `@container demo-chart (width < ${minimum / 16}rem) { ${chartSelector} [data-layout="${layout}"] [data-annotation] { display: none; } }`;
   });
   return (

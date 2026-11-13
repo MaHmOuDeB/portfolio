@@ -521,7 +521,7 @@ function curseParts(html: string) {
     dotValue: dots[0] ? Number(attr(dots[0], 'data-exaggeration')) : null,
     readout: { power: readout('power'), wrongSign: readout('wrong-sign'), exaggeration: readout('exaggeration') },
     mine: rows.filter((r) => r.at(-1) === 'Yes'),
-    yTicks: [...wide.matchAll(/<text[^>]*data-tick="y"[^>]*>(?:<tspan>)?([^<]*)/g)].map((m) => m[1]),
+    yTicks: [...wide.matchAll(/<text[^>]*data-tick="y"[^>]*>(?:<tspan[^>]*>)?([^<]*)/g)].map((m) => m[1]),
     xTicks: [...wide.matchAll(/<text[^>]*data-tick="x"[^>]*>([^<]*)/g)].map((m) => m[1]),
   };
 }

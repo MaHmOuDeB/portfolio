@@ -136,7 +136,7 @@ const FLAT: ChartFrameProps = {
 
 // Outer x ticks inside the domain, close to the plot's ends: at 2% and 96% of it. In a wide column
 // each label is centred on its tick; in a narrower one the frame anchors it at its tick, away from
-// the edge (the first below 838 px, the last below 852 px), so it never leaves the frame. No zero
+// the edge (the first below 758 px, the last below 813 px), so it never leaves the frame. No zero
 // line words, so there is no right margin to catch the last label.
 const EDGE_VISITS: [number, number] = [100_000, 200_000];
 const EDGE_TICKS = [102_000, 150_000, 196_000];
