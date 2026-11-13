@@ -162,7 +162,16 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         <input type="hidden" name="issuedAt" value={stamp} />
         {/* One gap between every field and before the button, so the rhythm is even down the form. */}
         <div className="mt-6 flex flex-col gap-8">
-          <TextField id={fieldId('name')} name="name" label={LABELS.name} autoComplete="name" maxLength={CONTACT_LIMITS.name} defaultValue={values?.name} error={shown.errors.name} />
+          <TextField
+            id={fieldId('name')}
+            name="name"
+            label={LABELS.name}
+            hint="I use this name when I reply. Any name is fine."
+            autoComplete="name"
+            maxLength={CONTACT_LIMITS.name}
+            defaultValue={values?.name}
+            error={shown.errors.name}
+          />
           <TextField
             id={fieldId('email')}
             name="email"

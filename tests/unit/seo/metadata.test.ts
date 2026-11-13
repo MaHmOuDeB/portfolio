@@ -270,6 +270,7 @@ describe('noTestOriginInProduction', () => {
       const app = path.join(dir, 'server/app');
       fs.mkdirSync(app, { recursive: true });
       fs.writeFileSync(path.join(app, 'lab.html'), page(good).text);
+      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>');
       const quiet = { log: () => {}, error: () => {} };
       expect(originCheck(['--canonical', CANONICAL, '--dir', dir], quiet)).toBe(0);
       fs.writeFileSync(path.join(app, 'index.html'), page(good.replaceAll('site.example.com', 'canonical.invalid')).text);
@@ -562,5 +563,66 @@ describe('sharingTemplate', () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], file).toEqual([OG_WIDTH, OG_HEIGHT]);
       expect(meta).toEqual({ sha256: createHash('sha256').update(png).digest('hex'), width: OG_WIDTH, height: OG_HEIGHT });
     }
+  });
+});
+
+describe('seo-origin-check never passes on nothing', () => {
+  const CANONICAL = 'site.example.com';
+  const head = '<link rel="canonical" href="https://site.example.com/lab"/>';
+  const sitemap = '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>';
+
+  function check(files: Record<string, string>) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-origin-empty-'));
+    try {
+      const app = path.join(dir, 'server/app');
+      fs.mkdirSync(app, { recursive: true });
+      for (const [name, text] of Object.entries(files)) fs.writeFileSync(path.join(app, name), text);
+      const lines: string[] = [];
+      const status = originCheck(['--canonical', CANONICAL, '--dir', dir], { log: (l) => lines.push(l), error: (l) => lines.push(l) });
+      return { status, lines };
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('passes when it checked at least one canonical link and one sitemap location', () => {
+    expect(check({ 'lab.html': `<html><head>${head}</head></html>`, 'sitemap.xml.body': sitemap })).toEqual({
+      status: 0,
+      lines: ['seo origin check: 2 files, 1 canonical link and 1 sitemap location, only https://site.example.com'],
+    });
+  });
+
+  it('counts a canonical link in an RSC payload too', () => {
+    const rsc = '1:["$","link","0",{"rel":"canonical","href":"https://site.example.com/lab"}]';
+    expect(check({ 'lab.rsc': rsc, 'sitemap.xml.body': sitemap }).status).toBe(0);
+  });
+
+  it('fails with one line when no canonical link was checked', () => {
+    expect(check({ 'lab.html': '<html><head><title>Lab</title></head></html>', 'sitemap.xml.body': sitemap })).toEqual({
+      status: 1,
+      lines: ['seo origin check: found no canonical link in 2 files; a production build has one on every page'],
+    });
+  });
+
+  it('fails with one line when no sitemap location was checked', () => {
+    expect(check({ 'lab.html': `<html><head>${head}</head></html>` })).toEqual({
+      status: 1,
+      lines: ['seo origin check: found no sitemap location in 1 file; a production build lists its pages in sitemap.xml'],
+    });
+    expect(check({ 'lab.html': `<html><head>${head}</head></html>`, 'sitemap.xml.body': '<urlset></urlset>' }).status).toBe(1);
+  });
+
+  it('fails with one line when neither was checked', () => {
+    expect(check({ 'lab.html': '<html></html>' })).toEqual({
+      status: 1,
+      lines: ['seo origin check: found no canonical link and no sitemap location in 1 file; a production build has both'],
+    });
+  });
+
+  it('still prints every origin problem before the count line', () => {
+    const r = check({ 'lab.html': '<html><head><meta property="og:url" content="https://canonical.invalid/lab"/></head></html>' });
+    expect(r.status).toBe(1);
+    expect(r.lines.at(-1)).toBe('seo origin check: found no canonical link and no sitemap location in 1 file; a production build has both');
+    expect(r.lines.slice(0, -1).join('\n')).toMatch(/test origin canonical\.invalid/);
   });
 });

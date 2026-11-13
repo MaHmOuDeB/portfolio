@@ -5,6 +5,8 @@
 //
 // - In production, / on any host other than the canonical one (VERCEL_PROJECT_PRODUCTION_URL) is
 //   redirected there with a 308, so every counted view comes from the origin the event route allows.
+//   The host is compared in lower case, and a value that is not a bare hostname (a port, a scheme, a
+//   path) turns the redirect off rather than loop.
 // - A direct request for /v/* is rewritten to /v/_, a group that does not exist; with dynamicParams
 //   off, that is the site's own 404 page. ISR revalidation requests carry x-prerender-revalidate and
 //   skip the proxy (the matcher's `missing`), so the static pages still regenerate. The condition is
@@ -14,6 +16,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { serverEnv } from './lib/env.ts';
 import { assignArm } from './lib/experiment/assign.ts';
+import { bareHostname } from './lib/seo/hostname.ts';
 
 export const config = {
   matcher: [{ source: '/' }, { source: '/v/:path*', missing: [{ type: 'header', key: 'x-prerender-revalidate' }] }],
@@ -31,7 +34,9 @@ export function proxy(request: NextRequest): NextResponse {
   if (url.pathname !== '/') return NextResponse.rewrite(new URL('/v/_', request.url));
 
   const env = serverEnv();
-  const canonical = env.productionHost?.toLowerCase();
+  // Lower case, and undefined unless the value is a bare hostname: a value with a port, scheme, path
+  // or trailing dot would never equal a request's host, so redirecting to it would loop.
+  const canonical = env.productionHost === undefined ? undefined : bareHostname(env.productionHost);
   if (env.vercelEnv === 'production' && canonical !== undefined && url.host.toLowerCase() !== canonical) {
     return NextResponse.redirect(new URL(`/${url.search}`, `https://${canonical}`), 308);
   }

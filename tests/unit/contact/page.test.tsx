@@ -67,6 +67,11 @@ describe('the contact page', () => {
     for (const name of ['name', 'email', 'reason', 'subject', 'message', 'issuedAt', 'contact_hp']) expect(form).toContain(`name="${name}"`);
   });
 
+  it('tells the visitor under the Name label that any name is fine, and describes the name field with it', () => {
+    expect(form).toContain('<p id="contact-name-hint" class="mt-1 text-sm text-muted">I use this name when I reply. Any name is fine.</p>');
+    expect(form).toMatch(/<input id="contact-name"[^>]*aria-describedby="contact-name-hint"[^>]*name="name"/);
+  });
+
   it('gives each one-line field its maximum length, and the message none (the counter shows the limit)', () => {
     expect(form).toContain(`maxLength="${CONTACT_LIMITS.name}"`);
     expect(form).toContain(`maxLength="${CONTACT_LIMITS.email}"`);

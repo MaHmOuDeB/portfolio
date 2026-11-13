@@ -79,6 +79,32 @@ describe('proxy on /', () => {
     expect(rewriteOf(res)).toMatch(/^\/v\/[ab]$/);
   });
 
+  it('in production, lower-cases a mixed-case production host: other hosts go to it in lower case, and it never redirects to itself', () => {
+    process.env.VERCEL_ENV = 'production';
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'Mahmoud-ElBergui.Vercel.App';
+    const away = proxy(request('https://portfolio-two-wheat-26.vercel.app/?utm_source=x'));
+    expect(away.status).toBe(308);
+    expect(away.headers.get('location')).toBe('https://mahmoud-elbergui.vercel.app/?utm_source=x');
+    for (const url of ['https://mahmoud-elbergui.vercel.app/', 'https://MAHMOUD-ELBERGUI.vercel.app/', 'https://mahmoud-elbergui.vercel.app:443/']) {
+      const res = proxy(request(url));
+      expect(res.headers.get('location'), url).toBeNull();
+      expect(rewriteOf(res), url).toMatch(/^\/v\/[ab]$/);
+    }
+  });
+
+  it('in production, turns the redirect off when the production host is not a bare hostname, so it can never loop', () => {
+    process.env.VERCEL_ENV = 'production';
+    for (const value of ['x.vercel.app:443', 'X.Vercel.App:443', 'https://x.vercel.app', 'x.vercel.app/', 'x.vercel.app.', ' x.vercel.app', 'localhost']) {
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = value;
+      for (const url of ['https://x.vercel.app/', 'https://other.vercel.app/']) {
+        const res = proxy(request(url));
+        expect(res.status, `${value} ${url}`).toBe(200);
+        expect(res.headers.get('location'), `${value} ${url}`).toBeNull();
+        expect(rewriteOf(res), `${value} ${url}`).toMatch(/^\/v\/[ab]$/);
+      }
+    }
+  });
+
   it('outside production, never redirects for the host', () => {
     process.env.VERCEL_ENV = 'preview';
     process.env.VERCEL_PROJECT_PRODUCTION_URL = 'mahmoud.example';

@@ -99,9 +99,29 @@ describe('the privacy page', () => {
   });
 
   it('names the providers, the legal bases and the browser signals it honours', () => {
-    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 6(1)(b)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'Resend', 'Gmail', 'LinkedIn', 'Global Privacy Control', 'Do Not Track']) {
+    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 6(1)(b)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'Resend', 'Gmail', 'Google Ireland Limited', 'LinkedIn', 'Global Privacy Control', 'Do Not Track']) {
       expect(pageText, needle).toContain(needle);
     }
+  });
+
+  it('bases replies on a legitimate interest, and on the contract basis instead only when the writer would make the contract', () => {
+    const bases = sectionText('Purposes and legal bases');
+    expect(bases).toContain(
+      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(f) GDPR. My legitimate interest is to answer the people who write to me. If you write about a contract that you yourself would make with me, such as a freelance project, the basis is Art. 6(1)(b) GDPR instead.',
+    );
+    // A recruiter writing for an employer would not be party to the contract, so a job is no trigger for (b).
+    expect(bases).not.toContain('when we talk about a job');
+  });
+
+  it('names Google Ireland Limited as the provider of the inbox, and states the transfer in Google’s own terms', () => {
+    expect(sectionText('Who processes the data')).toContain(
+      'My inbox is a Gmail account, provided to me by Google Ireland Limited, so Google processes the messages there under its own terms. Google states that it may process them on servers in other countries, and that Google LLC, USA, is certified under the EU-US Data Privacy Framework.',
+    );
+    // Google does not say the messages go to the USA, so neither does the notice.
+    expect(pageText).not.toMatch(/also in the USA/);
+    const provider = LAUNCH_FACTS.find((f) => f.id === 'google-provider');
+    expect(provider?.verified?.source).toContain('Google Ireland Limited');
+    expect(LAUNCH_FACTS.find((f) => f.id === 'google-transfers')?.verified?.source).toContain('may be processed on servers located outside of the country where you live');
   });
 
   it('says none of the banned or overclaiming words, and no phone or street address', () => {
@@ -132,7 +152,7 @@ describe('the privacy page', () => {
     expect(all.filter((el) => el.tagName === 'h2' && attr(el, 'id') === 'contact-form').map(text)).toEqual(['The contact form']);
     const form = sectionText('The contact form');
     for (const needle of [
-      'your name, your e-mail address, why you are getting in touch, a subject and your message',
+      'a name (any name you want me to use), your e-mail address, why you are getting in touch, a subject and your message',
       'The server, which Vercel runs for me in Frankfurt, checks the form and passes it to Resend',
       'This site stores nothing from the form',
       'does not write what you entered to its logs',
@@ -143,6 +163,11 @@ describe('the privacy page', () => {
     ]) {
       expect(form, needle).toContain(needle);
     }
+    expect(form).not.toContain('your name, your e-mail address');
+    // The notice and the form agree: all five fields are needed, and the name can be any name.
+    expect(sectionText('Your rights')).toContain(
+      'Writing to me is up to you. The contact form needs all five fields to send a message; if you would rather not give them, write to me on LinkedIn instead.',
+    );
     // The limit's hour is not promised as a hard maximum: a paused server drops the hash when it resumes.
     expect(form).not.toContain('at most an hour');
     expect(sectionText('How long')).toContain('IP address hashes for the contact form’s limit: an hour, in the server’s memory only (see ‘The contact form’).');
@@ -154,7 +179,7 @@ describe('the privacy page', () => {
   it('says exactly how messages are handled', () => {
     const paragraphs = all.filter((el) => el.tagName === 'p').map((el) => text(el));
     for (const sentence of [
-      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.',
+      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(f) GDPR. My legitimate interest is to answer the people who write to me. If you write about a contract that you yourself would make with me, such as a freelance project, the basis is Art. 6(1)(b) GDPR instead.',
       'Messages you send me on LinkedIn are processed by LinkedIn under its own terms.',
       'Messages, on LinkedIn or in my inbox, including those from the contact form: kept until I delete them, which I do when the conversation is over, unless I need to keep them, for example for an application that is still open.',
       'You can reach me through the contact form on this site or through my LinkedIn profile:',

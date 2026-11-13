@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // After launch, a CI run that was queued or in flight when LAUNCHED became "true", or a re-run of
@@ -39,13 +40,23 @@ function guardScript(): string {
 const HEAD = '0123456789abcdef0123456789abcdef01234567';
 const OTHER = 'fedcba9876543210fedcba9876543210fedcba98';
 
-/** Runs the guard as GitHub runs a step with `shell: bash` (`bash --noprofile --norc -eo pipefail {0}`). */
+/**
+ * Runs the guard as GitHub runs a step with `shell: bash` (`bash --noprofile --norc -eo pipefail {0}`),
+ * with a fresh GITHUB_OUTPUT file; `output` is what the step wrote there.
+ */
 function guard(env: { LAUNCHED: string; LAUNCH_SHA: string; HEAD_SHA: string }) {
-  const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', guardScript()], {
-    encoding: 'utf8',
-    env: { PATH: process.env.PATH, VERCEL_TOKEN: 'not-in-this-step', ...env } as Record<string, string | undefined> as NodeJS.ProcessEnv,
-  });
-  return { status: r.status, out: `${r.stdout}${r.stderr}` };
+  const dir = mkdtempSync(join(tmpdir(), 'deploy-guard-'));
+  try {
+    const outputFile = join(dir, 'github_output');
+    writeFileSync(outputFile, '');
+    const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', guardScript()], {
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH, VERCEL_TOKEN: 'not-in-this-step', GITHUB_OUTPUT: outputFile, ...env } as Record<string, string | undefined> as NodeJS.ProcessEnv,
+    });
+    return { status: r.status, out: `${r.stdout}${r.stderr}`, output: readFileSync(outputFile, 'utf8') };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 describe('the Guard production SHA step', () => {
@@ -58,24 +69,66 @@ describe('the Guard production SHA step', () => {
     expect(pull).toBeGreaterThan(0);
   });
 
-  it('has exactly name, env, shell: bash and run, so nothing can skip it or let a refusal continue', () => {
+  it('has exactly name, id: guard, env, shell: bash and run, so nothing can skip it or let a refusal continue', () => {
     const keys = guardStep()
       .split('\n')
       .map((line) => /^(?: {6}- | {8})([A-Za-z-]+):/.exec(line)?.[1])
       .filter((key): key is string => key !== undefined);
-    expect(keys).toEqual(['name', 'env', 'shell', 'run']);
+    expect(keys).toEqual(['name', 'id', 'env', 'shell', 'run']);
+    expect(guardStep()).toMatch(/^ {8}id: guard$/m);
     expect(guardStep()).toMatch(/^ {8}shell: bash$/m);
     expect(guardStep()).not.toMatch(/continue-on-error|^\s*if:|working-directory|timeout-minutes/m);
   });
 
-  it('reads the launch setting the way the other steps do, LAUNCH_SHA and the tested commit, and no secret', () => {
+  it('reads the launch setting, LAUNCH_SHA and the tested commit, and no secret', () => {
     const step = guardStep();
     expect(step).toContain("LAUNCHED: ${{ vars.LAUNCHED == 'true' }}");
     expect(step).toContain('LAUNCH_SHA: ${{ vars.LAUNCH_SHA }}');
     expect(step).toContain('HEAD_SHA: ${{ github.event.workflow_run.head_sha }}');
     expect(step).not.toContain('secrets.');
-    // The Pull, Build, Deploy and Job summary steps still choose production from the same expression.
-    expect(DEPLOY.match(/LAUNCHED: \$\{\{ vars\.LAUNCHED == 'true' \}\}/g)).toHaveLength(5);
+  });
+
+  it('is the only place that reads vars.LAUNCHED: once, in the Guard step, nowhere else in deploy.yml', () => {
+    expect(DEPLOY.match(/vars\.LAUNCHED\b/g)).toHaveLength(1);
+    expect(guardStep().match(/vars\.LAUNCHED\b/g)).toHaveLength(1);
+    for (const s of steps().slice(1)) expect(s).not.toMatch(/vars\.LAUNCHED\b/);
+    expect(DEPLOY.slice(0, DEPLOY.indexOf('\n    steps:\n'))).not.toMatch(/vars\.LAUNCHED\b/);
+  });
+
+  it('every later step that branches on the launch takes it from the Guard output only', () => {
+    const later = steps().slice(1).filter((s) => /^ {10}LAUNCHED:/m.test(s));
+    // Pull, production URL, pulled-environment check, Build, canonical origin check, Deploy and Job summary.
+    expect(later.map((s) => /^ {6}- name: (.+)$/m.exec(s)?.[1])).toEqual([
+      'Pull Vercel environment',
+      'Set the production URL from CANONICAL_HOST',
+      'Check the pulled production environment',
+      'Build',
+      'Check the canonical origin',
+      'Deploy',
+      'Job summary',
+    ]);
+    for (const s of later) expect(s).toMatch(/^ {10}LAUNCHED: \$\{\{ steps\.guard\.outputs\.launched \}\}$/m);
+    expect(DEPLOY.match(/^ {10}LAUNCHED: \$\{\{ steps\.guard\.outputs\.launched \}\}$/gm)).toHaveLength(7);
+    // Nothing else reads the output under another name.
+    expect(DEPLOY.match(/\$\{\{[^}]*steps\.guard\.outputs\.launched[^}]*\}\}/g)).toHaveLength(7);
+    // No step decides the target from anything else that could say "production".
+    for (const s of steps().slice(1)) expect(s).not.toMatch(/vars\.LAUNCH|env\.LAUNCHED|inputs\./);
+  });
+
+  it('writes launched=true to its output only when production is allowed, and launched=false for a preview', () => {
+    expect(guard({ LAUNCHED: 'true', LAUNCH_SHA: HEAD, HEAD_SHA: HEAD }).output).toBe('launched=true\n');
+    for (const launchSha of ['', HEAD, 'junk']) {
+      expect(guard({ LAUNCHED: 'false', LAUNCH_SHA: launchSha, HEAD_SHA: HEAD }).output, launchSha).toBe('launched=false\n');
+    }
+    for (const env of [
+      { LAUNCHED: 'true', LAUNCH_SHA: HEAD, HEAD_SHA: OTHER },
+      { LAUNCHED: 'true', LAUNCH_SHA: '', HEAD_SHA: HEAD },
+      { LAUNCHED: 'true', LAUNCH_SHA: 'junk', HEAD_SHA: HEAD },
+    ]) {
+      const r = guard(env);
+      expect(r.status).toBe(1);
+      expect(r.output).not.toContain('launched=true');
+    }
   });
 
   it('allows production when LAUNCHED is true and the tested commit is LAUNCH_SHA', () => {
@@ -167,5 +220,55 @@ describe('the Vercel token stays out of caches, logs and arguments', () => {
     // The pinned CLI takes the token from the environment when no --token flag is given.
     const cli = readFileSync(join(ROOT, 'node_modules/vercel/dist/index.js'), 'utf8');
     expect(cli).toContain('process.env.VERCEL_TOKEN&&(explicitToken=process.env.VERCEL_TOKEN,tokenSource="env")');
+  });
+});
+
+// Every later step branches on the Guard's output (steps.guard.outputs.launched), which is exactly
+// "true" or "false". Run the Pull and Build scripts with stub tools: only "true" picks production; an
+// empty or missing output, or any other text, picks the preview.
+describe('the later steps branch on the Guard output', () => {
+  function scriptOf(name: string): string {
+    const step = steps().find((s) => new RegExp(`^ {6}- name: ${name}$`, 'm').test(s))!;
+    const lines = step.split('\n');
+    const start = lines.findIndex((l) => l === '        run: |');
+    const body: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      if (line.trim() !== '' && !line.startsWith('          ')) break;
+      body.push(line.slice(10));
+    }
+    return `${body.join('\n').trimEnd()}\n`;
+  }
+
+  function runWith(name: string, launched: string): string {
+    const dir = mkdtempSync(join(tmpdir(), 'deploy-branch-'));
+    try {
+      const bin = join(dir, 'bin');
+      mkdirSync(bin);
+      const calls = join(dir, 'calls');
+      for (const tool of ['npx', 'bash']) {
+        writeFileSync(join(bin, tool), `#!/bin/sh\necho "${tool} $*" >> "${calls}"\n`);
+        chmodSync(join(bin, tool), 0o755);
+      }
+      const r = spawnSync('/bin/bash', ['--noprofile', '--norc', '-e', '-c', scriptOf(name)], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { PATH: `${bin}:/usr/bin:/bin`, LAUNCHED: launched } as Record<string, string | undefined> as NodeJS.ProcessEnv,
+      });
+      expect(r.status, r.stderr).toBe(0);
+      return existsSync(calls) ? readFileSync(calls, 'utf8') : '';
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('pulls and builds production only when the Guard output is "true"', () => {
+    expect(runWith('Pull Vercel environment', 'true')).toBe('npx --no-install vercel pull --yes --environment=production\n');
+    expect(runWith('Build', 'true')).toBe('bash scripts/vercel-build-isolated.sh production\n');
+    expect(runWith('Pull Vercel environment', 'false')).toBe('npx --no-install vercel pull --yes --environment=preview\n');
+    // The pull, the first reader, fails on any other value (deploy-canonical.test.ts); after it,
+    // anything but "true" still builds the preview.
+    for (const launched of ['false', '', 'True', 'yes']) {
+      expect(runWith('Build', launched), launched).toBe('bash scripts/vercel-build-isolated.sh preview\n');
+    }
   });
 });
