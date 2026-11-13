@@ -64,6 +64,7 @@ function kitView(s: LiveSnapshot): LiveSnapshot {
 function seriesTable(d: LivePageDisplay): TableData {
   if (d.series.length === 0) {
     return {
+      caption: 'Analysed views per group so far',
       columns: ['Group', 'Analysed views'],
       rows: [['A', d.counts.a], ['B', d.counts.b]],
       formats: ['number', 'count'],

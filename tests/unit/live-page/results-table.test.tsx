@@ -12,6 +12,7 @@ import { narrativeFixture } from '@/lib/home/narrative-fixtures';
 import { toLivePageDisplay, toLivePageModel, type LivePageDisplay } from '@/lib/live-page/model';
 
 const RUNTIMES = ['default', 'no-js', 'error'] as const;
+const CAPTION = 'Analysed views per group so far';
 const NOTE = 'No look is drawn yet: the analysed views per group so far.';
 
 const displayOf = (s: ExperimentSnapshot): LivePageDisplay =>
@@ -36,6 +37,7 @@ function resultsTables(html: string) {
   if (!figure) throw new Error('no results Figure');
   const tables = elements(figure).filter((e) => e.tagName === 'table');
   return {
+    captions: tables.map((t) => elements(t).filter((e) => e.tagName === 'caption').map((e) => text(e).trim())),
     text: text(figure).replace(/\s+/g, ' '),
     tables: tables.map((t) => ({
       heads: elements(t).filter((e) => e.tagName === 'th').map((e) => text(e).trim()),
@@ -78,7 +80,19 @@ describe('the results table before the first look', () => {
           for (const row of t.rows) for (const c of row) expect(c.derived).toBe(d.refs.join(' '));
         }
         expect(r.text).toContain(NOTE);
+        for (const c of r.captions) expect(c).toEqual([CAPTION]);
       });
     }
   }
+});
+
+describe('the results table once a look exists', () => {
+  it('keeps the Figure title as its caption', () => {
+    const d = displayOf(narrativeFixture('ship-b-confirmed'));
+    expect(d.series.length).toBeGreaterThan(0);
+    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime="default" />));
+    expect(r.captions.length).toBeGreaterThan(0);
+    for (const c of r.captions) expect(c[0]).not.toBe(CAPTION);
+    for (const c of r.captions) expect(c[0]).toMatch(/interval/i);
+  });
 });
