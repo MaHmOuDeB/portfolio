@@ -202,8 +202,12 @@ repository is made public, both of my former runners must be deregistered and re
 self-hosted runner must never run a public repository's pull requests.
 
 The privacy page states that the counter database's **Daily Backup** is off (checked in the
-Upstash console's **Backups** tab on 2026-11-13). If it is ever switched on, update the privacy page
-and its date in the same change, and say how long backups are kept.
+Upstash console's **Backups** tab on 2026-11-13). Before launch, check that the backups table on
+that tab lists no backups, and delete any it lists (before the experiment starts the store holds no
+personal data). While the experiment runs, keep Daily Backup off and take no manual backup
+(**Backup & Export**, then **Backup**): a backup would keep per-view ids and IP address hashes
+longer than the privacy page says. If either is ever needed, update the privacy page and its date in
+the same change, say how long the backups are kept, and delete them when they are no longer needed.
 
 Optional read-only check of the production store (it prints only two status lines):
 

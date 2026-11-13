@@ -67,7 +67,7 @@ export const LAUNCH_FACTS: readonly LaunchFact[] = [
     verified: {
       on: '2026-11-13',
       source:
-        'Upstash console, the database\'s Backups tab: Daily Backup off (checked by the site owner); the opt-in feature is described at https://upstash.com/docs/redis/features/backup',
+        "Upstash console, the database's Backups tab: Daily Backup off (checked by the site owner); the opt-in feature is described at https://upstash.com/docs/redis/features/backup",
     },
   },
 ];
