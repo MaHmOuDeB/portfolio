@@ -15,6 +15,7 @@ import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
+import { CONTROL_ROW, CONTROL_ROW_RESET } from './control-row';
 import { DIAGNOSTICS_REFS, SRM_ID, SRM_SCHEMA, sharePercentText, visitorsText, type SrmValues } from '@/lib/lab/diagnostics-values';
 import type { SrmInteractiveProps } from './SrmInteractive';
 
@@ -53,12 +54,14 @@ export function SrmControls({ values, onChange, onCommit, onReset }: SrmControls
       role="group"
       aria-labelledby={`${SRM_ID}-title`}
       data-srm-controls=""
-      className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
+      className={CONTROL_ROW}
     >
       {slider('nA', 'Group A visitors', visitorsText)}
       {slider('nB', 'Group B visitors', visitorsText)}
       {slider('shareA', 'Expected share in group A', (v) => `${sharePercentText(v)} of visitors expected in group A`, sharePercentText)}
-      <ResetButton onReset={onReset} />
+      <div className={CONTROL_ROW_RESET}>
+        <ResetButton onReset={onReset} />
+      </div>
     </div>
   );
 }

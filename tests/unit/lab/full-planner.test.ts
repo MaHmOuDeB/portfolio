@@ -359,7 +359,8 @@ describe('the server-rendered preset views', () => {
     const { sizing, duration } = render('hypothetical');
     expect(sizing).toContain('>Baseline conversion<');
     expect(sizing).toContain('>Rise to detect<');
-    expect(sizing).toContain('>MDE unit<');
+    expect(sizing).toContain('>Rise to detect, in<');
+    expect(sizing).not.toContain('MDE');
     expect(sizing).toContain('>Reset<');
     expect(duration).toContain('>Total visitors per day<');
     expect(duration).toContain('>Reset<');
@@ -386,6 +387,9 @@ describe('the server-rendered preset views', () => {
     const { sizing } = render('hypothetical');
     const formula = SAMPLE_SIZE_FORMULA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     expect(sizing).toMatch(new RegExp(`<code[^>]*data-derived="simulated"[^>]*>${formula}</code>`));
+    // On a line of its own (a block, no scrolling region), wrapping at its spaces, with its full stop after it.
+    expect(sizing).toMatch(new RegExp(`<span data-formula="" class="my-2 block"><code data-derived="simulated">${formula}</code>\\.</span>`));
+    expect(sizing).not.toMatch(/<code[^>]*class="[^"]*(wrap-anywhere|overflow|whitespace-nowrap)/);
     const s = textOf(sizing);
     expect(s).toContain("Cohen's h");
     expect(s).toContain('two-sided');
@@ -408,8 +412,8 @@ describe('the server-rendered preset views', () => {
     expect(r).toContain("Each customer's result is known only once their window for ordering again has passed, so the test runs that much longer after the last one enters.");
     expect(d).not.toContain('window for ordering again');
     const titles = (html: string) => [...html.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => m[1]!);
-    expect(titles(render('retention').duration)).toEqual(['The fewer customers a day, the more weeks it takes to fill both groups.']);
-    expect(titles(render('hypothetical').duration)).toEqual(['The fewer visitors a day, the more weeks a test needs.']);
+    expect(titles(render('retention').duration)).toEqual(['The fewer customers a day, the more weeks it takes to fill both groups']);
+    expect(titles(render('hypothetical').duration)).toEqual(['The fewer visitors a day, the more weeks a test needs']);
   });
 
   it('hypothetical: the inputs are hypothetical, not results from a real test', () => {

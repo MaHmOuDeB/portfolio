@@ -30,14 +30,14 @@ type PlannerCopy = {
 /** Per context; the groups are visitors in a hypothetical test and lapsed customers on Retention. */
 export const PLANNER_COPY: Record<PlannerContext, PlannerCopy> = {
   hypothetical: {
-    sizingTitle: 'Smaller rises need more visitors per group.',
-    durationTitle: 'The fewer visitors a day, the more weeks a test needs.',
+    sizingTitle: 'Smaller rises need more visitors per group',
+    durationTitle: 'The fewer visitors a day, the more weeks a test needs',
     label: 'Hypothetical test',
     trafficLabel: 'Total visitors per day',
   },
   retention: {
-    sizingTitle: 'Smaller rises need more customers per group.',
-    durationTitle: 'The fewer customers a day, the more weeks it takes to fill both groups.',
+    sizingTitle: 'Smaller rises need more customers per group',
+    durationTitle: 'The fewer customers a day, the more weeks it takes to fill both groups',
     label: 'Hypothetical uplift',
     trafficLabel: 'Total customers per day',
   },
@@ -81,10 +81,11 @@ export function SizingMethod({ context }: { context: PlannerContext }): ReactNod
       <Derived value={PLANNER_ALPHA} unit="share" refs={SIMULATED} /> and a power of{' '}
       <Derived value={PLANNER_POWER} unit="share" refs={SIMULATED} />, with the {PLANNER_NOUN[context]} split equally between the two groups
       and the result read once, at the end:{' '}
-      <code className="wrap-anywhere" {...derivedAttr(SIMULATED)}>
-        {SAMPLE_SIZE_FORMULA}
-      </code>
-      . In points, the rise is the target minus the baseline; as a percent of the baseline, it is that difference
+      {/* The formula on a line of its own, wrapping at its spaces, with its full stop after it. */}
+      <span data-formula="" className="my-2 block">
+        <code {...derivedAttr(SIMULATED)}>{SAMPLE_SIZE_FORMULA}</code>.
+      </span>{' '}
+      In points, the rise is the target minus the baseline; as a percent of the baseline, it is that difference
       divided by the baseline. Either way the sample is the same.
     </>
   );

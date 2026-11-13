@@ -1,5 +1,5 @@
 // The full sample-size planner as a page places it: a sizing Figure (Baseline conversion, Rise to
-// detect, MDE unit, Reset) and a duration Figure (Total visitors per day, Reset), loaded as one
+// detect, the unit the rise is shown in, Reset) and a duration Figure (Total visitors per day, Reset), loaded as one
 // paired island. The server draws the preset pair (the static HTML, also what a visitor without
 // JavaScript keeps, with both open tables): 1,353 per group and 4 weeks. EagerOrIntent swaps in the
 // island on intent, or at once for a shared URL with keys of either Figure; another Figure's keys
