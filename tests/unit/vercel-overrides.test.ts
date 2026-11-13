@@ -11,8 +11,14 @@ const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '../../package.jso
 };
 const overrides = pkg.overrides?.vercel ?? {};
 
-it('the vercel overrides were reviewed for this exact CLI version', () => {
-  if (Object.keys(overrides).length > 0) expect(pkg.devDependencies.vercel).toBe('62.2.0');
+const REVIEWED = '62.2.0';
+const RECHECK = `the overrides.vercel block in package.json was chosen for vercel ${REVIEWED}: re-check every override against the new CLI's tree and npm audit (docs/dependencies.md), drop the ones it no longer needs, then update REVIEWED in tests/unit/vercel-overrides.test.ts`;
+
+it('the vercel overrides were reviewed for this exact CLI version, declared and installed', () => {
+  if (Object.keys(overrides).length === 0) return;
+  expect(pkg.devDependencies.vercel, `package.json pins another vercel: ${RECHECK}`).toBe(REVIEWED);
+  const installed = JSON.parse(readFileSync(join(import.meta.dirname, '../../node_modules/vercel/package.json'), 'utf8')).version;
+  expect(installed, `node_modules has another vercel: ${RECHECK}`).toBe(REVIEWED);
 });
 
 it('every override is keyed name@major and stays in that major', () => {
