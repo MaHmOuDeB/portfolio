@@ -63,13 +63,13 @@ p: Two groups of that size are 2,706 customers, and 3,351 customers were lapsed 
 h3: Customers needed in each group of a holdout test
 p: A sample-size calculation only: nobody was contacted and no test was run. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.
 h3: Smaller rises need more customers per group
-p: To detect a rise of 5 points, from 29% to 34%. Simulated Hypothetical uplift
+p: To detect a rise of 5 points, from 29% to 34%. Hypothetical uplift
 p: 
 p: 1,353
 p: customers per group
 figcaption: The preset is a hypothetical uplift on an observed baseline. Its baseline, 29%, is the share of lapsed customers in the case study's public dataset who ordered again within the window; a rise of 5 points, to 34%, is an uplift to plan for, not the effect of any offer. Nobody was contacted and no test was run. Sample sizes from Cohen's h for a two-sided test at a significance level of 5% and a power of 80%, with the customers split equally between the two groups and the result read once, at the end: n per group = 2 · ((z₁₋α/₂ + z₁₋β) / h)², h = 2·asin√p₂ − 2·asin√p₁, rounded up. In points, the rise is the target minus the baseline; as a percent of the baseline, it is that difference divided by the baseline. Either way the sample is the same. Simulated Controls need JavaScript. Show the numbers as a table Smaller rises need more customers per group Input or result Value Baseline conversion (%) 29 Rise to detect (percentage points) 5 Rise to detect (% of baseline) 17.2 Target conversion (%) 34 Customers per group 1,353
 h3: The fewer customers a day, the more weeks it takes to fill both groups
-p: To reach 1,353 customers per group, 2,706 in all, at 100 customers a day. Simulated Hypothetical uplift
+p: To reach 1,353 customers per group, 2,706 in all, at 100 customers a day. Hypothetical uplift
 p: 
 p: 4
 p: weeks, rounded up
