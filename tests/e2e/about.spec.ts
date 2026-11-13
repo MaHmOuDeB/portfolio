@@ -84,18 +84,24 @@ test.describe('About and CV', () => {
     await expect(img).toHaveAttribute('loading', 'lazy');
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBeGreaterThan(0);
-    const { current, natural, ratio } = await img.evaluate((el: HTMLImageElement) => ({
-      current: el.currentSrc,
-      natural: el.naturalWidth,
-      ratio: el.naturalWidth / el.naturalHeight,
-    }));
+    // naturalWidth is density-corrected (HTML spec): the 2x candidate of a srcset reports half its pixel
+    // width, as WebKit does on its dense screen. So the delivered file's own pixels are read from a plain
+    // image of the same URL, which has no srcset and so a density of 1 in every engine.
+    const { current, natural, file } = await img.evaluate(async (el: HTMLImageElement) => {
+      const plain = new Image();
+      plain.src = el.currentSrc;
+      await plain.decode();
+      return { current: el.currentSrc, natural: el.naturalWidth, file: { width: plain.naturalWidth, height: plain.naturalHeight } };
+    });
     const dpr = await page.evaluate(() => window.devicePixelRatio);
     const width = dpr > 1 ? 960 : 480;
     expect(new URL(current).pathname).toBe('/_next/image');
     expect(new URL(current).searchParams.get('url')).toBe(aboutPhoto.src);
     expect(new URL(current).searchParams.get('w')).toBe(String(width));
-    expect(natural).toBe(width);
-    expect(ratio).toBeCloseTo(4 / 5, 2);
+    expect(file.width, 'the delivered file is this many pixels wide').toBe(width);
+    expect(file.width / file.height).toBeCloseTo(4 / 5, 2);
+    // In CSS pixels the photograph is 480 wide on every screen: the 2x file at density 2, the 1x at 1.
+    expect(natural, 'the density-corrected natural width').toBe(480);
     const box = (await img.boundingBox())!;
     expect(box.width).toBeLessThanOrEqual(480);
   });
