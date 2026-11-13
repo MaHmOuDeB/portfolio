@@ -94,4 +94,5 @@ host).
 
 | Date | Deployment | Check | Result | Notes |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-13 | Vercel project portfolio (active firewall config) | firewall | PASS | Rule "Rate limit the API", active, firewall enabled: path prefix `/api/` (covers `/api/e` and `/api/exclude`), fixed window keyed by IP, 40 requests per 600 s, action rate limit (429). Read with `vercel api /v1/security/firewall/config/active`. |
+| 2026-11-13 | Vercel project portfolio (active firewall config) | firewall | PASS | The same rule extended to the contact form: path matches the regex `^/(api/|contact$)` (`/api/e`, `/api/exclude` and `/contact`, any method; not `/contacts` or `/contact/x`), fixed window keyed by IP, 40 requests per 600 s, action rate limit (429), firewall enabled. Re-read with `vercel api /v1/security/firewall/config/active`. |

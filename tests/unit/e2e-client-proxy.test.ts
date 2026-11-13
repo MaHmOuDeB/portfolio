@@ -63,6 +63,33 @@ it('holds only the selected response, allowing a subsequent beacon request throu
   expect((await send(proxy, target.origin, 'engaged,inview,card')).status).toBe(201);
   gate.release(); expect((await pending).status).toBe(201);
 });
+it('records the upstream answer when the client hangs up after the response head, as Chromium does with an unload beacon', async () => {
+  // The head and the first bytes leave at once, the end only later: the window in which Chromium
+  // cancels a detached document's beacon and closes its connection.
+  let ended!: () => void;
+  const upstreamEnded = new Promise<void>((resolve) => (ended = resolve));
+  const server = createServer(async (req, res) => {
+    for await (const chunk of req) void chunk;
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.write('{"ok":');
+    setTimeout(() => { res.end('true}'); ended(); }, 200);
+  });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('no address');
+  const origin = `http://localhost:${addr.port}`;
+  const proxy = await startClientProxy(origin, clientAddress(8, 1)); proxies.push(proxy);
+
+  const status = await new Promise<number | undefined>((resolve, reject) => {
+    const req = request(proxy.server, { method: 'POST', path: origin + '/api/e', headers: { host: new URL(origin).host, 'content-type': 'text/plain' } },
+      (res) => { resolve(res.statusCode); req.destroy(); });
+    req.on('error', (e) => { if (!req.destroyed) reject(e); });
+    req.end('engaged,inview,card');
+  });
+  expect(status).toBe(200);
+  await upstreamEnded;
+  await vi.waitFor(() => expect(proxy.events).toEqual([{ body: 'engaged,inview,card', status: 200, address: proxy.address }]), { timeout: 2_000 });
+});
 it('refuses invalid addresses and non-loopback upstreams', async () => {
   await expect(startClientProxy('http://localhost:1234', 'garbage')).rejects.toThrow('address');
   await expect(startClientProxy('https://example.com', clientAddress(0, 1))).rejects.toThrow('loopback');
