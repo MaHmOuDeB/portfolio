@@ -10,11 +10,10 @@ import {
   verdict,
 } from '../../scripts/lhci-benchmark-guard.ts';
 
-// The calibrated Lighthouse run on the Mac, which the lhci job in ci.yml used while it was
-// self-hosted; CI now runs Lighthouse on GitHub's hosted runner, and the script stays for local
-// calibration runs. Its CPU multiplier (2.8) is calibrated
-// against GitHub's hosted runner on a quiet Mac, where this runner's benchmark index is 2810.5
-// (measured in the capped job container while the Lighthouse lock held); a busier machine measures
+// The calibrated Lighthouse run on the Mac, for local calibration runs only (CI runs the plain
+// `npm run lhci` on GitHub's hosted runner). Its CPU multiplier (2.8) is calibrated
+// against GitHub's hosted runner on a quiet Mac, where the benchmark index is 2810.5
+// (measured in a capped Docker container with nothing else running); a busier machine measures
 // a lower index and would report worse scores than the hosted runner. So the run checks the median benchmark index of its 5 runs against the calibrated
 // band (+/-20%), collects again once if it is outside, and then fails as "machine too busy to
 // measure", never as a budget failure.

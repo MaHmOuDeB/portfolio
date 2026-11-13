@@ -19,8 +19,8 @@
 # 4. the check fails unless no process had a write credential, the Next build ran, and it had the
 #    read-only token exactly when it was pulled.
 # Without --yes, `vercel build` never pulls the environment again; if anything rewrites the file
-# during the build, step 3 fails. VERCEL_TOKEN, when set, is passed to the CLI as --token. Nothing
-# here prints a value.
+# during the build, step 3 fails. VERCEL_TOKEN, when set, reaches the CLI through the environment
+# (the CLI reads it there), never as a --token argument. Nothing here prints a value.
 set -euo pipefail
 
 target="${1:-}"
@@ -52,13 +52,10 @@ isolation sanitize "$env_file" "$work"
 # If the build fails, the pulled file is still put back (the failure is what the step reports).
 trap 'isolation restore "$env_file" "$work" > /dev/null || true' EXIT
 
-token_args=()
-if [ -n "${VERCEL_TOKEN:-}" ]; then token_args=(--token="$VERCEL_TOKEN"); fi
-
 env -u KV_REST_API_TOKEN -u KV_URL -u REDIS_URL \
   BUILD_ENV_CANARY_OUT="$work/canary.jsonl" \
   NODE_OPTIONS="--require=$PWD/scripts/build-env-canary.cjs${NODE_OPTIONS:+ $NODE_OPTIONS}" \
-  npx --no-install vercel build "$target_flag" ${token_args[@]+"${token_args[@]}"}
+  npx --no-install vercel build "$target_flag"
 
 isolation restore "$env_file" "$work"
 trap - EXIT

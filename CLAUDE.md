@@ -13,12 +13,13 @@ experimentation and growth analyst in Berlin.
 - **Every figure is a `<Fact>`.** Numbers come from vendored source exports (`sources.lock.json`),
   never from typed numerals. A truth audit scans the built HTML for stray numbers, deny-listed
   terms, banned phrases and e-mail addresses, and the public client scripts (`.next/static`) for
-  deny-listed terms. It runs in CI on the build job, with the deny-list from the
-  `TRUTH_DENYLIST` repository secret (a CI run without it fails), and locally with
-  `npm run truth:audit` after `npm run build`, where it skips the deny-list with a notice unless
-  `TRUTH_DENYLIST` is set. The secret holds one term per line, each matched as literal text (not a
-  regular expression), ignoring case. It reports a deny-list hit by its position in the list, never
-  by its text.
+  deny-listed terms. It runs in CI on the build job, with the deny-list from the `TRUTH_DENYLIST`
+  repository secret (a CI run without it fails, except a pull request from a fork, which gets no
+  secrets: there the deny-list part is skipped with a notice and runs on the push to main), and
+  locally with `npm run truth:audit` after `npm run build`, where it skips the deny-list with a
+  notice unless `TRUTH_DENYLIST` is set. The secret holds one term per line, each matched as
+  literal text (not a regular expression), ignoring case. It reports a deny-list hit by its
+  position in the list, never by its text.
 - **One system.**
   - Every chart and interactive element is built from the Figure kit (see the primitives
     catalogue): a title, one control row, Reset, URL state, a provenance badge and a table

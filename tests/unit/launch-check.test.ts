@@ -364,12 +364,11 @@ describe('launch:check', () => {
     }
   });
 
-  it('flags this repository\'s ci.yml while CI runs on the self-hosted runners, never deploy.yml', () => {
+  it('flags neither of this repository\'s workflows: every job runs on the hosted runner', () => {
     const d = deps({ root: join(import.meta.dirname, '../..') });
-    expect(main(ARGS, d.deps)).toBe(1);
+    main(ARGS, d.deps);
     const flagged = d.lines.filter((l) => l.startsWith('unmet: a workflow still names a self-hosted runner'));
-    expect(flagged.some((l) => l.includes('.github/workflows/ci.yml'))).toBe(true);
-    expect(flagged.some((l) => l.includes('deploy.yml'))).toBe(false);
+    expect(flagged).toEqual([]);
   });
 });
 

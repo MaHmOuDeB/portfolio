@@ -228,11 +228,11 @@ launch conditions met" once none is left. It checks:
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
 
-While CI runs on my self-hosted runners (the `self-hosted` and `portfolio-mac` labels in ci.yml), it
-also prints an `unmet` line for each workflow that names them, and one while GitHub lists any runner
-for the repository (or cannot be asked). Before the repository is made public, every job goes back
-to `runs-on: ubuntu-24.04` and both runners are deregistered and removed; a self-hosted runner must
-never run a public repository's pull requests.
+CI runs every job on GitHub's hosted runner (`runs-on: ubuntu-24.04`). The check still prints an
+`unmet` line for each workflow that names a self-hosted runner (the `self-hosted` or `portfolio-mac`
+labels), and one while GitHub lists any runner for the repository (or cannot be asked): before the
+repository is made public, both of my former runners must be deregistered and removed, because a
+self-hosted runner must never run a public repository's pull requests.
 
 The privacy page currently waits for one fact: whether the counter database keeps backups. To
 confirm it, open <https://console.upstash.com>, select the database, open **Backups**, and check

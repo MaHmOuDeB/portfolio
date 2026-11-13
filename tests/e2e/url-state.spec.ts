@@ -100,8 +100,9 @@ test.describe('kitchen sink URL state', () => {
     await expect.poll(() => query(page)).toContain('sample.tail=one');
     expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
 
-    // Back leaves the page: the changes replaced its entry instead of adding new ones.
-    await page.goBack();
+    // Back leaves the page: the changes replaced its entry instead of adding new ones. goBack() can
+    // resolve on a same-document URL update by the page being left, so wait until '/' is reached.
+    await Promise.all([page.waitForURL((url) => url.pathname === '/'), page.goBack()]);
     expect(new URL(page.url()).pathname).toBe('/');
   });
 
@@ -128,7 +129,12 @@ test.describe('kitchen sink URL state', () => {
     await expectShows(page, 'sample', '0.01', 'Two-sided');
     expect(query(page)).toBe('');
     await page.goto('/');
-    await page.goBack();
+    // goBack() resolves on the next navigation of any kind, a same-document one included, so a URL
+    // update by the page being left (Next's router writes its history state once it hydrates, which
+    // on GitHub's hosted runners landed after the load event) would end it on '/'. That update is made to
+    // happen as Back starts, every run, and the URL is read only once Back has reached the sink.
+    await page.evaluate(() => addEventListener('beforeunload', () => history.replaceState(history.state, '', location.href)));
+    await Promise.all([page.waitForURL((url) => url.pathname === '/kitchen-sink'), page.goBack()]);
     expect(query(page)).toBe('?sample.baseline=0.01&sample.tail=two');
     await expect(figure(page, 'sample')).toHaveAttribute('data-state-from', 'url');
     await expectShows(page, 'sample', '0.01', 'Two-sided');

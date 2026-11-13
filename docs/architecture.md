@@ -48,19 +48,22 @@ flowchart TD
 
 ## CI and deployment
 
-[CI](../.github/workflows/ci.yml) runs these jobs on pull requests and pushes to main:
+[CI](../.github/workflows/ci.yml) runs these jobs on pull requests and pushes to main, every one on GitHub's hosted runner (`ubuntu-24.04`):
 
 | Job | Checks |
 |---|---|
 | `static` | Types, ESLint, Stylelint, the PDF tools (python3 and pdftotext, proven on a synthetic PDF) and unit tests with statistics coverage. |
 | `stats-ref` | Regenerates scipy and statsmodels references and compares them numerically with committed values. |
 | `sources-remote` | Verifies pinned source exports against GitHub. |
-| `build` | Production build, absence of development showcase routes, design lint and truth audit. |
-| `e2e` | Playwright in its pinned container, including visual checks and controlled baseline updates. |
+| `build` | Production build, absence of development showcase routes, design lint and truth audit (its deny-list comes from a secret, so on a pull request from a fork that part is skipped with a notice and runs on the push to main). |
+| `e2e-shard` | Playwright in its pinned container, in four parallel shards (`--shard=n/4`), including visual checks and controlled baseline updates. Each shard uploads a blob report and, while the `update-baselines` label is on, the baselines it regenerated. |
+| `e2e` | The required "End-to-end tests" check: merges the shards' blob reports into the one JSON report the deployment reads, lays the regenerated baselines over the committed ones as one `visual-baselines` artifact, and fails unless every shard passed. |
 | `lhci` | Lighthouse against the production build, with the slow-4G network and CPU profile applied for real. |
 | `lhci-gate` | One Lighthouse result per commit: passes when Lighthouse passed in this run, or in an earlier run of the same pull request commit; fails when it was not measured or failed. |
 | `links` | Lychee against the locally served build. |
 | `cv-pdf` | Records the checked-out commit, its tree and the hashes of the CV checker, its claim manifest and the CV PDF; passes while no PDF is in the tree, and fails on a PDF until its check is active. |
 | `build-isolation` | Runs the deploy's build wrapper with the real Vercel CLI on a synthetic pulled environment and fails unless the store's write credentials (`KV_REST_API_TOKEN`, `KV_URL`, `REDIS_URL`) are absent from every process of the build. |
+
+The workflows are written for a public repository. CI uses `pull_request`, never `pull_request_target`, so a fork's pull request runs its own code with a read-only token and no secrets. The token may only read the contents (the deployment adds `actions: read` to fetch the CI run's reports), every action is pinned to a full commit SHA, and the only secret CI uses is the truth audit's deny-list, which is never printed and fails closed when missing outside a fork's pull request.
 
 [The deployment workflow](../.github/workflows/deploy.yml) follows successful CI pushes to main from this repository. It checks out the tested commit, gathers test reports into [build metadata](../scripts/build-meta.ts), builds with the Vercel environment minus the store's write credentials, `KV_REST_API_TOKEN`, `KV_URL` and `REDIS_URL` (proven absent from inside the build), checks that showcase routes are absent and deploys prebuilt output. The launch setting selects preview or production; before launch, additional gates check that Vercel can create a preview and verify the resulting target. The [deployed checks guide](experiment/deployed-checks.md) describes the separate preview and launch verification.
