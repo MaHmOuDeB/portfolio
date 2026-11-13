@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -128,6 +128,48 @@ describe('the production canonical-origin checks in the deploy job', () => {
   });
 });
 
+describe('the shell every run step gets', () => {
+  it('has no defaults: block, so each run: step keeps GitHub\'s bash -e (the tests run the scripts that way)', () => {
+    expect(DEPLOY).not.toMatch(/^\s*defaults:/m);
+    for (const s of steps().filter((x) => /^ {8}run: /m.test(x))) {
+      const shell = /^ {8}shell: (.+)$/m.exec(s)?.[1];
+      expect(shell === undefined || shell === 'bash', nameOf(s) ?? s.slice(0, 60)).toBe(true);
+    }
+  });
+});
+
+describe('the first reader of the Guard output fails on anything but "true" or "false"', () => {
+  it('the pull picks production for "true", the preview for "false", and pulls nothing otherwise', () => {
+    const bin = join(dir, 'bin');
+    stub(bin, 'npx');
+    const pull = (launched: string) => {
+      rmSync(calls, { force: true });
+      const r = spawnSync('bash', ['--noprofile', '--norc', '-e', '-c', script(PULL)], {
+        cwd: dir,
+        encoding: 'utf8',
+        env: { PATH: `${bin}:/usr/bin:/bin`, CALLS: calls, LAUNCHED: launched } as Record<string, string | undefined> as NodeJS.ProcessEnv,
+      });
+      return { status: r.status, out: `${r.stdout}${r.stderr}`, calls: existsSync(calls) ? readFileSync(calls, 'utf8') : '' };
+    };
+    expect(pull('true')).toEqual({ status: 0, out: '', calls: 'npx --no-install vercel pull --yes --environment=production\n' });
+    expect(pull('false')).toEqual({ status: 0, out: '', calls: 'npx --no-install vercel pull --yes --environment=preview\n' });
+    for (const launched of ['', 'True', 'TRUE', 'yes', ' true', 'true\n']) {
+      const r = pull(launched);
+      expect(r.status, JSON.stringify(launched)).toBe(1);
+      expect(r.calls, JSON.stringify(launched)).toBe('');
+      expect(r.out).toBe('::error::The Guard step\'s output launched is neither "true" nor "false"; nothing is deployed.\n');
+    }
+  });
+
+  it('the pull is the first step after the Guard that reads its output', () => {
+    const names = steps()
+      .slice(1)
+      .filter((s) => s.includes('steps.guard.outputs.launched'))
+      .map(nameOf);
+    expect(names[0]).toBe(PULL);
+  });
+});
+
 describe('the preview path is unchanged', () => {
   it('both checks exit 0 and run nothing when LAUNCHED is not "true"', () => {
     for (const n of [PULLED_CHECK, ORIGIN_CHECK]) {
@@ -142,8 +184,19 @@ describe('the preview path is unchanged', () => {
 
   it('the pull, build and deploy still choose the target from LAUNCHED as before', () => {
     expect(script(PULL)).toBe(
-      'if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi\n' +
-        'npx --no-install vercel pull --yes --environment="$environment"\n',
+      [
+        '# The first step that reads the Guard output: anything but exactly "true" or "false" is a fault.',
+        'case "$LAUNCHED" in',
+        '  true) environment=production ;;',
+        '  false) environment=preview ;;',
+        '  *)',
+        '    echo "::error::The Guard step\'s output launched is neither \\"true\\" nor \\"false\\"; nothing is deployed."',
+        '    exit 1',
+        '    ;;',
+        'esac',
+        'npx --no-install vercel pull --yes --environment="$environment"',
+        '',
+      ].join('\n'),
     );
     expect(script(BUILD)).toBe(
       'if [ "$LAUNCHED" = "true" ]; then target=production; else target=preview; fi\n' + 'bash scripts/vercel-build-isolated.sh "$target"\n',
@@ -157,9 +210,16 @@ describe('the pulled-environment check (production)', () => {
     const r = runStep(PULLED_CHECK, { LAUNCHED: 'true' });
     expect(r.status).toBe(0);
     expect(r.calls).toBe('node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-check.ts .vercel/.env.production.local\n');
-    // CLI 62.2.0's pull writes .vercel/.env.<environment>.local, and its build reads .vercel/.env.<target>.local.
+    // CLI 62.2.0's build reads .vercel/.env.<target>.local ...
     const cli = readFileSync(join(ROOT, 'node_modules/vercel/dist/commands/build/index.js'), 'utf8');
     expect(cli).toContain('VERCEL_DIR,`.env.${target}.local`)');
+    // ... and its pull writes .vercel/.env.<environment>.local: pullAllEnvFiles, in one of the hashed
+    // chunks, passes join(".vercel", `.env.${environment}.local`) to the env pull logic.
+    const chunks = join(ROOT, 'node_modules/vercel/dist/chunks');
+    const PULL_FILE =
+      /function pullAllEnvFiles\((\w+),\w+,\w+,\w+,\w+\)\{let (\w+)=`\.env\.\$\{\1\}\.local`;return await envPullCommandLogic\(\w+,join\("\.vercel",\2\)/;
+    const writers = readdirSync(chunks).filter((f) => f.endsWith('.js') && PULL_FILE.test(readFileSync(join(chunks, f), 'utf8')));
+    expect(writers).toHaveLength(1);
   });
 
   it('fails the step when the check fails', () => {
@@ -190,7 +250,7 @@ describe('the canonical origin check (production)', () => {
     const r = runStep(ORIGIN_CHECK, { LAUNCHED: 'true', CANONICAL_HOST: '' });
     expect(r.status).toBe(1);
     expect(r.calls).toBe('');
-    expect(r.out).toMatch(/^::error::LAUNCHED is true but the repository variable CANONICAL_HOST is empty; nothing is deployed\.$/m);
+    expect(r.out).toBe('::error::LAUNCHED is true but the repository variable CANONICAL_HOST is empty; nothing is deployed.\n');
   });
 
   it('runs the origin check against a bare CANONICAL_HOST', () => {

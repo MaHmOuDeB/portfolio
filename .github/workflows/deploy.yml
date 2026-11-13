@@ -121,7 +121,8 @@ jobs:
       # command-line argument that a process list or an npm log could record. LAUNCHED comes from the
       # Guard step's output, exactly "true" or "false" (the guard normalises the repository variable,
       # whose expression comparison is case-insensitive); production is never deployed until the
-      # guard allowed it, and an empty output picks the preview.
+      # guard allowed it. This step, the first that reads the output, fails the run on any other
+      # value, so a missing output never turns a launch silently into a preview.
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -129,7 +130,15 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           LAUNCHED: ${{ steps.guard.outputs.launched }}
         run: |
-          if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
+          # The first step that reads the Guard output: anything but exactly "true" or "false" is a fault.
+          case "$LAUNCHED" in
+            true) environment=production ;;
+            false) environment=preview ;;
+            *)
+              echo "::error::The Guard step's output launched is neither \"true\" nor \"false\"; nothing is deployed."
+              exit 1
+              ;;
+          esac
           npx --no-install vercel pull --yes --environment="$environment"
       # Production only. The canonical origin of every page comes from the pulled environment
       # (src/lib/seo/metadata.ts): `vercel build` loads only .vercel/.env.production.local, the file

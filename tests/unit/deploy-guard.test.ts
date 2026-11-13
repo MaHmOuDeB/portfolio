@@ -263,8 +263,10 @@ describe('the later steps branch on the Guard output', () => {
   it('pulls and builds production only when the Guard output is "true"', () => {
     expect(runWith('Pull Vercel environment', 'true')).toBe('npx --no-install vercel pull --yes --environment=production\n');
     expect(runWith('Build', 'true')).toBe('bash scripts/vercel-build-isolated.sh production\n');
+    expect(runWith('Pull Vercel environment', 'false')).toBe('npx --no-install vercel pull --yes --environment=preview\n');
+    // The pull, the first reader, fails on any other value (deploy-canonical.test.ts); after it,
+    // anything but "true" still builds the preview.
     for (const launched of ['false', '', 'True', 'yes']) {
-      expect(runWith('Pull Vercel environment', launched), launched).toBe('npx --no-install vercel pull --yes --environment=preview\n');
       expect(runWith('Build', launched), launched).toBe('bash scripts/vercel-build-isolated.sh preview\n');
     }
   });
