@@ -42,6 +42,24 @@ function stepDigits(ticks: readonly number[]): number {
 
 const niceTop = (v: number) => (scaleLinear().domain([0, v]).nice(10).domain() as [number, number])[1] + 0;
 
+/**
+ * The x axis: it starts where the curve starts (or at the current point, if that lies left of it),
+ * because the calculation has no value at 0 views. The start is always the first tick, so the axis
+ * says where it begins, and a nice tick closer to it than half a step is left out.
+ */
+export function detectableX(points: readonly { n: number }[], currentN: number | null) {
+  const lo = Math.min(...points.map((p) => p.n), currentN ?? Infinity);
+  const x0 = Number.isFinite(lo) ? lo : 0;
+  const xMax = niceTop(Math.max(1, x0 + 1, ...points.map((p) => p.n), currentN ?? 0));
+  const domain: [number, number] = [x0, xMax];
+  const withStart = (count: number) => {
+    const nice = niceTicks(domain, count);
+    const step = nice.length > 1 ? nice[1]! - nice[0]! : xMax - x0;
+    return [x0, ...nice.filter((t) => t - x0 >= step / 2)];
+  };
+  return { domain, ticks: { narrow: withStart(TICKS.narrow), wide: withStart(TICKS.wide) } };
+}
+
 export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, runtime }: Props) {
   const d = data.detectable;
   const placeholder = data.source === 'unavailable';
@@ -51,10 +69,10 @@ export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, 
   const currentN = atCurrent !== null && !hideCurrentSize && typeof smaller === 'number' ? smaller : null;
   const both = [...refs.filter((r) => r !== 'build'), 'build'] as DerivedRef[];
 
-  const xMax = niceTop(Math.max(1, ...points.map((p) => p.n), currentN ?? 0));
+  const x = detectableX(points, currentN);
   const yMax = niceTop(Math.max(1, ...points.map((p) => p.effect), currentN !== null && atCurrent !== null ? atCurrent : 0) * 1.05);
-  const domain = { x: [0, xMax] as [number, number], y: [0, yMax] as [number, number] };
-  const xTicks = { narrow: niceTicks(domain.x, TICKS.narrow), wide: niceTicks(domain.x, TICKS.wide) };
+  const domain = { x: x.domain, y: [0, yMax] as [number, number] };
+  const xTicks = x.ticks;
   const yTicks = { narrow: niceTicks(domain.y, TICKS.narrow), wide: niceTicks(domain.y, TICKS.wide) };
   const yDigits = Math.max(stepDigits(yTicks.narrow), stepDigits(yTicks.wide));
 

@@ -20,7 +20,10 @@ const SEAM = { srm: 'The split chart failed after a change (test seam)', curse: 
 const TITLE = { srm: SRM_TITLE, curse: CURSE_TITLE } as const;
 type Id = keyof typeof TITLE;
 
-const SRM_PRESET_RESULT = 'Chi-square 0 with one degree of freedom, p-value 1: not flagged. This split is consistent with the expected share at this threshold.';
+// The default preset is a real case: a simulated 5,170 to 4,830 split against an even one, flagged.
+const SRM_PRESET_RESULT =
+  'Chi-square 11.56 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.';
+const SRM_EVEN_RESULT = 'Chi-square 0 with one degree of freedom, p-value 1: not flagged. This split is consistent with the expected share at this threshold.';
 const CURSE_PRESET_RESULT =
   'At a true effect of 1.0 and a standard error of 1.0, a ratio of 1, power is 17%. Of the estimates that pass the threshold, 0.9% have the wrong sign, and on average their size is 2.5 times the true effect.';
 const ZERO = 'Exaggeration is undefined when the true effect is zero.';
@@ -139,7 +142,7 @@ test.describe('Split check Figure', () => {
     await expect(figure(page, 'srm').getByText('Simulated', { exact: true })).toBeVisible();
     await expect(figure(page, 'srm').getByText('Controls need JavaScript.')).toBeVisible();
     const rows = await figure(page, 'srm').locator('[data-nojs-only] table tbody tr').evaluateAll((rs) => rs.map((r) => r.textContent));
-    expect(rows).toEqual(['Group A10050%100', 'Group B10050%100']);
+    expect(rows).toEqual(['Group A5,17050%5,000', 'Group B4,83050%5,000']);
     await expect(figure(page, 'srm').getByRole('group', { name: 'Controls' })).toBeHidden();
     await context.close();
   });
@@ -202,18 +205,30 @@ test.describe('Split check Figure', () => {
     expect(errors).toEqual([]);
   });
 
+  test('the even split is one link away: the even preset, not flagged, and Reset keeps it', async ({ page }) => {
+    await page.goto('/lab#split-check');
+    const link = page.getByRole('link', { name: 'See the same check on an even split' });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page).toHaveURL(/\/lab\?srm\.preset=even#split-check$/);
+    await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
+    await expect(result(page, 'srm')).toHaveText(SRM_EVEN_RESULT);
+    await expect(range(page, 'srm-nA')).toHaveValue('5000');
+    await expect(range(page, 'srm-nB')).toHaveValue('5000');
+  });
+
   test('keyboard: an arrow key changes a count, announces on release and writes only its own keys', async ({ page }) => {
     await withoutIdle(page);
     await page.goto(`${HOST}?curse.se=2#split-check`);
     await focusAndLoad(page, 'srm', 'srm-nA');
     await expect(range(page, 'srm-nA')).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(range(page, 'srm-nA')).toHaveValue('101');
+    await expect(range(page, 'srm-nA')).toHaveValue('5171');
     await expect(live(page, 'srm')).toHaveText(
-      'Chi-square 0.00498 with one degree of freedom, p-value 0.944: not flagged. This split is consistent with the expected share at this threshold.',
+      'Chi-square 11.63 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
     );
     await expect(live(page, 'srm')).toHaveAttribute('data-derived', 'simulated');
-    await expect.poll(() => new URL(page.url()).searchParams.get('srm.nA')).toBe('101');
+    await expect.poll(() => new URL(page.url()).searchParams.get('srm.nA')).toBe('5171');
     const url = new URL(page.url());
     expect(url.searchParams.get('curse.se')).toBe('2');
     expect(url.hash).toBe('#split-check');
@@ -635,10 +650,10 @@ async function assertCurrentFallback(page: Page, id: Id, o: { pointer?: boolean 
   await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'a warning to investigate' : 'no random draws are involved');
   const rows = await f.locator('[data-figure-fallback] table tbody tr').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent!.trim())));
   if (id === 'srm') {
-    // group A's count moved off the preset 100
+    // group A's count moved off the preset 5,170
     expect(rows[0]![0]).toBe('Group A');
-    expect(rows[0]![1]).not.toBe('100');
-    if (!o.pointer) expect(rows[0]).toEqual(['Group A', '101', '50%', '100.5']);
+    expect(rows[0]![1]).not.toBe('5,170');
+    if (!o.pointer) expect(rows[0]).toEqual(['Group A', '5,171', '50%', '5,000.5']);
   } else {
     // the marked row is the new ratio, not the preset's 1
     const mine = rows.filter((r) => r.at(-1) === 'Yes');

@@ -347,15 +347,17 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
             />
           </>
         )}
-        // Top left, in the band no plotted share reaches at the start of the looks.
-        annotation={() => ({
-          x: x[0],
-          y: y[1] * 0.92,
-          text: `Dotted line: nominal ${formatValue(alpha, 'share', { decimals: 0 })}`,
-          anchor: 'start',
-          refs: PEEK_REFS,
-        })}
       />
+      {/* The key to the dotted line, under the chart: on the chart a label would sit far from the line
+          or on the curves, which start at the nominal level and, with a fix, stay on it. */}
+      <p data-nominal-key="" className="mt-2 flex items-center gap-2 text-sm text-muted">
+        <svg aria-hidden="true" width={24} height={2} className="shrink-0">
+          <line x1={0} x2={24} y1={1} y2={1} stroke="var(--color-muted)" strokeWidth={1} strokeDasharray="2 3" />
+        </svg>
+        <span>
+          Dotted line: nominal <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />
+        </span>
+      </p>
     </div>
   );
 }

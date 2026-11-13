@@ -186,22 +186,47 @@ export const DOT_RADIUS = 4;
 export const DOT_RING = 2;
 /** The room kept between the top of the plot and the highest value: the dot, its ring and a gap. */
 export const DOT_CLEARANCE_PX = DOT_RADIUS + DOT_RING + 2;
-const CURSE_STEP = 25;
+/** The log axis's tick values, in plain multiples: 1, 2 and 5 in each decade. */
+const CURSE_MULTIPLES = [1, 2, 5] as const;
+
+/** A value's height on the exaggeration axis: log10 of the exaggeration, never below 1 (no exaggeration). */
+export const curseY = (exaggeration: number): number => Math.log10(Math.max(1, exaggeration));
+
+/** The y tick text: a log10 tick printed back as its plain multiple ("1", "2", "50"). */
+export const exaggerationTick = (v: number): string => formatNumber(Math.round(10 ** v), 0);
 
 /**
- * The exaggeration axis: from zero to a multiple of 25 above every sampled value and the selected
- * one, raised until the highest value sits at least DOT_CLEARANCE_PX below the top in the shorter
- * layout, so neither the line nor the dot and its ring touch the top. Ticks every 25 wide, every 50
- * narrow.
+ * The exaggeration axis, on a log scale so a small exaggeration (the preset's about 2.5 times) sits
+ * clear of the floor while the curve's largest values still fit. The floor is 1 times the true effect
+ * (log10 0, the zero line: no exaggeration). The top is the first value of 2, 5, 10, 20, 50, ... above
+ * every sampled value and the selected one at which the highest value sits at least DOT_CLEARANCE_PX
+ * below the top in the shorter layout. `domain` and `ticks` are in log10; `top` is the plain multiple.
+ * Ticks at 1, 2 and 5 in each decade wide, and at the powers of ten narrow (with the highest wide tick
+ * when the axis spans less than a decade).
  */
-export function curseAxis(points: readonly CurvePoint[], selected: CurvePoint | null): { top: number; ticks: { wide: number[]; narrow: number[] } } {
+export function curseAxis(
+  points: readonly CurvePoint[],
+  selected: CurvePoint | null,
+): { top: number; domain: [number, number]; ticks: { wide: number[]; narrow: number[] } } {
   const values = [...points.map((p) => p.exaggeration), ...(selected ? [selected.exaggeration] : [])];
-  const max = values.length > 0 ? Math.max(...values) : 0;
-  const room = (top: number) => ((top - max) / top) * Math.min(CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide);
-  let top = Math.max(CURSE_STEP, Math.ceil(max / CURSE_STEP) * CURSE_STEP);
-  while (room(top) < DOT_CLEARANCE_PX) top += CURSE_STEP;
-  const steps = (by: number) => Array.from({ length: Math.floor(top / by) + 1 }, (_, i) => i * by);
-  return { top, ticks: { wide: steps(CURSE_STEP), narrow: steps(2 * CURSE_STEP) } };
+  const max = Math.max(1, ...values.filter((v) => Number.isFinite(v)));
+  const shorter = Math.min(CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide);
+  const room = (top: number) => ((Math.log10(top) - curseY(max)) / Math.log10(top)) * shorter;
+  const candidates = (decade: number) => CURSE_MULTIPLES.map((m) => m * 10 ** decade);
+  let top = 2;
+  for (let decade = 0; ; decade++) {
+    const found = candidates(decade).find((t) => t > 1 && t > max && room(t) >= DOT_CLEARANCE_PX);
+    if (found !== undefined) {
+      top = found;
+      break;
+    }
+  }
+  const plain: number[] = [];
+  for (let decade = 0; 10 ** decade <= top; decade++) for (const t of candidates(decade)) if (t <= top) plain.push(t);
+  const wide = plain.map((t) => Math.log10(t));
+  const tens = plain.filter((t) => Number.isInteger(Math.log10(t)));
+  const narrow = (tens.length >= 2 ? tens : [1, plain.at(-1)!]).map((t) => Math.log10(t));
+  return { top, domain: [0, Math.log10(top)], ticks: { wide, narrow } };
 }
 
 /** The x-axis ticks: ratios of 0.1, 1 and 10, as their log10. */

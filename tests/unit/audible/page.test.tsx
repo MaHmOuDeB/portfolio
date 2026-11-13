@@ -473,3 +473,36 @@ describe('numbers and the route', () => {
     expect(renderToStaticMarkup(<AudibleRoute />)).toBe(PAGE);
   });
 });
+
+// Under sm the framework chart draws its own narrow layout: short category names that never run into
+// each other at 320 px, and only the short side words in the right margin, so no word is cut by the
+// figure's edge. From sm up it keeps the full names and the zero-line words.
+describe('the framework chart at each width', () => {
+  const framework = (() => {
+    const fig = figureOf(PAGE, FRAMEWORK_ID);
+    const starts = [...fig.matchAll(/<div class="([^"]*)"><div data-chart="framework-chart"/g)].map((m) => ({ at: m.index, wrapper: m[1]! }));
+    return starts.map(({ at, wrapper }, i) => {
+      const body = fig.slice(at, starts[i + 1]?.at ?? fig.indexOf('</figure>'));
+      return { wrapper, layout: /<svg data-chart-frame="" data-layout="(narrow|wide)"/.exec(body)?.[1], body };
+    });
+  })();
+  const xTicks = (body: string) => [...body.matchAll(/<text data-tick="x"[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+
+  it('draws one frame per layout, each shown only at its own width', () => {
+    expect(framework.map((f) => f.layout)).toEqual(['narrow', 'wide']);
+    expect(framework[0]!.wrapper).toBe('sm:hidden');
+    expect(framework[1]!.wrapper).toBe('max-sm:hidden');
+  });
+
+  it('names the metrics briefly in the narrow layout and in full in the wide one', () => {
+    expect(xTicks(framework[0]!.body)).toEqual(['Completion', 'Help requests']);
+    expect(xTicks(framework[1]!.body)).toEqual(['Session completion', 'Help requests']);
+  });
+
+  it('keeps only the short side words in the narrow right margin', () => {
+    expect(framework[0]!.body).not.toContain('data-zero-label');
+    expect(framework[0]!.body).toContain('>higher</text>');
+    expect(framework[0]!.body).toContain('>lower</text>');
+    expect(framework[1]!.body).toMatch(/data-zero-label[\s\S]*no change/);
+  });
+});

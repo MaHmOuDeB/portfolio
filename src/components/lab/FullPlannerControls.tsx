@@ -38,6 +38,7 @@ import {
   type PlannerContext,
 } from '@/lib/lab/full-planner-values';
 import { riseMax, targetRate } from '@/lib/lab/planner-values';
+import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import type { FullPlannerClientProps } from './FullPlannerClient';
 
 const LazyFullPlanner = lazy(() => import('./FullPlannerClient'));
@@ -46,7 +47,6 @@ export function FullPlannerIsland(props: FullPlannerClientProps) {
   return <LazyFullPlanner {...props} />;
 }
 
-const ROW = 'flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6';
 const SLIDER = 'w-full xs:w-72';
 
 const MODE_OPTIONS: readonly { value: MdeMode; label: string }[] = [
@@ -75,7 +75,7 @@ export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRis
   const shown = relative ? relativePercent(baseline, values.risePoints) : values.risePoints;
   const toPoints = (v: number) => (relative ? risePointsFromRelative(baseline, v) : v);
   return (
-    <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={ROW}>
+    <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
         <Slider
           id={`${id}-baseline`}
@@ -110,8 +110,10 @@ export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRis
           refs={FULL_PLANNER_REFS}
         />
       </div>
-      <Segmented name={`${id}-mode`} legend="MDE unit" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
-      <ResetButton id={`${id}-reset`} onReset={onReset} />
+      <Segmented name={`${id}-mode`} legend="Rise to detect, in" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
+      <div className={CONTROL_ROW_RESET}>
+        <ResetButton id={`${id}-reset`} onReset={onReset} />
+      </div>
     </div>
   );
 }
@@ -131,7 +133,7 @@ export type DurationControlsProps = {
 export function DurationControls({ id, context, label, traffic, onTraffic, onTrafficCommit, onReset }: DurationControlsProps) {
   const noun = PLANNER_NOUN[context];
   return (
-    <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={ROW}>
+    <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
         <Slider
           id={`${id}-traffic`}
@@ -145,7 +147,9 @@ export function DurationControls({ id, context, label, traffic, onTraffic, onTra
           refs={FULL_PLANNER_REFS}
         />
       </div>
-      <ResetButton id={`${id}-reset`} onReset={onReset} />
+      <div className={CONTROL_ROW_RESET}>
+        <ResetButton id={`${id}-reset`} onReset={onReset} />
+      </div>
     </div>
   );
 }

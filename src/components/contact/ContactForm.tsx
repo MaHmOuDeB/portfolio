@@ -6,13 +6,14 @@
 // own rules and words (no round trip for a missing field), shows "Sending…" while the request runs,
 // and moves focus to the status block that answers. Nothing is kept in the browser: no cookie, no
 // storage, no draft.
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { startTransition, useActionState, useEffect, useRef, useState, type FocusEvent, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { SelectField } from '@/components/kit/SelectField';
 import { SubmitButton } from '@/components/kit/SubmitButton';
 import { TextArea } from '@/components/kit/TextArea';
 import { TextField } from '@/components/kit/TextField';
 import { TextLink } from '@/components/kit/TextLink';
 import { sendContact } from '@/app/contact/actions';
+import { revealRing } from '@/lib/focus/reveal-ring';
 import { CONTACT_LIMITS, FIELD_ORDER, HONEYPOT_FIELD, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
 import type { ContactState } from '@/lib/contact/handle';
 import { CONTACT } from '@/lib/site';
@@ -58,6 +59,11 @@ const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
   ),
   fast: <p>Nothing was sent, because the form was sent very soon after the page opened. Your text is still in the form, so you can send it again.</p>,
 };
+
+/** A focused field whose ring does not fit on screen is scrolled to the nearest edge (see revealRing). */
+function onFieldFocus(event: FocusEvent<HTMLFormElement>) {
+  if (event.target instanceof HTMLElement && event.target.matches('input, select, textarea')) revealRing(event.target);
+}
 
 export function ContactForm({ issuedAt }: { issuedAt: number }) {
   const [state, formAction, pending] = useActionState(sendContact, IDLE);
@@ -148,12 +154,14 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         onSubmit={onSubmit}
         onInput={onInput}
         noValidate
+        onFocus={onFieldFocus}
         aria-describedby={notSent ? STATUS_ID : undefined}
         className={notSent ? 'mt-8' : 'mt-12'}
       >
         <p className="text-sm text-muted">All fields are required.</p>
         <input type="hidden" name="issuedAt" value={stamp} />
-        <div className="mt-6 flex flex-col gap-6">
+        {/* One gap between every field and before the button, so the rhythm is even down the form. */}
+        <div className="mt-6 flex flex-col gap-8">
           <TextField
             id={fieldId('name')}
             name="name"
@@ -176,8 +184,6 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
             defaultValue={values?.email}
             error={shown.errors.email}
           />
-        </div>
-        <div className="mt-12 flex flex-col gap-6">
           <SelectField id={fieldId('reason')} name="reason" label={LABELS.reason} options={REASONS} defaultValue={values?.reason} error={shown.errors.reason} />
           <TextField id={fieldId('subject')} name="subject" label={LABELS.subject} autoComplete="off" maxLength={CONTACT_LIMITS.subject} defaultValue={values?.subject} error={shown.errors.subject} />
           <TextArea id={fieldId('message')} name="message" label={LABELS.message} limit={CONTACT_LIMITS.message} refs={['build']} defaultValue={values?.message} error={shown.errors.message} />

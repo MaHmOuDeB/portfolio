@@ -73,6 +73,24 @@ function unmarkedNumerals(node: T.ParentNode, marked = false, out: string[] = []
 }
 
 describe('the privacy page', () => {
+  it('opens with a list of links to its sections, built from the headings, with no lead of its own', () => {
+    const nav = all.find((el) => el.tagName === 'nav')!;
+    expect(nav).toBeDefined();
+    expect(attr(nav, 'aria-label')).toBe('Sections');
+    const links = elements(nav).filter((el) => el.tagName === 'a');
+    expect(links.map(text)).toEqual(HEADINGS);
+    const h2s = all.filter((el) => el.tagName === 'h2');
+    expect(links.map((a) => attr(a, 'href'))).toEqual(h2s.map((h) => `#${attr(h, 'id')}`));
+    expect(new Set(h2s.map((h) => attr(h, 'id'))).size).toBe(HEADINGS.length);
+    for (const h of h2s) expect(attr(h, 'id')).toMatch(/^[a-z][a-z0-9-]*$/);
+    // Every link is a 44 px target, and the list adds no words beyond the headings.
+    for (const a of links) expect(attr(a, 'data-touch-target')).toBe('');
+    expect(text(nav)).toBe(HEADINGS.join(''));
+    // It sits between the title and the first section.
+    const order = all.filter((el) => el.tagName === 'h1' || el === nav || el.tagName === 'section');
+    expect(order.slice(0, 3).map((el) => el.tagName)).toEqual(['h1', 'nav', 'section']);
+  });
+
   it('is titled Privacy, with one h1 and the eleven sections in order', () => {
     expect(metadata.title).toBe('Privacy');
     expect(all.filter((el) => el.tagName === 'h1').map(text)).toEqual(['Privacy']);

@@ -5,7 +5,8 @@
 // structural preview row (always 0: a preview never writes). Stages are a list, not a Sankey: no
 // width stands for a total that is not published. A placeholder (no data) shows no count at all.
 // Server-safe.
-import { DataTable, type TableData } from '@/components/kit/DataTable';
+import type { TableData } from '@/components/kit/DataTable';
+import { TextTable } from '../tables/TextTable';
 import { Derived, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { PublishedCountText } from '@/components/home/PublishedCountText';
@@ -93,10 +94,10 @@ export function FunnelFigure({ data, refs, runtime }: Props) {
         <p className={`${P} mt-3`}>No counts are shown: this page has no data.</p>
       ) : (
         <div id="live-exclusions" className="mt-3 max-w-figure">
-          <DataTable
+          {/* A text table: the meanings are sentences, so they wrap instead of scrolling sideways. */}
+          <TextTable
             id="live-exclusions-table"
             caption="Entries turned away, by reason"
-            mode="open"
             table={{
               columns: ['Reason', 'Entries', 'What it means'],
               rows: ORDER.map((r) => [REASONS[r][0], data.funnel.excluded[r], REASONS[r][1]]),

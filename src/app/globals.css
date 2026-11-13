@@ -158,6 +158,28 @@ html[data-js] [data-table-toggle][open] + [data-table-body] {
 }
 
 /*
+ * A page-owned text table that stacks under md (components/tables/TextTable.tsx): each cell after
+ * the first shows its column name above its text. The name is generated content, so the cell's own
+ * text stays the source's words; where the alternative-text syntax is supported it is hidden from
+ * assistive technology, which already reads the column header.
+ */
+@media (width < 48rem) {
+  [data-stacked-table] td[data-label]::before {
+    display: block;
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    font-weight: 400;
+    content: attr(data-label);
+  }
+
+  @supports (content: "x" / "") {
+    [data-stacked-table] td[data-label]::before {
+      content: attr(data-label) / "";
+    }
+  }
+}
+
+/*
  * While a slider is dragged, marks follow the pointer without easing; while a Figure resets
  * (data-instant, set by instantly() in components/kit/Figure.tsx) the preset lands at once.
  */
@@ -426,4 +448,9 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
   body > footer {
     display: none;
   }
+}
+
+/* A4 and Letter alike: margins the printer can reach, so the content box is the page's. */
+@page {
+  margin: 16mm 18mm;
 }

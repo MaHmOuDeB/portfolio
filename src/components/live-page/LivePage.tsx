@@ -67,11 +67,18 @@ const SmallLabel = () => (
     &lt;5
   </span>
 );
-/** A status word in a neutral outline; the word carries the meaning, never a colour. */
+/** A status word in semibold, as on the Retention page; the word carries the meaning, never a colour. */
 const Status = ({ children }: { children: string }) => (
-  <span data-status="" className="inline-block rounded-sm border border-muted px-2 text-sm whitespace-nowrap">
+  <span data-status="" className="font-semibold whitespace-nowrap">
     {children}
   </span>
+);
+/** The design hash: it may break between any two characters, but its last 8 stay together, so no line holds a lone stub. */
+const Hash = ({ value }: { value: string }) => (
+  <data value={value} className="break-all" {...derivedAttr(BUILD)}>
+    {value.slice(0, -8)}
+    <span className="whitespace-nowrap">{value.slice(-8)}</span>
+  </data>
 );
 
 /** Where the data stands and the state's own sentences. */
@@ -119,11 +126,11 @@ function Plan({ d }: { d: LivePageDisplay }) {
           ship B needs about <N v={390} /> to <N v={470} /> entry views per group. That is a planning figure for identical groups,
           not a threshold every run must reach.
         </p>
-        <p className={P}>n counts views, not people: one person can count more than once, and in both groups.</p>
+        <p className={P}>Here, n counts views, not people: one person can count more than once, and in both groups.</p>
       </div>
       <p id="plan-prereg" className={`${P} mt-4 wrap-anywhere`}>
         Pre-registration <MarkedText value={prereg.version} refs={BUILD} />, tag <MarkedText value={prereg.tag} refs={BUILD} />, design
-        hash <MarkedText value={prereg.configSha256} refs={BUILD} />.
+        hash <Hash value={prereg.configSha256} />.
       </p>
       <div className={TEXT}>
         <TextLink href={`${REPO}/tree/${prereg.tag}`} external standalone>

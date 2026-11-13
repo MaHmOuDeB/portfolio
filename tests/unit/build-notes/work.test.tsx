@@ -14,6 +14,7 @@ import { WORK_SECTIONS, WORK_TITLE, WorkPage } from '@/components/work/WorkPage'
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { prefetchFor } from '@/lib/nav';
 import { LIVE_ROUTES, NAV } from '@/lib/site';
+import { HOME_CASES } from '../../../content/home.ts';
 import { WORK_GROUPS } from '../../../content/work.tsx';
 import { lintSource } from '../../../scripts/design-lint.ts';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
@@ -55,7 +56,8 @@ const rows = () =>
   [...PAGE.matchAll(/<li data-work-item="([^"]*)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => {
     const body = m[2]!;
     const links = [...body.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((l) => [decode(l[1]!), text(l[2]!)]);
-    return { key: m[1], body, links, text: text(body) };
+    const kind = /<p data-work-kind=""[^>]*>([^<]*)<\/p>/.exec(body)?.[1] ?? null;
+    return { key: m[1], body, links, kind, text: text(body) };
   });
 
 describe('the outline', () => {
@@ -113,16 +115,51 @@ describe('the directory', () => {
   it('prints exactly these rows', () => {
     expect(rows().map((r) => r.text)).toEqual([
       "Live test The experiment on this site's own visitors: its design, its checks and the counts that are safe to publish.",
-      'Experimentation at Audible (Amazon) How I plan and analyse experiments, and why so many of my recommendations were adopted.',
-      'Customer retention and reactivation analysis Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.',
-      'Pulse: analytics instrumentation demo A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
-      "MarketingWS My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
-      'Docproof Document verification with multi-agent orchestration and automated checks.',
-      'Weather data quality A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
-      'n8n Workflow Library Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
+      'Experimentation at Audible (Amazon) Case study How I plan and analyse experiments, and why so many of my recommendations were adopted.',
+      'Customer retention and reactivation analysis Case study Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.',
+      'Pulse: analytics instrumentation demo Case study A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
+      "MarketingWS Build note My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
+      'Docproof Build note Document verification with multi-agent orchestration and automated checks.',
+      'Weather data quality Build note A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
+      'n8n Workflow Library Build note Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
     ]);
     for (const [i, item] of WORK_GROUPS.flatMap((g) => g.items).entries()) {
-      expect(rows()[i]?.text).toBe(`${item.title} ${text(html(item.description))}`);
+      const kind = rows()[i]?.kind;
+      expect(rows()[i]?.text).toBe([item.title, kind, text(html(item.description))].filter(Boolean).join(' '));
+    }
+  });
+
+  // The type of each entry comes from data the site already has: the Home page's featured case
+  // studies, and the "Tools I've built" group, whose pages are build notes. No year: no fact holds one.
+  it('labels each case study and build note from existing data, and the live test with neither', () => {
+    const cases = new Set(HOME_CASES.map((c) => c.href));
+    const expected = WORK_SECTIONS.flatMap((section) =>
+      section.items.map((item) => (cases.has(item.href) ? 'Case study' : section.id === 'tools' ? 'Build note' : null)),
+    );
+    expect(rows().map((r) => r.kind)).toEqual(expected);
+    expect(expected).toEqual([null, 'Case study', 'Case study', 'Case study', 'Build note', 'Build note', 'Build note', 'Build note']);
+    for (const row of rows()) {
+      if (row.kind) expect(row.body, row.key).toMatch(/<\/h3><p data-work-kind="" class="[^"]*text-sm text-muted[^"]*">/);
+    }
+  });
+
+  // From md the description spans the title's row and the label's; a long one must not push the label
+  // down from its title. The title's row takes only its own height, and the label's row
+  // takes the rest, with the label at its top.
+  it('keeps each label right under its title, however long the description', () => {
+    for (const row of [...PAGE.matchAll(/<li data-work-item="([^"]*)" class="([^"]*)"/g)]) {
+      expect(row[2]!.split(/\s+/), row[1]).toContain('md:grid-rows-[auto_1fr]');
+    }
+    expect(rows().filter((r) => r.kind)).toHaveLength(7);
+  });
+
+  it('draws each title in ink with the muted underline, and the line under it in muted grey', () => {
+    for (const row of rows()) {
+      const link = /<a [^>]*class="([^"]*)"/.exec(row.body)![1]!.split(/\s+/);
+      expect(link, row.key).toContain('text-ink');
+      expect(link, row.key).toContain('decoration-muted');
+      expect(link, row.key).not.toContain('text-muted');
+      expect(row.body, row.key).toMatch(/<p class="[^"]*text-muted[^"]*">[^]*<\/p>$/);
     }
   });
 

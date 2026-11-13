@@ -26,6 +26,8 @@ export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/?variant=a': HOME_INLINE,
   '/?variant=b': HOME_INLINE,
   '/contact': CONTACT_INLINE,
+  // After sending, the form and its privacy note give way to the sent message; the intro stays.
+  '/contact?sent=1': [{ name: 'LinkedIn' }],
   '/work/audible': [{ name: 'Why so many?' }],
 };
 

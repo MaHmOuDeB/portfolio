@@ -48,8 +48,9 @@ function PipelineDiagram() {
           <li key={stage.id} data-stage={stage.id}>
             {i > 0 ? <DiagramConnector /> : null}
             <div className={stage.nodes.length > 1 ? 'grid gap-3 xs:grid-cols-2' : ''}>
-              {stage.nodes.map((n) => (
-                <DiagramStep key={n.name} name={n.name} detail={n.detail} />
+              {/* Stacked under xs, a stage's other nodes are indented: a branch, not the next step. */}
+              {stage.nodes.map((n, j) => (
+                <DiagramStep key={n.name} name={n.name} detail={n.detail} className={j > 0 ? 'max-xs:ml-6' : undefined} />
               ))}
             </div>
           </li>

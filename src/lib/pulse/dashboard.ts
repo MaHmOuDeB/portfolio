@@ -8,6 +8,7 @@
 //   "all channels" is the sum of the others, day by day.
 // - The table, the CSV and the detail summary all come from the same rows: what the charts draw.
 import type { TableData } from '@/components/kit/DataTable';
+import { niceTicks } from '@/lib/figure/scales';
 import type { Presets } from '@/lib/figure/url-state';
 
 export const PULSE_ID = 'pulse';
@@ -102,10 +103,15 @@ export function dashboardRows({ channel, range }: DashboardView): DashboardRow[]
   });
 }
 
-/** The top of a chart's value axis: the same for every channel and range, so a filter never rescales it. */
-export function chartTop(chart: ChartKey): number {
-  const max = Math.max(...dashboardRows({ channel: 'all', range: '90d' }).map((r) => r[chart]));
-  const step = max > 50 ? 20 : 10;
+/**
+ * The top of a chart's value axis for the view shown: the busiest day rounded up to the next step of
+ * the chart's own wide ticks (four, from zero), so a filtered view fills its chart and the top is a
+ * labelled gridline. The axis always starts at zero.
+ */
+export function chartTop(chart: ChartKey, view: DashboardView): number {
+  const max = Math.max(1, ...dashboardRows(view).map((r) => r[chart]));
+  const ticks = niceTicks([0, max], 4);
+  const step = ticks.length > 1 ? ticks[1]! - ticks[0]! : max;
   return Math.ceil(max / step) * step;
 }
 

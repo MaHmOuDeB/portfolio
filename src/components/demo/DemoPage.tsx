@@ -14,7 +14,6 @@
 // visit to the home page), and show the other group. The Lab
 // links stay next/link: their Figures read the query in the browser.
 import type { ReactNode } from 'react';
-import { TextLink } from '@/components/kit/TextLink';
 import { EXPERIMENT } from '@/experiment.values';
 import {
   DEMO_COPY,
@@ -28,6 +27,7 @@ import {
   type DemoLink,
   type LabLink,
 } from '../../../content/demo';
+import { TitleLink } from '../links/TitleLink';
 
 export const DEMO_TITLE = DEMO_COPY.title;
 
@@ -63,16 +63,14 @@ function ForcedLinks({ links }: { links: readonly DemoLink[] }) {
   );
 }
 
-/** The Lab links, each on its own 44 px row with its sentence under it. */
+/** The Lab links, each on its own 44 px row: the title in ink, its sentence under it in muted grey. */
 function LabLinks({ links }: { links: readonly LabLink[] }) {
   return (
     <ul>
       {links.map((link) => (
         <li key={link.href} className="mt-3 first:mt-0">
-          <TextLink href={link.href} standalone>
-            {link.label}
-          </TextLink>
-          <p className="text-base">{link.purpose}</p>
+          <TitleLink href={link.href}>{link.label}</TitleLink>
+          <p className="text-base text-muted">{link.purpose}</p>
         </li>
       ))}
     </ul>

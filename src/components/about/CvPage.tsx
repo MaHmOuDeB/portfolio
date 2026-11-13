@@ -53,9 +53,9 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
 function Claims({ claims }: { claims: readonly CvClaim[] }) {
   if (claims.length === 0) return null;
   return (
-    <ul className="mt-2 list-disc space-y-1 pl-5 marker:text-muted">
+    <ul className="mt-2 max-w-text list-disc space-y-1 pl-5 marker:text-muted">
       {claims.map((c) => (
-        <li key={c.id} data-cv-claim={c.id}>
+        <li key={c.id} data-cv-claim={c.id} className="break-inside-avoid">
           {c.body}
         </li>
       ))}
@@ -66,23 +66,25 @@ function Claims({ claims }: { claims: readonly CvClaim[] }) {
 /** A job or a degree: title, where, the months, then its bullets and plain lines. */
 function DatedEntry({ entry }: { entry: CvEntry }) {
   return (
-    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 break-inside-avoid first:mt-0">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
-          {entry.title}
-        </h3>
-        {entry.range ? (
-          <p data-cv-dates="" className="text-sm text-muted">
-            <Months range={entry.range} />
-          </p>
-        ) : null}
+    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 first:mt-0">
+      <div data-cv-entry-head="" className="break-inside-avoid break-after-avoid">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+          <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
+            {entry.title}
+          </h3>
+          {entry.range ? (
+            <p data-cv-dates="" className="text-sm text-muted">
+              <Months range={entry.range} />
+            </p>
+          ) : null}
+        </div>
+        <p data-cv-where="" className="text-muted">
+          {entry.where}
+        </p>
       </div>
-      <p data-cv-where="" className="text-muted">
-        {entry.where}
-      </p>
       <Claims claims={entry.claims} />
       {entry.lines?.map((line) => (
-        <p key={line} data-cv-line="" className="mt-1">
+        <p key={line} data-cv-line="" className="mt-1 max-w-text break-inside-avoid">
           {line}
         </p>
       ))}
@@ -93,27 +95,29 @@ function DatedEntry({ entry }: { entry: CvEntry }) {
 /** A project: title (linked when the site has a page for it), what kind, bullets, technologies. */
 function ProjectEntry({ entry }: { entry: CvEntry }) {
   return (
-    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 break-inside-avoid first:mt-0">
-      <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
-        {entry.href ? (
-          <TextLink href={entry.href} standalone>
-            {entry.title}
-          </TextLink>
-        ) : (
-          entry.title
-        )}
-      </h3>
-      <p data-cv-where="" className="text-muted">
-        {entry.where}
-        {entry.range ? (
-          <>
-            , <Months range={entry.range} />
-          </>
-        ) : null}
-      </p>
+    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 first:mt-0">
+      <div data-cv-entry-head="" className="break-inside-avoid break-after-avoid">
+        <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
+          {entry.href ? (
+            <TextLink href={entry.href} standalone>
+              {entry.title}
+            </TextLink>
+          ) : (
+            entry.title
+          )}
+        </h3>
+        <p data-cv-where="" className="text-muted">
+          {entry.where}
+          {entry.range ? (
+            <>
+              , <Months range={entry.range} />
+            </>
+          ) : null}
+        </p>
+      </div>
       <Claims claims={entry.claims} />
       {entry.technologies ? (
-        <p data-cv-technologies="" className="mt-1 text-sm text-muted">
+        <p data-cv-technologies="" className="mt-1 max-w-text break-inside-avoid text-sm text-muted">
           Technologies: {entry.technologies}
         </p>
       ) : null}
@@ -139,7 +143,7 @@ export function CvPage(): ReactNode {
   return (
     <article aria-labelledby="cv-title" className="max-w-figure py-12 md:py-section print:py-0">
       <header data-cv-header="">
-        <h1 id="cv-title" className="text-2xl font-semibold">
+        <h1 id="cv-title" className="text-2xl font-semibold md:text-3xl">
           {SITE.name}
         </h1>
         <p data-cv-role="" className="mt-1 text-lg font-semibold">

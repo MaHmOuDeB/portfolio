@@ -181,7 +181,7 @@ describe('the Lab page', () => {
         'True effect',
         'True effect, exact value',
       ],
-      legends: ['Fix', 'MDE unit', 'Schedule'],
+      legends: ['Fix', 'Rise to detect, in', 'Schedule'],
       columns: [
         'Exaggeration among significant estimates',
         'Expected share',
@@ -262,5 +262,13 @@ describe('the routes', () => {
     expect(lab).toContain('<LabPage />');
     expect(peeking).toContain('<LabPeekingPage />');
     for (const host of [lab, peeking]) expect(host).not.toMatch(/faultAfterChange/);
+  });
+});
+
+describe('Figure titles', () => {
+  it('end without a full stop, as on the other pages', () => {
+    const titles = [...LAB.matchAll(/<figure [^>]*data-figure="[^"]+"[\s\S]*?<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => text(m[1]!));
+    expect(titles.length).toBeGreaterThanOrEqual(4);
+    for (const title of titles) expect(title).not.toMatch(/\.$/);
   });
 });

@@ -29,6 +29,8 @@ import {
   RATIO_MAX,
   RATIO_MIN,
   curseAxis,
+  curseY,
+  exaggerationTick,
   curseCurve,
   curseModel,
   curseRatio,
@@ -57,14 +59,14 @@ function CurseSeamFailure(): never {
 }
 
 function chartName(result: CurseResult): string {
-  const base = 'Exaggeration among significant estimates against the ratio of true effect to standard error, on a log scale: large for small ratios and close to none for large ones';
+  const base = 'Exaggeration among significant estimates against the ratio of true effect to standard error, both on log scales: large for small ratios and close to none for large ones';
   if (result.kind === 'zero-effect') return `${base}, with no setting marked, because the true effect is zero`;
   if (result.kind === 'unbounded') return `${base}, with no setting marked, because this setting has no finite value`;
   return `${base}, with your setting marked`;
 }
 
 export function CurseChart({ result, points, selected }: { result: CurseResult; points: readonly CurvePoint[]; selected: CurvePoint | null }) {
-  const { top, ticks } = curseAxis(points, selected);
+  const { domain, ticks } = curseAxis(points, selected);
   return (
     <ChartFrame
       id={`${CURSE_ID}-chart`}
@@ -77,10 +79,10 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
         refs: DIAGNOSTICS_REFS,
       }}
       y={{
-        domain: [0, top],
+        domain,
         ticks,
-        format: (v) => formatNumber(v, 0),
-        label: 'Exaggeration (times the true effect)',
+        format: exaggerationTick,
+        label: 'Exaggeration (times the true effect, log scale)',
         refs: DIAGNOSTICS_REFS,
       }}
       height={CURSE_HEIGHT}
@@ -89,7 +91,7 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
           <polyline
             data-mark=""
             data-curse-line=""
-            points={points.map((p) => `${ctx.xFrac(p.x) * MARK_UNITS},${ctx.yPx(p.exaggeration)}`).join(' ')}
+            points={points.map((p) => `${ctx.xFrac(p.x) * MARK_UNITS},${ctx.yPx(curseY(p.exaggeration))}`).join(' ')}
             fill="none"
             stroke="var(--color-series-1)"
             strokeWidth={2}
@@ -105,7 +107,7 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
             data-ratio={selected.ratio}
             data-exaggeration={selected.exaggeration}
             cx={pct(ctx.xFrac(selected.x))}
-            cy={ctx.yPx(selected.exaggeration)}
+            cy={ctx.yPx(curseY(selected.exaggeration))}
             r={DOT_RADIUS}
             fill="var(--color-series-2)"
             stroke="var(--color-bg)"

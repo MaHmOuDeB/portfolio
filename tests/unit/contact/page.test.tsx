@@ -108,6 +108,23 @@ describe('the contact page', () => {
     expect(sent).toContain('href="/contact"');
   });
 
+  it('focuses the sent block\'s heading, not the whole block, so the focus ring and the rule never show together', () => {
+    expect(sent).toMatch(/<div id="contact-status"[^>]* role="group"/);
+    expect(sent).not.toMatch(/<div id="contact-status"[^>]*tabindex/);
+    expect(sent).toMatch(/<h2 id="contact-status-word" tabindex="-1"[^>]*class="[^"]*\bw-fit\b/);
+  });
+
+  it('spaces every field the same: one group, one gap, and the same gap before the button', () => {
+    const groups = [...form.matchAll(/<div class="([^"]*\bflex-col\b[^"]*)">/g)].map((m) => m[1]);
+    expect(groups).toEqual(['mt-6 flex flex-col gap-8']);
+    const block = form.slice(form.indexOf('<div class="mt-6 flex flex-col gap-8">'));
+    const ids = ['contact-name', 'contact-email', 'contact-reason', 'contact-subject', 'contact-message'];
+    const at = ids.map((id) => block.indexOf(`id="${id}"`));
+    expect(at.every((i) => i > 0)).toBe(true);
+    expect(block.indexOf('id="contact-hp"')).toBeGreaterThan(Math.max(...at));
+    expect(form).toMatch(/<div class="mt-8"><button/);
+  });
+
   it('draws "Message not sent" the same way: an h2 that names the focused group', () => {
     const html = renderToStaticMarkup(
       <StatusBlock tone="warn" word="Message not sent">

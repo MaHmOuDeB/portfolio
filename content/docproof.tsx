@@ -161,16 +161,23 @@ function versionDate(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
-function Block({ label, children }: { label: string; children: string }) {
+/** A recorded block under its visible label, which is also its accessible name. */
+function Block({ id, label, children }: { id: string; label: string; children: string }) {
+  const labelId = `verify-run-${id}`;
   return (
-    <pre
-      tabIndex={0}
-      role="region"
-      aria-label={label}
-      className="mt-4 max-w-figure overflow-x-auto border-l border-line py-2 pl-4 text-sm"
-    >
-      <code {...BUILD}>{children}</code>
-    </pre>
+    <>
+      <p id={labelId} className="mt-6 max-w-text text-sm font-semibold">
+        {label}
+      </p>
+      <pre
+        tabIndex={0}
+        role="region"
+        aria-labelledby={labelId}
+        className="mt-2 max-w-figure overflow-x-auto border-l border-line py-2 pl-4 text-sm"
+      >
+        <code {...BUILD}>{children}</code>
+      </pre>
+    </>
   );
 }
 
@@ -185,9 +192,9 @@ export function DocproofRunEvidence({ run }: { run: RecordedRun | null }): React
         <p className="mt-3 max-w-text">Not recorded.</p>
       ) : (
         <>
-          <Block label="The fact base">{run.factBase}</Block>
-          <Block label="The notice, one paragraph per line">{run.document.join('\n')}</Block>
-          <Block label="The command and its output">{`$ ${run.command}\n${run.output}`}</Block>
+          <Block id="fact-base" label="The fact base">{run.factBase}</Block>
+          <Block id="notice" label="The notice, one paragraph per line">{run.document.join('\n')}</Block>
+          <Block id="output" label="The command and its output">{`$ ${run.command}\n${run.output}`}</Block>
           <p className="mt-4 max-w-text text-sm text-muted">
             Recorded on{' '}
             <time dateTime={run.recordedOn} {...BUILD}>

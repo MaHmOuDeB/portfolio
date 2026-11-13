@@ -5,7 +5,7 @@ import { expectNoA11yViolations, test } from './fixtures';
 // The full sample-size planner on the dev host /kitchen-sink/lab, which mounts the Lab page as /lab
 // does (the planner beside the peeking, split-check and exaggeration Figures): a sizing Figure (`planner`:
 // Baseline conversion 1% to 98%, preset 29%; Rise to detect, 1 to 30 whole points, capped so the
-// target stays at or under 99%; MDE unit, points or percent of the baseline; Reset) and a duration
+// target stays at or under 99%; the rise's unit, points or percent of the baseline; Reset) and a duration
 // Figure (`duration`: Total visitors per day, 1 to 10,000, preset 100; Reset), one paired island.
 // The server draws the preset pair (1,353 visitors per group, 4 weeks); the island loads on intent,
 // or at once when the URL holds keys of either Figure. The Retention context (`winback`,
@@ -82,7 +82,7 @@ test.describe('Full planner', () => {
     await page.goto(`${HOST}?${ID}.baseline=0.6&${ID}.mode=relative&${DURATION}.traffic=500`);
     await expect(readoutN(page)).toHaveText(PRESET_N);
     await expect(result(page)).toContainText('To detect a rise of 5 points, from 29% to 34%.');
-    await expect(result(page)).toContainText('Simulated');
+    await expect(figure(page).getByText('Simulated', { exact: true })).toHaveCount(1);
     await expect(result(page)).toContainText('Hypothetical test');
     await expect(weeks(page)).toHaveText('4');
     await expect(result(page, DURATION)).toContainText('To reach 1,353 visitors per group, 2,706 in all, at 100 visitors a day.');
@@ -552,7 +552,7 @@ test.describe('Full planner', () => {
     await expect(figure(page, 'winback-duration').locator('figcaption > p').first()).toContainText('If 50 customers a day enter the test');
     await expect(figure(page, 'winback-duration').locator('figcaption > p').first()).toContainText('window for ordering again');
     await expect(figure(page, 'winback-duration').getByRole('heading', { level: 3 })).toHaveText(
-      'The fewer customers a day, the more weeks it takes to fill both groups.',
+      'The fewer customers a day, the more weeks it takes to fill both groups',
     );
     // once the baseline moves off the observed one, nothing beside the live results calls it observed
     await typeExact(page, 'Baseline conversion, exact value', '0.6', 'winback');
@@ -613,7 +613,7 @@ test.describe('Full planner', () => {
 /** The sizing Figure's fallback after a failure: the current table, the caption, no readout and no controls. */
 async function assertSizingFallback(page: Page, baselinePercent: string) {
   const f = figure(page);
-  await expect(f.getByRole('heading', { level: 3 })).toHaveText('Smaller rises need more visitors per group.');
+  await expect(f.getByRole('heading', { level: 3 })).toHaveText('Smaller rises need more visitors per group');
   await expect(f.locator('figcaption > p').first()).toContainText("Cohen's h");
   const fallbackTable = f.locator('[data-figure-fallback] table');
   await expect(fallbackTable).toBeVisible();

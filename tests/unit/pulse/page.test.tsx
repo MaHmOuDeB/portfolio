@@ -334,7 +334,7 @@ describe('the taxonomy section', () => {
       note: 'Names and properties as the source code states them; triggers and questions as the project\'s README states them.',
       refs: ['source:pulse'],
     });
-    const rows = [...s.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((c) => decode(c[1]!)));
+    const rows = [...s.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((c) => decode(c[1]!)));
     expect(rows).toEqual([
       ['Event', 'Fires when', 'Properties', 'Question it was designed to answer'],
       ...SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), e.question]),
@@ -343,6 +343,21 @@ describe('the taxonomy section', () => {
     for (const [, attrs] of s.matchAll(/<td ([^>]*)>/g)) expect(attrs).toContain('data-derived="source:pulse"');
     expect(s).not.toMatch(/categor/i);
     expect(text(/<caption[^>]*>([\s\S]*?)<\/caption>/.exec(s)![1]!)).toBe("The tracked events, as the project's code and README state them");
+  });
+
+  it('wraps its sentences in place: no sideways-scrolling region, no one-line cells, a column name on every stacked cell', () => {
+    // The kit DataTable keeps cells on one line in an overflow-x-auto region; this text table wraps.
+    expect(s).not.toMatch(/overflow-x-auto/);
+    expect(s).not.toMatch(/<td [^>]*class="[^"]*(?<!md:)whitespace-nowrap/);
+    const table = /<table ([^>]*)>/.exec(s)![1]!;
+    expect(table).toContain('role="table"');
+    expect(table).toContain('aria-labelledby="pulse-events-caption"');
+    expect(table).toContain('data-stacked-table=""');
+    // Below md each row stacks and every cell after the event names its column (drawn from data-label).
+    const labels = [...s.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+      .slice(1)
+      .map((m) => [...m[1]!.matchAll(/<td ([^>]*)>/g)].map((c) => /data-label="([^"]*)"/.exec(c[1]!)?.[1] ?? null));
+    for (const row of labels) expect(row).toEqual([null, 'Fires when', 'Properties', 'Question it was designed to answer']);
   });
 });
 

@@ -16,7 +16,7 @@ import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts'
 import { CurseFigure } from '@/components/lab/CurseFigure';
 import { InertCurseControls } from '@/components/lab/CurseFigureClient';
 import { CurseFigureView } from '@/components/lab/CurseView';
-import { SrmFigure } from '@/components/lab/SrmFigure';
+import { SrmEvenLink, SrmFigure } from '@/components/lab/SrmFigure';
 import { InertSrmControls } from '@/components/lab/SrmFigureClient';
 import { SrmFigureView } from '@/components/lab/SrmView';
 import { readFigureParams } from '@/lib/figure/url-state';
@@ -33,11 +33,13 @@ import {
   RATIO_MAX,
   RATIO_MIN,
   SRM_ID,
+  SRM_EVEN_HREF,
   SRM_PRESETS,
   SRM_SCHEMA,
   SRM_SMALL_EXPECTED,
   SRM_THRESHOLD,
   curseAxis,
+  curseY,
   curseCurve,
   curseModel,
   curseResultText,
@@ -253,8 +255,11 @@ describe('the split check around the model', () => {
   it('reads a hostile URL as the preset or a clamped value on the grid', () => {
     expect(srmFromUrl('srm.nA=__proto__&srm.nB=&srm.shareA=NaN&srm.preset=constructor')).toEqual(SRM_PRESETS.default);
     expect(srmFromUrl('srm.nA=-5&srm.nB=1e9&srm.shareA=2')).toEqual({ nA: 0, nB: 10_000, shareA: 0.99 });
-    expect(srmFromUrl('srm.nA=12.6&srm.shareA=0.333')).toEqual({ nA: 13, nB: 100, shareA: 0.33 });
-    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4, shareA: 0 })).toEqual({ nA: 100, nB: 0, shareA: 0.01 });
+    expect(srmFromUrl('srm.nA=12.6&srm.shareA=0.333')).toEqual({ nA: 13, nB: 4830, shareA: 0.33 });
+    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4, shareA: 0 })).toEqual({ nA: 5170, nB: 0, shareA: 0.01 });
+    // the even preset by name, and an unknown one gives the default
+    expect(srmFromUrl('srm.preset=even')).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(srmFromUrl('srm.preset=odd')).toEqual(SRM_PRESETS.default);
   });
 });
 
@@ -375,9 +380,10 @@ describe('the exaggeration curve', () => {
     const { points, selected } = curseCurve({ trueEffect: 1, se: 1 }, infiniteRetro);
     expect(points).toEqual([]);
     expect(selected).toBeNull();
-    // the axis still holds zero, with room above it
-    const { top, ticks } = curseAxis(points, null);
-    expect(top).toBeGreaterThan(0);
+    // the axis still holds its floor, one times the true effect (log10 0), with room above it
+    const { top, domain, ticks } = curseAxis(points, null);
+    expect(top).toBeGreaterThan(1);
+    expect(domain).toEqual([0, Math.log10(top)]);
     expect(ticks.wide[0]).toBe(0);
   });
 
@@ -395,8 +401,18 @@ describe('the exaggeration curve', () => {
     expect(points).toContainEqual(selected);
     const { top } = curseAxis(points, selected);
     expect(top).toBeGreaterThan(model.exaggeration);
-    // the dot and its ring sit wholly below the top of the plot, in both layouts
-    for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) expect(((top - model.exaggeration) / top) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+    // the dot and its ring sit wholly below the top of the log plot, in both layouts
+    for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
+      expect(((Math.log10(top) - curseY(model.exaggeration)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+    }
+  });
+
+  it('lifts the preset dot clear of the floor: on the log axis about 2.5x sits a sixth of the way up, not at the bottom', () => {
+    const { points, selected } = curseCurve(CURSE_PRESETS.default);
+    const { domain } = curseAxis(points, selected);
+    const share = curseY(selected!.exaggeration) / domain[1];
+    expect(share).toBeGreaterThan(0.12);
+    expect(share * CURSE_HEIGHT.narrow).toBeGreaterThan(25);
   });
 
   it('at effect 5 and standard error 0.1: ratio 50, the upper end, selected and inside the axis', () => {
@@ -416,12 +432,17 @@ describe('the exaggeration curve', () => {
     for (const trueEffect of [0, 0.1, 0.5, 1, 5]) {
       for (const se of [0.1, 1, 5]) {
         const { points, selected } = curseCurve({ trueEffect, se });
-        const { top, ticks } = curseAxis(points, selected);
+        const { top, domain, ticks } = curseAxis(points, selected);
         const max = Math.max(...points.map((p) => p.exaggeration));
         expect(top).toBeGreaterThan(max);
-        for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) expect(((top - max) / top) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+        for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
+          expect(((Math.log10(top) - curseY(max)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+        }
+        // ticks are log10 of 1, 2, 5, 10, 20, 50, ... up to the top: the floor first, every tick inside the domain
         expect(ticks.wide[0]).toBe(0);
-        expect(ticks.wide.at(-1)).toBeLessThanOrEqual(top);
+        expect(ticks.wide.at(-1)).toBeLessThanOrEqual(domain[1]);
+        for (const t of ticks.wide) expect([1, 2, 5]).toContain(Number((10 ** t / 10 ** Math.floor(t + 1e-9)).toPrecision(6)));
+        expect(ticks.narrow.length).toBeGreaterThanOrEqual(2);
       }
     }
   });
@@ -529,11 +550,22 @@ function curseParts(html: string) {
 describe('the split Figure as the server draws it', () => {
   const SERVER = renderToStaticMarkup(createElement(SrmFigure));
 
-  it('states the relationship, badges it Simulated and draws the preset: an even split, not flagged', () => {
+  it('states the relationship, badges it Simulated and draws the preset: a real case, 5,170 to 4,830 against an even split, flagged', () => {
     expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>A split far from the expected share is flagged for a closer look</h3>`));
     expect(text(SERVER)).toContain('Simulated');
+    expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830, shareA: 0.5 });
     expect(result(SERVER)).toBe(srmResultText(SRM_PRESETS.default));
-    expect(result(SERVER)).toContain('not flagged');
+    expect(result(SERVER)).toBe(
+      'Chi-square 11.56 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
+    );
+  });
+
+  it('keeps the even split one link away: the even preset is the same total, not flagged', () => {
+    expect(SRM_PRESETS.even).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(srmModel(SRM_PRESETS.even!)).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
+    expect(SRM_EVEN_HREF).toBe('/lab?srm.preset=even#split-check');
+    const link = renderToStaticMarkup(createElement(SrmEvenLink));
+    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*">See the same check on an even split<\/a><\/p>$/);
   });
 
   it('explains the threshold, the warning, the approximation and that these are not live results', () => {
@@ -553,10 +585,10 @@ describe('the split Figure as the server draws it', () => {
     const wide = SERVER.match(/<svg[^>]*data-layout="wide"[\s\S]*?<\/svg>/)?.[0] ?? '';
     const bars = [...wide.matchAll(/<rect[^>]*data-series="(observed|expected)"[^>]*data-group="(A|B)"[^>]*data-value="([^"]+)"/g)].map((m) => [m[1], m[2], Number(m[3])]);
     expect(bars).toEqual([
-      ['observed', 'A', 100],
-      ['expected', 'A', 100],
-      ['observed', 'B', 100],
-      ['expected', 'B', 100],
+      ['observed', 'A', 5170],
+      ['expected', 'A', 5000],
+      ['observed', 'B', 4830],
+      ['expected', 'B', 5000],
     ]);
   });
 
@@ -568,7 +600,7 @@ describe('the split Figure as the server draws it', () => {
       expect(n).toContain('the split is flagged for a closer look');
       expect(n).not.toMatch(/mismatch|proof|caused/i);
     }
-    for (const n of names(SERVER)) expect(n).toContain('the split is not flagged');
+    for (const n of names(srmView(SRM_PRESETS.even!))) expect(n).toContain('the split is not flagged');
   });
 
   it('has no stray number, no digit in a chart name and no non-finite text', () => {
@@ -621,11 +653,15 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(t).not.toMatch(/seed/i);
   });
 
-  it('labels a log x-axis with plain ratios and a y-axis from zero', () => {
+  it('labels a log x-axis with plain ratios and a log y-axis from one times the true effect', () => {
     const parts = curseParts(SERVER);
     expect(parts.xTicks).toEqual(['0.1', '1', '10']);
     expect(parts.yTicks[0]).toBeDefined();
-    expect(parts.yTicks).toContain('0');
+    // the zero line of the log axis is 1x: no exaggeration; the ticks are plain multiples
+    expect(parts.yTicks).toContain('1');
+    expect(parts.yTicks).not.toContain('0');
+    expect(parts.yTicks).toEqual(expect.arrayContaining(['2', '5', '10', '100']));
+    expect(SERVER).toContain('>Exaggeration (times the true effect, log scale)</text>');
     expect(SERVER).toContain('>True effect ÷ standard error (log scale)</text>');
     expect(SERVER).not.toContain('divided by');
   });
@@ -766,5 +802,11 @@ describe('the diagnostics code the page loads at once', () => {
 
   it('would catch a leak: the statistics side does reach the statistics', () => {
     expect([...reachable([join(SRC, 'lib/lab/diagnostics.ts')])].some((f) => f.startsWith(STATS))).toBe(true);
+  });
+});
+
+describe('the exaggeration chart name', () => {
+  it('says both axes are on log scales', () => {
+    expect(renderToStaticMarkup(createElement(CurseFigure))).toContain('both on log scales: large for small ratios and close to none for large ones');
   });
 });

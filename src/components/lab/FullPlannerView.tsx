@@ -11,7 +11,6 @@
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { formatNumber } from '@/lib/figure/format';
 import {
   FULL_PLANNER_REFS,
@@ -48,14 +47,9 @@ function DurationSeamFailure(): never {
   throw new Error('The duration readout failed after a change (test seam)');
 }
 
-/** The badge beside the result, with what kind of case it is. */
+/** The kind of case beside the result. The provenance badge comes from the Figure, not from here. */
 function ResultBadge({ context }: { context: PlannerContext }) {
-  return (
-    <span className="inline-flex flex-wrap items-center gap-x-2 align-baseline">
-      <ProvenanceBadge kind="simulated" />
-      <span className="text-sm text-muted">{PLANNER_COPY[context].label}</span>
-    </span>
-  );
+  return <span className="text-sm text-muted">{PLANNER_COPY[context].label}</span>;
 }
 
 /**

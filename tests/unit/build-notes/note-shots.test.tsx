@@ -25,17 +25,22 @@ const EXPECTED = {
     caption: 'The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one.',
   },
   weatherChecks: {
-    src: '/images/notes/weather-quality-checks-dark.png',
+    src: '/images/notes/weather-quality-checks-light-crop.png',
     alt: "Terminal output of the weather pipeline's data-quality checks, one line per check, each with its status word: most lines read OK, the warning lines read WARN and the line on merged condition spellings reads INFO.",
     caption:
       'The data-quality step of the pipeline I rebuilt on a public weather dataset. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
   },
   n8nDecision: {
-    src: '/images/notes/n8n-einvoice-decision-crop-light.png',
-    alt: 'An n8n workflow canvas: a webhook checks the request, reads the invoice row, routes the outcome to error responses or to updating the register and the supplier record, then responds OK.',
+    src: '/images/notes/n8n-einvoice-routing-light.png',
+    alt: 'Part of an n8n workflow canvas: it checks the request, reads and checks the invoice row, then routes the outcome either to updating the register or to an error response.',
     caption: 'The approval step: a person approves or declines an invoice that needs a look, and every other answer is a clear error code.',
   },
 } as const;
+
+// The n8n canvas was captured at 2x with n8n zoomed to fit, so at its 1x size (448 px) its node
+// labels would be about 6 px. Until it is re-shot it is drawn at its file's width (one file pixel per
+// CSS px, labels about 12.5 px), above its 1x size: the only shot allowed to be.
+const UPSCALED_UNTIL_RESHOOT = ['n8nDecision'];
 
 const PAGES = {
   marketingws: { markup: renderToStaticMarkup(<MarketingwsPage />), shots: ['marketingwsBrief', 'marketingwsDraft'], where: 'architecture' },
@@ -97,6 +102,70 @@ describe('NoteShot', () => {
     expect(shotsIn(markup)[0]!.alt).toBe(EXPECTED.weatherChecks.alt);
   });
 
+  it('shows each MarketingWS shot at its own width: the brief at its capture size, the draft at its old 796', () => {
+    expect(NOTE_SHOTS.marketingwsBrief.maxWidth).toBe(360);
+    expect(NOTE_SHOTS.marketingwsDraft.maxWidth).toBe(796);
+    for (const id of ['marketingwsBrief', 'marketingwsDraft'] as const) {
+      const figure = /<figure ([^>]*)>/.exec(renderToStaticMarkup(<NoteShot shot={id} />))![1]!;
+      expect(figure).toContain(`style="max-width:${NOTE_SHOTS[id].maxWidth}px"`);
+      expect(figure).not.toMatch(/\bmax-w-text\b/);
+    }
+  });
+
+  // A screenshot is drawn no larger than the UI it shows: never above its file's width divided by the
+  // scale it was captured at, so a 2x capture is never drawn above its 1x size (the brief at 680 px
+  // was nearly twice its real size). The one exception is pinned below by name.
+  it('never draws a capture above its 1x size', () => {
+    const over: string[] = [];
+    for (const [id, shot] of Object.entries(NOTE_SHOTS)) {
+      const s: { width: number; captureScale: number; maxWidth: number; minWidth?: number } = shot;
+      expect(s.captureScale, id).toBeGreaterThanOrEqual(1);
+      // Never wider than the file itself, the exception included.
+      expect(s.maxWidth, id).toBeLessThanOrEqual(s.width);
+      if (s.minWidth !== undefined) expect(s.minWidth, id).toBeLessThanOrEqual(s.width);
+      const oneX = s.width / s.captureScale;
+      if (s.maxWidth > oneX || (s.minWidth ?? 0) > oneX) over.push(id);
+    }
+    expect(over).toEqual(UPSCALED_UNTIL_RESHOOT);
+    // The exception is drawn at exactly its file's own pixel width, read from the PNG header, so a
+    // silent drop to any narrower width fails here.
+    const n8n = NOTE_SHOTS.n8nDecision;
+    const filePx = readFileSync(join(repo, 'public/images/notes', n8n.file)).readUInt32BE(16);
+    expect(n8n.maxWidth).toBe(filePx);
+    expect(n8n.minWidth).toBe(filePx);
+  });
+
+  it('keeps the terminal and canvas text at 13 px or more: a narrowest width, and a labelled scrolling frame under it', () => {
+    for (const id of ['weatherChecks', 'n8nDecision'] as const) {
+      const shot = NOTE_SHOTS[id];
+      const textAt = (cssWidth: number) => (shot.textPx * cssWidth) / shot.width;
+      // The n8n labels were measured at about 12.5 px in the file, drawn one file pixel per CSS px:
+      // as large as the capture allows without upscaling, so its floor is 12 px until a re-shoot at a
+      // closer zoom.
+      if (id === 'n8nDecision') expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(12);
+      else expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(13);
+      expect(shot.maxWidth).toBeGreaterThanOrEqual(shot.minWidth);
+      expect(shot.maxWidth).toBeLessThanOrEqual(960);
+      const markup = renderToStaticMarkup(<NoteShot shot={id} />);
+      expect(markup).toContain(`<div data-shot-frame="" class="overflow-x-auto" tabindex="0" role="region" aria-labelledby="${id}-caption"><img `);
+      expect(markup).toContain(`<figcaption id="${id}-caption"`);
+      expect(markup).toContain(`style="min-width:${shot.minWidth}px"`);
+    }
+    // A frame that takes focus fits whole, with its 4 px ring, under the 64 px sticky header on a
+    // 768 px tall laptop screen, so focusing it can show its whole ring.
+    for (const id of ['weatherChecks', 'n8nDecision'] as const) {
+      const shot = NOTE_SHOTS[id];
+      expect((shot.maxWidth as number) * (shot.height / shot.width) + 8, id).toBeLessThanOrEqual(768 - 64);
+    }
+    // The light terminal: no dark surface on a light-only site.
+    expect(NOTE_SHOTS.weatherChecks.file).not.toMatch(/dark/);
+  });
+
+  it('links the n8n canvas to the wider crop of the same recording', () => {
+    const markup = renderToStaticMarkup(<NoteShot shot="n8nDecision" />);
+    expect(markup).toContain('<a href="/images/notes/n8n-einvoice-decision-canvas-light.png"');
+  });
+
   it('puts the caption last in the figure, with the full-size link inside it', () => {
     for (const id of Object.keys(EXPECTED)) {
       const markup = renderToStaticMarkup(<NoteShot shot={id as keyof typeof NOTE_SHOTS} />);
@@ -124,9 +193,14 @@ describe('the notes', () => {
     expect(used).toEqual([
       'marketingws-brief-light.png',
       'marketingws-first-draft-light.png',
-      'weather-quality-checks-dark.png',
-      'n8n-einvoice-decision-crop-light.png',
+      'weather-quality-checks-light-crop.png',
+      'n8n-einvoice-routing-light.png',
     ]);
-    for (const f of used) expect(existsSync(join(repo, 'public/images/notes', f))).toBe(true);
+    const fullSize = Object.values(NOTE_SHOTS).flatMap((s) => ('fullSizeFile' in s ? [s.fullSizeFile] : []));
+    expect(fullSize).toEqual(['n8n-einvoice-decision-canvas-light.png']);
+    // The full canvas: a 1906 by 778 crop with every node whole, 16 CSS px of canvas on each side.
+    const canvas = readFileSync(join(repo, 'public/images/notes', fullSize[0]!));
+    expect([canvas.readUInt32BE(16), canvas.readUInt32BE(20)]).toEqual([1906, 778]);
+    for (const f of [...used, ...fullSize]) expect(existsSync(join(repo, 'public/images/notes', f))).toBe(true);
   });
 });

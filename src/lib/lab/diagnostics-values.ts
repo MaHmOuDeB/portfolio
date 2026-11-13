@@ -29,7 +29,18 @@ export const SRM_SCHEMA = {
 
 export type SrmValues = ParamValues<typeof SRM_SCHEMA>;
 
-export const SRM_PRESETS: Presets<typeof SRM_SCHEMA> = { default: { nA: 100, nB: 100, shareA: 0.5 } };
+/**
+ * The presets, both simulated. `default` is a real case of what the check is for: 10,000 visitors
+ * split 5,170 to 4,830 against an expected even split, a gap of a few points that the test flags.
+ * `even` is the same total split evenly, one link away (`?srm.preset=even`), which it does not flag.
+ */
+export const SRM_PRESETS: Presets<typeof SRM_SCHEMA> = {
+  default: { nA: 5170, nB: 4830, shareA: 0.5 },
+  even: { nA: 5000, nB: 5000, shareA: 0.5 },
+};
+
+/** The link to the even preset, as a full page load so the island reads it. */
+export const SRM_EVEN_HREF = '/lab?srm.preset=even#split-check';
 
 /**
  * The p-value under which the split is flagged. srmTest in @/lib/stats flags `p < 0.001` and does

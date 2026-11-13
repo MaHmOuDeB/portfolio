@@ -55,6 +55,8 @@ const bound = (v: number) => formatSignedPoints(v, 1);
 const limitText = () => formatSignedNumber(GUARDRAIL_MARGIN, 1);
 
 const X_NAMES = ['Session completion', 'Help requests'] as const;
+/** Under sm the names are short, so the two never run into each other at 320 px. */
+const X_NAMES_NARROW = ['Completion', 'Help requests'] as const;
 const Y_TICKS = { wide: [-10, -5, 0, 5, 10], narrow: [-10, -5, 0, 5, 10] };
 const HEIGHT = { narrow: 220, wide: 260 } as const;
 const CAP = 7;
@@ -62,10 +64,12 @@ const STROKE = 3;
 /** The limit's label sits this far above its line, in px. */
 const LABEL_LIFT = 12;
 
-function xName(v: number): string {
-  const name = Number.isInteger(v) ? X_NAMES[v] : undefined;
-  if (name === undefined) throw new RangeError(`framework: no metric at tick ${v}`);
-  return name;
+function xNameIn(names: readonly string[]): (v: number) => string {
+  return (v) => {
+    const name = Number.isInteger(v) ? names[v] : undefined;
+    if (name === undefined) throw new RangeError(`framework: no metric at tick ${v}`);
+    return name;
+  };
 }
 
 /** The bounds and the limit as one sentence, for the result line and the announcement. */
@@ -94,20 +98,28 @@ export function frameworkTable(v: FrameworkValues): TableData {
   };
 }
 
-export function FrameworkChart({ values: v }: { values: FrameworkValues }) {
+/**
+ * One layout of the chart. The chart draws each layout itself (ChartFrame's `layout`), because the
+ * narrow one names the metrics briefly and keeps only the short side words ("higher", "lower") in its
+ * right margin: "no change" would be cut by the figure's edge at 320 px. The zero tick still marks
+ * the line.
+ */
+function FrameworkFrame({ values: v, layout }: { values: FrameworkValues; layout: 'narrow' | 'wide' }) {
   const decision = frameworkDecision(v);
+  const narrow = layout === 'narrow';
   return (
     <ChartFrame
       id={`${FRAMEWORK_ID}-chart`}
+      layout={layout}
       ariaLabel={CHART_NAME[decision]}
-      x={{ domain: [-0.5, 1.5], ticks: { wide: [0, 1], narrow: [0, 1] }, format: xName, label: 'Metric', refs: FRAMEWORK_REFS }}
+      x={{ domain: [-0.5, 1.5], ticks: { wide: [0, 1], narrow: [0, 1] }, format: xNameIn(narrow ? X_NAMES_NARROW : X_NAMES), label: 'Metric', refs: FRAMEWORK_REFS }}
       y={{
         domain: [-10, 10],
         ticks: Y_TICKS,
         format: (t) => formatSignedNumber(t, 0),
         label: 'Change (percentage points)',
         refs: FRAMEWORK_REFS,
-        zeroLabel: 'no change',
+        zeroLabel: narrow ? undefined : 'no change',
         aboveLabel: 'higher',
         belowLabel: 'lower',
       }}
@@ -150,6 +162,19 @@ export function FrameworkChart({ values: v }: { values: FrameworkValues }) {
         refs: FRAMEWORK_REFS,
       })}
     />
+  );
+}
+
+export function FrameworkChart({ values }: { values: FrameworkValues }) {
+  return (
+    <>
+      <div className="sm:hidden">
+        <FrameworkFrame values={values} layout="narrow" />
+      </div>
+      <div className="max-sm:hidden">
+        <FrameworkFrame values={values} layout="wide" />
+      </div>
+    </>
   );
 }
 

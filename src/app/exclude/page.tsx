@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function ExcludePage() {
   return (
     <div className="py-section">
-      <h1>Leave this browser out of the experiment</h1>
+      <h1 className="text-2xl font-semibold md:text-3xl">Leave this browser out of the experiment</h1>
       <p className="mt-4 max-w-text">
         This sets one cookie on this browser, so my own visits are not counted in the live test. Visitors never get it.
       </p>
