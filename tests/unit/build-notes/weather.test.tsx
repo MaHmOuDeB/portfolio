@@ -189,6 +189,17 @@ describe('the pipeline diagram', () => {
   });
 });
 
+describe('the pipeline branch in the narrow layout', () => {
+  const fig = /<figure [^>]*data-figure="weather-pipeline"[\s\S]*?<\/figure>/.exec(PAGE)![0];
+  it('indents the alternative node under the first when the stage stacks, so it reads as a branch, not a next step', () => {
+    const model = /<li data-stage="model">([\s\S]*?)<\/li>/.exec(fig)![1]!;
+    const steps = [...model.matchAll(/<div class="([^"]*)"><p class="text-sm font-semibold">([^<]+)<\/p>/g)].map((m) => [m[2], m[1]]);
+    expect(steps.map(([name]) => name)).toEqual(['Star schema', 'Quarantine']);
+    expect(steps[0]![1]).not.toContain('max-xs:ml-6');
+    expect(steps[1]![1]).toContain('max-xs:ml-6');
+  });
+});
+
 describe('the checks by level', () => {
   it('reads only the levels from the export, and they add up to the facts', () => {
     const levels = checkLevels();
