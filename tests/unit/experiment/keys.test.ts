@@ -3,6 +3,9 @@ import { EXPERIMENT } from '@/experiment.values';
 import { EVENT_TYPES, REJECT_REASONS, isNamespace } from '@/lib/experiment/events';
 import { fieldName, ipBucket, keys, parseField, type CounterField } from '@/lib/experiment/keys';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261202;
+
 const PV = '3f2b8c1e-9a4d-4b6f-8e2a-1c5d7f9b0a3e';
 
 describe('keys', () => {
@@ -56,6 +59,7 @@ describe('fieldName and parseField', () => {
       fc.property(field, (f) => {
         expect(parseField(fieldName(f))).toEqual(f);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 

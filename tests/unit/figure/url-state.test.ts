@@ -10,6 +10,9 @@ import {
   type Presets,
 } from '@/lib/figure/url-state';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261208;
+
 const schema = {
   baseline: { kind: 'number', min: 0.01, max: 0.5, step: 0.01 },
   power: { kind: 'enum', values: ['0.8', '0.9'] },
@@ -125,6 +128,7 @@ describe('readFigureParams', () => {
         expect(v.baseline).toBeLessThanOrEqual(0.5);
         expect(schema.power.values).toContain(v.power);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });

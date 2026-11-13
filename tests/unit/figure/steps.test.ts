@@ -2,6 +2,9 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { normalizeSteps, stepDirection, stepLabel, stepTarget } from '@/lib/figure/steps';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261206;
+
 describe('normalizeSteps', () => {
   it('keeps a valid position', () => {
     expect(normalizeSteps(3, 5)).toEqual({ current: 3, total: 5 });
@@ -37,6 +40,7 @@ describe('normalizeSteps', () => {
         expect(Number.isInteger(r.total) && r.total >= 1).toBe(true);
         expect(Number.isInteger(r.current) && r.current >= 1 && r.current <= r.total).toBe(true);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -74,6 +78,7 @@ describe('stepTarget', () => {
         const { total: t } = normalizeSteps(current, total);
         expect(next >= 1 && next <= t && Number.isInteger(next)).toBe(true);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
