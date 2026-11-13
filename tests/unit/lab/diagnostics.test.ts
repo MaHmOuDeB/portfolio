@@ -91,6 +91,8 @@ const curseFromUrl = (query: string) =>
 const grid = (spec: { min: number; max: number; step: number }) =>
   Array.from({ length: Math.round((spec.max - spec.min) / spec.step) + 1 }, (_, i) => Number((spec.min + i * spec.step).toPrecision(15)));
 const EFFECTS = grid(CURSE_SCHEMA.trueEffect);
+/** Every property here runs from this seed, so a run is repeatable. */
+const PROPERTY_SEED = 20261113;
 const SES = grid(CURSE_SCHEMA.se);
 
 // ---------------------------------------------------------------------------------------------
@@ -132,6 +134,7 @@ describe('srmModel', () => {
           expect(srmModel({ nA, nB, shareA })).toEqual({ kind: 'result', ...srmTest(nA, nB, shareA) });
         },
       ),
+      { seed: PROPERTY_SEED },
     );
   });
 
@@ -159,6 +162,7 @@ describe('srmModel', () => {
         const r = srmModel({ nA, nB, shareA: pc / 100 });
         expect(r.kind === 'result' && r.flagged).toBe(r.kind === 'result' && r.p < SRM_THRESHOLD);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -285,13 +289,21 @@ describe('curseModel', () => {
       return r.exaggeration;
     };
     // a smaller ratio never exaggerates less, and up to a ratio of 5 it exaggerates strictly more
+    // The ratios are compared exactly, in whole tenths (both grids step by 0.1): 0.3 / 0.4 and
+    // 0.9 / 1.2 are the same ratio, though in floating point the first is the smaller one, and
+    // their exaggerations differ only in the last bit.
+    const tenths = (v: number) => Math.round(v * 10);
     const settings = EFFECTS.filter((e) => e > 0).flatMap((e) => SES.map((s) => ({ e, s, ratio: e / s })));
+    const smaller = (x: (typeof settings)[number], y: (typeof settings)[number]) => tenths(x.e) * tenths(y.s) < tenths(y.e) * tenths(x.s);
+    const tie = [settings.find((v) => v.e === 0.3 && v.s === 0.4)!, settings.find((v) => v.e === 0.9 && v.s === 1.2)!] as const;
+    expect(smaller(tie[0], tie[1]) || smaller(tie[1], tie[0])).toBe(false);
     fc.assert(
       fc.property(fc.constantFrom(...settings), fc.constantFrom(...settings), (x, y) => {
-        fc.pre(x.ratio < y.ratio);
+        fc.pre(smaller(x, y));
         expect(at(x.e, x.s)).toBeGreaterThanOrEqual(at(y.e, y.s));
         if (y.ratio <= 5) expect(at(x.e, x.s)).toBeGreaterThan(at(y.e, y.s));
       }),
+      { seed: PROPERTY_SEED, examples: [[tie[0], tie[1]]] },
     );
     // the same effect with a growing standard error
     const bySe = SES.map((se) => at(1, se));

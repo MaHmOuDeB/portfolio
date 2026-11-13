@@ -11,8 +11,9 @@
 // - the deployed checks (docs/experiment/deployed-checks.md, the log table) are recorded as PASS,
 //   and the `headers` PASS was run against the canonical domain (--canonical);
 // - the secrets exist, by name: in Vercel's production environment and in the GitHub repository;
-// - the GitHub repository variables the deploy reads exist, by name: LAUNCHED, and LAUNCH_SHA, the
-//   commit the deploy workflow lets deploy production once LAUNCHED is true;
+// - the GitHub repository variables the deploy reads exist, by name: LAUNCHED; LAUNCH_SHA, the
+//   commit the deploy workflow lets deploy production once LAUNCHED is true; and CANONICAL_HOST, the
+//   bare canonical domain the production deploy checks the built pages against;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash;
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
@@ -22,7 +23,9 @@
 //
 // It reads secret and variable NAMES only: the Vercel CLI is never asked for JSON (which would
 // include values), gh is asked for the variables' name field alone, and no command output is
-// printed. It needs `npx vercel login` and `gh auth login` on this machine.
+// printed. The one value it reads is the variable CANONICAL_HOST (a public domain, not a secret),
+// to compare it with --canonical; it never prints that value either. It needs `npx vercel login`
+// and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,6 +35,7 @@ import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
 import { LIVE_ROUTES } from '../src/lib/site.ts';
 import { preregHash } from '../src/lib/experiment/prereg-hash.ts';
+import { bareHostname } from '../src/lib/seo/hostname.ts';
 import { builtPages, findPlaceholders } from './launch-placeholders.ts';
 
 /**
@@ -67,8 +71,18 @@ export const VERCEL_SECRETS = [
 ] as const;
 /** Repository secrets the CI and deploy workflows use for the experiment. */
 export const GITHUB_SECRETS = ['INTERNAL_TRAFFIC_SECRET', 'VERCEL_AUTOMATION_BYPASS_SECRET'] as const;
-/** Repository variables the deploy workflow reads: the launch setting and the one commit it may deploy to production. */
-export const GITHUB_VARIABLES = ['LAUNCHED', 'LAUNCH_SHA'] as const;
+/**
+ * Repository variables the deploy workflow reads: the launch setting, the one commit it may deploy to
+ * production, and the canonical domain its production origin check expects.
+ */
+export const GITHUB_VARIABLES = ['LAUNCHED', 'LAUNCH_SHA', 'CANONICAL_HOST'] as const;
+/** Why a missing variable is unmet. The two launch switches must never read as "set it now". */
+const MISSING_VARIABLE: Record<(typeof GITHUB_VARIABLES)[number], string> = {
+  LAUNCHED: 'expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step',
+  LAUNCH_SHA: 'expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step',
+  CANONICAL_HOST:
+    'the production deploy refuses to run without it: the owner sets it to the bare canonical domain, the one given to --canonical, before LAUNCHED',
+};
 /** Rows of the deployed-checks log that must read PASS before launch. */
 export const REQUIRED_LOG_CHECKS = ['split', 'isr', 'headers', 'firewall', 'domains'] as const;
 const PREREG_TAG = EXPERIMENT.prereg.tag;
@@ -286,11 +300,18 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
     unmet.push('could not list the GitHub variables (run gh auth login, then try again)');
   } else {
     const have = names(variables.stdout);
-    // Before launch both are missing by design; the message must never read as "set it now".
+    // Before launch LAUNCHED and LAUNCH_SHA are missing by design (MISSING_VARIABLE says why).
     for (const name of GITHUB_VARIABLES) {
-      if (!have.has(name)) {
+      if (!have.has(name)) unmet.push(`variable missing in GitHub: ${name} (${MISSING_VARIABLE[name]})`);
+    }
+    // The domain the deploy enforces must be the one the deployed checks ran on.
+    if (have.has('CANONICAL_HOST') && canonical !== null) {
+      const value = d.run('gh', ['variable', 'get', 'CANONICAL_HOST', '--repo', GITHUB_REPO]);
+      if (value.status !== 0) {
+        unmet.push('could not read the GitHub variable CANONICAL_HOST (run gh auth login, then try again)');
+      } else if (bareHostname(value.stdout.replace(/\r?\n$/, '')) !== canonical) {
         unmet.push(
-          `variable missing in GitHub: ${name} (expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step)`,
+          `the GitHub variable CANONICAL_HOST is not the canonical domain given to --canonical (${canonical}); the production deploy would refuse every build`,
         );
       }
     }

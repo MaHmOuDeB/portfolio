@@ -311,9 +311,15 @@ test.describe('kitchen sink step navigation', () => {
   const count = (page: Page) => demo(page).locator('[data-step-count]');
   const live = (page: Page) => demo(page).locator('[data-step-live]');
   const currentStep = (page: Page) => demo(page).locator('[aria-current="step"]');
+  // The buttons are visible before the page hydrates, and a click or key that comes earlier is lost.
+  // A test that clicks or presses keys waits for the demo to be hydrated first.
+  const open = async (page: Page) => {
+    await page.goto('/kitchen-sink');
+    await expect(demo(page).locator('[data-ready]')).toHaveCount(1);
+  };
 
   test('Next twice reads "3 of 5" and announces it once; an outside change announces nothing', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await expect(count(page)).toHaveText('1 of 5');
     await expect(count(page)).toHaveAttribute('data-derived', 'simulated');
     await expect(live(page)).toHaveText('');
@@ -332,7 +338,7 @@ test.describe('kitchen sink step navigation', () => {
   });
 
   test('arrows work with focus inside; at the end Next does nothing and keeps focus', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await outside(page).click();
     await expect(count(page)).toHaveText('4 of 5');
     await next(page).focus();
@@ -361,7 +367,7 @@ test.describe('kitchen sink step navigation', () => {
   });
 
   test('Previous is aria-disabled on the first step, does nothing and keeps focus', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await expect(previous(page)).toHaveAttribute('aria-disabled', 'true');
     await expect(previous(page)).not.toHaveAttribute('disabled');
     await previous(page).click({ force: true });
@@ -375,7 +381,7 @@ test.describe('kitchen sink step navigation', () => {
   });
 
   test('Tab reaches Previous then Next, and both are at least 44 px tall', async ({ page, browserName }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     for (const button of [previous(page), next(page)]) {
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
