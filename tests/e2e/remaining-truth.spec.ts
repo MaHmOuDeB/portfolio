@@ -85,17 +85,23 @@ test.describe('the site-wide claims', () => {
 
       expect(errors, 'page errors before the islands are made to fail').toEqual([]);
 
-      // The islands fail to load: block the scripts before the islands are asked for, then ask.
+      // The islands fail to load: every script the served page names (its own and its payload's)
+      // loads, so the page hydrates; every other script, which is what a lazy island fetches, is
+      // refused from the start, so an island asked for on idle cannot load before the block.
       const islands = await page.locator('[data-island]').count();
       if (islands > 0) {
-        let block = false;
-        await page.route('**/_next/static/**/*.js', (r) => (block ? r.abort() : r.continue()));
+        const served = await (await page.request.get(route)).text();
+        const named = new Set([...served.matchAll(/static\/chunks\/[^"'\\\s]+?\.js/g)].map((m) => m[0]));
+        await page.route('**/_next/static/**/*.js', (r) => {
+          const path = new URL(r.request().url()).pathname;
+          if (!path.includes('/static/chunks/')) return r.continue();
+          return named.has(path.replace(/^.*?(static\/chunks\/)/, '$1')) ? r.continue() : r.abort();
+        });
         await page.goto(route);
         await page.waitForLoadState('load');
-        block = true;
         for (const h of await page.locator('main figure[data-figure] h3').all()) await h.hover().catch(() => {});
         await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
-        await expect(page.locator('[data-island="failed"]'), 'an island failed').not.toHaveCount(0);
+        await expect(page.locator('[data-island="failed"]'), 'an island failed').not.toHaveCount(0, { timeout: 15_000 });
         await holds(page, route, 'islands failed');
         await page.unroute('**/_next/static/**/*.js');
         expect(errors.filter((m) => !CHUNK_ERRORS.test(m)), 'page errors other than the blocked scripts').toEqual([]);
