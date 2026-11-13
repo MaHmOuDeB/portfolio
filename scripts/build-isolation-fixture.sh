@@ -10,7 +10,9 @@
 # strings with a password) and the read-only token it keeps. Every value is synthetic, and the
 # hosts end in the reserved .invalid, so nothing is ever reached.
 #
-# It deliberately sets no VERCEL_ENV and no KV_REST_API_URL: this job proves the environment
+# It sets VERCEL_ENV="preview", because a build on Vercel (VERCEL=1, which `vercel build` sets) with
+# no VERCEL_ENV fails on purpose (src/lib/seo/metadata.ts canonicalOrigin), and it deliberately sets
+# no KV_REST_API_URL and no VERCEL_PROJECT_PRODUCTION_URL: this job proves the environment
 # isolation, it is not a rehearsal of the production build (which would need the production
 # canonical host). Anything else a deploy-style build needs before `vercel build` belongs in this
 # script, so the workflow itself does not change. `vercel build` sets VERCEL, which next.config.ts
@@ -33,6 +35,7 @@ printf '%s\n' '{"projectId":"prj_build_isolation","orgId":"team_build_isolation"
   echo 'KV_URL="rediss://default:synthetic-password@store.invalid:6379"'
   echo 'REDIS_URL="rediss://default:synthetic-password@store.invalid:6379"'
   echo 'KV_REST_API_READ_ONLY_TOKEN="synthetic-read-token"'
+  echo 'VERCEL_ENV="preview"'
 } > .vercel/.env.production.local
 chmod 600 .vercel/.env.production.local
 mkdir -p public

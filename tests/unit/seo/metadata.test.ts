@@ -26,7 +26,7 @@ import { OG_LOCK_PATH, renderPlan } from '../../../scripts/og-render.ts';
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const APP = path.join(ROOT, 'src/app');
 
-const VARS = ['VERCEL_ENV', 'VERCEL_PROJECT_PRODUCTION_URL', 'SEO_TEST_ORIGIN_HOST', 'CI'] as const;
+const VARS = ['VERCEL', 'VERCEL_ENV', 'VERCEL_PROJECT_PRODUCTION_URL', 'SEO_TEST_ORIGIN_HOST', 'CI'] as const;
 const saved: Record<string, string | undefined> = {};
 beforeEach(() => {
   for (const name of VARS) {
@@ -144,6 +144,23 @@ describe('canonicalOrigin', () => {
     for (const host of ['canonical.invalid', 'site.INVALID']) {
       process.env.VERCEL_PROJECT_PRODUCTION_URL = host;
       expect(() => canonicalOrigin(), host).toThrow(CanonicalOriginError);
+    }
+  });
+
+  it('fails with the named error on Vercel (VERCEL=1) when VERCEL_ENV is missing or empty', () => {
+    for (const value of [undefined, '']) {
+      setEnv({ VERCEL: '1', VERCEL_PROJECT_PRODUCTION_URL: 'site.example.com' });
+      if (value === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = value;
+      expect(() => canonicalOrigin(), String(value)).toThrow(CanonicalOriginError);
+      expect(() => canonicalOrigin(), String(value)).toThrow(/VERCEL_ENV is missing on Vercel/);
+    }
+  });
+
+  it('on Vercel with a VERCEL_ENV other than production, gives the test origin', () => {
+    for (const vercelEnv of ['preview', 'development']) {
+      setEnv({ VERCEL: '1', VERCEL_ENV: vercelEnv, VERCEL_PROJECT_PRODUCTION_URL: 'site.example.com' });
+      expect(canonicalOrigin().href, vercelEnv).toBe('https://canonical.invalid/');
     }
   });
 

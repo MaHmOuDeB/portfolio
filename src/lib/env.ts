@@ -11,6 +11,12 @@ export interface ServerEnv {
   excludeToken?: string;
   ratelimitHmacKey?: string;
   vercelEnv: VercelEnv;
+  /**
+   * Whether VERCEL_ENV is set at all (non-empty). vercelEnv maps a missing value to 'development',
+   * so this keeps the difference: on Vercel a missing VERCEL_ENV fails the canonical origin
+   * (lib/seo/metadata.ts canonicalOrigin) instead of building with the test origin.
+   */
+  vercelEnvSet?: boolean;
   productionHost?: string;
   deploymentHost?: string;
   gitCommit?: string;
@@ -67,6 +73,7 @@ function toVercelEnv(value: string | undefined): VercelEnv {
  * variable read here must be listed in `.env.example`.
  */
 export function serverEnv(): ServerEnv {
+  const vercelEnv = nonEmpty(process.env.VERCEL_ENV);
   return {
     kvUrl: nonEmpty(process.env.KV_REST_API_URL),
     kvToken: nonEmpty(process.env.KV_REST_API_TOKEN),
@@ -75,7 +82,8 @@ export function serverEnv(): ServerEnv {
     internalTrafficSecret: nonEmpty(process.env.INTERNAL_TRAFFIC_SECRET),
     excludeToken: nonEmpty(process.env.EXCLUDE_TOKEN),
     ratelimitHmacKey: nonEmpty(process.env.RATELIMIT_HMAC_KEY),
-    vercelEnv: toVercelEnv(nonEmpty(process.env.VERCEL_ENV)),
+    vercelEnv: toVercelEnv(vercelEnv),
+    vercelEnvSet: vercelEnv !== undefined,
     productionHost: nonEmpty(process.env.VERCEL_PROJECT_PRODUCTION_URL),
     deploymentHost: nonEmpty(process.env.VERCEL_URL),
     gitCommit: nonEmpty(process.env.VERCEL_GIT_COMMIT_SHA),

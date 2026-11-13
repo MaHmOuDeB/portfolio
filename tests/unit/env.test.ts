@@ -62,6 +62,7 @@ describe('serverEnv', () => {
       contactToEmail: undefined,
       resendApiUrl: undefined,
       seoTestOriginHost: undefined,
+      vercelEnvSet: false,
     });
   });
 
@@ -104,6 +105,7 @@ describe('serverEnv', () => {
       contactToEmail: 'test-value-inbox',
       resendApiUrl: 'test-value-resend-url',
       seoTestOriginHost: 'test-value-seo-host',
+      vercelEnvSet: false,
     });
   });
 
@@ -122,6 +124,16 @@ describe('serverEnv', () => {
     const env = serverEnv();
     expect(env.kvUrl).toBeUndefined();
     expect(env.vercelEnv).toBe('development');
+  });
+
+  it('records whether VERCEL_ENV is set at all (empty counts as unset), whatever its value', () => {
+    expect(serverEnv().vercelEnvSet).toBe(false);
+    process.env.VERCEL_ENV = '';
+    expect(serverEnv().vercelEnvSet).toBe(false);
+    for (const value of ['production', 'preview', 'development', 'staging']) {
+      process.env.VERCEL_ENV = value;
+      expect(serverEnv().vercelEnvSet, value).toBe(true);
+    }
   });
 
   it('reads VERCEL_ENV on every call', () => {

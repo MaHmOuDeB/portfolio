@@ -36,6 +36,8 @@ const isTestHost = (host: string) => host === 'invalid' || host.endsWith('.inval
 /**
  * The site's canonical origin, `https://` plus a validated bare hostname.
  *
+ * - On Vercel (`VERCEL=1`) with no `VERCEL_ENV`: CanonicalOriginError, because such a build cannot tell
+ *   production from a preview and would otherwise publish the test origin.
  * - Production (`VERCEL_ENV=production`): `VERCEL_PROJECT_PRODUCTION_URL`. A missing or invalid
  *   value, a `.invalid` host or any `SEO_TEST_ORIGIN_HOST` throws CanonicalOriginError, so the
  *   production build fails rather than publish a wrong canonical.
@@ -43,8 +45,11 @@ const isTestHost = (host: string) => host === 'invalid' || host.endsWith('.inval
  *   fixed test origin https://canonical.invalid. The production hostname is never used there.
  */
 export function canonicalOrigin(
-  env: Pick<ServerEnv, 'vercelEnv' | 'productionHost' | 'seoTestOriginHost'> = serverEnv(),
+  env: Pick<ServerEnv, 'vercelEnv' | 'vercelEnvSet' | 'onVercel' | 'productionHost' | 'seoTestOriginHost'> = serverEnv(),
 ): URL {
+  if (env.onVercel === true && env.vercelEnvSet !== true) {
+    throw new CanonicalOriginError('VERCEL_ENV is missing on Vercel (VERCEL=1); a build there must say whether it is production');
+  }
   if (env.vercelEnv === 'production') {
     if (env.seoTestOriginHost !== undefined) {
       throw new CanonicalOriginError('SEO_TEST_ORIGIN_HOST is a test override; a production build refuses it');
