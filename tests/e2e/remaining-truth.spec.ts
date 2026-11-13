@@ -90,6 +90,9 @@ test.describe('the site-wide claims', () => {
       // refused from the start, so an island asked for on idle cannot load before the block.
       const islands = await page.locator('[data-island]').count();
       if (islands > 0) {
+        // The Figures that live in an island, so that none can silently drop out of the checks below.
+        const inIslands = await page.locator('main [data-island] figure[data-figure]').evaluateAll((fs) => [...new Set(fs.map((f) => f.id))]);
+        expect(inIslands.length, `${route}: Figures in islands`).toBeGreaterThan(0);
         const served = await (await page.request.get(route)).text();
         const named = new Set([...served.matchAll(/static\/chunks\/[^"'\\\s]+?\.js/g)].map((m) => m[0]));
         await page.route('**/_next/static/**/*.js', (r) => {
@@ -102,6 +105,28 @@ test.describe('the site-wide claims', () => {
         for (const h of await page.locator('main figure[data-figure] h3').all()) await h.hover().catch(() => {});
         await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
         await expect(page.locator('[data-island="failed"]'), 'an island failed').not.toHaveCount(0, { timeout: 15_000 });
+        // Every island failed (none loaded through a script the page names), each Figure that lived
+        // in one is still there, and each failed island shows its open table with rows.
+        expect(await page.locator('[data-island]').evaluateAll((els) => els.map((e) => e.getAttribute('data-island')).filter((v) => v !== 'failed')), 'islands not failed').toEqual([]);
+        for (const id of inIslands) await expect(page.locator(`main figure[data-figure="${id}"]`), `${id} is still there`).toHaveCount(1);
+        // An island that holds its Figure shows that Figure's open table in its place. An island inside
+        // a Figure (the Home scroll moment's charts) holds only the chart: the Figure's own table,
+        // outside the island, keeps its rows and its visible disclosure.
+        const fallbacks = await page.locator('[data-island="failed"]').evaluateAll((els) =>
+          els.map((island) => {
+            const shown = (e: Element | null) => e !== null && e.getClientRects().length > 0;
+            const own = island.querySelector('figure[data-figure]');
+            if (own !== null) {
+              const table = island.querySelector('[data-nojs-only] table');
+              return { figure: own.id, kind: 'holds its Figure', ok: shown(table) && shown(table?.querySelector('tbody tr') ?? null) };
+            }
+            const outer = island.closest('figure[data-figure]');
+            const rows = outer?.querySelector('[data-figure-tables] table tbody tr') ?? null;
+            const toggle = outer?.querySelector('[data-figure-tables] summary') ?? null;
+            return { figure: outer?.id ?? '(none)', kind: 'inside its Figure', ok: outer !== null && rows !== null && shown(toggle) };
+          }),
+        );
+        expect(fallbacks.filter((f) => !f.ok), 'each failed island keeps a readable table').toEqual([]);
         await holds(page, route, 'islands failed');
         await page.unroute('**/_next/static/**/*.js');
         expect(errors.filter((m) => !CHUNK_ERRORS.test(m)), 'page errors other than the blocked scripts').toEqual([]);

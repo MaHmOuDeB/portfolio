@@ -28,8 +28,8 @@ const TWO_TEAMS = /\b(?:2|two)\s+(?:[\w&-]+\s+){0,2}?teams\b/i;
 /** The tenure qualifier every team count carries. */
 const OVER_TIME = /\bover my time\b|\bover the tenure\b|\bone after another\b|\bafter re-?orgs?\b/i;
 /**
- * A significance threshold: "p < 0.05", "p≤.01", "p-value < 0.01", or the words. An equals form
- * ("p = 0.43") is not a threshold, and the Lab's split check prints its computed p-value.
+ * A significance threshold: "p < 0.05", "p≤.01", "p-value < 0.01", or the words. An equals form is
+ * not a threshold; a p-value numeral off the facts path fails the truth audit and the CV numeral join.
  */
 const THRESHOLD = /(?:^|[^\w])p\s*(?:-?\s*value)?\s*[<≤]|significance threshold/i;
 
