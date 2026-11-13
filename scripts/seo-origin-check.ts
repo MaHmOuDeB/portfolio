@@ -7,8 +7,14 @@
 // It reads the prerendered output under <dir>/server/app: *.html, the RSC payloads (*.rsc, including
 // the *.segments/**/*.segment.rsc files), which carry the same metadata for client-side navigations,
 // and the *.body files of the sitemap and robots routes. It exits 0 when clean, 1 on any problem (each printed), 2 on bad
-// arguments. A build without VERCEL_ENV=production uses the test origin on purpose, so run this
-// on a production build only.
+// arguments. It also exits 1, with one line, when it checked no canonical link or no sitemap
+// location, so an output whose metadata or sitemap went missing never passes on nothing. A build
+// without VERCEL_ENV=production uses the test origin on purpose, so run this on a production build
+// only.
+//
+// The deploy runs it on .next after `vercel build` and then ships .vercel/output. Both come from the
+// same `vercel build`: Next writes its output to .next, and Vercel's Next builder makes
+// .vercel/output from it, so the prerendered pages checked are the ones deployed.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { bareHostname } from '../src/lib/seo/hostname.ts';
@@ -62,6 +68,19 @@ export function findOriginProblems(files: readonly BuiltFile[], canonicalHost: s
   return problems;
 }
 
+/** How many canonical links (HTML and RSC) and sitemap locations the files hold. */
+export function checkedCounts(files: readonly BuiltFile[]): { canonicals: number; sitemapLocations: number } {
+  let canonicals = 0;
+  let sitemapLocations = 0;
+  for (const file of files) {
+    if (file.path.endsWith('.html')) canonicals += (file.text.match(LINK_CANONICAL) ?? []).length;
+    else if (file.path.endsWith('.rsc')) {
+      for (const [, key, name] of file.text.matchAll(RSC_TAG)) if (key === 'rel' && name!.toLowerCase() === 'canonical') canonicals += 1;
+    } else if (file.path.endsWith('sitemap.xml.body')) sitemapLocations += [...file.text.matchAll(/<loc>\s*([^<]*?)\s*<\/loc>/g)].length;
+  }
+  return { canonicals, sitemapLocations };
+}
+
 /** The built pages, their RSC payloads, the sitemap and robots under <dir>/server/app. */
 function builtFiles(dir: string): BuiltFile[] {
   const app = join(dir, 'server/app');
@@ -92,8 +111,25 @@ export function main(argv: readonly string[], out: Out = console): number {
   }
   const problems = findOriginProblems(files, host);
   for (const p of problems) out.log(p);
+  const { canonicals, sitemapLocations } = checkedCounts(files);
+  const read = `${files.length} file${files.length === 1 ? '' : 's'}`;
+  if (canonicals === 0 && sitemapLocations === 0) {
+    out.error(`seo origin check: found no canonical link and no sitemap location in ${read}; a production build has both`);
+    return 1;
+  }
+  if (canonicals === 0) {
+    out.error(`seo origin check: found no canonical link in ${read}; a production build has one on every page`);
+    return 1;
+  }
+  if (sitemapLocations === 0) {
+    out.error(`seo origin check: found no sitemap location in ${read}; a production build lists its pages in sitemap.xml`);
+    return 1;
+  }
   if (problems.length > 0) return 1;
-  out.log(`seo origin check: ${files.length} files, only https://${host}`);
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  out.log(
+    `seo origin check: ${read}, ${plural(canonicals, 'canonical link', 'canonical links')} and ${plural(sitemapLocations, 'sitemap location', 'sitemap locations')}, only https://${host}`,
+  );
   return 0;
 }
 

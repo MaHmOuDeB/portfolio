@@ -55,6 +55,7 @@ describe('scripts run with plain Node', () => {
         path.join(app, 'lab.html'),
         '<html><head><link rel="canonical" href="https://site.example.com/lab"></head><body></body></html>',
       );
+      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>');
       const run = (...args: string[]) =>
         spawnSync('npm', ['run', '--silent', 'seo:origin-check', '--', ...args], { cwd: ROOT, encoding: 'utf8' });
       const clean = run('--canonical', 'site.example.com', '--dir', dir);
@@ -62,6 +63,12 @@ describe('scripts run with plain Node', () => {
       expect(clean.status).toBe(0);
       expect(clean.stdout).toContain('only https://site.example.com');
       expect(run('--dir', dir).status).toBe(2);
+      // The test origin, as in any build that is not production: exit 1 naming it, not a crash.
+      fs.writeFileSync(path.join(app, 'index.html'), '<html><head><link rel="canonical" href="https://canonical.invalid/"></head></html>');
+      const dirty = run('--canonical', 'site.example.com', '--dir', dir);
+      expect(dirty.stderr).not.toContain('ERR_MODULE_NOT_FOUND');
+      expect(dirty.status).toBe(1);
+      expect(dirty.stdout).toContain('server/app/index.html: test origin canonical.invalid');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
