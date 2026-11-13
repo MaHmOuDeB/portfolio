@@ -140,12 +140,33 @@ jobs:
               ;;
           esac
           npx --no-install vercel pull --yes --environment="$environment"
-      # Production only. The canonical origin of every page comes from the pulled environment
-      # (src/lib/seo/metadata.ts): `vercel build` loads only .vercel/.env.production.local, the file
-      # `vercel pull --environment=production` writes (CLI 62.2.0), and sets no VERCEL_ENV of its own,
-      # so a pull without VERCEL_ENV="production" would build with the test origin. Fails unless
-      # VERCEL_ENV is "production" and VERCEL_PROJECT_PRODUCTION_URL is not empty; it prints the
-      # variable names and pass or fail only, never a value. A preview runs nothing here.
+      # Production only, right after the pull. The file `vercel pull --environment=production` writes
+      # (CLI 62.2.0) has no VERCEL_PROJECT_PRODUCTION_URL, at least before the project's first
+      # production deployment, and a production build refuses to run without it
+      # (src/lib/seo/metadata.ts). So the build's canonical host comes from the owner's declared
+      # repository variable CANONICAL_HOST: scripts/pulled-env-canonical.ts refuses an empty or
+      # malformed value (not a bare hostname, or a .invalid test host), appends
+      # VERCEL_PROJECT_PRODUCTION_URL="<CANONICAL_HOST in lower case>" when the pulled file has none or
+      # an empty one (every existing line stays byte for byte), and fails, naming both variables, when
+      # the pulled value names another host (letter case aside). It reads CANONICAL_HOST through env
+      # only and prints no value. A preview runs nothing here.
+      - name: Set the production URL from CANONICAL_HOST
+        env:
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
+          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+        run: |
+          if [ "$LAUNCHED" != "true" ]; then
+            echo "Preview deploy: the production URL is not set"
+            exit 0
+          fi
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-canonical.ts .vercel/.env.production.local
+      # Production only, after the production URL is set. The canonical origin of every page comes from
+      # the pulled environment (src/lib/seo/metadata.ts): `vercel build` loads only
+      # .vercel/.env.production.local, the file `vercel pull --environment=production` writes (CLI
+      # 62.2.0), and sets no VERCEL_ENV of its own, so a pull without VERCEL_ENV="production" would
+      # build with the test origin. Fails unless VERCEL_ENV is "production" and
+      # VERCEL_PROJECT_PRODUCTION_URL is not empty; it prints the variable names and pass or fail
+      # only, never a value. A preview runs nothing here.
       - name: Check the pulled production environment
         env:
           LAUNCHED: ${{ steps.guard.outputs.launched }}
@@ -177,7 +198,8 @@ jobs:
       # robots must name only https://<CANONICAL_HOST> and no .invalid test origin. It catches a
       # production build that fell back to the test origin and one whose
       # VERCEL_PROJECT_PRODUCTION_URL names another host (Vercel picks the shortest production
-      # domain, or *.vercel.app). CANONICAL_HOST is a repository variable the owner sets to the bare
+      # domain, or *.vercel.app; the step after the pull sets it from CANONICAL_HOST only when the
+      # pull left it out or empty). CANONICAL_HOST is a repository variable the owner sets to the bare
       # canonical domain; it reaches the script through env only, and an empty or malformed value
       # fails with an error that names the variable, never its value. A preview runs nothing here.
       - name: Check the canonical origin

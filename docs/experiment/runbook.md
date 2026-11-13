@@ -161,19 +161,35 @@ limit) and nothing about the sender.
 ## 3. Domains: one canonical address
 
 Only the canonical domain counts views. A visit through another address of the same project would
-start a fresh view there, so every other domain must redirect to the canonical one.
+start a fresh view there, so the canonical domain must be the only public address of the production
+site.
 
-1. Vercel: project `portfolio`, **Settings**, then **Domains**.
-2. For each domain that is not the canonical one, select **Edit**, choose **Redirect to Another
-   Domain**, pick the canonical domain, keep `308 Permanent Redirect`, and **Save**. If Vercel does
-   not offer a redirect for the `*.vercel.app` address, leave it: the site itself sends the home
-   page there to the canonical domain.
-3. Set the GitHub variable `CANONICAL_HOST` to the canonical domain now (see "The canonical domain:
-   `CANONICAL_HOST`" in step 6), and make sure the production URL Vercel reports is that same
-   domain: Vercel picks the shortest production custom domain, so a `www.` canonical with the apex
-   attached as a redirect would make the production deploy refuse every build.
-4. Record it in the log of [deployed-checks.md](deployed-checks.md) with check `domains` and
-   result `PASS`.
+1. Vercel: project `portfolio`, **Settings**, then **Domains**. Exactly one domain serves
+   Production: the canonical domain. With no custom domain, Vercel's production URL is the
+   project's `vercel.app` domain, so keep exactly one of those.
+2. Every other domain of the project is removed, or redirects to the canonical domain at the domain
+   level: select **Edit**, choose **Redirect to Another Domain**, pick the canonical domain, choose
+   `308 Permanent Redirect`, and **Save**. A redirect that shows `307 Temporary Redirect` works, but
+   change it to `308`: the move is permanent, and a permanent redirect says so to browsers and
+   search engines.
+3. Vercel, **Settings**, **Deployment Protection**: Vercel Authentication is on with **Standard
+   Protection** (not the legacy option). It leaves the production domains public and puts every
+   generated URL (each deployment's own `portfolio-<hash>-<team>.vercel.app`, and the
+   `portfolio-<team>.vercel.app` alias every production deploy gets) behind a Vercel login. Those
+   generated URLs cannot be redirected at the domain level, so this setting is what keeps them out
+   of the counts.
+4. Set the GitHub variable `CANONICAL_HOST` to the canonical domain now (see "The canonical domain:
+   `CANONICAL_HOST`" in step 6). The production deploy builds with it and refuses to deploy if the
+   production URL Vercel reports names another host. If a custom domain is ever added, it outranks
+   the `vercel.app` one at once, and Vercel picks the shortest production custom domain: a `www.`
+   canonical with the apex attached as a redirect would then make the production deploy refuse every
+   build.
+5. Settle the name before setting `CANONICAL_HOST`, the deployed checks and the exclusion cookie
+   (step 5). Never rename or change the canonical domain while a run collects, and never roll back or
+   promote a deployment from before a rename: it would send every home-page visit to the old name.
+6. Only after the first production deployment, run the probes in "After the first production
+   deployment" (step 6). Once they all hold, record it in the log of
+   [deployed-checks.md](deployed-checks.md) with check `domains` and result `PASS`.
 
 **Standing rule: never put a proxying CDN (such as Cloudflare with the orange cloud on) in front of
 the Vercel domain.** A shared cache in front of Vercel could store one group's home page and serve
@@ -286,19 +302,28 @@ through this workflow, so the guard does not cover them (see step 11).
 ### The canonical domain: `CANONICAL_HOST`
 
 Every page's canonical link, `og:url`, sharing images, the sitemap and the robots Sitemap line take
-their host from the Vercel environment the deploy pulls: `VERCEL_ENV` must be `production` and
-`VERCEL_PROJECT_PRODUCTION_URL` names the host. Vercel sets that host to the shortest production
-custom domain, or to the `vercel.app` address while none is attached. Once `LAUNCHED` is `true`, the
-deploy workflow checks both before anything is live and deploys nothing if either fails:
+their host from the Vercel environment of the build: `VERCEL_ENV` must be `production` and
+`VERCEL_PROJECT_PRODUCTION_URL` names the host. On Vercel's own machines Vercel sets that host to
+the shortest production custom domain, or to the `vercel.app` address while none is attached. The
+file `vercel pull --environment=production` writes does not carry it, at least before the first
+production deployment: a plain pull then has no `VERCEL_PROJECT_PRODUCTION_URL` line at all. So the
+production build takes the host from the domain I declare in the repository variable
+`CANONICAL_HOST`. Once `LAUNCHED` is `true`, the deploy workflow does this before anything is live,
+and deploys nothing if a step fails:
 
-1. right after the pull, "Check the pulled production environment" fails unless the pulled file has
-   `VERCEL_ENV="production"` and a non-empty `VERCEL_PROJECT_PRODUCTION_URL` (it prints the names
-   and pass or fail, never a value);
-2. after the build, "Check the canonical origin" runs `npm run seo:origin-check -- --canonical
-   "$CANONICAL_HOST"`: every built page, the sitemap and robots must name only
-   `https://<CANONICAL_HOST>`, and none may carry the `.invalid` test origin. An empty
+1. right after the pull, "Set the production URL from CANONICAL_HOST" fails on an empty
    `CANONICAL_HOST`, or one that is not a bare hostname (a scheme, slash, port, user or space in
-   it), fails with an error that names the variable but never prints its value.
+   it). If the pulled file has no `VERCEL_PROJECT_PRODUCTION_URL`, or an empty one, it adds
+   `VERCEL_PROJECT_PRODUCTION_URL="<CANONICAL_HOST in lower case>"` at the end and leaves every other
+   line as it was. If the pulled file names another host (letter case aside), it fails with an error
+   that names both variables: Vercel's production domain is not the one I declared;
+2. "Check the pulled production environment" then fails unless the file has
+   `VERCEL_ENV="production"` and a non-empty `VERCEL_PROJECT_PRODUCTION_URL`;
+3. after the build, "Check the canonical origin" runs `npm run seo:origin-check -- --canonical
+   "$CANONICAL_HOST"`: every built page, the sitemap and robots must name only
+   `https://<CANONICAL_HOST>`, and none may carry the `.invalid` test origin.
+
+None of them prints a value, only the variable names and what happened.
 
 So before launch I set the repository variable to the bare canonical domain, the same one I give
 `npm run launch:check -- --canonical` (no `https://`, no slash):
@@ -307,9 +332,81 @@ So before launch I set the repository variable to the bare canonical domain, the
 gh variable set CANONICAL_HOST --repo MaHmOuDeB/portfolio --body "<canonical domain>"
 ```
 
-It changes nothing before launch: previews skip both checks. If "Check the canonical origin" fails
-at launch, the Vercel project's production domain is not the canonical one (step 3): fix the
-domains, then re-run the CI run of the `LAUNCH_SHA` commit.
+It changes nothing before launch: previews skip all three steps. If "Set the production URL from
+CANONICAL_HOST" or "Check the canonical origin" fails at launch, the Vercel project's production
+domain is not the canonical one (step 3): fix the domains, then re-run the CI run of the
+`LAUNCH_SHA` commit.
+
+The build's host comes from my declaration, but the running site reads
+`VERCEL_PROJECT_PRODUCTION_URL` from Vercel itself: the home page on any other host is redirected to
+that host. The probes in "After the first production deployment" below check that the two agree.
+
+### Rehearse the production build (before launch)
+
+Once, after `CANONICAL_HOST` is set and before I set `LAUNCHED`, I run the deploy's production
+steps on my own machine, without deploying anything. In Terminal:
+
+```sh
+npx --no-install vercel pull --yes --environment=production --scope <team>
+export CANONICAL_HOST=<canonical domain>
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-canonical.ts .vercel/.env.production.local
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-check.ts .vercel/.env.production.local
+```
+
+The first `node` line must exit 0. Before the first production deployment it prints
+`VERCEL_PROJECT_PRODUCTION_URL: missing or empty in the pulled file, set from CANONICAL_HOST`; an
+error naming both variables means Vercel's production domain is not the declared one (step 3). Run
+it before the second line every time: a plain pull fails the second line on
+`VERCEL_PROJECT_PRODUCTION_URL`.
+
+Then the build, from the reports of a green CI run on `main` (the run's number is in its address on
+GitHub, under **Actions**), exactly as the deploy builds:
+
+```sh
+gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-vitest -D reports
+gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-e2e -D reports
+gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-lhci -D reports/lhci
+npm run build:meta
+bash scripts/vercel-build-isolated.sh production
+npm run assert:no-kitchen-sink
+npm run seo:origin-check -- --canonical "$CANONICAL_HOST"
+```
+
+The last line must exit 0, naming only `https://<canonical domain>`. Nothing is deployed: there is
+no `vercel deploy` here, and none is needed. Afterwards delete the pulled file (it holds secrets),
+the build metadata and the build output:
+
+```sh
+rm .vercel/.env.production.local public/build-meta.json
+rm -rf .vercel/output
+```
+
+### After the first production deployment
+
+Right after the first production deployment, before anything else, in Terminal (the deployment URL
+is in the Deploy run's summary on GitHub):
+
+```sh
+curl -sI https://<canonical domain>/
+curl -sI https://<old alias>/work
+curl -sI https://<deployment URL>/
+curl -sI https://portfolio-<team>.vercel.app/
+```
+
+| Probe | Must show | What it proves |
+|---|---|---|
+| `https://<canonical domain>/` | `200`, with `strict-transport-security` and `x-arm`, and no `location` | Deployment Protection leaves the canonical domain public, and it carries HSTS. The home page is not redirected, so the `VERCEL_PROJECT_PRODUCTION_URL` the running site reads is the canonical domain (otherwise the site would answer `308` to the other host). |
+| `https://<old alias>/work` (each other domain of the project) | `308` (or `307`) with `location: https://<canonical domain>/work` | The domain-level redirect keeps the path. |
+| `https://<deployment URL>/` and `https://portfolio-<team>.vercel.app/` | `302` to Vercel's sign-in (`location` on `vercel.com`), never `200` | Standard Protection puts the generated URLs behind a login. |
+
+If the canonical domain answers `302` to Vercel's sign-in, the launch has failed: no visitor can
+reach the site. Change Deployment Protection (step 3) so that the production domain is public, and
+run the probes again. If the canonical home page answers `308` to another host, the running site's
+production URL is not the canonical domain: fix the domains (step 3) before anything is counted.
+If a generated URL answers `200`, Deployment Protection is not Standard Protection: fix it (step 3).
+
+Once all of them hold, record the `domains` row, and run the `headers` check against the canonical
+domain (see [deployed-checks.md](deployed-checks.md)).
 
 ## 7. Tag the pre-registration (`prereg-v1`)
 

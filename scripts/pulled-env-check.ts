@@ -2,6 +2,11 @@
 //
 //   node scripts/pulled-env-check.ts .vercel/.env.production.local
 //
+// It runs after scripts/pulled-env-canonical.ts, which sets VERCEL_PROJECT_PRODUCTION_URL from the
+// repository variable CANONICAL_HOST when the pull left it out or empty (a pull before the project's
+// first production deployment has none), and refuses a pulled value that names another host. So
+// here a missing VERCEL_PROJECT_PRODUCTION_URL means that step did not run or did not fill it.
+//
 // A production build takes its canonical origin from VERCEL_ENV and VERCEL_PROJECT_PRODUCTION_URL
 // (src/lib/seo/metadata.ts canonicalOrigin). `vercel build` loads the build's variables only from
 // this file and sets no VERCEL_ENV of its own, so a pull without VERCEL_ENV="production" would build

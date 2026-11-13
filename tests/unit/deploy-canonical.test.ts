@@ -6,14 +6,17 @@ import { join } from 'node:path';
 // A production build takes its canonical origin from the pulled Vercel environment
 // (src/lib/seo/metadata.ts): a pull without VERCEL_ENV="production" builds with the test origin, and
 // a wrong VERCEL_PROJECT_PRODUCTION_URL puts every canonical and og:url on the wrong host. So on the
-// production path only, the deploy checks the pulled file right after the pull, and checks the built
-// pages against the repository variable CANONICAL_HOST before the deploy. Previews are unchanged:
-// both steps exit 0 without running anything when LAUNCHED is not "true". Each step's own shell is
-// extracted from the workflow and run here, so the test runs exactly what GitHub runs.
+// production path only, the deploy sets VERCEL_PROJECT_PRODUCTION_URL from the repository variable
+// CANONICAL_HOST right after the pull when the pull left it out (a pull before the first production
+// deployment has none), checks the pulled file, and checks the built pages against CANONICAL_HOST
+// before the deploy. Previews are unchanged: those steps exit 0 without running anything when
+// LAUNCHED is not "true". Each step's own shell is extracted from the workflow and run here, so the
+// test runs exactly what GitHub runs.
 const ROOT = join(import.meta.dirname, '../..');
 const DEPLOY = readFileSync(join(ROOT, '.github/workflows/deploy.yml'), 'utf8');
 
 const PULL = 'Pull Vercel environment';
+const FILL = 'Set the production URL from CANONICAL_HOST';
 const PULLED_CHECK = 'Check the pulled production environment';
 const BUILD = 'Build';
 const KITCHEN_SINK = 'Check the build has no kitchen sink';
@@ -90,40 +93,42 @@ function runStep(name: string, env: Record<string, string>, opts: { realNode?: b
 }
 
 describe('the production canonical-origin checks in the deploy job', () => {
-  it('run in order: pull, pulled-environment check, build, kitchen sink, origin check, deploy', () => {
+  it('run in order: pull, production URL, pulled-environment check, build, kitchen sink, origin check, deploy', () => {
     const names = steps().map(nameOf);
     const at = (n: string) => names.indexOf(n);
-    for (const n of [PULL, PULLED_CHECK, BUILD, KITCHEN_SINK, ORIGIN_CHECK, DEPLOY_STEP]) expect(at(n), n).toBeGreaterThan(-1);
-    expect(at(PULLED_CHECK)).toBe(at(PULL) + 1);
+    for (const n of [PULL, FILL, PULLED_CHECK, BUILD, KITCHEN_SINK, ORIGIN_CHECK, DEPLOY_STEP]) expect(at(n), n).toBeGreaterThan(-1);
+    expect(at(FILL)).toBe(at(PULL) + 1);
+    expect(at(PULLED_CHECK)).toBe(at(FILL) + 1);
     expect(at(BUILD)).toBe(at(PULLED_CHECK) + 1);
     expect(at(ORIGIN_CHECK)).toBeGreaterThan(at(BUILD));
     expect(at(DEPLOY_STEP)).toBe(at(ORIGIN_CHECK) + 1);
   });
 
   it('have exactly name, env and run: nothing can skip them or let a failure continue', () => {
-    for (const n of [PULLED_CHECK, ORIGIN_CHECK]) {
+    for (const n of [FILL, PULLED_CHECK, ORIGIN_CHECK]) {
       expect(keys(n), n).toEqual(['name', 'env', 'run']);
       expect(step(n)).not.toMatch(/continue-on-error|^\s*if:|working-directory|shell:/m);
     }
   });
 
   it('read the launch setting from the Guard output, like the other steps, and no secret', () => {
-    for (const n of [PULLED_CHECK, ORIGIN_CHECK]) {
+    for (const n of [FILL, PULLED_CHECK, ORIGIN_CHECK]) {
       expect(step(n)).toContain('          LAUNCHED: ${{ steps.guard.outputs.launched }}\n');
       expect(step(n)).not.toContain('secrets.');
     }
-    expect(step(ORIGIN_CHECK)).toContain('          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}\n');
+    for (const n of [FILL, ORIGIN_CHECK]) expect(step(n), n).toContain('          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}\n');
     expect(step(PULLED_CHECK)).not.toContain('CANONICAL_HOST: ');
   });
 
   it('pass every value through env: no expression is interpolated into either script', () => {
-    for (const n of [PULLED_CHECK, ORIGIN_CHECK]) expect(script(n)).not.toContain('${{');
+    for (const n of [FILL, PULLED_CHECK, ORIGIN_CHECK]) expect(script(n)).not.toContain('${{');
   });
 
-  it('only the origin check reads CANONICAL_HOST; the pull, build and deploy do not', () => {
-    expect(DEPLOY.match(/vars\.CANONICAL_HOST/g)).toHaveLength(1);
+  it('only the production URL step and the origin check read CANONICAL_HOST; the pull, build and deploy do not', () => {
+    expect(DEPLOY.match(/vars\.CANONICAL_HOST/g)).toHaveLength(2);
+    // Comment lines are left out: the splitter hands a step the comment written above the next one.
     for (const n of [PULL, BUILD, DEPLOY_STEP]) {
-      expect(step(n), n).not.toMatch(/CANONICAL_HOST|pulled-env-check|seo:origin-check/);
+      expect(step(n).replace(/^ *#.*\n/gm, ''), n).not.toMatch(/CANONICAL_HOST|pulled-env-canonical|pulled-env-check|seo:origin-check/);
     }
   });
 });
@@ -171,6 +176,17 @@ describe('the first reader of the Guard output fails on anything but "true" or "
 });
 
 describe('the preview path is unchanged', () => {
+  it('the production URL step exits 0 and runs nothing when LAUNCHED is not "true", whatever CANONICAL_HOST holds', () => {
+    for (const launched of ['false', '', 'True']) {
+      for (const host of ['', 'https://not-bare.example/']) {
+        const r = runStep(FILL, { LAUNCHED: launched, CANONICAL_HOST: host });
+        expect(r.status, `${launched} ${host}`).toBe(0);
+        expect(r.calls).toBe('');
+        expect(r.out).toBe('Preview deploy: the production URL is not set\n');
+      }
+    }
+  });
+
   it('both checks exit 0 and run nothing when LAUNCHED is not "true"', () => {
     for (const n of [PULLED_CHECK, ORIGIN_CHECK]) {
       for (const launched of ['false', '', 'True']) {
@@ -202,6 +218,61 @@ describe('the preview path is unchanged', () => {
       'if [ "$LAUNCHED" = "true" ]; then target=production; else target=preview; fi\n' + 'bash scripts/vercel-build-isolated.sh "$target"\n',
     );
     expect(script(DEPLOY_STEP)).toContain('if [ "$LAUNCHED" != "true" ]; then\n  existing=');
+  });
+});
+
+describe('the production URL step (production)', () => {
+  it('runs the fill script on the exact file the pull writes, with CANONICAL_HOST through env only', () => {
+    const r = runStep(FILL, { LAUNCHED: 'true', CANONICAL_HOST: 'portfolio.example' });
+    expect(r.status).toBe(0);
+    expect(r.calls).toBe('node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-canonical.ts .vercel/.env.production.local\n');
+    expect(script(FILL)).not.toContain('CANONICAL_HOST"');
+    expect(script(PULLED_CHECK).split('\n').at(-2)).toBe(script(FILL).split('\n').at(-2)!.replace('pulled-env-canonical', 'pulled-env-check'));
+  });
+
+  it('fails the step when the script fails', () => {
+    const r = runStep(FILL, { LAUNCHED: 'true', CANONICAL_HOST: 'portfolio.example', STUB_STATUS: '1' });
+    expect(r.status).toBe(1);
+  });
+
+  it('end to end with the real scripts: a pull without the production URL is filled, then the pulled check passes; a mismatch or a malformed CANONICAL_HOST fails and changes nothing; no value printed', () => {
+    const work = join(dir, 'work');
+    mkdirSync(join(work, '.vercel'), { recursive: true });
+    symlinkSync(join(ROOT, 'scripts'), join(work, 'scripts'));
+    symlinkSync(join(ROOT, 'src'), join(work, 'src'));
+    symlinkSync(join(ROOT, 'node_modules'), join(work, 'node_modules'));
+    const file = join(work, '.vercel/.env.production.local');
+    // What the owner's pull of 2026-11-13 held (synthetic values): no VERCEL_PROJECT_PRODUCTION_URL line.
+    const pulled = '# Created by Vercel CLI\nVERCEL_ENV="production"\nVERCEL_TARGET_ENV="production"\nVERCEL_URL=""\n';
+    writeFileSync(file, pulled);
+    const before = runStep(PULLED_CHECK, { LAUNCHED: 'true' }, { realNode: true, cwd: work });
+    expect(before.status).toBe(1);
+    expect(before.out).toContain('VERCEL_PROJECT_PRODUCTION_URL: fail');
+
+    const fill = runStep(FILL, { LAUNCHED: 'true', CANONICAL_HOST: 'Synthetic-Canonical.example' }, { realNode: true, cwd: work });
+    expect(fill.status, fill.out).toBe(0);
+    expect(fill.out).toBe('VERCEL_PROJECT_PRODUCTION_URL: missing or empty in the pulled file, set from CANONICAL_HOST\n');
+    expect(readFileSync(file, 'utf8')).toBe(`${pulled}VERCEL_PROJECT_PRODUCTION_URL="synthetic-canonical.example"\n`);
+    const after = runStep(PULLED_CHECK, { LAUNCHED: 'true' }, { realNode: true, cwd: work });
+    expect(after.status, after.out).toBe(0);
+    expect(`${fill.out}${after.out}`).not.toMatch(/synthetic-canonical/i);
+
+    const mismatch = `${pulled}VERCEL_PROJECT_PRODUCTION_URL="synthetic-old-alias.example"\n`;
+    writeFileSync(file, mismatch);
+    const refused = runStep(FILL, { LAUNCHED: 'true', CANONICAL_HOST: 'synthetic-canonical.example' }, { realNode: true, cwd: work });
+    expect(refused.status).toBe(1);
+    expect(refused.out).toContain('::error::The pulled VERCEL_PROJECT_PRODUCTION_URL differs from the repository variable CANONICAL_HOST');
+    expect(refused.out).not.toMatch(/synthetic-/);
+    expect(readFileSync(file, 'utf8')).toBe(mismatch);
+
+    writeFileSync(file, pulled);
+    for (const host of ['', 'https://synthetic-canonical.example', 'synthetic-canonical.example:443']) {
+      const bad = runStep(FILL, { LAUNCHED: 'true', CANONICAL_HOST: host }, { realNode: true, cwd: work });
+      expect(bad.status, JSON.stringify(host)).toBe(1);
+      expect(bad.out).toMatch(/^::error::.*CANONICAL_HOST/);
+      expect(bad.out).not.toMatch(/synthetic-/);
+      expect(readFileSync(file, 'utf8')).toBe(pulled);
+    }
   });
 });
 

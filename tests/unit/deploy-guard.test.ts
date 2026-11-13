@@ -97,9 +97,10 @@ describe('the Guard production SHA step', () => {
 
   it('every later step that branches on the launch takes it from the Guard output only', () => {
     const later = steps().slice(1).filter((s) => /^ {10}LAUNCHED:/m.test(s));
-    // Pull, pulled-environment check, Build, canonical origin check, Deploy and Job summary.
+    // Pull, production URL, pulled-environment check, Build, canonical origin check, Deploy and Job summary.
     expect(later.map((s) => /^ {6}- name: (.+)$/m.exec(s)?.[1])).toEqual([
       'Pull Vercel environment',
+      'Set the production URL from CANONICAL_HOST',
       'Check the pulled production environment',
       'Build',
       'Check the canonical origin',
@@ -107,9 +108,9 @@ describe('the Guard production SHA step', () => {
       'Job summary',
     ]);
     for (const s of later) expect(s).toMatch(/^ {10}LAUNCHED: \$\{\{ steps\.guard\.outputs\.launched \}\}$/m);
-    expect(DEPLOY.match(/^ {10}LAUNCHED: \$\{\{ steps\.guard\.outputs\.launched \}\}$/gm)).toHaveLength(6);
+    expect(DEPLOY.match(/^ {10}LAUNCHED: \$\{\{ steps\.guard\.outputs\.launched \}\}$/gm)).toHaveLength(7);
     // Nothing else reads the output under another name.
-    expect(DEPLOY.match(/\$\{\{[^}]*steps\.guard\.outputs\.launched[^}]*\}\}/g)).toHaveLength(6);
+    expect(DEPLOY.match(/\$\{\{[^}]*steps\.guard\.outputs\.launched[^}]*\}\}/g)).toHaveLength(7);
     // No step decides the target from anything else that could say "production".
     for (const s of steps().slice(1)) expect(s).not.toMatch(/vars\.LAUNCH|env\.LAUNCHED|inputs\./);
   });

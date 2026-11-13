@@ -9,11 +9,16 @@ import path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
 
-// Every scripts/*.ts file a package.json script runs with `node`.
+const workflows = fs
+  .readdirSync(path.join(ROOT, '.github/workflows'))
+  .filter((f) => f.endsWith('.yml'))
+  .map((f) => fs.readFileSync(path.join(ROOT, '.github/workflows', f), 'utf8'));
+
+// Every scripts/*.ts file a package.json script or a workflow step runs with `node`.
 const nodeScripts = [
   ...new Set(
-    Object.values(pkg.scripts).flatMap((command) =>
-      [...command.matchAll(/\bnode\b[^&|;]*?\b(scripts\/[\w.-]+\.ts)\b/g)].map((m) => m[1]!),
+    [...Object.values(pkg.scripts), ...workflows].flatMap((command) =>
+      [...command.matchAll(/\bnode\b[^&|;\n]*?\b(scripts\/[\w.-]+\.ts)\b/g)].map((m) => m[1]!),
     ),
   ),
 ].sort();
@@ -35,8 +40,10 @@ function reach(file: string, seen = new Set<string>()): Set<string> {
 }
 
 describe('scripts run with plain Node', () => {
-  it('finds the scripts, including the canonical-origin check', () => {
+  it('finds the scripts, including the canonical-origin check and the deploy\'s production URL step', () => {
     expect(nodeScripts).toContain('scripts/seo-origin-check.ts');
+    expect(nodeScripts).toContain('scripts/pulled-env-canonical.ts');
+    expect(nodeScripts).toContain('scripts/pulled-env-check.ts');
   });
 
   it.each(nodeScripts)('%s reaches no module that imports server-only', (script) => {
@@ -69,6 +76,29 @@ describe('scripts run with plain Node', () => {
       expect(dirty.stderr).not.toContain('ERR_MODULE_NOT_FOUND');
       expect(dirty.status).toBe(1);
       expect(dirty.stdout).toContain('server/app/index.html: test origin canonical.invalid');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('scripts/pulled-env-canonical.ts runs for real: it fills the pulled file, and refuses a bad CANONICAL_HOST', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulled-env-canonical-node-'));
+    try {
+      const file = path.join(dir, '.env.production.local');
+      fs.writeFileSync(file, 'VERCEL_ENV="production"\n');
+      const run = (host: string) =>
+        spawnSync(
+          'node',
+          ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', 'scripts/pulled-env-canonical.ts', file],
+          { cwd: ROOT, encoding: 'utf8', env: { PATH: process.env.PATH, CANONICAL_HOST: host } as Record<string, string | undefined> as NodeJS.ProcessEnv },
+        );
+      const filled = run('site.example.com');
+      expect(filled.stderr).not.toContain('ERR_MODULE_NOT_FOUND');
+      expect(filled.status).toBe(0);
+      expect(fs.readFileSync(file, 'utf8')).toBe('VERCEL_ENV="production"\nVERCEL_PROJECT_PRODUCTION_URL="site.example.com"\n');
+      const bad = run('site.example.com:443');
+      expect(bad.stderr).not.toContain('ERR_MODULE_NOT_FOUND');
+      expect(bad.status).toBe(1);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
