@@ -112,7 +112,10 @@ test.describe('the site-wide claims', () => {
         for (const id of inIslands) await expect(page.locator(`main figure[data-figure="${id}"]`), `${id} is still there`).toHaveCount(1);
         // An island that holds its Figure shows that Figure's open table in its place. An island inside
         // a Figure holds only the chart, but must still hold it (islandFallback).
-        const fallbacks = await page.locator('[data-island="failed"]').evaluateAll((els) => els.map(islandFallback));
+        // The function itself is the page function: Playwright sends its source, and a callback that
+        // only named it would find nothing by that name in the page.
+        const failed = await page.locator('[data-island="failed"]').all();
+        const fallbacks = await Promise.all(failed.map((island) => island.evaluate(islandFallback)));
         expect(fallbacks.filter((f) => !f.ok), 'each failed island keeps a readable table').toEqual([]);
         await holds(page, route, 'islands failed');
         await page.unroute('**/_next/static/**/*.js');
