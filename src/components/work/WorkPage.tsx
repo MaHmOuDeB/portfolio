@@ -75,7 +75,7 @@ export function WorkPage(): ReactNode {
                 <li
                   key={item.href}
                   data-work-item={item.href}
-                  className="grid gap-y-1 border-b border-line py-4 md:grid-cols-12 md:gap-x-8 md:py-6"
+                  className="grid gap-y-1 border-b border-line py-4 md:grid-cols-12 md:grid-rows-[auto_1fr] md:gap-x-8 md:py-6"
                 >
                   <h3 className="text-lg font-semibold md:col-span-5 md:col-start-1">
                     <TitleLink href={item.href}>
