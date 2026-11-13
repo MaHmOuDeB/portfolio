@@ -109,8 +109,9 @@ afterEach(() => errors.mockRestore());
 describe('list keys', () => {
   it.each(Object.keys(PAGES))('%s: no missing-key warning when rendered', async (name) => {
     for (const el of await PAGES[name]!()) renderToStaticMarkup(createElement('div', null, el));
-    const warnings = errors.mock.calls.filter((c) => c.some((a) => String(a).includes('unique "key" prop')));
-    expect(warnings.map((c) => c.map(String).join(' | '))).toEqual([]);
+    const calls: unknown[][] = errors.mock.calls;
+    const warnings = calls.filter((call) => call.some((arg) => String(arg).includes('unique "key" prop')));
+    expect(warnings.map((call) => call.map(String).join(' | '))).toEqual([]);
   });
 
   it.each(Object.keys(PAGES))('%s: no keyless element in any array of props', async (name) => {
