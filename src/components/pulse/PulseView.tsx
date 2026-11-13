@@ -6,9 +6,9 @@
 // - The control row is the Figure's (Channel, Date range, Reset, from PulseFigureClient.tsx). The
 //   dashboard's own actions (Detail on each chart, Export CSV, Save view, Load saved view) are
 //   native buttons inside the labelled dashboard content, not a second control row.
-// - Two line charts on value axes that never rescale (the top is the same for every channel and
-//   range). The numbers are made up, so every tick and table cell says simulated. Marks have no
-//   transition.
+// - Two line charts on value axes from zero to a round top that fits the view shown, so a filtered
+//   view fills its chart. The numbers are made up, so every tick and table cell says simulated.
+//   Marks have no transition.
 // - The event list is not a live region: the Figure's polite announcement speaks once per committed
 //   action. Each item names its event and properties as the source does (source:pulse) and marks each
 //   value with where it comes from.
@@ -67,7 +67,7 @@ const tick = (v: number) => formatNumber(v, 0);
 function PulseChart({ view, chart }: { view: DashboardView; chart: (typeof CHARTS)[number] }) {
   const rows = dashboardRows(view);
   const days = rangeDays(view.range);
-  const top = chartTop(chart.key);
+  const top = chartTop(chart.key, view);
   return (
     <ChartFrame
       id={`${PULSE_ID}-${chart.key}-chart`}
