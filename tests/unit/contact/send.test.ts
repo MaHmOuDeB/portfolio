@@ -1,7 +1,8 @@
 // The send path: one server-side POST to Resend with exactly the five keys, plain text, the visitor's
 // address as reply_to; fail closed when a variable is missing; log a status code or a variable name,
 // never a value. fetch is always a test double: no test reaches the network.
-import { contactConfig, deliver, RESEND_URL, type ContactMessage } from '@/lib/contact/send';
+import { CONTACT_GLOBAL_LIMIT } from '@/lib/contact/limiter';
+import { contactConfig, contactGlobalLimit, deliver, RESEND_URL, type ContactMessage } from '@/lib/contact/send';
 import type { ServerEnv } from '@/lib/env';
 
 // Placeholders only: never the owner's address or a real key.
@@ -112,5 +113,18 @@ describe('contactConfig', () => {
     expect(dev('https://evil.example/emails')).toBe(RESEND_URL);
     expect(dev('not a url')).toBe(RESEND_URL);
     expect(contactConfig(env({ vercelEnv: 'preview', resendApiUrl: 'http://127.0.0.1:1/x' })).apiUrl).toBe('http://127.0.0.1:1/x');
+  });
+});
+
+describe('contactGlobalLimit', () => {
+  it('keeps the total of twenty an hour wherever the real Resend endpoint is used, production always', () => {
+    expect(contactGlobalLimit(env())).toBe(CONTACT_GLOBAL_LIMIT);
+    expect(contactGlobalLimit(env({ resendApiUrl: 'http://127.0.0.1:8079/resend/emails' }))).toBe(CONTACT_GLOBAL_LIMIT);
+    expect(contactGlobalLimit(env({ vercelEnv: 'development' }))).toBe(CONTACT_GLOBAL_LIMIT);
+    expect(contactGlobalLimit(env({ vercelEnv: 'preview', resendApiUrl: 'https://evil.example/emails' }))).toBe(CONTACT_GLOBAL_LIMIT);
+  });
+
+  it('lifts it only for the loopback fake outside production (the e2e run sends far more, each from its own address)', () => {
+    expect(contactGlobalLimit(env({ vercelEnv: 'development', resendApiUrl: 'http://127.0.0.1:8079/resend/emails' }))).toBe(Infinity);
   });
 });

@@ -1,3 +1,5 @@
+import 'server-only';
+
 export type VercelEnv = 'production' | 'preview' | 'development';
 
 export interface ServerEnv {

@@ -9,6 +9,9 @@ export type FieldErrors = Partial<Record<FieldName, string>>;
 
 export const CONTACT_LIMITS = { name: 100, email: 254, subject: 150, message: 4000 } as const;
 
+/** The hidden field a person leaves empty: a name no autofill maps to a profile field. */
+export const HONEYPOT_FIELD = 'contact_hp';
+
 export const REASONS = [
   { value: 'job', label: 'Job opportunity' },
   { value: 'interview', label: 'Interview or recruiting' },
@@ -18,10 +21,10 @@ export const REASONS = [
 ] as const;
 
 export const ERRORS = {
-  name: { empty: 'Enter your name', long: 'Enter a shorter name', lineBreak: 'Enter your name on one line' },
+  name: { empty: 'Enter your name', long: 'Enter a shorter name', lineBreak: 'Enter your name on one line', control: 'Remove the special characters from your name' },
   email: { empty: 'Enter your e-mail address, so I can reply', invalid: 'Enter a full e-mail address, with an @ and a domain', long: 'Enter a shorter e-mail address' },
   reason: { empty: 'Choose why you are getting in touch', invalid: 'Choose one of the reasons in the list' },
-  subject: { empty: 'Enter a subject', long: 'Enter a shorter subject', lineBreak: 'Enter the subject on one line' },
+  subject: { empty: 'Enter a subject', long: 'Enter a shorter subject', lineBreak: 'Enter the subject on one line', control: 'Remove the special characters from the subject' },
   message: { empty: 'Enter your message', long: 'Shorten your message to the character limit' },
 } as const;
 
@@ -38,7 +41,11 @@ export function readValues(fd: FormData): ContactValues {
   return { name: read('name'), email: read('email'), reason: read('reason'), subject: read('subject'), message: read('message') };
 }
 
-const LINE_BREAK = /[\r\n]/;
+// Line breaks, the Unicode ones included (NEL, line and paragraph separators).
+const LINE_BREAK = /[\r\n\u0085\u2028\u2029]/;
+// Characters a one-line field never needs: C0 and C1 controls (tab included) and the bidi marks,
+// embeddings, overrides and isolates that could disguise how a subject reads in the inbox.
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
 // One plain address: no whitespace, list separators, angle brackets or quotes (so it can never become
 // a display name or a second recipient), one @, and a domain with a dot.
 const ADDRESS_PART = String.raw`[^\s@,;:<>()\[\]"\\]+`;
@@ -52,12 +59,13 @@ export function validateField(name: FieldName, raw: string): string | undefined 
       const e = ERRORS[name];
       if (value === '') return e.empty;
       if (LINE_BREAK.test(value)) return e.lineBreak;
+      if (CONTROL.test(value)) return e.control;
       if (value.length > CONTACT_LIMITS[name]) return e.long;
       return undefined;
     }
     case 'email':
       if (value === '') return ERRORS.email.empty;
-      if (!ADDRESS.test(value)) return ERRORS.email.invalid;
+      if (!ADDRESS.test(value) || CONTROL.test(value)) return ERRORS.email.invalid;
       if (value.length > CONTACT_LIMITS.email) return ERRORS.email.long;
       return undefined;
     case 'reason':

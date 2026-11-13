@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
   // The About photograph renders at 480 px wide and 960 px on dense screens (content/about-photo.ts);
   // those are the only widths the optimiser serves, as AVIF where the browser takes it.
   images: { deviceSizes: [480, 960], imageSizes: [], formats: ["image/avif"], qualities: [75] },
+  // The contact form is the only Server Action; its largest real request is a few KB, so a body over
+  // 64 KB is refused before it is parsed (the default is 1 MB).
+  experimental: { serverActions: { bodySizeLimit: "64kb" } },
   // Baseline security headers, in production builds only (src/lib/csp.ts).
   headers: async () => securityHeaders(process.env.NODE_ENV),
   // The deploy's build metadata (public/build-meta.json, written by npm run build:meta), read once

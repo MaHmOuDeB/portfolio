@@ -76,6 +76,23 @@ describe('validate', () => {
     expect(validate(with_({ email: 'ada@example.test\nBcc: x@example.test' }))).toEqual({ email: 'Enter a full e-mail address, with an @ and a domain' });
   });
 
+  it('rejects control characters and direction overrides in the one-line fields, and the Unicode line breaks as line breaks', () => {
+    for (const ch of ['\u0000', '\t', '\u000b', '\u000c', '\u001b', '\u007f', '\u009b', '\u200e', '\u202e', '\u2066', '\u2069']) {
+      const code = `U+${ch.codePointAt(0)!.toString(16).padStart(4, '0')}`;
+      expect(validate(with_({ name: `Ada${ch}Lovelace` })), code).toEqual({ name: 'Remove the special characters from your name' });
+      expect(validate(with_({ subject: `A role${ch}here` })), code).toEqual({ subject: 'Remove the special characters from the subject' });
+      expect(validate(with_({ email: `ada${ch}@example.test` })), code).toEqual({ email: 'Enter a full e-mail address, with an @ and a domain' });
+    }
+    for (const ch of ['\u0085', '\u2028', '\u2029']) {
+      expect(validate(with_({ name: `Ada${ch}Lovelace` }))).toEqual({ name: 'Enter your name on one line' });
+      expect(validate(with_({ subject: `A role${ch}here` }))).toEqual({ subject: 'Enter the subject on one line' });
+    }
+    // Letters from any script, accents and emoji-free punctuation stay fine.
+    expect(validate(with_({ name: 'Zoë Ångström-Øberg', subject: 'Über eine Stelle: Analyse' }))).toEqual({});
+    // The message keeps its line breaks and tabs.
+    expect(validate(with_({ message: 'one\n\ttwo' }))).toEqual({});
+  });
+
   it('accepts only a single plain address, never a list or a display name', () => {
     for (const bad of ['ada', 'ada@', '@example.test', 'ada@example', 'ada@@example.test', 'a b@example.test', 'ada@example.test, eve@example.test', 'Ada <ada@example.test>', 'ada@example.test;eve@example.test', 'ada@exa mple.test']) {
       expect(validate(with_({ email: bad })), bad).toEqual({ email: 'Enter a full e-mail address, with an @ and a domain' });

@@ -77,9 +77,9 @@ Record each result, and the date, in the log below.
 Two launch conditions have no script. Record each in the log with the check name below and `PASS`
 once it holds (the steps are in [runbook.md](runbook.md)):
 
-- **`firewall`**: a Vercel Firewall rate-limit rule covers both `/api/e` and `/api/exclude`. The
-  in-code limit cannot bound what rejected requests cost the store, so this rule is a launch
-  blocker.
+- **`firewall`**: a Vercel Firewall rate-limit rule covers both `/api/e` and `/api/exclude`, and
+  POSTs to `/contact` (the contact form). The in-code limit cannot bound what rejected requests
+  cost the store, so this rule is a launch blocker.
 - **`domains`**: every other domain of the project (the `*.vercel.app` alias included, where Vercel
   allows it) redirects to the canonical domain at the domain level, so a visit through an alias is
   never counted as a fresh entry.

@@ -18,20 +18,21 @@ const FIELDS = {
 
 function form(patch: Record<string, string> = {}, issuedAt: number | null = NOW - 10_000): FormData {
   const fd = new FormData();
-  for (const [k, v] of Object.entries({ ...FIELDS, website: '', ...patch })) fd.set(k, v);
+  for (const [k, v] of Object.entries({ ...FIELDS, contact_hp: '', ...patch })) fd.set(k, v);
   if (issuedAt !== null) fd.set('issuedAt', String(issuedAt));
   return fd;
 }
 
-function context(o: { status?: number; env?: Partial<Parameters<typeof contactConfig>[0]> } = {}) {
+function context(o: { status?: number; env?: Partial<Parameters<typeof contactConfig>[0]>; limiter?: Parameters<typeof createContactLimiter>[0] } = {}) {
   const sent: ContactMessage[] = [];
   const requests: string[] = [];
   const lines: string[] = [];
-  const limiter = createContactLimiter({ now: () => NOW, schedule: () => {} });
+  const limiter = createContactLimiter({ now: () => NOW, schedule: () => {}, ...o.limiter });
   const ctx: ContactContext = {
     now: () => NOW,
     ip: IP,
     limiter,
+    log: (line) => lines.push(line),
     deliver: (m) => {
       sent.push(m);
       return deliver(m, contactConfig({ vercelEnv: 'production', fakeStore: false, resendApiKey: KEY, contactToEmail: TO, ...o.env }), {
@@ -62,7 +63,7 @@ describe('handleContact', () => {
 
   it('answers a filled honeypot as if sent, and sends nothing', async () => {
     const c = context();
-    expect(await handleContact(form({ website: 'https://spam.example' }), c.ctx)).toEqual({ status: 'sent' });
+    expect(await handleContact(form({ contact_hp: 'https://spam.example' }), c.ctx)).toEqual({ status: 'sent' });
     expect(c.sent).toEqual([]);
     expect(c.limiter.size()).toBe(0);
   });
@@ -102,6 +103,32 @@ describe('handleContact', () => {
     for (let i = 0; i < 5; i++) expect((await handleContact(form(), c.ctx)).status).toBe('sent');
     expect(await handleContact(form(), c.ctx)).toEqual({ status: 'failed', reason: 'limit', values: FIELDS, issuedAt: NOW - 10_000 });
     expect(c.sent).toHaveLength(5);
+    expect(c.lines).toEqual(['contact form: refused (limit)']);
+  });
+
+  it('says the same when the total for all addresses is reached, and logs that apart', async () => {
+    const c = context({ limiter: { globalLimit: 1 } });
+    expect((await handleContact(form(), c.ctx)).status).toBe('sent');
+    const other = { ...c.ctx, ip: '198.51.100.99' };
+    expect(await handleContact(form(), other)).toEqual({ status: 'failed', reason: 'limit', values: FIELDS, issuedAt: NOW - 10_000 });
+    expect(c.sent).toHaveLength(1);
+    expect(c.lines).toEqual(['contact form: refused (total limit)']);
+  });
+
+  it('logs one fixed line for each refusal, naming the reason and nothing else', async () => {
+    const honeypot = context();
+    await handleContact(form({ contact_hp: 'https://spam.example' }), honeypot.ctx);
+    expect(honeypot.lines).toEqual(['contact form: refused (honeypot)']);
+    const fast = context();
+    await handleContact(form({}, NOW - 100), fast.ctx);
+    expect(fast.lines).toEqual(['contact form: refused (fast)']);
+    // A form with errors is the visitor's to fix, not a refusal: nothing is logged.
+    const invalid = context();
+    await handleContact(form({ email: 'nope' }), invalid.ctx);
+    expect(invalid.lines).toEqual([]);
+    const sent = context();
+    await handleContact(form(), sent.ctx);
+    expect(sent.lines).toEqual([]);
   });
 
   it('says delivery failed when Resend fails or a variable is missing, keeping the text', async () => {
@@ -117,7 +144,7 @@ describe('handleContact', () => {
       const runs: [FormData, ReturnType<typeof context>][] = [
         [form(), context()],
         [form({ email: 'nope' }), context()],
-        [form({ website: 'x' }), context()],
+        [form({ contact_hp: 'x' }), context()],
         [form({}, NOW - 100), context()],
         [form(), context({ env: { resendApiKey: undefined, contactToEmail: undefined } })],
         [form(), context({ status: 400 })],
@@ -134,7 +161,9 @@ describe('handleContact', () => {
       const printed = [...spies.flatMap((s) => s.mock.calls.flat().map(String)), ...limited.lines, ...runs.flatMap(([, c]) => c.lines)].join('\n');
       for (const secret of [...Object.values(FIELDS), IP, TO, KEY, ...hashes]) expect(printed, secret).not.toContain(secret);
       // The lines that are logged are the fixed ones.
-      for (const line of runs.flatMap(([, c]) => c.lines)) expect(line).toMatch(/^contact form: (RESEND_API_KEY|CONTACT_TO_EMAIL) is not set; nothing was sent$|^contact form: Resend answered \d{3}; nothing was sent$/);
+      for (const line of [...runs.flatMap(([, c]) => c.lines), ...limited.lines]) {
+        expect(line).toMatch(/^contact form: (RESEND_API_KEY|CONTACT_TO_EMAIL) is not set; nothing was sent$|^contact form: Resend answered \d{3}; nothing was sent$|^contact form: refused \((honeypot|fast|limit|total limit)\)$/);
+      }
     } finally {
       for (const s of spies) s.mockRestore();
     }

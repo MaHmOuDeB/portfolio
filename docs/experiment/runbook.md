@@ -92,6 +92,16 @@ the Resend dashboard, and `CONTACT_TO_EMAIL` is the inbox the messages go to (th
 account is registered with). If either is missing, the form fails closed: it tells the visitor that
 nothing was sent, and the function log has one line naming the missing variable, never a value.
 
+Owner steps for the Resend key (by hand, before launch):
+
+1. In the Resend dashboard, create the key with **Sending access** only, never **Full access**: the
+   site only sends. A full-access key could read back the delivered messages, which Resend keeps
+   for thirty days, and manage domains and keys.
+2. In Vercel, add `RESEND_API_KEY` and `CONTACT_TO_EMAIL` as **Sensitive** variables, for
+   Production only.
+3. Turn on two-factor sign-in for the Resend account.
+4. If the key is ever pasted anywhere else, revoke it in Resend and create a new one.
+
 ### Check the names (never the values)
 
 ```sh
@@ -111,12 +121,17 @@ Preview or Development.
 The site limits each address to a number of event messages a minute, but every refused request
 still costs a call to the counter database, whose free quota is finite. A Vercel Firewall rule
 stops a flood before it reaches the site. The Hobby plan allows one rate-limit rule per project,
-so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the only ones).
+so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the only ones) and the
+contact form's POSTs to `/contact` (its Server Action posts to the page's own path).
 
 1. Vercel: project `portfolio`, **Firewall** in the sidebar.
 2. **Configure** (top right), then **+ New Rule**.
-3. Name: `Rate limit the API`.
-4. **If**: `Request Path`, `Starts with`, `/api/`.
+3. Name: `Rate limit the API and the contact form`.
+4. **If**: `Request Path`, `Starts with`, `/api/`; then **OR** a second group: `Request Path`,
+   `Equals`, `/contact`, **AND** `Method`, `Equals`, `POST`. If the rule editor cannot join the
+   groups with OR, use one condition instead: `Request Path`, `Matches regex`, `^/(api/|contact$)`.
+   That also counts GETs of `/contact` against the same limit, which a real visitor never comes
+   near.
 5. **Then**: `Rate Limit`. If a pricing dialog appears, read it and select **Continue**. If the
    dialog asks for a payment method or a plan upgrade, stop: that is a purchase, and I decide it
    separately.
@@ -129,14 +144,19 @@ so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the onl
 8. **Save Rule**, then **Review Changes** (top right), then **Publish**.
 9. Record it: add a row to the log in [deployed-checks.md](deployed-checks.md) with today's date,
    the production URL, check `firewall`, result `PASS`, and a note such as "40 per 10 min per IP on
-   /api/".
+   /api/ and POST /contact".
 
 Turning on the Firewall's challenge mode or Vercel BotID would set cookies on visitors' browsers.
 The privacy page says the site sets none, so either one means updating the privacy page first.
 
-The contact form's Server Action posts to `/contact`, which this rule does not cover. The form has
-its own limit instead: five messages an hour from one address, counted in each server instance's
-memory under a keyed hash that is dropped after the hour.
+The contact form also has its own limit in code, in each server instance's memory: five messages
+an hour from one address, counted under a keyed hash that is dropped after the hour, and twenty an
+hour from all addresses together, so one instance never sends more than that however many
+addresses a flood uses. Resend's own sending quota is the last backstop. The form never uses the
+counter database: its free quota is budgeted for the experiment (section 10), and a flood of form
+posts must not stop the count. After any burst of form mail, look in the function logs for the
+fixed lines `contact form: refused (...)`; they name the reason (honeypot, fast, limit or total
+limit) and nothing about the sender.
 
 ## 3. Domains: one canonical address
 

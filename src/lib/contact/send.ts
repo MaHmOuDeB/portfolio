@@ -2,8 +2,10 @@
 // subject and a plain-text body: no HTML, no tracking options, no tags. It fails closed when either
 // variable is missing, and logs only a variable's name or Resend's status code, never a value or a
 // response body (Resend error bodies can echo the addresses). Nothing is retried or kept.
+import 'server-only';
 import type { ServerEnv } from '../env.ts';
 import { reasonLabel, type ContactValues } from './fields.ts';
+import { CONTACT_GLOBAL_LIMIT } from './limiter.ts';
 
 export const RESEND_URL = 'https://api.resend.com/emails';
 const FROM = 'Portfolio contact <onboarding@resend.dev>';
@@ -26,6 +28,15 @@ function isLoopback(value: string): boolean {
 export function contactConfig(env: ServerEnv): ContactConfig {
   const override = env.vercelEnv !== 'production' && env.resendApiUrl !== undefined && isLoopback(env.resendApiUrl);
   return { apiKey: env.resendApiKey, to: env.contactToEmail, apiUrl: override ? env.resendApiUrl! : RESEND_URL };
+}
+
+/**
+ * The limiter's total for all addresses. Only the e2e run, whose messages go to the loopback fake of
+ * Resend (never in production, see contactConfig), lifts it: it sends far more than twenty an hour
+ * through one server, each from its own address.
+ */
+export function contactGlobalLimit(env: ServerEnv): number {
+  return contactConfig(env).apiUrl === RESEND_URL ? CONTACT_GLOBAL_LIMIT : Infinity;
 }
 
 export async function deliver(m: ContactMessage, config: ContactConfig, deps: DeliverDeps): Promise<'sent' | 'failed'> {
