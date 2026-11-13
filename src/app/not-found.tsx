@@ -19,8 +19,8 @@ export default function NotFound() {
         <TextLink href="/lab" standalone>
           Lab
         </TextLink>
-        <TextLink href={`mailto:${CONTACT.email}`} standalone>
-          Email
+        <TextLink href={CONTACT.linkedin} external standalone>
+          LinkedIn
         </TextLink>
       </div>
     </div>

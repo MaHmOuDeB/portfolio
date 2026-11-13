@@ -16,9 +16,8 @@ test('navigation labels and targets', () => {
   expect(PRIVACY_HREF).toBe('/privacy');
 });
 
-test('contact details', () => {
+test('contact details: LinkedIn and GitHub, no e-mail address', () => {
   expect(CONTACT).toEqual({
-    email: 'elberguimahmoud11@gmail.com',
     linkedin: 'https://www.linkedin.com/in/melbergui',
     github: 'https://github.com/MaHmOuDeB',
   });

@@ -208,17 +208,18 @@ describe('the tools I have built', () => {
     ]);
   });
 
-  it('never name Tampermonkey without the step recorder, and keep the experiment figures apart', () => {
-    const automation = headlineText(byId.automation.parts);
-    expect(automation).toMatch(/Tampermonkey with a step recorder/);
-    // The markets belong to the automation tool and the campaign rollouts, not to the experiments.
-    expect(automation).not.toMatch(/A\/B|experiment|25\+|recommendation/i);
+  it('the automation line opens with the tool and prints only the setup-time and market facts', () => {
+    expect(headlineText(byId.automation.parts)).toMatch(/^Tampermonkey with a step recorder: /);
+    for (const id of factIds(byId.automation.parts)) {
+      expect(id).toMatch(/^profile\.audible\.(?:setup_minutes_(?:before|after)|markets)$/);
+    }
   });
 
-  it('call the MarketingWS variants copy variants, never experimentation', () => {
-    const text = headlineText(byId.marketingws.parts);
-    expect(text).not.toMatch(/A\/B|experiment|test(s|ing)?\b/i);
-    expect(text).toMatch(/Groq's free tier/);
+  it('the MarketingWS line is one plain sentence with no fact', () => {
+    expect(byId.marketingws.parts).toEqual([
+      "Copy variants for marketing workflows; the live demo depends on Groq's free tier.",
+    ]);
+    expect(factIds(byId.marketingws.parts)).toEqual([]);
   });
 
   it('type no numeral and name only facts that exist', () => {
@@ -231,7 +232,7 @@ describe('the tools I have built', () => {
 });
 
 describe('all Home copy', () => {
-  it('has no arrow, middle dot, emoji or check mark, and no private wording', () => {
+  it('has no arrow, middle dot, emoji or check mark, and none of the banned words', () => {
     const all = [
       ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
       ...HOME_CASES.map((c) => headlineText(c.description)),

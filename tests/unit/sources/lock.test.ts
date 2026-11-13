@@ -52,7 +52,7 @@ describe('parseLock rejects', () => {
   });
 
   it('an unknown source id', () => {
-    expect(() => parseLock(lockText({ hillstrom: entry() }))).toThrow(/hillstrom/);
+    expect(() => parseLock(lockText({ unlisted: entry() }))).toThrow(/unlisted/);
   });
 
   it.each([

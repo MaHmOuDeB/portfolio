@@ -21,14 +21,29 @@
 // include values), gh is asked for the variables' name field alone, and no command output is
 // printed. It needs `npx vercel login` and `gh auth login` on this machine.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
 import { preregHash } from '../src/lib/experiment/prereg-hash.ts';
 import { builtPages, findPlaceholders } from './launch-placeholders.ts';
 
-export const VERCEL_SCOPE = 'mahmoud-s-team';
+/**
+ * The Vercel team to list the variables in: VERCEL_SCOPE when it is set, otherwise the orgId that
+ * `npx vercel link` wrote to .vercel/project.json; null when neither exists.
+ */
+export function vercelScopeFrom(root: string, env: Readonly<Record<string, string | undefined>>): string | null {
+  const given = env.VERCEL_SCOPE?.trim();
+  if (given) return given;
+  const file = join(root, '.vercel/project.json');
+  if (!existsSync(file)) return null;
+  try {
+    const orgId = (JSON.parse(readFileSync(file, 'utf8')) as { orgId?: unknown }).orgId;
+    return typeof orgId === 'string' && orgId.trim() !== '' ? orgId.trim() : null;
+  } catch {
+    return null;
+  }
+}
 export const VERCEL_PROJECT = 'portfolio';
 export const GITHUB_REPO = 'MaHmOuDeB/portfolio';
 
@@ -59,6 +74,8 @@ export type LaunchDeps = {
   facts: readonly LaunchFact[];
   /** The text of docs/experiment/deployed-checks.md. */
   deployedChecksLog: string;
+  /** The Vercel team (vercelScopeFrom), or null when it is unknown. */
+  vercelScope: string | null;
   preregHash: () => string;
 };
 
@@ -74,6 +91,7 @@ function defaults(): LaunchDeps {
     config: EXPERIMENT,
     facts: LAUNCH_FACTS,
     deployedChecksLog: readFileSync(join(root, 'docs/experiment/deployed-checks.md'), 'utf8'),
+    vercelScope: vercelScopeFrom(root, process.env),
     preregHash: () => preregHash(),
   };
 }
@@ -182,8 +200,13 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
   }
 
   // The secrets, by name.
-  const vercel = d.run('npx', ['--no-install', 'vercel', 'env', 'ls', 'production', '--project', VERCEL_PROJECT, '--scope', VERCEL_SCOPE]);
-  if (vercel.status !== 0) {
+  const vercel =
+    d.vercelScope === null
+      ? null
+      : d.run('npx', ['--no-install', 'vercel', 'env', 'ls', 'production', '--project', VERCEL_PROJECT, '--scope', d.vercelScope]);
+  if (vercel === null) {
+    unmet.push('the Vercel team is unknown: set VERCEL_SCOPE, or run npx vercel link so .vercel/project.json names it');
+  } else if (vercel.status !== 0) {
     unmet.push('could not list the Vercel production variables (run npx vercel login, then try again)');
   } else {
     const have = names(vercel.stdout);

@@ -1,21 +1,25 @@
 // The stray-number truth audit. It parses every built page under .next/server/app and fails on any
 // numeral that is not inside a data-fact / data-derived marker, not a fact display in the head and
 // not allowed by truth-audit.allow.ts; on an unknown fact id or a bad derived ref; on a deny-listed
-// term; and on a banned phrase.
+// term; on a banned phrase; and on any e-mail address anywhere in the HTML (the site's contact route
+// is LinkedIn, so no page carries one). The public client scripts under .next/static are checked
+// against the deny-list only: minified code is full of numerals that are not claims.
 //
 //   npm run build && npm run truth:audit
 //
-// The deny-list comes from TRUTH_DENYLIST (newline-separated). A finding names a deny-list term
-// only by its 1-based index, never by its text, because the CI logs are public. In CI a missing or
-// empty TRUTH_DENYLIST fails the audit; locally it is skipped with a notice.
+// The deny-list comes from TRUTH_DENYLIST, one term per line. Each line is literal text, never a
+// regular expression: it matches as a substring, ignoring case and invisible characters, with any
+// run of whitespace matching any other. Write the phrases themselves, not patterns. A finding names
+// a deny-list term only by its 1-based index, never by its text, because the CI logs are public. In
+// CI a missing or empty TRUTH_DENYLIST fails the audit; locally it is skipped with a notice.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { FACTS, FACT_DISPLAYS } from '../src/lib/facts/facts.generated.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
 import { ALLOW, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
-export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase';
+export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase' | 'email-address';
 export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
 export type AuditContext = {
   route: string;
@@ -31,6 +35,14 @@ const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
 const stripInvisible = (s: string) => s.replace(INVISIBLE, '');
 // "AI-powered" with a space or any hyphen or dash between the words (U+2010 to U+2015, minus sign).
 const BANNED = /\bAI[\s\-\u2010-\u2015\u2212]*powered\b|\bpassionate\b|\brockstar\b/gi;
+// An e-mail address: a local part, "@", and a domain whose last label is letters. A package or font
+// version ("x@1.2.3"), a CSS at-rule ("@media") or a scoped package name ("/@scope/pkg") does not match.
+const EMAIL = /[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b/g;
+// A finding shows only the first character of the local part and the domain, never the address.
+const maskEmail = (address: string) => {
+  const at = address.lastIndexOf('@');
+  return `${address[0]}\u2026@${address.slice(at + 1)}`;
+};
 const SKIPPED = new Set(['script', 'style', 'template']);
 const SCANNED_ATTRS = ['aria-label', 'aria-valuetext', 'aria-description', 'aria-roledescription', 'alt', 'title', 'placeholder'];
 // The meta tags whose content is text a visitor or a link preview shows; og:image, og:url and the
@@ -71,6 +83,12 @@ function allowSpans(text: string, route: string): Span[] {
 // (U+00A0 included) as one space.
 const normalize = (s: string) => stripInvisible(s).toLowerCase().replace(/\s+/g, ' ');
 
+/** The 0-based indexes of the deny-list terms (already normalized) that occur in `text`. */
+function denyIndexes(text: string, normalizedTerms: readonly string[]): number[] {
+  const t = normalize(text);
+  return normalizedTerms.flatMap((term, i) => (term.trim() !== '' && t.includes(term) ? [i] : []));
+}
+
 function redact(detail: string, denylist: readonly string[]): string {
   return denylist.reduce((out, term, i) => {
     const t = normalize(term).trim();
@@ -96,10 +114,7 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   const denyHits = new Set<number>();
   const denylist = ctx.denylist.map(normalize);
   const checkDenylist = (text: string) => {
-    const t = normalize(text);
-    denylist.forEach((term, i) => {
-      if (term.trim() !== '' && t.includes(term)) denyHits.add(i);
-    });
+    for (const i of denyIndexes(text, denylist)) denyHits.add(i);
   };
   const textParts: string[] = [];
 
@@ -171,7 +186,21 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   checkDenylist(textParts.join(''));
   checkDenylist(html);
   for (const i of [...denyHits].sort((a, b) => a - b)) add('denylisted', `deny-list term #${i + 1}`);
+  // The raw HTML, so an address in an href, the RSC payload or JSON-LD counts too. Each once.
+  for (const address of new Set([...html.matchAll(EMAIL)].map((m) => m[0]))) add('email-address', `"${maskEmail(address)}" in the HTML`);
   return findings;
+}
+
+/**
+ * The deny-list check alone, for a public client script under .next/static. `route` is the script's
+ * public path. A hit is named by its index only, like every other finding.
+ */
+export function auditScript(js: string, ctx: Pick<AuditContext, 'route' | 'denylist'>): Finding[] {
+  return denyIndexes(js, ctx.denylist.map(normalize)).map((i) => ({
+    route: redact(ctx.route, ctx.denylist),
+    kind: 'denylisted',
+    detail: `deny-list term #${i + 1}`,
+  }));
 }
 
 // Maps ".next/server/app/work/retention.html" to "/work/retention" and "index.html" to "/".
@@ -210,10 +239,28 @@ function main(): number {
     return 1;
   }
   const factIds = new Set(Object.keys(FACTS));
-  const findings = pages.flatMap((p) =>
+  const findings: Finding[] = pages.flatMap((p) =>
     auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: FACT_DISPLAYS, denylist }),
   );
+  // The client scripts are public too; with no deny-list there is nothing to check them for.
+  const staticDir = join(process.cwd(), '.next/static');
+  const scripts =
+    denylist.length > 0 && existsSync(staticDir)
+      ? readdirSync(staticDir, { recursive: true, encoding: 'utf8' })
+          .filter((f) => f.endsWith('.js'))
+          .sort()
+      : [];
+  for (const s of scripts) {
+    const route = `/_next/static/${s.split(sep).join('/')}`;
+    findings.push(...auditScript(readFileSync(join(staticDir, s), 'utf8'), { route, denylist }));
+  }
   for (const f of findings) console.log(`${redact(f.route, denylist)} ${f.kind} ${redact(f.detail, denylist)}`);
+  // Fail closed: with a deny-list, a build without client scripts means the scan did not happen.
+  if (denylist.length > 0 && scripts.length === 0) {
+    console.error('no client scripts under .next/static to check against the deny-list (run npm run build first)');
+    return 1;
+  }
+  if (scripts.length > 0) console.log(`client scripts: ${scripts.length} checked against the deny-list`);
   if (findings.length > 0) return 1;
   console.log(`truth audit: ${pages.length} pages, 0 findings`);
   return 0;

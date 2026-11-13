@@ -69,7 +69,7 @@ describe('clickEvents', () => {
   });
 
   it('mailto: and the LinkedIn and GitHub profiles are contact clicks', () => {
-    expect(clickEvents(`mailto:${CONTACT.email}`, ORIGIN, false)).toEqual(['contact']);
+    expect(clickEvents('mailto:someone@example.com', ORIGIN, false)).toEqual(['contact']);
     expect(clickEvents(CONTACT.linkedin, ORIGIN, false)).toEqual(['contact']);
     expect(clickEvents(`${CONTACT.linkedin}/`, ORIGIN, false)).toEqual(['contact']);
     expect(clickEvents(CONTACT.github, ORIGIN, false)).toEqual(['contact']);

@@ -9,7 +9,7 @@
    "unit": "count",
    "decimals": 0,
    "label": "Experiments",
-   "from": "fact-sheet",
+   "from": "profile",
    "suffix": "+"
   },
   "audible.recommendations_adopted": {
@@ -17,7 +17,7 @@
    "unit": "count",
    "decimals": 0,
    "label": "Recommendations adopted",
-   "from": "fact-sheet",
+   "from": "profile",
    "suffix": "+"
   },
   "audible.setup_minutes_before": {
@@ -25,42 +25,42 @@
    "unit": "minutes",
    "decimals": 0,
    "label": "Setup minutes before",
-   "from": "fact-sheet"
+   "from": "profile"
   },
   "audible.setup_minutes_after": {
    "value": 3,
    "unit": "minutes",
    "decimals": 0,
    "label": "Setup minutes after",
-   "from": "fact-sheet"
+   "from": "profile"
   },
   "audible.setup_time_cut": {
    "value": 0.85,
    "unit": "share",
    "decimals": 0,
    "label": "Setup time cut",
-   "from": "fact-sheet"
+   "from": "profile"
   },
   "audible.markets": {
    "value": 11,
    "unit": "count",
    "decimals": 0,
    "label": "Markets",
-   "from": "fact-sheet"
+   "from": "profile"
   },
   "audible.teams": {
    "value": 3,
    "unit": "count",
    "decimals": 0,
    "label": "Teams worked with over his time there, one after another after re-orgs",
-   "from": "fact-sheet"
+   "from": "profile"
   },
   "n8n.automated_tests": {
    "value": 270,
    "unit": "count",
    "decimals": 0,
    "label": "Automated tests",
-   "from": "fact-sheet",
+   "from": "profile",
    "suffix": "+"
   }
  }

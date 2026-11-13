@@ -28,7 +28,7 @@ describe('the vendored source exports', () => {
     expect(shown('weather.model.xgb_auc')).toBe('0.91');
   });
 
-  it('keeps the held-back readings out of the weather export', () => {
+  it("keeps the quarantine table and the weather schema's reserved word out of the weather export", () => {
     expect(Object.keys(weather.tables)).not.toContain('quarantine');
     expect(JSON.stringify(weather)).not.toMatch(/leak/i);
   });

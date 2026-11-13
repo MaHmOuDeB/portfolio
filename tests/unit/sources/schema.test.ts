@@ -106,26 +106,29 @@ describe('date facts', () => {
   });
 });
 
-describe('weather forbids the leakage story', () => {
+// The word no name in the weather schema may contain.
+const reservedWord = 'leak';
+
+describe('weather closes its tables and reserves a word in every name', () => {
   const base = load('weather');
 
-  it('rejects an added tables.leakage_demo', () => {
+  it('rejects an added table', () => {
     const j = clone(base);
-    j.tables.leakage_demo = [];
-    expect(errorsOf(j, 'weather/1').join('\n')).toMatch(/\/tables .*leakage_demo/);
+    j.tables.extra_demo = [];
+    expect(errorsOf(j, 'weather/1').join('\n')).toMatch(/\/tables .*extra_demo/);
   });
 
-  it('rejects a fact key containing leak in any case', () => {
-    for (const key of ['model.leak_r2', 'model.LEAK_r2']) {
+  it('rejects a fact key containing the reserved word in any case', () => {
+    for (const key of [`model.${reservedWord.toLowerCase()}_r2`, `model.${reservedWord.toUpperCase()}_r2`]) {
       const j = clone(base);
       j.facts[key] = j.facts['quarantine.rows'];
       expect(errorsOf(j, 'weather/1').join('\n'), key).toMatch(/\/facts /);
     }
   });
 
-  it('rejects a leak-named column in a row', () => {
+  it('rejects a column named with the reserved word in a row', () => {
     const j = clone(base);
-    j.tables.checks[0].leak_flag = true;
+    j.tables.checks[0][`${reservedWord.toLowerCase()}_flag`] = true;
     expect(errorsOf(j, 'weather/1').join('\n')).toMatch(/\/tables\/checks\/0 /);
   });
 
@@ -136,7 +139,7 @@ describe('weather forbids the leakage story', () => {
   });
 });
 
-describe('profile allows exactly the eight approved facts', () => {
+describe('profile allows exactly its eight facts', () => {
   const base = load('profile');
 
   it('rejects a ninth fact key', () => {
@@ -145,13 +148,13 @@ describe('profile allows exactly the eight approved facts', () => {
     expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts .*audible\.unlisted_key/);
   });
 
-  it('rejects a missing approved key', () => {
+  it('rejects a missing key', () => {
     const j = clone(base);
     delete j.facts['audible.teams'];
     expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts .*audible\.teams/);
   });
 
-  it('rejects a fact whose from is not fact-sheet', () => {
+  it('rejects a fact whose from is not profile', () => {
     const j = clone(base);
     j.facts['audible.markets'].from = 'results.json#/x';
     expect(errorsOf(j, 'profile/1').join('\n')).toMatch(/\/facts\/audible\.markets\/from /);

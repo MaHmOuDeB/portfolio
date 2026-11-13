@@ -2,14 +2,14 @@
 import type { FactDef } from './types.ts';
 
 export const FACTS = {
-  "profile.audible.experiments": {"id":"profile.audible.experiments","value":25,"unit":"count","decimals":0,"label":"Experiments","source":"profile","from":"fact-sheet","suffix":"+"},
-  "profile.audible.markets": {"id":"profile.audible.markets","value":11,"unit":"count","decimals":0,"label":"Markets","source":"profile","from":"fact-sheet"},
-  "profile.audible.recommendations_adopted": {"id":"profile.audible.recommendations_adopted","value":20,"unit":"count","decimals":0,"label":"Recommendations adopted","source":"profile","from":"fact-sheet","suffix":"+"},
-  "profile.audible.setup_minutes_after": {"id":"profile.audible.setup_minutes_after","value":3,"unit":"minutes","decimals":0,"label":"Setup minutes after","source":"profile","from":"fact-sheet"},
-  "profile.audible.setup_minutes_before": {"id":"profile.audible.setup_minutes_before","value":20,"unit":"minutes","decimals":0,"label":"Setup minutes before","source":"profile","from":"fact-sheet"},
-  "profile.audible.setup_time_cut": {"id":"profile.audible.setup_time_cut","value":0.85,"unit":"share","decimals":0,"label":"Setup time cut","source":"profile","from":"fact-sheet"},
-  "profile.audible.teams": {"id":"profile.audible.teams","value":3,"unit":"count","decimals":0,"label":"Teams worked with over his time there, one after another after re-orgs","source":"profile","from":"fact-sheet"},
-  "profile.n8n.automated_tests": {"id":"profile.n8n.automated_tests","value":270,"unit":"count","decimals":0,"label":"Automated tests","source":"profile","from":"fact-sheet","suffix":"+"},
+  "profile.audible.experiments": {"id":"profile.audible.experiments","value":25,"unit":"count","decimals":0,"label":"Experiments","source":"profile","from":"profile","suffix":"+"},
+  "profile.audible.markets": {"id":"profile.audible.markets","value":11,"unit":"count","decimals":0,"label":"Markets","source":"profile","from":"profile"},
+  "profile.audible.recommendations_adopted": {"id":"profile.audible.recommendations_adopted","value":20,"unit":"count","decimals":0,"label":"Recommendations adopted","source":"profile","from":"profile","suffix":"+"},
+  "profile.audible.setup_minutes_after": {"id":"profile.audible.setup_minutes_after","value":3,"unit":"minutes","decimals":0,"label":"Setup minutes after","source":"profile","from":"profile"},
+  "profile.audible.setup_minutes_before": {"id":"profile.audible.setup_minutes_before","value":20,"unit":"minutes","decimals":0,"label":"Setup minutes before","source":"profile","from":"profile"},
+  "profile.audible.setup_time_cut": {"id":"profile.audible.setup_time_cut","value":0.85,"unit":"share","decimals":0,"label":"Setup time cut","source":"profile","from":"profile"},
+  "profile.audible.teams": {"id":"profile.audible.teams","value":3,"unit":"count","decimals":0,"label":"Teams worked with over his time there, one after another after re-orgs","source":"profile","from":"profile"},
+  "profile.n8n.automated_tests": {"id":"profile.n8n.automated_tests","value":270,"unit":"count","decimals":0,"label":"Automated tests","source":"profile","from":"profile","suffix":"+"},
   "pulse.events.count": {"id":"pulse.events.count","value":7,"unit":"count","decimals":0,"label":"Tracked events in the taxonomy","source":"pulse","from":"src/lib/analytics.ts#amplitude.track"},
   "pulse.identity.user_properties": {"id":"pulse.identity.user_properties","value":4,"unit":"count","decimals":0,"label":"User properties set on identify","source":"pulse","from":"src/lib/analytics.ts#identifyDemoUser"},
   "retail.returns.rate_2010_clean": {"id":"retail.returns.rate_2010_clean","value":0.0209,"unit":"share","decimals":1,"label":"Returns as a share of sales, January to November 2010, with the rule","source":"retail","from":"tables/monthly/returns_gbp_clean"},

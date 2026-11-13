@@ -1,0 +1,115 @@
+p: Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.
+h2: Summary
+li: Problem
+li: Data
+li: Method
+li: Cleaning
+li: Cohorts
+li: Segments
+li: Model
+li: Win-back sizing
+li: Findings
+li: How I checked this
+li: Limits
+li: Sources
+h2: The problem
+p: Which of a shop's lapsed customers will order again, and would a win-back offer change that? The order history can answer the first question. Only a test with a holdout group, customers who get no offer, can answer the second.
+p: Before either, the numbers have to be right. In this data, an order cancelled within 24 hours counted once as a sale and again as a return, and that made returned-order value look like it grew 29% in January to November 2011 against the same months of 2010, instead of about 2%.
+h2: The data
+p: The data is UCI Online Retail II, orders from a UK online gift retailer from 1 Dec 2009 to 9 Dec 2011: 1,067,371 invoice lines. Cleaning keeps cancellations apart as returns and drops lines without a customer, lines that are not products (such as postage) and lines with no positive quantity or price. After cleaning and the reversal rule below, 801,134 sales lines remain, in 36,452 orders from 5,850 customers.
+h2: Method
+p: I worked in five steps; most have their own period and their own group of customers:
+li: Clean the invoice lines with SQL in DuckDB, and remove orders cancelled within 24 hours.
+li: Group customers by the month of their first order and count, for each later month, the share who ordered in it.
+li: Score every customer on recency, frequency and spend at a cutoff, and name segments from the scores.
+li: Train scikit-learn models on an earlier cutoff and score them on a later one, against a simple rule.
+li: Size a holdout test of a win-back offer for lapsed customers.
+p: Each chart below has its numbers in a table under it and a badge that says where its data comes from. The interactive ones keep their setting in the page address, so a link opens the same view.
+h2: Cleaning: reversed orders and returns
+p: 29%
+p: Growth in returned-order value, January to November 2011 against the same months of 2010, with orders cancelled within 24 hours counted as returns
+p: From the retail dashboard's export
+p: 2%
+p: The same growth with those orders removed
+p: From the retail dashboard's export
+p: A cancellation that matches an order line from the same customer, for the same product and quantity, placed up to 24 hours before it, marks an order that never happened, so I remove both lines. That rule takes out orders cancelled within 24 hours, about £407k of revenue. Without it, the same order counts once as a sale and again as a return.
+p: Returns growth compares January to November 2011 with the same months of 2010, because the data stops on 9 Dec 2011. The change between the two growth figures comes mostly from one £77k order, placed on 18 Jan 2011 and cancelled within 24 hours. The inflated growth was not my catch: a review caught it and I fixed it. Growth is not the same as returns as a share of sales: with the rule, returns were 2.1% of sales in January to November 2010 and 2.2% in 2011; without it, 2.9% and 3.7%.
+h3: Removing reversed orders changes the returns story
+p: With orders cancelled within 24 hours removed, returned-order value grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010. Counting those orders as returns makes the growth look larger: the difference is mostly one £77k order placed and cancelled on 18 Jan 2011.
+p: 
+figcaption: Returned-order value per month, in pounds, from a public dataset of a UK online gift retailer's orders. The reversal rule removes a cancellation together with the order line it reverses: the same customer, product and quantity, ordered up to 24 hours before it. The data stops early in its last month, so that bar is a partial month, drawn as an outline and not compared with the full months. Growth here is in returned-order value, not returns as a share of sales. Public data Controls need JavaScript. Show the numbers as a table Removing reversed orders changes the returns story Month Returned-order value (GBP) Partial month Dec 2009 15,091 No Jan 2010 6,993 No Feb 2010 11,138 No Mar 2010 8,279 No Apr 2010 8,021 No May 2010 22,558 No Jun 2010 12,624 No Jul 2010 11,133 No Aug 2010 9,705 No Sept 2010 21,457 No Oct 2010 17,344 No Nov 2010 29,751 No Dec 2010 19,548 No Jan 2011 11,758 No Feb 2011 8,148 No Mar 2011 7,286 No Apr 2011 31,611 No May 2011 8,742 No Jun 2011 10,557 No Jul 2011 9,927 No Aug 2011 18,365 No Sept 2011 12,466 No Oct 2011 30,306 No Nov 2011 13,639 No Dec 2011 5,104 Yes With the reversal rule: an order and the cancellation that reverses it are both removed. The last month is partial: the data ends early in December.
+h2: Cohorts: who orders again, month by month
+p: Customers are grouped by the month of their first order in the data. I use the January to November 2010 cohorts: December 2009 is the first month of the data, so it holds customers who were already buying, and December 2010 would end in the incomplete December 2011. A later month counts the cohort members who ordered in that month, so a share can rise again. Weighted by cohort size, about 20% order again in the month after their first order and about 18% in the twelfth month after it.
+h3: Repeat ordering varies by cohort and month
+p: Cohort: Jan 2010
+p: In the month after their first order, 21% of the Jan 2010 cohort (368 customers) ordered again; in the twelfth month after it, 23% did.
+p: 
+figcaption: Customers of a UK online gift retailer, from a public dataset, grouped by the month of their first order in the data, January to November 2010. Each later month shows the share of a cohort who ordered again in that later month, so a share can rise again: it is not the share still ordering every month since. Month zero, the first order itself, includes every member by definition, so only the table shows it. On a wide screen each row is a cohort and darker cells hold larger shares, with the chosen cohort outlined; on a narrow one the chosen cohort is a line. Public data Controls need JavaScript. Show the numbers as a table Repeat ordering varies by cohort and month Cohort Customers Formation month Month one Month two Month three Month four Month five Month six Month seven Month eight Month nine Month ten Month eleven Month twelve Jan 2010 368 100% 21% 32% 32% 27% 31% 27% 23% 29% 33% 31% 18% 23% Feb 2010 374 100% 24% 23% 29% 25% 20% 19% 29% 26% 28% 12% 13% 15% Mar 2010 441 100% 19% 23% 24% 23% 20% 25% 31% 28% 11% 11% 15% 20% Apr 2010 293 100% 19% 19% 16% 18% 22% 28% 27% 11% 11% 8% 14% 14% May 2010 253 100% 15% 17% 18% 18% 26% 21% 13% 6% 8% 11% 13% 15% Jun 2010 267 100% 18% 19% 21% 23% 28% 13% 9% 8% 11% 10% 14% 15% Jul 2010 186 100% 16% 18% 30% 29% 14% 11% 15% 15% 11% 13% 15% 13% Aug 2010 163 100% 20% 29% 33% 17% 12% 10% 13% 14% 13% 13% 12% 15% Sept 2010 238 100% 23% 24% 13% 9% 10% 14% 9% 13% 13% 12% 10% 23% Oct 2010 374 100% 26% 15% 13% 9% 8% 13% 14% 11% 9% 10% 13% 19% Nov 2010 327 100% 17% 9% 9% 8% 9% 13% 10% 9% 9% 11% 15% 25% Customers are grouped by the month of their first order in the data. Each later month counts the cohort members who ordered in that month, so a share can rise again; it is not the share who kept buying every month since.
+h2: Customer segments
+p: At the September 2011 cutoff I score each customer on recency, frequency and spend by rank. Champions score 4 or 5 out of 5 on each of recency, frequency and spend (roughly the top two-fifths on each). They are 23% of customers and hold 71% of spend up to the cutoff, partly by construction.
+h3: Champions account for more spend than their customer share
+p: Champions are 23% of customers and hold 71% of spend up to the cutoff, partly by construction: spend is one of the three scores that define them.
+p: 
+figcaption: Customers of a UK online gift retailer, from a public dataset, in segments at the September 2011 cutoff. Each customer is scored by rank on recency, frequency and spend. Champions score 4 or 5 out of 5 on each of recency, frequency and spend (roughly the top two-fifths on each), so they are not simply the customers who spent the most. Outlined bars are shares of customers and filled bars shares of spend, on the same scale. Public data Show the numbers as a table Champions account for more spend than their customer share Segment Customers Share of customers Share of spend Champions 1,232 23% 71% Loyal 976 19% 13% New / recent 475 9% 2% At risk (were frequent) 351 7% 6% Occasional 468 9% 2% Dormant 1,751 33% 7% Customers at the September cutoff of the analysis; spend is everything they bought up to it. Champions' share of spend is high partly by construction.
+h2: A model of who orders again
+p: For the model, each customer's features use only orders up to a cutoff, and the label is whether they ordered again within the 90 days after it. Logistic regression and gradient boosting learn on an earlier cutoff, whose window closes before the later one, and are scored on the September 2011 cutoff against a rule that puts the most recent buyers first. In that window, 43.5% of customers ordered again.
+h3: The model ranks repeat buyers only slightly better than recency
+p: Gradient boosting ranks with a ROC AUC of 0.793, against 0.762 for putting the most recent buyers first: a gain of 0.03, with a 95% interval of 0.02 to 0.04 that covers test-sample variability only.
+p: 
+figcaption: How well each method ranks the customers of a public dataset by whether they ordered again within the 90 days after the September 2011 cutoff. The model learned on an earlier cutoff and both were scored on this later one. A ROC AUC is the chance that a customer who ordered again is ranked above one who did not: one half is no better than chance, one is a perfect ranking. This is ranking accuracy, not a response to any offer: nobody was contacted, and a high score is a prediction, not an effect of contact. The table adds logistic regression and the scores for lapsed customers only. Public data Show the numbers as a table The model ranks repeat buyers only slightly better than recency Model ROC AUC, all customers ROC AUC, lapsed customers only Baseline: most recent buyer first 0.762 0.685 Logistic regression 0.792 0.706 Gradient boosting 0.793 0.710 How well each model ranks the customers who ordered again within the window, scored on a later period than it learned from. Ranking accuracy, not a response to any offer.
+h2: Sizing a win-back test
+p: Lapsed customers are those with no order in the 90 days before the September 2011 cutoff: 3,351 of them, and 29% of them ordered again within 90 days. I sized a possible holdout test; nobody was contacted and no test was run. With a standard two-group sample-size calculation (two-sided, a 5% significance level and 80% power), detecting a rise from 29% to 34%, an uplift of 5 percentage points, needs 1,353 lapsed customers in each group.
+p: Two groups of that size are 2,706 customers, and 3,351 customers were lapsed at the cutoff, so one period has enough of them. That is arithmetic about how many customers there are, not evidence that an offer would work. A test on only the top 20% of lapsed customers by score would not fit: at their rate of ordering again, 53%, the same rise needs 1,547 customers per group, 3,094 in all, and that group has 670.
+h3: Customers needed in each group of a holdout test
+p: A sample-size calculation only: nobody was contacted and no test was run. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.
+h3: Smaller rises need more customers per group.
+p: To detect a rise of 5 points, from 29% to 34%. Simulated Hypothetical uplift
+p: 
+p: 1,353
+p: customers per group
+figcaption: The preset is a hypothetical uplift on an observed baseline. Its baseline, 29%, is the share of lapsed customers in the case study's public dataset who ordered again within the window; a rise of 5 points, to 34%, is an uplift to plan for, not the effect of any offer. Nobody was contacted and no test was run. Sample sizes from Cohen's h for a two-sided test at a significance level of 5% and a power of 80%, with the customers split equally between the two groups and the result read once, at the end: n per group = 2 · ((z₁₋α/₂ + z₁₋β) / h)², h = 2·asin√p₂ − 2·asin√p₁, rounded up. In points, the rise is the target minus the baseline; as a percent of the baseline, it is that difference divided by the baseline. Either way the sample is the same. Simulated Controls need JavaScript. Show the numbers as a table Smaller rises need more customers per group. Input or result Value Baseline conversion (%) 29 Rise to detect (percentage points) 5 Rise to detect (% of baseline) 17.2 Target conversion (%) 34 Customers per group 1,353
+h3: The fewer customers a day, the more weeks it takes to fill both groups.
+p: To reach 1,353 customers per group, 2,706 in all, at 100 customers a day. Simulated Hypothetical uplift
+p: 
+p: 4
+p: weeks, rounded up
+figcaption: If 100 customers a day enter the test, split equally between groups, this is how long both groups take to reach the size from the planner above, in whole weeks, rounded up. The traffic is a number to plan with, not a promise of actual traffic: it assumes every one of them enters the test and the same number arrives every day. Each customer's result is known only once their window for ordering again has passed, so the test runs that much longer after the last one enters. Simulated Controls need JavaScript. Show the numbers as a table The fewer customers a day, the more weeks it takes to fill both groups. Input or result Value Customers per day, both groups together 100 Customers per group 1,353 Customers in all 2,706 Weeks, rounded up 4
+li: Try other baselines and rises in the Lab's sample-size planner
+li: The same arithmetic as the Home planner
+p: The ranking does pick people who order again: of the top 5% of lapsed customers by score, 167 customers, 116 ordered again within 90 days, against about 48 expected from a random selection of the same size. These are later orders from customers nobody contacted. They show that the score ranks well, not that an offer would add anything; that is the question the holdout test is for.
+h3: Lapsed customers ranked by score: who ordered again, against a random selection
+p: Lapsed customers with the highest model scores, selected on paper only: nobody was contacted. These are observed orders, not the effect of an offer.
+h2: Findings
+li: Removing orders cancelled within 24 hours changes the returns story: returned-order value grew about 2% in January to November 2011, not 29%. As a share of sales, returns went from 2.1% to 2.2%.
+li: Across the January to November 2010 cohorts, about 20% order again in the month after their first order, and about 18% in the twelfth month after it. Repeat ordering varies by cohort, and a later month can be higher than an earlier one.
+li: Champions are 23% of customers at the September 2011 cutoff and hold 71% of spend up to it, partly by construction.
+li: Gradient boosting ranks who orders again only slightly better than putting the most recent buyers first: ROC AUC 0.793 against 0.762. Its scores rank customers but are not calibrated probabilities.
+li: Sized to detect a rise of 5 percentage points, a holdout test of all lapsed customers needs 1,353 per group and fits in one period; a test on the top-scored customers alone does not.
+h2: How I checked this
+p: The reversal rule as the cleaning SQL writes it, the same in both repositories at the linked commits:
+p: A cancellation joins the order line it reverses: the same customer, product and quantity, placed at most a day before it. The sales and returns tables then leave out both lines.
+li: The SQL, the models and the exports live in public repositories with tests, lint and CI; the sources below link the exact commits this page reads.
+li: Each export is pinned by commit and by a hash of its content, and this site's build stops if a vendored copy does not match it.
+li: The build also checks each vendored export against its schema, so a missing or renamed field stops the build instead of printing a wrong number.
+li: The analysis repository tests its export against its own results: the facts must equal the analysis results they come from, and the cohort table must reproduce the weighted month-one and month-twelve rates. A further test rebuilds the export from the downloaded dataset and expects the same bytes; it needs the dataset, so CI skips it.
+li: Every figure on this page is marked with where it comes from: one of those exports, the source code at the linked commits, or a calculation. An audit of the built page fails on any unmarked number other than a calendar year.
+li: The returns comparison uses the same months in both years, January to November, because December 2011 is incomplete.
+li: The models are scored on a later cutoff than they learned from, so no order from the test window was used in training.
+li: The gain in ROC AUC is 0.03, with a 95% interval of 0.02 to 0.04 from a paired bootstrap over the test customers, so it covers test-sample variability only.
+li: This site's own sample-size code, which is tested against reference values from scipy and statsmodels, gives the same 1,353 per group as the analysis.
+h2: Limits
+li: This is historic, observational data from one UK gift retailer. It shows who ordered again, not how anyone would respond to a win-back offer. Nobody was contacted.
+li: A higher score means a customer is more likely to order again, not more likely to be persuaded: rank is not uplift. Only a holdout test could show what an offer changes.
+li: The interval on the AUC gain covers test-sample variability only. It does not cover retraining the model, another period or a change in the mix of customers.
+li: The scores rank customers but are not calibrated probabilities: in the tenth of customers with the lowest scores, the gradient-boosting model predicted 3.1% on average and 8.7% ordered again.
+li: Champions' share of spend is high partly by construction: spend is one of the three scores that define them.
+li: The data starts in December 2009, so a first order in the data is not always a customer's first order, and lines without a customer number are left out of every customer figure.
+h2: Sources and links
+li: Customer retention analysis, at commit 20cfb13
+li: Cleaning SQL of the retention analysis
+li: Export of the retention analysis that this page reads
+li: Retail KPI dashboard, at commit 73dc12a
+li: Cleaning SQL of the retail dashboard
+li: Returns export of the retail dashboard
+li: The data: UCI Online Retail II
+li: Its licence, CC BY 4.0

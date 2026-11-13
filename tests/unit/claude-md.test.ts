@@ -34,11 +34,15 @@ const claudeMd = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
 
 describe('CLAUDE.md', () => {
-  it('keeps its header, both imports and the repository notes', () => {
+  it('keeps its header, the AGENTS.md import and the repository notes', () => {
     expect(claudeMd).toContain('# CLAUDE.md');
-    expect(claudeMd).toContain('@~/code/portfolio/private/CLAUDE.private.md');
     expect(claudeMd).toContain('@AGENTS.md');
     expect(claudeMd).toContain('## Repository notes');
+  });
+
+  it('imports only files inside the repository', () => {
+    const imports = [...claudeMd.matchAll(/^@(\S+)$/gm)].map((m) => m[1]!);
+    expect(imports).toEqual(['AGENTS.md']);
   });
 
   it('names every design-lint rule id', () => {
@@ -70,8 +74,7 @@ describe('CLAUDE.md', () => {
     // The employer's name may appear only as code: the case-study folders and route, and the names
     // their files export, each in backticks. Any other mention fails.
     expect(withoutCaseStudyCode(claudeMd)).not.toMatch(/audible/i);
-    expect(claudeMd).not.toContain('Known');
-    expect(claudeMd).not.toMatch(/known gaps/i);
+    expect(claudeMd).not.toMatch(/\bknown\b/i);
     // Private paths and process documents are checked repo-wide by public-tree.test.ts.
   });
 

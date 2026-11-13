@@ -1,21 +1,22 @@
 import { spawnSync } from 'node:child_process';
 import { parseTarget } from '../../scripts/parse-inspect-target.ts';
 
-// Real `vercel inspect` output (Vercel CLI 62.2.0) for the first, failed deployment, which was
-// created as a production deployment although `vercel deploy` was run without --prod. The
-// `General` block is indented with spaces and uses a tab between the key and the value.
-const REAL_INSPECT_OUTPUT = [
+// `vercel inspect` output (Vercel CLI 62.2.0) for a failed deployment that was created as a
+// production deployment although `vercel deploy` was run without --prod. The hostnames, the team and
+// the deployment id are placeholders; the layout is the CLI's own. The `General` block is indented
+// with spaces and uses a tab between the key and the value.
+const INSPECT_OUTPUT = [
   'Vercel CLI 62.2.0',
-  'Fetching deployment "portfolio-hv3cuioer-mahmoud-s-team.vercel.app" in mahmoud-s-team',
-  '> Fetched deployment "portfolio-hv3cuioer-mahmoud-s-team.vercel.app" in mahmoud-s-team [908ms]',
+  'Fetching deployment "portfolio-abc123xyz-example-team.vercel.app" in example-team',
+  '> Fetched deployment "portfolio-abc123xyz-example-team.vercel.app" in example-team [908ms]',
   '',
   '  General',
   '',
-  '    id\t\tdpl_g3arKp9zCBG61EA7C4ym2bEXhp3S',
+  '    id\t\tdpl_ExampleDeploymentId0000000000',
   '    name\tportfolio',
   '    target\tproduction',
   '    status\t● Error',
-  '    url\t\thttps://portfolio-hv3cuioer-mahmoud-s-team.vercel.app',
+  '    url\t\thttps://portfolio-abc123xyz-example-team.vercel.app',
   '    created\tTue Oct 06 2026 11:53:12 GMT+0200 (Central European Summer Time) [4m ago]',
   '',
   '',
@@ -38,7 +39,7 @@ const REAL_INSPECT_OUTPUT = [
   '',
   '  Aliases',
   '',
-  '    ╶ https://portfolio-mahmoud-s-team.vercel.app',
+  '    ╶ https://portfolio-example-team.vercel.app',
   '',
   '',
   '  Builds',
@@ -49,12 +50,12 @@ const REAL_INSPECT_OUTPUT = [
 ].join('\n');
 
 describe('parseTarget', () => {
-  it('reads the production target from the real inspect output', () => {
-    expect(parseTarget(REAL_INSPECT_OUTPUT)).toBe('production');
+  it('reads the production target from the inspect output', () => {
+    expect(parseTarget(INSPECT_OUTPUT)).toBe('production');
   });
 
   it('reads the preview target from the same output with the target swapped', () => {
-    const preview = REAL_INSPECT_OUTPUT.replace('target\tproduction', 'target\tpreview');
+    const preview = INSPECT_OUTPUT.replace('target\tproduction', 'target\tpreview');
     expect(parseTarget(preview)).toBe('preview');
   });
 
@@ -104,7 +105,7 @@ describe('parse-inspect-target CLI', () => {
   }
 
   it('prints the target read from stdin', () => {
-    expect(run(REAL_INSPECT_OUTPUT)).toEqual({ status: 0, stdout: 'production\n' });
+    expect(run(INSPECT_OUTPUT)).toEqual({ status: 0, stdout: 'production\n' });
   });
 
   it('prints an empty line and exits 0 when there is no target', () => {

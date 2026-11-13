@@ -1,5 +1,6 @@
 // The privacy page: accessible, reachable from the footer, and readable at 320 px.
 import { expect } from '@playwright/test';
+import { CONTACT } from '../../src/lib/site';
 import { expectNoA11yViolations, test } from './fixtures';
 
 test('/privacy passes axe', async ({ page }) => {
@@ -23,12 +24,13 @@ test('/privacy reflows at 320 px without scrolling sideways', async ({ page }) =
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('/privacy shows the contact email as a mailto link, and a placeholder only as a note', async ({ page }) => {
+test('/privacy names LinkedIn as the contact, with no mail link, and a placeholder only as a note', async ({ page }) => {
   await page.goto('/privacy');
-  const mail = page.locator('main a[href^="mailto:"]');
-  await expect(mail).toHaveCount(1);
-  await expect(mail).toHaveText(/^.+@.+$/);
-  const target = await mail.boundingBox();
+  await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+  const contact = page.locator(`main a[href="${CONTACT.linkedin}"]`);
+  await expect(contact).toHaveCount(1);
+  await expect(contact).toHaveText(/linkedin\.com\/in\//);
+  const target = await contact.boundingBox();
   expect(target?.width).toBeGreaterThanOrEqual(44);
   expect(target?.height).toBeGreaterThanOrEqual(44);
   for (const note of await page.locator('[data-launch-placeholder]').all()) {

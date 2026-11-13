@@ -2,6 +2,7 @@ private/
 .references/
 .claude/
 .superpowers/
+CLAUDE.local.md
 .env
 .env.local
 .env.*.local

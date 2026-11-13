@@ -48,7 +48,7 @@ describe('collectFacts', () => {
     expect(facts.find((f) => f.id === 'profile.audible.experiments')).toMatchObject({
       value: 25,
       source: 'profile',
-      from: 'fact-sheet',
+      from: 'profile',
       suffix: '+',
     });
   });

@@ -20,7 +20,13 @@ function versionDate(iso: string): string {
 function Block({ block, standalone }: { block: PrivacyBlock; standalone?: boolean }): ReactNode {
   if (typeof block === 'string') return block;
   if ('derived' in block) return <Derived value={block.derived} unit={block.unit} refs={['build']} />;
-  if ('link' in block) return <TextLink href={block.link.href} standalone={standalone}>{block.link.text}</TextLink>;
+  if ('link' in block) {
+    return (
+      <TextLink href={block.link.href} external={block.link.external} standalone={standalone}>
+        {block.link.text}
+      </TextLink>
+    );
+  }
   if ('updatedOn' in block) {
     return (
       <time dateTime={PRIVACY.updatedOn} {...derivedAttr(['build'])}>

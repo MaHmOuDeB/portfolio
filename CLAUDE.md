@@ -3,7 +3,6 @@
 Guidance for Claude Code in this repository: the portfolio site of Mahmoud El Bergui, an
 experimentation and growth analyst in Berlin.
 
-@~/code/portfolio/private/CLAUDE.private.md
 @AGENTS.md
 
 > **Status:** the walking skeleton (CI, tests and tooling) and the Figure kit are in place. Pages
@@ -13,11 +12,13 @@ experimentation and growth analyst in Berlin.
 
 - **Every figure is a `<Fact>`.** Numbers come from vendored source exports (`sources.lock.json`),
   never from typed numerals. A truth audit scans the built HTML for stray numbers, deny-listed
-  terms and banned phrases. It runs in CI on the build job, with the deny-list from the
+  terms, banned phrases and e-mail addresses, and the public client scripts (`.next/static`) for
+  deny-listed terms. It runs in CI on the build job, with the deny-list from the
   `TRUTH_DENYLIST` repository secret (a CI run without it fails), and locally with
   `npm run truth:audit` after `npm run build`, where it skips the deny-list with a notice unless
-  `TRUTH_DENYLIST` is set. It reports a deny-list hit by its position in the list, never by its
-  text.
+  `TRUTH_DENYLIST` is set. The secret holds one term per line, each matched as literal text (not a
+  regular expression), ignoring case. It reports a deny-list hit by its position in the list, never
+  by its text.
 - **One system.**
   - Every chart and interactive element is built from the Figure kit (see the primitives
     catalogue): a title, one control row, Reset, URL state, a provenance badge and a table

@@ -1,5 +1,7 @@
 # Private planning (never public)
 private/
+# Local Claude Code instructions (imports the private rules on this machine only)
+CLAUDE.local.md
 
 # Skills are restored from skills-lock.json (npx skills experimental_install)
 .claude/skills/

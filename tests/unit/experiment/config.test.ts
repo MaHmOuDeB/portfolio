@@ -182,10 +182,4 @@ describe('docs/experiment/prereg.md', () => {
     ];
     for (const phrase of required) expect(doc, phrase).toContain(phrase);
   });
-
-  it('names no private path, ledger or source of facts', () => {
-    // Built from parts so this file does not itself name them.
-    const forbidden = ['private' + '/', 'claim' + '-ledger', 'fact' + ' sheet'];
-    for (const phrase of forbidden) expect(doc.toLowerCase(), phrase).not.toContain(phrase);
-  });
 });

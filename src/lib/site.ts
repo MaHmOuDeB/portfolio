@@ -14,9 +14,9 @@ export const NAV = [
 
 export const CV_LINK = { label: 'CV (PDF)', href: '/cv.pdf' } as const;
 
-// The only contact details on the site: no phone number, no street address.
+// The only contact details on the site: LinkedIn is the contact route. No e-mail address, phone
+// number or street address.
 export const CONTACT = {
-  email: 'elberguimahmoud11@gmail.com',
   linkedin: 'https://www.linkedin.com/in/melbergui',
   github: 'https://github.com/MaHmOuDeB',
 } as const;

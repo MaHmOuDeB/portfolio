@@ -11,16 +11,17 @@ const schema = (name: string): Json =>
   JSON.parse(readFileSync(new URL(`../../../data/schemas/${name}-1.schema.json`, import.meta.url), 'utf8'));
 const clone = <T>(x: T): T => structuredClone(x);
 
-const LEAK_RULE = { not: { pattern: '[Ll][Ee][Aa][Kk]' } };
+// The weather schema's reserved-word rule on property names.
+const RESERVED_RULE = { not: { pattern: '[Ll][Ee][Aa][Kk]' } };
 
-// Removes the weather-only leak rule everywhere, returning how many were removed.
-function stripLeakRule(node: unknown, counter = { n: 0 }): { value: unknown; removed: number } {
+// Removes the weather-only reserved-word rule everywhere, returning how many were removed.
+function stripReservedRule(node: unknown, counter = { n: 0 }): { value: unknown; removed: number } {
   const walk = (x: unknown): unknown => {
     if (Array.isArray(x)) return x.map(walk);
     if (x && typeof x === 'object') {
       const out: Json = {};
       for (const [k, v] of Object.entries(x)) {
-        if (k === 'propertyNames' && JSON.stringify(v) === JSON.stringify(LEAK_RULE)) {
+        if (k === 'propertyNames' && JSON.stringify(v) === JSON.stringify(RESERVED_RULE)) {
           counter.n += 1;
           continue;
         }
@@ -41,7 +42,7 @@ function unitsFromContract(): string[] {
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1] as string);
 }
 
-// A source schema's meta/fact with the per-source consts and the weather leak rule removed.
+// A source schema's meta/fact with the per-source consts and the weather reserved-word rule removed.
 function normalised(name: string, def: 'meta' | 'fact'): Json {
   const copy = clone(schema(name).$defs[def]);
   if (def === 'meta') {
@@ -49,7 +50,7 @@ function normalised(name: string, def: 'meta' | 'fact'): Json {
     delete copy.properties.source;
     copy.required = copy.required.filter((k: string) => k !== 'schema' && k !== 'source');
   }
-  return stripLeakRule(copy).value as Json;
+  return stripReservedRule(copy).value as Json;
 }
 
 describe('schema envelope stays in sync', () => {
@@ -66,7 +67,7 @@ describe('schema envelope stays in sync', () => {
     for (const name of rest) expect(normalised(name, 'meta'), `${name} vs ${first}`).toEqual(normalised(first, 'meta'));
   });
 
-  it('fact is identical across the four source schemas apart from the weather leak rule', () => {
+  it('fact is identical across the four source schemas apart from the weather reserved-word rule', () => {
     const [first, ...rest] = SOURCES;
     for (const name of rest) expect(normalised(name, 'fact'), `${name} vs ${first}`).toEqual(normalised(first, 'fact'));
   });
@@ -79,18 +80,18 @@ describe('schema envelope stays in sync', () => {
     }
   });
 
-  it('only the weather schema carries the leak rule, and every weather object has it', () => {
+  it('only the weather schema carries the reserved-word rule, and every weather object has it', () => {
     for (const name of SOURCES.filter((n) => n !== 'weather')) {
-      expect(stripLeakRule(schema(name)).removed, name).toBe(0);
+      expect(stripReservedRule(schema(name)).removed, name).toBe(0);
     }
-    expect(stripLeakRule(schema('profile')).removed).toBe(0);
+    expect(stripReservedRule(schema('profile')).removed).toBe(0);
 
     const missing: string[] = [];
     const walk = (x: unknown, path: string): void => {
       if (Array.isArray(x)) return x.forEach((v, i) => walk(v, `${path}/${i}`));
       if (!x || typeof x !== 'object') return;
       const o = x as Json;
-      if (o.type === 'object' && JSON.stringify(o.propertyNames?.not) !== JSON.stringify(LEAK_RULE.not)) {
+      if (o.type === 'object' && JSON.stringify(o.propertyNames?.not) !== JSON.stringify(RESERVED_RULE.not)) {
         missing.push(path || '/');
       }
       for (const [k, v] of Object.entries(o)) walk(v, `${path}/${k}`);
@@ -99,10 +100,10 @@ describe('schema envelope stays in sync', () => {
     expect(missing).toEqual([]);
   });
 
-  it('profile fact differs from the source fact only in from being the const fact-sheet', () => {
+  it('profile fact differs from the source fact only in from being the const profile', () => {
     const profile = clone(schema('profile').$defs.fact);
     const source = clone(schema('retention').$defs.fact);
-    expect(profile.properties.from).toEqual({ const: 'fact-sheet' });
+    expect(profile.properties.from).toEqual({ const: 'profile' });
     expect(source.properties.from).toEqual({ type: 'string' });
     delete profile.properties.from;
     delete source.properties.from;
