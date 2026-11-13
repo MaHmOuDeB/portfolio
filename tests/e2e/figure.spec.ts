@@ -245,6 +245,8 @@ test.describe('kitchen sink Figures', () => {
   test('a keyboard failure takes focus with it, so the fallback receives it', async ({ page }) => {
     watchErrors(page, [THROWN]);
     await page.goto('/kitchen-sink');
+    // The button shows before hydration, and a key that comes earlier is lost.
+    await expect(figure(page, 'thrower').locator('[data-thrower][data-ready]')).toHaveCount(1);
     await figure(page, 'thrower').getByRole('button', { name: 'Make this chart fail' }).focus();
     await page.keyboard.press('Enter');
     const status = figure(page, 'thrower').getByRole('status');
@@ -599,6 +601,7 @@ test.describe('kit extension: eager loading', () => {
     const counts = () => page.evaluate(() => window.__eagerToggle ?? { loads: 0, mounts: 0 });
     await expect(page.locator('[data-eager-toggle="state"]')).toHaveText('eager off, rendered 0 times');
     // Hydrated, deferred and nothing to trigger it: nothing loads.
+    await expect(page.locator('[data-ready]:has([data-eager-toggle="on"])')).toHaveCount(1);
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
     await expect(island(page, 'eager-toggle')).toHaveAttribute('data-island', 'idle');

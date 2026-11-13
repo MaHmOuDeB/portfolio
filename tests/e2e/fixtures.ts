@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test as base } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { clientAddress, startClientProxy, type ClientProxy } from './client-proxy';
 
 const INTERNAL_MESSAGE = 'portfolio-internal-traffic';
@@ -53,6 +53,17 @@ export async function expectNoA11yViolations(page: Page): Promise<void> {
     violations,
     `axe violations: ${violations.map((violation) => violation.id).join(', ')}`,
   ).toEqual([]);
+}
+
+/**
+ * Waits until React has hydrated `element`: its props are on the node, so the event system finds its
+ * handlers (the same check as the node keys read in lab-peeking.spec.ts and home-scroll.spec.ts). A
+ * server-rendered control is visible and focusable before that, and a click, key or typed value that
+ * reaches it earlier is lost, so a test that acts on one right after `goto` waits for this, or for a
+ * `data-ready` flag the page itself sets once hydrated.
+ */
+export async function waitForHydration(element: Locator): Promise<void> {
+  await expect.poll(() => element.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps')))).toBe(true);
 }
 
 /**

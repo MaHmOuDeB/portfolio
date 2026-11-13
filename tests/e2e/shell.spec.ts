@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { expectNoA11yViolations, test } from './fixtures';
+import { expectNoA11yViolations, test, waitForHydration } from './fixtures';
 
 test('skip link is the first tab stop and moves focus to main', async ({ page, browserName }) => {
   await page.goto('/');
@@ -222,6 +222,8 @@ test.describe('site header', () => {
     const summary = page.getByRole('banner').locator('summary');
     const list = page.getByRole('navigation', { name: 'Menu' });
     await expect(list).toBeHidden();
+    // The Menu opens without JavaScript, but Escape closes it only once it is hydrated.
+    await waitForHydration(page.getByRole('banner').locator('details'));
     await summary.click();
     await expect(list.getByRole('link')).toHaveText(LABELS);
     await page.keyboard.press('Escape');

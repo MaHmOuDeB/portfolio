@@ -4,7 +4,7 @@
 // `prefetch={false}`. This spec loads pages that link to /, in view and on hover, and checks that no
 // request for / or one of its segments is made, and that the network goes idle.
 import { expect, type Page } from '@playwright/test';
-import { test } from './fixtures';
+import { test, waitForHydration } from './fixtures';
 import { markSlow } from './slow';
 
 /** Records every request for / other than a document load: RSC payloads, segment and route prefetches. */
@@ -33,7 +33,9 @@ for (const route of ['/', '/privacy', '/lab', '/work/retention']) {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.waitForLoadState('networkidle', { timeout: 10_000 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    // Hovering the wordmark is the other trigger of a prefetch.
+    // Hovering the wordmark is the other trigger of a prefetch, once the link is hydrated: a hover
+    // that came earlier could not prefetch, and the check below would pass without testing it.
+    await waitForHydration(page.locator('[data-site-header] a[href="/"]'));
     await page.locator('[data-site-header] a[href="/"]').hover();
     await page.waitForLoadState('networkidle', { timeout: 10_000 });
     await page.waitForTimeout(1000);

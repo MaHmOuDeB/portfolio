@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { test } from './fixtures';
+import { test, waitForHydration } from './fixtures';
 
 test.use({ viewport: { width: 375, height: 812 } });
 
@@ -7,6 +7,8 @@ async function openMenu(page: Page, path = '/') {
   await page.goto(path);
   const menu = page.locator('[data-site-header] details');
   const summary = menu.locator('summary');
+  // The Menu opens without JavaScript, but it closes on a keyboard exit only once it is hydrated.
+  await waitForHydration(menu);
   await summary.focus();
   await page.keyboard.press('Space');
   await expect(menu).toHaveAttribute('open', '');

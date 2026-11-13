@@ -12,7 +12,7 @@ import { createRedisRest } from '../../src/lib/experiment/redis-rest';
 import { keys } from '../../src/lib/experiment/keys';
 import { srmTest } from '../../src/lib/stats/proportions';
 import { E2E_FAKE_UPSTASH_URL, E2E_KV_READ_TOKEN } from './constants';
-import { test } from './fixtures';
+import { test, waitForHydration } from './fixtures';
 
 const CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
@@ -369,6 +369,8 @@ test.describe('a counted visit', () => {
     // document, whose first load was not /.
     await page.goto('/privacy');
     from = sent.length;
+    // Only a hydrated link navigates on the client; a click before hydration loads / as a new document.
+    await waitForHydration(page.locator('[data-site-header] a[href="/"]'));
     await page.locator('[data-site-header] a[href="/"]').click();
     await expect(page).toHaveURL(/\/$/);
     await expectRefusedEntry(sent, from, 'not_entry');
