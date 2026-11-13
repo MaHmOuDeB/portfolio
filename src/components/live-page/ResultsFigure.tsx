@@ -56,8 +56,21 @@ function kitView(s: LiveSnapshot): LiveSnapshot {
   };
 }
 
-/** The drawn looks, with published counts. */
+/**
+ * The drawn looks, with published counts. Before the first look is drawn there is no interval to
+ * list, so the table holds the analysed views per group so far, as the no-estimate Figure's does:
+ * a table with headers and no row would tell a reader without the chart nothing.
+ */
 function seriesTable(d: LivePageDisplay): TableData {
+  if (d.series.length === 0) {
+    return {
+      columns: ['Group', 'Analysed views'],
+      rows: [['A', d.counts.a], ['B', d.counts.b]],
+      formats: ['number', 'count'],
+      note: 'No look is drawn yet: the analysed views per group so far.',
+      refs: d.refs,
+    };
+  }
   return {
     columns: ['Group A views', 'Group B views', 'Lower end', 'Estimate', 'Upper end'],
     rows: d.series.map((p) => [p.nA, p.nB, p.lower, p.estimate, p.upper]),
