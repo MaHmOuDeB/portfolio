@@ -73,7 +73,7 @@ export function ogHtml(card: OgCard, theme: OgTheme, fontUrl: string): string {
     `:root{--bg:${theme.bg};--ink:${theme.ink};--muted:${theme.muted};--line:${theme.line};--s1:${theme.series1};--s2:${theme.series2}}`,
     '*{box-sizing:border-box}',
     'html,body{margin:0}',
-    'body{width:1200px;height:630px;background:var(--bg);color:var(--ink);font-family:\'Inter\',sans-serif;font-optical-sizing:auto;font-feature-settings:"cv05","tnum";position:relative;overflow:hidden}',
+    'body{width:1200px;height:630px;background:var(--bg);color:var(--ink);font-family:\'Inter\',sans-serif;font-optical-sizing:auto;font-feature-settings:"cv05";position:relative;overflow:hidden}',
     '.frame{position:absolute;inset:0;padding:72px 80px;display:flex;flex-direction:column;justify-content:space-between}',
     '.glyph{width:96px; height:16px;position:relative}',
     '.glyph b{position:absolute;left:0;right:0;top:7px;height:2px;background:var(--s1)}',

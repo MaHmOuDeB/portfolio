@@ -11,7 +11,7 @@
 import type { FactId } from '../src/lib/facts/index.ts';
 import { ogAlt, type OgCard } from '../src/lib/seo/og-template.ts';
 import { SITE } from '../src/lib/site.ts';
-import { HEADLINES, headlineText, type Study } from './home.ts';
+import { factText } from '../src/lib/facts/text.ts';
 
 export type SeoEntry = {
   path: string;
@@ -40,15 +40,24 @@ export const SITE_SHARING_HEADLINE = 'Data, experimentation, AI and automation';
 /** The Home page's title in a link preview (og:title, twitter:title). */
 export const HOME_SHARE_TITLE = 'Mahmoud El Bergui: data, experimentation, AI and automation';
 
-/** A case card's title is the study's finding headline (the group B card headline). */
-function finding(study: Study): string {
-  const headline = HEADLINES.find((h) => h.study === study);
-  if (!headline) throw new Error(`no headline for ${study}`);
-  return headlineText(headline.b);
-}
+/**
+ * A case card's headline states its landing page's finding in the page's own words. The cards have their
+ * own text here, so a change to the experiment's copy never changes a sharing image.
+ */
+const CASE_TITLES = {
+  // The Audible page's h1 (src/components/audible/AudiblePage.tsx AUDIBLE_TITLE).
+  audible: 'Most tests pitted personalisation against plain baselines',
+  // The Retention page's finding (content/retention.tsx: "returned-order value grew about <clean> in
+  // January to November 2011, not <raw>").
+  retention: `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,
+  // The Pulse finding, for /work/pulse, which lands with its own page.
+  pulse: `${factText('pulse.events.count')} events, each designed to answer a product question`,
+} as const;
 
-function caseCard(name: Study, sub: string, factIds: readonly FactId[]): OgCard {
-  return { name, variant: 'case', title: finding(name), sub, footer: SITE.name, factIds };
+type CaseName = keyof typeof CASE_TITLES;
+
+function caseCard(name: CaseName, sub: string, factIds: readonly FactId[]): OgCard {
+  return { name, variant: 'case', title: CASE_TITLES[name], sub, footer: SITE.name, factIds };
 }
 
 export const OG_CARDS: readonly OgCard[] = [
@@ -58,7 +67,6 @@ export const OG_CARDS: readonly OgCard[] = [
     'retail.returns.yoy_growth_clean',
     'retail.returns.yoy_growth_raw',
   ]),
-  // For /work/pulse, which lands with its own page.
   caseCard('pulse', 'Pulse: analytics instrumentation demo', ['pulse.events.count']),
 ];
 

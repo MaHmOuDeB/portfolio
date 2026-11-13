@@ -8,7 +8,6 @@ import { serverEnv } from '@/lib/env';
 import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
 import { OG_HEIGHT, OG_WIDTH, ogAlt, ogHtml, themeFromTokens } from '@/lib/seo/og-template';
 import { SITE } from '@/lib/site';
-import { headlineText, HEADLINES } from '../../../content/home.ts';
 import {
   HOME_SHARE_TITLE,
   OG_CARDS,
@@ -386,12 +385,20 @@ describe('sharingTemplate', () => {
     expect((home.twitter as { title?: string }).title).toBe(HOME_SHARE_TITLE);
   });
 
-  it('a case card states its finding in 60 characters or fewer, from the frozen headlines', () => {
+  it("a case card states its landing page's finding in 60 characters or fewer, never the experiment's copy", async () => {
+    const { AUDIBLE_TITLE } = await import('@/components/audible/AudiblePage');
     const cases = OG_CARDS.filter((card) => card.variant === 'case');
     expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'pulse', 'retention']);
+    // Audible: the page's own h1.
+    expect(ogCard('audible').title).toBe(AUDIBLE_TITLE);
+    // Retention: the page's finding (content/retention.tsx RetentionFindings, "returned-order value grew about
+    // <clean>, not <raw>"), both figures from the facts.
+    expect(ogCard('retention').title).toBe(
+      `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,
+    );
+    expect(ogCard('retention').factIds).toEqual(['retail.returns.yoy_growth_clean', 'retail.returns.yoy_growth_raw']);
+    expect(ogCard('pulse').title).toBe(`${factText('pulse.events.count')} events, each designed to answer a product question`);
     for (const card of cases) {
-      const headline = HEADLINES.find((h) => h.study === card.name);
-      expect(card.title, card.name).toBe(headlineText(headline!.b));
       expect(card.title.length, card.title).toBeLessThanOrEqual(60);
       expect(card.footer).toBe(SITE.name);
       expect(card.proof).toBeUndefined();
@@ -405,6 +412,12 @@ describe('sharingTemplate', () => {
       expect(entry.imageAlt).toBe(ogAlt(card!));
       expect(entry.factIds).toEqual(card!.factIds);
     }
+  });
+
+  it('sets text in the body face without tabular figures, which widen the hyphen in a headline', () => {
+    const html = ogHtml(ogCard('retention'), theme, 'data:,');
+    expect(html).toContain('font-feature-settings:"cv05"');
+    expect(html).not.toMatch(/tnum/);
   });
 
   it('reads its colours from tokens.css', () => {
@@ -464,5 +477,15 @@ describe('sharingTemplate', () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], file).toEqual([OG_WIDTH, OG_HEIGHT]);
       expect(meta).toEqual({ sha256: createHash('sha256').update(png).digest('hex'), width: OG_WIDTH, height: OG_HEIGHT });
     }
+    // Decoupled from the experiment: a change to its headlines never changes a sharing image.
+    const source = fs.readFileSync(path.join(ROOT, 'content/seo.ts'), 'utf8');
+    expect(source).not.toMatch(/experiment\/headlines|HEADLINES|from '\.\/home(\.ts)?'/);
+  });
+
+  it('the Retention card states what the Retention page says', () => {
+    const page = fs.readFileSync(path.join(ROOT, 'content/retention.tsx'), 'utf8').replace(/\s+/g, ' ');
+    expect(page).toContain(
+      'returned-order value grew about{\' \'} <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{\' \'} <Fact id="retail.returns.yoy_growth_raw" />',
+    );
   });
 });
