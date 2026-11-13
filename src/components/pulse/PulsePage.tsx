@@ -6,10 +6,10 @@
 //
 // Layout: prose sits in the readable column (max-w-text); the event table and the Figure run to the
 // figure width. Sections are spaced, not boxed: no card grid and no motion. The event table sits in
-// the same section as the sentences that call its questions design hypotheses. It has no provenance
+// the same section as the sentences that call its questions design hypotheses; it is page-owned
+// (TaxonomyTable), because its cells are sentences that wrap. It has no provenance
 // badge: the export is the project's own source code, not public data, and the badge is for charts.
 import type { ReactNode } from 'react';
-import { DataTable } from '@/components/kit/DataTable';
 import { TextLink } from '@/components/kit/TextLink';
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
@@ -29,6 +29,7 @@ import {
   TAXONOMY_CAPTION,
 } from '../../../content/pulse';
 import { PulseFigure } from './PulseFigure';
+import { TaxonomyTable } from './TaxonomyTable';
 
 /** The page title: the event count as a Fact, then the claim it heads. */
 export const PULSE_TITLE: ReactNode = <PulseTitle />;
@@ -137,7 +138,7 @@ export function PulsePage(): ReactNode {
           <PulseTaxonomyContext />
         </Prose>
         <div className={`${EVIDENCE} max-w-figure`}>
-          <DataTable id="pulse-events" caption={TAXONOMY_CAPTION} table={taxonomyTable(pulseTaxonomy())} mode="open" />
+          <TaxonomyTable id="pulse-events" caption={TAXONOMY_CAPTION} table={taxonomyTable(pulseTaxonomy())} />
         </div>
       </Section>
 
