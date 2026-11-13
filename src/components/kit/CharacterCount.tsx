@@ -10,6 +10,11 @@
 // separate polite node repeats it about a second after typing stops, and only in the last tenth of
 // the limit or over it, so a screen reader never chatters on every key. Only the number carries
 // data-num and the caller's refs.
+//
+// On focus, Chrome scrolls only the caret into view, so a textarea entered from above the fold can
+// stay mostly below it, its focus ring cut off. The counter then brings the whole textarea into
+// view (block: nearest, which honours the page's scroll padding and the sticky header); it does
+// nothing when the box already fits.
 import { useEffect, useRef, useState } from 'react';
 import { countSentence, countState, shouldAnnounce } from '@/lib/form/count';
 import { formatValue } from '@/lib/facts/format';
@@ -51,9 +56,17 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
     const onInput = () => update(true);
     // A form reset puts the default text back without an input event.
     const onReset = () => setTimeout(() => update(false), 0);
+    let frame = 0;
+    const onFocus = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => control.scrollIntoView({ block: 'nearest' }));
+    };
     control.addEventListener('input', onInput);
+    control.addEventListener('focus', onFocus);
     control.form?.addEventListener('reset', onReset);
     return () => {
+      cancelAnimationFrame(frame);
+      control.removeEventListener('focus', onFocus);
       control.removeEventListener('input', onInput);
       control.form?.removeEventListener('reset', onReset);
       if (timer.current !== null) clearTimeout(timer.current);

@@ -82,4 +82,20 @@ describe('TextLink', () => {
     expect(mail).toContain('href="mailto:a@b.c"');
     expect(mail).not.toContain('rel=');
   });
+
+  it('in running text, keeps its icon on the line: the svg (a block under preflight) sits in an inline-flex span', () => {
+    const inline = renderToStaticMarkup(
+      <TextLink href="https://example.org" external>
+        Elsewhere
+      </TextLink>,
+    );
+    expect(inline).toMatch(/Elsewhere<span class="[^"]*\binline-flex\b[^"]*\balign-middle\b[^"]*"><svg/);
+    // A standalone link is itself inline-flex, so its icon needs no wrapper.
+    const standalone = renderToStaticMarkup(
+      <TextLink href="https://example.org" external standalone>
+        Elsewhere
+      </TextLink>,
+    );
+    expect(standalone).toContain('Elsewhere<svg');
+  });
 });

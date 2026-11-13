@@ -68,7 +68,8 @@ test.describe('kit form fields', () => {
     await expect(page.locator(input)).toBeFocused();
     expect(await css(page, input, 'outline-style')).toBe('solid');
     expect(await css(page, input, 'outline-width')).toBe('2px');
-    expect(await css(page, input, 'outline-color')).toBe(await token(page, 'accent'));
+    // transition-colors covers outline-color, so the ring settles on the accent after a moment.
+    await expect.poll(() => css(page, input, 'outline-color')).toBe(await token(page, 'accent'));
     expect(await css(page, input, 'border-top-color')).toBe(await token(page, 'muted'));
     expect(await css(page, input, 'box-shadow')).toBe('none');
   });
@@ -150,6 +151,8 @@ test.describe('kit form fields', () => {
     expect(await pending.evaluate((el: HTMLButtonElement) => el.disabled)).toBe(false);
     expect((await pending.boundingBox())!.width).toBeCloseTo((await button.boundingBox())!.width, 0);
     if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
+      // hover() scrolls the button into view, so the box is measured after scrolling.
+      await button.scrollIntoViewIfNeeded();
       const box = (await button.boundingBox())!;
       await button.hover();
       await expect.poll(() => button.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, 'muted'));
