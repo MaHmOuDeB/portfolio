@@ -126,7 +126,7 @@ test.describe('Pulse case study', () => {
     await expect(live(page)).toHaveText('Applied Filter sent. Showing Email.');
     await segment(page, 'range', '7d').click();
     await expect(result(page)).toHaveText('Showing Email over the last 7d.');
-    await expect(live(page)).toHaveText('Changed Date Range sent. The charts show the new range.');
+    await expect(live(page)).toHaveText('Changed Date Range sent. Showing the last 7d.');
     await button(page, 'Detail: Sign-ups').click();
     await expect(button(page, 'Detail: Sign-ups')).toHaveAttribute('aria-expanded', 'true');
     await expect(figure(page).locator('#pulse-detail-sign_ups')).toBeVisible();
@@ -142,13 +142,13 @@ test.describe('Pulse case study', () => {
     await expect(live(page)).toHaveText('Exported Report sent. The CSV file of the made-up numbers is downloading.');
     await expect(button(page, 'Load saved view')).toBeDisabled();
     await button(page, 'Save view').click();
-    await expect(live(page)).toHaveText('Saved View sent. The current channel and range are saved on this page.');
+    await expect(live(page)).toHaveText('Saved View sent. The saved view is Email over the last 7d.');
     await expect(figure(page).locator('#pulse-load-reason')).toHaveText('Saved view: Email over the last 7d.');
     await segment(page, 'channel', 'search').click();
     await expect(result(page)).toHaveText('Showing Search over the last 7d.');
     await button(page, 'Load saved view').click();
     await expect(result(page)).toHaveText('Showing Email over the last 7d.');
-    await expect(live(page)).toHaveText('Loaded Saved View sent. The saved channel and range are back.');
+    await expect(live(page)).toHaveText('Loaded Saved View sent. Showing Email over the last 7d.');
 
     expect(await streamText(page)).toEqual([
       'Loaded Saved View view_name: My view',
@@ -179,6 +179,25 @@ test.describe('Pulse case study', () => {
     expect([...new URL(page.url()).searchParams.keys()].sort()).toEqual([`${ID}.channel`, `${ID}.range`]);
     expect(new URL(page.url()).origin).toBe(origin);
     expect(errors).toEqual([]);
+  });
+
+  test('an identical repeat is announced again: Save view twice writes the message into the live region twice', async ({ page }) => {
+    await page.goto(PAGE);
+    await ready(page);
+    await live(page).evaluate((region) => {
+      const w = window as unknown as { said: string[] };
+      w.said = [];
+      new MutationObserver(() => {
+        if (region.textContent) w.said.push(region.textContent);
+      }).observe(region, { characterData: true, childList: true, subtree: true });
+    });
+    const said = 'Saved View sent. The saved view is all channels over the last 30d.';
+    await button(page, 'Save view').click();
+    await expect(live(page)).toHaveText(said);
+    await button(page, 'Save view').click();
+    await expect(events(page)).toHaveCount(3);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { said: string[] }).said)).toEqual([said, said]);
+    await expect(live(page)).toHaveText(said);
   });
 
   test('Reset clears the stream and the selection, then sends one new Viewed Dashboard; only its own keys go', async ({ page }) => {

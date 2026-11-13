@@ -280,8 +280,9 @@ export function PulseFigureView({
       result={<PulseResult view={view} />}
       caption={
         <>
-          A copy of the Pulse dashboard, with made-up numbers for a made-up product. Each action adds its event to the list,
-          newest first. The events stay in this page and are not part of this site&apos;s own experiment.
+          A copy of the Pulse dashboard, with its own charts and channels and made-up numbers for a made-up product. Each
+          action that sends an event adds it to the list, newest first. The events stay in this page and are not part of
+          this site&apos;s own experiment.
         </>
       }
     >

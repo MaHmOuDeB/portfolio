@@ -16,6 +16,7 @@ import { PulseFigure } from '@/components/pulse/PulseFigure';
 import { PULSE_SECTIONS, PULSE_TITLE, PulsePage } from '@/components/pulse/PulsePage';
 import { PULSE_FIGURE_TITLE, PulseFigureView } from '@/components/pulse/PulseView';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
+import { createAnnouncer, pulseMessages } from '@/lib/pulse/announce';
 import { DEMO_PROMPT_VERSION, createPulseBus, type PulseEvent } from '@/lib/pulse/bus';
 import {
   CHANNELS,
@@ -221,11 +222,11 @@ describe('Pulse truth', () => {
       'Autocapture records what users click, but not which product question a click should answer. Pulse puts a deliberate taxonomy first: 7 named events, each tied to a specific product question. The dashboard around them is the vehicle.',
     ]);
     expect(blocks(section(PAGE, 'data')).map(text)).toEqual([
-      'Pulse has no backend and no real users: its dashboard numbers are generated in the browser. The events on this page, with their triggers, properties and questions, come from an export of its source code, pinned by commit.',
+      'Pulse has no backend and no real users: its dashboard numbers are generated in the browser. The events on this page, with their triggers, properties and questions, come from an export of its code and README, pinned by commit.',
     ]);
     expect(blocks(section(PAGE, 'method')).map(text)).toEqual([
       "I built Pulse with React, TypeScript, Vite, Tailwind CSS and Recharts, and tracked it with Amplitude's unified SDK.",
-      'Each of the 7 events is tracked by name, with its own properties. The demo user is identified with 4 user properties: role, plan, company size and signup date. Without them every event would be anonymous and could not be segmented by user.',
+      'Each of the 7 events is tracked by name, with its own properties. The demo user is identified with a user ID and 4 user properties: role, plan, company size and signup date. Without this identification every event would be anonymous and could not be segmented by user.',
       'Autocapture and Session Replay run underneath the named events.',
     ]);
   });
@@ -236,7 +237,7 @@ describe('Pulse truth', () => {
     ]);
     expect(blocks(section(PAGE, 'how-i-checked-this')).map(text)).toEqual([
       'I tested every tracked interaction by hand. TypeScript runs in strict mode with no type errors, secrets stay out of git, and every push to GitHub deploys to Vercel.',
-      'On this page, the events come from an export of the source code, pinned by commit and by a hash of its content. Unit tests check that the dashboard copy sends only those events, each with exactly its properties, and that Reset leaves one new Viewed Dashboard.',
+      'On this page, the events come from an export of the project\'s code and README, pinned by commit and by a hash of its content. Tests check that the dashboard copy sends only those events, each with exactly its properties, and that Reset leaves one new Viewed Dashboard.',
     ]);
     const limits = blocks(section(PAGE, 'limits')).map(text);
     expect(limits.length).toBeGreaterThanOrEqual(2);
@@ -244,8 +245,24 @@ describe('Pulse truth', () => {
       'Pulse has no real users and no production traffic, so its events show what the tracking was designed to capture, not how anyone behaved.',
       'The questions are design hypotheses. Nothing here tests whether an event predicts an outcome, such as a saved view predicting a return.',
       "The copy on this page reuses the event names and properties, but not the original's Amplitude tracking, user identification or Session Replay, and its numbers are made up.",
-      "It sends its own prompt version, demo-v1, with Viewed Dashboard; the original sends a different value.",
+      "Its property keys match the original's. Apart from the date ranges and the CSV format, its values are its own, such as filter_type and its prompt version, demo-v1, and so are its charts and channels.",
     ]);
+    const old = [
+      'Without them every event would be anonymous',
+      'The tracked events, as the source code states them',
+      'Names, triggers, properties and questions as the source code states them',
+      'export of its source code',
+      'export of the source code',
+      'Unit tests check',
+      'the original sends a different value',
+      'It sends its own prompt version',
+      'with made-up numbers. It does not load',
+      'Each action sends its event',
+      'to a list beside the charts',
+      'Each action adds its event',
+      'A copy of the Pulse dashboard, with made-up numbers',
+    ];
+    for (const s of old) expect(text(PAGE), s).not.toContain(s);
   });
 
   it('links the source at its pinned commit, the export it reads and another case study, and never the e-mail address', () => {
@@ -308,7 +325,7 @@ describe('the taxonomy section', () => {
     expect(taxonomyTable(TAXONOMY)).toEqual({
       columns: ['Event', 'Fires when', 'Properties', 'Question it was designed to answer'],
       rows: SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), e.question]),
-      note: 'Names, triggers, properties and questions as the source code states them.',
+      note: 'Names and properties as the source code states them; triggers and questions as the project\'s README states them.',
       refs: ['source:pulse'],
     });
     const rows = [...s.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((c) => decode(c[1]!)));
@@ -319,6 +336,7 @@ describe('the taxonomy section', () => {
     expect(rows.length - 1).toBe(SOURCE.facts['events.count']!.value);
     for (const [, attrs] of s.matchAll(/<td ([^>]*)>/g)) expect(attrs).toContain('data-derived="source:pulse"');
     expect(s).not.toMatch(/categor/i);
+    expect(text(/<caption[^>]*>([\s\S]*?)<\/caption>/.exec(s)![1]!)).toBe("The tracked events, as the project's code and README state them");
   });
 });
 
@@ -328,7 +346,7 @@ describe('the dashboard Figure', () => {
 
   it('introduces the copy as local and simulated, not part of the site experiment', () => {
     expect(blocks(s.slice(0, s.indexOf('<figure'))).map(text)).toEqual([
-      'This is a small copy of the dashboard, rebuilt for this page with made-up numbers. It does not load Amplitude. Each action sends its event, with the same name and properties as in the table above, to a list beside the charts.',
+      'This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It does not load Amplitude. Each action with an event in the table above sends that event, with the same name and properties as in the table, to a list below the charts.',
       "The list is kept in this page's memory only: nothing is sent anywhere, and it is gone when you leave the page or press Reset. It is a simulation, not part of this site's own experiment.",
     ]);
   });
@@ -341,7 +359,7 @@ describe('the dashboard Figure', () => {
     expect(figure).toMatch(/<h3 id="pulse-title"[^>]*>Each dashboard action with a product question behind it sends one event<\/h3>/);
     expect(text(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/.exec(figure)![1]!)).toBe('Showing all channels over the last 30d.');
     expect(text(figure)).toContain(
-      "A copy of the Pulse dashboard, with made-up numbers for a made-up product. Each action adds its event to the list, newest first. The events stay in this page and are not part of this site's own experiment.",
+      "A copy of the Pulse dashboard, with its own charts and channels and made-up numbers for a made-up product. Each action that sends an event adds it to the list, newest first. The events stay in this page and are not part of this site's own experiment.",
     );
     expect(figure).toMatch(SIMULATED_BADGE);
   });
@@ -628,5 +646,73 @@ describe('numbers and the route', () => {
         'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
     });
     expect(renderToStaticMarkup(<PulseRoute />)).toBe(PAGE);
+  });
+});
+
+describe('the polite announcements', () => {
+  const island = readFileSync(join(repo, 'src/components/pulse/PulseInteractive.tsx'), 'utf8');
+
+  it('names the value in each message that has one', () => {
+    expect(pulseMessages.filter('email')).toBe('Applied Filter sent. Showing Email.');
+    expect(pulseMessages.filter('all')).toBe('Applied Filter sent. Showing all channels.');
+    expect(pulseMessages.range('90d')).toBe('Changed Date Range sent. Showing the last 90d.');
+    expect(pulseMessages.detail('trials_started')).toBe('Viewed Chart Detail sent. The Trials started detail is open.');
+    expect(pulseMessages.exported()).toBe('Exported Report sent. The CSV file of the made-up numbers is downloading.');
+    expect(pulseMessages.saved({ channel: 'email', range: '7d' })).toBe('Saved View sent. The saved view is Email over the last 7d.');
+    expect(pulseMessages.loaded({ channel: 'all', range: '7d' })).toBe('Loaded Saved View sent. Showing all channels over the last 7d.');
+    expect(pulseMessages.reset()).toBe('Dashboard reset. Viewed Dashboard sent.');
+    // The old fixed strings are gone, and the island writes no message of its own.
+    for (const old of ['The charts show the new range', 'The current channel and range are saved on this page', 'The saved channel and range are back']) {
+      expect(island).not.toContain(old);
+    }
+    expect(island).not.toMatch(/sent\./);
+    expect(island).toContain('createAnnouncer(');
+  });
+
+  /** The live region's text over time, written as React writes it: only when the string differs. */
+  function region() {
+    const texts = [''];
+    const frames: (() => void)[] = [];
+    const announce = createAnnouncer(
+      (said) => {
+        if (said !== texts.at(-1)) texts.push(said);
+      },
+      (fn) => frames.push(fn),
+    );
+    const frame = () => frames.splice(0).forEach((fn) => fn());
+    return { texts, announce, frame };
+  }
+
+  it('changes the live region text for two identical actions in a row', () => {
+    for (const said of [pulseMessages.exported(), pulseMessages.loaded({ channel: 'email', range: '7d' }), pulseMessages.reset()]) {
+      const { texts, announce, frame } = region();
+      announce(said);
+      frame();
+      announce(said);
+      frame();
+      // Three text changes: the message, the cleared region, the message again; so it is read twice.
+      expect(texts).toEqual(['', said, '', said]);
+      expect(texts.length - 1).toBe(3);
+    }
+  });
+
+  it('a different message before the next frame wins over a pending repeat', () => {
+    const { texts, announce, frame } = region();
+    const exported = pulseMessages.exported();
+    const range = pulseMessages.range('7d');
+    announce(exported);
+    announce(exported);
+    announce(range);
+    frame();
+    expect(texts.at(-1)).toBe(range);
+    expect(texts).toEqual(['', exported, '', range]);
+  });
+
+  it('two different range changes in a row are two different texts', () => {
+    const { texts, announce, frame } = region();
+    announce(pulseMessages.range('90d'));
+    announce(pulseMessages.range('7d'));
+    frame();
+    expect(texts).toEqual(['', 'Changed Date Range sent. Showing the last 90d.', 'Changed Date Range sent. Showing the last 7d.']);
   });
 });

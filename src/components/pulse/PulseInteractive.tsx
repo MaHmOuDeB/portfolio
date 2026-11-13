@@ -11,7 +11,9 @@
 //   Loaded Saved View, which brings the saved channel and range back without a filter event;
 // - Reset: the preset view, no saved view, no open detail, an empty stream, then one new Viewed
 //   Dashboard. Its URL write removes only this Figure's keys.
-// Each committed action is announced once, politely; the stream itself is never announced.
+// Each committed action is announced once, politely, with its value where it has one (announce.ts); an
+// identical repeat clears the region and sets it again on the next frame, so it is heard again. The
+// stream itself is never announced.
 //
 // It passes `preview={false}` to the Figure: if its charts throw after a change, the fallback shows the
 // kit's sentence and the table of the view on screen. `faultAfterChange` (a test seam, absent in
@@ -19,13 +21,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
+import { createAnnouncer, pulseMessages } from '@/lib/pulse/announce';
 import { createPulseBus, type PulseEvent } from '@/lib/pulse/bus';
 import {
   PULSE_ID,
   PULSE_PRESETS,
   PULSE_SCHEMA,
-  channelPhrase,
-  chartLabel,
   dashboardCsv,
   type ChartKey,
   type DashboardView,
@@ -66,12 +67,13 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
   const [saved, setSaved] = useState<DashboardView | null>(null);
   const [detail, setDetail] = useState<ChartKey | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [announce] = useState(() => createAnnouncer(setAnnouncement, (fn) => window.requestAnimationFrame(fn)));
   const [changed, setChanged] = useState(false);
 
   /** Sends the action's event and announces its result once. */
   const send = (event: PulseEvent, said: string) => {
     bus.emit(event);
-    setAnnouncement(said);
+    announce(said);
   };
 
   return (
@@ -90,12 +92,12 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
           onChannel={(channel) => {
             set('channel', channel);
             setChanged(true);
-            send(pulseEvents.appliedFilter(channel), `Applied Filter sent. Showing ${channelPhrase(channel)}.`);
+            send(pulseEvents.appliedFilter(channel), pulseMessages.filter(channel));
           }}
           onRange={(range) => {
             set('range', range);
             setChanged(true);
-            send(pulseEvents.changedDateRange(range), 'Changed Date Range sent. The charts show the new range.');
+            send(pulseEvents.changedDateRange(range), pulseMessages.range(range));
           }}
           onReset={() =>
             instantly(PULSE_ID, () => {
@@ -103,7 +105,7 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
               setSaved(null);
               setDetail(null);
               resetDashboard(bus);
-              setAnnouncement('Dashboard reset. Viewed Dashboard sent.');
+              announce(pulseMessages.reset());
             })
           }
         />
@@ -115,21 +117,21 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
             return;
           }
           setDetail(chart);
-          send(pulseEvents.viewedChartDetail(chart), `Viewed Chart Detail sent. The ${chartLabel(chart)} detail is open.`);
+          send(pulseEvents.viewedChartDetail(chart), pulseMessages.detail(chart));
         },
         onExport: () => {
           saveCsv(view);
-          send(pulseEvents.exportedReport(), 'Exported Report sent. The CSV file of the made-up numbers is downloading.');
+          send(pulseEvents.exportedReport(), pulseMessages.exported());
         },
         onSave: () => {
           setSaved(view);
-          send(pulseEvents.savedView(), 'Saved View sent. The current channel and range are saved on this page.');
+          send(pulseEvents.savedView(), pulseMessages.saved(view));
         },
         onLoad: () => {
           if (saved === null) return;
           set('channel', saved.channel);
           set('range', saved.range);
-          send(pulseEvents.loadedSavedView(), 'Loaded Saved View sent. The saved channel and range are back.');
+          send(pulseEvents.loadedSavedView(), pulseMessages.loaded(saved));
         },
       }}
     />

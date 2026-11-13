@@ -98,7 +98,7 @@ export function PulseData(): ReactNode {
   return (
     <p>
       Pulse has no backend and no real users: its dashboard numbers are generated in the browser. The events on this page,
-      with their triggers, properties and questions, come from an export of its source code, pinned by commit.
+      with their triggers, properties and questions, come from an export of its code and README, pinned by commit.
     </p>
   );
 }
@@ -112,9 +112,9 @@ export function PulseMethod(): ReactNode {
         SDK.
       </p>
       <p className={ITEM}>
-        Each of the <Events /> events is tracked by name, with its own properties. The demo user is identified with{' '}
-        <Fact id="pulse.identity.user_properties" /> user properties: role, plan, company size and signup date. Without them
-        every event would be anonymous and could not be segmented by user.
+        Each of the <Events /> events is tracked by name, with its own properties. The demo user is identified with a user
+        ID and <Fact id="pulse.identity.user_properties" /> user properties: role, plan, company size and signup date.
+        Without this identification every event would be anonymous and could not be segmented by user.
       </p>
       <p className={ITEM}>Autocapture and Session Replay run underneath the named events.</p>
     </>
@@ -138,15 +138,16 @@ export function PulseTaxonomyContext(): ReactNode {
 }
 
 /** The event table's caption. */
-export const TAXONOMY_CAPTION = 'The tracked events, as the source code states them';
+export const TAXONOMY_CAPTION = "The tracked events, as the project's code and README state them";
 
 /** The dashboard copy's introduction, before its Figure. */
 export function PulseDashboardIntro(): ReactNode {
   return (
     <>
       <p className={ITEM}>
-        This is a small copy of the dashboard, rebuilt for this page with made-up numbers. It does not load Amplitude. Each
-        action sends its event, with the same name and properties as in the table above, to a list beside the charts.
+        This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It
+        does not load Amplitude. Each action with an event in the table above sends that event, with the same name and
+        properties as in the table, to a list below the charts.
       </p>
       <p className={ITEM}>
         The list is kept in this page&apos;s memory only: nothing is sent anywhere, and it is gone when you leave the page or
@@ -173,8 +174,8 @@ export function PulseChecks(): ReactNode {
         git, and every push to GitHub deploys to Vercel.
       </p>
       <p className={ITEM}>
-        On this page, the events come from an export of the source code, pinned by commit and by a hash of its content. Unit
-        tests check that the dashboard copy sends only those events, each with exactly its properties, and that Reset leaves
+        On this page, the events come from an export of the project&apos;s code and README, pinned by commit and by a hash of
+        its content. Tests check that the dashboard copy sends only those events, each with exactly its properties, and that Reset leaves
         one new Viewed Dashboard.
       </p>
     </>
@@ -199,9 +200,10 @@ export function PulseLimits(): ReactNode {
         identification or Session Replay, and its numbers are made up.
       </li>
       <li className={LIMIT}>
-        It sends its own prompt version,{' '}
-        <code {...derivedAttr(DEMO_PROMPT_VERSION.refs)}>{DEMO_PROMPT_VERSION.value}</code>, with Viewed Dashboard; the
-        original sends a different value.
+        Its property keys match the original&apos;s. Apart from the date ranges and the CSV format, its values are its own,
+        such as <code>filter_type</code> and its prompt version,{' '}
+        <code {...derivedAttr(DEMO_PROMPT_VERSION.refs)}>{DEMO_PROMPT_VERSION.value}</code>, and so are its charts and
+        channels.
       </li>
     </ul>
   );
