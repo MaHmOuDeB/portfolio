@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from 'react';
 import { Callout } from '@/components/kit/Callout';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
-import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../../content/privacy';
+import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock, type PrivacySection } from '../../../content/privacy';
 import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
 import { seoEntry } from '../../../content/seo';
 
@@ -42,13 +42,30 @@ function Block({ block, standalone }: { block: PrivacyBlock; standalone?: boolea
   );
 }
 
+/** A section's anchor: its own id when it has one (the contact form links to it), else its heading as a slug. */
+const anchorOf = (section: PrivacySection) =>
+  section.id ?? section.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-text py-section">
       <h1 className="text-2xl font-semibold md:text-3xl">{PRIVACY.title}</h1>
+      {/* The notice is long, so it opens with its section headings as links; the list adds no words of its own. */}
+      <nav aria-label="Sections" className="mt-8">
+        {/* role="list": WebKit drops the list role from a list drawn without bullets. */}
+        <ul role="list" className="sm:columns-2 sm:gap-x-8">
+          {PRIVACY.sections.map((section) => (
+            <li key={section.heading} className="break-inside-avoid">
+              <TextLink href={`#${anchorOf(section)}`} standalone>
+                {section.heading}
+              </TextLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
       {PRIVACY.sections.map((section) => (
         <section key={section.heading} className="mt-12">
-          <h2 id={section.id} className="text-xl font-semibold">
+          <h2 id={anchorOf(section)} className="text-xl font-semibold">
             {section.heading}
           </h2>
           {section.paragraphs.map((paragraph, i) =>
