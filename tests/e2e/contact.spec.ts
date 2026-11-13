@@ -56,7 +56,8 @@ test.describe('with JavaScript', () => {
     await letFormAge(page);
     await sendButton(page).click();
     await expect(page).toHaveURL(/\/contact\?sent=1$/);
-    await expect(status(page)).toBeFocused();
+    // Focus lands on the block's heading, so the ring sits on the words and not around the ruled block.
+    await expect(status(page).getByRole('heading', { level: 2, name: 'Message sent' })).toBeFocused();
     await expect(status(page)).toContainText('Message sent');
     await expect(status(page)).toContainText('Thanks, your message is on its way. I reply from my own e-mail.');
     await expect(page).toHaveTitle(/^Message sent: Contact/);
