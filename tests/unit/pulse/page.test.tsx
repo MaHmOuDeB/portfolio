@@ -334,8 +334,11 @@ describe('the dashboard Figure', () => {
   });
 
   it('draws the preset on the server: title, result, caption and the Simulated badge', () => {
-    expect(PULSE_FIGURE_TITLE).toBe('Each dashboard action sends one tracked event');
-    expect(figure).toMatch(/<h3 id="pulse-title"[^>]*>Each dashboard action sends one tracked event<\/h3>/);
+    expect(PULSE_FIGURE_TITLE).toBe('Each dashboard action with a product question behind it sends one event');
+    // Exactly true for every action: closing a detail has no question behind it and sends nothing, and
+    // Reset's one Viewed Dashboard is not contradicted. No fixed number: the title is a relationship.
+    expect(PULSE_FIGURE_TITLE).not.toMatch(/\d|every|tracked event/i);
+    expect(figure).toMatch(/<h3 id="pulse-title"[^>]*>Each dashboard action with a product question behind it sends one event<\/h3>/);
     expect(text(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/.exec(figure)![1]!)).toBe('Showing all channels over the last 30d.');
     expect(text(figure)).toContain(
       "A copy of the Pulse dashboard, with made-up numbers for a made-up product. Each action adds its event to the list, newest first. The events stay in this page and are not part of this site's own experiment.",

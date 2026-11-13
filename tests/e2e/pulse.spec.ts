@@ -16,7 +16,7 @@ import { expectNoA11yViolations, test } from './fixtures';
 const PAGE = '/work/pulse';
 const FAULTS = '/kitchen-sink/pulse/faults';
 const ID = 'pulse';
-const TITLE = 'Each dashboard action sends one tracked event';
+const TITLE = 'Each dashboard action with a product question behind it sends one event';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const SEAM_FAILURE = 'The Pulse charts failed after a change (test seam)';
 const SOURCE = JSON.parse(readFileSync(join(process.cwd(), 'data/sources/pulse.json'), 'utf8')) as {

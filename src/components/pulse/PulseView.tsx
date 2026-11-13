@@ -38,7 +38,7 @@ import {
 import { PULSE_TAXONOMY_REFS } from '@/lib/pulse/names';
 import { STREAM_LIMIT, propertyRefs, type Stream } from '@/lib/pulse/session';
 
-export const PULSE_FIGURE_TITLE = 'Each dashboard action sends one tracked event';
+export const PULSE_FIGURE_TITLE = 'Each dashboard action with a product question behind it sends one event';
 
 const SIMULATED: readonly DerivedRef[] = ['simulated'];
 const BUTTON = `${buttonClass('secondary')} max-xs:w-full`;
