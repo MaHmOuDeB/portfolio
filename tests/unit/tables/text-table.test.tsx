@@ -1,5 +1,5 @@
 // The page-owned TextTable prints every number as a grouped whole count. It refuses any other column
-// format, so a caller that passes shares or points gets an error, never a wrong number (finding N-M5).
+// format, so a caller that passes shares or points gets an error, never a wrong number.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { ColumnFormat, TableData } from '@/components/kit/DataTable';
