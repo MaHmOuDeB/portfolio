@@ -6,25 +6,29 @@
 import type { Page } from '@playwright/test';
 import { waitForIslands } from './fixtures';
 
-export type Used = { figures: number; controlled: number; actions: number; resets: number };
+/**
+ * `controlled`: the Figures holding a control this helper uses (a slider, number, option, select,
+ * step or Reset); `idle`: the ids of those where no control other than Reset was used.
+ */
+export type Used = { figures: number; controlled: number; idle: string[]; actions: number; resets: number };
 
 /** Uses the controls, and returns how many Figures it found and how many actions it took. */
 export async function useEveryControl(page: Page, o: { reset?: boolean } = {}): Promise<Used> {
   await waitForIslands(page);
-  const used: Used = { figures: 0, controlled: 0, actions: 0, resets: 0 };
+  const used: Used = { figures: 0, controlled: 0, idle: [], actions: 0, resets: 0 };
   const figures = page.locator('main figure[data-figure]');
   used.figures = await figures.count();
-  // The Figures with a control this helper uses: a slider, number, option, select, step or Reset.
-  used.controlled = await figures.evaluateAll(
-    (fs) =>
-      fs.filter(
-        (f) =>
-          f.querySelector('input[type="range"], input[type="number"], input[type="radio"], select') !== null ||
-          [...f.querySelectorAll('button')].some((b) => ['Reset', 'Next', 'Previous'].includes(b.textContent?.trim() ?? '')),
-      ).length,
+  const hasControl = await figures.evaluateAll((fs) =>
+    fs.map(
+      (f) =>
+        f.querySelector('input[type="range"], input[type="number"], input[type="radio"], select') !== null ||
+        [...f.querySelectorAll('button')].some((b) => ['Reset', 'Next', 'Previous'].includes(b.textContent?.trim() ?? '')),
+    ),
   );
+  used.controlled = hasControl.filter(Boolean).length;
   for (let i = 0; i < used.figures; i++) {
     const f = figures.nth(i);
+    const before = used.actions;
     const ranges = f.locator('input[type="range"]:enabled');
     for (let r = 0; r < (await ranges.count()); r++) {
       await ranges.nth(r).focus();
@@ -62,6 +66,7 @@ export async function useEveryControl(page: Page, o: { reset?: boolean } = {}): 
         used.actions++;
       }
     }
+    if (hasControl[i] && used.actions === before) used.idle.push((await f.getAttribute('id')) ?? `figure ${i}`);
   }
   if (o.reset !== false) {
     for (let i = 0; i < used.figures; i++) {

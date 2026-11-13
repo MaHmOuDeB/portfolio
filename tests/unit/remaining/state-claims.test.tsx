@@ -7,7 +7,10 @@
 //   inconclusive or resuming; a test that never started, or whose data could not be read, is never
 //   called paused or calibrating; a failed calibration is never "calibrating"; no state names a
 //   share of the free command quota;
-// - the Live test page never calls its data anonymous.
+// - the Live test page never calls its data anonymous;
+// - on the Live test page, the page's own whole-page rules (no quota claim, group note, own-view
+//   mark or p-value; never paused, running, resumed, passed, inconclusive or calibrating where false)
+//   over every fixture, the dev-host ones included, and every runtime.
 //
 // The fixtures are the build-time test fixtures (src/lib/home), which no page ships.
 import { createElement } from 'react';
@@ -95,11 +98,14 @@ function falseWordsFor(mode: string): RegExp[] {
   const always = [/under half|about half|command quota|free monthly/i];
   switch (mode) {
     case 'held':
-      return [...always, /still running|SRM passed|inconclusive|resum/i];
+      return [...always, /still running|is running|\brunning\b|SRM passed|split check: passed|\bpassed\b|inconclusive|resum/i];
     case 'not-started':
-      return [...always, /\bpaused\b|calibrating/i];
+      return [...always, /\bpaused\b|could not be loaded|calibrat/i];
     case 'unavailable':
+      return [...always, /\bpaused\b|\bstopped\b|\bclosed\b/i];
     case 'settings-unreadable':
+      return [...always, /\bpaused\b/i];
+    case 'closure-check':
       return [...always, /\bpaused\b/i];
     case 'aa-failed':
       return [...always, /\bcalibrating\b/i];
@@ -108,12 +114,30 @@ function falseWordsFor(mode: string): RegExp[] {
   }
 }
 
+/**
+ * The Live test page's whole-page rules, exactly as the page's own tests state them for its base
+ * fixtures (tests/unit/live-page/page.test.tsx), here over every fixture and every runtime: no quota
+ * claim, no group note or own-view mark, no p-value; and for the exceptional modes, never paused
+ * (but a stopped calibration), running, resumed, passed or inconclusive, and never calibrating for a
+ * failed calibration or a test that never started.
+ */
+function wholePageRules(mode: string): RegExp[] {
+  const out = [/under half|quota|command allowance|free monthly/i, /you are in group|your view|this view/i, /p-value|p =|chi-square|χ²/i];
+  if (['held', 'unavailable', 'not-started', 'aa-failed', 'closure-check'].includes(mode)) {
+    if (mode !== 'aa-failed') out.push(/\bpaused\b/i);
+    out.push(/still running|is running|resum|split check: passed|SRM passed|Inconclusive at the six-month limit/i);
+    if (mode === 'aa-failed' || mode === 'not-started') out.push(/calibrating/i);
+  }
+  return out;
+}
+
 describe('every experiment state on the home page, both groups', () => {
   const cases = STATES.flatMap(([name, s]) => (['a', 'b'] as const).map((arm) => [`${name}/${arm}`, s, arm] as const));
   it.each(cases)('%s: keeps the claim rules and says nothing false for its state', (_name, s, arm) => {
     const html = homeHtml(s, arm);
     expect(htmlClaimFindings(html, '/')).toEqual([]);
-    const said = everything(html, has('data-home-note'));
+    // A held note may name "the last check that passed": its last clean evidence.
+    const said = everything(html, has('data-home-note')).replace(/the last check that passed/g, '');
     const mode = toHomeModel(s, arm).mode;
     expect(everything(html)).not.toMatch(falseWordsFor(mode)[0]!);
     for (const re of falseWordsFor(mode)) expect(said, `${mode}: ${re}`).not.toMatch(re);
@@ -131,6 +155,10 @@ describe('every experiment state on the Live test page, in every runtime', () =>
     expect(htmlClaimFindings(html, '/experiment')).toEqual([]);
     expect(everything(html)).not.toMatch(ANONYMOUS_CLAIM);
     expect(everything(html)).not.toMatch(falseWordsFor(d.mode)[0]!);
+    for (const re of wholePageRules(d.mode)) expect(everything(html), `whole page, ${d.mode}: ${re}`).not.toMatch(re);
+    expect(html, 'no own-view mark').not.toContain('data-your-view');
+    // An unreadable build: the state sentence holds no date and no count.
+    if (d.mode === 'settings-unreadable') expect(everything(html, has('data-live-state'))).not.toMatch(/\d/);
     const said = everything(html, idIn('where-it-stands', 'decision'));
     expect(said.length, 'the state sections are read').toBeGreaterThan(20);
     for (const re of falseWordsFor(d.mode)) {
@@ -146,6 +174,11 @@ describe('every experiment state on the Live test page, in every runtime', () =>
 
   it('the false-word rules are not vacuous', () => {
     expect('The test is still running.').toMatch(falseWordsFor('held')[1]!);
+    expect('Split check: passed').toMatch(falseWordsFor('held')[1]!);
+    expect('Split check: passed').toMatch(wholePageRules('held').at(-1)!);
+    expect('Counting is paused.').toMatch(wholePageRules('closure-check').at(-2)!);
+    expect('It is calibrating.').toMatch(wholePageRules('not-started').at(-1)!);
+    expect(wholePageRules('ab')).toHaveLength(3);
     expect('Counting is paused until 03.12.').toMatch(falseWordsFor('not-started')[1]!);
     expect('It is calibrating first.').toMatch(falseWordsFor('aa-failed')[1]!);
     expect('a month uses under half of the quota').toMatch(falseWordsFor('ab')[0]!);

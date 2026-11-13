@@ -87,8 +87,10 @@ describe('the component catalogues in CLAUDE.md', () => {
         .filter((f) => /\.tsx$/.test(f))
         .map((f) => `${d}/${f}`),
     );
-    // A module that exports a component (a capitalised function) is a composite.
-    const components = files.filter((f) => /export\s+(?:default\s+)?(?:async\s+)?function\s+[A-Z]/.test(read(f)));
+    // A module that exports a component (a capitalised function, or a capitalised arrow function or
+    // wrapped component) is a composite.
+    const COMPONENT = /export\s+(?:default\s+)?(?:async\s+)?function\s+[A-Z]|export\s+const\s+[A-Z]\w*\s*(?::[^=]+)?=\s*(?:(?:async\s*)?\([^)]*\)\s*(?::[^=]+)?=>|(?:memo|forwardRef|lazy|dynamic|catchError)\s*[(<])/;
+    const components = files.filter((f) => COMPONENT.test(read(f)));
     expect(components.filter((f) => !listed.has(f))).toEqual([]);
   });
 
@@ -148,6 +150,7 @@ const SERVER_ONLY = [
   'src/lib/experiment/close.ts',
   'src/lib/experiment/internal.ts',
   'src/lib/experiment/public-data.ts',
+  'src/lib/experiment/snapshot.ts',
   'src/lib/home/model.ts',
   'src/lib/home/fixtures.ts',
   'src/lib/home/narrative-fixtures.ts',

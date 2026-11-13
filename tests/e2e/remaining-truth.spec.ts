@@ -7,17 +7,44 @@
 //   significance threshold appears;
 // - the truth audit and the hydrated checks (every number under a source marker, also in input
 //   values and accessible names; no Infinity or NaN);
+// - the Figure invariants (tests/e2e/figure-invariants.ts): every chart Figure keeps a whole table,
+//   every <time> prints its dateTime the site's way in Europe/Berlin, and the minus, zero, percent
+//   and "±" rules hold;
+// - each Figure that can throw (every interactive Figure, on the dev hosts that set the test seam,
+//   since the routes cannot): its error fallback keeps all of the above;
 // - every same-origin link and fragment resolves.
 //
 // Page by page: the Live test page never calls its data "anonymous", and on the Pulse page every
 // question that reads like a prediction sits in a section that says the questions are design
 // hypotheses.
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
 import { htmlClaimFindings } from './site-claims';
+import { figureInvariants } from './figure-invariants';
 import { auditLive } from './truth-live';
 import { useEveryControl } from './use-controls';
+
+/** Every check of one phase: the claim rules, the truth audit and the Figure invariants. */
+async function holds(page: Page, route: string, when: string) {
+  expect(htmlClaimFindings(await page.content(), route), `${route} ${when}`).toEqual([]);
+  await auditLive(page, route, when);
+  expect(await figureInvariants(page), `${route} ${when}: Figure invariants`).toEqual([]);
+}
+
+// Served pages beyond the route list: the home page in each forced group, and the not-found page.
+const SERVED_EXTRA = ['/?variant=a', '/?variant=b', '/this-page-does-not-exist'];
+
+// Every interactive Figure, on the dev host that sets its test seam: its chart throws on the first
+// render after a change.
+const FAULT_HOSTS = [
+  '/kitchen-sink/audible/faults',
+  '/kitchen-sink/lab/faults',
+  '/kitchen-sink/lab/peeking/faults',
+  '/kitchen-sink/lab/diagnostics/faults',
+  '/kitchen-sink/pulse/faults',
+  '/kitchen-sink/retention/faults',
+];
 
 const CHUNK_ERRORS = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|net::ERR_FAILED|Importing a module script failed/;
 
@@ -30,6 +57,14 @@ test.describe('the site-wide claims', () => {
     });
   }
 
+  for (const route of SERVED_EXTRA) {
+    test(`${route}: the served HTML keeps the claim rules`, async ({ request }) => {
+      const response = await request.get(route);
+      expect(response.status(), route).toBe(route.startsWith('/this-') ? 404 : 200);
+      expect(htmlClaimFindings(await response.text(), route)).toEqual([]);
+    });
+  }
+
   for (const route of LIVE_ROUTES) {
     test(`${route}: the hydrated page keeps the claim rules and the truth audit after every control, after Reset and with failed islands`, async ({ page }) => {
       test.slow();
@@ -37,17 +72,15 @@ test.describe('the site-wide claims', () => {
       page.on('pageerror', (e) => errors.push(e.message));
       await page.goto(route);
       await waitForIslands(page);
-      expect(htmlClaimFindings(await page.content(), route), 'loaded').toEqual([]);
-      await auditLive(page, route, 'loaded');
+      await holds(page, route, 'loaded');
 
       const used = await useEveryControl(page, { reset: false });
-      expect(htmlClaimFindings(await page.content(), route), 'every control used').toEqual([]);
-      await auditLive(page, route, 'every control used');
+      expect(used.idle, `${route}: every Figure with a control had one used`).toEqual([]);
+      await holds(page, route, 'every control used');
 
       if (used.figures > 0) {
         for (const reset of await page.locator('main figure[data-figure]').getByRole('button', { name: 'Reset' }).all()) await reset.click();
-        expect(htmlClaimFindings(await page.content(), route), 'after Reset').toEqual([]);
-        await auditLive(page, route, 'after Reset');
+        await holds(page, route, 'after Reset');
       }
 
       expect(errors, 'page errors before the islands are made to fail').toEqual([]);
@@ -62,13 +95,49 @@ test.describe('the site-wide claims', () => {
         block = true;
         for (const h of await page.locator('main figure[data-figure] h3').all()) await h.hover().catch(() => {});
         await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
-        expect(htmlClaimFindings(await page.content(), route), 'islands failed').toEqual([]);
-        await auditLive(page, route, 'islands failed');
+        await expect(page.locator('[data-island="failed"]'), 'an island failed').not.toHaveCount(0);
+        await holds(page, route, 'islands failed');
         await page.unroute('**/_next/static/**/*.js');
         expect(errors.filter((m) => !CHUNK_ERRORS.test(m)), 'page errors other than the blocked scripts').toEqual([]);
       }
     });
   }
+
+  for (const host of FAULT_HOSTS) {
+    test(`${host}: each Figure's error fallback keeps the claim rules, the truth audit and the Figure invariants`, async ({ page }) => {
+      test.slow();
+      await page.goto(host);
+      const ids = await page.locator('main figure[data-figure]').evaluateAll((fs) =>
+        fs.filter((f) => f.querySelector('input[type="range"], input[type="radio"], select') !== null || f.closest('[data-island]') !== null).map((f) => f.id),
+      );
+      expect(ids.length, `${host}: Figures to break`).toBeGreaterThan(0);
+      for (const id of ids) {
+        await page.goto(host);
+        const figure = page.locator(`figure[data-figure="${id}"]`);
+        await figure.locator('h3').hover();
+        await expect(page.locator('[data-island]', { has: figure }).first()).toHaveAttribute('data-island', 'ready');
+        const control = figure.locator('input[type="range"], input[type="radio"]:not(:checked), select').first();
+        if ((await control.count()) === 0) continue; // a Figure driven by another's controls breaks with it
+        if ((await control.evaluate((e) => e.tagName)) === 'SELECT') {
+          const values = await control.locator('option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
+          await control.selectOption(values[values.length - 1]!);
+        } else if ((await control.getAttribute('type')) === 'radio') {
+          await control.locator('xpath=ancestor::label[1]').click();
+        } else {
+          await control.focus();
+          await page.keyboard.press('ArrowRight');
+        }
+        await expect(figure.locator('[data-figure-fallback] [role="status"]'), `${id}: the error state`).toBeVisible();
+        await holds(page, host, `${id} error state`);
+      }
+    });
+  }
+
+  test('/kitchen-sink/home/scroll/chart-error: the Home chart error state keeps the claim rules, the truth audit and the Figure invariants', async ({ page }) => {
+    await page.goto('/kitchen-sink/home/scroll/chart-error');
+    await expect(page.locator('[data-home-chart] > [data-figure-fallback]').first()).toBeAttached({ timeout: 15_000 });
+    await holds(page, '/', 'chart error state');
+  });
 
   test('/experiment: never calls its data anonymous, in the served HTML, its React payload or the hydrated page', async ({ page, request }) => {
     expect(await (await request.get('/experiment')).text()).not.toMatch(/(?<!\bnot )\banonym/i);
@@ -81,16 +150,20 @@ test.describe('the site-wide claims', () => {
     await page.goto('/work/pulse');
     await useEveryControl(page, { reset: false });
     const found = await page.evaluate(() => {
-      const out: { text: string; context: boolean }[] = [];
+      const out: { tag: string; text: string; context: boolean }[] = [];
       for (const el of document.querySelectorAll('main td, main th, main li, main p, main dd, main figcaption, main caption')) {
         const t = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
-        if (!/\bpredict/i.test(t)) continue;
+        // A question that reads like a finding: a prediction, a driver, a signal or a confirmation.
+        if (!/\bpredict|\bdrives?\b|\bdriver\b|\bsignal\b|\bconfirms\b/i.test(t)) continue;
         const section = el.closest('section[id]');
-        out.push({ text: t.slice(0, 120), context: /design hypothes/i.test(section?.textContent ?? '') });
+        out.push({ tag: el.tagName, text: t.slice(0, 120), context: /design hypothes/i.test(section?.textContent ?? '') });
       }
       return out;
     });
-    expect(found.length, 'the Pulse page has questions that read like predictions').toBeGreaterThan(0);
+    // The event table's own cells are among them, not only the paragraphs that explain them.
+    const cells = found.filter((f) => f.tag === 'TD' || f.tag === 'TH').map((f) => f.text);
+    expect(cells.some((t) => /predicts the user will come back/.test(t)), 'the "predicts" question').toBe(true);
+    expect(cells.some((t) => /drives deeper investigation/.test(t)), 'the "drives" question').toBe(true);
     expect(found.filter((f) => !f.context)).toEqual([]);
   });
 });

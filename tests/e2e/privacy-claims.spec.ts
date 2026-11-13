@@ -130,7 +130,7 @@ for (const route of LIVE_ROUTES) {
     const response = await page.goto(route);
     expect(response?.ok(), route).toBe(true);
     const used = await useEveryControl(page);
-    if (used.controlled > 0) expect(used.actions + used.resets, `${route}: controls used`).toBeGreaterThan(0);
+    expect(used.idle, `${route}: every Figure with a control had one used, not only Reset`).toEqual([]);
     await page.waitForLoadState('networkidle');
     await page.goto('about:blank');
 

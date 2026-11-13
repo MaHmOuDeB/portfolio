@@ -29,9 +29,10 @@ export async function auditLive(page: Page, route: string, when: string) {
     if (/\bInfinity\b|\bNaN\b/.test(main.innerText)) out.push('a non-finite value in the text');
     return out;
   });
-  // A digit the truth audit itself allows in text (a year, the product name n8n) is allowed here too.
+  // In an attribute's text, a digit the truth audit itself allows in text (a year, the product name
+  // n8n) is allowed here too. An input's live value must always sit under a source marker.
   const allowed = ALLOW.filter((a) => a.routes === undefined || a.routes.includes(route));
   const rest = (s: string) => allowed.reduce((t, a) => t.replace(new RegExp(a.pattern.source, `${a.pattern.flags.replace('g', '')}g`), ''), s.slice(s.indexOf('=') + 1));
-  expect(stray.filter((s) => s.startsWith('a non-finite') || /\d/.test(rest(s))), `${route} ${when}`).toEqual([]);
+  expect(stray.filter((s) => s.startsWith('a non-finite') || s.startsWith('value=') || /\d/.test(rest(s))), `${route} ${when}`).toEqual([]);
 }
 

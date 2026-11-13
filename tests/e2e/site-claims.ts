@@ -2,7 +2,7 @@
 // HTML), the unit tests (sharing metadata and image text) and the CV PDF test (the PDF's text):
 //
 // - the number of tests and the number of markets are never in one claim: the tests were web and
-//   mobile, the markets belong to the automation tool and the campaign work;
+//   mobile, the markets belong to the automation tool;
 // - a count of teams always says it was over my time there (one team after another);
 // - no significance threshold (a "p <" value or the words) appears anywhere.
 //
@@ -16,18 +16,21 @@ const EXPERIMENTS_FACT = 'profile.audible.experiments';
 const MARKETS_FACT = 'profile.audible.markets';
 const TEAMS_FACT = 'profile.audible.teams';
 
-const NUMBER_WORD = '(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|several|many|multiple)';
+const NUMBER_WORD = '(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty-five|several|many|multiple|dozens(?:\\s+of)?)';
 /** A count of tests or experiments ("25+ A/B tests", "25+ experiments"). */
 const EXPERIMENTS = new RegExp(`(?:\\d[\\d,.]*\\+?|${NUMBER_WORD})\\s+(?:A\\/B\\s+|controlled\\s+|online\\s+)?(?:tests|experiments)\\b`, 'i');
-/** A count of markets or marketplaces. */
-const MARKETS = new RegExp(`(?:\\d[\\d,.]*\\+?|${NUMBER_WORD})\\s+(?:[\\w-]+\\s+)?(?:markets|marketplaces)\\b`, 'i');
+/** A count of markets, marketplaces or countries. */
+const MARKETS = new RegExp(`(?:\\d[\\d,.]*\\+?|${NUMBER_WORD})\\s+(?:[\\w-]+\\s+)?(?:markets|marketplaces|countries)\\b`, 'i');
 /** A count of teams ("3 teams", "three product teams"). */
 const TEAMS = new RegExp(`(?:\\d[\\d,.]*\\+?|${NUMBER_WORD})\\s+(?:[\\w&-]+\\s+){0,2}?teams\\b`, 'i');
 /** A count of two teams, which is never a figure the site gives. */
 const TWO_TEAMS = /\b(?:2|two)\s+(?:[\w&-]+\s+){0,2}?teams\b/i;
 /** The tenure qualifier every team count carries. */
-const OVER_TIME = /\bover my time\b/i;
-/** A significance threshold: "p < 0.05", "p≤.01", "p-value below", or the words. */
+const OVER_TIME = /\bover my time\b|\bover the tenure\b|\bone after another\b|\bafter re-?orgs?\b/i;
+/**
+ * A significance threshold: "p < 0.05", "p≤.01", "p-value < 0.01", or the words. An equals form
+ * ("p = 0.43") is not a threshold, and the Lab's split check prints its computed p-value.
+ */
 const THRESHOLD = /(?:^|[^\w])p\s*(?:-?\s*value)?\s*[<≤]|significance threshold/i;
 
 export type ClaimFinding = { where: string; rule: 'experiments-with-markets' | 'teams-without-tenure' | 'two-teams' | 'significance-threshold'; text: string };

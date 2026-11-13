@@ -51,10 +51,18 @@ describe('the claim rules are not vacuous', () => {
     expect(rules('<p>Evaluated experiments for 2 teams over my time there.</p>')).toEqual(['two-teams']);
     expect(rules('<p>with three product teams at once</p>')).toEqual(['teams-without-tenure']);
     expect(rules('<p>aligning targeting across teams</p>')).toEqual([]);
+    expect(rules(`<p>I worked with ${TEAMS} teams over the tenure.</p>`)).toEqual([]);
+    expect(rules(`<p>I worked with ${TEAMS} teams, switching after re-orgs.</p>`)).toEqual([]);
+  });
+
+  it('read the same counts the private CV validator reads: countries, and dozens of tests', () => {
+    expect(claimFindings('Ran 25+ A/B tests across 11 countries.', 'x').map((f) => f.rule)).toEqual(['experiments-with-markets']);
+    expect(claimFindings('Worked on dozens of experiments in several markets.', 'x').map((f) => f.rule)).toEqual(['experiments-with-markets']);
+    expect(claimFindings('Twenty-five tests, and a tool used in 11 markets.', 'x').map((f) => f.rule)).toEqual(['experiments-with-markets']);
   });
 
   it('fail any significance threshold, and leave the words significance and p alone otherwise', () => {
-    for (const t of ['significant at p < 0.05', 'p<.02', 'a p-value < 0.01', 'the significance threshold was strict']) {
+    for (const t of ['significant at p < 0.05', 'p<.03', 'a p-value < 0.01', 'the significance threshold was strict']) {
       expect(claimFindings(t, 'x').map((f) => f.rule), t).toEqual(['significance-threshold']);
     }
     for (const t of ['I did the significance testing myself', 'the p-value and the interval', 'step < next', 'group B is higher', "Cohen's h for a two-sided test at a significance level of 0.05"]) {
