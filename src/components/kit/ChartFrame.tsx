@@ -313,13 +313,14 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
               textAnchor="end"
               dominantBaseline="middle"
             >
-              <tspan>{p.y.format(0)}</tspan>
+              {/* WebKit does not inherit dominant-baseline into a tspan, so each one sets it itself. */}
+              <tspan dominantBaseline="middle">{p.y.format(0)}</tspan>
             </text>
           ) : null}
           {words.length > 0 ? (
             <text data-zero-label="" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dominantBaseline="middle">
               {words.map((w, i) => (
-                <tspan key={i} x="100%" dx={MARGIN_GAP} dy={`${i === 0 ? zeroTop : XS_LINE_EM}em`}>
+                <tspan key={i} x="100%" dx={MARGIN_GAP} dy={`${i === 0 ? zeroTop : XS_LINE_EM}em`} dominantBaseline="middle">
                   {w}
                 </tspan>
               ))}

@@ -92,6 +92,16 @@ describe('ChartFrame', () => {
     expect(Number(attr(wide!, 'height')) - Number(attr(narrow!, 'height'))).toBe(80);
   });
 
+  it('gives every tspan in a middle-baseline text its own middle baseline (WebKit does not inherit it)', () => {
+    const root = render();
+    const inMiddle = find(root, (n) => n.nodeName === 'text' && attr(n, 'dominant-baseline') === 'middle');
+    const spans = inMiddle.flatMap((t) => byTag(t, 'tspan'));
+    expect(find(root, (n) => hasAttr(n, 'data-zero-label')).length).toBeGreaterThan(0);
+    expect(find(root, (n) => hasAttr(n, 'data-zero-tick')).length).toBeGreaterThan(0);
+    expect(spans.length).toBeGreaterThan(0);
+    for (const t of spans) expect(attr(t, 'dominant-baseline')).toBe('middle');
+  });
+
   it('renders one layout alone when it is forced, without the responsive classes', () => {
     const only = frames(render({ layout: 'narrow' }));
     expect(only).toHaveLength(1);
