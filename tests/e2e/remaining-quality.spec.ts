@@ -10,7 +10,7 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   aside); every focus ring visible and unclipped; chart text at its size (ticks 13 px, annotations
 //   15 px semibold, nothing under 13 px) and never scaled by a viewBox; no state shown by colour
 //   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis, no
-//   clipped line, no chart label past its chart's edge or over another label, and no sentence in a
+//   clipped line, no chart label cut off, off the screen or over another label, and no sentence in a
 //   sideways-scrolling table; control rows whose labels and Reset sit in line; one gap between the
 //   header's page links;
 // - each case study and build note states at least two real limits;
@@ -52,15 +52,26 @@ async function chartText(page: Page): Promise<string[]> {
       else if (t.closest('[data-annotation]') && (Math.abs(px - 15) > 0.5 || Number(s.fontWeight) < 600)) out.add(`annotation at ${px.toFixed(1)} px weight ${s.fontWeight}: "${label}"`);
       else if (px < 12.5) out.add(`chart text at ${px.toFixed(1)} px: "${label}"`);
     }
-    // Complete chart text: every label inside its own chart's box (an outer svg draws in its padding,
-    // never past its edge), and no two labels of one chart drawn over each other.
+    // Complete chart text: no label cut off, by its own svg (when that clips) or by any box around it
+    // that clips or scrolls, and none off the screen; and no two labels of one chart drawn over each
+    // other. (The chart frame draws its svg overflow-visible, so a label that runs a few px into the
+    // space beside the chart still shows whole.)
+    const vw = document.documentElement.clientWidth;
     for (const svg of document.querySelectorAll<SVGSVGElement>('svg[data-chart-frame]')) {
       if (svg.getClientRects().length === 0 || !svg.checkVisibility({ checkVisibilityCSS: true })) continue;
-      const box = svg.getBoundingClientRect();
       const texts = [...svg.querySelectorAll<SVGTextElement>('text')].filter((t) => t.getClientRects().length > 0 && t.checkVisibility({ checkVisibilityCSS: true }) && (t.textContent ?? '').trim() !== '');
       const rects = texts.map((t) => ({ text: (t.textContent ?? '').trim().slice(0, 40), r: t.getBoundingClientRect() }));
       for (const { text, r } of rects) {
-        if (r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1) out.add(`chart text past its chart's edge: "${text}"`);
+        if (r.left < -1 || r.right > vw + 1) out.add(`chart text off the screen: "${text}"`);
+        for (let p: Element | null = svg; p && p !== document.body; p = p.parentElement) {
+          const ps = getComputedStyle(p);
+          const b = p.getBoundingClientRect();
+          const clipsX = ps.overflowX !== 'visible';
+          const clipsY = ps.overflowY !== 'visible';
+          if ((clipsX && (r.left < b.left - 1 || r.right > b.right + 1)) || (clipsY && (r.top < b.top - 1 || r.bottom > b.bottom + 1))) {
+            out.add(`chart text cut off by ${p.tagName.toLowerCase()}: "${text}"`);
+          }
+        }
       }
       for (let i = 0; i < rects.length; i++) {
         for (let j = i + 1; j < rects.length; j++) {
