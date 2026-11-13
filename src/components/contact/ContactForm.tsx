@@ -154,7 +154,16 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         <p className="text-sm text-muted">All fields are required.</p>
         <input type="hidden" name="issuedAt" value={stamp} />
         <div className="mt-6 flex flex-col gap-6">
-          <TextField id={fieldId('name')} name="name" label={LABELS.name} autoComplete="name" maxLength={CONTACT_LIMITS.name} defaultValue={values?.name} error={shown.errors.name} />
+          <TextField
+            id={fieldId('name')}
+            name="name"
+            label={LABELS.name}
+            hint="I use this name when I reply. Any name is fine."
+            autoComplete="name"
+            maxLength={CONTACT_LIMITS.name}
+            defaultValue={values?.name}
+            error={shown.errors.name}
+          />
           <TextField
             id={fieldId('email')}
             name="email"

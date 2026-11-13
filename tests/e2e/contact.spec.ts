@@ -78,6 +78,7 @@ test.describe('with JavaScript', () => {
 
   test('an empty form lists every field in a summary that takes focus, links into each field, and sends nothing', async ({ page }) => {
     await page.goto('/contact');
+    await expect(page.getByLabel('Name', { exact: true })).toHaveAccessibleDescription('I use this name when I reply. Any name is fine.');
     await sendButton(page).click();
     await expect(status(page)).toBeFocused();
     await expect(status(page)).toContainText('Message not sent');
@@ -92,6 +93,8 @@ test.describe('with JavaScript', () => {
     ]);
     await expect(page).toHaveTitle(/^Message not sent: Contact/);
     await expect(page.getByLabel('Name', { exact: true })).toHaveAttribute('aria-invalid', 'true');
+    // The hint is read before the error.
+    await expect(page.getByLabel('Name', { exact: true })).toHaveAccessibleDescription('I use this name when I reply. Any name is fine. Error: Enter your name');
     await expect(page.locator('form')).toHaveAttribute('aria-describedby', 'contact-status');
     await links.nth(3).click();
     await expect(page.getByLabel('Subject')).toBeFocused();
