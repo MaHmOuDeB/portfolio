@@ -22,6 +22,7 @@ import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
 import { htmlClaimFindings } from './site-claims';
 import { figureInvariants } from './figure-invariants';
+import { islandFallback } from './island-fallback';
 import { auditLive } from './truth-live';
 import { useEveryControl } from './use-controls';
 
@@ -110,22 +111,8 @@ test.describe('the site-wide claims', () => {
         expect(await page.locator('[data-island]').evaluateAll((els) => els.map((e) => e.getAttribute('data-island')).filter((v) => v !== 'failed')), 'islands not failed').toEqual([]);
         for (const id of inIslands) await expect(page.locator(`main figure[data-figure="${id}"]`), `${id} is still there`).toHaveCount(1);
         // An island that holds its Figure shows that Figure's open table in its place. An island inside
-        // a Figure (the Home scroll moment's charts) holds only the chart: the Figure's own table,
-        // outside the island, keeps its rows and its visible disclosure.
-        const fallbacks = await page.locator('[data-island="failed"]').evaluateAll((els) =>
-          els.map((island) => {
-            const shown = (e: Element | null) => e !== null && e.getClientRects().length > 0;
-            const own = island.querySelector('figure[data-figure]');
-            if (own !== null) {
-              const table = island.querySelector('[data-nojs-only] table');
-              return { figure: own.id, kind: 'holds its Figure', ok: shown(table) && shown(table?.querySelector('tbody tr') ?? null) };
-            }
-            const outer = island.closest('figure[data-figure]');
-            const rows = outer?.querySelector('[data-figure-tables] table tbody tr') ?? null;
-            const toggle = outer?.querySelector('[data-figure-tables] summary') ?? null;
-            return { figure: outer?.id ?? '(none)', kind: 'inside its Figure', ok: outer !== null && rows !== null && shown(toggle) };
-          }),
-        );
+        // a Figure holds only the chart, but must still hold it (islandFallback).
+        const fallbacks = await page.locator('[data-island="failed"]').evaluateAll((els) => els.map(islandFallback));
         expect(fallbacks.filter((f) => !f.ok), 'each failed island keeps a readable table').toEqual([]);
         await holds(page, route, 'islands failed');
         await page.unroute('**/_next/static/**/*.js');
