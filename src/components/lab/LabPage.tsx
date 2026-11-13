@@ -16,7 +16,7 @@ import { PeekingFigure } from '@/components/figures/PeekingFigure';
 import { LAB_SECTIONS, LabIntro, LabLimits, LabPeekingIntro } from '../../../content/lab';
 import { CurseFigure } from './CurseFigure';
 import { FullPlanner } from './FullPlanner';
-import { SrmFigure } from './SrmFigure';
+import { SrmEvenLink, SrmFigure } from './SrmFigure';
 
 export const LAB_TITLE = 'Lab';
 
@@ -85,6 +85,7 @@ export function LabPage(): ReactNode {
 
       <Section id="split-check">
         <SrmFigure />
+        <SrmEvenLink />
       </Section>
 
       <Section id="exaggeration">

@@ -16,7 +16,7 @@ import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts'
 import { CurseFigure } from '@/components/lab/CurseFigure';
 import { InertCurseControls } from '@/components/lab/CurseFigureClient';
 import { CurseFigureView } from '@/components/lab/CurseView';
-import { SrmFigure } from '@/components/lab/SrmFigure';
+import { SrmEvenLink, SrmFigure } from '@/components/lab/SrmFigure';
 import { InertSrmControls } from '@/components/lab/SrmFigureClient';
 import { SrmFigureView } from '@/components/lab/SrmView';
 import { readFigureParams } from '@/lib/figure/url-state';
@@ -33,6 +33,7 @@ import {
   RATIO_MAX,
   RATIO_MIN,
   SRM_ID,
+  SRM_EVEN_HREF,
   SRM_PRESETS,
   SRM_SCHEMA,
   SRM_SMALL_EXPECTED,
@@ -250,8 +251,11 @@ describe('the split check around the model', () => {
   it('reads a hostile URL as the preset or a clamped value on the grid', () => {
     expect(srmFromUrl('srm.nA=__proto__&srm.nB=&srm.shareA=NaN&srm.preset=constructor')).toEqual(SRM_PRESETS.default);
     expect(srmFromUrl('srm.nA=-5&srm.nB=1e9&srm.shareA=2')).toEqual({ nA: 0, nB: 10_000, shareA: 0.99 });
-    expect(srmFromUrl('srm.nA=12.6&srm.shareA=0.333')).toEqual({ nA: 13, nB: 100, shareA: 0.33 });
-    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4, shareA: 0 })).toEqual({ nA: 100, nB: 0, shareA: 0.01 });
+    expect(srmFromUrl('srm.nA=12.6&srm.shareA=0.333')).toEqual({ nA: 13, nB: 4830, shareA: 0.33 });
+    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4, shareA: 0 })).toEqual({ nA: 5170, nB: 0, shareA: 0.01 });
+    // the even preset by name, and an unknown one gives the default
+    expect(srmFromUrl('srm.preset=even')).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(srmFromUrl('srm.preset=odd')).toEqual(SRM_PRESETS.default);
   });
 });
 
@@ -534,11 +538,22 @@ function curseParts(html: string) {
 describe('the split Figure as the server draws it', () => {
   const SERVER = renderToStaticMarkup(createElement(SrmFigure));
 
-  it('states the relationship, badges it Simulated and draws the preset: an even split, not flagged', () => {
+  it('states the relationship, badges it Simulated and draws the preset: a real case, 5,170 to 4,830 against an even split, flagged', () => {
     expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>A split far from the expected share is flagged for a closer look</h3>`));
     expect(text(SERVER)).toContain('Simulated');
+    expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830, shareA: 0.5 });
     expect(result(SERVER)).toBe(srmResultText(SRM_PRESETS.default));
-    expect(result(SERVER)).toContain('not flagged');
+    expect(result(SERVER)).toBe(
+      'Chi-square 11.56 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
+    );
+  });
+
+  it('keeps the even split one link away: the even preset is the same total, not flagged', () => {
+    expect(SRM_PRESETS.even).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(srmModel(SRM_PRESETS.even!)).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
+    expect(SRM_EVEN_HREF).toBe('/lab?srm.preset=even#split-check');
+    const link = renderToStaticMarkup(createElement(SrmEvenLink));
+    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*">See the same check on an even split<\/a><\/p>$/);
   });
 
   it('explains the threshold, the warning, the approximation and that these are not live results', () => {
@@ -558,10 +573,10 @@ describe('the split Figure as the server draws it', () => {
     const wide = SERVER.match(/<svg[^>]*data-layout="wide"[\s\S]*?<\/svg>/)?.[0] ?? '';
     const bars = [...wide.matchAll(/<rect[^>]*data-series="(observed|expected)"[^>]*data-group="(A|B)"[^>]*data-value="([^"]+)"/g)].map((m) => [m[1], m[2], Number(m[3])]);
     expect(bars).toEqual([
-      ['observed', 'A', 100],
-      ['expected', 'A', 100],
-      ['observed', 'B', 100],
-      ['expected', 'B', 100],
+      ['observed', 'A', 5170],
+      ['expected', 'A', 5000],
+      ['observed', 'B', 4830],
+      ['expected', 'B', 5000],
     ]);
   });
 
@@ -573,7 +588,7 @@ describe('the split Figure as the server draws it', () => {
       expect(n).toContain('the split is flagged for a closer look');
       expect(n).not.toMatch(/mismatch|proof|caused/i);
     }
-    for (const n of names(SERVER)) expect(n).toContain('the split is not flagged');
+    for (const n of names(srmView(SRM_PRESETS.even!))) expect(n).toContain('the split is not flagged');
   });
 
   it('has no stray number, no digit in a chart name and no non-finite text', () => {
