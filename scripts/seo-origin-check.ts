@@ -11,7 +11,7 @@
 // on a production build only.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { bareHostname } from '../src/lib/seo/metadata.ts';
+import { bareHostname } from '../src/lib/seo/hostname.ts';
 
 export type BuiltFile = { path: string; text: string };
 

@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import { shareTitle, type SeoEntry } from '../../../content/seo.ts';
 import { serverEnv, type ServerEnv } from '../env.ts';
 import { SITE } from '../site.ts';
+import { bareHostname } from './hostname.ts';
 import { OG_HEIGHT, OG_WIDTH } from './og-template.ts';
 
 /** The fixed test origin's host: the reserved .invalid top-level domain, never a real host. */
@@ -16,19 +17,6 @@ export const TEST_ORIGIN_HOST = 'canonical.invalid';
 /** A build that cannot name its canonical origin. The name is what a failed build prints. */
 export class CanonicalOriginError extends Error {
   override name = 'CanonicalOriginError';
-}
-
-// A bare hostname: two or more dot-separated labels of letters, digits and inner hyphens, ending in a
-// label that starts with a letter (so no IP address). No scheme, userinfo, port, path, query,
-// trailing dot or whitespace.
-const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
-const TLD = '[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?';
-const BARE_HOSTNAME = new RegExp(`^(?=.{1,253}$)(?:${LABEL}\\.)+${TLD}$`);
-
-/** The hostname in lower case, or undefined when the value is not a bare hostname. */
-export function bareHostname(value: string): string | undefined {
-  const host = value.toLowerCase();
-  return BARE_HOSTNAME.test(host) ? host : undefined;
 }
 
 const isTestHost = (host: string) => host === 'invalid' || host.endsWith('.invalid');
