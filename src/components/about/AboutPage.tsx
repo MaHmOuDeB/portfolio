@@ -46,7 +46,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
 /** A two-column list of terms and their descriptions, stacked on phones. */
 function TermList({ items }: { items: readonly (readonly [term: string, description: string])[] }) {
   return (
-    <dl className="grid max-w-text gap-x-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <dl className="grid max-w-text gap-x-8 md:grid-cols-[12rem_1fr]">
       {items.map(([term, description]) => (
         <div key={term} className="contents">
           <dt className="border-t border-line pt-3 font-medium md:pb-3">{term}</dt>
@@ -57,24 +57,37 @@ function TermList({ items }: { items: readonly (readonly [term: string, descript
   );
 }
 
+/**
+ * The story's paragraphs, as [first, end) sentence indexes: split only at its own sentence breaks,
+ * so the words are the story's, in order, with nothing added.
+ */
+const STORY_PARAGRAPHS: readonly (readonly [from: number, to: number])[] = [
+  [0, 2],
+  [2, 4],
+  [4, 5],
+];
+if (STORY_PARAGRAPHS.at(-1)![1] !== ABOUT_STORY.length) throw new Error('about: the story paragraphs do not cover every sentence');
+
 export function AboutPage(): ReactNode {
   const pdf = cvPdf();
   return (
     <article aria-labelledby="about-title" className="py-12 md:py-section">
       <div className="grid gap-8 md:grid-cols-12">
         <div className="md:col-span-7">
-          <h1 id="about-title" className="text-2xl font-semibold">
+          <h1 id="about-title" className="text-2xl font-semibold md:text-3xl">
             {ABOUT_TITLE}
           </h1>
-          <div data-about-story="" className="mt-4 max-w-text text-lg">
-            <p>
-              {ABOUT_STORY.map((sentence, i) => (
-                <span key={i} data-sentence="">
-                  {i > 0 ? ' ' : null}
-                  {sentence}
-                </span>
-              ))}
-            </p>
+          <div data-about-story="" className="mt-4 max-w-text space-y-4 text-lg">
+            {STORY_PARAGRAPHS.map(([from, to]) => (
+              <p key={from}>
+                {ABOUT_STORY.slice(from, to).map((sentence, j) => (
+                  <span key={from + j} data-sentence="">
+                    {from + j > 0 ? ' ' : null}
+                    {sentence}
+                  </span>
+                ))}
+              </p>
+            ))}
           </div>
         </div>
         <div className="md:col-span-5">
@@ -83,13 +96,14 @@ export function AboutPage(): ReactNode {
             alt={aboutPhoto.alt}
             width={PHOTO_WIDTH}
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
+            loading="eager"
             className="h-auto w-full max-w-120 rounded-sm print:max-w-48"
           />
         </div>
       </div>
 
       <Section id="timeline">
-        <ol className="max-w-figure">
+        <ol className="max-w-text">
           {TIMELINE.map((row) => (
             <TimelineRow key={`${row.range.from}-${row.role}`} {...row} />
           ))}

@@ -4,7 +4,7 @@
 // audit finds no stray numeral on either page. The header always links the CV page; the PDF's
 // download button appears only when the build found a checked PDF with its metadata, and the page's
 // claims are the PDF's claims (cv-parity.ts).
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createElement } from 'react';
@@ -142,12 +142,37 @@ describe('the About page', () => {
     expect(story.split(/(?<=\.)\s+(?=[A-Z])/)).toEqual(STORY);
   });
 
-  it('shows the photograph with its alternative text, 4:5, at 480 px wide (960 px for dense screens), not preloaded', () => {
+  it('breaks the story into three paragraphs at its own sentence breaks, with no new words', () => {
+    const story = one(about(), (el) => has(el, 'data-about-story'));
+    const paragraphs = all(story, (el) => el.tagName === 'p');
+    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 2, 1]);
+    expect(paragraphs.map(text)).toEqual([STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4]]);
+  });
+
+  it('uses the page-title size from md up on its h1, as every other page does', () => {
+    expect(classes(one(about(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-2xl', 'md:text-3xl']));
+  });
+
+  it('gives the timeline and the term lists one width, and one first column', () => {
+    const d = about();
+    const timeline = one(section(d, 'timeline'), (el) => el.tagName === 'ol');
+    expect(classes(timeline)).toContain('max-w-text');
+    expect(classes(timeline)).not.toContain('max-w-figure');
+    for (const id of ['tools', 'languages']) {
+      const dl = one(section(d, id), (el) => el.tagName === 'dl');
+      expect(classes(dl)).toContain('max-w-text');
+      expect(classes(dl)).toContain('md:grid-cols-[12rem_1fr]');
+    }
+    for (const li of all(section(d, 'timeline'), (el) => el.tagName === 'li')) expect(classes(li)).toContain('md:grid-cols-[12rem_1fr]');
+  });
+
+  it('shows the photograph with its alternative text, 4:5, at 480 px wide (960 px for dense screens), loaded eagerly but not preloaded', () => {
     const img = one(about(), (el) => el.tagName === 'img');
     expect(attr(img, 'alt')).toBe(aboutPhoto.alt);
     expect(Number(attr(img, 'width')) / Number(attr(img, 'height'))).toBe(4 / 5);
     expect(attr(img, 'width')).toBe('480');
-    expect(attr(img, 'loading')).toBe('lazy');
+    // Above the fold from md up, so it is not lazy; it is still not preloaded or given a high priority.
+    expect(attr(img, 'loading')).toBe('eager');
     expect(attr(img, 'fetchpriority')).toBeUndefined();
     // One candidate per density; the widths themselves (480 and 960) come from next.config.ts and are
     // checked on the built page.
@@ -325,6 +350,35 @@ describe('the CV page', () => {
       ['projects', 'Projects'],
     ]);
     expect(CV_SECTIONS.map((s) => s.id)).toEqual(sections.map((s) => attr(s, 'id')));
+  });
+
+  it('uses the page-title size from md up on its h1', () => {
+    expect(classes(one(cv(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-2xl', 'md:text-3xl']));
+  });
+
+  it('keeps every bullet and plain line at the reading width inside the wider frame', () => {
+    const d = cv();
+    const lists = all(d, (el) => el.tagName === 'ul' && all(el, (li) => has(li, 'data-cv-claim')).length > 0);
+    expect(lists.length).toBeGreaterThan(3);
+    for (const ul of lists) expect(classes(ul)).toContain('max-w-text');
+    for (const line of all(d, (el) => has(el, 'data-cv-line') || has(el, 'data-cv-technologies'))) expect(classes(line)).toContain('max-w-text');
+  });
+
+  // In print a long role may break across pages: only its heading stays with its first bullet, and
+  // no single bullet splits. The page margins are set by @page in globals.css.
+  it('lets an entry break across printed pages, keeping its heading with its first bullet', () => {
+    const d = cv();
+    const entries = all(d, (el) => el.tagName === 'article' && (attr(el, 'aria-labelledby') ?? '').startsWith('cv-') && attr(el, 'aria-labelledby') !== 'cv-title');
+    expect(entries.length).toBeGreaterThan(5);
+    for (const e of entries) {
+      expect(classes(e)).not.toContain('break-inside-avoid');
+      const head = one(e, (el) => has(el, 'data-cv-entry-head'));
+      expect(classes(head)).toEqual(expect.arrayContaining(['break-inside-avoid', 'break-after-avoid']));
+      expect(all(head, (el) => el.tagName === 'h3')).toHaveLength(1);
+    }
+    for (const li of all(d, (el) => el.tagName === 'li' && has(el, 'data-cv-claim'))) expect(classes(li)).toContain('break-inside-avoid');
+    const css = readFileSync(join(repo, 'src/app/globals.css'), 'utf8');
+    expect(css).toMatch(/@page\s*\{\s*margin:/);
   });
 
   it('prints the role line, Berlin, Germany, and the LinkedIn and GitHub profiles as external links', () => {
