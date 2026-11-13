@@ -55,6 +55,11 @@ export type TableData = {
   rowDigits?: number[];
   /** A line under the table, such as the unit of the columns. Plain words, no numbers. */
   note?: string;
+  /**
+   * Optional: the table's own caption (the `<caption>` element, read by assistive technology). Without
+   * it the caller's caption is used, which a Figure sets to its title.
+   */
+  caption?: string;
   /** Where the numbers come from; spread on every cell. Never empty. */
   refs: readonly DerivedRef[];
 };
@@ -85,7 +90,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode' | 'noJsNote'>) {
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={`${id}-caption`}>
         <table className="w-auto max-w-full text-sm">
           <caption id={`${id}-caption`} className="sr-only">
-            {caption}
+            {table.caption ?? caption}
           </caption>
           <thead>
             <tr>
