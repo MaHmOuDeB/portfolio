@@ -4,7 +4,7 @@
 // demo, then each control at its minimum, maximum, every segment and disabled. Hover and keyboard
 // focus are exercised by tests/e2e/kit.spec.ts; the segments stack below the xs breakpoint.
 // Every number here is marked 'simulated'.
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Segmented } from '@/components/kit/Segmented';
@@ -27,14 +27,19 @@ const REFS = ['simulated'] as const;
 const SIMULATED = derivedAttr(REFS);
 const DISABLED_REASON_ID = 'sink-fix-disabled-reason';
 const row = 'flex flex-wrap items-end gap-x-6 gap-y-4';
+const noSubscription = () => () => {};
 const sliderBox = 'w-full xs:w-80';
 
 function Demo() {
   const [looks, setLooks] = useState<number>(PRESET_LOOKS);
   const [fix, setFix] = useState<Fix>(PRESET_FIX);
   const [released, setReleased] = useState<number | null>(null);
+  // True once hydrated, so a test types, presses keys or drags only when the handlers are attached:
+  // the controls show from the first paint (data-js-only), and an entry typed and blurred before
+  // hydration is never clamped, since its blur ran before React was listening.
+  const ready = useSyncExternalStore(noSubscription, () => true, () => false);
   return (
-    <div data-figure="sink-controls">
+    <div data-figure="sink-controls" {...(ready ? { 'data-ready': '' } : {})}>
       <div className={row}>
         <div className={sliderBox}>
           <Slider
