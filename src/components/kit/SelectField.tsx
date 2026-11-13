@@ -2,6 +2,10 @@
 // background image: its stroke would be a colour literal and would not follow forced colours).
 // "Choose one" is the first, empty option: selected while nothing is chosen, never disabled or
 // hidden, so a keyboard user always sees the current state, and drawn muted while chosen. Server-safe.
+// The select clips its own content (overflow-hidden on the control, never on an ancestor, so the focus
+// ring is untouched): WebKit lets the chosen option's text, when it is wider than the box (enlarged
+// text at 320 px), add to the page's scrollable width although it draws it clipped, so the page would
+// scroll sideways onto nothing. Chromium already clips it.
 import { cx } from '@/lib/cx';
 import { Field, fieldControlClass } from './Field';
 import { Icon } from './Icon';
@@ -32,7 +36,7 @@ export function SelectField({ id, name, label, options, emptyLabel = 'Choose one
             disabled={disabled}
             aria-describedby={describedBy}
             aria-invalid={error ? true : undefined}
-            className={cx(fieldControlClass, "appearance-none pr-11 [&:has(option[value='']:checked)]:text-muted [&_option]:text-ink")}
+            className={cx(fieldControlClass, "appearance-none overflow-hidden pr-11 [&:has(option[value='']:checked)]:text-muted [&_option]:text-ink")}
           >
             <option value="">{emptyLabel}</option>
             {options.map((o) => (
