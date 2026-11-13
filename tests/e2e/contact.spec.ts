@@ -112,6 +112,9 @@ test.describe('with JavaScript', () => {
     await page.goto('/contact');
     const v = values();
     await fill(page, v);
+    // Stamp the form as issued just now (the browser and the server share a clock here), so a slow
+    // fill on a loaded machine cannot push it past the minimum.
+    await page.locator('input[name="issuedAt"]').evaluate((el: HTMLInputElement) => (el.value = String(Date.now())));
     await sendButton(page).click();
     await expect(status(page)).toBeFocused();
     await expect(status(page)).toContainText('Nothing was sent, because the form was sent very soon after the page opened.');
