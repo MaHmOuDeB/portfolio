@@ -73,7 +73,20 @@ describe('buildMeta', () => {
   it('takes Lighthouse scores as integers from the representative run', () => {
     const { lighthouse, lighthouseLabel } = buildMeta(base);
     expect(lighthouse).toEqual({ performance: 100, accessibility: 95, bestPractices: 93, seo: 99 });
-    expect(lighthouseLabel).toBe('CI lab run (mobile, simulated throttling)');
+    expect(lighthouseLabel).toBe('CI lab run on the home page, group A (mobile, throttled in the browser)');
+  });
+
+  it('takes the first representative run, which is group A of the home page, and its label names it', () => {
+    // As \`npm run lhci\` writes it: one representative run per URL, in the config's URL order.
+    const run = (variant: 'a' | 'b', representative: boolean, s: number) => ({
+      url: `http://localhost:3124/?variant=${variant}`,
+      isRepresentativeRun: representative,
+      summary: { performance: s, accessibility: s, 'best-practices': s, seo: s },
+    });
+    const lhciManifest = [run('a', false, 0.5), run('a', true, 0.91), run('b', false, 0.6), run('b', true, 0.82)];
+    const { lighthouse, lighthouseLabel } = buildMeta({ ...base, lhciManifest });
+    expect(lighthouse).toEqual({ performance: 91, accessibility: 91, bestPractices: 91, seo: 91 });
+    expect(lighthouseLabel).toContain('the home page, group A');
   });
 
   // Replaces "returns null Lighthouse when the manifest is missing or has no representative run".

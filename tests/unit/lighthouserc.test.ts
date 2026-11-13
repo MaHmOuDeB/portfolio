@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { LIGHTHOUSE_LABEL } from '../../src/lib/live-page/build-meta-shape';
 
 // The Lighthouse CI gate: `npm run lhci` runs one collect of 5 runs per URL against the production
 // build and asserts on the median. It measures the home page in both groups (/?variant=a and
@@ -80,4 +81,19 @@ test('the fixture config: the test build host in four fixed states, the same bud
   expect(fixture.ci.assert).toEqual({ assertMatrix: [{ ...median, assertions: lessSeo }, ...rest] });
   // Its reports never overwrite the home page's.
   expect(fixture.ci.upload).toEqual({ target: 'filesystem', outputDir: 'reports/lhci-fixture' });
+});
+
+// The Live test page's colophon prints the scores of the build's Lighthouse run with LIGHTHOUSE_LABEL,
+// which states how it was measured. build-meta takes the first representative run, so the first URL
+// here is the page and group the label names, and the throttling words follow throttlingMethod.
+test('the colophon label names the method and the page this config measures', () => {
+  const settings = config.ci.collect.settings ?? {};
+  const method: string = settings.throttlingMethod ?? 'simulate';
+  const words: Record<string, string> = { devtools: 'throttled in the browser', simulate: 'simulated throttling', provided: 'no throttling' };
+  expect(Object.keys(words)).toContain(method);
+  for (const [m, w] of Object.entries(words)) expect(LIGHTHOUSE_LABEL.includes(w), `${m}: "${w}"`).toBe(m === method);
+  expect(LIGHTHOUSE_LABEL.includes('mobile')).toBe(settings.preset !== 'desktop' && settings.formFactor !== 'desktop');
+  const first = new URL(config.ci.collect.url[0]);
+  expect([first.pathname, first.searchParams.get('variant')]).toEqual(['/', 'a']);
+  expect(LIGHTHOUSE_LABEL).toContain('on the home page, group A');
 });

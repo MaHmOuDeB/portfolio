@@ -4,7 +4,11 @@
 // (scripts/embed-build-meta.ts) and parsed on the server (build-meta-file.ts); all three check it
 // with `isBuildMeta`. Pure, no imports, so the scripts can load it with Node's type stripping.
 
-export const LIGHTHOUSE_LABEL = 'CI lab run (mobile, simulated throttling)';
+// How the Lighthouse scores were measured, as the colophon prints it: lighthouserc.json's first URL
+// (scripts/build-meta.ts takes the first representative run) and its throttlingMethod "devtools",
+// which applies the mobile network and CPU profile in the browser. tests/unit/lighthouserc.test.ts
+// ties the two together.
+export const LIGHTHOUSE_LABEL = 'CI lab run on the home page, group A (mobile, throttled in the browser)';
 
 export type BuildMeta = {
   commit: string;

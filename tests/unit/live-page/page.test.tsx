@@ -505,7 +505,7 @@ describe('the colophon', () => {
     expect(text(byId(h, 'colophon-results')!).replace(/\s+/g, ' ')).toBe(
       'Unit tests: 4,409 of 4,409 that ran passed; 40 skipped. Browser tests: 312 of 312 that ran passed, 2 of them after a retry; 3 skipped. ' +
         'Accessibility checks (axe): 0 violations. ' +
-        'Lighthouse, CI lab run (mobile, simulated throttling): performance 98, accessibility 100, best practices 100, SEO 100. ' +
+        'Lighthouse, CI lab run on the home page, group A (mobile, throttled in the browser): performance 98, accessibility 100, best practices 100, SEO 100. ' +
         'These results are for commit 0123456.',
     );
     expect(audit(h)).toEqual([]);

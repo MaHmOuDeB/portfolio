@@ -39,5 +39,5 @@ printf '%s\n' '{"projectId":"prj_build_isolation","orgId":"team_build_isolation"
 } > .vercel/.env.production.local
 chmod 600 .vercel/.env.production.local
 mkdir -p public
-printf '%s\n' '{"commit":"0000000000000000000000000000000000000000","builtAt":"2026-01-01T00:00:00.000Z","unitTests":{"passed":1,"total":1,"skipped":0},"e2eTests":{"passed":1,"total":1,"skipped":0,"flaky":0},"axeViolations":0,"lighthouse":{"performance":100,"accessibility":100,"bestPractices":100,"seo":100},"lighthouseLabel":"CI lab run (mobile, simulated throttling)"}' > public/build-meta.json
+printf '%s\n' '{"commit":"0000000000000000000000000000000000000000","builtAt":"2026-01-01T00:00:00.000Z","unitTests":{"passed":1,"total":1,"skipped":0},"e2eTests":{"passed":1,"total":1,"skipped":0,"flaky":0},"axeViolations":0,"lighthouse":{"performance":100,"accessibility":100,"bestPractices":100,"seo":100},"lighthouseLabel":"CI lab run on the home page, group A (mobile, throttled in the browser)"}' > public/build-meta.json
 echo "build-isolation-fixture: wrote .vercel/project.json, .vercel/.env.production.local and public/build-meta.json (synthetic values)"
