@@ -156,7 +156,7 @@ describe('NoteShot', () => {
 
   it('links the n8n canvas to the wider crop of the same recording', () => {
     const markup = renderToStaticMarkup(<NoteShot shot="n8nDecision" />);
-    expect(markup).toContain('<a href="/images/notes/n8n-einvoice-decision-nodes-light.png"');
+    expect(markup).toContain('<a href="/images/notes/n8n-einvoice-decision-canvas-light.png"');
   });
 
   it('puts the caption last in the figure, with the full-size link inside it', () => {
@@ -190,7 +190,10 @@ describe('the notes', () => {
       'n8n-einvoice-routing-light.png',
     ]);
     const fullSize = Object.values(NOTE_SHOTS).flatMap((s) => ('fullSizeFile' in s ? [s.fullSizeFile] : []));
-    expect(fullSize).toEqual(['n8n-einvoice-decision-nodes-light.png']);
+    expect(fullSize).toEqual(['n8n-einvoice-decision-canvas-light.png']);
+    // The full canvas: a 1906 by 778 crop with every node whole, 16 CSS px of canvas on each side.
+    const canvas = readFileSync(join(repo, 'public/images/notes', fullSize[0]!));
+    expect([canvas.readUInt32BE(16), canvas.readUInt32BE(20)]).toEqual([1906, 778]);
     for (const f of [...used, ...fullSize]) expect(existsSync(join(repo, 'public/images/notes', f))).toBe(true);
   });
 });

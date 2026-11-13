@@ -89,7 +89,7 @@ export const NOTE_SHOTS = {
     caption:
       'The approval step: a person approves or declines an invoice that needs a look, and every other answer is a clear error code.',
     fullSize: true,
-    fullSizeFile: 'n8n-einvoice-decision-nodes-light.png',
+    fullSizeFile: 'n8n-einvoice-decision-canvas-light.png',
     label: 'the workflow canvas',
   },
 } as const satisfies Record<string, NoteShot>;
