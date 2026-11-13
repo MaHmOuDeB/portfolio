@@ -36,7 +36,10 @@ export function SiteHeader() {
         </Link>
         <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1 xs:gap-2 md:gap-6">
           <nav aria-label="Main" className="hidden md:block">
-            <NavLinks className="flex items-center gap-6" />
+            {/* One gap between labels whatever their length: each link pads its label evenly (a short
+                label is centred in its 44 px target), and the list's negative margin keeps the outer
+                labels on the row's edges. */}
+            <NavLinks className="-mx-2.5 flex items-center gap-1 [&_a]:justify-center [&_a]:px-2.5" />
           </nav>
           {/* The phone header needs the tighter padding, so each size gets its own link. */}
           <div className="hidden md:block">
