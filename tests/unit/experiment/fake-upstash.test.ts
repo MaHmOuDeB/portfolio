@@ -189,7 +189,7 @@ describe('the fake Resend endpoint (contact form e2e)', () => {
   });
 
   it('refuses a payload with a missing, extra or non-string key (422)', async () => {
-    const { text: _text, ...missing } = email();
+    const missing = Object.fromEntries(Object.entries(email()).filter(([key]) => key !== 'text'));
     for (const body of [missing, email({ cc: 'x@example.test' }), email({ subject: 1 }), [], null]) {
       expect((await send(body)).status).toBe(422);
     }
