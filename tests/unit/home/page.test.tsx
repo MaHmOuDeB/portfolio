@@ -479,7 +479,7 @@ describe('the payload walker', () => {
 
 describe('the note is absent before the start', () => {
   it('with no start configured (production) and with a future start', async () => {
-    const none = toHomeModel(await live.getExperimentSnapshot({ env: PRODUCTION, mode: 'none', read: null, write: null, now: () => new Date(CAL_NOW), config: EXPERIMENT, log: () => {} }), 'a');
+    const none = toHomeModel(await live.getExperimentSnapshot({ env: PRODUCTION, mode: 'none', read: null, write: null, now: () => new Date(CAL_NOW), config: { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: null } } as ExperimentConfig, log: () => {} }), 'a');
     const future = toHomeModel(await read(createMemoryRedis(), { config: FIXTURE_CALIBRATION, now: '2026-11-01T12:00:00+01:00' }), 'b');
     for (const m of [none, future]) {
       expect(m.mode).toBe('not-started');

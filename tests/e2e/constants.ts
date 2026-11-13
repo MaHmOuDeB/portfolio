@@ -10,12 +10,13 @@ export const E2E_KV_WRITE_TOKEN = 'e2e-fake-upstash-write-token-throwaway';
 export const E2E_KV_READ_TOKEN = 'e2e-fake-upstash-read-token-throwaway';
 
 /**
- * The instant the e2e servers' clock starts at. Outside production every entry is refused as
- * not-started until the fixture start, so the e2e run moves the server clock (Next and the fake
- * store together) to a midday after it: a run never starts before the experiment and never crosses
- * a Berlin midnight. The offset is honoured only by the loopback fake store outside production.
+ * The instant the e2e servers' clock starts at. Every entry is refused as not-started until the
+ * calibration start (the configured one; the fixture start stood in before launch), so the e2e run
+ * moves the server clock (Next and the fake store together) to a midday after it: a run never starts
+ * before the experiment and never crosses a Berlin midnight. The offset is honoured only by the
+ * loopback fake store outside production.
  */
-export const E2E_CLOCK_AT = '2026-11-03T12:00:00+01:00';
+export const E2E_CLOCK_AT = '2026-11-15T12:00:00+01:00';
 
 /** The offset that puts the server clock at E2E_CLOCK_AT now. */
 export function e2eClockOffsetMs(nowMs: number = Date.now()): number {

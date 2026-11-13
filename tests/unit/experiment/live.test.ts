@@ -15,6 +15,8 @@ import { berlinStartOfDay, plannedEnd } from '@/lib/experiment/time';
 
 const START = '2026-11-02T00:00:00+01:00';
 const CALIBRATION: ExperimentConfig = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: START } } as ExperimentConfig;
+// The shipped config has a launch date; these tests state the not-started precondition themselves.
+const UNSET: ExperimentConfig = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: null } } as ExperimentConfig;
 const AB: ExperimentConfig = {
   ...CALIBRATION,
   phase: 'ab',
@@ -65,9 +67,9 @@ const snap = (o: Partial<Parameters<typeof buildSnapshot>[0]> = {}): ExperimentS
   buildSnapshot({ counters: EMPTY, flags: NO_FLAGS, now: NOW.toISOString(), start: START, source: 'store', config: CALIBRATION, ...o });
 
 /** No fixture numbers: no fixture start or end, zero counts, and a freshness that says why. */
-function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: ExperimentConfig = EXPERIMENT, note: unknown = { mode: 'paused' }) {
+function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: ExperimentConfig = UNSET, note: unknown = { mode: 'paused' }) {
   expect(s.source).toBe('unavailable');
-  expect(s.live.plannedEnd).not.toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
+  expect(s.live.plannedEnd).not.toBe(plannedEnd(UNSET, FIXTURE_START).at);
   expect(s.live.plannedEnd).toBe(plannedEnd(config, config.calibration.startedOn ?? NOW.toISOString()).at);
   expect([s.live.nA, s.live.nB, s.funnel.entryViews, s.funnel.beaconsReceived]).toEqual([0, 0, 0, 0]);
   expect(s.live.series).toEqual([]);
@@ -78,7 +80,7 @@ function expectHonestPlaceholder(s: ExperimentSnapshot, reason: RegExp, config: 
 function expectNotStarted(s: ExperimentSnapshot) {
   // The earliest end if it started now: a true lower bound, not the fixture's date. No test note:
   // there is no running test to describe.
-  expectHonestPlaceholder(s, /not started/, EXPERIMENT, null);
+  expectHonestPlaceholder(s, /not started/, UNSET, null);
   expect(s.status).toBe('before-data');
 }
 
@@ -96,7 +98,7 @@ describe('getExperimentSnapshot: during next build', () => {
   });
 
   it('gives the not-started snapshot in production before the start is set', async () => {
-    expectNotStarted(await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, mode: 'none', read: null, config: EXPERIMENT })));
+    expectNotStarted(await getExperimentSnapshot(deps({ env: BUILD_PRODUCTION, mode: 'none', read: null, config: UNSET })));
   });
 
   it('never throws on a failed read: the placeholder, logged as a category', async () => {
@@ -118,7 +120,7 @@ describe('getExperimentSnapshot: during next build', () => {
     // Before the start is set, a page built here must not say the experiment is paused: the
     // not-started placeholder, with no test note, never the "could not be read" one.
     const lines: object[] = [];
-    const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT, log: (l) => lines.push(l) });
+    const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: UNSET, log: (l) => lines.push(l) });
     expectNotStarted(s);
     expect(lines).toEqual([expect.objectContaining({ evt: 'snapshot', outcome: 'unavailable', reason: 'misconfigured' })]);
     const launched = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: LAUNCHED, log: () => {} });
@@ -136,20 +138,20 @@ describe('getExperimentSnapshot: during next build', () => {
   it('leaves development and previews on the fixture', async () => {
     for (const vercelEnv of ['development', 'preview'] as const) {
       const env: ServerEnv = { vercelEnv, fakeStore: false, buildPhase: true };
-      const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT });
+      const s = await getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: UNSET });
       expect(s.source).toBe('fixture');
-      expect(s.live.plannedEnd).toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
+      expect(s.live.plannedEnd).toBe(plannedEnd(UNSET, FIXTURE_START).at);
     }
   });
 });
 
 describe('getExperimentSnapshot: no store', () => {
   it('in development gives the fixture: before data, with the planned end from FIXTURE_START', async () => {
-    const s = await getExperimentSnapshot({ env: DEV, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT });
+    const s = await getExperimentSnapshot({ env: DEV, mode: 'none', read: null, write: null, now: () => NOW, config: UNSET });
     expect(s.source).toBe('fixture');
     expect(s.status).toBe('before-data');
     expect(s.live.phase).toBe('before-data');
-    expect(s.live.plannedEnd).toBe(plannedEnd(EXPERIMENT, FIXTURE_START).at);
+    expect(s.live.plannedEnd).toBe(plannedEnd(UNSET, FIXTURE_START).at);
     expect(s.live.plannedEndKind).toBe('earliest');
     expect([s.live.nA, s.live.nB]).toEqual([0, 0]);
     expect(s.readAt).toBe(NOW.toISOString());
@@ -168,13 +170,13 @@ describe('getExperimentSnapshot: no store', () => {
   it('in production with the store configured but no start gives the not-started snapshot, without reading', async () => {
     const read = createMemoryRedis();
     const command = vi.spyOn(read, 'command');
-    const s = await getExperimentSnapshot(deps({ read, config: EXPERIMENT }));
+    const s = await getExperimentSnapshot(deps({ read, config: UNSET }));
     expect(command).not.toHaveBeenCalled();
     expectNotStarted(s);
   });
 
   it('in production without credentials and no start gives the same not-started snapshot', async () => {
-    expectNotStarted(await getExperimentSnapshot(deps({ mode: 'none', read: null, config: EXPERIMENT })));
+    expectNotStarted(await getExperimentSnapshot(deps({ mode: 'none', read: null, config: UNSET })));
   });
 
   it('on Vercel with VERCEL_ENV missing or development rejects instead of showing the fixture', async () => {
@@ -557,7 +559,7 @@ describe('before the start instant (the event route\'s rule)', () => {
   const read = { command: async () => [], pipeline: async () => [], transaction: async () => [] };
 
   it('production with no start: no test note', async () => {
-    const v = await getLiveView('a', deps({ env: PRODUCTION, mode: 'store', read, config: EXPERIMENT }));
+    const v = await getLiveView('a', deps({ env: PRODUCTION, mode: 'store', read, config: UNSET }));
     expect(v.testNote).toBeNull();
   });
 

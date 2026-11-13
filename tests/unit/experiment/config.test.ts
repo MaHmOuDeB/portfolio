@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { formatFact, getFact } from '@/lib/facts';
 import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats';
-import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, type ExperimentConfig } from '../../../src/experiment.config';
+import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, notStartedAt, type ExperimentConfig } from '../../../src/experiment.config';
 import { HEADLINES, type HeadlinePart } from '../../../content/experiment/headlines';
 import { preregHash } from '../../../scripts/prereg-hash';
 import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA, MONTHLY_PAGE_READ_BUDGET, REFUSED_ENTRIES_PER_DAY, REFUSED_ENTRY_COMMANDS } from './budget';
@@ -18,7 +18,7 @@ describe('EXPERIMENT', () => {
       prereg: { version: 'v1', tag: 'prereg-v1' },
       phase: 'calibration',
       namespace: 'aa-v1',
-      calibration: { startedOn: null, minDays: 14, minAnalysedViews: 100 },
+      calibration: { startedOn: '2026-11-14T00:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
       ab: { startedOn: null, capMonths: 6 },
       alpha: 0.05,
       power: 0.8,
@@ -40,8 +40,8 @@ describe('EXPERIMENT', () => {
     });
   });
 
-  it('leaves both start dates unset and starts in calibration', () => {
-    expect(EXPERIMENT.calibration.startedOn).toBeNull();
+  it('starts in calibration at the launch date, with the A/B start unset', () => {
+    expect(EXPERIMENT.calibration.startedOn).toBe('2026-11-14T00:00:00+01:00');
     expect(EXPERIMENT.ab.startedOn).toBeNull();
     expect(EXPERIMENT.phase).toBe('calibration');
   });
@@ -130,13 +130,30 @@ describe('the SRM flag threshold', () => {
 });
 
 describe('calibrationStart', () => {
+  // The shipped config has a launch date; the unset-start cases state their own precondition.
+  const UNSET: ExperimentConfig = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: null } };
+
   it('is null in production while no start is configured', () => {
-    expect(calibrationStart(EXPERIMENT, 'production')).toBeNull();
+    expect(calibrationStart(UNSET, 'production')).toBeNull();
   });
 
   it('is the fixture start outside production', () => {
-    expect(calibrationStart(EXPERIMENT, 'preview')).toBe(FIXTURE_START);
-    expect(calibrationStart(EXPERIMENT, 'development')).toBe(FIXTURE_START);
+    expect(calibrationStart(UNSET, 'preview')).toBe(FIXTURE_START);
+    expect(calibrationStart(UNSET, 'development')).toBe(FIXTURE_START);
+  });
+
+  it('with the shipped config, production is started at the start instant and not one minute before', () => {
+    const start = Date.parse(EXPERIMENT.calibration.startedOn!);
+    expect(notStartedAt(EXPERIMENT, 'production', start - 60_000)).toBe(true);
+    expect(notStartedAt(EXPERIMENT, 'production', start)).toBe(false);
+    expect(notStartedAt(EXPERIMENT, 'production', start + 60_000)).toBe(false);
+    expect(notStartedAt(UNSET, 'production', start + 60_000)).toBe(true);
+  });
+
+  it('is the launch date everywhere with the shipped config', () => {
+    for (const env of ['production', 'preview', 'development'] as const) {
+      expect(calibrationStart(EXPERIMENT, env)).toBe('2026-11-14T00:00:00+01:00');
+    }
   });
 
   it('is the configured date everywhere', () => {
