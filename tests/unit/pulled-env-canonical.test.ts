@@ -60,9 +60,15 @@ describe('decide', () => {
   });
 
   it('refuses a value that names another host, or is not the bare host', () => {
-    for (const value of [OTHER_HOST, `https://${HOST}`, `${HOST}:443`, `${HOST}/`, `www.${HOST}`, `${HOST}.`]) {
+    for (const value of [OTHER_HOST, `https://${HOST}`, `${HOST}:443`, `${HOST}/`, `www.${HOST}`, `${HOST}.`, ` ${HOST} `, `${HOST} `]) {
       expect(decide(`${PULLED}${NAME}="${value}"\n`, HOST), value).toEqual({ kind: 'mismatch' });
     }
+  });
+
+  it('reads export lines and inline comments as dotenv does', () => {
+    expect(decide(`${PULLED}export ${NAME}="${HOST}"\n`, HOST)).toEqual({ kind: 'equal' });
+    expect(decide(`${PULLED}${NAME}=${HOST} # set by Vercel\n`, HOST)).toEqual({ kind: 'equal' });
+    expect(decide(`${PULLED}export ${NAME}="${OTHER_HOST}"\n`, HOST)).toEqual({ kind: 'mismatch' });
   });
 
   it('reads the last of two lines, as dotenv does', () => {
@@ -102,6 +108,21 @@ describe('pulled-env-canonical main', () => {
     expect(r.status).toBe(0);
     expect(r.after).toBe(`${text}${NAME}="${HOST}"\n`);
     expect(parseEnv(r.after!)[NAME]).toBe(HOST);
+  });
+
+  it('fails closed when the file ends inside an unclosed quote, which would swallow the appended line', () => {
+    const r = run(`${PULLED}BROKEN="never closed\n`, HOST);
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/could not take VERCEL_PROJECT_PRODUCTION_URL/);
+    expect(r.out).not.toContain(HOST);
+    expect(parseEnv(r.after!)[NAME]).not.toBe(HOST);
+  });
+
+  it('a value padded inside its quotes is a mismatch: exits 1 and changes nothing', () => {
+    const text = `${PULLED}${NAME}=" ${HOST} "\n`;
+    const r = run(text, HOST);
+    expect(r.status).toBe(1);
+    expect(r.after).toBe(text);
   });
 
   it('equal (letter case aside): exits 0 and leaves the file unchanged; a second run after a fill is a no-op', () => {

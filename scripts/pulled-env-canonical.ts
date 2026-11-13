@@ -12,8 +12,11 @@
 // - when the pulled file has no VERCEL_PROJECT_PRODUCTION_URL, or an empty one, it appends
 //   VERCEL_PROJECT_PRODUCTION_URL="<CANONICAL_HOST in lower case>" and leaves every existing byte as it
 //   was (a newline is added first only when the file does not end with one);
-// - when the file has one that differs from CANONICAL_HOST (letter case aside), it fails and changes
-//   nothing: Vercel and the owner disagree on the canonical host, so nothing is built or deployed.
+// - when the file has one that differs from CANONICAL_HOST (letter case aside; spaces inside its
+//   quotes count as a difference, because the build reads the value as it is), it fails and changes
+//   nothing: Vercel and the owner disagree on the canonical host, so nothing is built or deployed;
+// - after appending, it reads the file back and fails if the variable is still not the host (a file
+//   that ends inside an unclosed quote would swallow the appended line).
 // The file is read as dotenv reads it, with Node's util.parseEnv (as scripts/pulled-env-check.ts does).
 // The CLI's build loads it with dotenv, where the last of two lines for one name wins, so an appended
 // line overrides an empty one.
@@ -43,7 +46,8 @@ export function decide(text: string, host: string): Decision {
     const separator = text === '' || text.endsWith('\n') ? '' : '\n';
     return { kind: 'fill', append: `${separator}${NAME}="${host}"\n` };
   }
-  return pulled.trim().toLowerCase() === host ? { kind: 'equal' } : { kind: 'mismatch' };
+  // No trim here: the build reads the value as it is, so a padded one is not the canonical host.
+  return pulled.toLowerCase() === host ? { kind: 'equal' } : { kind: 'mismatch' };
 }
 
 type Out = { log: (line: string) => void; error: (line: string) => void };
@@ -86,6 +90,11 @@ export function main(argv: readonly string[], env: NodeJS.ProcessEnv = process.e
     return 0;
   }
   appendFileSync(file, decision.append);
+  // Read it back as the build will: a file that ends inside an unclosed quote swallows the new line.
+  if (parseEnv(readFileSync(file, 'utf8'))[NAME] !== host) {
+    out.error(`::error::The pulled environment file ${basename(file)} could not take ${NAME} (it does not parse as a dotenv file); nothing is built or deployed.`);
+    return 1;
+  }
   out.log(`${NAME}: missing or empty in the pulled file, set from CANONICAL_HOST`);
   return 0;
 }

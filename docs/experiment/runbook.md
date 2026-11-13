@@ -359,13 +359,13 @@ error naming both variables means Vercel's production domain is not the declared
 it before the second line every time: a plain pull fails the second line on
 `VERCEL_PROJECT_PRODUCTION_URL`.
 
-Then the build, from the reports of a green CI run on `main` (the run's number is in its address on
-GitHub, under **Actions**), exactly as the deploy builds:
+Then the build, from the reports of a green CI run on `main` (the run id is the long number in the
+run's address on GitHub, under **Actions**), exactly as the deploy builds:
 
 ```sh
-gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-vitest -D reports
-gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-e2e -D reports
-gh run download <CI run number> --repo MaHmOuDeB/portfolio -n report-lhci -D reports/lhci
+gh run download <CI run id> --repo MaHmOuDeB/portfolio -n report-vitest -D reports
+gh run download <CI run id> --repo MaHmOuDeB/portfolio -n report-e2e -D reports
+gh run download <CI run id> --repo MaHmOuDeB/portfolio -n report-lhci -D reports/lhci
 npm run build:meta
 bash scripts/vercel-build-isolated.sh production
 npm run assert:no-kitchen-sink
