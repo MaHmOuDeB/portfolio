@@ -18,7 +18,11 @@ export type ControlState = {
 
 /**
  * True when the control holds something other than what was rendered: React writes the rendered value
- * to `defaultValue` and `defaultChecked`, and a reader's entry changes only `value` or `checked`.
+ * to `defaultValue` and `defaultChecked` when it creates or hydrates the element, and a reader's entry
+ * changes only `value` or `checked`. Valid only before React has updated the element: a re-render
+ * copies a number input's current text into `defaultValue` (so text the reader goes on typing reads
+ * as no entry), while a controlled radio's `defaultChecked` keeps its first value. Read it once, when
+ * the control first listens; a Slider marks the text being typed in its own way (`editing`).
  * A range input counts as moved only by half a step or more, so a rendered value the browser itself
  * rounds onto its grid is never mistaken for an entry.
  */
