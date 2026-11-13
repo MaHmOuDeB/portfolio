@@ -79,7 +79,20 @@ export const LAUNCH_FACTS: readonly LaunchFact[] = [
   {
     id: 'google-transfers',
     question: 'Whether Google states that Google LLC is certified under the EU-US Data Privacy Framework',
-    verified: { on: '2026-11-12', source: 'https://policies.google.com/privacy/frameworks (fact first checked 2026-10-26)' },
+    verified: {
+      on: '2026-11-13',
+      source:
+        'https://policies.google.com/privacy/frameworks (Google LLC "has certified" under the DPF; information "may be processed on servers located outside of the country where you live"; rechecked 2026-11-13; fact first checked 2026-10-26)',
+    },
+  },
+  {
+    id: 'google-provider',
+    question: 'Which Google company provides Gmail to an account holder in the EEA',
+    verified: {
+      on: '2026-11-13',
+      source:
+        'https://policies.google.com/terms (effective 2026-07-30: in the EEA and Switzerland, Google services are provided by Google Ireland Limited); https://policies.google.com/privacy (effective 2026-10-16: data controller Google Ireland Limited for users based in the EEA or Switzerland)',
+    },
   },
   {
     id: 'upstash-backups',
@@ -167,7 +180,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       id: 'contact-form',
       paragraphs: [
         [
-          'If you write to me through the contact form, your browser sends what you enter to this site’s server: your name, your e-mail address, why you are getting in touch, a subject and your message. It also sends the time the form was shown to you, and a hidden field that a person leaves empty, so the server can turn away forms filled in by bots. Like every request, it carries your IP address and browser type (see ‘Your IP address and browser type’).',
+          'If you write to me through the contact form, your browser sends what you enter to this site’s server: a name (any name you want me to use), your e-mail address, why you are getting in touch, a subject and your message. It also sends the time the form was shown to you, and a hidden field that a person leaves empty, so the server can turn away forms filled in by bots. Like every request, it carries your IP address and browser type (see ‘Your IP address and browser type’).',
         ],
         [
           'The server, which Vercel runs for me in Frankfurt, checks the form and passes it to Resend, which delivers it to my e-mail inbox as a plain-text e-mail, with your e-mail address as the one I reply to. Your browser sends the form only to this site, never to Resend, and the page loads nothing from another site.',
@@ -187,7 +200,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
         ["Delivering and securing the site, including Vercel's logs and the rate limits: Art. 6(1)(f) GDPR. My legitimate interest is a site that works and is not abused."],
         ["Running and publishing this site's own experiment: Art. 6(1)(f) GDPR. My legitimate interest is to measure, in the open, which card headlines work better."],
         ['Passing a message from the contact form on to my inbox, and the form’s checks against spam and abuse: Art. 6(1)(f) GDPR. My legitimate interest is to receive the messages people choose to send me, and to keep the form free of spam.'],
-        ['Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.'],
+        ['Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(f) GDPR. My legitimate interest is to answer the people who write to me. If you write about a contract that you yourself would make with me, such as a freelance project, the basis is Art. 6(1)(b) GDPR instead.'],
         ['The cookie on my own devices: §25(2) No. 2 TDDDG.'],
       ],
     },
@@ -204,7 +217,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           'Resend (Plus Five Five, Inc.), USA, delivers the messages from the contact form to my inbox, and processes them primarily in the USA. Resend’s published data processing terms use the EU standard contractual clauses of 2021 and state that Resend is certified under the EU-US Data Privacy Framework.',
         ],
         [
-          'My inbox is a Gmail account, so Google processes the messages there under its own terms. Google states that Google LLC, USA, is certified under the EU-US Data Privacy Framework.',
+          'My inbox is a Gmail account, provided to me by Google Ireland Limited, so Google processes the messages there under its own terms. Google states that it may process them on servers in other countries, and that Google LLC, USA, is certified under the EU-US Data Privacy Framework.',
         ],
         ['Messages you send me on LinkedIn are processed by LinkedIn under its own terms.'],
         [
