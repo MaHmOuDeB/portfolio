@@ -124,9 +124,16 @@ test.describe('kitchen sink controls', () => {
   const looks = (page: Page) => demo(page).getByRole('slider', { name: 'Looks' });
   const exact = (page: Page) => demo(page).getByRole('spinbutton', { name: 'Looks, exact value' });
   const fixRadio = (page: Page, name: string) => demo(page).getByRole('radio', { name });
+  // The controls are visible before the page hydrates. A test that types, presses keys or drags
+  // waits for the demo to be hydrated first: a value typed and blurred earlier stays as typed, because
+  // its blur ran before React was listening, and React's hydration keeps what the input holds.
+  const open = async (page: Page) => {
+    await page.goto('/kitchen-sink');
+    await expect(demo(page).locator('[data-ready]')).toHaveCount(1);
+  };
 
   test('arrow keys, Home and End move the slider; the number input and spoken value follow', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     const range = looks(page);
     await expect(range).toHaveAttribute('aria-valuetext', '20 looks');
     await expect(demo(page).locator('[data-slider]')).toHaveAttribute('data-derived', 'simulated');
@@ -145,7 +152,7 @@ test.describe('kitchen sink controls', () => {
   });
 
   test('the number input clamps and snaps on blur, and an empty entry reverts', async ({ page, browserName }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await exact(page).fill('999');
     await page.keyboard.press(tabKey(browserName));
     await expect(exact(page)).toHaveValue('50');
@@ -167,7 +174,7 @@ test.describe('kitchen sink controls', () => {
   });
 
   test('dragging marks the figure with data-dragging until the pointer is up', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     const figure = demo(page).locator('[data-figure]');
     await looks(page).scrollIntoViewIfNeeded();
     const box = (await looks(page).boundingBox())!;
@@ -185,7 +192,7 @@ test.describe('kitchen sink controls', () => {
     page,
     browserName,
   }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await exact(page).focus();
     await page.keyboard.press(tabKey(browserName));
     const none = fixRadio(page, 'None');
@@ -253,7 +260,7 @@ test.describe('kitchen sink controls', () => {
   });
 
   test('Reset restores 20 looks and None', async ({ page }) => {
-    await page.goto('/kitchen-sink');
+    await open(page);
     await looks(page).focus();
     await page.keyboard.press('End');
     await demo(page).locator('label', { hasText: 'Confidence sequence' }).click();
