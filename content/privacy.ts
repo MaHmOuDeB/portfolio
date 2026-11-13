@@ -166,13 +166,13 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           'If you write to me through the contact form, your browser sends what you enter to this site’s server: your name, your e-mail address, why you are getting in touch, a subject and your message. It also sends the time the form was shown to you, and a hidden field that a person leaves empty, so the server can turn away forms filled in by bots. Like every request, it carries your IP address and browser type (see ‘Your IP address and browser type’).',
         ],
         [
-          'The server checks the form and passes it to Resend, which delivers it to my e-mail inbox as a plain-text e-mail, with your e-mail address as the one I reply to. Your browser sends the form only to this site, never to Resend, and the page loads nothing from another site.',
+          'The server, which Vercel runs for me in Frankfurt, checks the form and passes it to Resend, which delivers it to my e-mail inbox as a plain-text e-mail, with your e-mail address as the one I reply to. Your browser sends the form only to this site, never to Resend, and the page loads nothing from another site.',
         ],
         [
           'This site stores nothing from the form. It keeps no copy in a database or a file, sets no cookie, and does not write what you entered to its logs. If the message cannot be sent, the page says so and nothing is kept.',
         ],
         [
-          'To limit abuse, the server keeps a keyed hash of your IP address (for IPv6, its network part) in its memory for at most an hour, to count how many messages come from one address. The hash is never written to a database, a file or a log, and the address itself is never stored. With the key, the hash could in principle be traced back to the address, so I treat it as personal data for that hour.',
+          'To limit abuse, the server keeps a keyed hash of your IP address (for IPv6, its network part) in its memory, to count how many messages come from one address. It drops the hash once its hour has passed; if the server was paused, it drops it as soon as it resumes, and it is gone when the server stops. The hash is never written to a database, a file or a log, and the address itself is never stored. With the key, the hash could in principle be traced back to the address, so I treat it as personal data while it exists.',
         ],
         ['Please do not send me health or other sensitive information through the form.'],
       ],
@@ -197,7 +197,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           "Upstash, Inc., USA, runs the counter database, which is stored in Frankfurt. Upstash's published data processing terms rely on the EU-US Data Privacy Framework, with the standard contractual clauses as a fallback.",
         ],
         [
-          'Resend (Plus Five Five, Inc.), USA, delivers the messages from the contact form to my inbox, and processes them in the USA. Resend’s published data processing terms use the EU standard contractual clauses of 2021 and state that Resend is certified under the EU-US Data Privacy Framework.',
+          'Resend (Plus Five Five, Inc.), USA, delivers the messages from the contact form to my inbox, and processes them primarily in the USA. Resend’s published data processing terms use the EU standard contractual clauses of 2021 and state that Resend is certified under the EU-US Data Privacy Framework.',
         ],
         [
           'My inbox is a Gmail account, so Google processes the messages there under its own terms. Google states that Google LLC, USA, is certified under the EU-US Data Privacy Framework.',
@@ -213,9 +213,10 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
       paragraphs: [
         ['Per-view ids: at most ', PV_MINUTES, ' minutes.'],
         ['IP address hashes for the experiment’s rate limit: at most ', HASH_MINUTES, ' minutes.'],
-        ['IP address hashes for the contact form’s limit: at most an hour, in the server’s memory only.'],
+        ['IP address hashes for the contact form’s limit: an hour, in the server’s memory only (see ‘The contact form’).'],
         ["Vercel's logs: as described above."],
         ['Messages, on LinkedIn or in my inbox, including those from the contact form: kept until I delete them, which I do when the conversation is over, unless I need to keep them, for example for an application that is still open.'],
+        ['A message I delete stays in Gmail’s trash for up to thirty days, unless I empty it sooner, and Google may keep backup copies for a limited time under its own terms.'],
         ['Resend keeps the e-mail it delivered in my Resend account for thirty days, the retention of my plan, and may keep records longer under its own terms.'],
         [
           'The counts, including those of earlier rounds of the experiment, are kept as its public record. They are published on this site at /experiment/data.json as aggregated daily counts with no identifiers, added up over time, and any count above zero and below ',

@@ -114,15 +114,21 @@ describe('the privacy page', () => {
     const form = sectionText('The contact form');
     for (const needle of [
       'your name, your e-mail address, why you are getting in touch, a subject and your message',
-      'passes it to Resend',
+      'The server, which Vercel runs for me in Frankfurt, checks the form and passes it to Resend',
       'This site stores nothing from the form',
       'does not write what you entered to its logs',
-      'a keyed hash of your IP address (for IPv6, its network part) in its memory for at most an hour',
+      'a keyed hash of your IP address (for IPv6, its network part) in its memory, to count how many messages come from one address',
+      'It drops the hash once its hour has passed; if the server was paused, it drops it as soon as it resumes, and it is gone when the server stops.',
+      'so I treat it as personal data while it exists',
       'Please do not send me health or other sensitive information',
     ]) {
       expect(form, needle).toContain(needle);
     }
-    expect(sectionText('How long')).toContain('IP address hashes for the contact form’s limit: at most an hour, in the server’s memory only.');
+    // The limit's hour is not promised as a hard maximum: a paused server drops the hash when it resumes.
+    expect(form).not.toContain('at most an hour');
+    expect(sectionText('How long')).toContain('IP address hashes for the contact form’s limit: an hour, in the server’s memory only (see ‘The contact form’).');
+    expect(sectionText('How long')).toContain('A message I delete stays in Gmail’s trash for up to thirty days, unless I empty it sooner, and Google may keep backup copies for a limited time under its own terms.');
+    expect(sectionText('Who processes the data')).toContain('delivers the messages from the contact form to my inbox, and processes them primarily in the USA.');
     expect(sectionText('What a page view sends')).toContain('a contact link (LinkedIn, GitHub or this site’s contact form)');
   });
 
