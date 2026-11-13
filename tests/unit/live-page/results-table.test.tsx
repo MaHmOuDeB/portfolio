@@ -49,9 +49,16 @@ function resultsTables(html: string) {
 
 const shown = (c: number | '<5') => (typeof c === 'number' ? formatNumber(c, 0) : c);
 
+/** The A/B case with the larger count in group A: 30 analysed views against 20, no look drawn (as ab-zero-sixty is set up). */
+function groupAAhead(): ExperimentSnapshot {
+  const s = narrativeFixture('ab-under-50');
+  return { ...s, live: { ...s.live, nA: 30, nB: 20, series: [] } };
+}
+
 const CASES: [string, ExperimentSnapshot][] = [
   ['before-data', snapshotFixture('before-data')],
   ['an A/B test with no look yet (ab-under-50)', narrativeFixture('ab-under-50')],
+  ['an A/B test with no look yet and group A ahead', groupAAhead()],
 ];
 
 describe('the results table before the first look', () => {
@@ -61,6 +68,19 @@ describe('the results table before the first look', () => {
     const ab = displayOf(narrativeFixture('ab-under-50'));
     expect(ab.mode).toBe('ab');
     expect(shown(ab.counts.a)).not.toBe(shown(ab.counts.b));
+  });
+
+  it('with group A ahead, A still comes first and the larger count is A\'s', () => {
+    const d = displayOf(groupAAhead());
+    expect(d.series).toEqual([]);
+    expect(d.counts.a > d.counts.b).toBe(true);
+    expect([shown(d.counts.a), shown(d.counts.b)]).toEqual(['30', '20']);
+    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime="default" />));
+    expect(r.tables[0]!.rows.map((row) => row.map((c) => c.text))).toEqual([
+      ['A', '30'],
+      ['B', '20'],
+    ]);
+    expect(r.text).toContain(NOTE);
   });
 
   for (const [name, s] of CASES) {
