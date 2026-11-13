@@ -1,4 +1,5 @@
-// Wordmark, navigation and CV (PDF). From md up the full navigation shows; under md the same list
+// Wordmark, navigation and the CV link, which always opens the CV page (the PDF, when the build has
+// one, is offered there). From md up the full navigation shows; under md the same list
 // lives behind Menu. The header sticks only where it is safe (globals.css): at least md wide and 700 px
 // tall. On a shorter screen it would take too much of the page, so it scrolls away there.
 // The glyph before the name shows at every width: 48 px from xs (480 px) up, and a 28 px variant of the
@@ -37,14 +38,14 @@ export function SiteHeader() {
           <nav aria-label="Main" className="hidden md:block">
             <NavLinks className="flex items-center gap-6" />
           </nav>
-          {/* The icon needs room the phone header does not have, so each size gets its own link. */}
+          {/* The phone header needs the tighter padding, so each size gets its own link. */}
           <div className="hidden md:block">
-            <ButtonLink href={CV_LINK.href} variant="secondary" icon="download" download>
+            <ButtonLink href={CV_LINK.href} variant="secondary">
               {CV_LINK.label}
             </ButtonLink>
           </div>
           <div className="md:hidden">
-            <ButtonLink href={CV_LINK.href} variant="secondary" download compact>
+            <ButtonLink href={CV_LINK.href} variant="secondary" compact>
               {CV_LINK.label}
             </ButtonLink>
           </div>

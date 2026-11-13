@@ -106,7 +106,9 @@ for (const route of ['/lab', '/lab/peeking?peeking.preset=interview', '/work/ret
     const origin = new URL(baseURL!).origin;
     const urls = seen.urls.filter((u) => !u.startsWith('about:') && !u.startsWith('data:'));
     expect(urls.filter((u) => new URL(u).origin !== origin), 'requests to another origin').toEqual([]);
-    expect(urls.filter((u) => /^\/(api|experiment)(\/|$)/.test(new URL(u).pathname)), 'beacons or API calls').toEqual([]);
+    // A prefetch of the Live test page itself (/experiment, the header's link) is a page, not a beacon or
+    // the data endpoint (/experiment/data.json).
+    expect(urls.filter((u) => /^\/(api(\/|$)|experiment\/)/.test(new URL(u).pathname)), 'beacons or API calls').toEqual([]);
     expect(seen.violations).toEqual([]);
 
     await page.goto(route);

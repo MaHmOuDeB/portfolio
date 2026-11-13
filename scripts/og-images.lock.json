@@ -1,0 +1,26 @@
+{
+  "inputHash": "8d2d199f3d6cba64aabe1c10bd7ab146c3161e6158532b8f7c5045ff920d306e",
+  "renderer": "chromium 153.0.8010.12",
+  "images": {
+    "site.png": {
+      "sha256": "a3479100965fe92f622d214598bbc67fd17c3f3492e663b5c83f65eef771356b",
+      "width": 1200,
+      "height": 630
+    },
+    "audible.png": {
+      "sha256": "3e3326ee48abcaa7cfd3c6e52fe483dc0624db56c098a6c3c8fe4063f3d81e9f",
+      "width": 1200,
+      "height": 630
+    },
+    "retention.png": {
+      "sha256": "9040d9dfc93cb7039856378e77ed47eee25848e1f95c893651d1d0e2364344a0",
+      "width": 1200,
+      "height": 630
+    },
+    "pulse.png": {
+      "sha256": "dcaedb19563eba94e48bf13aa213168d0c142dc93dc37fe57fcc318368b1d595",
+      "width": 1200,
+      "height": 630
+    }
+  }
+}

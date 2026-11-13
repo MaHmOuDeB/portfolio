@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { clockOffsetFrom, fakeUpstashStore, startFakeUpstash } from '../../../scripts/fake-upstash';
+import { FAKE_RESEND_FAIL, clockOffsetFrom, fakeUpstashStore, startFakeUpstash } from '../../../scripts/fake-upstash';
 import { RedisUnavailable, createRedisRest } from '@/lib/experiment/redis-rest';
 
 const ROOT = join(import.meta.dirname, '../../..');
@@ -139,6 +139,70 @@ function run(args: string[], env: Record<string, string | undefined>): ChildProc
 }
 
 const exitCode = (child: ChildProcess) => new Promise<number | null>((resolve) => child.once('exit', (code) => resolve(code)));
+
+describe('the fake Resend endpoint (contact form e2e)', () => {
+  const KEY = 'fake-resend-key';
+  let resend: Awaited<ReturnType<typeof startFakeUpstash>>;
+  beforeAll(async () => {
+    resend = await startFakeUpstash({ port: 0, token: TOKEN, readOnlyToken: READ, resendKey: KEY });
+  });
+  afterAll(async () => {
+    await resend.close();
+  });
+
+  const email = (over: Record<string, unknown> = {}) => ({
+    from: 'Portfolio contact <onboarding@resend.dev>',
+    to: 'inbox@example.test',
+    reply_to: `sender-${randomUUID()}@example.test`,
+    subject: '[Portfolio] Something else: hello',
+    text: 'Name: A\n',
+    ...over,
+  });
+  const send = (body: unknown, key: string | null = KEY) =>
+    fetch(`${resend.url}/resend/emails`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(key === null ? {} : { Authorization: `Bearer ${key}` }) },
+      body: JSON.stringify(body),
+    });
+
+  it('accepts the five keys with the bearer key, and reads them back by reply_to', async () => {
+    const body = email();
+    const res = await send(body);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: expect.stringMatching(/^fake-/) });
+    const sent = await fetch(`${resend.url}/resend/sent?reply_to=${encodeURIComponent(body.reply_to)}`);
+    expect(await sent.json()).toEqual([body]);
+    expect(resend.emails).toContainEqual(body);
+  });
+
+  it('a wrong, missing or unset key gives 401 and records nothing', async () => {
+    const body = email();
+    for (const key of ['wrong', null]) expect((await send(body, key)).status).toBe(401);
+    const unset = await startFakeUpstash({ port: 0, token: TOKEN, readOnlyToken: READ });
+    try {
+      const res = await fetch(`${unset.url}/resend/emails`, { method: 'POST', headers: { Authorization: 'Bearer ' }, body: JSON.stringify(body) });
+      expect(res.status).toBe(401);
+    } finally {
+      await unset.close();
+    }
+    expect(resend.emails.filter((e) => e.reply_to === body.reply_to)).toEqual([]);
+  });
+
+  it('refuses a payload with a missing, extra or non-string key (422)', async () => {
+    const missing = Object.fromEntries(Object.entries(email()).filter(([key]) => key !== 'text'));
+    for (const body of [missing, email({ cc: 'x@example.test' }), email({ subject: 1 }), [], null]) {
+      expect((await send(body)).status).toBe(422);
+    }
+  });
+
+  it('answers 500 for a subject holding the failure marker, and records nothing', async () => {
+    // tests/e2e/contact.spec.ts spells the marker out, so it must stay this string.
+    expect(FAKE_RESEND_FAIL).toBe('FAKE_RESEND_FAIL');
+    const body = email({ subject: `[Portfolio] Something else: ${FAKE_RESEND_FAIL}` });
+    expect((await send(body)).status).toBe(500);
+    expect(resend.emails.filter((e) => e.reply_to === body.reply_to)).toEqual([]);
+  });
+});
 
 describe('the fake-upstash CLI (Node type stripping)', () => {
   const tokens = { KV_REST_API_TOKEN: 'cli-write', KV_REST_API_READ_ONLY_TOKEN: 'cli-read' };

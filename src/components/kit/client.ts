@@ -7,6 +7,7 @@
 // are not in the main entry (`@/components/kit`): importing a server-safe component such as
 // Callout there must not pull the controls into the page's JavaScript. This file is not a client
 // module itself and has no directive of its own.
+export { CharacterCount } from './CharacterCount';
 export {
   FigureErrorBoundary,
   FigureErrorFallback,

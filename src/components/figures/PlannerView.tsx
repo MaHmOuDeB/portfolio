@@ -10,7 +10,6 @@
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { formatNumber } from '@/lib/figure/format';
 import {
   PLANNER_ALPHA,
@@ -84,10 +83,8 @@ export function PlannerFigureView({ id, values, controls, announcement, titleLev
           <span data-planner-result="" {...SIMULATED}>
             To detect a rise from {percentText(v.baseline)} to {percentText(target)}.
           </span>{' '}
-          <span className="inline-flex flex-wrap items-center gap-x-2 align-baseline">
-            <ProvenanceBadge kind="simulated" />
-            <span className="text-sm text-muted">{HYPOTHETICAL}</span>
-          </span>
+          {/* The Figure draws the provenance badge from `provenance`; a second, hand-placed one is never added. */}
+          <span className="text-sm text-muted">{HYPOTHETICAL}</span>
         </>
       }
       caption={

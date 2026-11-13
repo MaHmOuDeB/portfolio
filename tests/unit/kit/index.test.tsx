@@ -70,7 +70,7 @@ describe('the kit entry points', () => {
     }
   });
 
-  it('keep the client modules out of index: only Figure imports one, because it needs its error boundary', () => {
+  it('keep the client modules out of index: only Figure (its error boundary) and TextArea (its live counter) import one', () => {
     const importers = kitFiles.filter((f) => {
       const text = sourceOf(f);
       return clientFiles.some((c) => {
@@ -78,7 +78,7 @@ describe('the kit entry points', () => {
         return new RegExp(`from '\\./${base}'`).test(text);
       }) && !hasUseClient(text);
     });
-    expect(importers).toEqual(['Figure.tsx']);
+    expect(importers).toEqual(['Figure.tsx', 'TextArea.tsx']);
   });
 
   it('exports each value as defined', () => {

@@ -748,3 +748,88 @@ test.describe('kit extension: chart overrides', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// Islands that arrive together must not move a reader who is further down the page. The Lab host
+// mounts the Lab page, whose four chart Figures (the full planner, peeking, the split check and
+// exaggeration) are each a query container with its own island, above the page end. Idle time is
+// held, the reader goes to the page end, and then all four islands are released in one task, so
+// they load and swap their previews together. Every frame from the release records the scroll
+// position; all of them must be the starting one. Once both are in, neither loader may still hold
+// its preview's height.
+test.describe('loader: islands that arrive together', () => {
+  const HOST = '/kitchen-sink/lab';
+  /** The Lab page's islands: FullPlanner, PeekingFigure, SrmFigure and CurseFigure. */
+  const LAB_ISLANDS = 4;
+
+  /**
+   * Holds every idle callback until `releaseIdle()`; a request after the release runs at once. A
+   * cancelled request never runs.
+   */
+  async function holdIdle(page: Page) {
+    await page.addInitScript(() => {
+      const held = new Map<number, IdleRequestCallback>();
+      let next = 0;
+      let released = false;
+      const run = (cb: IdleRequestCallback) => cb({ didTimeout: false, timeRemaining: () => 50 });
+      (window as unknown as { releaseIdle: () => void }).releaseIdle = () => {
+        released = true;
+        const due = [...held.values()];
+        held.clear();
+        due.forEach(run);
+      };
+      window.requestIdleCallback = (cb) => {
+        const handle = ++next;
+        held.set(handle, cb);
+        if (released) {
+          setTimeout(() => {
+            if (held.delete(handle)) run(cb);
+          }, 0);
+        }
+        return handle;
+      };
+      window.cancelIdleCallback = (handle) => void held.delete(handle);
+    });
+  }
+
+  test('a reader at the page end stays put when the islands swap in together', async ({ page }) => {
+    await holdIdle(page);
+    await page.goto(HOST);
+    await page.waitForLoadState('load');
+    // Hydrated: every loader is waiting for idle time.
+    await page.locator('next-route-announcer').waitFor({ state: 'attached' });
+    await expect(page.locator('[data-island="idle"]')).toHaveCount(LAB_ISLANDS);
+    const start = await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      return window.scrollY;
+    });
+    // Far enough down that a page shortened by the previews would have to move the reader.
+    expect(start).toBeGreaterThan(500);
+    await page.evaluate(() => {
+      const ys: number[] = [];
+      (window as unknown as { scrollYs: number[] }).scrollYs = ys;
+      const sample = () => {
+        ys.push(window.scrollY);
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+      (window as unknown as { releaseIdle: () => void }).releaseIdle();
+    });
+    await waitForIslands(page);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(LAB_ISLANDS);
+    // A few more frames, for a late scroll to show.
+    await page.evaluate(() => new Promise((done) => {
+      let n = 0;
+      const next = () => (++n < 10 ? requestAnimationFrame(next) : done(null));
+      requestAnimationFrame(next);
+    }));
+    const ys = await page.evaluate(() => (window as unknown as { scrollYs: number[] }).scrollYs);
+    // At least the ten frames above; the swap itself can land before the first sampled frame, and
+    // every sample is checked against the position before the release.
+    expect(ys.length).toBeGreaterThanOrEqual(10);
+    const moved = ys.filter((y) => Math.abs(y - start) > 1);
+    expect(moved, `scrollY per frame from ${start}: ${ys.join(' ')}`).toEqual([]);
+    // The height each loader held for its island during the swap has been let go.
+    const held = await page.locator('[data-island="ready"]').evaluateAll((roots) => roots.map((r) => (r as HTMLElement).style.minHeight));
+    expect(held).toEqual(Array.from({ length: LAB_ISLANDS }, () => ''));
+  });
+});

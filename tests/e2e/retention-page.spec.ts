@@ -274,7 +274,9 @@ test.describe('the Retention page', () => {
     await page.goto(ROUTE);
     await waitForIslands(page);
     await expect(page.locator('[data-experiment], [data-phase]')).toHaveCount(0);
-    expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment'))).toEqual([]);
+    // The experiment's endpoints: /api/* and /experiment/data.json. A prefetch of the Live test page
+    // itself (/experiment, the header's link) is a page, not an endpoint.
+    expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment/'))).toEqual([]);
   });
 
   test('without JavaScript: every section, every Figure with its open table, and both sizing tables', async ({ browser }) => {

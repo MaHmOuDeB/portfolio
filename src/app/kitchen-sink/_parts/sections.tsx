@@ -10,6 +10,7 @@ import { ChartFrameSection } from './chartframe';
 import { ControlsSection } from './controls';
 import { FactsSection } from './facts';
 import { FiguresSection } from './figures';
+import { FormFieldsSection } from './form-fields';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
 import { StepNavSection } from './stepnav';
@@ -29,6 +30,9 @@ const ICON_LABELS: Record<IconName, string> = {
   download: 'Download',
   external: 'External link',
   menu: 'Menu',
+  alert: 'Alert, beside an error',
+  check: 'Check, beside "Message sent"',
+  chevron: 'Chevron, inside a select',
 };
 
 const row = 'flex flex-wrap items-center gap-x-6 gap-y-3';
@@ -77,7 +81,7 @@ export const SECTIONS: readonly SinkSection[] = [
     render: () => (
       <Specimen
         id="icons--all"
-        title="All six"
+        title="All nine"
         note="One outline set in the current text colour. Always decorative: the label beside it names the action."
       >
         <ul className="grid grid-cols-2 gap-4 xs:grid-cols-3">
@@ -155,6 +159,11 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'controls',
     title: 'Controls',
     render: () => <ControlsSection />,
+  },
+  {
+    id: 'form-fields',
+    title: 'Form fields',
+    render: () => <FormFieldsSection />,
   },
   {
     id: 'step-navigation',

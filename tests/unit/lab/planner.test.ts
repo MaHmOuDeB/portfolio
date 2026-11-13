@@ -10,6 +10,7 @@ import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts'
 import { hasFigureKeys } from '@/components/figures/EagerOrIntent';
 import { InertPlannerControls } from '@/components/figures/PlannerFigureClient';
 import { PlannerFigureView } from '@/components/figures/PlannerView';
+import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { readFigureParams } from '@/lib/figure/url-state';
 import {
   PLANNER_ALPHA,
@@ -186,12 +187,21 @@ describe('the server-rendered preset view', () => {
   );
   const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 
-  it('shows the preset result, the simulated badge and the hypothetical label beside it', () => {
+  it('shows the preset result and the hypothetical label beside it', () => {
     expect(text).toContain('1,353');
     expect(text).toContain('visitors per group');
     const result = html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
-    expect(result).toContain('Simulated');
     expect(result).toContain('Hypothetical sign-up test');
+  });
+
+  it('has exactly one provenance badge, the one the Figure sets from the data\u2019s origin', () => {
+    // A badge is never hand-placed: the Figure draws it from `provenance`. Any badge kind counts.
+    const badges = (['simulated', 'public-data', 'live'] as const).map((kind) => renderToStaticMarkup(createElement(ProvenanceBadge, { kind })));
+    const count = badges.reduce((n, badge) => n + html.split(badge).length - 1, 0);
+    expect(count).toBe(1);
+    expect(html.split(badges[0]!).length - 1).toBe(1);
+    const result = html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
+    expect(result).not.toContain('Simulated');
   });
 
   it('says the baseline is hypothetical and names Cohen\u2019s h, two-sided, with the formula in code', () => {

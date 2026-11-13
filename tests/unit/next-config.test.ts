@@ -1,5 +1,16 @@
 import { CSP } from '@/lib/csp';
 
+// The config embeds public/build-meta.json, which is git-ignored and may exist in a working tree
+// (after a local npm run build:meta). These tests read the config as a build with no such file.
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>();
+  const readFileSync = ((path: unknown, ...rest: unknown[]) => {
+    if (path === 'public/build-meta.json') throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    return (fs.readFileSync as (...a: unknown[]) => unknown)(path, ...rest);
+  }) as typeof fs.readFileSync;
+  return { ...fs, readFileSync, default: { ...fs, readFileSync } };
+});
+
 const DEFAULTS = ['tsx', 'ts', 'jsx', 'js'];
 
 let saved: string | undefined;
@@ -37,6 +48,30 @@ describe('next.config', () => {
     process.env.KITCHEN_SINK = '1';
     const config = await loadConfig();
     expect(config.pageExtensions).toEqual([...DEFAULTS, 'dev.tsx']);
+  });
+
+  it('embeds the build metadata at build time: "null" for a build with no file and no deploy signal', async () => {
+    vi.stubEnv('VERCEL', '');
+    vi.stubEnv('VERCEL_ENV', '');
+    const config = await loadConfig();
+    vi.unstubAllEnvs();
+    // The one env object also carries the CV PDF's metadata (CV_PDF), read by cvPdfEnv.
+    expect(Object.keys(config.env ?? {}).sort()).toEqual(['BUILD_META_JSON', 'CV_PDF']);
+    expect(config.env?.BUILD_META_JSON).toBe('null');
+  });
+
+  it('serves images at 480 and 960 px only, as AVIF where the browser takes it', async () => {
+    const config = await loadConfig();
+    expect(config.images).toEqual({ deviceSizes: [480, 960], imageSizes: [], formats: ['image/avif'], qualities: [75] });
+  });
+
+  it('caps a Server Action request body at 64 KB, and the contact form is the only Server Action', async () => {
+    const config = await loadConfig();
+    expect(config.experimental?.serverActions?.bodySizeLimit).toBe('64kb');
+    // The cap applies to every Server Action, so a new one must be checked against it.
+    const { execFileSync } = await import('node:child_process');
+    const files = execFileSync('git', ['grep', '-l', '-E', "^[[:space:]]*['\"]use server['\"]", '--', 'src'], { encoding: 'utf8' }).trim().split('\n');
+    expect(files).toEqual(['src/app/contact/actions.ts']);
   });
 
   it('hides the X-Powered-By header', async () => {

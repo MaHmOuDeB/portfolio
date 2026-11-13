@@ -24,9 +24,13 @@ test('/privacy reflows at 320 px without scrolling sideways', async ({ page }) =
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('/privacy names LinkedIn as the contact, with no mail link, and a placeholder only as a note', async ({ page }) => {
+test('/privacy names the contact form and LinkedIn as the contact, with no mail link, and a placeholder only as a note', async ({ page }) => {
   await page.goto('/privacy');
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+  const form = page.locator('main a[href="/contact"]').first();
+  await expect(form).toHaveText('Contact form');
+  const formBox = await form.boundingBox();
+  expect(formBox?.height).toBeGreaterThanOrEqual(44);
   const contact = page.locator(`main a[href="${CONTACT.linkedin}"]`);
   await expect(contact).toHaveCount(1);
   await expect(contact).toHaveText(/linkedin\.com\/in\//);
@@ -36,4 +40,9 @@ test('/privacy names LinkedIn as the contact, with no mail link, and a placehold
   for (const note of await page.locator('[data-launch-placeholder]').all()) {
     await expect(note).toContainText('Not confirmed yet');
   }
+});
+
+test('the contact form section has its anchor, which the form links to', async ({ page }) => {
+  await page.goto('/privacy#contact-form');
+  await expect(page.locator('h2#contact-form')).toHaveText('The contact form');
 });

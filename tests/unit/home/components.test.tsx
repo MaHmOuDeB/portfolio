@@ -250,7 +250,7 @@ describe('Hero', () => {
         'Berlin, MSc Data Science',
         'Nearly two years at Audible (Amazon): 25+ A/B tests across web and mobile, 20+ recommendations adopted. Why so many?',
         'Try the lab',
-        'CV (PDF)',
+        'CV',
         'LinkedIn',
       ].join(''),
     );
@@ -261,12 +261,13 @@ describe('Hero', () => {
     expect(SITE.city).toBe('Berlin, Germany');
   });
 
-  it('links Try the lab, CV (PDF) and LinkedIn; the CV button is hidden on phones', () => {
+  it('links Try the lab, the CV and LinkedIn; the CV button is hidden on phones', () => {
     const lab = one(d, (el) => el.tagName === 'a' && text(el) === 'Try the lab');
     expect(attr(lab, 'href')).toBe(HOME_LINKS.lab);
-    const cv = one(d, (el) => el.tagName === 'a' && text(el).includes(CV_LINK.label));
+    // "CV", the CV page, whether or not the build has a PDF (the PDF is offered on the CV page).
+    const cv = one(d, (el) => el.tagName === 'a' && text(el) === CV_LINK.label);
     expect(attr(cv, 'href')).toBe(CV_LINK.href);
-    expect(has(cv, 'download')).toBe(true);
+    expect(has(cv, 'download')).toBe(false);
     const cvWrap = one(d, (el) => has(el, 'data-hero-cv'));
     expect(classes(cvWrap)).toEqual(expect.arrayContaining(['hidden', 'md:block']));
     const linkedin = one(d, (el) => el.tagName === 'a' && text(el) === 'LinkedIn');
