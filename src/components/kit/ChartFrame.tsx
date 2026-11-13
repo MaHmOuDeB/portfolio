@@ -7,7 +7,11 @@
 //
 // Labels never sit on marks. The y tick numbers are in a left gutter, right-aligned and centred on
 // their gridline; the words of the zero line ("no difference", "B higher", "B lower") are in a right
-// margin, stacked on the zero line. Both margins are padding of the <svg> (a replaced element's
+// margin, stacked on the zero line one text-xs line apart (the token's line height, in em, so the
+// stack scales with its text) and all on the middle baseline: every engine then draws each word's box
+// at the same offset from its line, and the line height's leading stays clear between two boxes at any
+// zoom. The margins' widths count each character as an upper bound of its advance in the site font
+// (lib/figure/label-width), so a label never runs past its margin. Both margins are padding of the <svg> (a replaced element's
 // viewport is its content box), so the plot's percentages still run from 0 to 100% of the plot. The
 // y scale is snapped to half pixels, so a horizontal 1 px line is never blurred over two rows.
 //
@@ -22,6 +26,7 @@
 // width where a centred label would come within a small gap of the frame's edge, a container query
 // anchors it at its tick, on the side away from that edge, so it stays inside the plot and its margin.
 import type { ReactNode } from 'react';
+import { labelWidth } from '@/lib/figure/label-width';
 import { linearFrac, pct, type Layout } from '@/lib/figure/scales';
 import { derivedAttr, type DerivedRef } from './Derived';
 
@@ -86,22 +91,19 @@ export type ChartFrameProps = {
   layout?: Layout;
 };
 
-// Horizontal room for the labels: the left gutter holds the longest y tick label, the right margin
-// the longest zero-line word. Text is in Inter at 13 px, so a digit is about 8.2 px and a letter
-// about 6.6 px; a label is never clipped, because a wider one only widens its margin.
-const DIGIT_PX = 8.4;
-const LETTER_PX = 6.6;
+// The type of the chart text, from src/styles/tokens.css: labels are text-xs (13 px, line height 1.5),
+// the annotation text-sm (15 px) semibold.
+const XS_PX = 13;
+const XS_LINE_EM = 1.5;
+const SM_PX = 15;
+// Horizontal room for the labels: the left gutter holds the widest y tick label, the right margin the
+// widest zero-line word, each measured by labelWidth (an upper bound in the site font); a label is
+// never clipped, because a wider one only widens its margin.
 const MARGIN_GAP = 8;
-/** Semibold text-sm (15 px) in Inter: a conservative width per character, and the gap kept clear at the plot edge. */
-const NOTE_LETTER_PX = 7.9;
+/** The gap kept clear between the annotation and the plot's edge. */
 const NOTE_EDGE_GAP = 8;
-/**
- * Kept clear between a centred outermost x tick label and the frame's edge. It also covers the width
- * estimate, which is short for some characters: "%" is about 12.8 px wide, not a digit's 8.4.
- */
+/** Kept clear between a centred outermost x tick label and the frame's edge. */
 const TICK_EDGE_GAP = 4;
-/** The narrow layout stacks "no difference" on two lines to keep the plot wide. */
-const NARROW_ZERO_LINE = 8;
 
 // Vertical room around the plot, in px. The y-axis label sits on the first line and the top tick
 // label needs room above the top gridline; under the plot come the x ticks, then the x-axis label.
@@ -110,8 +112,6 @@ const AXIS_LABEL_BASELINE = 14;
 const X_TICK_BASELINE = 20;
 const X_LABEL_BASELINE = 40;
 const BELOW_PLOT = 48;
-/** Tick labels and the zero labels sit this far above (or below) their line. */
-const LABEL_GAP = 4;
 
 const LABEL = 'text-xs fill-muted';
 // The annotation's halo is 3 px: half of a 6 px stroke painted under the fill.
@@ -131,10 +131,10 @@ const crisp = (y: number) => Math.round(y - 0.5) + 0.5;
 function annotationMinWidth(note: Pick<Annotation, 'text' | 'anchor'>, frac: number, left: number, right: number): number {
   const room = note.anchor === 'end' ? frac : 1 - frac;
   if (!(room > 0)) return Number.POSITIVE_INFINITY;
-  return left + right + Math.ceil((note.text.length * NOTE_LETTER_PX + NOTE_EDGE_GAP) / room);
+  return left + right + Math.ceil((labelWidth(note.text, SM_PX) + NOTE_EDGE_GAP) / room);
 }
 
-/** The words of the zero line, in the order they stack: above, on the line, below. */
+/** The words of the zero line, top to bottom; the narrow layout puts "no difference" on two lines to keep the plot wide. */
 function zeroWords(zero: string | undefined, layout: Layout): string[] {
   if (!zero) return [];
   const space = zero.indexOf(' ');
@@ -176,7 +176,7 @@ function xAnchor(frac: number): 'start' | 'middle' | 'end' {
  * plot on that side of the tick. 0 when it always fits.
  */
 function tickEdgeMinWidth(label: string, room: number, margin: number, left: number, right: number): number {
-  const over = (label.length * DIGIT_PX) / 2 + TICK_EDGE_GAP - margin;
+  const over = labelWidth(label, XS_PX) / 2 + TICK_EDGE_GAP - margin;
   return over > 0 ? left + right + Math.ceil(over / room) : 0;
 }
 
@@ -236,11 +236,12 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
   const below = hasZero && p.y.belowLabel && yLo < 0 ? p.y.belowLabel : undefined;
   const words = zeroWords(hasZero ? p.y.zeroLabel : undefined, layout);
   const rightWords = [above, below, ...words].filter((w): w is string => !!w);
-  const left = Math.ceil(Math.max(...[...yLabels, hasZero ? p.y.format(0) : ''].map((l) => l.length)) * DIGIT_PX) + MARGIN_GAP;
-  const right = rightWords.length ? Math.ceil(Math.max(...rightWords.map((w) => w.trim().length)) * LETTER_PX) + MARGIN_GAP : 0;
-  const lineGap = words.length > 1 ? NARROW_ZERO_LINE : 0;
-  // The side words clear the zero label's block (one line, or two on a phone) by LABEL_GAP.
-  const sideOffset = (words.length > 1 ? NARROW_ZERO_LINE + 8 : 8) + LABEL_GAP + 2;
+  const left = Math.ceil(Math.max(...[...yLabels, hasZero ? p.y.format(0) : ''].map((l) => labelWidth(l, XS_PX)))) + MARGIN_GAP;
+  const right = rightWords.length ? Math.ceil(Math.max(...rightWords.map((w) => labelWidth(w.trim(), XS_PX)))) + MARGIN_GAP : 0;
+  // The stack, one line apart and centred on the zero line: the zero label's first line starts half
+  // its block above the line, and the side words sit one line beyond the block.
+  const zeroTop = -((words.length - 1) / 2) * XS_LINE_EM;
+  const sideDy = ((Math.max(words.length, 1) + 1) / 2) * XS_LINE_EM;
   const className = responsive ? (layout === 'narrow' ? 'block sm:hidden' : 'block max-sm:hidden') : 'block';
   const noteMin = note ? annotationMinWidth(note, xFrac(note.x), left, right) : 0;
   // Below that width the annotation is hidden (display: none), per chart and layout.
@@ -318,19 +319,19 @@ function Frame({ p, layout, responsive }: { p: ChartFrameProps; layout: Layout; 
           {words.length > 0 ? (
             <text data-zero-label="" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dominantBaseline="middle">
               {words.map((w, i) => (
-                <tspan key={i} x="100%" dx={MARGIN_GAP} dy={i === 0 ? (words.length > 1 ? -lineGap : 0) : 2 * lineGap}>
+                <tspan key={i} x="100%" dx={MARGIN_GAP} dy={`${i === 0 ? zeroTop : XS_LINE_EM}em`}>
                   {w}
                 </tspan>
               ))}
             </text>
           ) : null}
           {above ? (
-            <text data-side="above" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY - sideOffset}>
+            <text data-side="above" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dy={`${-sideDy}em`} dominantBaseline="middle">
               {above}
             </text>
           ) : null}
           {below ? (
-            <text data-side="below" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY + sideOffset} dominantBaseline="hanging">
+            <text data-side="below" className={LABEL} x="100%" dx={MARGIN_GAP} y={zeroY} dy={`${sideDy}em`} dominantBaseline="middle">
               {below}
             </text>
           ) : null}

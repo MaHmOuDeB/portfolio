@@ -1,8 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { parseFragment } from 'parse5';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ChartFrame, MarkLayer, MARK_UNITS, type ChartFrameProps } from '@/components/kit/ChartFrame';
 import { formatNumber, formatSignedPoints } from '@/lib/figure/format';
+import { labelWidth } from '@/lib/figure/label-width';
 
 type Node = {
   nodeName: string;
@@ -232,16 +235,19 @@ describe('ChartFrame', () => {
       };
 
       it('below the column width where a centred label would come within 4 px of the frame edge, anchors it at its tick, away from the edge', () => {
-        // Worked by hand, at 8.4 px a character. The gutter is 17 px (one digit and the 8 px gap) and
-        // there is no right margin.
-        // "600,000": half of 58.8 px, plus the 4 px gap, is 33.4 px left of its tick; 17 px of that is
-        // gutter, so the plot must give 16.4 px in its first 6%: 274 px of plot, a 291 px column.
-        // "9,400,000": half of 75.6 px, plus the gap, is 41.8 px in the last 6%: 697 px, a 714 px column.
+        // Worked by hand at 13 px, from lib/figure/label-width: a digit 0.66 em ("4" 0.68), a comma
+        // 0.32 em. The gutter is 17 px (8.84 px for "4", rounded up, and the 8 px gap) and there is no
+        // right margin.
+        // "600,000" is 4.28 em, 55.64 px: half of it, plus the 4 px gap, is 31.82 px left of its tick;
+        // 17 px of that is gutter, so the plot must give 14.82 px in its first 6%: 247 px of plot, a
+        // 264 px column.
+        // "9,400,000" is 5.28 em, 68.64 px: half, plus the gap, is 38.32 px in the last 6%: 639 px, a
+        // 656 px column.
         const [narrow, wide] = styles(WIDE_LABELS);
         for (const [rules, layout] of [[narrow, 'narrow'], [wide, 'wide']] as const) {
           expect(rules).toBe(
-            `@container (width < 291px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="first"]{text-anchor:start}}` +
-              `@container (width < 714px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="last"]{text-anchor:end}}`,
+            `@container (width < 264px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="first"]{text-anchor:start}}` +
+              `@container (width < 656px){[data-chart="fixture"] svg[data-layout="${layout}"] [data-tick-edge="last"]{text-anchor:end}}`,
           );
         }
         const xs = xTicks(WIDE_LABELS);
@@ -251,16 +257,17 @@ describe('ChartFrame', () => {
         ]);
       });
 
-      it('keeps the gap for a label whose estimate just fits its gutter: a "%" is wider than the digit it is counted as', () => {
-        // "300%" is counted as 33.6 px, so its half, 16.8 px, would fit the 17 px gutter; with the
-        // 4 px gap it needs 3.8 px in the first 30% of the plot: 13 px, a 30 px column.
+      it('counts a "%" as the wide glyph it is, not as a digit', () => {
+        // "300%" is 2.98 em (three digits of 0.66 em and a "%" of 1 em), 38.74 px: half of it, plus
+        // the 4 px gap, is 23.37 px, 6.37 px past the 17 px gutter, to find in the first 30% of the
+        // plot: 22 px, a 39 px column. Counted as four digits it would have needed only 30 px.
         const percent: Partial<ChartFrameProps> = {
           x: { domain: [0, 1000], ticks: { narrow: [300, 1000], wide: [300, 1000] }, format: (v) => `${formatNumber(v, 0)}%`, label: 'Share', refs: ['simulated'] },
           y: Y,
           annotation: undefined,
         };
         expect(styles(percent)[1]).toBe(
-          '@container (width < 30px){[data-chart="fixture"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}',
+          '@container (width < 39px){[data-chart="fixture"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}',
         );
         expect(xTicks(percent).map((t) => [text(t), attr(t, 'text-anchor'), attr(t, 'data-tick-edge')])).toEqual([
           ['300%', 'middle', 'first'],
@@ -269,7 +276,7 @@ describe('ChartFrame', () => {
       });
 
       it('needs no rule where the centred label always fits in the gutter', () => {
-        // "0.1" is 12.6 px either side of its tick, 16.6 px with the gap; the y gutter of "+40" is 34 px wide.
+        // "0.1" is 10.66 px either side of its tick, 14.66 px with the gap; the y gutter of "+40" is 35 px wide.
         const xs = xTicks({ ...LOG, y: FIXTURE.y });
         expect(attr(xs[0]!, 'data-tick-edge')).toBeUndefined();
         expect(styles({ ...LOG, y: FIXTURE.y }).join('')).not.toContain('data-tick-edge="first"');
@@ -319,16 +326,21 @@ describe('ChartFrame', () => {
       expect(Number(attr(t, 'dx'))).toBeGreaterThanOrEqual(8);
       expect(attr(t, 'text-anchor')).toBeUndefined();
     }
-    // Above and below clear the one-line zero label by at least 4 px.
-    expect(zeroY - Number(attr(above, 'y'))).toBeGreaterThanOrEqual(8 + 4);
-    expect(attr(below, 'dominant-baseline')).toBe('hanging');
-    expect(Number(attr(below, 'y')) - zeroY).toBeGreaterThanOrEqual(8 + 4);
+    // Above and below sit one text-xs line (1.5em) from the one-line zero label, on its baseline.
+    for (const [t, dy] of [[above, '-1.5em'], [below, '1.5em']] as const) {
+      expect(Number(attr(t, 'y'))).toBe(zeroY);
+      expect(attr(t, 'dy')).toBe(dy);
+      expect(attr(t, 'dominant-baseline')).toBe('middle');
+    }
     // The margin is the svg's right padding, as wide as the longest word.
     expect(Number(/padding-right:\s*(\d+)px/.exec(attr(wide!, 'style')!)![1])).toBeGreaterThanOrEqual('no difference'.length * 6);
     // On a phone "no difference" takes two lines to keep the plot wide; the text still reads whole.
     const narrowWords = find(narrow!, (n) => hasAttr(n, 'data-zero-label'))[0]!;
     expect(byTag(narrowWords, 'tspan').map(text)).toEqual(['no ', 'difference']);
+    expect(byTag(narrowWords, 'tspan').map((t) => attr(t, 'dy'))).toEqual(['-0.75em', '1.5em']);
     expect(text(narrowWords)).toBe('no difference');
+    // Around the two-line label, the side words sit one line beyond it.
+    expect(find(narrow!, (n) => hasAttr(n, 'data-side')).map((t) => attr(t, 'dy'))).toEqual(['-2.25em', '2.25em']);
     expect(Number(/padding-right:\s*(\d+)px/.exec(attr(narrow!, 'style')!)![1])).toBeLessThan(
       Number(/padding-right:\s*(\d+)px/.exec(attr(wide!, 'style')!)![1]),
     );
@@ -369,9 +381,9 @@ describe('ChartFrame', () => {
     it('hides it, per layout, below the container width its text needs', () => {
       const html = renderToStaticMarkup(<ChartFrame {...FIXTURE} />);
       const [narrow, wide] = rules();
-      // "The estimate settles" (20 characters), start-anchored at 48% in the narrow layout, end-anchored in the wide one.
+      // "The estimate settles", start-anchored at 48% in the narrow layout, end-anchored in the wide one.
       const need = (anchorRoom: number, layout: string) =>
-        padding(html, layout) + Math.ceil((20 * 7.9 + 8) / anchorRoom);
+        padding(html, layout) + Math.ceil((labelWidth('The estimate settles', 15) + 8) / anchorRoom);
       expect(narrow).toBe(
         `@container (width < ${need(1 - 0.48, 'narrow')}px){[data-chart="${FIXTURE.id}"] svg[data-layout="narrow"] [data-annotation]{display:none}}`,
       );
@@ -563,5 +575,115 @@ describe('ChartFrame with a fixed-decimals axis format', () => {
     expect(() =>
       render({ y: { ...FIXTURE.y, domain: [-0.2, 0.2], ticks: { narrow: [0.04], wide: [-0.04, 0, 0.04] }, format: fixed1 }, annotation: undefined }),
     ).toThrow(/prints like zero/);
+  });
+});
+
+// The label geometry against the site's real type: the font's measured advances and box height
+// (tests/unit/figure/inter-advances.json) and the text-xs size and line height in the tokens.
+describe('ChartFrame label geometry in the site font', () => {
+  const measured = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../figure/inter-advances.json'), 'utf8')) as {
+    ascent: number;
+    descent: number;
+    strings: Record<'word' | 'tick' | 'note', Record<string, number>>;
+  };
+  const tokens = fs.readFileSync(path.join(import.meta.dirname, '../../../src/styles/tokens.css'), 'utf8');
+  const token = (name: string) => Number(new RegExp(`--${name}:\\s*([\\d.]+)`).exec(tokens)![1]);
+  const XS_PX = token('text-xs') * 16;
+  const XS_LINE = token('text-xs--line-height');
+  /** The height of a text box in px, the same in every engine: the font's ascent plus its descent. */
+  const BOX = (measured.ascent + measured.descent) * XS_PX;
+  const real = (style: 'word' | 'tick' | 'note', s: string, px: number) => {
+    const em = measured.strings[style][s];
+    if (em === undefined) throw new Error(`measure "${s}" (${style}) in inter-advances.json first`);
+    return em * px;
+  };
+  const AUDIBLE_Y: ChartFrameProps['y'] = { ...FIXTURE.y, zeroLabel: 'no change', aboveLabel: 'higher', belowLabel: 'lower' };
+  const length = (v: string | undefined) => (v === undefined ? 0 : v.endsWith('em') ? Number.parseFloat(v) * XS_PX : Number(v));
+  const padding = (frame: Node, side: 'left' | 'right') => Number(new RegExp(`padding-${side}:\\s*(\\d+)px`).exec(attr(frame, 'style')!)![1]);
+
+  /**
+   * Each line of the zero-line stack, top to bottom: its text, its y in px (y plus every dy, an em
+   * being text-xs) and its dominant baseline.
+   */
+  function stack(frame: Node) {
+    const lines: Array<{ text: string; y: number; baseline: string | undefined }> = [];
+    const above = find(frame, (n) => attr(n, 'data-side') === 'above')[0];
+    const zero = find(frame, (n) => hasAttr(n, 'data-zero-label'))[0]!;
+    const below = find(frame, (n) => attr(n, 'data-side') === 'below')[0];
+    const one = (t: Node) => ({ text: text(t), y: Number(attr(t, 'y')) + length(attr(t, 'dy')), baseline: attr(t, 'dominant-baseline') });
+    if (above) lines.push(one(above));
+    let y = Number(attr(zero, 'y')) + length(attr(zero, 'dy'));
+    for (const span of byTag(zero, 'tspan')) {
+      y += length(attr(span, 'dy'));
+      lines.push({ text: text(span), y, baseline: attr(zero, 'dominant-baseline') });
+    }
+    if (below) lines.push(one(below));
+    return lines;
+  }
+
+  for (const [name, y] of [['"B higher", "no difference", "B lower"', FIXTURE.y], ['"higher", "no change", "lower"', AUDIBLE_Y]] as const) {
+    it(`stacks ${name} a text-xs line apart, so no two text boxes ever overlap, on one line or two`, () => {
+      for (const frame of frames(render({ y }))) {
+        const lines = stack(frame);
+        expect(lines.length, attr(frame, 'data-layout')).toBe(attr(frame, 'data-layout') === 'narrow' ? 4 : 3);
+        // One baseline for every line, so every engine draws every box at the same offset from its y:
+        // the gap between two boxes is the distance between their lines less the box height.
+        expect(new Set(lines.map((l) => l.baseline))).toEqual(new Set(['middle']));
+        for (let i = 1; i < lines.length; i++) {
+          const pitch = lines[i]!.y - lines[i - 1]!.y;
+          const where = `${attr(frame, 'data-layout')}: "${lines[i - 1]!.text}" over "${lines[i]!.text}"`;
+          expect(pitch, where).toBeGreaterThanOrEqual(XS_LINE * XS_PX - 1e-9);
+          // At least the line height's leading: 3.8 px at 13 px, and more at any zoom.
+          expect(pitch - BOX, where).toBeGreaterThanOrEqual((XS_LINE - measured.ascent - measured.descent) * XS_PX - 1e-9);
+          expect(pitch - BOX, where).toBeGreaterThan(2);
+        }
+        // The stack is centred on the zero line.
+        const zeroY = Number(attr(find(frame, (n) => hasAttr(n, 'data-zero-line'))[0]!, 'y1'));
+        const mid = lines.filter((l) => l.text.trim() && !['B higher', 'B lower', 'higher', 'lower'].includes(l.text));
+        expect((mid[0]!.y + mid.at(-1)!.y) / 2).toBeCloseTo(zeroY, 6);
+      }
+    });
+  }
+
+  it('makes the right margin as wide as the widest zero-line word really is', () => {
+    for (const y of [FIXTURE.y, AUDIBLE_Y]) {
+      for (const frame of frames(render({ y }))) {
+        const words = stack(frame).map((l) => l.text.trim());
+        const widest = Math.max(...words.map((w) => real('word', w, XS_PX)));
+        expect(padding(frame, 'right'), `${attr(frame, 'data-layout')}: ${words.join(' / ')}`).toBeGreaterThanOrEqual(Math.ceil(widest) + 8);
+      }
+    }
+  });
+
+  it('makes the left gutter as wide as the widest y tick label really is, a "%" and a minus included', () => {
+    const percent: ChartFrameProps['y'] = {
+      ...FIXTURE.y,
+      domain: [-0.5, 1],
+      ticks: { narrow: [0, 0.5, 1], wide: [0, 0.25, 0.5, 1] },
+      format: (v) => `${formatNumber(v * 100, 0)}%`,
+    };
+    const minus: ChartFrameProps['y'] = { ...FIXTURE.y, domain: [-20, 20], ticks: { narrow: [-20, 0, 20], wide: [-20, -10, 0, 10, 20] } };
+    for (const [y, labels] of [[percent, ['100%', '50%', '25%']], [minus, ['−20', '−10', '+10', '+20']]] as const) {
+      for (const frame of frames(render({ y, annotation: undefined }))) {
+        const shown = ticks(frame).filter((t) => attr(t, 'data-tick') === 'y').map((t) => text(t));
+        const widest = Math.max(...shown.filter((s) => (labels as readonly string[]).includes(s)).map((s) => real('tick', s, XS_PX)));
+        expect(padding(frame, 'left'), `${attr(frame, 'data-layout')}: ${shown.join(', ')}`).toBeGreaterThanOrEqual(Math.ceil(widest) + 8);
+      }
+    }
+  });
+
+  it('hides an annotation below the column width its real semibold text needs', () => {
+    for (const note of ['Limit +1.0', 'Partial month', 'Dotted line: nominal 5%', 'The interval narrows as views grow']) {
+      const html = renderToStaticMarkup(<ChartFrame {...FIXTURE} annotation={() => ({ x: 125, y: 30, text: note, anchor: 'end' })} />);
+      const root = parse(html);
+      const rules = [...html.matchAll(/width < (\d+)px\)\{[^}]*svg\[data-layout="(\w+)"\] \[data-annotation\]/g)];
+      expect(rules).toHaveLength(2);
+      for (const [, min, layout] of rules) {
+        const frame = frames(root).find((f) => attr(f, 'data-layout') === layout)!;
+        // The text grows left from x = 50% of the plot, and keeps the 8 px gap from the plot's edge.
+        const need = padding(frame, 'left') + padding(frame, 'right') + (real('note', note, 15) + 8) / 0.5;
+        expect(Number(min), `${layout}: "${note}"`).toBeGreaterThanOrEqual(Math.floor(need));
+      }
+    }
   });
 });

@@ -90,7 +90,7 @@ up to a pixel and a column of figures drifts. Weights used: `font-weight-regular
 
 | Token | Size | Line height | Use |
 |---|---|---|---|
-| `text-xs` | 13 px | 1.5 | captions, badges, chart tick labels |
+| `text-xs` | 13 px | 1.5 | captions, badges, chart tick labels; its line height is the pitch of a chart's stacked zero-line words |
 | `text-sm` | 15 px | 1.5 | UI labels, buttons, navigation, the test note, chart annotations |
 | `text-base` | 18 px | 1.6 | body text |
 | `text-lg` | 20 px | 1.4 | card headlines |

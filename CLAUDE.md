@@ -189,8 +189,11 @@ a page needs the smallest possible bundle it can also import a component's file 
   not a number.
 - **Chart labels never sit on marks.** `ChartFrame` puts the y tick numbers in a left gutter and the
   zero-line words ("no difference", "B higher", "B lower") in a right margin, both inside the SVG's
-  padding, and snaps the y scale to half pixels. Collecting states draw the Now row on the same
-  difference axis with a hollow glyph.
+  padding, and snaps the y scale to half pixels. The zero-line words stack one `text-xs` line
+  (1.5em) apart on one baseline, so no two of their boxes overlap in any engine at any zoom, and
+  both margins are sized by `labelWidth` (`src/lib/figure/label-width.ts`), an upper bound of a
+  label's width in Inter. Collecting states draw the Now row on the same difference axis with a
+  hollow glyph.
 - **Chart text.** Tick labels are `text-xs` (13 px) and annotations `text-sm` (15 px) semibold
   with a `bg` halo. No `<text>` inside an SVG that has a `viewBox`. At most two series; `series-2`
   only for the current estimate, and every `series-2` dot has a 2 px `bg` ring.

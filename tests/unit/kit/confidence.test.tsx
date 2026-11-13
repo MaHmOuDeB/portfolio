@@ -241,6 +241,10 @@ describe('ConfidenceChart overrides', () => {
   // wide forms). Absent overrides must keep reproducing it. Regenerated once since, when the frame
   // began centring an outermost x tick label that is not on an end of the domain: in the 16 fixtures
   // with a chart, the last x tick's text-anchor went from "end" to "middle", and nothing else changed.
+  // Regenerated again when the zero-line words began stacking one text-xs line (1.5em) apart on the
+  // middle baseline and the margins began counting each character's real advance: in the fixtures
+  // with a chart only the side words' y, dy and baseline, the zero label's tspan dy and the frame's
+  // padding changed.
   const SEED_HASHES: Record<string, string> = {
   "before-data/low-data/fresh": "30124f32e9ff7b52",
   "before-data/low-data/stale": "30124f32e9ff7b52",
@@ -251,9 +255,9 @@ describe('ConfidenceChart overrides', () => {
   "calibration/low-data/fresh": "c34d2d16c21e1347",
   "calibration/low-data/stale": "c34d2d16c21e1347",
   "calibration/low-data/paused": "c34d2d16c21e1347",
-  "calibration/enough-data/fresh": "47dd3b1333a825d1",
-  "calibration/enough-data/stale": "47dd3b1333a825d1",
-  "calibration/enough-data/paused": "31b74a46e3105b1e",
+  "calibration/enough-data/fresh": "0ac953f4ed7e81f5",
+  "calibration/enough-data/stale": "0ac953f4ed7e81f5",
+  "calibration/enough-data/paused": "3bde978648661678",
   "aa-failed/low-data/fresh": "75a11da44c802486",
   "aa-failed/low-data/stale": "75a11da44c802486",
   "aa-failed/low-data/paused": "75a11da44c802486",
@@ -263,34 +267,34 @@ describe('ConfidenceChart overrides', () => {
   "ab/low-data/fresh": "877007dd3baa8be7",
   "ab/low-data/stale": "877007dd3baa8be7",
   "ab/low-data/paused": "877007dd3baa8be7",
-  "ab/enough-data/fresh": "42be55503ac0ccd4",
-  "ab/enough-data/stale": "42be55503ac0ccd4",
-  "ab/enough-data/paused": "56a7df87c6c60eeb",
+  "ab/enough-data/fresh": "0d64cc1a7b449132",
+  "ab/enough-data/stale": "0d64cc1a7b449132",
+  "ab/enough-data/paused": "0f6a92d5e58da01c",
   "inconclusive/low-data/fresh": "75a11da44c802486",
   "inconclusive/low-data/stale": "75a11da44c802486",
   "inconclusive/low-data/paused": "75a11da44c802486",
-  "inconclusive/enough-data/fresh": "b683e14eb33ff06d",
-  "inconclusive/enough-data/stale": "b683e14eb33ff06d",
-  "inconclusive/enough-data/paused": "4d815e03f0e62f54",
+  "inconclusive/enough-data/fresh": "98d25485c0a201be",
+  "inconclusive/enough-data/stale": "98d25485c0a201be",
+  "inconclusive/enough-data/paused": "5dd35448c1c6b2dd",
   "ship-b/low-data/fresh": "75a11da44c802486",
   "ship-b/low-data/stale": "75a11da44c802486",
   "ship-b/low-data/paused": "75a11da44c802486",
-  "ship-b/enough-data/fresh": "4c403699ce6592eb",
-  "ship-b/enough-data/stale": "4c403699ce6592eb",
-  "ship-b/enough-data/paused": "a16156cc55a39126",
+  "ship-b/enough-data/fresh": "5f4973adb62f03ed",
+  "ship-b/enough-data/stale": "5f4973adb62f03ed",
+  "ship-b/enough-data/paused": "1daad451aa6bc7c7",
   "stop-for-harm/low-data/fresh": "75a11da44c802486",
   "stop-for-harm/low-data/stale": "75a11da44c802486",
   "stop-for-harm/low-data/paused": "75a11da44c802486",
-  "stop-for-harm/enough-data/fresh": "f5dc7b51a94a0e0f",
-  "stop-for-harm/enough-data/stale": "f5dc7b51a94a0e0f",
-  "stop-for-harm/enough-data/paused": "03d5146e77690d7a",
+  "stop-for-harm/enough-data/fresh": "214745e5a9d904a8",
+  "stop-for-harm/enough-data/stale": "214745e5a9d904a8",
+  "stop-for-harm/enough-data/paused": "b70d4ad3e1771624",
   "srm-suppressed/low-data/fresh": "75a11da44c802486",
   "srm-suppressed/low-data/stale": "75a11da44c802486",
   "srm-suppressed/low-data/paused": "75a11da44c802486",
   "srm-suppressed/enough-data/fresh": "75a11da44c802486",
   "srm-suppressed/enough-data/stale": "75a11da44c802486",
   "srm-suppressed/enough-data/paused": "75a11da44c802486",
-  "paused-above-zero": "ac55a40a84ea86e8",
+  "paused-above-zero": "631e7c2d7232db4f",
   };
   const fixtures: Array<[string, LiveSnapshot]> = [];
   for (const p of LIVE_PHASES) {
