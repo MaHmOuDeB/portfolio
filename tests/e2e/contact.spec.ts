@@ -242,7 +242,7 @@ test.describe('with JavaScript', () => {
     await letFormAge(page);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/contact\?sent=1$/);
-    await expect(status(page)).toBeFocused();
+    await expect(status(page).getByRole('heading', { level: 2, name: 'Message sent' })).toBeFocused();
     expect(await sentTo(v.email)).toHaveLength(1);
   });
 

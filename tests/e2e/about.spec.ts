@@ -81,7 +81,8 @@ test.describe('About and CV', () => {
   test('/about: the photograph loads at 480 px wide, or 960 px on a dense screen, from the optimiser', async ({ page }) => {
     await page.goto('/about');
     const img = page.getByRole('img', { name: aboutPhoto.alt });
-    await expect(img).toHaveAttribute('loading', 'lazy');
+    // Above the fold at 1440, so it loads eagerly (finding M22), still from the optimiser.
+    await expect(img).toHaveAttribute('loading', 'eager');
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBeGreaterThan(0);
     // naturalWidth is density-corrected (HTML spec): the 2x candidate of a srcset reports half its pixel

@@ -120,6 +120,12 @@ describe('NoteShot', () => {
       expect(markup).toContain(`<figcaption id="${id}-caption"`);
       expect(markup).toContain(`style="min-width:${shot.minWidth}px"`);
     }
+    // A frame that takes focus fits whole, with its 4 px ring, under the 64 px sticky header on a
+    // 768 px tall laptop screen, so focusing it can show its whole ring.
+    for (const id of ['weatherChecks', 'n8nDecision'] as const) {
+      const shot = NOTE_SHOTS[id];
+      expect((shot.maxWidth as number) * (shot.height / shot.width) + 8, id).toBeLessThanOrEqual(768 - 64);
+    }
     // The light terminal: no dark surface on a light-only site.
     expect(NOTE_SHOTS.weatherChecks.file).not.toMatch(/dark/);
   });
