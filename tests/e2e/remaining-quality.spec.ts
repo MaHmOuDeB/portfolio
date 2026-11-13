@@ -11,7 +11,7 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   15 px semibold, nothing under 13 px) and never scaled by a viewBox; no state shown by colour
 //   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis, no
 //   clipped line, no chart label past its chart's edge or over another label, and no sentence in a
-//   sideways-scrolling table;
+//   sideways-scrolling table; and control rows whose labels and Reset sit in line;
 // - each case study and build note states at least two real limits;
 // - representative states beyond the default (the ship-rule decisions, the Pulse stream, empty and
 //   error, the About photograph, the printed CV and About, the contact form's error and sent states,
@@ -69,6 +69,45 @@ async function chartText(page: Page): Promise<string[]> {
           const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
           const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
           if (w > 1 && h > 2) out.add(`chart text drawn over other text: "${a.text}" and "${b.text}"`);
+        }
+      }
+    }
+    return [...out];
+  });
+}
+
+/**
+ * A Figure's control row, where its controls sit side by side: on each line of the row every label
+ * and legend starts at the same height, and Reset sits level with the controls' inputs, not with
+ * their labels or below them.
+ */
+async function controlRows(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out = new Set<string>();
+    const shown = (el: Element) => el.getClientRects().length > 0 && el.checkVisibility({ checkVisibilityCSS: true });
+    for (const row of document.querySelectorAll<HTMLElement>('[data-figure-controls] [role="group"], [data-figure-controls][role="group"]')) {
+      if (!shown(row) || getComputedStyle(row).flexDirection !== 'row') continue;
+      const kids = [...row.children].filter(shown);
+      // Kids whose boxes overlap vertically share a line of the wrapped row.
+      const lines: Element[][] = [];
+      for (const kid of kids) {
+        const r = kid.getBoundingClientRect();
+        const line = lines.find((l) => l.some((o) => { const q = o.getBoundingClientRect(); return r.top < q.bottom && q.top < r.bottom; }));
+        if (line) line.push(kid);
+        else lines.push([kid]);
+      }
+      const name = (row.getAttribute('aria-labelledby') ?? '').slice(0, 40);
+      for (const line of lines) {
+        // Reset is a button, alone or in a wrapper of its own.
+        const buttonOf = (k: Element) => (k.matches('button') ? k : k.children.length === 1 && k.firstElementChild?.matches('button') ? k.firstElementChild : null);
+        const heads = line.flatMap((k) => (buttonOf(k) ? [] : [k.querySelector('label, legend')].filter((h): h is Element => h !== null)));
+        const tops = heads.map((h) => Math.round(h.getBoundingClientRect().top));
+        if (tops.length > 1 && Math.max(...tops) - Math.min(...tops) > 1) out.add(`${name}: labels start at ${tops.join(', ')}`);
+        const input = line.map((k) => k.querySelector('[data-touch-target]:not(button), input:not([type="radio"])')).find((i): i is Element => i !== null);
+        for (const button of line.map(buttonOf).filter((b): b is Element => b !== null)) {
+          if (!input) continue;
+          const dy = Math.round(button.getBoundingClientRect().top - input.getBoundingClientRect().top);
+          if (Math.abs(dy) > 1) out.add(`${name}: ${(button.textContent ?? '').trim()} sits ${dy} px off the inputs`);
         }
       }
     }
@@ -220,6 +259,7 @@ async function common(page: Page, label: string) {
   expect.soft(await chartText(page), `${label}: chart text`).toEqual([]);
   expect.soft(await incompleteText(page), `${label}: incomplete text`).toEqual([]);
   expect.soft(await scrolledProse(page), `${label}: prose that scrolls sideways`).toEqual([]);
+  expect.soft(await controlRows(page), `${label}: control rows out of line`).toEqual([]);
   expect.soft(await colourOnly(page), `${label}: status by colour alone`).toEqual([]);
 }
 
