@@ -19,9 +19,9 @@ const HOSTED = 'ubuntu-24.04';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27';
 const SHARDS = 4;
 // Lighthouse measures on GitHub's hosted runner, where its budgets were calibrated. Hosted runs took
-// 71 to 167 seconds; the limit leaves room for a cold npm cache and caps what a hung run can cost.
+// 71 to 167 seconds; the limit leaves room for a node_modules cache miss and caps what a hung run can cost.
 const LHCI_TIMEOUT = '10';
-// The local calibration script (not used by CI): empirical: on a quiet Mac (benchmark index 2810.5)
+// The local calibration script (not used by CI), found empirically: on a quiet Mac (benchmark index 2810.5)
 // x1.5 under-throttled and the benchmark-ratio value x4.9 over-throttled against GitHub's hosted runs
 // of the same commits; 2.8 is where TBT met the hosted values on the two references.
 const LHCI_CPU_MULTIPLIER = '2.8';

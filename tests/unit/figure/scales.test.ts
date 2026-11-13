@@ -2,6 +2,9 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { linearFrac, niceTicks, pct } from '@/lib/figure/scales';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261204;
+
 // Any finite double, including huge, tiny and subnormal magnitudes and -0.
 const finite = fc.double({ noNaN: true, noDefaultInfinity: true });
 // Data a chart may be handed: anything, NaN and the infinities included.
@@ -57,6 +60,7 @@ describe('linearFrac', () => {
         const out = linearFrac([a, b])(v);
         return Number.isFinite(out) && out >= 0 && out <= 1 && !Object.is(out, -0);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 
@@ -67,6 +71,7 @@ describe('linearFrac', () => {
         const f = linearFrac([a, b]);
         return f(a) === 0 && f(b) === 1;
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 
@@ -77,6 +82,7 @@ describe('linearFrac', () => {
         const [lo, hi] = u <= v ? [u, v] : [v, u];
         return f(lo) <= f(hi);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -143,6 +149,7 @@ describe('niceTicks', () => {
           ticks.every((t, i) => i === 0 || t > ticks[i - 1]!)
         );
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 
@@ -153,6 +160,7 @@ describe('niceTicks', () => {
         const ticks = niceTicks([a, b], count);
         return ticks.length === 0 || ticks.includes(0);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -184,6 +192,7 @@ describe('pct', () => {
         const value = Number(out.slice(0, -1));
         return /^\d{1,3}(\.\d{1,3})?%$/.test(out) && value >= 0 && value <= 100;
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });

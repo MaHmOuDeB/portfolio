@@ -2,6 +2,9 @@ import fc from 'fast-check';
 import { EXPERIMENT, type ExperimentConfig } from '@/experiment.values';
 import { addMonthsBerlin, berlinDay, berlinDaysBetween, berlinStartOfDay, plannedEnd } from '@/lib/experiment/time';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261203;
+
 const withAbStart = (startedOn: string): ExperimentConfig => ({ ...EXPERIMENT, ab: { ...EXPERIMENT.ab, startedOn } });
 
 describe('berlinDay', () => {
@@ -53,6 +56,7 @@ describe('berlinStartOfDay', () => {
         expect(berlinDay(new Date(Date.parse(start) - 1).toISOString())).not.toBe(day);
         expect(berlinDaysBetween(start, iso)).toBe(0);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });

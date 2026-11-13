@@ -20,6 +20,9 @@ import { MIN_PER_GROUP, resolveFigureBody } from '@/lib/figure/states';
 import { mixtureCs } from '@/lib/stats';
 import { ref } from '../stats/reference';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261207;
+
 // Review Focus 4: extreme live data. Every difference is B − A in percentage points.
 
 const BASE: LiveSnapshot = {
@@ -80,6 +83,7 @@ describe('runningIntersection', () => {
         }
         for (const p of out) expect(p.lower).toBeLessThanOrEqual(p.upper);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 
@@ -144,6 +148,7 @@ describe('confidenceYDomain', () => {
           }
         }
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -240,6 +245,7 @@ describe('intervalDigits and formatIntervalPoints', () => {
         if (upper !== 0) expect(hi).not.toBe('0');
         expect(`${lo} ${hi}`).not.toMatch(/[−+]0(\.0+)?(?!\.?\d)/);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -263,6 +269,7 @@ describe('ceilAt', () => {
         expect(r).toBeGreaterThanOrEqual(v - 1e-9 / 10 ** d);
         expect(r).toBeLessThan(v + 10 ** -d);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -398,7 +405,7 @@ describe('confidenceModel', () => {
           }
         }
       }),
-      { numRuns: 300 },
+      { numRuns: 300, seed: PROPERTY_SEED },
     );
     expect(drawn).toBeGreaterThan(100);
   }, 30_000);

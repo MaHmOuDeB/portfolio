@@ -16,7 +16,7 @@
 //   bare canonical domain the production deploy checks the built pages against;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash;
-// - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
+// - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository;
 // - every site path the Home page links to resolves: each is a live route (LIVE_ROUTES), each
 //   `#fragment` is an element id in that page's built HTML, and /cv.pdf is a file in public/.
 //   External and mail links are not checked here.

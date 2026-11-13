@@ -11,6 +11,9 @@ import {
   type BeaconBatch,
 } from '@/lib/experiment/events';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261201;
+
 const PV = '3f2b8c1e-9a4d-4b6f-8e2a-1c5d7f9b0a3e';
 const valid = (over: Record<string, unknown> = {}) => ({ v: 1, ns: 'aa-v1', pv: PV, arm: 'a', events: [{ type: 'entry' }], ...over });
 const body = (value: unknown) => JSON.stringify(value);
@@ -124,6 +127,7 @@ describe('parseBeaconBatch', () => {
         const parsed = parseBeaconBatch(JSON.stringify(b));
         expect(parsed).toEqual(b);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });

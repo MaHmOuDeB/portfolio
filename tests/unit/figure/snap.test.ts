@@ -2,6 +2,9 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { isOnStepGrid, snapToStep, stepFrom } from '@/lib/figure/snap';
 
+/** Every property here runs from this seed, so a failing run can be replayed. */
+const PROPERTY_SEED = 20261205;
+
 describe('snapToStep', () => {
   it('strips float noise', () => {
     expect(snapToStep(0.15000000000000002, 0, 1, 0.05)).toBe(0.15);
@@ -60,6 +63,7 @@ describe('snapToStep', () => {
           expect(Math.abs(r - min - k * step)).toBeLessThanOrEqual(1e-9);
         },
       ),
+      { seed: PROPERTY_SEED },
     );
   });
 });
@@ -149,6 +153,7 @@ describe('stepFrom', () => {
         const next = stepFrom(base, dir, PCT.min, PCT.max, PCT.step);
         return next >= PCT.min && next <= PCT.max && isOnStepGrid(next, PCT.min, PCT.max, PCT.step);
       }),
+      { seed: PROPERTY_SEED },
     );
   });
 });
