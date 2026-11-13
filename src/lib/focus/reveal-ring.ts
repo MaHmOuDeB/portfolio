@@ -1,8 +1,10 @@
 // Chrome and WebKit do not scroll a partly visible element when it takes focus, so a tall control
 // (the contact message, a sideways-scrolling screenshot frame) near an edge of the screen keeps part
-// of its focus ring off screen. revealRing scrolls such an element to the nearest edge, at once (no
-// smooth scrolling); html's scroll padding leaves room for the ring and for the sticky header there.
-// An element taller than the screen is left where it is. Browser only.
+// of its focus ring off screen. revealRing scrolls the page by exactly the missing amount, at once (no
+// smooth scrolling), so the whole ring is on screen. It does not use scrollIntoView: that works on the
+// element's box and html's scroll padding, so a box that is taller than the padded screen (a short
+// screen, high zoom) is left where it is with its ring cut off. An element taller than the screen is
+// left where it is. Browser only.
 
 /** The focus ring's reach past the element's box: outline width plus offset, or 0 with no outline. */
 function reachOf(el: Element): number {
@@ -22,5 +24,8 @@ export function revealRing(el: Element): void {
   const r = el.getBoundingClientRect();
   const top = coveredTop();
   if (r.height + 2 * reach > innerHeight - top) return;
-  if (r.top - reach < top || r.bottom + reach > innerHeight) el.scrollIntoView({ block: 'nearest' });
+  const above = r.top - reach - top;
+  const below = r.bottom + reach - innerHeight;
+  if (above < 0) scrollBy({ top: above, behavior: 'instant' });
+  else if (below > 0) scrollBy({ top: below, behavior: 'instant' });
 }

@@ -253,7 +253,7 @@ async function focusRings(page: Page): Promise<unknown[]> {
       const vw = document.documentElement.clientWidth;
       // A control larger than the viewport (a scrolling table at 400% zoom) cannot show its whole ring.
       const fits = r.width + 2 * reach <= vw && r.height + 2 * reach <= innerHeight;
-      if (fits && (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1)) errors.push('ring outside the viewport');
+      if (fits && (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1)) errors.push(`ring outside the viewport (element ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}, ring reach ${reach}, viewport ${vw}x${innerHeight})`);
       for (let p = ring.parentElement; p; p = p.parentElement) {
         const ps = getComputedStyle(p);
         const b = p.getBoundingClientRect();
