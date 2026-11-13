@@ -122,7 +122,9 @@ for (const note of NOTES) {
       await page.goto(note.route);
       await page.waitForLoadState('load');
       await expect(page.locator('[data-experiment], [data-phase]')).toHaveCount(0);
-      expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment'))).toEqual([]);
+      // The experiment's endpoints: /api/* and /experiment/data.json. A prefetch of the Live test page
+      // itself (/experiment, the header's link) is a page, not an endpoint.
+      expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment/'))).toEqual([]);
     });
 
     test('without JavaScript: every section, the diagram and the table', async ({ browser }) => {

@@ -133,10 +133,14 @@ test.describe('the home page at /', () => {
 
   test('metadata: no relative canonical, no noindex', async ({ page }) => {
     await page.goto('/');
-    // This build has no production host, so no canonical (a relative one is invalid); the production
-    // build names https://<host>/ (unit-tested in page.test.tsx).
-    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
-    await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+    // This build has no VERCEL_ENV, so its canonical is the fixed test origin (seo.spec.ts checks every
+    // page's fields); the production build names https://<host>/. Never relative, never noindex.
+    const canonical = page.locator('link[rel="canonical"]');
+    await expect(canonical).toHaveCount(1);
+    expect(await canonical.getAttribute('href')).toMatch(/^https:\/\/[^/]+\/?$/);
+    for (const robots of await page.locator('meta[name="robots"]').all()) {
+      expect(await robots.getAttribute('content')).not.toMatch(/noindex|nofollow|none/i);
+    }
     await expect(page).toHaveTitle('Mahmoud El Bergui');
   });
 

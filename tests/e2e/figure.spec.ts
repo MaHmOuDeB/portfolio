@@ -746,14 +746,14 @@ test.describe('kit extension: chart overrides', () => {
   });
 });
 
-// Two islands that arrive together must not move a reader who is further down the page. The Lab
-// diagnostics host holds two chart Figures, each a query container, above the page end. Idle time
-// is held, the reader goes to the page end, and then both islands are released in one task, so
-// they load and swap their previews together. Every frame from the release records the scroll
+// Islands that arrive together must not move a reader who is further down the page. The Lab host
+// holds the Lab's chart Figures, each a query container, above the page end. Idle time is held,
+// the reader goes to the page end, and then every waiting island is released in one task, so they
+// load and swap their previews together. Every frame from the release records the scroll
 // position; all of them must be the starting one. Once both are in, neither loader may still hold
 // its preview's height.
 test.describe('loader: islands that arrive together', () => {
-  const HOST = '/kitchen-sink/lab/diagnostics';
+  const HOST = '/kitchen-sink/lab';
 
   /**
    * Holds every idle callback until `releaseIdle()`; a request after the release runs at once. A
@@ -785,13 +785,14 @@ test.describe('loader: islands that arrive together', () => {
     });
   }
 
-  test('a reader at the page end stays put when two islands swap in together', async ({ page }) => {
+  test('a reader at the page end stays put when the islands swap in together', async ({ page }) => {
     await holdIdle(page);
     await page.goto(HOST);
     await page.waitForLoadState('load');
-    // Hydrated: both loaders are waiting for idle time.
+    // Hydrated: the loaders are waiting for idle time (at least two, so they really arrive together).
     await page.locator('next-route-announcer').waitFor({ state: 'attached' });
-    await expect(page.locator('[data-island="idle"]')).toHaveCount(2);
+    await expect.poll(() => page.locator('[data-island="idle"]').count()).toBeGreaterThanOrEqual(2);
+    const islands = await page.locator('[data-island="idle"]').count();
     const start = await page.evaluate(() => {
       window.scrollTo(0, document.documentElement.scrollHeight);
       return window.scrollY;
@@ -809,7 +810,7 @@ test.describe('loader: islands that arrive together', () => {
       (window as unknown as { releaseIdle: () => void }).releaseIdle();
     });
     await waitForIslands(page);
-    await expect(page.locator('[data-island="ready"]')).toHaveCount(2);
+    await expect(page.locator('[data-island="ready"]')).toHaveCount(islands);
     // A few more frames, for a late scroll to show.
     await page.evaluate(() => new Promise((done) => {
       let n = 0;
@@ -824,6 +825,6 @@ test.describe('loader: islands that arrive together', () => {
     expect(moved, `scrollY per frame from ${start}: ${ys.join(' ')}`).toEqual([]);
     // The height each loader held for its island during the swap has been let go.
     const held = await page.locator('[data-island="ready"]').evaluateAll((roots) => roots.map((r) => (r as HTMLElement).style.minHeight));
-    expect(held).toEqual(['', '']);
+    expect(held).toEqual(Array.from({ length: islands }, () => ''));
   });
 });
