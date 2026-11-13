@@ -261,7 +261,9 @@ Once `LAUNCHED` is `true`, the deploy workflow deploys production only for the c
 GitHub repository variable `LAUNCH_SHA`, written as the full 40-character commit SHA in lower case.
 Any other commit, an empty `LAUNCH_SHA` or a shortened one makes the deploy fail at its first step,
 before anything is built, so a CI run that was queued before launch, or a re-run of an older one,
-never reaches production. Only I set these two variables, and only in the launch step: first
+never reaches production. The deploy reads `LAUNCHED` once, in that first step, and every later
+step follows its decision, so changing `LAUNCHED` while a deploy is running does not change what
+that run deploys. Only I set these two variables, and only in the launch step: first
 `LAUNCH_SHA` to the launch merge commit, then `LAUNCHED`, in the same sitting:
 
 ```sh

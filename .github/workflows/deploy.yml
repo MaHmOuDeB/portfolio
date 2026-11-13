@@ -39,7 +39,12 @@ jobs:
       # It prints only the tested commit, LAUNCH_SHA and the decision. Previews are unchanged.
       # `shell: bash` runs it with -eo pipefail. The step must keep no `if:` or `continue-on-error`:
       # a refusal has to stop the job (tests/unit/deploy-guard.test.ts pins its keys).
+      # This is the only place the job reads the repository variable LAUNCHED. It writes its decision
+      # to the step output `launched` ("true" only when production is allowed, else "false"), and
+      # every later step branches on steps.guard.outputs.launched alone, so a LAUNCHED flipped while
+      # this job runs cannot turn a run the guard let through as a preview into a production deploy.
       - name: Guard production SHA
+        id: guard
         env:
           LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
           LAUNCH_SHA: ${{ vars.LAUNCH_SHA }}
@@ -59,6 +64,7 @@ jobs:
           echo "LAUNCH_SHA: ${shown}"
           if [ "$LAUNCHED" != "true" ]; then
             echo "Decision: preview deploy, LAUNCHED is not true"
+            echo "launched=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ -z "$valid" ]; then
@@ -72,6 +78,7 @@ jobs:
             exit 1
           fi
           echo "Decision: production deploy allowed"
+          echo "launched=true" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
@@ -111,15 +118,16 @@ jobs:
       # Secrets are scoped to the three Vercel steps only, so npm install scripts and the artifact
       # steps never see them. The Vercel CLI reads VERCEL_TOKEN from the environment (CLI 62.2.0:
       # without --token it takes process.env.VERCEL_TOKEN as the token), so the token is never a
-      # command-line argument that a process list or an npm log could record. LAUNCHED is normalised to exactly "true" or "false" (expressions
-      # compare strings case-insensitively, the script does not); production is never deployed
-      # until the repository variable LAUNCHED is "true".
+      # command-line argument that a process list or an npm log could record. LAUNCHED comes from the
+      # Guard step's output, exactly "true" or "false" (the guard normalises the repository variable,
+      # whose expression comparison is case-insensitive); production is never deployed until the
+      # guard allowed it, and an empty output picks the preview.
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
           npx --no-install vercel pull --yes --environment="$environment"
@@ -131,7 +139,7 @@ jobs:
       # variable names and pass or fail only, never a value. A preview runs nothing here.
       - name: Check the pulled production environment
         env:
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
         run: |
           if [ "$LAUNCHED" != "true" ]; then
             echo "Preview deploy: the pulled production environment is not checked"
@@ -147,7 +155,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
         run: |
           if [ "$LAUNCHED" = "true" ]; then target=production; else target=preview; fi
           bash scripts/vercel-build-isolated.sh "$target"
@@ -164,7 +172,7 @@ jobs:
       # canonical domain; it reaches the script through env only. A preview runs nothing here.
       - name: Check the canonical origin
         env:
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
           CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
         run: |
           if [ "$LAUNCHED" != "true" ]; then
@@ -182,7 +190,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
         run: |
           # Pre-deploy gate. The CLI drops --target=preview before it calls the API, so the flag
           # alone does not stop Vercel from making a project's first deployment a production one.
@@ -229,7 +237,7 @@ jobs:
       - name: Job summary
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          LAUNCHED: ${{ steps.guard.outputs.launched }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           if [ "$LAUNCHED" = "true" ]; then target=production; else target=preview; fi

@@ -107,9 +107,9 @@ describe('the production canonical-origin checks in the deploy job', () => {
     }
   });
 
-  it('read the launch setting the way the other steps do and no secret', () => {
+  it('read the launch setting from the Guard output, like the other steps, and no secret', () => {
     for (const n of [PULLED_CHECK, ORIGIN_CHECK]) {
-      expect(step(n)).toContain("          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}\n");
+      expect(step(n)).toContain('          LAUNCHED: ${{ steps.guard.outputs.launched }}\n');
       expect(step(n)).not.toContain('secrets.');
     }
     expect(step(ORIGIN_CHECK)).toContain('          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}\n');
