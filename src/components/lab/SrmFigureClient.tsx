@@ -15,7 +15,7 @@ import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
-import { CONTROL_ROW, CONTROL_ROW_RESET } from './control-row';
+import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import { DIAGNOSTICS_REFS, SRM_ID, SRM_SCHEMA, sharePercentText, visitorsText, type SrmValues } from '@/lib/lab/diagnostics-values';
 import type { SrmInteractiveProps } from './SrmInteractive';
 

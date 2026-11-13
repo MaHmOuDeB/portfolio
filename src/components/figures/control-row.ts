@@ -1,4 +1,5 @@
-// The Lab's control rows (the planner, its duration row and the split check): one layout for all.
+// A Figure's control row of sliders (the Lab's planner, duration and split check, and the Audible
+// framework): one layout for all.
 // - From xs the controls sit side by side, top-aligned, so every label and legend starts on one line.
 // - Each slider's readout always takes its own line under the input, whatever its length, so no
 //   control's input moves down beside another's.

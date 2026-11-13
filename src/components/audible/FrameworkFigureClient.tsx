@@ -15,6 +15,7 @@
 import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
+import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import { Slider } from '@/components/kit/Slider';
 import type { FrameworkValues } from '@/lib/audible/framework';
 import { FRAMEWORK_ID, FRAMEWORK_SCHEMA } from '@/lib/audible/framework-url';
@@ -52,7 +53,7 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
       role="group"
       aria-labelledby={`${FRAMEWORK_ID}-title`}
       data-framework-controls=""
-      className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
+      className={CONTROL_ROW}
     >
       {SLIDERS.map(({ key, bound, label }) => {
         const spec = FRAMEWORK_SCHEMA[key];
@@ -75,7 +76,9 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
           </div>
         );
       })}
-      <ResetButton onReset={onReset} />
+      <div className={CONTROL_ROW_RESET}>
+        <ResetButton onReset={onReset} />
+      </div>
     </div>
   );
 }

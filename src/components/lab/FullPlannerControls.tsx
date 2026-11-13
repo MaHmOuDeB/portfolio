@@ -38,7 +38,7 @@ import {
   type PlannerContext,
 } from '@/lib/lab/full-planner-values';
 import { riseMax, targetRate } from '@/lib/lab/planner-values';
-import { CONTROL_ROW, CONTROL_ROW_RESET } from './control-row';
+import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import type { FullPlannerClientProps } from './FullPlannerClient';
 
 const LazyFullPlanner = lazy(() => import('./FullPlannerClient'));
