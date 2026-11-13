@@ -120,7 +120,8 @@ export function ScrollMomentView({ arm, steps, charts, refs, Shell }: ScrollMome
   );
   const preview = (i: number, where: 'canvas' | 'frame') => {
     const c = charts[i];
-    return c ? <HomeChartPreview id={`home-chart-${where}-${i + 1}`} snapshot={c.snapshot} refs={refs} ariaLabel={c.ariaLabel} /> : null;
+    // The arrays built from this are read by position, never reordered: the key is the same fixed step number as the id.
+    return c ? <HomeChartPreview key={`${where}-${i + 1}`} id={`home-chart-${where}-${i + 1}`} snapshot={c.snapshot} refs={refs} ariaLabel={c.ariaLabel} /> : null;
   };
   const shell = (
     <Shell
