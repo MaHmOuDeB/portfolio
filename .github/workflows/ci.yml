@@ -432,11 +432,10 @@ jobs:
           key: ${{ steps.node.outputs.key }}
       # Runs against a local `next start` (see lighthouserc.json), which has no protection, so no
       # LHCI_EXTRA_HEADERS is set and no secret can end up in the uploaded reports.
-      # LCP is asserted on the best of 5 runs ("optimistic"); the category scores stay on the median.
-      # On localhost the framework chunks sometimes start evaluating before the first frame is
-      # presented, and Lantern then charges all of their download to LCP: a random outlier of about
-      # +500 ms that base main hits too. A real regression raises every run, so the best run still
-      # fails; tests/unit/lighthouserc.test.ts pins this shape.
+      # LCP and the category scores are asserted on the median of 5 runs, measured with the throttling
+      # applied in the browser rather than simulated (lighthouserc.json). A second assertion,
+      # "pessimistic", fails when any run recorded no LCP value: Lighthouse CI would otherwise drop
+      # that run and take the median of the rest. tests/unit/lighthouserc.test.ts pins this shape.
       - run: npm run lhci
       - name: Upload Lighthouse reports
         if: ${{ !cancelled() }}
