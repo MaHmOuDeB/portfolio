@@ -382,3 +382,38 @@ for (const { route, ids } of SHOTS) {
     });
   });
 }
+
+// A screenshot's frame is a tab stop only while it scrolls (finding N-M2): the served HTML keeps it
+// one, so without JavaScript a keyboard can still scroll it; once hydrated it measures itself, and a
+// frame that fits drops its tab stop and its region role.
+test.describe('the screenshot frame', () => {
+  const frame = (page: Page) => page.locator('figure[data-note-shot="weatherChecks"] [data-shot-frame]');
+
+  test('at 1440 the weather frame fits, so it is not a tab stop and not a region', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/work/weather');
+    await frame(page).scrollIntoViewIfNeeded();
+    await expect(frame(page)).not.toHaveAttribute('tabindex');
+    await expect(frame(page)).not.toHaveAttribute('role');
+    expect(await frame(page).evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
+    await expect(page.getByRole('region', { name: /data-quality step/ })).toHaveCount(0);
+  });
+
+  test('at 375 the weather frame scrolls, so it is a labelled region a keyboard reaches', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/work/weather');
+    await frame(page).scrollIntoViewIfNeeded();
+    expect(await frame(page).evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    await expect(frame(page)).toHaveAttribute('tabindex', '0');
+    await expect(page.getByRole('region', { name: /data-quality step/ })).toHaveCount(1);
+  });
+
+  test('without JavaScript the frame stays a tab stop, at any width', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
+    await page.goto('/work/weather');
+    await expect(frame(page)).toHaveAttribute('tabindex', '0');
+    await expect(frame(page)).toHaveAttribute('role', 'region');
+    await context.close();
+  });
+});
