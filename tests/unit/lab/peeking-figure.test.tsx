@@ -82,7 +82,7 @@ function chart(html: string, layout: 'wide' | 'narrow') {
     return tag === undefined ? null : attr(tag, 'data-values')!.split(' ').map(Number);
   };
   const dot = svg.match(/<circle[^>]*data-series="current"[^>]*>/)?.[0];
-  const ticks = (axis: 'x' | 'y') => [...svg.matchAll(new RegExp(`<text[^>]*data-tick="${axis}"[^>]*>(?:<tspan>)?([^<]*)<`, 'g'))].map((m) => m[1]);
+  const ticks = (axis: 'x' | 'y') => [...svg.matchAll(new RegExp(`<text[^>]*data-tick="${axis}"[^>]*>(?:<tspan[^>]*>)?([^<]*)<`, 'g'))].map((m) => m[1]);
   return {
     svg,
     ghost: series('ghost'),

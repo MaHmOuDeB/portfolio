@@ -68,7 +68,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | `src/components/kit` | The Figure kit (frozen). `src/components/kit/index.ts` is the import path for server-safe components, `src/components/kit/client.ts` for the client ones. |
 | `src/components/shell` | Site header, navigation, footer, skip link and error message. |
 | `src/lib/stats` | The statistics (tested against `stats-ref`). |
-| `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time. |
+| `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time, label widths. |
 | `src/lib/facts` | The `<Fact>` data, formatters and checked lookup. |
 | `src/styles/tokens.css` | The design tokens. |
 | `content/` | Content as data: the privacy notice (`content/privacy.ts`) and the frozen experiment headlines. MDX pages come later. |
@@ -198,8 +198,11 @@ a page needs the smallest possible bundle it can also import a component's file 
   not a number.
 - **Chart labels never sit on marks.** `ChartFrame` puts the y tick numbers in a left gutter and the
   zero-line words ("no difference", "B higher", "B lower") in a right margin, both inside the SVG's
-  padding, and snaps the y scale to half pixels. Collecting states draw the Now row on the same
-  difference axis with a hollow glyph.
+  padding, and snaps the y scale to half pixels. The zero-line words stack one `text-xs` line
+  (1.5em) apart on one baseline, so no two of their boxes overlap in any engine at any zoom, and
+  both margins are sized by `labelWidth` (`src/lib/figure/label-width.ts`), an upper bound of a
+  label's width in Inter. Collecting states draw the Now row on the same difference axis with a
+  hollow glyph.
 - **Chart text.** Tick labels are `text-xs` (13 px) and annotations `text-sm` (15 px) semibold
   with a `bg` halo. No `<text>` inside an SVG that has a `viewBox`. At most two series; `series-2`
   only for the current estimate, and every `series-2` dot has a 2 px `bg` ring.

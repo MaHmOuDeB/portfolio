@@ -205,6 +205,32 @@ for (const width of WIDTHS) {
       expectEdgeTicks(ticks, width < 640 ? ['start', 'middle', 'end'] : ['middle', 'middle', 'middle'], `${width} px`);
     });
 
+    test('the stacked zero-line words keep an even gap of at least 2 px between their boxes', async ({ page }) => {
+      await openAt(page, width);
+      await page.evaluate(() => document.fonts.ready);
+      const stacks = await visibleFrames(page).evaluateAll((frames) =>
+        frames.flatMap((f) => {
+          const box = (sel: string) => {
+            const t = f.querySelector<SVGTextElement>(sel);
+            if (!t) return null;
+            const r = t.getBoundingClientRect();
+            return r.width > 0 && r.height > 0 ? r : null;
+          };
+          const above = box('text[data-side="above"]');
+          const zero = box('text[data-zero-label]');
+          const below = box('text[data-side="below"]');
+          if (!above || !zero || !below) return [];
+          return [{ id: f.closest('[data-specimen]')!.getAttribute('data-specimen'), upper: zero.top - above.bottom, lower: below.top - zero.bottom }];
+        }),
+      );
+      expect(stacks.length).toBeGreaterThan(0);
+      for (const s of stacks) {
+        expect(s.upper, `${s.id}: gap between the upper word and the zero label`).toBeGreaterThanOrEqual(2);
+        expect(s.lower, `${s.id}: gap between the zero label and the lower word`).toBeGreaterThanOrEqual(2);
+        expect(Math.abs(s.upper - s.lower), `${s.id}: the two gaps are ${s.upper.toFixed(2)} and ${s.lower.toFixed(2)} px`).toBeLessThan(1);
+      }
+    });
+
     test('every mark keeps its stroke width however far the layer stretches', async ({ page }) => {
       await openAt(page, width);
       const effects = await visibleFrames(page).evaluateAll((frames) =>
@@ -234,17 +260,25 @@ for (const width of WIDTHS) {
 }
 
 // The frame states, per outer label, the column width below which it anchors the label at its tick:
-// 838 px for the first label of this specimen and 852 px for the last. Either side of each, the
-// label is inside the frame and sits where its anchor says.
+// 758 px for the first label of this specimen and 813 px for the last. Either side of each, the
+// label is inside the frame and sits where its anchor says. Worked by hand at 13 px, from
+// lib/figure/label-width: a digit 0.66 em, a comma 0.32 em, "4" 0.68 em. The gutter is 17 px (8.84 px
+// for "4", rounded up, and the 8 px gap) and there is no right margin.
+// "102,000" and "196,000" are each 4.28 em, 55.64 px: half of it, plus the 4 px gap, is 31.82 px.
+// First tick, at 2% of the plot: 17 px of that is gutter, so the plot gives 14.82 px in its first 2%:
+// 741 px of plot, a 758 px column.
+// Last tick, at 96%: no right margin, so 31.82 px in the last 4%: 796 px of plot, plus the 17 px
+// gutter, a 813 px column.
+// The probe columns sit 13 px below 758, between the two, and 12 px above 813.
 test('an outer x tick label goes from anchored at its tick to centred as the column passes the width the frame states', async ({ page }) => {
   // The column is the viewport less the page's side padding: measure that once, then set the column.
   await openAt(page, 1000);
   const padding = 1000 - (await edgeTicks(page)).column;
   expect(padding).toBeGreaterThanOrEqual(0);
   for (const [column, anchors] of [
-    [830, ['start', 'middle', 'end']],
-    [845, ['middle', 'middle', 'end']],
-    [860, ['middle', 'middle', 'middle']],
+    [745, ['start', 'middle', 'end']],
+    [785, ['middle', 'middle', 'end']],
+    [825, ['middle', 'middle', 'middle']],
   ] as const) {
     await page.setViewportSize({ width: column + padding, height: 900 });
     await expect.poll(async () => Math.round((await edgeTicks(page)).column)).toBe(column);
@@ -252,8 +286,8 @@ test('an outer x tick label goes from anchored at its tick to centred as the col
   }
   // The widths are the ones the frame wrote for this chart.
   const rules = await page.locator('[data-specimen="chartframe--edge-ticks"] style').evaluateAll((els) => els.map((e) => e.textContent).join(''));
-  expect(rules).toContain('@container (width < 838px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}');
-  expect(rules).toContain('@container (width < 852px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="last"]{text-anchor:end}}');
+  expect(rules).toContain('@container (width < 758px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="first"]{text-anchor:start}}');
+  expect(rules).toContain('@container (width < 813px){[data-chart="sink-chart-edge-ticks"] svg[data-layout="wide"] [data-tick-edge="last"]{text-anchor:end}}');
 });
 
 test('no text sits inside an svg that has a viewBox, and no chart prints NaN', async ({ page }) => {
