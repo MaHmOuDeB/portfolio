@@ -67,7 +67,7 @@ export const NOTE_SHOTS = {
     file: 'n8n-einvoice-routing-light.png',
     width: 896,
     height: 660,
-    maxWidth: 960,
+    maxWidth: 932,
     minWidth: 932,
     textPx: 12.5,
     alt: 'Part of an n8n workflow canvas: it checks the request, reads and checks the invoice row, then routes the outcome either to updating the register or to an error response.',
