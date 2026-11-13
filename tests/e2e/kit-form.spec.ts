@@ -88,11 +88,13 @@ test.describe('kit form fields', () => {
     await expect(counter(page, 'counter--last-tenth')).toHaveText('10 characters left');
     await expect(counter(page, 'counter--limit')).toHaveText('No characters left');
     await expect(counter(page, 'counter--over')).toHaveText('12 characters too many');
-    expect(await counter(page, 'counter--over').evaluate((el) => getComputedStyle(el).color)).toBe(await token(page, 'warn'));
+    // The colours arrive through a short transition once the page hydrates: wait for the final value.
+    const warn = await token(page, 'warn');
+    await expect.poll(() => counter(page, 'counter--over').evaluate((el) => getComputedStyle(el).color)).toBe(warn);
     await expect(counter(page, 'counter--over').locator('svg')).toHaveCount(1);
     const over = specimen(page, 'counter--over').getByRole('textbox');
     await expect(over).toHaveAttribute('data-over-limit', '');
-    expect(await over.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(await token(page, 'warn'));
+    await expect.poll(() => over.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(warn);
     // Over the limit is not yet an error: that waits for a submit.
     await expect(over).not.toHaveAttribute('aria-invalid', /.*/);
     // Only the number is marked, with the caller's refs.
