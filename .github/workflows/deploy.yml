@@ -123,6 +123,21 @@ jobs:
         run: |
           if [ "$LAUNCHED" = "true" ]; then environment=production; else environment=preview; fi
           npx --no-install vercel pull --yes --environment="$environment"
+      # Production only. The canonical origin of every page comes from the pulled environment
+      # (src/lib/seo/metadata.ts): `vercel build` loads only .vercel/.env.production.local, the file
+      # `vercel pull --environment=production` writes (CLI 62.2.0), and sets no VERCEL_ENV of its own,
+      # so a pull without VERCEL_ENV="production" would build with the test origin. Fails unless
+      # VERCEL_ENV is "production" and VERCEL_PROJECT_PRODUCTION_URL is not empty; it prints the
+      # variable names and pass or fail only, never a value. A preview runs nothing here.
+      - name: Check the pulled production environment
+        env:
+          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+        run: |
+          if [ "$LAUNCHED" != "true" ]; then
+            echo "Preview deploy: the pulled production environment is not checked"
+            exit 0
+          fi
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pulled-env-check.ts .vercel/.env.production.local
       # The build never holds the store's write credentials (KV_REST_API_TOKEN, KV_URL, REDIS_URL),
       # only the read-only token: the wrapper builds from a copy of the pulled environment without
       # them, proves from inside every Node process of the build (Next included) that they were
@@ -141,6 +156,26 @@ jobs:
       # deployed build. `vercel build` leaves Next's output in .next, where the check reads it.
       - name: Check the build has no kitchen sink
         run: npm run assert:no-kitchen-sink
+      # Production only, before anything is live: every built page, RSC payload, the sitemap and
+      # robots must name only https://<CANONICAL_HOST> and no .invalid test origin. It catches a
+      # production build that fell back to the test origin and one whose
+      # VERCEL_PROJECT_PRODUCTION_URL names another host (Vercel picks the shortest production
+      # domain, or *.vercel.app). CANONICAL_HOST is a repository variable the owner sets to the bare
+      # canonical domain; it reaches the script through env only. A preview runs nothing here.
+      - name: Check the canonical origin
+        env:
+          LAUNCHED: ${{ vars.LAUNCHED == 'true' }}
+          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+        run: |
+          if [ "$LAUNCHED" != "true" ]; then
+            echo "Preview deploy: the canonical origin is not checked"
+            exit 0
+          fi
+          if [ -z "$CANONICAL_HOST" ]; then
+            echo "::error::LAUNCHED is true but the repository variable CANONICAL_HOST is empty; nothing is deployed."
+            exit 1
+          fi
+          npm run seo:origin-check -- --canonical "$CANONICAL_HOST"
       - name: Deploy
         id: deploy
         env:

@@ -74,8 +74,9 @@ describe('the Guard production SHA step', () => {
     expect(step).toContain('LAUNCH_SHA: ${{ vars.LAUNCH_SHA }}');
     expect(step).toContain('HEAD_SHA: ${{ github.event.workflow_run.head_sha }}');
     expect(step).not.toContain('secrets.');
-    // The Pull, Build, Deploy and Job summary steps still choose production from the same expression.
-    expect(DEPLOY.match(/LAUNCHED: \$\{\{ vars\.LAUNCHED == 'true' \}\}/g)).toHaveLength(5);
+    // The Pull, pulled-environment check, Build, canonical origin check, Deploy and Job summary steps
+    // still choose production from the same expression.
+    expect(DEPLOY.match(/LAUNCHED: \$\{\{ vars\.LAUNCHED == 'true' \}\}/g)).toHaveLength(7);
   });
 
   it('allows production when LAUNCHED is true and the tested commit is LAUNCH_SHA', () => {
