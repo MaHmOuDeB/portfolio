@@ -45,7 +45,7 @@ import {
 } from '@/lib/pulse/session';
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
-import { CONTACT, LIVE_ROUTES } from '@/lib/site';
+import { LIVE_ROUTES } from '@/lib/site';
 import { parseFragment, type DefaultTreeAdapterTypes as P } from 'parse5';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 
@@ -278,7 +278,8 @@ describe('Pulse truth', () => {
       ['/work/retention', 'Customer retention and reactivation analysis, another case study'],
       ['https://www.linkedin.com/in/melbergui', 'My LinkedIn profile'],
     ]);
-    expect(PAGE).not.toContain(CONTACT.email);
+    // The site prints no e-mail address anywhere (LinkedIn and the contact form are the contact routes).
+    expect(PAGE).not.toMatch(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
     expect(PAGE).not.toContain('mailto:');
   });
 
