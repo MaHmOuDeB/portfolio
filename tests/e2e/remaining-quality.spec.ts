@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { test } from './fixtures';
 import { CASE_ROUTES, ROUTES, SIZES, STATES, openAt, sizeNamed, sizeOrPrint } from './remaining-matrix';
+import { KIT_CHART_SPILLS } from './chart-spills';
 import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
 
 // The quality gates of every page other than Home (Home has home-quality.spec.ts), in one place:
@@ -10,9 +11,9 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   aside); every focus ring visible and unclipped; chart text at its size (ticks 13 px, annotations
 //   15 px semibold, nothing under 13 px) and never scaled by a viewBox; no state shown by colour
 //   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis, no
-//   clipped line, no chart label cut off, off the screen or over another label, and no sentence in a
-//   sideways-scrolling table; control rows whose labels and Reset sit in line; one gap between the
-//   header's page links;
+//   clipped line, no chart label cut off, off the screen, past its chart's box (the kit cases pinned
+//   in chart-spills.ts aside) or over another label, and no sentence in a sideways-scrolling table;
+//   control rows whose labels and Reset sit in line; one gap between the header's page links;
 // - each case study and build note states at least two real limits;
 // - representative states beyond the default (the ship-rule decisions, the Pulse stream, empty and
 //   error, the About photograph, the printed CV and About, the contact form's error and sent states,
@@ -33,9 +34,13 @@ async function sideways(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 }
 
-/** SVG text at the wrong size, under 13 px, or inside a viewBox that scales it. */
-async function chartText(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
+/**
+ * SVG text at the wrong size, under 13 px, or inside a viewBox that scales it; chart text cut off, off
+ * the screen, past its chart's box (the kit cases pinned in chart-spills.ts aside) or over other text.
+ */
+async function chartText(page: Page, route: string): Promise<string[]> {
+  const pinned = KIT_CHART_SPILLS[route.split('?')[0]!] ?? [];
+  return page.evaluate((pinned) => {
     const out = new Set<string>();
     for (const t of document.querySelectorAll<SVGTextElement>('svg text')) {
       if (t.getClientRects().length === 0 || !t.checkVisibility({ checkVisibilityCSS: true })) continue;
@@ -53,16 +58,20 @@ async function chartText(page: Page): Promise<string[]> {
       else if (px < 12.5) out.add(`chart text at ${px.toFixed(1)} px: "${label}"`);
     }
     // Complete chart text: no label cut off, by its own svg (when that clips) or by any box around it
-    // that clips or scrolls, and none off the screen; and no two labels of one chart drawn over each
-    // other. (The chart frame draws its svg overflow-visible, so a label that runs a few px into the
-    // space beside the chart still shows whole.)
+    // that clips or scrolls, and none off the screen; every label inside its own chart's box (an outer
+    // svg draws in its padding, never past its edge), except the kit cases pinned in chart-spills.ts,
+    // which show whole because the chart frame draws its svg overflow-visible; and no two labels of
+    // one chart drawn over each other.
     const vw = document.documentElement.clientWidth;
     for (const svg of document.querySelectorAll<SVGSVGElement>('svg[data-chart-frame]')) {
       if (svg.getClientRects().length === 0 || !svg.checkVisibility({ checkVisibilityCSS: true })) continue;
       const texts = [...svg.querySelectorAll<SVGTextElement>('text')].filter((t) => t.getClientRects().length > 0 && t.checkVisibility({ checkVisibilityCSS: true }) && (t.textContent ?? '').trim() !== '');
       const rects = texts.map((t) => ({ text: (t.textContent ?? '').trim().slice(0, 40), r: t.getBoundingClientRect() }));
+      const box = svg.getBoundingClientRect();
       for (const { text, r } of rects) {
         if (r.left < -1 || r.right > vw + 1) out.add(`chart text off the screen: "${text}"`);
+        const past = r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1;
+        if (past && !pinned.includes(text)) out.add(`chart text past its chart's edge: "${text}"`);
         for (let p: Element | null = svg; p && p !== document.body; p = p.parentElement) {
           const ps = getComputedStyle(p);
           const b = p.getBoundingClientRect();
@@ -85,7 +94,7 @@ async function chartText(page: Page): Promise<string[]> {
       }
     }
     return [...out];
-  });
+  }, pinned);
 }
 
 /**
@@ -277,9 +286,9 @@ async function targets(page: Page, route: string, label: string) {
   expect.soft(unpinnedExemptions(exempt, await pinnedExemptions(page, route), ['default']), `${label}: inline exemptions`).toEqual([]);
 }
 
-async function common(page: Page, label: string) {
+async function common(page: Page, label: string, route: string) {
   expect.soft(await sideways(page), `${label}: sideways scroll`).toBeLessThanOrEqual(0);
-  expect.soft(await chartText(page), `${label}: chart text`).toEqual([]);
+  expect.soft(await chartText(page, route), `${label}: chart text`).toEqual([]);
   expect.soft(await incompleteText(page), `${label}: incomplete text`).toEqual([]);
   expect.soft(await scrolledProse(page), `${label}: prose that scrolls sideways`).toEqual([]);
   expect.soft(await controlRows(page), `${label}: control rows out of line`).toEqual([]);
@@ -298,7 +307,7 @@ test.describe('Remaining quality: every page across the size matrix', () => {
         const page = await openAt(browser, route, size);
         const label = `${route} at ${size.name}`;
         expect.soft(await motion(page), `${label}: motion before any input`).toEqual([]);
-        await common(page, label);
+        await common(page, label, route);
         await targets(page, route, label);
         expect.soft(await focusRings(page), `${label}: focus rings`).toEqual([]);
         await page.context().close();
@@ -338,7 +347,7 @@ test.describe('Remaining quality: representative states', () => {
         if (state.print) await page.emulateMedia({ media: 'print' });
         if (state.enter) await state.enter(page);
         const label = `${state.id} at ${sizeName}`;
-        await common(page, label);
+        await common(page, label, state.route);
         if (state.print) {
           await expect.soft(page.locator('[data-site-header]'), `${label}: header in print`).toBeHidden();
           await expect.soft(page.getByRole('contentinfo'), `${label}: footer in print`).toBeHidden();
