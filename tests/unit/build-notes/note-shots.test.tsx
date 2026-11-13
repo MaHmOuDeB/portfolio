@@ -25,14 +25,14 @@ const EXPECTED = {
     caption: 'The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one.',
   },
   weatherChecks: {
-    src: '/images/notes/weather-quality-checks-dark.png',
+    src: '/images/notes/weather-quality-checks-light-crop.png',
     alt: "Terminal output of the weather pipeline's data-quality checks, one line per check, each with its status word: most lines read OK, the warning lines read WARN and the line on merged condition spellings reads INFO.",
     caption:
       'The data-quality step of the pipeline I rebuilt on a public weather dataset. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
   },
   n8nDecision: {
-    src: '/images/notes/n8n-einvoice-decision-crop-light.png',
-    alt: 'An n8n workflow canvas: a webhook checks the request, reads the invoice row, routes the outcome to error responses or to updating the register and the supplier record, then responds OK.',
+    src: '/images/notes/n8n-einvoice-routing-light.png',
+    alt: 'Part of an n8n workflow canvas: it checks the request, reads and checks the invoice row, then routes the outcome either to updating the register or to an error response.',
     caption: 'The approval step: a person approves or declines an invoice that needs a look, and every other answer is a clear error code.',
   },
 } as const;
@@ -97,6 +97,38 @@ describe('NoteShot', () => {
     expect(shotsIn(markup)[0]!.alt).toBe(EXPECTED.weatherChecks.alt);
   });
 
+  it('shows both MarketingWS shots at one width, the text column', () => {
+    for (const id of ['marketingwsBrief', 'marketingwsDraft'] as const) {
+      const figure = /<figure ([^>]*)>/.exec(renderToStaticMarkup(<NoteShot shot={id} />))![1]!;
+      expect(NOTE_SHOTS[id].maxWidth).toBe('text');
+      expect(figure).toMatch(/class="[^"]*\bmax-w-text\b/);
+      expect(figure).not.toContain('style=');
+      // Never wider than the file: the text column is 680 px.
+      expect(NOTE_SHOTS[id].width).toBeGreaterThanOrEqual(680);
+    }
+  });
+
+  it('keeps the terminal and canvas text at 13 px or more: a narrowest width, and a labelled scrolling frame under it', () => {
+    for (const id of ['weatherChecks', 'n8nDecision'] as const) {
+      const shot = NOTE_SHOTS[id];
+      const textAt = (cssWidth: number) => (shot.textPx * cssWidth) / shot.width;
+      expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(13);
+      expect(shot.maxWidth).toBeGreaterThanOrEqual(shot.minWidth);
+      expect(shot.maxWidth).toBeLessThanOrEqual(960);
+      const markup = renderToStaticMarkup(<NoteShot shot={id} />);
+      expect(markup).toContain(`<div data-shot-frame="" class="overflow-x-auto" tabindex="0" role="region" aria-labelledby="${id}-caption"><img `);
+      expect(markup).toContain(`<figcaption id="${id}-caption"`);
+      expect(markup).toContain(`style="min-width:${shot.minWidth}px"`);
+    }
+    // The light terminal: no dark surface on a light-only site.
+    expect(NOTE_SHOTS.weatherChecks.file).not.toMatch(/dark/);
+  });
+
+  it('links the n8n canvas to the wider crop of the same recording', () => {
+    const markup = renderToStaticMarkup(<NoteShot shot="n8nDecision" />);
+    expect(markup).toContain('<a href="/images/notes/n8n-einvoice-decision-nodes-light.png"');
+  });
+
   it('puts the caption last in the figure, with the full-size link inside it', () => {
     for (const id of Object.keys(EXPECTED)) {
       const markup = renderToStaticMarkup(<NoteShot shot={id as keyof typeof NOTE_SHOTS} />);
@@ -124,9 +156,11 @@ describe('the notes', () => {
     expect(used).toEqual([
       'marketingws-brief-light.png',
       'marketingws-first-draft-light.png',
-      'weather-quality-checks-dark.png',
-      'n8n-einvoice-decision-crop-light.png',
+      'weather-quality-checks-light-crop.png',
+      'n8n-einvoice-routing-light.png',
     ]);
-    for (const f of used) expect(existsSync(join(repo, 'public/images/notes', f))).toBe(true);
+    const fullSize = Object.values(NOTE_SHOTS).flatMap((s) => ('fullSizeFile' in s ? [s.fullSizeFile] : []));
+    expect(fullSize).toEqual(['n8n-einvoice-decision-nodes-light.png']);
+    for (const f of [...used, ...fullSize]) expect(existsSync(join(repo, 'public/images/notes', f))).toBe(true);
   });
 });
