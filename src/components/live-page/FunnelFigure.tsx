@@ -113,7 +113,7 @@ export function FunnelFigure({ data, refs, runtime }: Props) {
       <p className={`${P} mt-3`}>
         Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per
         network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full,
-        later entries are turned away without being counted under any reason. The rows are not visitors lost and do not add up:
+        entries that would have counted are turned away without being counted under any reason. The rows are not visitors lost and do not add up:
         one visitor can appear under several reasons, and some visits never reach the server at all.
       </p>
     </div>

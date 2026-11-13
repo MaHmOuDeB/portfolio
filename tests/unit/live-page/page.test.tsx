@@ -161,7 +161,7 @@ describe('the carried planning copy', () => {
   });
 });
 
-describe('fix round 1: quoted hypothesis, read time, decision label, verifier link', () => {
+describe('pinned copy: hypothesis, read time, decision label and verifier link', () => {
   it('quotes the pre-registration\'s hypothesis exactly', () => {
     const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8');
     const hypothesis = 'Featured case-study cards that state the finding get more clicks than cards that name the topic.';
@@ -194,13 +194,14 @@ describe('fix round 1: quoted hypothesis, read time, decision label, verifier li
   });
 });
 
-describe('ledger fix round: sentences true to the code and the pre-registration', () => {
+describe('pinned copy: funnel, split check, effect, decision and data', () => {
   it('the exclusions caption names the two rows that do not count entries, and the rate limit counts requests', () => {
     const d = displayOf(withExclusions(cal(60, 60)));
     const h = page(d);
     expect(sectionText(h, 'funnel')).toContain(
-      'Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full, later entries are turned away without being counted under any reason. The rows are not visitors lost and do not add up: one visitor can appear under several reasons, and some visits never reach the server at all.',
+      'Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full, entries that would have counted are turned away without being counted under any reason. The rows are not visitors lost and do not add up: one visitor can appear under several reasons, and some visits never reach the server at all.',
     );
+    expect(sectionText(h, 'funnel')).not.toContain('later entries are turned away');
     const rows = elements(byId(h, 'live-exclusions')!).filter((el) => el.tagName === 'tr').map((tr) => elements(tr).filter((c) => c.tagName === 'td').map(text));
     expect(rows.find((r) => r[0] === 'Over the rate limit')?.[2]).toBe('Too many requests from one network address in a minute');
     expect(everything(h)).not.toContain('Too many events');
