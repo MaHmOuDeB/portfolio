@@ -110,7 +110,13 @@ for (const route of routes) {
             const errors: string[] = [];
             if (!outline && !shadow) errors.push('no visible focus ring');
             if (r.width <= 0 || r.height <= 0 || s.visibility === 'hidden' || s.opacity === '0') errors.push('invisible focus target');
-            if (r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('focus ring outside viewport');
+            // A textarea taller than the space left is scrolled only as far as its caret, so its ring may
+            // run past an edge; it must still be in view (SC 2.4.11 fails only when it is entirely hidden).
+            // The contact e2e checks that its label stays in view at the 400% zoom size.
+            const outside = r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1;
+            if (el instanceof HTMLTextAreaElement) {
+              if (r.bottom <= 0 || r.top >= innerHeight || r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1) errors.push('focused textarea out of view');
+            } else if (outside) errors.push('focus ring outside viewport');
             for (let parent = ring.parentElement; parent; parent = parent.parentElement) {
               const p = getComputedStyle(parent);
               const b = parent.getBoundingClientRect();

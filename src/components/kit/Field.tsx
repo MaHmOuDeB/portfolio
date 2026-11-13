@@ -12,10 +12,12 @@ import { Icon } from './Icon';
 
 /**
  * The control box shared by input, textarea and select. Focus is the global ring from tokens.css:
- * the border never changes on focus. No shadow of any kind.
+ * the border never changes on focus. No shadow of any kind. The scroll margin (scroll-mt-28) covers
+ * the label, a hint and a two-line error above the control, so when the page scrolls to the control
+ * (an error summary's link, with or without JavaScript, or focus) they stay in view above it.
  */
 export const fieldControlClass = cx(
-  'block w-full min-h-(--size-target) rounded-md border border-muted bg-bg px-3 py-2 text-base text-ink transition-colors',
+  'block w-full min-h-(--size-target) scroll-mt-28 rounded-md border border-muted bg-bg px-3 py-2 text-base text-ink transition-colors',
   'hover:border-ink aria-invalid:border-warn aria-invalid:hover:border-warn',
   'disabled:cursor-not-allowed disabled:border-line disabled:text-muted disabled:hover:border-line',
 );

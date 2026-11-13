@@ -61,6 +61,24 @@ describe('TextField', () => {
     expect(fieldControlClass).toContain('disabled:border-line');
   });
 
+  it('gives every control a scroll margin, so a control scrolled to (a summary link, focus) keeps its label and error in view', () => {
+    // Label, hint and a two-line error above the control come to about 100 px at 320 px wide.
+    expect(fieldControlClass.split(' ')).toContain('scroll-mt-28');
+    for (const html of [
+      <TextField key="t" id="a" name="a" label="A" />,
+      <TextArea key="x" id="b" name="b" label="B" limit={10} refs={['simulated']} />,
+      <SelectField key="s" id="c" name="c" label="C" options={[{ value: 'x', label: 'X' }]} />,
+    ].map((el) => render(el).root)) {
+      const control = [...byTag(html, 'input'), ...byTag(html, 'textarea'), ...byTag(html, 'select')][0];
+      expect(classes(control)).toContain('scroll-mt-28');
+    }
+  });
+
+  it('CharacterCount never scrolls the page: focus scrolling is the browser\'s (and the scroll margin\'s)', () => {
+    const source = readFileSync('src/components/kit/CharacterCount.tsx', 'utf8');
+    expect(source).not.toMatch(/scrollIntoView|scrollTo|scrollBy|addEventListener\('focus'/);
+  });
+
   it('ties the hint and the error to the control in order, and marks it invalid only with an error', () => {
     const { root } = render(<TextField id="email" name="email" type="email" label="E-mail address" hint="I reply to this address." error="Enter your e-mail address, so I can reply" />);
     const input = byTag(root, 'input')[0]!;
