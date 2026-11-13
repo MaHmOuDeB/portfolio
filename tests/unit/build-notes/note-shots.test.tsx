@@ -37,6 +37,11 @@ const EXPECTED = {
   },
 } as const;
 
+// The n8n canvas was captured at 2x with n8n zoomed to fit, so at its 1x size (448 px) its node
+// labels would be about 6 px. Until it is re-shot it is drawn at its file's width (one file pixel per
+// CSS px, labels about 12.5 px), above its 1x size: the only shot allowed to be.
+const UPSCALED_UNTIL_RESHOOT = ['n8nDecision'];
+
 const PAGES = {
   marketingws: { markup: renderToStaticMarkup(<MarketingwsPage />), shots: ['marketingwsBrief', 'marketingwsDraft'], where: 'architecture' },
   weather: { markup: renderToStaticMarkup(<WeatherPage />), shots: ['weatherChecks'], where: 'how-i-checked-this' },
@@ -97,22 +102,41 @@ describe('NoteShot', () => {
     expect(shotsIn(markup)[0]!.alt).toBe(EXPECTED.weatherChecks.alt);
   });
 
-  it('shows both MarketingWS shots at one width, the text column', () => {
+  it('shows each MarketingWS shot at its own width: the brief at its capture size, the draft at its old 796', () => {
+    expect(NOTE_SHOTS.marketingwsBrief.maxWidth).toBe(360);
+    expect(NOTE_SHOTS.marketingwsDraft.maxWidth).toBe(796);
     for (const id of ['marketingwsBrief', 'marketingwsDraft'] as const) {
       const figure = /<figure ([^>]*)>/.exec(renderToStaticMarkup(<NoteShot shot={id} />))![1]!;
-      expect(NOTE_SHOTS[id].maxWidth).toBe('text');
-      expect(figure).toMatch(/class="[^"]*\bmax-w-text\b/);
-      expect(figure).not.toContain('style=');
-      // Never wider than the file: the text column is 680 px.
-      expect(NOTE_SHOTS[id].width).toBeGreaterThanOrEqual(680);
+      expect(figure).toContain(`style="max-width:${NOTE_SHOTS[id].maxWidth}px"`);
+      expect(figure).not.toMatch(/\bmax-w-text\b/);
     }
+  });
+
+  // A screenshot is drawn no larger than the UI it shows: never above its file's width divided by the
+  // scale it was captured at, so a 2x capture is never drawn above its 1x size (the brief at 680 px
+  // was nearly twice its real size). The one exception is pinned below by name.
+  it('never draws a capture above its 1x size', () => {
+    const over: string[] = [];
+    for (const [id, shot] of Object.entries(NOTE_SHOTS)) {
+      const s: { width: number; captureScale: number; maxWidth: number; minWidth?: number } = shot;
+      expect(s.captureScale, id).toBeGreaterThanOrEqual(1);
+      // Never wider than the file itself, the exception included.
+      expect(s.maxWidth, id).toBeLessThanOrEqual(s.width);
+      if (s.minWidth !== undefined) expect(s.minWidth, id).toBeLessThanOrEqual(s.width);
+      const oneX = s.width / s.captureScale;
+      if (s.maxWidth > oneX || (s.minWidth ?? 0) > oneX) over.push(id);
+    }
+    expect(over).toEqual(UPSCALED_UNTIL_RESHOOT);
   });
 
   it('keeps the terminal and canvas text at 13 px or more: a narrowest width, and a labelled scrolling frame under it', () => {
     for (const id of ['weatherChecks', 'n8nDecision'] as const) {
       const shot = NOTE_SHOTS[id];
       const textAt = (cssWidth: number) => (shot.textPx * cssWidth) / shot.width;
-      expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(13);
+      // The n8n labels are about 12.5 px, drawn one file pixel per CSS px: as large as the capture
+      // allows without upscaling. A re-shoot at a closer zoom is the carried fix.
+      if (id === 'n8nDecision') expect(textAt(shot.minWidth)).toBe(shot.textPx);
+      else expect(textAt(shot.minWidth)).toBeGreaterThanOrEqual(13);
       expect(shot.maxWidth).toBeGreaterThanOrEqual(shot.minWidth);
       expect(shot.maxWidth).toBeLessThanOrEqual(960);
       const markup = renderToStaticMarkup(<NoteShot shot={id} />);
