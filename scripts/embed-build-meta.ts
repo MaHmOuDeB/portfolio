@@ -3,8 +3,9 @@
 //
 // - public/build-meta.json present and valid: its JSON.
 // - present but empty, malformed or not build metadata: throw, so the build fails.
-// - absent, with no deploy signal (neither VERCEL nor VERCEL_ENV set): "null". Every local, CI and
-//   e2e `next build` is this case, and the colophon then says the results are added on deploy.
+// - absent, with no deploy signal (neither VERCEL nor VERCEL_ENV set): "null". Local, e2e and CI
+//   build-job builds are this case (the CI build-isolation job writes a synthetic file instead), and
+//   the colophon then says the results are added on deploy.
 // - absent on a deploy build (VERCEL or VERCEL_ENV set, as `vercel build` sets them): throw. The
 //   deploy writes the file with `npm run build:meta` before `vercel build`, so its absence there is
 //   a broken deploy, never a reason to print nothing.
