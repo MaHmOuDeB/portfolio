@@ -13,6 +13,8 @@ export type NoteShot = {
   readonly caption: string;
   /** Offer the full-size file as a link, for a picture whose text is small beside the column. */
   readonly fullSize: boolean;
+  /** What the full-size link names, after "Full-size picture of" (only when fullSize). */
+  readonly label?: string;
 };
 
 export const NOTE_SHOTS = {
@@ -34,15 +36,16 @@ export const NOTE_SHOTS = {
     caption:
       'The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one.',
     fullSize: true,
+    label: 'the first draft',
   },
   weatherChecks: {
     file: 'weather-quality-checks-dark.png',
     width: 1462,
     height: 1082,
     maxWidth: 731,
-    alt: "Terminal output of the weather pipeline's data-quality checks. Most lines read OK, some read WARN (rows quarantined as sensor errors with very high wind, and locations observed only a few times) and another reads INFO (condition spellings merged), followed by the row counts of the staging, dimension, fact and quarantine tables.",
+    alt: "Terminal output of the weather pipeline's data-quality checks, one line per check, each with its status word: most lines read OK, the warning lines read WARN and the line on merged condition spellings reads INFO.",
     caption:
-      'The data-quality step of the pipeline, run on the public weather dataset I rebuilt in 2026. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
+      'The data-quality step of the pipeline I rebuilt on a public weather dataset. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
     fullSize: false,
   },
   n8nDecision: {
@@ -54,6 +57,7 @@ export const NOTE_SHOTS = {
     caption:
       'The approval step: a person approves or declines an invoice that needs a look, and every other answer is a clear error code.',
     fullSize: true,
+    label: 'the workflow canvas',
   },
 } as const satisfies Record<string, NoteShot>;
 

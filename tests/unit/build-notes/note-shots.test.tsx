@@ -12,7 +12,6 @@ import { WeatherPage } from '@/components/weather/WeatherPage';
 import { audit, decode, section, text } from './helpers';
 
 const repo = join(import.meta.dirname, '../../..');
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 
 const EXPECTED = {
   marketingwsBrief: {
@@ -27,9 +26,9 @@ const EXPECTED = {
   },
   weatherChecks: {
     src: '/images/notes/weather-quality-checks-dark.png',
-    alt: "Terminal output of the weather pipeline's data-quality checks. Most lines read OK, some read WARN (rows quarantined as sensor errors with very high wind, and locations observed only a few times) and another reads INFO (condition spellings merged), followed by the row counts of the staging, dimension, fact and quarantine tables.",
+    alt: "Terminal output of the weather pipeline's data-quality checks, one line per check, each with its status word: most lines read OK, the warning lines read WARN and the line on merged condition spellings reads INFO.",
     caption:
-      'The data-quality step of the pipeline, run on the public weather dataset I rebuilt in 2026. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
+      'The data-quality step of the pipeline I rebuilt on a public weather dataset. Every error-level check passes; the warnings name the sensor errors I quarantined and the places with too few observations.',
   },
   n8nDecision: {
     src: '/images/notes/n8n-einvoice-decision-crop-light.png',
@@ -59,7 +58,7 @@ const shotsIn = (markup: string) =>
       loading: attr('loading'),
       decoding: attr('decoding'),
       className: attr('class'),
-      caption: text(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/.exec(body)![1]!),
+      caption: text(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/.exec(body)![1]!.replace(/<a [\s\S]*?<\/a>/, '')),
     };
   });
 
@@ -92,8 +91,20 @@ describe('NoteShot', () => {
     expect(linked).toEqual(['marketingwsDraft', 'n8nDecision']);
   });
 
-  it('keeps the escaped alt text out of the visible words', () => {
-    expect(esc(EXPECTED.weatherChecks.alt)).toContain('&#x27;');
+  it('escapes the apostrophe in the rendered alt text and decodes back to the pin', () => {
+    const markup = renderToStaticMarkup(<NoteShot shot="weatherChecks" />);
+    expect(markup).toContain("pipeline&#x27;s data-quality checks");
+    expect(shotsIn(markup)[0]!.alt).toBe(EXPECTED.weatherChecks.alt);
+  });
+
+  it('puts the caption last in the figure, with the full-size link inside it', () => {
+    for (const id of Object.keys(EXPECTED)) {
+      const markup = renderToStaticMarkup(<NoteShot shot={id as keyof typeof NOTE_SHOTS} />);
+      expect(markup).toMatch(/<\/figcaption><\/figure>$/);
+    }
+    const linked = renderToStaticMarkup(<NoteShot shot="marketingwsDraft" />);
+    expect(linked).toMatch(/<figcaption[^>]*>[^]*<a [^>]*>Full-size picture of the first draft<\/a><\/figcaption>/);
+    expect(renderToStaticMarkup(<NoteShot shot="n8nDecision" />)).toContain('>Full-size picture of the workflow canvas</a>');
   });
 });
 

@@ -18,16 +18,21 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
         decoding="async"
         className="h-auto w-full rounded-sm border border-line"
       />
-      <figcaption className="mt-2 text-sm text-muted">{s.caption}</figcaption>
-      {s.fullSize ? (
-        <a
-          href={src}
-          data-touch-target=""
-          className="inline-flex min-h-(--size-target) items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
-        >
-          Full-size picture
-        </a>
-      ) : null}
+      <figcaption className="mt-2 max-w-text text-sm text-muted">
+        {s.caption}
+        {s.fullSize ? (
+          <>
+            {' '}
+            <a
+              href={src}
+              data-touch-target=""
+              className="inline-flex min-h-(--size-target) items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
+            >
+              Full-size picture of {s.label}
+            </a>
+          </>
+        ) : null}
+      </figcaption>
     </figure>
   );
 }

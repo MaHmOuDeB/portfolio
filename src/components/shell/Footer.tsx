@@ -19,7 +19,7 @@ export function Footer() {
         <TextLink href={PRIVACY_HREF} standalone>
           Privacy
         </TextLink>
-        <p className="text-sm text-muted">Built with Claude Code as pair-programmer.</p>
+        <p className="basis-full text-sm text-muted">Built with Claude Code as pair-programmer.</p>
       </div>
     </footer>
   );

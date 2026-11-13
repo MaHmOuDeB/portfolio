@@ -145,7 +145,7 @@ for (const note of NOTES) {
       await page.goto(note.route);
       await page.emulateMedia({ media: 'print' });
       for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
-      expect(await noSideScroll(page)).toBe(true);
+      await expect.poll(() => noSideScroll(page)).toBe(true);
     });
   });
 }
@@ -210,7 +210,10 @@ test.describe('MarketingWS build note', () => {
     // nothing is embedded, and the only images are the two screenshots served from this site
     await expect(page.locator('main iframe, main video, main object, main embed')).toHaveCount(0);
     await expect(page.locator('main img')).toHaveCount(2);
-    for (const src of await page.locator('main img').evaluateAll((l) => l.map((i) => i.getAttribute('src')))) expect(src).toMatch(/^\/images\/notes\//);
+    expect(await page.locator('main img').evaluateAll((l) => l.map((i) => i.getAttribute('src')))).toEqual([
+      '/images/notes/marketingws-brief-light.png',
+      '/images/notes/marketingws-first-draft-light.png',
+    ]);
   });
 
   test('reading the page makes only same-origin requests: none to the demo or the repository', async ({ page, baseURL }) => {
@@ -373,14 +376,7 @@ for (const { route, ids } of SHOTS) {
       await page.setViewportSize({ width: 320, height: 800 });
       await page.goto(route);
       for (const id of ids) await page.locator(`figure[data-note-shot="${id}"] img`).scrollIntoViewIfNeeded();
-      expect(await noSideScroll(page)).toBe(true);
+      await expect.poll(() => noSideScroll(page)).toBe(true);
     });
   });
 }
-
-test('the footer carries the colophon line on every page', async ({ page }) => {
-  for (const route of ['/', '/work/weather']) {
-    await page.goto(route);
-    await expect(page.getByRole('contentinfo')).toContainText('Built with Claude Code as pair-programmer.');
-  }
-});

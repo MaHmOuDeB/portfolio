@@ -339,6 +339,15 @@ test.describe('footer', () => {
       expect(height).toBeGreaterThanOrEqual(44);
     }
   });
+
+  test('the colophon line is the same plain line on every page, including a 404', async ({ page }) => {
+    for (const route of ['/', '/work', '/lab', '/experiment', '/about', '/privacy', '/no-such-page']) {
+      await page.goto(route);
+      const line = page.getByRole('contentinfo').getByText('Built with Claude Code as pair-programmer.', { exact: true });
+      await expect(line, route).toHaveCount(1);
+      await expect(line, route).toHaveText('Built with Claude Code as pair-programmer.');
+    }
+  });
 });
 
 test('the page text carries no phone number', async ({ page }) => {
