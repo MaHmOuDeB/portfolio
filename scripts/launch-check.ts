@@ -11,8 +11,9 @@
 // - the deployed checks (docs/experiment/deployed-checks.md, the log table) are recorded as PASS,
 //   and the `headers` PASS was run against the canonical domain (--canonical);
 // - the secrets exist, by name: in Vercel's production environment and in the GitHub repository;
-// - the GitHub repository variables the deploy reads exist, by name: LAUNCHED, and LAUNCH_SHA, the
-//   commit the deploy workflow lets deploy production once LAUNCHED is true;
+// - the GitHub repository variables the deploy reads exist, by name: LAUNCHED; LAUNCH_SHA, the
+//   commit the deploy workflow lets deploy production once LAUNCHED is true; and CANONICAL_HOST, the
+//   bare canonical domain the production deploy checks the built pages against;
 // - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
 //   hash;
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository.
@@ -67,8 +68,18 @@ export const VERCEL_SECRETS = [
 ] as const;
 /** Repository secrets the CI and deploy workflows use for the experiment. */
 export const GITHUB_SECRETS = ['INTERNAL_TRAFFIC_SECRET', 'VERCEL_AUTOMATION_BYPASS_SECRET'] as const;
-/** Repository variables the deploy workflow reads: the launch setting and the one commit it may deploy to production. */
-export const GITHUB_VARIABLES = ['LAUNCHED', 'LAUNCH_SHA'] as const;
+/**
+ * Repository variables the deploy workflow reads: the launch setting, the one commit it may deploy to
+ * production, and the canonical domain its production origin check expects.
+ */
+export const GITHUB_VARIABLES = ['LAUNCHED', 'LAUNCH_SHA', 'CANONICAL_HOST'] as const;
+/** Why a missing variable is unmet. The two launch switches must never read as "set it now". */
+const MISSING_VARIABLE: Record<(typeof GITHUB_VARIABLES)[number], string> = {
+  LAUNCHED: 'expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step',
+  LAUNCH_SHA: 'expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step',
+  CANONICAL_HOST:
+    'the production deploy refuses to run without it: the owner sets it to the bare canonical domain, the one given to --canonical, before LAUNCHED',
+};
 /** Rows of the deployed-checks log that must read PASS before launch. */
 export const REQUIRED_LOG_CHECKS = ['split', 'isr', 'headers', 'firewall', 'domains'] as const;
 const PREREG_TAG = EXPERIMENT.prereg.tag;
@@ -286,13 +297,9 @@ export function main(argv: string[], partial: Partial<LaunchDeps> = {}): number 
     unmet.push('could not list the GitHub variables (run gh auth login, then try again)');
   } else {
     const have = names(variables.stdout);
-    // Before launch both are missing by design; the message must never read as "set it now".
+    // Before launch LAUNCHED and LAUNCH_SHA are missing by design (MISSING_VARIABLE says why).
     for (const name of GITHUB_VARIABLES) {
-      if (!have.has(name)) {
-        unmet.push(
-          `variable missing in GitHub: ${name} (expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step)`,
-        );
-      }
+      if (!have.has(name)) unmet.push(`variable missing in GitHub: ${name} (${MISSING_VARIABLE[name]})`);
     }
   }
 

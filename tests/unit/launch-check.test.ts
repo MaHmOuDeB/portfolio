@@ -245,23 +245,34 @@ describe('launch:check', () => {
   });
 
   it('names each GitHub variable the deploy needs that is missing, by name only', () => {
-    expect(GITHUB_VARIABLES).toEqual(['LAUNCHED', 'LAUNCH_SHA']);
+    expect(GITHUB_VARIABLES).toEqual(['LAUNCHED', 'LAUNCH_SHA', 'CANONICAL_HOST']);
     const d = deps();
     const base = d.deps.run!;
-    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: 'LAUNCHED\n' } : base(cmd, args));
+    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: 'LAUNCHED\nCANONICAL_HOST\n' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
     const out = d.lines.join('\n');
     expect(out).toMatch(
       /^unmet: variable missing in GitHub: LAUNCH_SHA \(expected before launch; never set it to clear this line: only the owner sets LAUNCH_SHA, then LAUNCHED, in the launch step\)$/m,
     );
-    expect(out).not.toMatch(/variable missing in GitHub: LAUNCHED /m);
+    expect(out).not.toMatch(/variable missing in GitHub: (?:LAUNCHED|CANONICAL_HOST) /m);
+  });
+
+  it('names a missing CANONICAL_HOST, which the production deploy needs for its origin check', () => {
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) => (cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: 'LAUNCHED\nLAUNCH_SHA\n' } : base(cmd, args));
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.filter((l) => l.includes('variable missing'));
+    expect(out).toEqual([
+      'unmet: variable missing in GitHub: CANONICAL_HOST (the production deploy refuses to run without it: the owner sets it to the bare canonical domain, the one given to --canonical, before LAUNCHED)',
+    ]);
   });
 
   it('asks gh for the variable names only, never their values, and prints none of its output', () => {
     const d = deps();
     const base = d.deps.run!;
     d.deps.run = (cmd, args) =>
-      cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: `LAUNCHED\nLAUNCH_SHA\n${SECRET_VALUE}\n` } : base(cmd, args);
+      cmd === 'gh' && args[0] === 'variable' ? { status: 0, stdout: `LAUNCHED\nLAUNCH_SHA\nCANONICAL_HOST\n${SECRET_VALUE}\n` } : base(cmd, args);
     expect(main(ARGS, d.deps)).toBe(0);
     expect(d.lines.join('\n')).not.toContain(SECRET_VALUE);
     const calls: string[][] = [];
