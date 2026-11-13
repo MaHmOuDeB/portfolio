@@ -5,11 +5,10 @@ import { Callout } from '@/components/kit/Callout';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../../content/privacy';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../content/seo';
 
-export const metadata: Metadata = {
-  title: PRIVACY.title,
-  description: 'What this site collects, why, and for how long.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/privacy'), canonicalOrigin());
 
 /** "26.10.2026" for "2026-10-26". */
 function versionDate(iso: string): string {
@@ -49,7 +48,9 @@ export default function PrivacyPage() {
       <h1 className="text-2xl font-semibold md:text-3xl">{PRIVACY.title}</h1>
       {PRIVACY.sections.map((section) => (
         <section key={section.heading} className="mt-12">
-          <h2 className="text-xl font-semibold">{section.heading}</h2>
+          <h2 id={section.id} className="text-xl font-semibold">
+            {section.heading}
+          </h2>
           {section.paragraphs.map((paragraph, i) =>
             paragraph.length === 1 &&
             typeof paragraph[0] === 'object' &&

@@ -2,16 +2,28 @@
 
 // The phone Menu: a <details>, so it opens and closes without JavaScript. With JavaScript, Escape
 // and any navigation close it; Escape also returns focus to the summary.
+// A reader can open the Menu before the page has hydrated (the <details> works from the first
+// paint). Hydration must not close it under them: only a change of path does, never the first
+// render. `data-ready` marks the Menu once its handlers are attached, so a test that checks what
+// JavaScript adds (closing on a keyboard exit, Escape) can wait for it.
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { Icon } from '@/components/kit/Icon';
+
+const noSubscription = () => () => {};
 
 export function MenuDisclosure({ children }: { children: ReactNode }) {
   const details = useRef<HTMLDetailsElement>(null);
   const linkPress = useRef<number | null>(null);
   const pathname = usePathname();
+  // The path the Menu was last shown for: the first effect after hydration sees no change.
+  const shownFor = useRef(pathname);
+  // False on the server and while hydrating, true once this component runs in the browser.
+  const ready = useSyncExternalStore(noSubscription, () => true, () => false);
 
   useEffect(() => {
+    if (shownFor.current === pathname) return;
+    shownFor.current = pathname;
     if (details.current) details.current.open = false;
   }, [pathname]);
 
@@ -36,6 +48,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
   return (
     <details
       ref={details}
+      data-ready={ready ? '' : undefined}
       className="relative md:hidden"
       onPointerDown={(event) => {
         if (event.button === 0 && event.target instanceof Element && event.target.closest('a')) {

@@ -5,7 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../content/privacy.ts';
 import { EXPERIMENT } from '../../src/experiment.values.ts';
-import { CONTACT, SITE } from '../../src/lib/site.ts';
+import { CONTACT, CONTACT_HREF, SITE } from '../../src/lib/site.ts';
+import { clickEvents } from '../../src/lib/experiment/beacon.ts';
 import PrivacyPage, { metadata } from '../../src/app/privacy/page.tsx';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
@@ -16,6 +17,7 @@ const HEADINGS = [
   'What the script reads in your browser',
   'Cookies and storage',
   'Your IP address and browser type',
+  'The contact form',
   'Purposes and legal bases',
   'Who processes the data',
   'How long',
@@ -71,7 +73,7 @@ function unmarkedNumerals(node: T.ParentNode, marked = false, out: string[] = []
 }
 
 describe('the privacy page', () => {
-  it('is titled Privacy, with one h1 and the ten sections in order', () => {
+  it('is titled Privacy, with one h1 and the eleven sections in order', () => {
     expect(metadata.title).toBe('Privacy');
     expect(all.filter((el) => el.tagName === 'h1').map(text)).toEqual(['Privacy']);
     expect(all.filter((el) => el.tagName === 'h2').map(text)).toEqual(HEADINGS);
@@ -79,7 +81,7 @@ describe('the privacy page', () => {
   });
 
   it('names the providers, the legal bases and the browser signals it honours', () => {
-    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'LinkedIn', 'Global Privacy Control', 'Do Not Track']) {
+    for (const needle of ['Frankfurt', 'Art. 6(1)(f)', 'Art. 6(1)(b)', 'Art. 11(2)', 'TDDDG', 'Vercel', 'Upstash', 'Resend', 'Gmail', 'LinkedIn', 'Global Privacy Control', 'Do Not Track']) {
       expect(pageText, needle).toContain(needle);
     }
   });
@@ -95,26 +97,49 @@ describe('the privacy page', () => {
     expect(pageText).not.toMatch(/\b\d{5}\s+Berlin\b/);
   });
 
-  it('shows the controller exactly as the site data gives it: name, city and LinkedIn, and no placeholder', () => {
+  it('shows the controller exactly as the site data gives it: name, city, the contact form and LinkedIn, and no placeholder', () => {
     const who = sectionText('Who is responsible');
     expect(who).toContain(SITE.name);
     expect(who).toContain(SITE.city);
-    expect(who).toContain('You can reach me through my LinkedIn profile:');
+    expect(who).toContain('You can reach me through the contact form on this site or through my LinkedIn profile:');
     expect(who).toContain('linkedin.com/in/');
     const section = all.find((el) => el.tagName === 'section' && text(el) === who)!;
     expect(elements(section).some((el) => attr(el, 'data-launch-placeholder') !== undefined)).toBe(false);
     const links = elements(section).filter((el) => el.tagName === 'a');
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT.linkedin]);
-    expect(links.map((a) => text(a))).toEqual(['linkedin.com/in/melbergui']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CONTACT.linkedin]);
+    expect(links.map((a) => text(a))).toEqual(['Contact form', 'linkedin.com/in/melbergui']);
+  });
+
+  it('describes the contact form under its own anchor: the five fields, Resend, nothing stored, the hourly hash', () => {
+    expect(all.filter((el) => el.tagName === 'h2' && attr(el, 'id') === 'contact-form').map(text)).toEqual(['The contact form']);
+    const form = sectionText('The contact form');
+    for (const needle of [
+      'your name, your e-mail address, why you are getting in touch, a subject and your message',
+      'The server, which Vercel runs for me in Frankfurt, checks the form and passes it to Resend',
+      'This site stores nothing from the form',
+      'does not write what you entered to its logs',
+      'a keyed hash of your IP address (for IPv6, its network part) in its memory, to count how many messages come from one address',
+      'It drops the hash once its hour has passed; if the server was paused, it drops it as soon as it resumes, and it is gone when the server stops.',
+      'so I treat it as personal data while it exists',
+      'Please do not send me health or other sensitive information',
+    ]) {
+      expect(form, needle).toContain(needle);
+    }
+    // The limit's hour is not promised as a hard maximum: a paused server drops the hash when it resumes.
+    expect(form).not.toContain('at most an hour');
+    expect(sectionText('How long')).toContain('IP address hashes for the contact form’s limit: an hour, in the server’s memory only (see ‘The contact form’).');
+    expect(sectionText('How long')).toContain('A message I delete stays in Gmail’s trash for up to thirty days, unless I empty it sooner, and Google may keep backup copies for a limited time under its own terms.');
+    expect(sectionText('Who processes the data')).toContain('delivers the messages from the contact form to my inbox, and processes them primarily in the USA.');
+    expect(sectionText('What a page view sends')).toContain('a contact link (LinkedIn, GitHub or this site’s contact form)');
   });
 
   it('says exactly how messages are handled', () => {
     const paragraphs = all.filter((el) => el.tagName === 'p').map((el) => text(el));
     for (const sentence of [
-      'Replying to your messages: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.',
+      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.',
       'Messages you send me on LinkedIn are processed by LinkedIn under its own terms.',
-      'Messages: deleted when the conversation is over, unless I need to keep them.',
-      'You can reach me through my LinkedIn profile:',
+      'Messages, on LinkedIn or in my inbox, including those from the contact form: kept until I delete them, which I do when the conversation is over, unless I need to keep them, for example for an application that is still open.',
+      'You can reach me through the contact form on this site or through my LinkedIn profile:',
     ]) {
       expect(paragraphs, sentence).toContain(sentence);
     }
@@ -162,7 +187,7 @@ describe('the privacy page', () => {
     expect(objection).toHaveLength(1);
     expect(text(objection[0]!)).toMatch(/Art\. 6\(1\)\(f\) GDPR \(Art\. 21 GDPR\)/);
     expect(text(objection[0]!)).toBe(
-      'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn.',
+      'You can object at any time to processing based on Art. 6(1)(f) GDPR (Art. 21 GDPR). For the experiment, the simplest way is to have your browser send Global Privacy Control or Do Not Track; otherwise send me a message on LinkedIn or through the contact form.',
     );
     expect(text(objection[0]!)).not.toMatch(/Art\. 15/);
   });
@@ -177,8 +202,21 @@ describe('the privacy page', () => {
     expect(sectionText('What a page view sends')).toContain('The script does not send the referring site or the address of a link you click');
   });
 
+  it('names the CV and contact clicks the beacon counts, in both places the notice describes them', () => {
+    // The notice's words and the beacon's definition (src/lib/experiment/beacon.ts clickEvents) move together.
+    const origin = 'https://site.example.com';
+    for (const href of ['/cv', '/cv/', '/cv.pdf']) expect(clickEvents(href, origin, false), href).toEqual(['cv']);
+    for (const href of ['/contact', '/contact/', CONTACT.linkedin, CONTACT.github]) expect(clickEvents(href, origin, false), href).toEqual(['contact']);
+    expect(sectionText('What a page view sends')).toContain(
+      'you clicked a featured card, a case study or the Lab, the CV page or the CV PDF, or a contact link (LinkedIn, GitHub or this site’s contact form).',
+    );
+    expect(sectionText('How long')).toContain('Clicks on the CV page or the CV PDF and on contact links are published only as final totals, after the experiment ends.');
+  });
+
   it('quotes the published small-cell value exactly', () => {
     expect(sectionText('How long')).toContain(`is shown as "<${EXPERIMENT.smallCellBelow}"`);
+    // The verified Upstash fact (LAUNCH_FACTS upstash-backups) stays in "How long".
+    expect(sectionText('How long')).toContain("The counter database's daily backup at Upstash is switched off.");
   });
 
   it('has no arrow, middle dot or emoji in its copy', () => {

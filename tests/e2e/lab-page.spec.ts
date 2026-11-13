@@ -334,6 +334,8 @@ test.describe('the Lab routes', () => {
       await expect(page.locator('[data-experiment], [data-phase], [data-live]')).toHaveCount(0);
     }
     await page.goto('about:blank');
-    expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment'))).toEqual([]);
+    // The experiment's endpoints: /api/* and /experiment/data.json. A prefetch of the Live test page
+    // itself (/experiment, the header's link) is a page, not an endpoint.
+    expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment/'))).toEqual([]);
   });
 });

@@ -24,6 +24,26 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 
 const IDLE_TIMEOUT_MS = 2000;
 
+/**
+ * Keeps `box` at least `height` tall until the island just inserted in it has been laid out. While the
+ * reservation is set the box is at least `height` tall, so a ResizeObserver on the box always notifies
+ * after the next layout (which includes the island) and before that frame's paint, whatever the
+ * island's own elements are; that notification lets the reservation go. A second animation frame is a
+ * backstop: by then the first frame has laid the island out (a single frame would be too early, its
+ * callbacks run before that layout). Writes only; it reads no style or layout.
+ */
+function reserveUntilLaidOut(box: HTMLElement, height: number) {
+  if (height <= 0 || typeof ResizeObserver !== 'function') return;
+  box.style.minHeight = `${height}px`;
+  const release = new ResizeObserver(() => done());
+  function done() {
+    release.disconnect();
+    box.style.minHeight = '';
+  }
+  release.observe(box);
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(done));
+}
+
 /** Commits with the island, never before it: tells the root to drop the preview. */
 function Arrived({ onArrive }: { onArrive: () => void }) {
   useLayoutEffect(onArrive, [onArrive]);
@@ -47,22 +67,44 @@ function Island({
   const [ready, setReady] = useState(false);
   const focusedId = useRef<string | null>(null);
 
+  // The preview's height as the browser last laid it out, kept by a ResizeObserver while the preview
+  // is on screen (an observer reads sizes after layout, so it never forces one). If the island is asked
+  // for before the browser has rendered once since hydration, the observer has not reported yet, and
+  // `load` reads the height itself: the island is not in the page yet, so a layout that read forces
+  // is one of the page as it stands.
+  const previewHeight = useRef(0);
+
   const load = useCallback(() => {
     const active = document.activeElement;
     if (active instanceof HTMLElement && active.id && root.current?.contains(active)) focusedId.current = active.id;
+    if (previewHeight.current === 0 && root.current) previewHeight.current = root.current.getBoundingClientRect().height;
     setLoading(true);
   }, [root]);
-  // Runs in the commit where the island first appears, while the preview is still in place. Reading a
-  // computed style of the island's new element makes the browser resolve the island's style now, in
-  // this task, before the next render removes the preview. WebKit lays the page out midway through
-  // style resolution to evaluate container queries (every chart is a query container); if the preview
-  // had already gone, that half-built page is shorter than the scroll position of a reader who followed
-  // a link to a section further down, WebKit clamps the position and drops its scroll anchor, and the
-  // view ends at the page end once the rest is built. With the preview in place the page never gets
-  // shorter. Style only, no layout: a forced layout here would let scroll anchoring move the view.
+
+  useEffect(() => {
+    const box = root.current;
+    if (ready || box === null || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) previewHeight.current = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+    });
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [ready, root]);
+
+  // Runs in the commit where the island first appears, while the preview is still in place; the next
+  // render removes the preview. Until the island has been laid out, the root keeps the preview's
+  // height as its minimum, so the page is never shorter than it was. WebKit lays the page out midway
+  // through the island's style, to evaluate container queries (every chart is a query container);
+  // without the reserved height that half-built page is shorter than the scroll position of a reader
+  // who followed a link to a section further down, WebKit clamps the position and drops its scroll
+  // anchor, and the view ends at the page end. The reservation is released by a ResizeObserver on the
+  // root, after that layout and before the paint, so no frame shows it.
+  // Nothing here reads style or layout: an island must not force layout in its own mount effects. A
+  // forced layout here lays out the preview and the island one above the other; Chromium picks its
+  // scroll anchor inside that stacked page, and when the preview leaves, the anchor moves up by the
+  // preview's height and the view follows it.
   const arrive = useCallback(() => {
-    const island = root.current?.lastElementChild;
-    if (island) void getComputedStyle(island).display;
+    if (root.current) reserveUntilLaidOut(root.current, previewHeight.current);
     setReady(true);
   }, [root]);
 

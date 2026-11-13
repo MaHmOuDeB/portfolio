@@ -84,6 +84,24 @@ rm "$ex"
    gh secret set VERCEL_AUTOMATION_BYPASS_SECRET --repo MaHmOuDeB/portfolio
    ```
 
+### `RESEND_API_KEY` and `CONTACT_TO_EMAIL` (the contact form)
+
+The contact form at `/contact` sends each message through Resend to my inbox. Both are Vercel
+Production secrets, set by hand and never pasted anywhere else: `RESEND_API_KEY` is the API key from
+the Resend dashboard, and `CONTACT_TO_EMAIL` is the inbox the messages go to (the address the Resend
+account is registered with). If either is missing, the form fails closed: it tells the visitor that
+nothing was sent, and the function log has one line naming the missing variable, never a value.
+
+Owner steps for the Resend key (by hand, before launch):
+
+1. In the Resend dashboard, create the key with **Sending access** only, never **Full access**: the
+   site only sends. A full-access key could read back the delivered messages, which Resend keeps
+   for thirty days, and manage domains and keys.
+2. In Vercel, add `RESEND_API_KEY` and `CONTACT_TO_EMAIL` as **Sensitive** variables, for
+   Production only.
+3. Turn on two-factor sign-in for the Resend account.
+4. If the key is ever pasted anywhere else, revoke it in Resend and create a new one.
+
 ### Check the names (never the values)
 
 ```sh
@@ -93,7 +111,8 @@ gh secret list --repo MaHmOuDeB/portfolio
 
 The first list must show `INTERNAL_TRAFFIC_SECRET`, `EXCLUDE_TOKEN` and `RATELIMIT_HMAC_KEY`, next
 to the store's `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN` and the
-`GLOBAL_CONFIG` that came with the integrations. The second must show `INTERNAL_TRAFFIC_SECRET` and
+`GLOBAL_CONFIG` that came with the integrations, and the contact form's `RESEND_API_KEY` and
+`CONTACT_TO_EMAIL`. The second must show `INTERNAL_TRAFFIC_SECRET` and
 `VERCEL_AUTOMATION_BYPASS_SECRET`. These secrets belong to **Production only**: never add them to
 Preview or Development.
 
@@ -102,12 +121,17 @@ Preview or Development.
 The site limits each address to a number of event messages a minute, but every refused request
 still costs a call to the counter database, whose free quota is finite. A Vercel Firewall rule
 stops a flood before it reaches the site. The Hobby plan allows one rate-limit rule per project,
-so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the only ones).
+so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the only ones) and the
+contact form's POSTs to `/contact` (its Server Action posts to the page's own path).
 
 1. Vercel: project `portfolio`, **Firewall** in the sidebar.
 2. **Configure** (top right), then **+ New Rule**.
-3. Name: `Rate limit the API`.
-4. **If**: `Request Path`, `Starts with`, `/api/`.
+3. Name: `Rate limit the API and the contact form`.
+4. **If**: `Request Path`, `Starts with`, `/api/`; then **OR** a second group: `Request Path`,
+   `Equals`, `/contact`, **AND** `Method`, `Equals`, `POST`. If the rule editor cannot join the
+   groups with OR, use one condition instead: `Request Path`, `Matches regex`, `^/(api/|contact$)`.
+   That also counts GETs of `/contact` against the same limit, which a real visitor never comes
+   near.
 5. **Then**: `Rate Limit`. If a pricing dialog appears, read it and select **Continue**. If the
    dialog asks for a payment method or a plan upgrade, stop: that is a purchase, and I decide it
    separately.
@@ -120,10 +144,19 @@ so one rule covers both API paths (`/api/e` and `/api/exclude`; they are the onl
 8. **Save Rule**, then **Review Changes** (top right), then **Publish**.
 9. Record it: add a row to the log in [deployed-checks.md](deployed-checks.md) with today's date,
    the production URL, check `firewall`, result `PASS`, and a note such as "40 per 10 min per IP on
-   /api/".
+   /api/ and POST /contact".
 
 Turning on the Firewall's challenge mode or Vercel BotID would set cookies on visitors' browsers.
 The privacy page says the site sets none, so either one means updating the privacy page first.
+
+The contact form also has its own limit in code, in each server instance's memory: five messages
+an hour from one address, counted under a keyed hash that is dropped after the hour, and twenty an
+hour from all addresses together, so one instance never sends more than that however many
+addresses a flood uses. Resend's own sending quota is the last backstop. The form never uses the
+counter database: its free quota is budgeted for the experiment (section 10), and a flood of form
+posts must not stop the count. After any burst of form mail, look in the function logs for the
+fixed lines `contact form: refused (...)`; they name the reason (honeypot, fast, limit or total
+limit) and nothing about the sender.
 
 ## 3. Domains: one canonical address
 
@@ -201,10 +234,13 @@ labels), and one while GitHub lists any runner for the repository (or cannot be 
 repository is made public, both of my former runners must be deregistered and removed, because a
 self-hosted runner must never run a public repository's pull requests.
 
-The privacy page currently waits for one fact: whether the counter database keeps backups. To
-confirm it, open <https://console.upstash.com>, select the database, open **Backups**, and check
-whether **Daily Backup** is on and for how long backups are kept. Keep it off unless there is a
-reason; then ask Claude to write what you saw into the privacy page.
+The privacy page states that the counter database's **Daily Backup** is off (checked in the
+Upstash console's **Backups** tab on 2026-11-13). Before launch, check that the backups table on
+that tab lists no backups, and delete any it lists (before the experiment starts the store holds no
+personal data). While the experiment runs, keep Daily Backup off and take no manual backup
+(**Backup & Export**, then **Backup**): a backup would keep per-view ids and IP address hashes
+longer than the privacy page says. If either is ever needed, update the privacy page and its date in
+the same change, say how long the backups are kept, and delete them when they are no longer needed.
 
 Optional read-only check of the production store (it prints only two status lines):
 
@@ -290,11 +326,18 @@ See [Redis conformance](redis-conformance.md) for the staging checks.
 
 The counter database's free tier allows 500,000 commands a month. The experiment is built to stay
 under it at the daily limit of 200 counted views: 200 views x 48 commands x 30 days is 288,000,
-page reads add up to 55,000, and I allow 156,000 for refused entries beyond the daily limit (650 a
-day at 8 commands each: the room left under the quota, not a measured figure). A server that has
-already seen that day's limit reached answers a lone entry without touching the database, so the
-real cost is lower, but a refused request that also carries later events still pays the full 8.
-The total is 499,000, so there is almost no spare room if the assumptions are wrong.
+page reads add up to 70,000 (four pages that regenerate every five minutes, `/v/a`, `/v/b`,
+`/experiment/data.json` and `/experiment`, two reads each: 4 x 2 x 8,640 is 69,120), and I allow
+120,000 for refused entries beyond the daily limit (500 a day at 8 commands each: an allowance
+inside the 142,000 left after counted views and page reads, not a measured figure). A server that
+has already seen that day's limit reached answers a lone entry without touching the database, so
+the real cost is lower, but a refused request that also carries later events still pays the full 8.
+The total is 478,000, which leaves 22,000 spare if the assumptions are wrong.
+
+A full month at the daily limit now reaches about 72% of the quota from counted views and page
+reads alone (358,000 of 500,000), so the 70% alert below (350,000) can fire near the end of such a
+month without any flood. Step 3's "before the 20th" test still tells the two apart: a month at the
+limit reaches about 239,000 by day 20.
 
 1. Upstash console, the database, **Usage**: look at the command count once a week and after any
    day with unusual traffic.
@@ -303,8 +346,8 @@ The total is 499,000, so there is almost no spare room if the assumptions are wr
    count passing 250,000.
 3. If the count passes 70% before the 20th of a month, look for a flood (the Vercel Firewall
    should have stopped it, step 2) before anything else. When the quota runs out, counting stops
-   for the rest of the month in both groups alike and the live test page says it is paused or
-   unreadable; nothing is lost silently, but the run's views are fewer.
+   for the rest of the month in both groups alike and the live test page keeps showing its last good
+   numbers, with the time they were read; nothing is lost silently, but the run's views are fewer.
 
 ## 11. Before the first live write: no older writer may run
 
@@ -407,3 +450,11 @@ Its limits, stated in each check's reason:
 The saved fixtures in `tests/fixtures/experiment-verifier/` are real published data, built by the
 site's own code from known counts; `tests/unit/live-page/verifier.test.ts` runs the script on them
 and on altered copies.
+
+## 14. What counts as a contact click
+
+The descriptive "contact clicks" count a click on a `mailto:` link, on the LinkedIn or GitHub
+profile, or on a link to this site's contact form (`/contact`, with or without a query or a
+trailing slash; `src/lib/experiment/beacon.ts` `clickEvents`). Opening the form counts; sending a
+message through it sends nothing to the experiment. Like the CV clicks, they are reported without a
+decision rule and published only as final totals.

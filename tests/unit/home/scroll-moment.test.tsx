@@ -129,8 +129,10 @@ describe('ScrollMoment: the server markup both layouts share', () => {
     expect(steps.map((s) => attr(s, 'data-scroll-step'))).toEqual(['1', '2', '3', '4', '5']);
     expect(steps.map((s) => attr(s, 'id'))).toEqual(['home-step-1', 'home-step-2', 'home-step-3', 'home-step-4', 'home-step-5']);
     expect(steps.map((s) => squash(text(all(s, (el) => el.tagName === 'h3')[0]!)))).toEqual(['Hypothesis', 'Split', 'Evidence', 'Guardrails', 'Decision']);
-    // The static first step is the current one until the scroll controller moves it.
-    expect(steps.map((s) => attr(s, 'aria-current'))).toEqual(['step', undefined, undefined, undefined, undefined]);
+    // No current step in the server's HTML: aria-current="step" is set only while the sticky stage is
+    // drawn (the scroll controller moves it there). The stacked layouts (no JavaScript, reduced motion,
+    // short screens, no kit chart) have no step navigation, so no step is announced as current.
+    expect(steps.map((s) => attr(s, 'aria-current'))).toEqual([undefined, undefined, undefined, undefined, undefined]);
     // Every body is drawn once: its diagram ids appear once.
     expect(all(d, (el) => attr(el, 'id') === 'home-hypothesis')).toHaveLength(1);
     const ids = all(d, has('id')).map((el) => attr(el, 'id')!);

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutPhoto } from '../../../content/about-photo.ts';
 
-// The About photograph is a real photo, cropped to a 4:5 rectangle and stripped of every metadata
+// The About portrait is cropped to a 4:5 rectangle and stripped of every metadata
 // segment (EXIF, GPS, XMP, IPTC, ICC, comments) before it is committed. This reads the JPEG's
 // segment headers directly, so the check needs no image library.
 
@@ -103,7 +103,7 @@ describe('inspectJpeg', () => {
   });
 });
 
-describe('the About photograph', () => {
+describe('the About portrait', () => {
   const file = readFileSync(join(ROOT, 'public', aboutPhoto.src));
   const info = inspectJpeg(file);
 
@@ -123,7 +123,7 @@ describe('the About photograph', () => {
       src: '/images/about.jpg',
       width: info.width,
       height: info.height,
-      alt: 'Mahmoud El Bergui, smiling at the camera, in a graduation cap and gown over a white shirt and dark tie',
+      alt: 'Mahmoud El Bergui, smiling at the camera, in a dark navy crew-neck jumper against a light grey background',
     });
   });
 

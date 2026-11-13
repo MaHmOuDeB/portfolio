@@ -114,7 +114,7 @@ describe('the copy, word for word', () => {
 
   it('architecture: the formats, the checks, the routing and the alerts, then the diagram', () => {
     const s = section(PAGE, 'architecture');
-    expect(text(s.replace(/<figure [\s\S]*?<\/figure>/, ''))).toBe(
+    expect(text(s.replace(/<figure [\s\S]*?<\/figure>/g, ''))).toBe(
       'Architecture Invoices arrive by upload or from a Gmail mailbox, as XRechnung (CII or UBL), ZUGFeRD or Factur-X. The intake checks totals, VAT, dates, tax IDs, the IBAN checksum and the currency, finds duplicates even across formats, flags changed bank details and archives the original byte for byte. Known-good invoices are approved automatically; the rest go to a person. The error alerts turn any failing workflow into one readable e-mail, with secrets and personal data removed where possible and repeats throttled.',
     );
     expect(s.indexOf('<p')).toBeLessThan(s.indexOf('data-figure="n8n-flow"'));
@@ -178,7 +178,7 @@ describe('links', () => {
 
   it('makes every link a 44 px target and marks the repository links as another site', () => {
     const anchors = [...PAGE.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
-    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 3);
+    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 4);
     for (const a of anchors) expect(a, a).toContain('data-touch-target=""');
     for (const a of anchors.filter((x) => x.includes('github.com'))) expect(a).toContain('rel="noopener"');
   });

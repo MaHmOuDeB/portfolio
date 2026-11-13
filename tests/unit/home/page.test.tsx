@@ -46,7 +46,8 @@ const live = await import('@/lib/experiment/live');
 const { HomeSections, homeScrollProps, homeTickAllowed } = await import('@/components/home/HomeSections');
 const route = await import('@/app/v/[arm]/page');
 const { ExperimentBeacon } = await import('@/components/experiment/ExperimentBeacon');
-const { homeMetadata } = await import('@/lib/home/metadata');
+const { canonicalOrigin, pageMetadata } = await import('@/lib/seo/metadata');
+const { SITE_SHARING_LINE, seoEntry } = await import('../../../content/seo.ts');
 
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 
@@ -297,24 +298,19 @@ describe('the route: static per-group pages', () => {
     expect(read).not.toHaveBeenCalled();
   });
 
-  it('has static metadata from the site constants: no noindex, no snapshot read; a canonical only when it can be absolute', () => {
+  it('has static metadata from the SEO manifest: canonical /, indexable, no snapshot read', () => {
     expect(typeof route.metadata).toBe('object');
     expect('generateMetadata' in route).toBe(false);
     const m = route.metadata;
+    expect(m).toEqual(pageMetadata(seoEntry('/'), canonicalOrigin()));
     expect(m.title).toBe(SITE.name);
-    expect(m.description).toBe(`${SITE.role} in ${SITE.city}.`);
+    expect(m.description).toBe(SITE_SHARING_LINE);
     expect(m.robots).toBeUndefined();
     expect(JSON.stringify(m)).not.toMatch(/noindex/i);
-    // On the production host the canonical is "/" resolved against it: https://<host>/.
-    const known = homeMetadata({ ...PRODUCTION, productionHost: 'example.com' });
-    expect(String(known.metadataBase)).toBe('https://example.com/');
-    expect(known.alternates?.canonical).toBe('/');
-    // Without a production host (a local, test or Lighthouse build) there is no absolute address to
-    // name, and a relative canonical is invalid (Lighthouse SEO: "Is not an absolute URL (/)"), so
-    // there is none.
-    const unknown = homeMetadata({ ...PRODUCTION, productionHost: undefined });
-    expect(unknown.metadataBase).toBeUndefined();
-    expect(unknown.alternates).toBeUndefined();
+    // Always one absolute canonical: the production host in production, the test origin elsewhere
+    // (a relative canonical is invalid, Lighthouse SEO: "Is not an absolute URL (/)").
+    expect(m.alternates?.canonical).toBe(new URL('/', canonicalOrigin()).href);
+    expect(pageMetadata(seoEntry('/'), new URL('https://example.com')).alternates?.canonical).toBe('https://example.com/');
   });
 
   it('uses no request-time API, no persistent layout beacon and no cache components', () => {

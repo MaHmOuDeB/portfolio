@@ -49,3 +49,11 @@ test('the Lab ships at /lab, and its peeking example at /lab/peeking for the int
 test('the Docproof build note ships at /work/docproof', () => {
   expect(LIVE_ROUTES).toContain('/work/docproof');
 });
+
+test('the Live test page ships at /experiment', () => {
+  expect(LIVE_ROUTES).toContain('/experiment');
+});
+
+test('the Work directory ships at /work, the navigation target', () => {
+  expect(LIVE_ROUTES).toContain('/work');
+});

@@ -37,7 +37,7 @@ export function Hero() {
               {HOME_HERO.lab}
             </ButtonLink>
             <div data-hero-cv="" className="hidden md:block">
-              <ButtonLink href={CV_LINK.href} variant="secondary" download>
+              <ButtonLink href={CV_LINK.href} variant="secondary">
                 {CV_LINK.label}
               </ButtonLink>
             </div>

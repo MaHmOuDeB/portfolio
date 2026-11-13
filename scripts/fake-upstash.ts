@@ -3,6 +3,11 @@
 // through the real REST client and Next's real fetch path. It binds to 127.0.0.1 only, and the
 // read-only token refuses write commands (403). Never used in production.
 //
+// It also fakes Resend's send endpoint for the contact form (POST /resend/emails, bearer
+// RESEND_API_KEY): the e2e server's RESEND_API_URL points here, so no test reaches Resend. It checks
+// the payload's keys, answers 500 for a subject holding FAKE_RESEND_FAIL, and keeps what it accepted
+// in memory for GET /resend/sent?reply_to=<address> (the e2e specs read their own messages back).
+//
 //   node scripts/fake-upstash.ts --port 8079   serve; tokens from KV_REST_API_TOKEN and
 //                                              KV_REST_API_READ_ONLY_TOKEN, and the test clock
 //                                              from EXPERIMENT_CLOCK_OFFSET_MS (the same offset the
@@ -65,26 +70,60 @@ function isCommand(value: unknown): value is Command {
 
 const nameOf = (c: Command) => String(c[0]).toUpperCase();
 
+/** A subject holding this makes the fake Resend answer 500 (the delivery-failure path). */
+export const FAKE_RESEND_FAIL = 'FAKE_RESEND_FAIL';
+const RESEND_KEYS = ['from', 'reply_to', 'subject', 'text', 'to'];
+export type FakeEmail = { from: string; to: string; reply_to: string; subject: string; text: string };
+
 export async function startFakeUpstash(o: {
   port: number;
   token: string;
   readOnlyToken: string;
   /** The store's clock (ms); the real one by default. */
   now?: () => number;
-}): Promise<{ url: string; address(): AddressInfo; close(): Promise<void> }> {
+  /** The bearer key the fake Resend endpoint accepts; without one it answers 401. */
+  resendKey?: string;
+}): Promise<{ url: string; address(): AddressInfo; close(): Promise<void>; emails: FakeEmail[] }> {
   if (o.token === '' || o.readOnlyToken === '' || o.token === o.readOnlyToken) {
     throw new Error('fake-upstash needs two different, non-empty tokens');
   }
   const store = fakeUpstashStore(o.now);
   const exec = (c: Command): Reply => (store.supports(c) ? store.exec(c) : { error: `ERR unknown command '${nameOf(c)}'` });
 
+  const emails: FakeEmail[] = [];
+
+  async function resend(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
+    if (req.method === 'GET' && url.pathname === '/resend/sent') {
+      return send(res, 200, emails.filter((e) => e.reply_to === url.searchParams.get('reply_to')));
+    }
+    if (req.method !== 'POST' || url.pathname !== '/resend/emails') return send(res, 404, { error: 'not found' });
+    if (!o.resendKey || req.headers.authorization !== `Bearer ${o.resendKey}`) return send(res, 401, { message: 'unauthorized' });
+    const text = await readBody(req);
+    let body: unknown;
+    try {
+      body = JSON.parse(text ?? '');
+    } catch {
+      return send(res, 400, { message: 'invalid json' });
+    }
+    const keys = body !== null && typeof body === 'object' ? Object.keys(body).sort() : [];
+    if (JSON.stringify(keys) !== JSON.stringify(RESEND_KEYS) || !Object.values(body as object).every((v) => typeof v === 'string')) {
+      return send(res, 422, { message: 'unexpected payload' });
+    }
+    const email = body as FakeEmail;
+    if (email.subject.includes(FAKE_RESEND_FAIL)) return send(res, 500, { message: 'fake failure' });
+    emails.push(email);
+    send(res, 200, { id: `fake-${emails.length}` });
+  }
+
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const path = new URL(req.url ?? '/', `http://${HOST}`).pathname;
+    const url = new URL(req.url ?? '/', `http://${HOST}`);
+    const path = url.pathname;
     if (req.method === 'GET' && path === '/health') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('ok');
       return;
     }
+    if (path.startsWith('/resend/')) return resend(req, res, url);
     if (req.method !== 'POST' || !['/', '/pipeline', '/multi-exec'].includes(path)) return send(res, 404, { error: 'not found' });
 
     const auth = req.headers.authorization;
@@ -141,6 +180,7 @@ export async function startFakeUpstash(o: {
   return {
     url: `http://${HOST}:${address().port}`,
     address,
+    emails,
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((e) => (e ? reject(e) : resolve()));
@@ -178,7 +218,8 @@ async function main(argv: string[]): Promise<number> {
   const token = process.env.KV_REST_API_TOKEN ?? '';
   const readOnlyToken = process.env.KV_REST_API_READ_ONLY_TOKEN ?? '';
   const offset = clockOffsetFrom(process.env.EXPERIMENT_CLOCK_OFFSET_MS);
-  const server = await startFakeUpstash({ port: portArg(value), token, readOnlyToken, now: () => Date.now() + offset });
+  const resendKey = process.env.RESEND_API_KEY || undefined;
+  const server = await startFakeUpstash({ port: portArg(value), token, readOnlyToken, now: () => Date.now() + offset, resendKey });
   console.log(`fake upstash listening on ${server.url}`);
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.once(signal, () => void server.close().then(() => process.exit(0)));

@@ -70,11 +70,16 @@ export async function startClientProxy(baseURL: string, address: string, interna
           gate.entered();
           await gate.released;
         }
-        // An unload may detach its document. Still let the real upstream request finish.
+        // An unload may detach its document, and Chromium cancels a detached document's beacon once
+        // its response head arrives, closing the connection before the body is read. Either way the
+        // real upstream answer is read to its end, so it is recorded: a closed client unpipes and
+        // pauses the response, which would otherwise never end. The listener comes after pipe() so
+        // that it runs after pipe's own close handler.
         if (outgoing.destroyed) response.resume();
         else {
           outgoing.writeHead(response.statusCode ?? 502, endToEnd(response.headers));
           response.pipe(outgoing);
+          outgoing.on('close', () => response.resume());
         }
       };
       void finished().catch(() => { response.destroy(); outgoing.destroy(); });

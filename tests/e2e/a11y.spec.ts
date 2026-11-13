@@ -4,11 +4,11 @@ import { expect } from '@playwright/test';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
 import { markSlow } from './slow';
+import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
 
 // Forced groups exercise the public home route; a direct group path intentionally returns 404.
 const routes = [...new Set([...LIVE_ROUTES.filter((route) => route !== '/'), '/', '/?variant=a', '/?variant=b', '/no-such-page', '/kitchen-sink', '/kitchen-sink/live'])];
 const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]';
-const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"]';
 // The 144-specimen dev page is the heaviest in the matrix. Its whole-page axe scans and its tab walk
 // (two animation frames per stop, 163 stops) took 17 to 44 s each in the e2e container on a quiet
 // machine, and over the 120 s budget on a heavily loaded one. markSlow triples the budget of those
@@ -110,7 +110,13 @@ for (const route of routes) {
             const errors: string[] = [];
             if (!outline && !shadow) errors.push('no visible focus ring');
             if (r.width <= 0 || r.height <= 0 || s.visibility === 'hidden' || s.opacity === '0') errors.push('invisible focus target');
-            if (r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('focus ring outside viewport');
+            // A textarea taller than the space left is scrolled only as far as its caret, so its ring may
+            // run past an edge; it must still be in view (SC 2.4.11 fails only when it is entirely hidden).
+            // The contact e2e checks that its label stays in view at the 400% zoom size.
+            const outside = r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1;
+            if (el instanceof HTMLTextAreaElement) {
+              if (r.bottom <= 0 || r.top >= innerHeight || r.left - reach < -1 || r.right + reach > document.documentElement.clientWidth + 1) errors.push('focused textarea out of view');
+            } else if (outside) errors.push('focus ring outside viewport');
             for (let parent = ring.parentElement; parent; parent = parent.parentElement) {
               const p = getComputedStyle(parent);
               const b = parent.getBoundingClientRect();
@@ -163,25 +169,24 @@ for (const route of routes) {
       const small = [];
       const exempt: string[] = [];
       const overlaps = [];
+      const states: string[] = [];
       for (const state of ['default', 'menu-open'] as const) {
         if (state === 'menu-open') {
           if (!(await openMenu(page))) break;
           await page.getByRole('link', { name: 'Skip to content' }).focus();
         }
+        states.push(state);
         const report = await touchTargetReport(page);
         small.push(...report.small.map((target) => ({ state, ...target })));
         overlaps.push(...report.overlaps.map((target) => ({ state, ...target })));
         exempt.push(...report.exempt.map((name) => `${state}: ${name}`));
       }
       // The links in running text that the inline exception lets be the height of the line: exactly the
-      // pinned list for the route, so a new one fails here until it is listed and reviewed.
+      // pinned list for the route in every state measured (the open phone menu too), so a new one fails
+      // here until it is listed and reviewed.
       const listed = `inline exception: ${exempt.length ? exempt.join('; ') : 'none'}`;
-      const pinned: string[] = [];
-      for (const entry of INLINE_EXEMPT[route] ?? []) {
-        if (entry.while && !entry.while.text.test((await page.locator(entry.while.selector).first().textContent()) ?? '')) continue;
-        pinned.push(`default: ${entry.name}`);
-      }
-      expect(exempt.filter((e) => e.startsWith('default: ')), `${route}: the inline exemptions are exactly the pinned list (${listed})`).toEqual(pinned);
+      const pinned = await pinnedExemptions(page, route);
+      expect(unpinnedExemptions(exempt, pinned, states), `${route}: the inline exemptions are exactly the pinned list in every state (${listed})`).toEqual([]);
       expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px (${listed})`).toEqual([]);
       expect(overlaps, `${route}: a link in running text never overlaps another target (${listed})`).toEqual([]);
     });
@@ -229,99 +234,27 @@ for (const route of ['/privacy', '/missing-a11y-page', '/kitchen-sink']) {
   });
 }
 
-/**
- * The links each route may exempt under the inline exception, in page order (default state). `while`
- * marks a link that is on the page only in some data states: the Split step names the Live test page
- * while a group has fewer than 50 views.
- */
-type InlineEntry = { name: string; while?: { selector: string; text: RegExp } };
-const HOME_INLINE: readonly InlineEntry[] = [
-  { name: 'Why so many?' },
-  { name: 'Live test page', while: { selector: '[data-scroll-step="2"]', text: /fewer than/ } },
-  { name: 'Why so many?' },
-];
-// The Audible page's summary gives its adoption figure the same "Why so many?" link, in its sentence.
-const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
-  '/': HOME_INLINE,
-  '/?variant=a': HOME_INLINE,
-  '/?variant=b': HOME_INLINE,
-  '/work/audible': [{ name: 'Why so many?' }],
-};
-
-/**
- * The pointer targets of the page in their visible state: those under 44 by 44 CSS px, the links in a
- * sentence of running text that WCAG's inline exception (2.5.5 and 2.5.8) lets be the height of the
- * line, and any such link that overlaps another target.
- */
-async function touchTargetReport(page: Page) {
-  return page.locator(pointerTargets).evaluateAll((els) => {
-    type Box = { tag: string; id: string; href: string | null; name: string | undefined; width: number; height: number };
-    const seen = new Set<Element>();
-    const small: Box[] = [];
-    const exempt: string[] = [];
-    const overlaps: Box[] = [];
-    const visible: { el: Element; r: DOMRect }[] = [];
-    const inline: { el: Element; r: DOMRect; box: Box }[] = [];
-    const TEXT_BLOCKS = new Set(['P', 'LI', 'DD', 'FIGCAPTION', 'BLOCKQUOTE', 'TD']);
-    /** Text a sighted reader does not see: aria-hidden, invisible, not rendered, or clipped to 1 px (sr-only). */
-    const hiddenText = (node: Node, block: Element): boolean => {
-      for (let e = node.parentElement; e && e !== block.parentElement; e = e.parentElement) {
-        if (e.getAttribute('aria-hidden') === 'true' || !e.checkVisibility({ checkVisibilityCSS: true })) return true;
-        const r = e.getBoundingClientRect();
-        if (r.width <= 1 && r.height <= 1) return true;
-      }
-      return false;
-    };
-    /**
-     * WCAG's inline exception, narrowly: an inline `a[href]` with no touch-target marker whose nearest
-     * block ancestor is a text block (p, li, dd, figcaption, blockquote, td) holding visible text that is
-     * outside every link, button and other target.
-     */
-    const inSentence = (el: Element): boolean => {
-      if (el.tagName !== 'A' || !el.hasAttribute('href') || el.hasAttribute('data-touch-target') || getComputedStyle(el).display !== 'inline') return false;
-      let block = el.parentElement;
-      while (block && getComputedStyle(block).display.startsWith('inline')) block = block.parentElement;
-      if (!block || !TEXT_BLOCKS.has(block.tagName)) return false;
-      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-      let outside = '';
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        const target = n.parentElement?.closest('a, button, [role]');
-        if ((target && target !== block && block.contains(target)) || hiddenText(n, block)) continue;
-        outside += n.textContent ?? '';
-      }
-      return outside.trim() !== '';
-    };
-    for (const el of els) {
-      // The segment label, rather than its sr-only radio, is the actual pointer target.
-      const target = el.closest('label[data-segment]') ?? el;
-      const s = getComputedStyle(target);
-      const r = target.getBoundingClientRect();
-      if (seen.has(target) || r.width === 0 || r.height === 0 || s.display === 'none' || s.visibility === 'hidden' || target.closest('[inert]')) continue;
-      // Closed details content can retain rectangles despite not being rendered.
-      let closed = false;
-      for (let ancestor: Element | null = target; ancestor; ancestor = ancestor.parentElement) {
-        if (ancestor instanceof HTMLDetailsElement && !ancestor.open && !ancestor.querySelector(':scope > summary')?.contains(target)) closed = true;
-      }
-      if (closed || !target.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
-      seen.add(target);
-      visible.push({ el: target, r });
-      if (r.width >= 44 && r.height >= 44) continue;
-      const box = { tag: el.tagName, id: el.id, href: el.getAttribute('href'), name: el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 80), width: r.width, height: r.height };
-      if (inSentence(target)) {
-        exempt.push(box.name ?? '');
-        inline.push({ el: target, r, box });
-      } else small.push(box);
-    }
-    // An exempt link must not overlap any other target.
-    const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-    for (const link of inline) {
-      if (visible.some((o) => o.el !== link.el && !o.el.contains(link.el) && !link.el.contains(o.el) && meet(link.r, o.r))) overlaps.push(link.box);
-    }
-    return { small, exempt, overlaps };
-  });
-}
-
 test.describe('the touch-target check and the inline exception', () => {
+  test('the pin covers the open phone menu: an inline link added inside it is reported', async ({ page }) => {
+    // Comparison per state: the menu-open state must hold the same pinned list as the default one.
+    expect(unpinnedExemptions(['default: Why so many?', 'menu-open: Why so many?'], ['Why so many?'], ['default', 'menu-open'])).toEqual([]);
+    expect(unpinnedExemptions(['default: Why so many?'], ['Why so many?'], ['default', 'menu-open'])).toEqual(['menu-open: found [], pinned [Why so many?]']);
+    // In a browser: a sentence link inside the open menu is exempt there only, and the pin catches it.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/privacy');
+    expect(await openMenu(page)).toBe(true);
+    await page.locator('[data-site-header] details nav').evaluate((nav) => {
+      const p = document.createElement('p');
+      // Short, so the link stays on one line in the narrow panel (a wrapped link's box is two lines tall).
+      p.innerHTML = 'See <a href="/fixture-menu-inline">menu link</a> now.';
+      nav.append(p);
+    });
+    const report = await touchTargetReport(page);
+    expect(report.exempt).toContain('menu link');
+    const exempt = report.exempt.map((name) => `menu-open: ${name}`);
+    expect(unpinnedExemptions(exempt, [], ['menu-open'])).toEqual(['menu-open: found [menu link], pinned []']);
+  });
+
   test('exempts only a link inside a sentence; marked, inline-block, lone and non-text-block links are still measured', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto('/kitchen-sink');

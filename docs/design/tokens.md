@@ -131,6 +131,10 @@ characters.
 | `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
 | `xl` | 1440 px | Content stays at `container-page`; only the margins grow. |
 
+One container breakpoint is not a viewport one: the scroll moment's decision outcomes sit side by
+side only when their own column is at least 36rem (576 px) wide (`@container` with
+`@min-[36rem]:grid-cols-3`), because the sticky layout gives the steps a narrow column on wide screens.
+
 The screen-share size (1024 by 576) sits exactly on `lg`, so it gets the `lg` layout; it is a test
 target, not a breakpoint; the header scrolls away there (below 700 px of height it would take more
 than a tenth of the screen), and in-page anchors only reserve room for it while it sticks. The chart is sticky only on screens at least 600 px tall (a height

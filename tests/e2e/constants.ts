@@ -21,3 +21,9 @@ export const E2E_CLOCK_AT = '2026-11-03T12:00:00+01:00';
 export function e2eClockOffsetMs(nowMs: number = Date.now()): number {
   return Date.parse(E2E_CLOCK_AT) - nowMs;
 }
+
+// The contact form's sender in the e2e run: the fake Resend endpoint on the same loopback fake
+// (scripts/fake-upstash.ts), a throwaway key, and a placeholder inbox. Never a real key or address.
+export const E2E_RESEND_KEY = 'e2e-fake-resend-key-throwaway';
+export const E2E_RESEND_URL = `${E2E_FAKE_UPSTASH_URL}/resend/emails`;
+export const E2E_CONTACT_TO = 'inbox@example.test';

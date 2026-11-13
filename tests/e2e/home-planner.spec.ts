@@ -57,7 +57,9 @@ test.describe('Home planner', () => {
     await page.goto(`${HOST}?${ID}.baseline=0.6&${ID}.risePoints=12`);
     await expect(readout(page)).toHaveText(PRESET_N);
     await expect(figure(page).locator('[data-figure-result]')).toContainText('To detect a rise from 29% to 34%.');
-    await expect(figure(page).locator('[data-figure-result]')).toContainText('Simulated');
+    // One provenance badge, the Figure's own (in its caption), never a second one in the result line.
+    await expect(figure(page).locator('[data-figure-result]')).not.toContainText('Simulated');
+    await expect(figure(page).getByText('Simulated', { exact: true })).toHaveCount(1);
     await expect(figure(page).locator('[data-figure-result]')).toContainText('Hypothetical sign-up test');
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     const table = figure(page).locator('[data-nojs-only] table');

@@ -122,7 +122,9 @@ for (const note of NOTES) {
       await page.goto(note.route);
       await page.waitForLoadState('load');
       await expect(page.locator('[data-experiment], [data-phase]')).toHaveCount(0);
-      expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment'))).toEqual([]);
+      // The experiment's endpoints: /api/* and /experiment/data.json. A prefetch of the Live test page
+      // itself (/experiment, the header's link) is a page, not an endpoint.
+      expect(requests.filter((p) => p.startsWith('/api/') || p.startsWith('/experiment/'))).toEqual([]);
     });
 
     test('without JavaScript: every section, the diagram and the table', async ({ browser }) => {
@@ -145,7 +147,7 @@ for (const note of NOTES) {
       await page.goto(note.route);
       await page.emulateMedia({ media: 'print' });
       for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
-      expect(await noSideScroll(page)).toBe(true);
+      await expect.poll(() => noSideScroll(page)).toBe(true);
     });
   });
 }
@@ -207,8 +209,13 @@ test.describe('MarketingWS build note', () => {
     for (const name of ['The MarketingWS repository, at the commit this page describes', 'The thesis version, under the tag thesis-2025']) {
       await expect(code.getByRole('link', { name })).toHaveAttribute('href', /^https:\/\/github\.com\/MaHmOuDeB\/MarketingWS\/tree\/[0-9a-f]{40}$/);
     }
-    // nothing is embedded
-    await expect(page.locator('main iframe, main img, main video, main object, main embed')).toHaveCount(0);
+    // nothing is embedded, and the only images are the two screenshots served from this site
+    await expect(page.locator('main iframe, main video, main object, main embed')).toHaveCount(0);
+    await expect(page.locator('main img')).toHaveCount(2);
+    expect(await page.locator('main img').evaluateAll((l) => l.map((i) => i.getAttribute('src')))).toEqual([
+      '/images/notes/marketingws-brief-light.png',
+      '/images/notes/marketingws-first-draft-light.png',
+    ]);
   });
 
   test('reading the page makes only same-origin requests: none to the demo or the repository', async ({ page, baseURL }) => {
@@ -346,3 +353,32 @@ test.describe('the Docproof build note', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+// The real screenshots: each loads from this site and none makes the page scroll sideways at 320 px.
+const SHOTS = [
+  { route: '/work/marketingws', ids: ['marketingwsBrief', 'marketingwsDraft'] },
+  { route: '/work/weather', ids: ['weatherChecks'] },
+  { route: '/work/n8n', ids: ['n8nDecision'] },
+] as const;
+
+for (const { route, ids } of SHOTS) {
+  test.describe(`${route} screenshots`, () => {
+    test('each image loads: 200 and a natural width', async ({ page }) => {
+      await page.goto(route);
+      for (const id of ids) {
+        const img = page.locator(`figure[data-note-shot="${id}"] img`);
+        await img.scrollIntoViewIfNeeded();
+        await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
+        const src = (await img.getAttribute('src'))!;
+        expect((await page.request.get(src)).status()).toBe(200);
+      }
+    });
+
+    test('reflow at 320 px: nothing scrolls sideways', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 800 });
+      await page.goto(route);
+      for (const id of ids) await page.locator(`figure[data-note-shot="${id}"] img`).scrollIntoViewIfNeeded();
+      await expect.poll(() => noSideScroll(page)).toBe(true);
+    });
+  });
+}

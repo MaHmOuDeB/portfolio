@@ -14,6 +14,8 @@
     "launch:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/launch-check.ts",
     "prereg:hash": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prereg-hash.ts",
     "truth:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/truth-audit.ts",
+    "og:render": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/og-render.ts",
+    "seo:origin-check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seo-origin-check.ts",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
@@ -69,5 +71,18 @@
   },
   "engines": {
     "node": ">=24.2 <25"
+  },
+  "overrides": {
+    "vercel": {
+      "tar@7": "7.5.23",
+      "undici@5": "5.29.0",
+      "zod@4": "4.6.7",
+      "path-to-regexp@6": "6.3.0",
+      "path-to-regexp@8": "8.4.2",
+      "minimatch@10": "10.2.6",
+      "js-yaml@4": "4.3.2",
+      "smol-toml@1": "1.9.1",
+      "ajv@8": "8.20.0"
+    }
   }
 }

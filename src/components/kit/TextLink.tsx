@@ -23,11 +23,21 @@ const STANDALONE = 'inline-flex min-h-(--size-target) min-w-(--size-target) max-
 
 export function TextLink({ href, standalone, external, icon, children, 'aria-label': ariaLabel }: Props) {
   const className = cx(BASE, standalone && STANDALONE);
+  // Preflight draws an svg as a block, which would break a link in running text over three lines; a
+  // standalone link is inline-flex already, so only the inline one wraps its icon.
+  const mark = (name: IconName) =>
+    standalone ? (
+      <Icon name={name} />
+    ) : (
+      <span className="inline-flex align-middle">
+        <Icon name={name} />
+      </span>
+    );
   const content = (
     <>
-      {icon ? <Icon name={icon} /> : null}
+      {icon ? mark(icon) : null}
       {children}
-      {external && !icon ? <Icon name="external" /> : null}
+      {external && !icon ? mark('external') : null}
     </>
   );
   // mailto:, https:// and other schemes are plain anchors; only site paths go through next/link.
