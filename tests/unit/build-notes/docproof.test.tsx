@@ -99,6 +99,16 @@ describe('the architecture diagram', () => {
     expect(PAGE).not.toContain('data-figure-controls');
   });
 
+  it('draws the stages as one column of steps joined by hidden connectors, as Weather does', () => {
+    const fig = s.slice(s.indexOf('<figure'), s.indexOf('</figure>'));
+    const list = /<ol ([^>]*)>/.exec(fig)![1]!;
+    expect(list).toContain('max-w-text');
+    expect(list).not.toMatch(/grid-cols/);
+    const items = [...fig.matchAll(/<li data-stage="[^"]+"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]!);
+    expect(items[0]).not.toContain('data-connector');
+    for (const item of items.slice(1)) expect(item).toMatch(/^<span aria-hidden="true" data-connector=""/);
+  });
+
   it('shows the four stages in order: input, orchestration, checks, report', () => {
     const fig = s.slice(s.indexOf('<figure'), s.indexOf('</figure>'));
     expect(text(fig.slice(0, fig.indexOf('</h3>')))).toBe('Agents propose changes; deterministic checks decide what reaches the reader');
@@ -220,10 +230,12 @@ describe('the recorded verify run', () => {
     const s = section(PAGE, 'how-i-checked-this');
     const evidence = s.slice(s.indexOf('<h3'));
     expect(text(evidence.slice(0, evidence.indexOf('</h3>')))).toBe('A recorded run of the verify check');
-    const blocks = [...evidence.matchAll(/<pre [^>]*aria-label="([^"]+)"[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/g)].map((m) => [
-      m[1],
-      decode(m[2]!),
-    ]);
+    // Each block has a visible label above it, and that label is the block's accessible name.
+    const blocks = [...evidence.matchAll(/<p id="([^"]+)"[^>]*>([^<]+)<\/p><pre [^>]*aria-labelledby="([^"]+)"[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/g)].map((m) => {
+      expect(m[3]).toBe(m[1]);
+      return [decode(m[2]!), decode(m[4]!)];
+    });
+    expect(evidence).not.toMatch(/<pre [^>]*aria-label=/);
     expect(blocks).toEqual([
       ['The fact base', run.factBase],
       ['The notice, one paragraph per line', run.document.join('\n')],

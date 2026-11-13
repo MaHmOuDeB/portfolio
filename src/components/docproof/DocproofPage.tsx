@@ -19,7 +19,7 @@ import {
   DocproofVerification,
   VERIFY_RUN,
 } from '../../../content/docproof';
-import { BUILD_NOTE_SECTIONS, BuildNote, DiagramStep, EVIDENCE, TEXT } from '../build-notes/BuildNote';
+import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, EVIDENCE, TEXT } from '../build-notes/BuildNote';
 
 export const DOCPROOF_TITLE = 'Docproof: a multi-agent document pipeline';
 
@@ -30,10 +30,11 @@ export const DOCPROOF_SECTIONS = BUILD_NOTE_SECTIONS;
 export function DocproofDiagram(): ReactNode {
   return (
     <Figure kind="diagram" id="docproof-architecture" title={ARCHITECTURE_TITLE} caption={ARCHITECTURE_CAPTION}>
-      <ol data-diagram="docproof-architecture" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ARCHITECTURE_STAGES.map((s) => (
+      <ol data-diagram="docproof-architecture" className="grid max-w-text gap-0">
+        {ARCHITECTURE_STAGES.map((s, i) => (
           <li key={s.id} data-stage={s.id} className="min-w-0">
-            <DiagramStep name={s.name} detail={s.body} className="h-full" />
+            {i > 0 ? <DiagramConnector /> : null}
+            <DiagramStep name={s.name} detail={s.body} />
           </li>
         ))}
       </ol>
