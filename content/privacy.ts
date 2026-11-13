@@ -64,7 +64,11 @@ export const LAUNCH_FACTS: readonly LaunchFact[] = [
   {
     id: 'upstash-backups',
     question: 'Whether the counter database keeps backups, and for how long',
-    verified: null,
+    verified: {
+      on: '2026-11-13',
+      source:
+        'Upstash console, the database\'s Backups tab: Daily Backup off (checked by the site owner); the opt-in feature is described at https://upstash.com/docs/redis/features/backup',
+    },
   },
 ];
 
@@ -74,7 +78,7 @@ const HASH_MINUTES = n(EXPERIMENT.rateLimit.keyTtlSeconds / 60);
 
 export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySection[] } = {
   title: 'Privacy',
-  updatedOn: '2026-11-12',
+  updatedOn: '2026-11-13',
   sections: [
     {
       heading: 'Who is responsible',
@@ -176,7 +180,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
           '". Clicks on the CV and on contact links are published only as final totals, after the experiment ends.',
         ],
         ['Edge Config holds no personal data: only whether the experiment is paused or its calibration failed, with a short reason and date.'],
-        [{ launchPlaceholder: 'upstash-backups' }],
+        ["The counter database's daily backup at Upstash is switched off."],
       ],
     },
     {

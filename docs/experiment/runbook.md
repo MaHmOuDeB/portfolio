@@ -201,10 +201,9 @@ labels), and one while GitHub lists any runner for the repository (or cannot be 
 repository is made public, both of my former runners must be deregistered and removed, because a
 self-hosted runner must never run a public repository's pull requests.
 
-The privacy page currently waits for one fact: whether the counter database keeps backups. To
-confirm it, open <https://console.upstash.com>, select the database, open **Backups**, and check
-whether **Daily Backup** is on and for how long backups are kept. Keep it off unless there is a
-reason; then ask Claude to write what you saw into the privacy page.
+The privacy page states that the counter database's **Daily Backup** is off (checked in the
+Upstash console's **Backups** tab on 2026-11-13). If it is ever switched on, update the privacy page
+and its date in the same change, and say how long backups are kept.
 
 Optional read-only check of the production store (it prints only two status lines):
 
