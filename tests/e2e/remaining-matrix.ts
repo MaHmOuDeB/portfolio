@@ -156,7 +156,7 @@ export const STATES: readonly State[] = [
       await expect(page.locator('#contact-status')).toContainText('Message not sent');
     },
   },
-  { id: 'contact-sent', url: '/contact?sent=1', route: '/contact', sizes: STATE_SIZES },
+  { id: 'contact-sent', url: '/contact?sent=1', route: '/contact?sent=1', sizes: STATE_SIZES },
   { id: 'live-specimens', url: '/kitchen-sink/live', route: '/kitchen-sink/live', sizes: ['375', '1440'] },
   { id: 'live-page-states', url: '/kitchen-sink/live-page', route: '/kitchen-sink/live-page', sizes: ['375', '1440'] },
   { id: 'not-found', url: '/no-such-page', route: '/no-such-page', sizes: STATE_SIZES },
@@ -224,7 +224,8 @@ export async function openAt(browser: Browser, url: string, size: Size, options:
   const page = await context.newPage();
   const response = await page.goto(url);
   expect(response?.status(), url).toBe(url === '/no-such-page' ? 404 : 200);
-  await settle(page, { islands: islands && options.javaScriptEnabled !== false });
+  // With JavaScript off there is nothing to wait for, and page scripts (requestAnimationFrame) never run.
+  if (options.javaScriptEnabled !== false) await settle(page, { islands });
   return page;
 }
 

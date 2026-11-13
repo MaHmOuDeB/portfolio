@@ -76,7 +76,8 @@ async function incompleteText(page: Page): Promise<string[]> {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const parent = n.parentElement;
-      if (parent && shown(parent) && /…|\.\.\./.test(n.textContent ?? '')) out.add(`ellipsis in text: "${(n.textContent ?? '').trim().slice(0, 60)}"`);
+      // Recorded tool output in pre and code is quoted verbatim, ellipses included.
+      if (parent && shown(parent) && !parent.closest('pre, code') && /…|\.\.\./.test(n.textContent ?? '')) out.add(`ellipsis in text: "${(n.textContent ?? '').trim().slice(0, 60)}"`);
     }
     return [...out];
   });
@@ -104,7 +105,11 @@ async function colourOnly(page: Page): Promise<string[]> {
         (el instanceof SVGElement && (status.has(s.fill) || status.has(s.stroke)));
       if (!painted) continue;
       const words = (node: Element | null) => ((node?.textContent ?? '') + (node?.getAttribute('aria-label') ?? '')).replace(/\s+/g, '');
-      if (words(el) === '' && words(el.parentElement) === '') out.add(`${el.tagName.toLowerCase()} in a status colour with no word: ${el.parentElement?.outerHTML.slice(0, 80) ?? ''}`);
+      // The word may sit beside the mark: an icon in its own span, then the status text.
+      let near: Element | null = el;
+      let worded = false;
+      for (let i = 0; i < 4 && near && !worded; i++, near = near.parentElement) worded = words(near) !== '';
+      if (!worded) out.add(`${el.tagName.toLowerCase()} in a status colour with no word: ${el.parentElement?.outerHTML.slice(0, 80) ?? ''}`);
     }
     return [...out];
   });
@@ -136,7 +141,9 @@ async function focusRings(page: Page): Promise<unknown[]> {
       const errors: string[] = [];
       if (!outline && s.boxShadow === 'none') errors.push('no visible focus ring');
       const vw = document.documentElement.clientWidth;
-      if (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('ring outside the viewport');
+      // A control larger than the viewport (a scrolling table at 400% zoom) cannot show its whole ring.
+      const fits = r.width + 2 * reach <= vw && r.height + 2 * reach <= innerHeight;
+      if (fits && (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1)) errors.push('ring outside the viewport');
       for (let p = ring.parentElement; p; p = p.parentElement) {
         const ps = getComputedStyle(p);
         const b = p.getBoundingClientRect();
