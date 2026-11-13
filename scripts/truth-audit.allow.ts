@@ -14,7 +14,7 @@ export const ALLOW: readonly { pattern: RegExp; routes?: readonly string[]; reas
 ];
 
 // Routes the site does not author. The stray-number check is skipped on them; the deny-list, banned
-// phrases and marker validation still run. `/_global-error` is the static page Next 16.3.8 hard-codes
+// phrases and marker validation still run. `/_global-error` is the static page Next 16.4.6 hard-codes
 // for a crash of the root layout itself (title "500: This page couldn't load"). It is shown only
 // then, and `global-error.tsx` cannot replace it, so the site cannot edit its text.
 export const FRAMEWORK_ROUTES: readonly string[] = ['/_global-error'];

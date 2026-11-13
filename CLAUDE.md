@@ -34,7 +34,7 @@ experimentation and growth analyst in Berlin.
 
 ## Stack and commands
 
-Next 16.3.8 (App Router), React 19.2.8, Tailwind 4.3.3, Vitest, Playwright, Node 24. Next 16 has
+Next 16.4.6 (App Router), React 19.2.8, Tailwind 4.3.3, Vitest, Playwright, Node 24. Next 16 has
 breaking changes: read `AGENTS.md` and the guide in `node_modules/next/dist/docs/` before writing
 Next code.
 
