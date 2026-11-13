@@ -3,8 +3,10 @@
 // recording). Tokens only: a 1 px line border and the site radius, no shadow. The picture is shown
 // at its own width or the text column's, never wider than its file. A picture with a narrowest width
 // keeps that width in a narrow column and scrolls sideways in its own labelled frame, so its text
-// never drops under 13 px and the page itself still reflows at 320 px. Server-safe, no hooks.
+// never drops under 13 px and the page itself still reflows at 320 px (ShotFrame, a small client
+// module). Server-safe, no hooks.
 import { NOTE_SHOTS, NOTE_SHOT_DIR, type NoteShot as Shot } from './note-shots';
+import { ShotFrame } from './ShotFrame';
 
 export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
   const s: Shot = NOTE_SHOTS[shot];
@@ -29,9 +31,7 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
       style={s.maxWidth === 'text' ? undefined : { maxWidth: `${s.maxWidth}px` }}
     >
       {s.minWidth ? (
-        <div data-shot-frame="" className="overflow-x-auto" tabIndex={0} role="region" aria-labelledby={captionId}>
-          {picture}
-        </div>
+        <ShotFrame labelledBy={captionId}>{picture}</ShotFrame>
       ) : (
         picture
       )}

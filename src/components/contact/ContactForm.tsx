@@ -13,6 +13,7 @@ import { TextArea } from '@/components/kit/TextArea';
 import { TextField } from '@/components/kit/TextField';
 import { TextLink } from '@/components/kit/TextLink';
 import { sendContact } from '@/app/contact/actions';
+import { revealRing } from '@/lib/focus/reveal-ring';
 import { CONTACT_LIMITS, FIELD_ORDER, HONEYPOT_FIELD, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
 import type { ContactState } from '@/lib/contact/handle';
 import { CONTACT } from '@/lib/site';
@@ -59,20 +60,9 @@ const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
   fast: <p>Nothing was sent, because the form was sent very soon after the page opened. Your text is still in the form, so you can send it again.</p>,
 };
 
-/**
- * Chrome does not scroll a partly visible field on focus, so a tall field (the message) near the
- * bottom of the screen keeps part of its focus ring off screen. When a focused field's ring does not
- * fit, scroll it to the nearest edge, at once (no smooth scrolling); html's scroll padding leaves room
- * for the ring there. A field taller than the screen is left where it is.
- */
-function revealRing(event: FocusEvent<HTMLFormElement>) {
-  const el = event.target;
-  if (!(el instanceof HTMLElement) || !el.matches('input, select, textarea')) return;
-  const s = getComputedStyle(el);
-  const reach = s.outlineStyle === 'none' ? 0 : parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset);
-  const r = el.getBoundingClientRect();
-  const fits = r.height + 2 * reach <= innerHeight;
-  if (fits && (r.top - reach < 0 || r.bottom + reach > innerHeight)) el.scrollIntoView({ block: 'nearest' });
+/** A focused field whose ring does not fit on screen is scrolled to the nearest edge (see revealRing). */
+function onFieldFocus(event: FocusEvent<HTMLFormElement>) {
+  if (event.target instanceof HTMLElement && event.target.matches('input, select, textarea')) revealRing(event.target);
 }
 
 export function ContactForm({ issuedAt }: { issuedAt: number }) {
@@ -164,7 +154,7 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         onSubmit={onSubmit}
         onInput={onInput}
         noValidate
-        onFocus={revealRing}
+        onFocus={onFieldFocus}
         aria-describedby={notSent ? STATUS_ID : undefined}
         className={notSent ? 'mt-8' : 'mt-12'}
       >
