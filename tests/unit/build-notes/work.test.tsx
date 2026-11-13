@@ -143,6 +143,16 @@ describe('the directory', () => {
     }
   });
 
+  // From md the description spans the title's row and the label's; a long one must not push the label
+  // down from its title (finding N-M3). The title's row takes only its own height, and the label's row
+  // takes the rest, with the label at its top.
+  it('keeps each label right under its title, however long the description', () => {
+    for (const row of [...PAGE.matchAll(/<li data-work-item="([^"]*)" class="([^"]*)"/g)]) {
+      expect(row[2]!.split(/\s+/), row[1]).toContain('md:grid-rows-[auto_1fr]');
+    }
+    expect(rows().filter((r) => r.kind)).toHaveLength(7);
+  });
+
   it('draws each title in ink with the muted underline, and the line under it in muted grey', () => {
     for (const row of rows()) {
       const link = /<a [^>]*class="([^"]*)"/.exec(row.body)![1]!.split(/\s+/);
