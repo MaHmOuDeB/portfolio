@@ -41,6 +41,23 @@ describe('hasEntry', () => {
   });
 });
 
+describe('hasEntry, after React has updated the element', () => {
+  it('reads text the reader goes on typing as no entry, once a re-render copied it to defaultValue', () => {
+    expect(hasEntry(control({ value: '99', defaultValue: '99' }))).toBe(false);
+  });
+
+  it('sees a checkbox ticked or cleared by the reader', () => {
+    expect(hasEntry(control({ type: 'checkbox', checked: true }))).toBe(true);
+    expect(hasEntry(control({ type: 'checkbox', defaultChecked: true }))).toBe(true);
+    expect(hasEntry(control({ type: 'checkbox', checked: true, defaultChecked: true }))).toBe(false);
+  });
+
+  it('sees a range moved by exactly half a step, and not by less', () => {
+    expect(hasEntry(control({ type: 'range', value: '20.5' }))).toBe(true);
+    expect(hasEntry(control({ type: 'range', value: '20.4' }))).toBe(false);
+  });
+});
+
 describe('earlyTyped', () => {
   const grid = { min: 1, max: 50, step: 1 };
 
@@ -62,6 +79,11 @@ describe('earlyTyped', () => {
     expect(earlyTyped('35', true, grid)).toEqual({ kind: 'draft', text: '35', live: 35 });
     expect(earlyTyped('12.4', true, grid)).toEqual({ kind: 'draft', text: '12.4', live: null });
     expect(earlyTyped('', true, grid)).toEqual({ kind: 'draft', text: '', live: null });
+  });
+
+  it('clamps an entry that is out of range while focused only on commit, never in the draft', () => {
+    expect(earlyTyped('0', true, grid)).toEqual({ kind: 'draft', text: '0', live: null });
+    expect(earlyTyped('0', false, grid)).toEqual({ kind: 'commit', value: 1 });
   });
 
   it('reads a decimal grid as the input prints it', () => {

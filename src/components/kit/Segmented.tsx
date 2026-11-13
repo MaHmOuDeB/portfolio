@@ -69,10 +69,11 @@ export function Segmented<V extends string>({ name, legend, options, value, onCh
   // - in a LoadOnIntent preview it is left as it is: the loader loads the island, whose group (the
   //   same name) takes it over from the pick read as it first rendered;
   // - otherwise the rendered radio is checked again and the pick is passed to onChange, as its change
-  //   event would have been. A pick that is not one of the options is ignored.
+  //   event would have been. A pick that is not one of the options is ignored. A disabled group is
+  //   only checked as rendered again.
   const takeEarlyPick = useEffectEvent(() => {
     const fieldset = box.current;
-    if (fieldset === null || disabled) return;
+    if (fieldset === null) return;
     const own = fieldset.querySelectorAll('input[type="radio"]');
     const [pick] = earlyPicks(own);
     const root = fieldset.closest(IDLE_ISLAND);
@@ -84,10 +85,15 @@ export function Segmented<V extends string>({ name, legend, options, value, onCh
     } else if (copyPick !== null && root !== null && copyPick.root === root) {
       picked = copyPick.value;
     }
+    if (disabled) return;
     const option = options.find((o) => o.value === picked);
     if (option !== undefined && option.value !== selected) onChange(option.value);
   });
+  // Once per mount, so a development double run of effects never applies a preview pick twice.
+  const tookEarlyPick = useRef(false);
   useLayoutEffect(() => {
+    if (tookEarlyPick.current) return;
+    tookEarlyPick.current = true;
     takeEarlyPick();
   }, []);
 

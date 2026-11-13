@@ -65,6 +65,10 @@ const NUMBER_STEP_KEYS: ReadonlyMap<string, 1 | -1> = new Map([['ArrowUp', 1], [
 const NUMBER_TEXT = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/;
 // The root of a LoadOnIntent whose island has not replaced its preview yet.
 const IDLE_ISLAND = '[data-island="idle"]';
+// Number inputs whose Slider holds text the reader is typing (its draft). Once a Slider has rendered
+// a draft, React also writes it to the input's defaultValue, so a preview copy the reader keeps typing
+// in after hydration no longer differs from what was rendered; this is how the island still finds it.
+const editing = new WeakSet<HTMLInputElement>();
 
 /**
  * The input holding an entry made before this Slider listened: `own` itself (hydrated with what the
@@ -77,7 +81,7 @@ function earlySource(own: HTMLInputElement): HTMLInputElement | null {
   const root = own.closest(IDLE_ISLAND);
   if (root === null) return null;
   for (const copy of root.querySelectorAll(`[id="${CSS.escape(own.id)}"]`)) {
-    if (copy !== own && copy instanceof HTMLInputElement && hasEntry(copy)) return copy;
+    if (copy !== own && copy instanceof HTMLInputElement && (editing.has(copy) || hasEntry(copy))) return copy;
   }
   return null;
 }
@@ -119,6 +123,12 @@ export function Slider({
   const rangeRef = useRef<HTMLInputElement>(null);
   const numberRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => endDrag.current?.(), []);
+  useLayoutEffect(() => {
+    const number = numberRef.current;
+    if (number === null) return;
+    if (draft === null) editing.delete(number);
+    else editing.add(number);
+  }, [draft]);
 
   // An entry the reader made before this Slider listened: typed in the number input, or a move of
   // the range input. React 19 hydrates an input without touching what it holds and no handler ran, so
@@ -126,46 +136,62 @@ export function Slider({
   // chart and the URL stayed where they were. Read once, in the commit where the Slider first
   // appears, so that no later render has reset the input first:
   // - In a LoadOnIntent preview, the entry is left where it is: the loader takes it as intent and
-  //   loads the island, whose Slider (the same id) takes it over.
+  //   loads the island, whose Slider (the same id) takes it over. Text still being typed there becomes
+  //   the preview's own draft, so the reader can go on typing until the island arrives; the island
+  //   takes over that draft, and the loader hands focus to the island's number input.
   // - A typed entry is handled as the number input's own handlers would have: still focused, it
   //   stays the entry being edited (applied at once if it is on the grid) and the next blur or Enter
   //   commits it; with focus gone, it is committed as a blur commits it, clamped and snapped, or
   //   reverted if it is empty. A typed entry wins over a range move made before it.
   // - A range move is applied and committed, as its key-up or pointer-up would have.
   // Inputs of this Slider that held the entry are first set back to what was rendered; when the value
-  // changes, React writes the new one. Nothing moves without the reader's own action.
+  // changes, React writes the new one. A disabled Slider only sets them back. An entry that leaves the
+  // value where it is commits nothing, so a value the browser restored into the form on reload is
+  // never announced. Nothing moves without the reader's own action.
   const takeEarlyEntry = useEffectEvent(() => {
     const range = rangeRef.current;
     const number = numberRef.current;
-    if (range === null || number === null || disabled) return;
+    if (range === null || number === null) return;
     const typed = earlySource(number);
     const moved = typed === null ? earlySource(range) : null;
     const source = typed ?? moved;
     if (source === null) return;
     // The entry is in this Slider's own inputs (hydrated in place), not in a preview copy.
     const own = source === number || source === range;
-    if (own && source.closest(IDLE_ISLAND) !== null) return;
-    // Read before the range input is set back below.
+    const focused = typed !== null && typed.ownerDocument.activeElement === typed;
+    if (own && source.closest(IDLE_ISLAND) !== null) {
+      // A preview: keep text still being typed as this copy's draft (its handlers do nothing else).
+      if (focused && !disabled) setDraft(typed.value);
+      return;
+    }
+    // Read before this Slider's inputs are set back below.
     const movedTo = moved === null ? current : snap(moved.valueAsNumber);
+    const text = typed?.value ?? '';
     if (own) range.value = String(current);
+    if (own && typed !== null && (disabled || !focused)) number.value = shown;
+    if (disabled) return;
     if (typed !== null) {
-      const entry = earlyTyped(typed.value, typed.ownerDocument.activeElement === typed, { min, max, step });
+      const entry = earlyTyped(text, focused, { min, max, step });
       if (entry.kind === 'draft') {
         stepped.current = null;
         setDraft(entry.text);
         if (entry.live !== null && entry.live !== current) onChange(entry.live);
         return;
       }
-      if (own) number.value = shown;
-      if (entry.kind === 'revert') return;
-      if (entry.value !== current) onChange(entry.value);
+      if (entry.kind === 'revert' || entry.value === current) return;
+      onChange(entry.value);
       onCommit?.(entry.value);
       return;
     }
-    if (movedTo !== current) onChange(movedTo);
+    if (movedTo === current) return;
+    onChange(movedTo);
     onCommit?.(movedTo);
   });
+  // Once per mount, so a development double run of effects never applies a preview entry twice.
+  const tookEarlyEntry = useRef(false);
   useLayoutEffect(() => {
+    if (tookEarlyEntry.current) return;
+    tookEarlyEntry.current = true;
     takeEarlyEntry();
   }, []);
 

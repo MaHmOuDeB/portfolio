@@ -20,7 +20,8 @@
 //   server renders the same preview and fetches nothing: the island's code is requested by the browser.
 // - Intent shown before hydration counts too: focus already inside the preview, or an entry in one of
 //   its inputs (a typed number, a moved range, a picked radio) made before these listeners existed.
-//   The island loads at once, and its Slider and Segmented take the entry over from the preview.
+//   The island loads at once, and its Slider and Segmented take the entry over from the preview,
+//   including text the reader goes on typing in the preview's number input while the code arrives.
 // - The root carries `data-island="idle" | "ready" | "failed"`.
 import { catchError } from 'next/error';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';

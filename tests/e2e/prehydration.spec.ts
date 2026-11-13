@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
-import type { Locator, Page } from '@playwright/test';
-import { test } from './fixtures';
+import type { Page } from '@playwright/test';
+import { isHydrated, test } from './fixtures';
 
 // An entry a reader makes before the page has hydrated. The kit's controls are server-rendered and
 // shown from the first paint (the inline script sets data-js before any chunk runs), so on a slow
@@ -16,19 +16,43 @@ import { test } from './fixtures';
 // WebKit on macOS skips some controls on Tab (Safari's default); Alt+Tab reaches every one.
 const tabKey = (browserName: string) => (browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab');
 
-/** Holds every script chunk until the returned function is called. Call it before the navigation. */
-async function holdScripts(page: Page): Promise<() => void> {
+/**
+ * Holds every script chunk until the returned function is called. Call it before the navigation.
+ * With `late`, a chunk first requested after that release (an island's lazy code, which is requested
+ * only once the page has hydrated) is held again, until `releaseLate`; `held()` counts those.
+ */
+async function holdScripts(page: Page, { late = false } = {}) {
   let release!: () => void;
+  let releaseLate!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
+  const lateGate = new Promise<void>((resolve) => (releaseLate = resolve));
+  let released = false;
+  let held = 0;
   await page.route(/\/_next\/static\/chunks\/.*\.js(\?|$)/, async (route) => {
-    await gate;
+    if (!released) await gate;
+    else if (late) {
+      held++;
+      await lateGate;
+    }
     await route.continue();
   });
-  return release;
+  return {
+    release: () => {
+      released = true;
+      release();
+    },
+    releaseLate,
+    held: () => held,
+  };
 }
 
-/** Whether React has hydrated the element (its fiber key is on the node). */
-const isHydrated = (element: Locator) => element.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__react')));
+/** Stops the idle trigger (every engine then takes the stubbed idle path), so only intent loads an island. */
+async function withoutIdle(page: Page) {
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 0;
+    window.cancelIdleCallback = () => {};
+  });
+}
 
 test.describe('an entry made before hydration, in place (kitchen sink controls)', () => {
   const demo = (page: Page) => page.locator('[data-specimen="controls--demo"]');
@@ -39,7 +63,7 @@ test.describe('an entry made before hydration, in place (kitchen sink controls)'
 
   /** Opens the kitchen sink with its scripts held: the controls show, nothing listens. */
   async function openHeld(page: Page) {
-    const release = await holdScripts(page);
+    const { release } = await holdScripts(page);
     await page.goto('/kitchen-sink', { waitUntil: 'commit' });
     await expect(exact(page)).toBeVisible();
     return release;
@@ -102,6 +126,18 @@ test.describe('an entry made before hydration, in place (kitchen sink controls)'
     await expect(released(page)).toHaveText('Released at 23 looks');
   });
 
+  test('a number typed after a range move wins over the move', async ({ page, browserName }) => {
+    const release = await openHeld(page);
+    await looks(page).focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+    await exact(page).fill('35');
+    await page.keyboard.press(tabKey(browserName));
+    await hydrate(page, release);
+    await expect(exact(page)).toHaveValue('35');
+    await expect(looks(page)).toHaveValue('35');
+    await expect(released(page)).toHaveText('Released at 35 looks');
+  });
+
   test('a segment picked before hydration becomes the choice, drawn as chosen', async ({ page }) => {
     const release = await openHeld(page);
     await segment(page, "O'Brien-Fleming").click();
@@ -122,8 +158,11 @@ test.describe('an entry made before hydration, in a preview the island replaces 
   const segment = (page: Page, name: string) => figure(page).locator('label[data-segment]', { hasText: name });
   const query = (page: Page) => new URL(page.url()).searchParams;
 
+  // Idle loading is off in every test here, so only the intent the reader showed before hydration
+  // (focus in the preview, or an entry in it) can load the island.
   async function openHeld(page: Page) {
-    const release = await holdScripts(page);
+    await withoutIdle(page);
+    const { release } = await holdScripts(page);
     await page.goto('/lab/peeking', { waitUntil: 'commit' });
     await expect(exact(page)).toBeVisible();
     return release;
@@ -161,6 +200,40 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     await expect(exact(page)).toHaveValue('50');
     await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
     await expect(live(page)).toContainText('by look 50');
+    await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
+  });
+
+  test('focus moved into the preview before hydration loads the island and stays on the same control', async ({ page }) => {
+    const release = await openHeld(page);
+    await exact(page).focus();
+    await arrive(page, release);
+    await expect(exact(page)).toBeFocused();
+    await expect(exact(page)).toHaveValue('20');
+    expect(query(page).get('peeking.looks')).toBeNull();
+  });
+
+  test('text still being typed while the island loads is kept, and focus lands on it in the island', async ({ page, browserName }) => {
+    await withoutIdle(page);
+    const scripts = await holdScripts(page, { late: true });
+    await page.goto('/lab/peeking', { waitUntil: 'commit' });
+    await expect(exact(page)).toBeVisible();
+    await exact(page).fill('9');
+    expect(await isHydrated(island(page))).toBe(false);
+    scripts.release();
+    // The preview hydrates and asks for the island's code, which is held.
+    await expect.poll(() => isHydrated(exact(page)), { timeout: 20_000 }).toBe(true);
+    await expect.poll(() => scripts.held(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await expect(island(page)).toHaveAttribute('data-island', 'idle');
+    await page.keyboard.type('9');
+    await expect(exact(page)).toHaveValue('99');
+    scripts.releaseLate();
+    await expect(island(page)).toHaveAttribute('data-island', 'ready', { timeout: 20_000 });
+    await expect(exact(page)).toBeFocused();
+    await expect(exact(page)).toHaveValue('99');
+    await expect(looks(page)).toHaveValue('20');
+    await page.keyboard.press(tabKey(browserName));
+    await expect(exact(page)).toHaveValue('50');
+    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 

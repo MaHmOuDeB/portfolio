@@ -55,15 +55,24 @@ export async function expectNoA11yViolations(page: Page): Promise<void> {
   ).toEqual([]);
 }
 
+/** Whether React has hydrated `element` now: its props are on the node (see waitForHydration). */
+export function isHydrated(element: Locator): Promise<boolean> {
+  return element.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps')));
+}
+
 /**
  * Waits until React has hydrated `element`: its props are on the node, so the event system finds its
  * handlers (the same check as the node keys read in lab-peeking.spec.ts and home-scroll.spec.ts). A
  * server-rendered control is visible and focusable before that, and a click, key or typed value that
  * reaches it earlier is lost, so a test that acts on one right after `goto` waits for this, or for a
  * `data-ready` flag the page itself sets once hydrated.
+ *
+ * It proves the element's own handlers (onClick, onKeyDown, onBlur) dispatch, not that effects ran:
+ * React writes the props during the hydration render, before its layout and passive effects. A
+ * listener an effect adds (on window, say) needs a signal the effect itself sets.
  */
 export async function waitForHydration(element: Locator): Promise<void> {
-  await expect.poll(() => element.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps')))).toBe(true);
+  await expect.poll(() => isHydrated(element)).toBe(true);
 }
 
 /**
