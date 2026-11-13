@@ -9,8 +9,9 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   400% zoom): no sideways scroll; every pointer target at least 44 px (the pinned inline links
 //   aside); every focus ring visible and unclipped; chart text at its size (ticks 13 px, annotations
 //   15 px semibold, nothing under 13 px) and never scaled by a viewBox; no state shown by colour
-//   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis and
-//   no clipped line;
+//   alone; nothing that moves before the visitor does anything; complete text, with no ellipsis, no
+//   clipped line, no chart label past its chart's edge or over another label, and no sentence in a
+//   sideways-scrolling table;
 // - each case study and build note states at least two real limits;
 // - representative states beyond the default (the ship-rule decisions, the Pulse stream, empty and
 //   error, the About photograph, the printed CV and About, the contact form's error and sent states,
@@ -49,6 +50,44 @@ async function chartText(page: Page): Promise<string[]> {
       if (t.closest('[data-tick]') && Math.abs(px - 13) > 0.5) out.add(`tick at ${px.toFixed(1)} px: "${label}"`);
       else if (t.closest('[data-annotation]') && (Math.abs(px - 15) > 0.5 || Number(s.fontWeight) < 600)) out.add(`annotation at ${px.toFixed(1)} px weight ${s.fontWeight}: "${label}"`);
       else if (px < 12.5) out.add(`chart text at ${px.toFixed(1)} px: "${label}"`);
+    }
+    // Complete chart text: every label inside its own chart's box (an outer svg draws in its padding,
+    // never past its edge), and no two labels of one chart drawn over each other.
+    for (const svg of document.querySelectorAll<SVGSVGElement>('svg[data-chart-frame]')) {
+      if (svg.getClientRects().length === 0 || !svg.checkVisibility({ checkVisibilityCSS: true })) continue;
+      const box = svg.getBoundingClientRect();
+      const texts = [...svg.querySelectorAll<SVGTextElement>('text')].filter((t) => t.getClientRects().length > 0 && t.checkVisibility({ checkVisibilityCSS: true }) && (t.textContent ?? '').trim() !== '');
+      const rects = texts.map((t) => ({ text: (t.textContent ?? '').trim().slice(0, 40), r: t.getBoundingClientRect() }));
+      for (const { text, r } of rects) {
+        if (r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1) out.add(`chart text past its chart's edge: "${text}"`);
+      }
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          const a = rects[i]!;
+          const b = rects[j]!;
+          if (a.text === b.text) continue;
+          const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+          const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+          if (w > 1 && h > 2) out.add(`chart text drawn over other text: "${a.text}" and "${b.text}"`);
+        }
+      }
+    }
+    return [...out];
+  });
+}
+
+/** Sentences in a sideways-scrolling region: a table of prose must wrap, not hide words off its edge. */
+async function scrolledProse(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out = new Set<string>();
+    for (const el of document.body.querySelectorAll<HTMLElement>('*')) {
+      if (el.getClientRects().length === 0 || !el.checkVisibility({ checkVisibilityCSS: true })) continue;
+      const s = getComputedStyle(el);
+      if (!['auto', 'scroll'].includes(s.overflowX) || el.scrollWidth <= el.clientWidth + 1) continue;
+      for (const cell of el.querySelectorAll<HTMLElement>('td, th, dd')) {
+        const words = (cell.textContent ?? '').trim().split(/\s+/);
+        if (words.length >= 8) out.add(`a sentence in a sideways-scrolling region: "${words.slice(0, 8).join(' ')}"`);
+      }
     }
     return [...out];
   });
@@ -180,6 +219,7 @@ async function common(page: Page, label: string) {
   expect.soft(await sideways(page), `${label}: sideways scroll`).toBeLessThanOrEqual(0);
   expect.soft(await chartText(page), `${label}: chart text`).toEqual([]);
   expect.soft(await incompleteText(page), `${label}: incomplete text`).toEqual([]);
+  expect.soft(await scrolledProse(page), `${label}: prose that scrolls sideways`).toEqual([]);
   expect.soft(await colourOnly(page), `${label}: status by colour alone`).toEqual([]);
 }
 
