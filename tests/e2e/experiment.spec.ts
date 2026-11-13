@@ -202,7 +202,7 @@ test.describe('the entry rules', () => {
     });
   }
 
-  test('loading another page, whose header prefetches /, sends nothing', async ({ page, extraHTTPHeaders }) => {
+  test('loading another page sends nothing, and its header does not prefetch /', async ({ page, extraHTTPHeaders }) => {
     const sent = await visitor(page, extraHTTPHeaders, { counted: true });
     const prefetches: string[] = [];
     page.on('request', (r) => {
@@ -211,9 +211,9 @@ test.describe('the entry rules', () => {
     });
     await page.goto('/privacy');
     await page.waitForLoadState('networkidle');
-    // The header's wordmark link really prefetched / (else this test would prove nothing).
-    await expect.poll(() => prefetches.length).toBeGreaterThan(0);
     await page.waitForTimeout(2000);
+    // No link prefetches / (home-prefetch.spec.ts has the reason), so nothing can be drawn or counted.
+    expect(prefetches).toEqual([]);
     expect(sent).toEqual([]);
   });
 });

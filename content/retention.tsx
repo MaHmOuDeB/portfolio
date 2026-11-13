@@ -382,6 +382,7 @@ export function RetentionLabLink(): ReactNode {
  */
 export function RetentionHomePlannerLink(): ReactNode {
   return (
+    // Not prefetched (prefetchFor): the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /.
     <TextLink href="/#hero-planner" standalone>
       The same arithmetic as the Home planner
     </TextLink>

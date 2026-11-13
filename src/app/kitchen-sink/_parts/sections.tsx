@@ -102,6 +102,7 @@ export const SECTIONS: readonly SinkSection[] = [
           note="Primary and secondary, with and without an icon. Hover changes colour only."
         >
           <div className={row}>
+            {/* Links to / are not prefetched (prefetchFor): the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /. */}
             <ButtonLink href="/" variant="primary">
               Primary link
             </ButtonLink>
@@ -122,6 +123,7 @@ export const SECTIONS: readonly SinkSection[] = [
           note="Each standalone anchor is at least 44 by 44 CSS pixels. The links wrap onto additional rows as needed."
         >
           <div className={row}>
+            {/* Links to / are not prefetched (prefetchFor): the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /. */}
             <TextLink href="/" standalone>
               Home page
             </TextLink>

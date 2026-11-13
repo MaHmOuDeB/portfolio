@@ -182,7 +182,7 @@ test.describe('counting on the home page', () => {
     for (const url of endpoints) expect([url.pathname, url.search]).toEqual(['/api/e', '']);
   });
 
-  test('soft returns (the wordmark, Back, a prefetched /) redraw group A’s headlines and never count a second entry', async ({ page, extraHTTPHeaders }) => {
+  test('soft returns (the wordmark, Back, a client navigation to /) redraw group A’s headlines and never count a second entry', async ({ page, extraHTTPHeaders }) => {
     const { sent } = await visitor(page, extraHTTPHeaders, { counted: true });
     await page.goto('/');
     await countedEntry(sent);
