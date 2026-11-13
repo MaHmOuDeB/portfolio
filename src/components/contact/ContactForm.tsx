@@ -13,7 +13,7 @@ import { TextArea } from '@/components/kit/TextArea';
 import { TextField } from '@/components/kit/TextField';
 import { TextLink } from '@/components/kit/TextLink';
 import { sendContact } from '@/app/contact/actions';
-import { CONTACT_LIMITS, FIELD_ORDER, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
+import { CONTACT_LIMITS, FIELD_ORDER, HONEYPOT_FIELD, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
 import type { ContactState } from '@/lib/contact/handle';
 import { CONTACT } from '@/lib/site';
 import { STATUS_ID, StatusBlock } from './StatusBlock';
@@ -61,15 +61,21 @@ const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
 
 export function ContactForm({ issuedAt }: { issuedAt: number }) {
   const [state, formAction, pending] = useActionState(sendContact, IDLE);
-  // The errors on show: the server's after a response, the browser's after a submit it stopped, and
-  // each one cleared as soon as its field becomes valid.
-  const [shown, setShown] = useState<{ from: ContactState; errors: FieldErrors; attempt: number }>({ from: state, errors: errorsOf(state), attempt: 0 });
-  if (shown.from !== state) setShown({ from: state, errors: errorsOf(state), attempt: shown.attempt + 1 });
+  // The errors on show: the server's after a response, the browser's after a submit it stopped. Each
+  // field's own error clears as soon as the field becomes valid; the summary (and the title) keep the
+  // list of that submit until the next one, so nothing above the field moves while the visitor types.
+  const [shown, setShown] = useState<{ from: ContactState; errors: FieldErrors; summary: FieldErrors; attempt: number }>({
+    from: state,
+    errors: errorsOf(state),
+    summary: errorsOf(state),
+    attempt: 0,
+  });
+  if (shown.from !== state) setShown({ from: state, errors: errorsOf(state), summary: errorsOf(state), attempt: shown.attempt + 1 });
   const status = useRef<HTMLDivElement>(null);
 
   const values = state.status === 'invalid' || state.status === 'failed' ? state.values : undefined;
   const stamp = (state.status === 'invalid' || state.status === 'failed' ? state.issuedAt : null) ?? issuedAt;
-  const errorNames = FIELD_ORDER.filter((name) => shown.errors[name] !== undefined);
+  const errorNames = FIELD_ORDER.filter((name) => shown.summary[name] !== undefined);
   const failure = state.status === 'failed' && errorNames.length === 0 ? state.reason : null;
   const notSent = errorNames.length > 0 || failure !== null;
 
@@ -84,10 +90,10 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
     const data = new FormData(event.currentTarget);
     const errors = validate(readValues(data));
     if (Object.keys(errors).length > 0) {
-      setShown({ from: state, errors, attempt: shown.attempt + 1 });
+      setShown({ from: state, errors, summary: errors, attempt: shown.attempt + 1 });
       return;
     }
-    setShown({ from: state, errors: {}, attempt: shown.attempt });
+    setShown({ from: state, errors: {}, summary: {}, attempt: shown.attempt });
     startTransition(() => formAction(data));
   }
 
@@ -100,14 +106,17 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
     setShown({ ...shown, errors });
   }
 
-  // A summary link moves focus into its field, not just the view.
+  // A summary link moves focus into its field, not just the view, and scrolls the way the link would
+  // without JavaScript: the control to the top, less its scroll margin, so its label and error stay in
+  // view above it.
   function onSummaryClick(event: MouseEvent<HTMLElement>) {
     const link = (event.target as Element).closest('a[href^="#contact-"]');
     if (link === null) return;
     const field = document.getElementById(link.getAttribute('href')!.slice(1));
     if (field === null) return;
     event.preventDefault();
-    field.focus();
+    field.focus({ preventScroll: true });
+    field.scrollIntoView({ block: 'start' });
   }
 
   return (
@@ -117,11 +126,12 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         <StatusBlock ref={status} tone="warn" word={NOT_SENT} className="mt-12">
           <div onClick={onSummaryClick}>
             <p>Check these fields:</p>
-            <ul className="mt-2">
+            {/* role="list": WebKit drops the list role from a list drawn without bullets. */}
+            <ul role="list" className="mt-2">
               {errorNames.map((name) => (
                 <li key={name}>
                   <TextLink href={`#${fieldId(name)}`} standalone>
-                    {shown.errors[name]}
+                    {shown.summary[name]}
                   </TextLink>
                 </li>
               ))}
@@ -165,8 +175,8 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
         </div>
         {/* A person never sees or reaches this field; a bot that fills it is told the message went. */}
         <div className="sr-only" aria-hidden="true" inert>
-          <label htmlFor="contact-website">Website</label>
-          <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
+          <label htmlFor="contact-hp">Leave this field empty</label>
+          <input id="contact-hp" name={HONEYPOT_FIELD} type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
         </div>
         <div className="mt-8">
           <SubmitButton pending={pending} pendingLabel="Sending…">
@@ -176,7 +186,7 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
             {pending ? 'Sending your message' : ''}
           </span>
           <p className="mt-4 text-sm text-muted">
-            This form sends your message to my inbox by e-mail and stores nothing on this site. More in the{' '}
+            I receive your message by e-mail: Resend, in the USA, delivers it to my Gmail inbox, and this site stores nothing. More, including your rights, in the{' '}
             <TextLink href="/privacy#contact-form">privacy notice</TextLink>.
           </p>
         </div>

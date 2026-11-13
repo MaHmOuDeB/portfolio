@@ -8,7 +8,7 @@ import { STATUS_ID, StatusBlock } from './StatusBlock';
 export function SentStatus() {
   return (
     <>
-      <StatusBlock tone="ok" word="Message sent" heading className="mt-12">
+      <StatusBlock tone="ok" word="Message sent" className="mt-12">
         <p>Thanks, your message is on its way. I reply from my own e-mail.</p>
         <div className="mt-2 flex flex-wrap gap-x-6">
           <TextLink href="/contact" standalone>

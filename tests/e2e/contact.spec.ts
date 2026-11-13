@@ -59,6 +59,8 @@ test.describe('with JavaScript', () => {
     await expect(status(page)).toBeFocused();
     await expect(status(page)).toContainText('Message sent');
     await expect(status(page)).toContainText('Thanks, your message is on its way. I reply from my own e-mail.');
+    await expect(page).toHaveTitle(/^Message sent: Contact/);
+    await expect(status(page).getByRole('heading', { level: 2, name: 'Message sent' })).toHaveCount(1);
     await expect(page.locator('form')).toHaveCount(0);
     const [email, ...more] = await sentTo(v.email);
     expect(more).toEqual([]);
@@ -96,25 +98,61 @@ test.describe('with JavaScript', () => {
     await expect(page).toHaveURL(/\/contact$/);
   });
 
-  test('a field error clears as soon as the field is valid', async ({ page }) => {
+  test('a field error clears as soon as the field is valid; the summary stays as it was until the next submit', async ({ page }) => {
     await page.goto('/contact');
     await sendButton(page).click();
     const name = page.getByLabel('Name', { exact: true });
     await expect(name).toHaveAttribute('aria-invalid', 'true');
     await name.fill('Ada');
     await expect(name).not.toHaveAttribute('aria-invalid', 'true');
-    await expect(status(page).getByRole('link')).toHaveCount(4);
+    await expect(page.locator('#contact-name-error')).toHaveCount(0);
+    // Nothing moves above the field while the visitor types: the summary and the title wait for a submit.
+    await expect(status(page).getByRole('link')).toHaveCount(5);
+    await expect(page).toHaveTitle(/^Message not sent: Contact/);
     await page.getByLabel('E-mail address').fill('not-an-address');
     await expect(status(page).getByRole('link', { name: 'Enter your e-mail address, so I can reply' })).toHaveCount(1);
+    await sendButton(page).click();
+    await expect(status(page)).toBeFocused();
+    await expect(status(page).getByRole('link')).toHaveCount(4);
+    await expect(status(page).getByRole('link', { name: 'Enter a full e-mail address, with an @ and a domain' })).toHaveCount(1);
+  });
+
+  test('the summary is a named group with an h2 and a real list', async ({ page }) => {
+    await page.goto('/contact');
+    await sendButton(page).click();
+    await expect(status(page)).toHaveAttribute('role', 'group');
+    await expect(page.getByRole('group', { name: 'Message not sent' })).toHaveCount(1);
+    await expect(status(page).getByRole('heading', { level: 2, name: 'Message not sent' })).toHaveCount(1);
+    await expect(status(page).getByRole('list')).toHaveAttribute('role', 'list');
+    await expect(status(page).getByRole('listitem')).toHaveCount(5);
+  });
+
+  test('at 400% zoom (320 x 256), the Message label stays in view when the summary sends focus to the textarea', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 256 });
+    await page.goto('/contact');
+    await sendButton(page).click();
+    await expect(status(page)).toBeFocused();
+    await status(page).getByRole('link', { name: 'Enter your message' }).click();
+    const message = page.getByLabel('Message');
+    await expect(message).toBeFocused();
+    // Let the scroll settle, then the label and the error above the control are both on screen.
+    await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
+      const before = scrollY;
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY === before)));
+    }))).toBe(true);
+    await expect(page.locator('label[for="contact-message"]')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('#contact-message-error')).toBeInViewport({ ratio: 1 });
+    await expect(message).toBeInViewport();
   });
 
   test('a form sent within three seconds of opening is refused, with the text kept', async ({ page }) => {
     await page.goto('/contact');
     const v = values();
     await fill(page, v);
-    // Stamp the form as issued just now (the browser and the server share a clock here), so a slow
-    // fill on a loaded machine cannot push it past the minimum.
-    await page.locator('input[name="issuedAt"]').evaluate((el: HTMLInputElement) => (el.value = String(Date.now())));
+    // Stamp the form as issued two seconds from now (the browser and the server share a clock here,
+    // and the server allows five seconds of skew), so neither a slow fill nor a slow round trip on a
+    // loaded machine can push it past the three-second minimum.
+    await page.locator('input[name="issuedAt"]').evaluate((el: HTMLInputElement) => (el.value = String(Date.now() + 2_000)));
     await sendButton(page).click();
     await expect(status(page)).toBeFocused();
     await expect(status(page)).toContainText('Nothing was sent, because the form was sent very soon after the page opened.');
@@ -159,7 +197,7 @@ test.describe('with JavaScript', () => {
     await page.goto('/contact');
     const v = values();
     await fill(page, v);
-    await page.locator('#contact-website').evaluate((el: HTMLInputElement) => (el.value = 'https://spam.example.test'));
+    await page.locator('#contact-hp').evaluate((el: HTMLInputElement) => (el.value = 'https://spam.example.test'));
     await letFormAge(page);
     await sendButton(page).click();
     await expect(page).toHaveURL(/\/contact\?sent=1$/);
@@ -168,13 +206,16 @@ test.describe('with JavaScript', () => {
 
   test('the honeypot is out of reach: hidden from assistive tech, inert, and never a tab stop', async ({ page }) => {
     await page.goto('/contact');
-    const wrapper = page.locator('#contact-website').locator('..');
+    // A name and label no autofill maps to a profile field, so a real visitor's browser never fills it.
+    await expect(page.locator('#contact-hp')).toHaveAttribute('name', 'contact_hp');
+    await expect(page.locator('label[for="contact-hp"]')).toHaveText('Leave this field empty');
+    const wrapper = page.locator('#contact-hp').locator('..');
     await expect(wrapper).toHaveAttribute('aria-hidden', 'true');
     await expect(wrapper).toHaveAttribute('inert', '');
     await page.getByLabel('Subject').focus();
     for (let i = 0; i < 12; i++) {
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.id)).not.toBe('contact-website');
+      expect(await page.evaluate(() => document.activeElement?.id)).not.toBe('contact-hp');
     }
   });
 
@@ -246,6 +287,7 @@ test.describe('without JavaScript', () => {
       expect((await post).status()).toBe(303);
       await expect(page).toHaveURL(/\/contact\?sent=1$/);
       await expect(status(page)).toContainText('Message sent');
+      await expect(page).toHaveTitle(/^Message sent: Contact/);
       const [email] = await sentTo(v.email);
       expect(email?.subject).toBe(`[Portfolio] Job opportunity: ${v.subject}`);
       expect(email?.reply_to).toBe(v.email);
@@ -273,6 +315,24 @@ test.describe('without JavaScript', () => {
       await expect(page.getByLabel('Subject')).toHaveValue(v.subject);
       await expect(page.getByLabel('Message')).toHaveValue(v.message);
       await expect(page).toHaveTitle(/^Message not sent: Contact/);
+      expect(await sentTo(v.email)).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('a request body over the action limit (64 KB) is refused before the form is read, and nothing is sent', async ({ browser, baseURL, clientIdentity }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false, baseURL, extraHTTPHeaders: { 'x-forwarded-for': clientIdentity, 'x-real-ip': clientIdentity } });
+    const page = await context.newPage();
+    try {
+      await page.goto('/contact');
+      // Under the old 1 MB default this would come back as a 200 with "Shorten your message".
+      const v = values({ message: 'x'.repeat(100_000) });
+      await fill(page, v);
+      await letFormAge(page);
+      const post = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/contact');
+      await sendButton(page).click();
+      expect((await post).status()).toBeGreaterThanOrEqual(400);
       expect(await sentTo(v.email)).toEqual([]);
     } finally {
       await context.close();

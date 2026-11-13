@@ -6,6 +6,7 @@ import { contactMetadata } from '@/lib/contact/title';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts/facts.generated';
 import { CONTACT_LIMITS } from '@/lib/contact/fields';
+import { StatusBlock } from '@/components/contact/StatusBlock';
 
 async function render(sent?: string): Promise<string> {
   const element = await ContactPage({ searchParams: Promise.resolve(sent === undefined ? {} : { sent }) } as PageProps<'/contact'>);
@@ -20,16 +21,31 @@ const sent = await render('1');
 
 describe('the contact page', () => {
   it('is titled Contact, with one h1 and a one-line intro', () => {
-    expect(contactMetadata(new Headers()).title).toBe('Contact');
+    expect(contactMetadata(new Headers(), false).title).toBe('Contact');
     expect(form.match(/<h1\b/g)).toHaveLength(1);
     expect(form).toContain('>Contact</h1>');
   });
 
-  it('titles a page rendered in answer to a form POST "Message not sent: Contact" (a sent one redirects)', () => {
-    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' })).title).toBe('Message not sent: Contact');
-    expect(contactMetadata(new Headers({ 'content-type': 'application/x-www-form-urlencoded' })).title).toBe('Message not sent: Contact');
-    expect(contactMetadata(new Headers({ accept: 'text/html' })).title).toBe('Contact');
-    expect(contactMetadata(new Headers()).description).toBe('Send me a message about a role, an interview or a project.');
+  it('titles a page rendered in answer to a document form POST "Message not sent: Contact" (a sent one redirects)', () => {
+    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), false).title).toBe('Message not sent: Contact');
+    expect(contactMetadata(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }), false).title).toBe('Message not sent: Contact');
+    expect(contactMetadata(new Headers({ accept: 'text/html' }), false).title).toBe('Contact');
+    expect(contactMetadata(new Headers(), false).description).toBe('Send me a message about a role, an interview or a project.');
+  });
+
+  it('never titles a JavaScript request "Message not sent": a fetch action and the redirect it renders carry rsc or next-action', () => {
+    // A Server Action's redirect() with JavaScript renders /contact?sent=1 in the same request, with the
+    // original headers forwarded (multipart content type included) and rsc: 1 added.
+    const forwardedRedirect = new Headers({ 'content-type': 'multipart/form-data; boundary=x', rsc: '1' });
+    expect(contactMetadata(forwardedRedirect, false).title).toBe('Contact');
+    expect(contactMetadata(forwardedRedirect, true).title).toBe('Message sent: Contact');
+    const fetchAction = new Headers({ 'content-type': 'multipart/form-data; boundary=x', 'next-action': 'abc' });
+    expect(contactMetadata(fetchAction, false).title).toBe('Contact');
+  });
+
+  it('titles the sent page "Message sent: Contact", whatever the request carried', () => {
+    expect(contactMetadata(new Headers(), true).title).toBe('Message sent: Contact');
+    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), true).title).toBe('Message sent: Contact');
   });
 
   it('passes the truth audit in both states', () => {
@@ -48,7 +64,7 @@ describe('the contact page', () => {
   it('posts to this site only, with every field required in the copy and none sent anywhere else', () => {
     expect(form).not.toMatch(/action="https?:/);
     expect(form).toContain('All fields are required.');
-    for (const name of ['name', 'email', 'reason', 'subject', 'message', 'issuedAt', 'website']) expect(form).toContain(`name="${name}"`);
+    for (const name of ['name', 'email', 'reason', 'subject', 'message', 'issuedAt', 'contact_hp']) expect(form).toContain(`name="${name}"`);
   });
 
   it('gives each one-line field its maximum length, and the message none (the counter shows the limit)', () => {
@@ -59,21 +75,38 @@ describe('the contact page', () => {
     expect(form).toContain('Up to ');
   });
 
-  it('keeps the honeypot hidden from assistive tech, inert and out of the tab order', () => {
+  it('keeps the honeypot hidden from assistive tech, inert and out of the tab order, named so no autofill fills it', () => {
     const wrapper = form.match(/<div class="sr-only" aria-hidden="true" inert="">(.*?)<\/div>/)?.[1];
     expect(wrapper).toBeDefined();
-    expect(wrapper).toContain('id="contact-website"');
+    expect(wrapper).toContain('<label for="contact-hp">Leave this field empty</label>');
+    expect(wrapper).toContain('id="contact-hp"');
+    expect(wrapper).toContain('name="contact_hp"');
     expect(wrapper).toContain('tabindex="-1"');
+    expect(form).not.toMatch(/name="website"|>Website</);
   });
 
-  it('links the note under the button to the privacy notice section on the form', () => {
+  it('says at the button where the message goes, and links to the privacy notice section on the form', () => {
+    expect(form).toContain('I receive your message by e-mail: Resend, in the USA, delivers it to my Gmail inbox, and this site stores nothing. More, including your rights, in the');
     expect(form).toContain('href="/privacy#contact-form"');
   });
 
-  it('shows the sent block in place of the form', () => {
+  it('shows the sent block in place of the form, as a group named by its h2', () => {
+    expect(sent).toMatch(/<div id="contact-status"[^>]* role="group" aria-labelledby="contact-status-word"/);
+    expect(sent).toMatch(/<h2 id="contact-status-word"[^>]*>.*Message sent<\/h2>/);
     expect(sent).not.toContain('<form');
     expect(sent).toContain('Message sent');
     expect(sent).toContain('Thanks, your message is on its way. I reply from my own e-mail.');
     expect(sent).toContain('href="/contact"');
+  });
+
+  it('draws "Message not sent" the same way: an h2 that names the focused group', () => {
+    const html = renderToStaticMarkup(
+      <StatusBlock tone="warn" word="Message not sent">
+        <p>Check these fields:</p>
+      </StatusBlock>,
+    );
+    expect(html).toMatch(/^<div id="contact-status" tabindex="-1"[^>]* role="group" aria-labelledby="contact-status-word"/);
+    expect(html).toMatch(/<h2 id="contact-status-word"[^>]*>.*Message not sent<\/h2>/);
+    expect(html).not.toMatch(/role="alert"|aria-live/);
   });
 });

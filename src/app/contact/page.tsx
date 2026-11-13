@@ -11,8 +11,9 @@ import { issueTimestamp } from '@/lib/contact/issue';
 import { contactMetadata } from '@/lib/contact/title';
 import { CONTACT } from '@/lib/site';
 
-export async function generateMetadata(): Promise<Metadata> {
-  return contactMetadata(await headers());
+export async function generateMetadata({ searchParams }: PageProps<'/contact'>): Promise<Metadata> {
+  const { sent } = await searchParams;
+  return contactMetadata(await headers(), sent === '1');
 }
 
 export default async function ContactPage({ searchParams }: PageProps<'/contact'>) {
