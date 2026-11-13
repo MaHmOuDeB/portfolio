@@ -3,7 +3,7 @@
 // tick label. Too short an estimate pushes a label past its box; so each character counts as an upper
 // bound of its advance in Inter, the site font, over the chart text styles (13 px regular with and
 // without tabular figures, 15 px semibold), rounded up to 0.02 em. tests/unit/figure/label-width.test.ts
-// checks the table against the font file's measured advances and every label string the site renders.
+// checks the table against the font file's measured advances and a list of the label strings the charts use.
 
 /** Characters by the upper bound of their advance, in em. */
 const ADVANCE_EM: ReadonlyArray<readonly [string, number]> = [
@@ -20,7 +20,7 @@ const ADVANCE_EM: ReadonlyArray<readonly [string, number]> = [
   ['α', 0.7],
   ['4&+<=>~×−≈≤≥€', 0.68],
   ['012356789#$*-BPRSTZ√', 0.66],
-  ['bdgpq', 0.64],
+  ['bdgpq£', 0.64],
   ['Ehnouβ', 0.62],
   ['Fcevy', 0.6],
   ['JLakxz', 0.58],
@@ -39,7 +39,12 @@ const ADVANCE_EM: ReadonlyArray<readonly [string, number]> = [
   ['ij', 0.26],
 ];
 
-/** Any character the table does not list counts as the widest one. */
+/**
+ * Any character the table does not list counts as the widest one. That bounds only glyphs in the
+ * font's own latin set: a character drawn in a system fallback font (CJK, an arrow) could be wider,
+ * so a new label with such a character must be measured and added to the table above. The unit test
+ * fails for a label string that uses a character the table does not hold.
+ */
 const WIDEST_EM = 1.02;
 
 const ADVANCE = new Map<string, number>(ADVANCE_EM.flatMap(([chars, em]) => [...chars].map((c) => [c, em] as const)));

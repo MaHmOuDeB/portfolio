@@ -205,6 +205,32 @@ for (const width of WIDTHS) {
       expectEdgeTicks(ticks, width < 640 ? ['start', 'middle', 'end'] : ['middle', 'middle', 'middle'], `${width} px`);
     });
 
+    test('the stacked zero-line words keep an even gap of at least 2 px between their boxes', async ({ page }) => {
+      await openAt(page, width);
+      await page.evaluate(() => document.fonts.ready);
+      const stacks = await visibleFrames(page).evaluateAll((frames) =>
+        frames.flatMap((f) => {
+          const box = (sel: string) => {
+            const t = f.querySelector<SVGTextElement>(sel);
+            if (!t) return null;
+            const r = t.getBoundingClientRect();
+            return r.width > 0 && r.height > 0 ? r : null;
+          };
+          const above = box('text[data-side="above"]');
+          const zero = box('text[data-zero-label]');
+          const below = box('text[data-side="below"]');
+          if (!above || !zero || !below) return [];
+          return [{ id: f.closest('[data-specimen]')!.getAttribute('data-specimen'), upper: zero.top - above.bottom, lower: below.top - zero.bottom }];
+        }),
+      );
+      expect(stacks.length).toBeGreaterThan(0);
+      for (const s of stacks) {
+        expect(s.upper, `${s.id}: gap between the upper word and the zero label`).toBeGreaterThanOrEqual(2);
+        expect(s.lower, `${s.id}: gap between the zero label and the lower word`).toBeGreaterThanOrEqual(2);
+        expect(Math.abs(s.upper - s.lower), `${s.id}: the two gaps are ${s.upper.toFixed(2)} and ${s.lower.toFixed(2)} px`).toBeLessThan(1);
+      }
+    });
+
     test('every mark keeps its stroke width however far the layer stretches', async ({ page }) => {
       await openAt(page, width);
       const effects = await visibleFrames(page).evaluateAll((frames) =>

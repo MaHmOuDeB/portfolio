@@ -11,9 +11,10 @@
 // stack scales with its text) and all on the middle baseline: every engine then draws each word's box
 // at the same offset from its line, and the line height's leading stays clear between two boxes at any
 // zoom. The margins' widths count each character as an upper bound of its advance in the site font
-// (lib/figure/label-width), so a label never runs past its margin. Both margins are padding of the <svg> (a replaced element's
-// viewport is its content box), so the plot's percentages still run from 0 to 100% of the plot. The
-// y scale is snapped to half pixels, so a horizontal 1 px line is never blurred over two rows.
+// (lib/figure/label-width), so a label never runs past its margin. Both margins are padding of the
+// <svg> (a replaced element's viewport is its content box), so the plot's percentages still run from
+// 0 to 100% of the plot. The y scale is snapped to half pixels, so a horizontal 1 px line is never
+// blurred over two rows.
 //
 // The annotation is guarded against the plot's width. Text is not measured on the server and the chart
 // is as wide as its column, so the frame states, per layout, the narrowest column its annotation fits

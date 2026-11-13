@@ -68,7 +68,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | `src/components/kit` | The Figure kit (frozen). `src/components/kit/index.ts` is the import path for server-safe components, `src/components/kit/client.ts` for the client ones. |
 | `src/components/shell` | Site header, navigation, footer, skip link and error message. |
 | `src/lib/stats` | The statistics (tested against `stats-ref`). |
-| `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time. |
+| `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time, label widths. |
 | `src/lib/facts` | The `<Fact>` data, formatters and checked lookup. |
 | `src/styles/tokens.css` | The design tokens. |
 | `content/` | Content as data: the privacy notice (`content/privacy.ts`) and the frozen experiment headlines. MDX pages come later. |

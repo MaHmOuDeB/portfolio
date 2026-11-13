@@ -24,7 +24,7 @@ STYLES = {
 }
 
 # Every character the font maps that content uses (the font-file test's list): printable ASCII plus symbols.
-CHARS = [chr(c) for c in range(0x20, 0x7F)] + list(' ×αβ–’…₀₁₂₋−√≈≤≥€')
+CHARS = [chr(c) for c in range(0x20, 0x7F)] + list(' ×αβ–’…₀₁₂₋−√≈≤≥€£')
 
 # The chart label strings the site renders (zero-line words, tick labels, annotations), with their style.
 STRINGS = {

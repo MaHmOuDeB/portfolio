@@ -35,7 +35,7 @@ describe('labelWidth', () => {
     }
   });
 
-  it('covers every chart label string the site renders, kerned, at its own size', () => {
+  it('bounds a sample of the chart label strings, kerned, at its own size', () => {
     const size = { word: 13, tick: 13, note: 15 } as const;
     let count = 0;
     for (const [style, strings] of Object.entries(measured.strings) as Array<[keyof typeof size, Record<string, number>]>) {
@@ -45,6 +45,20 @@ describe('labelWidth', () => {
       }
     }
     expect(count).toBeGreaterThan(50);
+  });
+
+  it('holds every character of the chart label strings in its measured table', () => {
+    // A label with a character the table has not measured would count as the widest one; it fails
+    // here instead, so the character gets measured (measure-inter-advances.py) and added.
+    const known = new Set(Object.keys(measured.glyphs));
+    for (const [style, strings] of Object.entries(measured.strings)) {
+      for (const text of Object.keys(strings)) {
+        for (const c of text) {
+          expect(known.has(c), `${style} "${text}": U+${c.codePointAt(0)!.toString(16)} "${c}" is not measured`).toBe(true);
+          expect(advanceEm(c), `"${c}" is not in the table`).toBeLessThan(1.02 + 1e-9);
+        }
+      }
+    }
   });
 
   it('counts a "%" as wide as it is, not as a digit, and a minus as wide as a plus', () => {
