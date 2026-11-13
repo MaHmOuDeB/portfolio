@@ -450,3 +450,8 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     display: none;
   }
 }
+
+/* A4 and Letter alike: margins the printer can reach, so the content box is the page's. */
+@page {
+  margin: 16mm 18mm;
+}
