@@ -158,7 +158,7 @@ html[data-js] [data-table-toggle][open] + [data-table-body] {
 }
 
 /*
- * A page-owned text table that stacks under md (components/pulse/TaxonomyTable.tsx): each cell after
+ * A page-owned text table that stacks under md (components/tables/TextTable.tsx): each cell after
  * the first shows its column name above its text. The name is generated content, so the cell's own
  * text stays the source's words; where the alternative-text syntax is supported it is hidden from
  * assistive technology, which already reads the column header.
