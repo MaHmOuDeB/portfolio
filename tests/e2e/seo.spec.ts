@@ -44,8 +44,9 @@ function pngSize(body: Buffer): [number, number] {
 }
 
 function expectIndexable(response: Response | null, head: Head): void {
-  expect(response?.headers()['x-robots-tag'] ?? '').not.toMatch(/noindex/i);
-  for (const value of head.robots) expect(value).not.toMatch(/noindex/i);
+  // Index and follow: no noindex, nofollow or none, in a robots meta tag or in X-Robots-Tag.
+  expect(response?.headers()['x-robots-tag'] ?? '').not.toMatch(/noindex|nofollow|none/i);
+  for (const value of head.robots) expect(value).not.toMatch(/noindex|nofollow|none/i);
 }
 
 test.describe('canonicalAndRobots', () => {
