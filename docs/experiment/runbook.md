@@ -224,6 +224,9 @@ launch conditions met" once none is left. It checks:
 - the GitHub repository variables `LAUNCHED` and `LAUNCH_SHA` exist (it reads their names only).
   They exist only after the launch step, where I set `LAUNCH_SHA` first and then `LAUNCHED`. Before
   that, `unmet` lines for them are expected and are never a reason to set either one;
+- the GitHub repository variable `CANONICAL_HOST` exists (it reads its name only). Unlike the two
+  above, I set it before launch, to the canonical domain (see "The canonical domain:
+  `CANONICAL_HOST`" below);
 - the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
@@ -272,6 +275,33 @@ finishes, I set `LAUNCH_SHA` to the new commit's full SHA. If I am too late, its
 "Guard production SHA" by design and deploys nothing; then I set `LAUNCH_SHA` and re-run that
 commit's CI run, which starts a fresh Deploy. Vercel's Instant Rollback and "Promote" do not go
 through this workflow, so the guard does not cover them (see step 11).
+
+### The canonical domain: `CANONICAL_HOST`
+
+Every page's canonical link, `og:url`, sharing images, the sitemap and the robots Sitemap line take
+their host from the Vercel environment the deploy pulls: `VERCEL_ENV` must be `production` and
+`VERCEL_PROJECT_PRODUCTION_URL` names the host. Vercel sets that host to the shortest production
+custom domain, or to the `vercel.app` address while none is attached. Once `LAUNCHED` is `true`, the
+deploy workflow checks both before anything is live and deploys nothing if either fails:
+
+1. right after the pull, "Check the pulled production environment" fails unless the pulled file has
+   `VERCEL_ENV="production"` and a non-empty `VERCEL_PROJECT_PRODUCTION_URL` (it prints the names
+   and pass or fail, never a value);
+2. after the build, "Check the canonical origin" runs `npm run seo:origin-check -- --canonical
+   "$CANONICAL_HOST"`: every built page, the sitemap and robots must name only
+   `https://<CANONICAL_HOST>`, and none may carry the `.invalid` test origin. An empty
+   `CANONICAL_HOST` fails with an error that names it.
+
+So before launch I set the repository variable to the bare canonical domain, the same one I give
+`npm run launch:check -- --canonical` (no `https://`, no slash):
+
+```sh
+gh variable set CANONICAL_HOST --repo MaHmOuDeB/portfolio --body "<canonical domain>"
+```
+
+It changes nothing before launch: previews skip both checks. If "Check the canonical origin" fails
+at launch, the Vercel project's production domain is not the canonical one (step 3): fix the
+domains, then re-run the CI run of the `LAUNCH_SHA` commit.
 
 ## 7. Tag the pre-registration (`prereg-v1`)
 
