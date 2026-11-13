@@ -402,6 +402,23 @@ describe('small counts', () => {
 });
 
 describe('the funnel', () => {
+  it('draws the exclusion reasons as a wrapping text table, never a sideways-scrolling one', () => {
+    const h = page(displayOf(withExclusions(cal(60, 60))));
+    const box = byId(h, 'live-exclusions')!;
+    const table = elements(box).find((el) => el.tagName === 'table')!;
+    expect(attr(table, 'data-stacked-table')).toBe('');
+    expect(attr(table, 'role')).toBe('table');
+    expect(elements(box).some((el) => /\boverflow-x-auto\b/.test(attr(el, 'class') ?? ''))).toBe(false);
+    for (const td of elements(table).filter((el) => el.tagName === 'td')) {
+      expect(attr(td, 'data-derived')).toBeTruthy();
+      // The meanings (every cell after the reason) are sentences: they wrap.
+      if (attr(td, 'data-label') !== undefined) expect(attr(td, 'class') ?? '').not.toMatch(/whitespace-nowrap/);
+    }
+    const counts = elements(table).filter((el) => el.tagName === 'td' && attr(el, 'data-label') === 'Entries');
+    expect(counts.length).toBe(7);
+    for (const c of counts) expect(attr(c, 'data-num')).toBe('');
+  });
+
   it('names beacons, not visitors; withholds the totals; keeps the preview row structural', () => {
     const d = displayOf(cal(60, 60));
     const h = page(d);
