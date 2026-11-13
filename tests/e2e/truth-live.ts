@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { auditHtml } from '../../scripts/truth-audit.ts';
+import { ALLOW } from '../../scripts/truth-audit.allow.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 
 // Shared by the page specs that check a hydrated page after its controls are used.
@@ -28,6 +29,9 @@ export async function auditLive(page: Page, route: string, when: string) {
     if (/\bInfinity\b|\bNaN\b/.test(main.innerText)) out.push('a non-finite value in the text');
     return out;
   });
-  expect(stray, `${route} ${when}`).toEqual([]);
+  // A digit the truth audit itself allows in text (a year, the product name n8n) is allowed here too.
+  const allowed = ALLOW.filter((a) => a.routes === undefined || a.routes.includes(route));
+  const rest = (s: string) => allowed.reduce((t, a) => t.replace(new RegExp(a.pattern.source, `${a.pattern.flags.replace('g', '')}g`), ''), s.slice(s.indexOf('=') + 1));
+  expect(stray.filter((s) => s.startsWith('a non-finite') || /\d/.test(rest(s))), `${route} ${when}`).toEqual([]);
 }
 

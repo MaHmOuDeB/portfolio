@@ -8,6 +8,7 @@ import { LIVE_ROUTES } from '../../src/lib/site';
 import { E2E_EXCLUDE_TOKEN as TOKEN } from './constants';
 import { test } from './fixtures';
 import { markSlow } from './slow';
+import { useEveryControl } from './use-controls';
 
 /** Collects every request URL and every CSP violation from the first byte of the page. */
 async function record(page: Page): Promise<{ urls: string[]; violations: string[] }> {
@@ -109,6 +110,36 @@ for (const route of ['/lab', '/lab/peeking?peeking.preset=interview', '/work/ret
     // A prefetch of the Live test page itself (/experiment, the header's link) is a page, not a beacon or
     // the data endpoint (/experiment/data.json).
     expect(urls.filter((u) => /^\/(api(\/|$)|experiment\/)/.test(new URL(u).pathname)), 'beacons or API calls').toEqual([]);
+    expect(seen.violations).toEqual([]);
+
+    await page.goto(route);
+    expect(await stored(page)).toEqual({ cookies: [], local: 0, session: 0, idb: [] });
+  });
+}
+
+// Every page, with every control on it used (each Figure's sliders, options, selects, steps and
+// Reset; every disclosure; a form's fields typed into, never sent): still only same-origin requests,
+// nothing stored and no CSP violation. Only the home page counts views (its beacon) and only the
+// owner's /exclude page talks to the event endpoint; no other page calls the site's API or the
+// published data.
+const COUNTING = new Set(['/', '/exclude']);
+for (const route of LIVE_ROUTES) {
+  test(`${route}: every control used, still same-origin only, nothing stored, no CSP violation`, async ({ page, baseURL }) => {
+    test.slow();
+    const seen = await record(page);
+    const response = await page.goto(route);
+    expect(response?.ok(), route).toBe(true);
+    const used = await useEveryControl(page);
+    if (used.controlled > 0) expect(used.actions + used.resets, `${route}: controls used`).toBeGreaterThan(0);
+    await page.waitForLoadState('networkidle');
+    await page.goto('about:blank');
+
+    const origin = new URL(baseURL!).origin;
+    const urls = seen.urls.filter((u) => !u.startsWith('about:') && !u.startsWith('data:'));
+    expect(urls.filter((u) => new URL(u).origin !== origin), 'requests to another origin').toEqual([]);
+    if (!COUNTING.has(route)) {
+      expect(urls.filter((u) => /^\/(api(\/|$)|experiment\/data\.json)/.test(new URL(u).pathname)), 'API or data calls').toEqual([]);
+    }
     expect(seen.violations).toEqual([]);
 
     await page.goto(route);
