@@ -10,6 +10,7 @@ import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
+import { detectableX } from '@/components/live-page/DetectableFigure';
 import { LIVE_SECTIONS, LivePage } from '@/components/live-page/LivePage';
 import { EXPERIMENT, type ExperimentConfig } from '@/experiment.config';
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
@@ -136,8 +137,12 @@ describe('the carried planning copy', () => {
         'Even a 5-point lift would be found about 1 time in 20. Inconclusive is the likely, honest outcome. ' +
         'The quick-exit guardrail asks for evidence that B does not hurt. For two identical groups, the planning calculation says ship B needs about 390 to 470 entry views per group. ' +
         'That is a planning figure for identical groups, not a threshold every run must reach. ' +
-        'n counts views, not people: one person can count more than once, and in both groups.',
+        'Here, n counts views, not people: one person can count more than once, and in both groups.',
     );
+  });
+
+  it('starts no sentence with a lowercase letter', () => {
+    for (const p of elements(plan).filter((el) => el.tagName === 'p')) expect(text(p).trim()).toMatch(/^[A-Z]/);
   });
 
   it('marks every numeral with its unit and the build ref', () => {
@@ -304,7 +309,10 @@ describe('the detectable effect at the current size', () => {
       expect(p.effect * 100).toBeLessThanOrEqual(domain.y[1]);
     }
     expect(domain.y[0]).toBeLessThanOrEqual(0);
-    expect(domain.x[0]).toBeLessThanOrEqual(0);
+    // The x axis starts where the curve starts (or at the current point, if that is smaller), not at 0.
+    const current = typeof d.counts.smaller === 'number' ? d.counts.smaller : Infinity;
+    expect(domain.x[0]).toBe(Math.min(...pts.map((p) => p.nPerArm), current));
+    expect(domain.x[0]).toBeGreaterThan(0);
     expect(d.public.detectable.atCurrent).not.toBeNull();
     expect(d.public.detectable.atCurrent! * 100).toBeLessThanOrEqual(domain.y[1]);
     expect(all(h).some((el) => attr(el, 'data-detectable-current') !== undefined)).toBe(true);
@@ -447,6 +455,44 @@ describe('the data section', () => {
   });
 });
 
+describe('the detectable-lift x axis', () => {
+  const pts = [{ n: 50 }, { n: 100 }, { n: 400 }, { n: 1000 }];
+
+  it('starts at the curve\'s first x and labels that start', () => {
+    const { domain, ticks } = detectableX(pts, null);
+    expect(domain[0]).toBe(50);
+    expect(domain[1]).toBeGreaterThanOrEqual(1000);
+    for (const t of [ticks.narrow, ticks.wide]) {
+      expect(t[0]).toBe(50);
+      expect(t.every((v, i) => i === 0 || v > t[i - 1]!)).toBe(true);
+      expect(t.every((v) => v >= domain[0] && v <= domain[1])).toBe(true);
+      // No nice tick crowds the start: the gap to the next is at least half a step.
+      if (t.length > 2) expect(t[1]! - t[0]!).toBeGreaterThanOrEqual((t[2]! - t[1]!) / 2);
+    }
+  });
+
+  it('reaches back to a current point left of the curve', () => {
+    expect(detectableX(pts, 30).domain[0]).toBe(30);
+    expect(detectableX(pts, 300).domain[0]).toBe(50);
+  });
+
+  it('falls back to 0 with no points', () => {
+    expect(detectableX([], null).domain).toEqual([0, 1]);
+  });
+});
+
+describe('the split-check status words', () => {
+  it('are plain semibold words, not outlined pills', () => {
+    for (const [name, s] of FIXTURES) {
+      for (const el of all(page(displayOf(s))).filter((e) => attr(e, 'data-status') !== undefined)) {
+        const cls = attr(el, 'class') ?? '';
+        expect(cls, name).toMatch(/\bfont-semibold\b/);
+        expect(cls, name).not.toMatch(/\b(border|rounded)/);
+      }
+    }
+  });
+});
+
 describe('the pre-registration and build lines', () => {
   const v11 = { ...EXPERIMENT, prereg: { version: 'v1.1', tag: 'prereg-v1.1' } } as unknown as ExperimentConfig;
 
@@ -463,6 +509,16 @@ describe('the pre-registration and build lines', () => {
     const link = all(h).find((el) => el.tagName === 'a' && attr(el, 'href') === `${CONTACT.github}/portfolio/tree/${config.prereg.tag}`);
     expect(link).toBeDefined();
     expect(text(byId(h, 'plan-build')!).replace(/\s+/g, ' ')).toBe('This page was built from commit abcdef0.');
+  });
+
+  it('breaks the design hash anywhere but keeps its last 8 characters together', () => {
+    const h = page(displayOf(snapshotFixture('calibration')));
+    const hash = elements(byId(h, 'plan-prereg')!).find((el) => el.tagName === 'data' && attr(el, 'value') === preregHash())!;
+    expect(attr(hash, 'class') ?? '').toMatch(/\bbreak-all\b/);
+    expect(text(hash)).toBe(preregHash());
+    const tail = elements(hash).find((el) => el.tagName === 'span')!;
+    expect(attr(tail, 'class') ?? '').toMatch(/\bwhitespace-nowrap\b/);
+    expect(text(tail)).toBe(preregHash().slice(-8));
   });
 
   it('says "Not recorded" when the build commit is null, never "unknown"', () => {
