@@ -161,7 +161,7 @@ describe('the privacy page', () => {
   it('says exactly how messages are handled', () => {
     const paragraphs = all.filter((el) => el.tagName === 'p').map((el) => text(el));
     for (const sentence of [
-      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(b) GDPR when we talk about a job, and Art. 6(1)(f) GDPR otherwise.',
+      'Replying to your messages, on LinkedIn or by e-mail: Art. 6(1)(f) GDPR. My legitimate interest is to answer the people who write to me. If you write about a contract that you yourself would make with me, such as a freelance project, the basis is Art. 6(1)(b) GDPR instead.',
       'Messages you send me on LinkedIn are processed by LinkedIn under its own terms.',
       'Messages, on LinkedIn or in my inbox, including those from the contact form: kept until I delete them, which I do when the conversation is over, unless I need to keep them, for example for an application that is still open.',
       'You can reach me through the contact form on this site or through my LinkedIn profile:',
