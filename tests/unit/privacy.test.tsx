@@ -215,6 +215,8 @@ describe('the privacy page', () => {
 
   it('quotes the published small-cell value exactly', () => {
     expect(sectionText('How long')).toContain(`is shown as "<${EXPERIMENT.smallCellBelow}"`);
+    // The verified Upstash fact (LAUNCH_FACTS upstash-backups) stays in "How long".
+    expect(sectionText('How long')).toContain("The counter database's daily backup at Upstash is switched off.");
   });
 
   it('has no arrow, middle dot or emoji in its copy', () => {
