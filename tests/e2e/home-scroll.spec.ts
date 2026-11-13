@@ -1024,7 +1024,7 @@ test.describe('home scroll moment interaction', () => {
     await page.context().close();
   });
 
-  test('without a kit chart nothing follows the scroll: the first step stays current', async ({ browser, baseURL }) => {
+  test('without a kit chart nothing follows the scroll, and no step is marked current', async ({ browser, baseURL }) => {
     const context = await browser.newContext({ baseURL, viewport: { width: 375, height: 667 } });
     await spyNavScrolls(context);
     const page = await context.newPage();
@@ -1036,7 +1036,8 @@ test.describe('home scroll moment interaction', () => {
       await settle(page);
     }
     await page.waitForTimeout(300);
-    expect(await currentStep(page)).toEqual(['1']);
+    // Stacked only: no stage and no step navigation, so aria-current is never set.
+    expect(await currentStep(page)).toEqual([]);
     expect(await page.evaluate(() => (window as unknown as { __navScrolls: number }).__navScrolls)).toBe(0);
     await context.close();
   });

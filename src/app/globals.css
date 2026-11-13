@@ -91,9 +91,15 @@
     font-feature-settings: "cv05";
   }
 
-  /* Leave room for the external focus outline when native scrolling aligns a control to the bottom. */
+  /*
+   * Leave room for the external focus outline when native scrolling aligns a control to the bottom.
+   * WebKit, focusing a text input that is partly below the fold, scrolls only its text line into
+   * view, not its box: the line's bottom lands at this padding and the box's lower padding, border
+   * and ring (13.7 px of input and 4 px of ring in the kit's fields) still hang below it. 1.5rem
+   * keeps the whole ring in view there; 0.5rem left it cut off at the screen's bottom edge.
+   */
   html {
-    scroll-padding-block-end: calc(var(--spacing) * 2);
+    scroll-padding-block-end: calc(var(--spacing) * 6);
   }
 
   /*
@@ -408,5 +414,16 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
   [data-kit-range]::-moz-range-thumb {
     border-color: Canvas;
     background: CanvasText;
+  }
+}
+
+/*
+ * Print. The About and CV pages are printable: the site header and footer drop away, so a printed
+ * page holds the content only. A page's own buttons carry print:hidden.
+ */
+@media print {
+  [data-site-header],
+  body > footer {
+    display: none;
   }
 }

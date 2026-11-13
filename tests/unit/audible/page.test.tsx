@@ -464,11 +464,12 @@ describe('numbers and the route', () => {
 
   it('ships at /work/audible with its own metadata', () => {
     expect(LIVE_ROUTES).toContain('/work/audible');
-    expect(metadata).toEqual({
+    expect(metadata).toMatchObject({
       title: 'Experimentation at Audible (Amazon)',
       description:
         'How I plan and analyse experiments, why so many of my recommendations were adopted, a ship rule on a made-up product and the tool I built for test-account setup.',
     });
+    expect(metadata.robots).toBeUndefined();
     expect(renderToStaticMarkup(<AudibleRoute />)).toBe(PAGE);
   });
 });

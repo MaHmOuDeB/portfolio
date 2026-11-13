@@ -28,6 +28,7 @@ import {
   Paragraphs,
   TEXT,
 } from '../build-notes/BuildNote';
+import { NoteShot } from '../build-notes/NoteShot';
 
 export { N8N_TITLE };
 export const N8N_SECTIONS = BUILD_NOTE_SECTIONS;
@@ -80,6 +81,7 @@ export function N8nPage(): ReactNode {
             <div className={EVIDENCE}>
               <FlowDiagram />
             </div>
+            <NoteShot shot="n8nDecision" />
           </>
         ),
         'how-i-checked-this': <Paragraphs items={N8N_CHECKS} />,

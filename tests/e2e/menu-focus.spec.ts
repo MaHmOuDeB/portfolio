@@ -3,10 +3,14 @@ import { test } from './fixtures';
 
 test.use({ viewport: { width: 375, height: 812 } });
 
+// The keyboard exit, Escape and link closing are what JavaScript adds to the <details>, so each
+// test opens the Menu once those handlers are attached (`data-ready`); before that, Tab out of an
+// open Menu leaves it open, as it does without JavaScript.
 async function openMenu(page: Page, path = '/') {
   await page.goto(path);
   const menu = page.locator('[data-site-header] details');
   const summary = menu.locator('summary');
+  await expect(menu).toHaveAttribute('data-ready', '');
   await summary.focus();
   await page.keyboard.press('Space');
   await expect(menu).toHaveAttribute('open', '');
@@ -41,7 +45,7 @@ test('Menu closes on forward keyboard exit without stealing destination focus', 
 test('Menu closes on backward keyboard exit without restoring summary focus', async ({ page, browserName }) => {
   const { menu } = await openMenu(page);
   await page.keyboard.press(tabKey(browserName, true));
-  await expect(page.getByRole('banner').getByRole('link', { name: 'CV (PDF)' })).toBeFocused();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'CV', exact: true })).toBeFocused();
   await expect(menu).not.toHaveAttribute('open', '');
 });
 
@@ -76,4 +80,32 @@ test('Menu pointer activation navigates to a different page after keyboard open'
   await links.filter({ hasText: /^Lab$/ }).click();
   await expect(page).toHaveURL(/\/lab$/);
   await expect(menu).not.toHaveAttribute('open', '');
+});
+
+test('Menu opened before the page hydrates stays open through hydration', async ({ page }) => {
+  // Hold the JavaScript back so the reader opens the native <details> first.
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(/\/_next\/static\/chunks\/.*\.js(\?.*)?$/, async (route) => {
+    await released;
+    await route.continue();
+  });
+  await page.goto('/', { waitUntil: 'commit' });
+  const menu = page.locator('[data-site-header] details');
+  await menu.locator('summary').click();
+  await expect(menu).toHaveAttribute('open', '');
+  await expect(menu).not.toHaveAttribute('data-ready', '');
+  // Record any close, however brief, so a later check cannot miss one.
+  await menu.evaluate((el) => {
+    (window as unknown as { menuClosed: boolean }).menuClosed = false;
+    new MutationObserver(() => {
+      if (!el.hasAttribute('open')) (window as unknown as { menuClosed: boolean }).menuClosed = true;
+    }).observe(el, { attributes: true, attributeFilter: ['open'] });
+  });
+  release();
+  // React runs the mount effects before it commits the next render, the one that sets data-ready.
+  await expect(menu).toHaveAttribute('data-ready', '');
+  expect(await page.evaluate(() => (window as unknown as { menuClosed: boolean }).menuClosed)).toBe(false);
+  await expect(menu).toHaveAttribute('open', '');
+  await expect(menu.getByRole('link', { name: 'Lab', exact: true })).toBeVisible();
 });

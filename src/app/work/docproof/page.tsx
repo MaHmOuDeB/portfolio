@@ -1,13 +1,11 @@
 // The Docproof build note. A plain static page: prose, one diagram and one recorded run, all from
 // content/docproof.tsx; nothing on it is live.
 import type { Metadata } from 'next';
-import { DOCPROOF_TITLE, DocproofPage } from '@/components/docproof/DocproofPage';
+import { DocproofPage } from '@/components/docproof/DocproofPage';
+import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { seoEntry } from '../../../../content/seo';
 
-export const metadata: Metadata = {
-  title: DOCPROOF_TITLE,
-  description:
-    'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',
-};
+export const metadata: Metadata = pageMetadata(seoEntry('/work/docproof'), canonicalOrigin());
 
 export default function DocproofRoute() {
   return <DocproofPage />;

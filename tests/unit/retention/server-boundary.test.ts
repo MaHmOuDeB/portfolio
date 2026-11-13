@@ -17,6 +17,9 @@ const SERVER_ONLY = [
   join(SRC, 'lib/retention/tables.ts'),
   join(SRC, 'lib/sources/index.ts'),
   join(ROOT, 'content/retention.tsx'),
+  // the Pulse taxonomy reads the export; its page passes the rows to the island as props
+  join(SRC, 'lib/pulse/taxonomy.ts'),
+  join(ROOT, 'content/pulse.tsx'),
   // the exports themselves and the lock file, should anything import them directly
   ...readdirSync(join(ROOT, 'data/sources')).filter((n) => n.endsWith('.json')).map((n) => join(ROOT, 'data/sources', n)),
   join(ROOT, 'sources.lock.json'),
@@ -133,5 +136,17 @@ describe('the Retention sources stay on the server', () => {
     expect(server.has(join(SRC, 'lib/sources/index.ts'))).toBe(true);
     // JSON files are followed as leaves: the server side does reach the export itself
     expect(server.has(join(ROOT, 'data/sources/retail.json'))).toBe(true);
+  });
+
+  it('covers the Pulse island too: it reaches the browser-safe names and bus, and its server side reaches the taxonomy', () => {
+    expect(clientModules.map((f) => relative(ROOT, f))).toEqual(
+      expect.arrayContaining(['src/components/pulse/PulseFigureClient.tsx', 'src/components/pulse/PulseInteractive.tsx']),
+    );
+    const reached = walk(clientModules).seen;
+    expect(reached.has(join(SRC, 'lib/pulse/names.ts'))).toBe(true);
+    expect(reached.has(join(SRC, 'lib/pulse/bus.ts'))).toBe(true);
+    const server = walk([join(SRC, 'components/pulse/PulseFigure.tsx')]).seen;
+    expect(server.has(join(SRC, 'lib/pulse/taxonomy.ts'))).toBe(true);
+    expect(server.has(join(ROOT, 'data/sources/pulse.json'))).toBe(true);
   });
 });

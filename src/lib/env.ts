@@ -1,3 +1,5 @@
+import 'server-only';
+
 export type VercelEnv = 'production' | 'preview' | 'development';
 
 export interface ServerEnv {
@@ -9,6 +11,12 @@ export interface ServerEnv {
   excludeToken?: string;
   ratelimitHmacKey?: string;
   vercelEnv: VercelEnv;
+  /**
+   * Whether VERCEL_ENV is set at all (non-empty). vercelEnv maps a missing value to 'development',
+   * so this keeps the difference: on Vercel a missing VERCEL_ENV fails the canonical origin
+   * (lib/seo/metadata.ts canonicalOrigin) instead of building with the test origin.
+   */
+  vercelEnvSet?: boolean;
   productionHost?: string;
   deploymentHost?: string;
   gitCommit?: string;
@@ -28,6 +36,20 @@ export interface ServerEnv {
    * time. Only the loopback fake store outside production honours it (lib/experiment/clock.ts).
    */
   clockOffsetMs?: number;
+  /** The contact form's Resend API key. Never logged. */
+  resendApiKey?: string;
+  /** The inbox the contact form delivers to. Never logged, never rendered. */
+  contactToEmail?: string;
+  /**
+   * RESEND_API_URL: the e2e run's loopback fake of Resend's endpoint. lib/contact/send.ts honours it
+   * only outside production and only for a loopback host.
+   */
+  resendApiUrl?: string;
+  /**
+   * SEO_TEST_ORIGIN_HOST: the host of the canonical origin in a build that is not production (a
+   * preview, a local or CI build). Production refuses it (lib/seo/metadata.ts canonicalOrigin).
+   */
+  seoTestOriginHost?: string;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -51,6 +73,7 @@ function toVercelEnv(value: string | undefined): VercelEnv {
  * variable read here must be listed in `.env.example`.
  */
 export function serverEnv(): ServerEnv {
+  const vercelEnv = nonEmpty(process.env.VERCEL_ENV);
   return {
     kvUrl: nonEmpty(process.env.KV_REST_API_URL),
     kvToken: nonEmpty(process.env.KV_REST_API_TOKEN),
@@ -59,7 +82,8 @@ export function serverEnv(): ServerEnv {
     internalTrafficSecret: nonEmpty(process.env.INTERNAL_TRAFFIC_SECRET),
     excludeToken: nonEmpty(process.env.EXCLUDE_TOKEN),
     ratelimitHmacKey: nonEmpty(process.env.RATELIMIT_HMAC_KEY),
-    vercelEnv: toVercelEnv(nonEmpty(process.env.VERCEL_ENV)),
+    vercelEnv: toVercelEnv(vercelEnv),
+    vercelEnvSet: vercelEnv !== undefined,
     productionHost: nonEmpty(process.env.VERCEL_PROJECT_PRODUCTION_URL),
     deploymentHost: nonEmpty(process.env.VERCEL_URL),
     gitCommit: nonEmpty(process.env.VERCEL_GIT_COMMIT_SHA),
@@ -67,5 +91,9 @@ export function serverEnv(): ServerEnv {
     onVercel: process.env.VERCEL === '1',
     buildPhase: process.env.NEXT_PHASE === 'phase-production-build',
     clockOffsetMs: integerMs(nonEmpty(process.env.EXPERIMENT_CLOCK_OFFSET_MS)),
+    resendApiKey: nonEmpty(process.env.RESEND_API_KEY),
+    contactToEmail: nonEmpty(process.env.CONTACT_TO_EMAIL),
+    resendApiUrl: nonEmpty(process.env.RESEND_API_URL),
+    seoTestOriginHost: nonEmpty(process.env.SEO_TEST_ORIGIN_HOST),
   };
 }

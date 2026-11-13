@@ -17,6 +17,10 @@ const VARS = [
   'VERCEL',
   'NEXT_PHASE',
   'EXPERIMENT_CLOCK_OFFSET_MS',
+  'RESEND_API_KEY',
+  'CONTACT_TO_EMAIL',
+  'RESEND_API_URL',
+  'SEO_TEST_ORIGIN_HOST',
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -54,6 +58,11 @@ describe('serverEnv', () => {
       onVercel: false,
       buildPhase: false,
       clockOffsetMs: undefined,
+      resendApiKey: undefined,
+      contactToEmail: undefined,
+      resendApiUrl: undefined,
+      seoTestOriginHost: undefined,
+      vercelEnvSet: false,
     });
   });
 
@@ -72,6 +81,10 @@ describe('serverEnv', () => {
     process.env.VERCEL = '1';
     process.env.NEXT_PHASE = 'phase-production-build';
     process.env.EXPERIMENT_CLOCK_OFFSET_MS = '-3600000';
+    process.env.RESEND_API_KEY = 'test-value-resend';
+    process.env.CONTACT_TO_EMAIL = 'test-value-inbox';
+    process.env.RESEND_API_URL = 'test-value-resend-url';
+    process.env.SEO_TEST_ORIGIN_HOST = 'test-value-seo-host';
     expect(serverEnv()).toEqual({
       kvUrl: 'test-value-url',
       kvToken: 'test-value-token',
@@ -88,6 +101,11 @@ describe('serverEnv', () => {
       onVercel: true,
       buildPhase: true,
       clockOffsetMs: -3_600_000,
+      resendApiKey: 'test-value-resend',
+      contactToEmail: 'test-value-inbox',
+      resendApiUrl: 'test-value-resend-url',
+      seoTestOriginHost: 'test-value-seo-host',
+      vercelEnvSet: false,
     });
   });
 
@@ -106,6 +124,16 @@ describe('serverEnv', () => {
     const env = serverEnv();
     expect(env.kvUrl).toBeUndefined();
     expect(env.vercelEnv).toBe('development');
+  });
+
+  it('records whether VERCEL_ENV is set at all (empty counts as unset), whatever its value', () => {
+    expect(serverEnv().vercelEnvSet).toBe(false);
+    process.env.VERCEL_ENV = '';
+    expect(serverEnv().vercelEnvSet).toBe(false);
+    for (const value of ['production', 'preview', 'development', 'staging']) {
+      process.env.VERCEL_ENV = value;
+      expect(serverEnv().vercelEnvSet, value).toBe(true);
+    }
   });
 
   it('reads VERCEL_ENV on every call', () => {

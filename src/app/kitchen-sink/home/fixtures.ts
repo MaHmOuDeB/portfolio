@@ -3,7 +3,7 @@
 // sections of the Home page join the host here as they are built.
 import { homeScrollProps } from '@/components/home/HomeSections';
 import type { ScrollMomentProps } from '@/components/home/ScrollMoment';
-import { EXPERIMENT } from '@/experiment.values';
+import { EXPERIMENT, type Arm } from '@/experiment.values';
 import { FIXTURE_AB, buildFixture, snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel, type HomeModel } from '@/lib/home/model';
 import { STEP_STATES } from './steps/states';
@@ -25,12 +25,12 @@ export function hostScrollModel(): HomeModel {
  * An A/B with a look on each of ten days, so the band has an area (the mode fixtures have one look).
  * Group B gets a few more card clicks, so the band moves off zero.
  */
-function manyLooks(): HomeModel {
+function manyLooks(arm: Arm = 'b'): HomeModel {
   const rows = Array.from({ length: 10 }, (_, i) => {
     const day = `2026-12-${String(i + 1).padStart(2, '0')}`;
     return { day, a: { entry: 30, inview: 25, engaged: 25, card: 3 }, b: { entry: 30, inview: 25, engaged: 25, card: 5 } };
   });
-  return simulated(toHomeModel(buildFixture({ config: FIXTURE_AB, now: '2026-12-12T12:00:00+01:00', rows }), 'b'));
+  return simulated(toHomeModel(buildFixture({ config: FIXTURE_AB, now: '2026-12-12T12:00:00+01:00', rows }), arm));
 }
 
 /** The scroll-moment page whose live chart fails in the browser (HostHome's `breakChart`). */
@@ -46,7 +46,7 @@ export function scrollMomentProps(model: HomeModel, { tickAllowed = false }: { t
   return homeScrollProps(model, { tickAllowed });
 }
 
-const abModel = () => STEP_STATES.find((s) => s.id === 'ab')!.model();
+const abModel = (arm: Arm = 'b') => STEP_STATES.find((s) => s.id === 'ab')!.model(arm);
 
 /**
  * A mechanism state for the canvas cross-fade, never a Home state: the Evidence step's chart, and at the
@@ -60,7 +60,7 @@ function twoCharts(model: HomeModel): ScrollMomentProps {
 }
 
 /** The A/B fixture with a day that reached the daily entry ceiling (left out of its looks). */
-const ceilingModel = () => simulated(toHomeModel(snapshotFixture('ab', { ceilingDays: ['2026-12-02'] }), 'b'));
+const ceilingModel = (arm: Arm = 'b') => simulated(toHomeModel(snapshotFixture('ab', { ceilingDays: ['2026-12-02'] }), arm));
 const atRead = (m: HomeModel) => m.readAt;
 const staleAtRender = (m: HomeModel) => new Date(Date.parse(m.readAt) + (EXPERIMENT.staleAfterMinutes + 1) * 60_000).toISOString();
 
@@ -73,7 +73,8 @@ const staleAtRender = (m: HomeModel) => new Date(Date.parse(m.readAt) + (EXPERIM
  */
 export const SCROLL_STATES: readonly {
   id: string;
-  model: () => HomeModel;
+  /** The state's model seen from a group (B unless named). */
+  model: (arm?: Arm) => HomeModel;
   props?: (m: HomeModel) => ScrollMomentProps;
   renderedAt?: (m: HomeModel) => string;
 }[] = [
@@ -86,3 +87,10 @@ export const SCROLL_STATES: readonly {
   { id: 'home-ceiling-day', model: ceilingModel, renderedAt: atRead },
   { id: 'home-stale-at-render', model: abModel, renderedAt: staleAtRender },
 ];
+
+/**
+ * The states drawn for both groups (/kitchen-sink/home/<group>/<state>), for measurements that
+ * compare or cover the two groups on one state: before data, collecting, enough data, and the end
+ * states the review screenshots show.
+ */
+export const PAIRED_STATES = ['before-data', 'calibration', 'ab-many-looks', 'inconclusive', 'aa-failed'] as const;

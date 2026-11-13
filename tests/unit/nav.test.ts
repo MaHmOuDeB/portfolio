@@ -17,6 +17,8 @@ describe('isCurrent', () => {
 describe('prefetchFor', () => {
   it('keeps the default prefetch for a route that has a page', () => {
     expect(prefetchFor('/privacy?x=1')).toBeUndefined();
+    expect(prefetchFor('/work')).toBeUndefined();
+    expect(prefetchFor('/about?x=1')).toBeUndefined();
     expect(prefetchFor('/lab#planner')).toBeUndefined();
   });
 
@@ -27,7 +29,6 @@ describe('prefetchFor', () => {
   });
 
   it('turns prefetch off for a route a later plan builds, so it never 404s in the console', () => {
-    expect(prefetchFor('/work')).toBe(false);
-    expect(prefetchFor('/about?x=1')).toBe(false);
+    expect(prefetchFor('/cv.pdf')).toBe(false);
   });
 });

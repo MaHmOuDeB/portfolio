@@ -5,6 +5,9 @@ import {
   E2E_FAKE_UPSTASH_URL,
   E2E_KV_READ_TOKEN,
   E2E_KV_WRITE_TOKEN,
+  E2E_CONTACT_TO,
+  E2E_RESEND_KEY,
+  E2E_RESEND_URL,
   e2eClockOffsetMs,
 } from './tests/e2e/constants';
 import { updateSnapshotsMode } from './tests/e2e/snapshot-mode';
@@ -17,6 +20,8 @@ const STORE_ENV = {
   KV_REST_API_TOKEN: E2E_KV_WRITE_TOKEN,
   KV_REST_API_READ_ONLY_TOKEN: E2E_KV_READ_TOKEN,
   EXPERIMENT_CLOCK_OFFSET_MS: String(e2eClockOffsetMs()),
+  // The contact form sends to the fake Resend endpoint on the same loopback fake, with a throwaway key.
+  RESEND_API_KEY: E2E_RESEND_KEY,
 };
 
 // Desktop Firefox exists only on demand (PLAYWRIGHT_FIREFOX=1), so the default and CI runs keep
@@ -88,6 +93,8 @@ export default defineConfig({
         // sends x-internal whenever it is set), so the server never has one here.
         INTERNAL_TRAFFIC_SECRET: '',
         KV_REST_API_URL: E2E_FAKE_UPSTASH_URL,
+        RESEND_API_URL: E2E_RESEND_URL,
+        CONTACT_TO_EMAIL: E2E_CONTACT_TO,
         ...STORE_ENV,
       },
     },

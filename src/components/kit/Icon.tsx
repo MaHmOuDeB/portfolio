@@ -6,7 +6,7 @@
 // line stays 1.5 px. The other icons are drawn directly on the 20 grid.
 import type { ReactNode } from 'react';
 
-export type IconName = 'mail' | 'linkedin' | 'github' | 'download' | 'external' | 'menu';
+export type IconName = 'mail' | 'linkedin' | 'github' | 'download' | 'external' | 'menu' | 'alert' | 'check' | 'chevron';
 
 const SHAPES: Record<IconName, ReactNode> = {
   mail: (
@@ -35,6 +35,21 @@ const SHAPES: Record<IconName, ReactNode> = {
     <path d="M8 4H5a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 5 16h9a1.5 1.5 0 0 0 1.5-1.5V12M12 3.5h4.5V8M16.5 3.5L9 11" />
   ),
   menu: <path d="M3 5.5h14M3 10h14M3 14.5h14" />,
+  // Status marks: always beside the word they repeat ("Message not sent", an error, "Message sent"),
+  // in that word's colour. The chevron only marks a native select.
+  alert: (
+    <>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 6v4.75M10 13.75h.01" />
+    </>
+  ),
+  check: (
+    <>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M6.75 10.25l2.25 2.25 4.25-4.5" />
+    </>
+  ),
+  chevron: <path d="M5.5 8l4.5 4.5L14.5 8" />,
 };
 
 export function Icon({ name }: { name: IconName }) {

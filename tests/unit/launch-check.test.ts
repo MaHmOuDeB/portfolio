@@ -2,8 +2,10 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EXPERIMENT, type ExperimentConfig } from '../../src/experiment.values.ts';
-import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, main, vercelScopeFrom, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
+import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, destinationsUnmet, main, vercelScopeFrom, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
 import type { LaunchFact } from '../../content/privacy.ts';
+import { HOME_DESTINATIONS } from '../../content/home-destinations.ts';
+import { LIVE_ROUTES } from '../../src/lib/site.ts';
 
 const STARTED = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-09T00:00:00+01:00' } } as unknown as ExperimentConfig;
 const HASH = 'a'.repeat(64);
@@ -25,9 +27,21 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-function built(html: string) {
-  mkdirSync(join(root, '.next/server/app'), { recursive: true });
-  writeFileSync(join(root, '.next/server/app/privacy.html'), html);
+function built(html: string, page = 'privacy') {
+  mkdirSync(join(root, '.next/server/app', page, '..'), { recursive: true });
+  writeFileSync(join(root, `.next/server/app/${page}.html`), html);
+}
+
+/**
+ * A site whose Home destinations all resolve: a section page with both fragments, a live route
+ * without one, a file in public/, and links that are not site paths (never checked).
+ */
+const SITE_DESTINATIONS = ['/work/audible#why-so-many', '/work/audible#automation', '/privacy', '/cv.pdf', 'https://www.linkedin.com/in/someone', 'mailto:someone@example.com'];
+const SITE_ROUTES = ['/', '/privacy', '/work/audible'];
+function site() {
+  built('<main><h1>Audible</h1><section id="why-so-many"><h2>Why so many?</h2></section><section id="automation"></section></main>', 'work/audible');
+  mkdirSync(join(root, 'public'), { recursive: true });
+  writeFileSync(join(root, 'public/cv.pdf'), '%PDF-1.7');
 }
 
 function vercelTable(names: readonly string[]): string {
@@ -49,8 +63,21 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
     return { status: 1, stdout: '' };
   };
   built('<main><h1>Privacy</h1></main>');
+  site();
   return {
-    deps: { root, out: (l) => lines.push(l), run, config: STARTED, facts: VERIFIED, deployedChecksLog: PASSED_LOG, preregHash: () => HASH, vercelScope: 'example-team', ...over },
+    deps: {
+      root,
+      out: (l) => lines.push(l),
+      run,
+      config: STARTED,
+      facts: VERIFIED,
+      deployedChecksLog: PASSED_LOG,
+      preregHash: () => HASH,
+      destinations: SITE_DESTINATIONS,
+      liveRoutes: SITE_ROUTES,
+      vercelScope: 'example-team',
+      ...over,
+    },
     lines,
     calls,
   };
@@ -62,6 +89,68 @@ describe('launch:check', () => {
     expect(main(ARGS, d.deps)).toBe(0);
     expect(d.lines.join('\n')).toMatch(/all launch conditions met/);
     expect(d.lines.join('\n')).not.toContain(SECRET_VALUE);
+  });
+
+  it('checks the Home destinations: every site path is a live route, every fragment is in its built page, the CV file exists', () => {
+    const d = deps();
+    expect(main(ARGS, d.deps)).toBe(0);
+    expect(d.lines.join('\n')).not.toMatch(/home destination/);
+  });
+
+  it('names a Home destination that is not a live route, and does not look for its fragment', () => {
+    const d = deps({ destinations: [...SITE_DESTINATIONS, '/lab', '/work/pulse#why'] });
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.filter((l) => l.includes('home destination'));
+    expect(out).toEqual([
+      'unmet: home destination is not a live route: /lab (its page is not built yet, or LIVE_ROUTES does not list it)',
+      'unmet: home destination is not a live route: /work/pulse#why (its page is not built yet, or LIVE_ROUTES does not list it)',
+    ]);
+  });
+
+  it('names a fragment its built page lacks; text, a script payload or a name attribute is not an id', () => {
+    const d = deps();
+    built(
+      '<main><p>id="automation"</p><a name="automation"></a><script>self.__next_f.push([1,"<section id=\\"automation\\">"])</script><section id="why-so-many"></section></main>',
+      'work/audible',
+    );
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual([
+      'unmet: home destination fragment missing: /work/audible#automation (no element with id "automation" in the built page)',
+    ]);
+  });
+
+  it('names a live route with a fragment whose page is not built', () => {
+    const d = deps();
+    rmSync(join(root, '.next/server/app/work'), { recursive: true, force: true });
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual([
+      'unmet: home destination has no built page: /work/audible#why-so-many (run npm run build first)',
+      'unmet: home destination has no built page: /work/audible#automation (run npm run build first)',
+    ]);
+  });
+
+  it('checks /cv.pdf as a file in public/, not as a route', () => {
+    const d = deps();
+    rmSync(join(root, 'public/cv.pdf'));
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual(['unmet: home destination file missing: /cv.pdf (public/cv.pdf)']);
+  });
+
+  it('reads the Home destinations and LIVE_ROUTES by default', () => {
+    const given = deps({ destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
+    const status = main(ARGS, given.deps);
+    const d = deps();
+    delete d.deps.destinations;
+    delete d.deps.liveRoutes;
+    expect(main(ARGS, d.deps)).toBe(status);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual(given.lines.filter((l) => l.includes('home destination')));
+  });
+
+  it('the repository today: every Home destination is a live route (a fragment still needs a build to check)', () => {
+    const repo = join(import.meta.dirname, '../..');
+    const out = destinationsUnmet({ root: repo, destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
+    expect(out.filter((l) => /not a live route|file missing/.test(l))).toEqual([]);
+    for (const line of out) expect(line).toMatch(/has no built page|fragment missing/);
   });
 
   it('never asks the Vercel CLI for values (no --json or --format)', () => {
@@ -130,6 +219,18 @@ describe('launch:check', () => {
     const out = d.lines.join('\n');
     expect(out).toMatch(/^unmet: secret missing in Vercel production: EXCLUDE_TOKEN$/m);
     expect(out).toMatch(/^unmet: secret missing in GitHub: VERCEL_AUTOMATION_BYPASS_SECRET$/m);
+  });
+
+  it("checks the contact form's two Vercel secrets by name", () => {
+    expect(VERCEL_SECRETS).toEqual(expect.arrayContaining(['RESEND_API_KEY', 'CONTACT_TO_EMAIL']));
+    const d = deps();
+    const base = d.deps.run!;
+    d.deps.run = (cmd, args) =>
+      args.includes('vercel') ? { status: 0, stdout: vercelTable(VERCEL_SECRETS.filter((n) => n !== 'RESEND_API_KEY' && n !== 'CONTACT_TO_EMAIL')) } : base(cmd, args);
+    expect(main(ARGS, d.deps)).toBe(1);
+    const out = d.lines.join('\n');
+    expect(out).toMatch(/^unmet: secret missing in Vercel production: RESEND_API_KEY$/m);
+    expect(out).toMatch(/^unmet: secret missing in Vercel production: CONTACT_TO_EMAIL$/m);
   });
 
   it('a CLI that cannot list counts as unmet, with no output of its own', () => {

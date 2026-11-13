@@ -34,6 +34,7 @@ import {
   Paragraphs,
   TEXT,
 } from '../build-notes/BuildNote';
+import { NoteShot } from '../build-notes/NoteShot';
 
 export { WEATHER_TITLE };
 export const WEATHER_SECTIONS = BUILD_NOTE_SECTIONS;
@@ -101,6 +102,7 @@ export function WeatherPage(): ReactNode {
         'how-i-checked-this': (
           <>
             <Paragraphs items={WEATHER_CHECKS} />
+            <NoteShot shot="weatherChecks" />
             <CheckLevelsTable />
             <div className="mt-8">
               <Paragraphs items={WEATHER_TESTS} />

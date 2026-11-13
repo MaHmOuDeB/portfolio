@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { formatFact, getFact } from '@/lib/facts';
 import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats';
@@ -55,10 +55,30 @@ describe('the daily ceiling and the command quota', () => {
     expect(atCeiling + MONTHLY_PAGE_READ_BUDGET).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 
-  it('still fit with the worst-case refused entries every day (200 x 48 x 30 + 55,000 + 650 x 8 x 30 = 499,000)', () => {
+  it('budgets four ISR routes every five minutes, two reads each (4 x 2 x 8,640 = 69,120, rounded up to 70,000)', () => {
+    // Every route that regenerates from the store: the two home pages, data.json and the Live test page.
+    const app = join(ROOT, 'src/app');
+    const files = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        return statSync(path).isDirectory() ? files(path) : /\.tsx?$/.test(name) ? [path] : [];
+      });
+    const isr = files(app).filter((f) => /export const revalidate = /.test(readFileSync(f, 'utf8'))).map((f) => f.slice(app.length));
+    expect(isr.sort()).toEqual(['/experiment/data.json/route.ts', '/experiment/page.tsx', '/v/[arm]/page.tsx']);
+    const routes = 4; // /v/a and /v/b (one file), /experiment/data.json, /experiment
+    const regenerationsPerMonth = (30 * 24 * 60 * 60) / EXPERIMENT.revalidateSeconds;
+    expect(regenerationsPerMonth).toBe(8_640);
+    const reads = routes * 2 * regenerationsPerMonth;
+    expect(reads).toBe(69_120);
+    expect(MONTHLY_PAGE_READ_BUDGET).toBe(70_000);
+    expect(MONTHLY_PAGE_READ_BUDGET - reads).toBeGreaterThanOrEqual(0);
+    expect(MONTHLY_PAGE_READ_BUDGET - reads).toBeLessThan(1_000);
+  });
+
+  it('still fit with the worst-case refused entries every day (200 x 48 x 30 + 70,000 + 500 x 8 x 30 = 478,000)', () => {
     const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
     const refused = REFUSED_ENTRIES_PER_DAY * REFUSED_ENTRY_COMMANDS * 30;
-    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBe(499_000);
+    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBe(478_000);
     expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 });

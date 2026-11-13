@@ -156,7 +156,7 @@ describe('"The site\'s functions run in Frankfurt."', () => {
   });
 });
 
-describe('"Nothing on this site comes from a third party." (no analytics, fonts or scripts from elsewhere)', () => {
+describe('"Nothing on this site comes from a third party." (from the browser: no analytics, fonts or scripts from elsewhere)', () => {
   it('the font is self-hosted with next/font/local', () => {
     const fonts = readFileSync(join(ROOT, 'src/app/fonts.ts'), 'utf8');
     expect(fonts).toMatch(/next\/font\/local/);

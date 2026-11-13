@@ -193,26 +193,27 @@ function isPhone(page: Page): boolean {
 }
 
 test.describe('site header', () => {
-  test('desktop: wordmark, full navigation in order, CV (PDF), no Menu', async ({ page }) => {
+  test('desktop: wordmark, full navigation in order, the CV link, no Menu', async ({ page }) => {
     test.skip(isPhone(page), 'desktop layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toHaveAttribute('href', '/');
     const nav = header.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link')).toHaveText(LABELS);
-    const cv = header.getByRole('link', { name: 'CV (PDF)' });
-    await expect(cv).toHaveAttribute('href', '/cv.pdf');
-    await expect(cv).toHaveAttribute('download', '');
+    // "CV", the CV page, in every build; the PDF is offered on that page.
+    const cv = header.getByRole('link', { name: 'CV', exact: true });
+    await expect(cv).toHaveAttribute('href', '/cv');
+    await expect(cv).not.toHaveAttribute('download');
     await expect(header.locator('summary')).toBeHidden();
   });
 
-  test('phone: full navigation is hidden, wordmark, CV (PDF) and Menu are shown', async ({ page }) => {
+  test('phone: full navigation is hidden, wordmark, the CV link and Menu are shown', async ({ page }) => {
     test.skip(!isPhone(page), 'phone layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
-    await expect(header.getByRole('link', { name: 'CV (PDF)' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'CV', exact: true })).toBeVisible();
     await expect(header.locator('summary')).toHaveText('Menu');
   });
 
@@ -327,11 +328,26 @@ test.describe('footer', () => {
       'https://github.com/MaHmOuDeB',
     );
     await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    const contact = footer.getByRole('link', { name: 'Contact', exact: true });
+    await expect(contact).toHaveAttribute('href', '/contact');
+    // The contact form is the first link in the footer.
+    await expect(footer.getByRole('link').first()).toHaveAttribute('href', '/contact');
     expect(await footer.innerText()).not.toContain('@');
     for (const height of await footer
       .locator('[data-touch-target]')
       .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) {
       expect(height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test('the colophon line is the same plain line on every page, including a 404', async ({ page }) => {
+    // Every route but the last is a real page now, so each must answer 200 (not the 404 page).
+    for (const route of ['/', '/work', '/lab', '/experiment', '/about', '/cv', '/contact', '/privacy', '/no-such-page']) {
+      const response = await page.goto(route);
+      expect(response?.status(), route).toBe(route === '/no-such-page' ? 404 : 200);
+      const line = page.getByRole('contentinfo').getByText('Built with Claude Code as pair-programmer.', { exact: true });
+      await expect(line, route).toHaveCount(1);
+      await expect(line, route).toHaveText('Built with Claude Code as pair-programmer.');
     }
   });
 });

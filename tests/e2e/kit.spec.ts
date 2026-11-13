@@ -41,7 +41,7 @@ test.describe('kitchen sink', () => {
     ]) {
       await expect(page.locator(`[data-specimen="${id}"]`)).toBeVisible();
     }
-    await expect(page.locator('[data-specimen="icons--all"] svg')).toHaveCount(6);
+    await expect(page.locator('[data-specimen="icons--all"] svg')).toHaveCount(9);
   });
 
   test('shows Stat with a derived value and a Fact in the one markup', async ({ page }) => {
