@@ -217,6 +217,49 @@ describe('noTestOriginInProduction', () => {
     expect(findOriginProblems([page(good + '<link rel="canonical" href="https://site.example.com/"/>')], CANONICAL)).not.toEqual([]);
   });
 
+  it('reads the RSC payloads too, which carry the same metadata for client navigations', () => {
+    const rsc = (p: string) => ({ path: p, text: '1:["$","link","0",{"rel":"canonical","href":"https://canonical.invalid/lab"}]' });
+    expect(findOriginProblems([rsc('server/app/lab.rsc')], CANONICAL)).not.toEqual([]);
+    expect(findOriginProblems([rsc('server/app/lab.segments/_full.segment.rsc')], CANONICAL)).not.toEqual([]);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-origin-rsc-'));
+    try {
+      const app = path.join(dir, 'server/app');
+      fs.mkdirSync(path.join(app, 'lab.segments'), { recursive: true });
+      fs.writeFileSync(path.join(app, 'lab.html'), page(good).text);
+      fs.writeFileSync(path.join(app, 'lab.segments/_full.segment.rsc'), rsc('x').text);
+      const lines: string[] = [];
+      expect(originCheck(['--canonical', CANONICAL, '--dir', dir], { log: (l) => lines.push(l), error: () => {} })).toBe(1);
+      expect(lines.join('\n')).toMatch(/lab\.segments\/_full\.segment\.rsc: test origin canonical\.invalid/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('checks the canonical and URL metadata in an RSC payload against the origin, as in the HTML', () => {
+    const tag = (key: 'rel' | 'property' | 'name', name: string, attr: 'href' | 'content', url: string) =>
+      `["$","${key === 'rel' ? 'link' : 'meta'}","0",{"${key}":"${name}","${attr}":"${url}"}]`;
+    const on = 'https://site.example.com';
+    const clean = [
+      tag('rel', 'canonical', 'href', `${on}/lab`),
+      tag('property', 'og:url', 'content', `${on}/lab`),
+      tag('property', 'og:image', 'content', `${on}/og/site.png`),
+      tag('name', 'twitter:image', 'content', `${on}/og/site.png`),
+      tag('property', 'og:title', 'content', 'Lab | Mahmoud El Bergui'),
+    ].join('\n');
+    expect(findOriginProblems([{ path: 'server/app/lab.rsc', text: clean }], CANONICAL)).toEqual([]);
+    for (const [key, name, attr] of [
+      ['rel', 'canonical', 'href'],
+      ['property', 'og:url', 'content'],
+      ['property', 'og:image', 'content'],
+      ['name', 'twitter:image', 'content'],
+    ] as const) {
+      const text = tag(key, name, attr, 'https://portfolio-x.vercel.app/lab');
+      expect(findOriginProblems([{ path: 'server/app/lab.segments/_full.segment.rsc', text }], CANONICAL), name).toEqual([
+        `server/app/lab.segments/_full.segment.rsc: ${name} https://portfolio-x.vercel.app/lab is not on https://site.example.com`,
+      ]);
+    }
+  });
+
   it('exits 1 on a fixture build output with the test origin, 0 on a clean one, 2 without --canonical', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-origin-'));
     try {
@@ -403,6 +446,16 @@ describe('sharingTemplate', () => {
       expect(card.footer).toBe(SITE.name);
       expect(card.proof).toBeUndefined();
     }
+    // Decoupled from the experiment: a change to its headlines never changes a sharing image.
+    const source = fs.readFileSync(path.join(ROOT, 'content/seo.ts'), 'utf8');
+    expect(source).not.toMatch(/experiment\/headlines|HEADLINES|from '\.\/home(\.ts)?'/);
+  });
+
+  it('the Retention card states what the Retention page says', () => {
+    const page = fs.readFileSync(path.join(ROOT, 'content/retention.tsx'), 'utf8').replace(/\s+/g, ' ');
+    expect(page).toContain(
+      'returned-order value grew about{\' \'} <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{\' \'} <Fact id="retail.returns.yoy_growth_raw" />',
+    );
   });
 
   it('every entry image and alt text comes from its card', () => {
@@ -477,15 +530,5 @@ describe('sharingTemplate', () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], file).toEqual([OG_WIDTH, OG_HEIGHT]);
       expect(meta).toEqual({ sha256: createHash('sha256').update(png).digest('hex'), width: OG_WIDTH, height: OG_HEIGHT });
     }
-    // Decoupled from the experiment: a change to its headlines never changes a sharing image.
-    const source = fs.readFileSync(path.join(ROOT, 'content/seo.ts'), 'utf8');
-    expect(source).not.toMatch(/experiment\/headlines|HEADLINES|from '\.\/home(\.ts)?'/);
-  });
-
-  it('the Retention card states what the Retention page says', () => {
-    const page = fs.readFileSync(path.join(ROOT, 'content/retention.tsx'), 'utf8').replace(/\s+/g, ' ');
-    expect(page).toContain(
-      'returned-order value grew about{\' \'} <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{\' \'} <Fact id="retail.returns.yoy_growth_raw" />',
-    );
   });
 });

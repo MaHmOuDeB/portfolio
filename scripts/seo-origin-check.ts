@@ -4,8 +4,9 @@
 //
 //   npm run seo:origin-check -- --canonical <host> [--dir .next]
 //
-// It reads the prerendered output under <dir>/server/app (*.html, and the *.body files of the
-// sitemap and robots routes). It exits 0 when clean, 1 on any problem (each printed), 2 on bad
+// It reads the prerendered output under <dir>/server/app: *.html, the RSC payloads (*.rsc, including
+// the *.segments/**/*.segment.rsc files), which carry the same metadata for client-side navigations,
+// and the *.body files of the sitemap and robots routes. It exits 0 when clean, 1 on any problem (each printed), 2 on bad
 // arguments. A build without VERCEL_ENV=production uses the test origin on purpose, so run this
 // on a production build only.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -18,6 +19,8 @@ const TEST_HOST = /\b[a-z0-9.-]*\.invalid\b/gi;
 const LINK_CANONICAL = /<link\b[^>]*\brel="canonical"[^>]*>/gi;
 const META = /<meta\b[^>]*>/gi;
 const ATTR = (name: string) => new RegExp(`\\b${name}="([^"]*)"`, 'i');
+// Metadata in an RSC payload: {"rel":"canonical","href":"..."} or {"property"|"name":"og:url","content":"..."}.
+const RSC_TAG = /\{"(rel|property|name)":"([^"]*)","(href|content)":"([^"]*)"/g;
 const URL_META = new Set(['og:url', 'og:image', 'og:image:url', 'og:image:secure_url', 'twitter:image', 'twitter:image:src']);
 
 /** Every problem in the built files, as one line each; empty when the output is clean. */
@@ -45,6 +48,11 @@ export function findOriginProblems(files: readonly BuiltFile[], canonicalHost: s
         const key = (ATTR('property').exec(tag)?.[1] ?? ATTR('name').exec(tag)?.[1] ?? '').toLowerCase();
         if (URL_META.has(key)) onCanonical(file.path, key, ATTR('content').exec(tag)?.[1] ?? '');
       }
+    } else if (file.path.endsWith('.rsc')) {
+      for (const [, key, name, , url] of file.text.matchAll(RSC_TAG)) {
+        const what = name!.toLowerCase();
+        if (key === 'rel' ? what === 'canonical' : URL_META.has(what)) onCanonical(file.path, what, url!);
+      }
     } else {
       // The sitemap's <loc> URLs and the robots Sitemap line; the XML namespace is not a site URL.
       for (const match of file.text.matchAll(/<loc>\s*([^<]*?)\s*<\/loc>/g)) onCanonical(file.path, 'sitemap loc', match[1]!);
@@ -54,12 +62,12 @@ export function findOriginProblems(files: readonly BuiltFile[], canonicalHost: s
   return problems;
 }
 
-/** The built pages, sitemap and robots under <dir>/server/app. */
+/** The built pages, their RSC payloads, the sitemap and robots under <dir>/server/app. */
 function builtFiles(dir: string): BuiltFile[] {
   const app = join(dir, 'server/app');
   if (!existsSync(app)) return [];
   return readdirSync(app, { recursive: true, encoding: 'utf8' })
-    .filter((f) => f.endsWith('.html') || /^(sitemap\.xml|robots\.txt)\.body$/.test(f.replaceAll('\\', '/')))
+    .filter((f) => f.endsWith('.html') || f.endsWith('.rsc') || /^(sitemap\.xml|robots\.txt)\.body$/.test(f.replaceAll('\\', '/')))
     .sort()
     .map((f) => ({ path: `server/app/${f.replaceAll('\\', '/')}`, text: readFileSync(join(app, f), 'utf8') }));
 }
