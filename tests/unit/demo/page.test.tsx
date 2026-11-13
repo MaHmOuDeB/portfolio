@@ -187,6 +187,20 @@ describe('DemoPage', () => {
     expect(/function ForcedLinks[\s\S]*?\n\}/.exec(source)![0]).not.toMatch(/TextLink|<Link/);
   });
 
+  it('draws each Lab link title in ink with the muted underline, and its sentence in muted grey under it', () => {
+    const lab = section(PAGE, 'lab-examples');
+    const items = [...lab.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]!);
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      const link = /<a [^>]*class="([^"]*)"/.exec(item)![1]!.split(/\s+/);
+      expect(link).toContain('text-ink');
+      expect(link).toContain('decoration-muted');
+      expect(link).not.toContain('text-muted');
+      expect(link).toContain('min-h-(--size-target)');
+      expect(item).toMatch(/<\/a><p class="[^"]*text-muted[^"]*">/);
+    }
+  });
+
   it('shows the forced links with what they show and why they never count', () => {
     const forced = section(PAGE, 'home-groups');
     expect(text(forced)).toBe(
