@@ -1,7 +1,7 @@
 // The ink footer: the wordmark, the site's line in two tones, three link columns (Site, Contact,
 // Legal) in one nav named "Footer" and the one colophon line. The column titles are plain text that
 // labels its list, not headings, so the page outline never gains a second "Contact". Visible labels only; the contact form and LinkedIn are the
-// contact routes, and there is no e-mail address. Every link is a 44 px target.
+// contact routes, and there is no e-mail address. Every link is a 44 px target both ways, however short its label.
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
@@ -24,7 +24,7 @@ const COLUMNS: { heading: string; links: FooterLink[] }[] = [
 ];
 
 const LINK =
-  'inline-flex min-h-(--size-target) items-center text-sm text-on-ink transition-colors hover:text-surface focus-visible:text-surface';
+  'inline-flex min-h-(--size-target) min-w-(--size-target) items-center text-sm text-on-ink transition-colors hover:text-surface focus-visible:text-surface';
 
 function FooterAnchor({ href, external, children }: { href: string; external?: boolean; children: ReactNode }) {
   return external ? (
