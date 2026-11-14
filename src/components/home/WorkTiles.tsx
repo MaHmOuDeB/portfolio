@@ -5,7 +5,7 @@ import { Tile } from '@/components/depth/Tile';
 
 function Lines({ lines }: { lines: readonly string[] }) {
   return (
-    <ul className="mt-6">
+    <ul role="list" className="mt-6">
       {lines.map((line) => (
         <li key={line} className="py-4 text-lg">
           <span data-depth-draw="" aria-hidden="true" />

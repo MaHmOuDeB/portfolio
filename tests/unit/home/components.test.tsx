@@ -525,6 +525,12 @@ describe('WorkTiles', () => {
     expect(tiles.map((t) => text(one(t, (el) => el.tagName === 'h3')))).toEqual(['I test.', 'I automate.']);
   });
 
+  it('keeps list semantics on both lists in Safari (list-style none drops them without a role)', () => {
+    const lists = all(d, (el) => el.tagName === 'ul');
+    expect(lists).toHaveLength(2);
+    for (const ul of lists) expect(attr(ul, 'role')).toBe('list');
+  });
+
   it('prints the approved lines, each on a rule that draws in', () => {
     const items = all(d, (el) => el.tagName === 'li');
     expect(items.map((li) => text(li))).toEqual([

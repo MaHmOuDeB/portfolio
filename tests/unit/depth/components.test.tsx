@@ -136,7 +136,8 @@ describe('GlanceBlock', () => {
 describe('Ribbon', () => {
   const html = renderToStaticMarkup(<Ribbon items={['SQL', 'Python', 'n8n']} label="Tools" data-depth-scale="x" />);
   it('is a labelled list inside the track, each item once', () => {
-    expect(html).toBe('<div data-depth-ribbon="" data-depth-scale="x"><ul aria-label="Tools"><li>SQL</li><li>Python</li><li>n8n</li></ul></div>');
+    // role="list" keeps the list semantics in Safari, which drops them under list-style: none.
+    expect(html).toBe('<div data-depth-ribbon="" data-depth-scale="x"><ul role="list" aria-label="Tools"><li>SQL</li><li>Python</li><li>n8n</li></ul></div>');
   });
 });
 
