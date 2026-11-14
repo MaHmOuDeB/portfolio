@@ -325,80 +325,82 @@ describe('ExperimentsTrack with the live test: the tag and the line at the cards
 describe('Hero', () => {
   const html = render(createElement(Hero));
   const d = doc(html);
+  const hero = one(d, (el) => has(el, 'data-hero'));
+  const band = one(d, (el) => has(el, 'data-depth-band'));
 
   it('takes no props, so every visitor gets the same hero', () => {
     expect(Hero.length).toBe(0);
     expect(render(createElement(Hero))).toBe(html);
   });
 
-  it('is the depth scene, with the approved h1 and sub line', () => {
-    const scene = one(d, (el) => has(el, 'data-depth-scene'));
-    expect(scene.tagName).toBe('section');
-    expect(has(scene, 'data-hero')).toBe(true);
-    const h1 = one(d, (el) => el.tagName === 'h1');
-    expect(text(h1)).toBe('I test what works, and automate the rest.');
-    expect(attr(scene, 'aria-labelledby')).toBe(attr(h1, 'id'));
-    // The largest size waits for xl: from lg to xl the text column is narrow and the pinned block
-    // would be taller than the pin at 1100x720.
-    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display', 'xl:text-display-lg']));
-    expect(classes(h1)).not.toContain('lg:text-display-lg');
-    expect(text(one(d, (el) => has(el, 'data-hero-sub')))).toBe(
-      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
+  it('is centred: the chip, the two-tone h1, the sub with two inline chips and two buttons', () => {
+    expect(hero.tagName).toBe('section');
+    const h1 = one(hero, (el) => el.tagName === 'h1');
+    expect(attr(hero, 'aria-labelledby')).toBe(attr(h1, 'id'));
+    const chips = all(hero, (el) => has(el, 'data-chip'));
+    expect(text(chips[0]!)).toBe('Open to roles in Germany');
+    expect(all(chips[0]!, (el) => attr(el, 'data-chip-dot') === 'ok')).toHaveLength(1);
+    expect(text(h1)).toBe('Experimentation and AI automation for product and growth teams');
+    expect(text(one(h1, (el) => has(el, 'data-quiet')))).toBe('for product and growth teams');
+    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
+    const sub = one(hero, (el) => has(el, 'data-hero-sub'));
+    expect(text(sub)).toBe(
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
     );
+    expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['Agents', 'Workflows']);
+    expect(html).not.toContain('I test what works');
   });
 
-  it('never animates the h1 (the largest contentful paint) and recedes only the text block', () => {
+  it('never animates the h1 (the largest contentful paint)', () => {
     const h1 = one(d, (el) => el.tagName === 'h1');
-    expect(h1.attrs.map((a) => a.name).filter((n) => n.startsWith('data-depth'))).toEqual([]);
-    const block = one(d, (el) => has(el, 'data-depth-recede'));
-    expect(has(block, 'data-depth-load')).toBe(false);
-    expect(all(block, (el) => el.tagName === 'h1')).toHaveLength(1);
-    expect(all(block, (el) => el.tagName === 'a')).toHaveLength(3);
+    expect(h1.attrs.map((a) => a.name).filter((n) => n.startsWith('data-depth') || n === 'style')).toEqual([]);
+    expect(all(h1, (el) => el.attrs.some((a) => a.name.startsWith('data-depth')))).toEqual([]);
+    // No ancestor of the h1 moves either.
+    expect(html.slice(0, html.indexOf('<h1'))).not.toMatch(/data-depth-(load|recede|rise|arrive)/);
   });
 
-  it('settles the sub line and the three buttons in order, and gives the primary button the magnet', () => {
-    const loads = all(d, (el) => has(el, 'data-depth-load'));
-    expect(loads.map((el) => style(el).replaceAll(' ', ''))).toEqual(['--d:0', '--d:1', '--d:2', '--d:3']);
-    for (const [i, b] of loads.slice(1).entries()) expect(all(b, (el) => el.tagName === 'a'), `button ${i + 1}`).toHaveLength(1);
-    const magnet = one(d, (el) => has(el, 'data-depth-magnet'));
-    expect(text(magnet)).toBe('See the evidence');
+  it('links Read my CV (secondary) to the CV page and Write to me (primary, the magnet) to Contact', () => {
+    const links = all(hero, (el) => el.tagName === 'a');
+    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF]);
+    expect(classes(links[0]!)).toEqual(expect.arrayContaining(['bg-surface']));
+    expect(classes(links[1]!)).toEqual(expect.arrayContaining(['bg-ink']));
+    expect(text(one(d, (el) => has(el, 'data-depth-magnet')))).toBe('Write to me');
   });
 
-  it('links See the evidence to #work, the CV to the CV page and Contact to the contact page', () => {
-    const links = all(d, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['See the evidence', 'CV', 'Contact']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual(['#work', CV_LINK.href, CONTACT_HREF]);
+  it('settles the sub line and the two buttons in order, once on load', () => {
+    const loads = all(hero, (el) => has(el, 'data-depth-load'));
+    expect(loads.map((el) => style(el).replaceAll(' ', ''))).toEqual(['--d:0', '--d:1', '--d:2']);
   });
 
-  it('holds the evidence field, hidden from assistive technology, beside the text', () => {
-    const field = one(d, (el) => has(el, 'data-depth-field'));
-    expect(attr(field, 'aria-hidden')).toBe('true');
-    expect(all(d, (el) => has(el, 'data-depth-row'))).toHaveLength(26);
+  it('is followed by the band: three sheets and two links, hidden from assistive technology', () => {
+    expect(html.indexOf('data-depth-band')).toBeGreaterThan(html.indexOf('</h1>'));
+    const stack = one(band, (el) => has(el, 'data-depth-stack'));
+    expect(attr(stack, 'aria-hidden')).toBe('true');
+    const sheets = all(stack, (el) => has(el, 'data-depth-sheet'));
+    expect(sheets.map((el) => attr(el, 'data-depth-sheet'))).toEqual(['1', '2', '3']);
+    expect(all(stack, (el) => has(el, 'data-depth-link'))).toHaveLength(2);
+    expect(all(stack, (el) => el.tagName === 'a' || el.tagName === 'button')).toEqual([]);
+    const leaves = (node: T.ParentNode): string[] =>
+      node.childNodes.flatMap((c) => (c.nodeName === '#text' ? [(c as T.TextNode).value] : isEl(c) ? leaves(c) : []));
+    const words = sheets.map((el) => leaves(el).join(' ').replace(/\s+/g, ' ').trim());
+    expect(words).toEqual([
+      'Test two groups, one metric A baseline B higher planned before the start guardrails intact',
+      'Agents each one checks the last Write draft Audit every figure traced Review fresh eyes',
+      'Recommendation from the evidence Ship it. Or do not. Either way it is written down, with the reasons. checks passed',
+    ]);
   });
 
-  it('pins the text block and the field together inside the tall scene', () => {
-    const scene = one(d, (el) => has(el, 'data-depth-scene'));
-    const pin = one(scene, (el) => has(el, 'data-hero-pin'));
-    expect(all(pin, (el) => has(el, 'data-depth-recede'))).toHaveLength(1);
-    expect(all(pin, (el) => has(el, 'data-depth-field'))).toHaveLength(1);
-  });
-
-  it('says under the field, visibly and outside the hidden field, that it is an illustration', () => {
-    const wrap = one(d, (el) => has(el, 'data-hero-field'));
-    const caption = one(wrap, (el) => has(el, 'data-hero-caption'));
+  it('says under the band, visibly and outside the hidden stack, that it is an illustration', () => {
+    const caption = one(band, (el) => has(el, 'data-depth-caption'));
     expect(caption.tagName).toBe('p');
-    expect(text(caption)).toBe('An illustration: a confidence band narrows as views grow.');
-    expect(classes(caption)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
-    expect(shownText(wrap)).toBe('An illustration: a confidence band narrows as views grow.');
-    // After the field, never inside it.
-    const field = one(wrap, (el) => has(el, 'data-depth-field'));
-    expect(all(field, (el) => has(el, 'data-hero-caption'))).toEqual([]);
-    expect(html.indexOf('data-hero-caption')).toBeGreaterThan(html.indexOf('data-depth-field'));
+    expect(text(caption)).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
   });
 
-  it('prints no figure and no planner', () => {
+  it('has no digits in the band and prints no figure', () => {
+    expect(text(band)).not.toMatch(/\d/);
     expect(all(d, (el) => has(el, 'data-fact'))).toEqual([]);
-    expect(html).not.toMatch(/data-hero-simulator|hero-planner|data-hero-evidence/);
     expect(audit(html)).toEqual([]);
   });
 });
@@ -449,6 +451,13 @@ describe('ProofRow', () => {
 
   it('passes the truth audit: every figure is a fact', () => {
     expect(audit(html)).toEqual([]);
+  });
+
+  it('is four ruled cells: a section ruled from rail to rail, no decorative mark', () => {
+    const row = one(d, (el) => has(el, 'data-home-proof'));
+    expect(row.tagName).toBe('section');
+    expect(has(row, 'data-rule')).toBe(true);
+    expect(all(d, (el) => has(el, 'data-proof-mark'))).toEqual([]);
   });
 
   it('sets the words around a number in a smaller unit size, so every figure stays on one line', () => {

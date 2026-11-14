@@ -1,7 +1,7 @@
-// The proof row: four figures, two for experiments and two for automation. Every number is a Fact
-// (passed as parts); "about" and "min" are plain words around it, set in a smaller unit size so each
-// figure keeps one line and the four marks and captions line up across the row. The "Why so many?"
-// link keeps its place at the end of the adoption caption. Server-safe.
+// The proof row: four ruled cells, two for experiments and two for automation, in a section ruled
+// from rail to rail. Every number is a Fact (passed as parts); "about" and "min" are plain words
+// around it, set in a smaller unit size so each figure keeps one line. The "Why so many?" link keeps
+// its place at the end of the adoption caption. Server-safe.
 import { Fragment } from 'react';
 import { HOME_PROOF, WHY_SO_MANY, type HeadlinePart } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
@@ -23,7 +23,7 @@ function Figure({ parts }: { parts: readonly HeadlinePart[] }) {
 
 export function ProofRow() {
   return (
-    <section data-home-proof="" aria-label="Evidence at a glance" className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+    <section data-home-proof="" data-rule="" aria-label="Evidence at a glance">
       {HOME_PROOF.map((p) => (
         <ProofFigure key={p.id} side={p.side} figure={<Figure parts={p.figure} />}>
           <Parts parts={p.caption} />

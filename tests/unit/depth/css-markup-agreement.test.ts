@@ -35,9 +35,7 @@ for (const f of files) {
 
 // Hooks that pages put on their own elements (or on a depth component through its data-* pass-through).
 const SET_BY_PAGES: Record<string, string> = {
-  'data-depth-scene': 'the hero section a page marks, so its scroll turns the plane',
   'data-depth-load': 'the load sequence, set on a page element with --d',
-  'data-depth-recede': 'a page element that recedes as it leaves',
   'data-depth-book': 'a page element that opens like a book, also passed to Tile through its data-* props',
   'data-depth-scale': 'a page element that scales in, also passed to Ribbon through its data-* props',
   'data-depth-parallax': 'a page element that drifts with the scroll',

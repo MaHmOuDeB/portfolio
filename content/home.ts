@@ -22,17 +22,69 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
 }
 
 /**
- * The hero's words, the same for every visitor. The buttons are "See the evidence" (to the first
- * track), the CV page and the contact page.
+ * The hero's words, the same for every visitor: the chip, the sub line in three parts around its
+ * two inline chips, and the buttons ("Read my CV" to the CV page, "Write to me" to Contact). The h1
+ * is the site's line in two tones (HEADLINE in src/lib/site.ts), shared with the footer.
  */
 export const HOME_HERO = {
-  title: 'I test what works, and automate the rest.',
-  sub: 'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
-  evidence: 'See the evidence',
-  cv: 'CV',
-  contact: 'Contact',
-  /** The visible caption under the evidence field: the field is an illustration, not data. */
-  fieldCaption: 'An illustration: a confidence band narrows as views grow.',
+  chip: 'Open to roles in Germany',
+  sub: {
+    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with ',
+    chips: ['Agents', 'Workflows'],
+    join: ' and ',
+    end: '.',
+  },
+  cv: 'Read my CV',
+  contact: 'Write to me',
+} as const;
+
+/** The hero's sub line as one string, the two chips' words in place. */
+export function heroSubText(): string {
+  const { lead, chips, join, end } = HOME_HERO.sub;
+  return `${lead}${chips[0]}${join}${chips[1]}${end}`;
+}
+
+/** Every word the band prints, the caption last. */
+export function bandWords(): string[] {
+  const { test, agents, recommendation, caption } = HOME_BAND;
+  return [
+    test.title, test.note, ...test.rows.flatMap((r) => [r.label, r.tag]), ...test.foot,
+    agents.title, agents.note, ...agents.steps.flatMap((s) => [s.step, s.note]),
+    ...Object.values(recommendation), caption,
+  ];
+}
+
+/**
+ * The band under the hero: the words on its three sheets and the visible caption under it, which
+ * says the band is an illustration. No digits anywhere in it.
+ */
+export const HOME_BAND = {
+  test: {
+    title: 'Test',
+    note: 'two groups, one metric',
+    rows: [
+      { label: 'A', tag: 'baseline' },
+      { label: 'B', tag: 'higher' },
+    ],
+    foot: ['planned before the start', 'guardrails intact'],
+  },
+  agents: {
+    title: 'Agents',
+    note: 'each one checks the last',
+    steps: [
+      { step: 'Write', note: 'draft' },
+      { step: 'Audit', note: 'every figure traced' },
+      { step: 'Review', note: 'fresh eyes' },
+    ],
+  },
+  recommendation: {
+    title: 'Recommendation',
+    note: 'from the evidence',
+    verdict: 'Ship it.',
+    why: 'Or do not. Either way it is written down, with the reasons.',
+    toast: 'checks passed',
+  },
+  caption: 'An illustration: a test, the agents that check the work, and the recommendation.',
 } as const;
 
 /** The anchor of the first track, which the hero's primary button scrolls to. */
@@ -82,6 +134,18 @@ export const HOME_PROOF: readonly ProofItem[] = [
     caption: ['automated tests behind my workflow library for e-invoice intake.'],
   },
 ];
+
+/**
+ * The experience band under the stack: a small line, then two groups of plain text names. Each
+ * group lists the start of an About timeline entry's place; the band prints the timeline's own name.
+ */
+export const HOME_EXPERIENCE = {
+  title: 'Where I have worked and studied',
+  groups: [
+    { label: 'Work', from: ['Audible', 'Mercor'] },
+    { label: 'Study', from: ['University of Europe', 'Jacobs University'] },
+  ],
+} as const;
 
 /** The text of the "Why so many?" link in the proof row. */
 export const WHY_SO_MANY = 'Why so many?';

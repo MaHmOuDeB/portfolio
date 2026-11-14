@@ -1,4 +1,4 @@
-// The maths and the guards of the lean: a card turns toward a fine pointer, the hero field follows it.
+// The maths and the guards of the lean: a card turns toward a fine pointer, the band's stack follows it.
 // Pure functions first, then one controller that attaches the two delegated listeners.
 
 /** The turn of a card is this many degrees across its whole width (y) and height (x). */
@@ -24,7 +24,7 @@ export function cardLean(clientX: number, clientY: number, rect: Rect): CardLean
   };
 }
 
-/** The field's follow values, each from -1 to 1 across the viewport. */
+/** The band stack's follow values, each from -1 to 1 across the viewport. */
 export function fieldFollow(clientX: number, clientY: number, width: number, height: number): { mx: string; my: string } {
   const f = (p: number, size: number) => (size > 0 ? fixed(clamp((p / size) * 2 - 1, -1, 1), 3) : '0.000');
   return { mx: f(clientX, width), my: f(clientY, height) };
@@ -105,7 +105,7 @@ export function attachLean(doc: LeanDoc, win: LeanWin): () => void {
     el.style.removeProperty('--gy');
   };
   const resetField = () => {
-    for (const f of doc.querySelectorAll('[data-depth-field]')) {
+    for (const f of doc.querySelectorAll('[data-depth-stack]')) {
       f.style.setProperty('--mx', '0');
       f.style.setProperty('--my', '0');
     }
@@ -135,7 +135,7 @@ export function attachLean(doc: LeanDoc, win: LeanWin): () => void {
       under.style.setProperty('--gy', v.gy);
     }
     const { mx, my } = fieldFollow(e.clientX, e.clientY, win.innerWidth, win.innerHeight);
-    for (const f of doc.querySelectorAll('[data-depth-field]')) {
+    for (const f of doc.querySelectorAll('[data-depth-stack]')) {
       f.style.setProperty('--mx', mx);
       f.style.setProperty('--my', my);
     }

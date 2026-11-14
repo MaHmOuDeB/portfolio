@@ -1,11 +1,11 @@
-// The "Depth components" section of the kitchen sink: the evidence field, a proof figure, the cards
-// that rise and lean, tiles and the glance block. Every number is a fictional Derived marked
-// 'simulated'. Lean is mounted here once so the cards and the field answer a fine pointer.
-import { EvidenceField } from '@/components/depth/EvidenceField';
+// The "Depth components" section of the kitchen sink: the Home band, a proof cell, the cards that
+// rise and lean, tiles and the glance block. Every number is a fictional Derived marked 'simulated'.
+// Lean is mounted here once so the cards and the band's stack answer a fine pointer.
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { Lean } from '@/components/depth/Lean';
 import { LeanCard } from '@/components/depth/LeanCard';
 import { Ribbon } from '@/components/depth/Ribbon';
+import { StackBand } from '@/components/depth/StackBand';
 import { ProofFigure } from '@/components/depth/ProofFigure';
 import { Tile } from '@/components/depth/Tile';
 import { Derived } from '@/components/kit/Derived';
@@ -18,13 +18,13 @@ export function DepthSection() {
     <>
       <Lean />
       <Specimen
-        id="depth--field"
-        title="Evidence field"
-        note="A confidence band on a ground plane, far rows wide and near rows narrow. Decorative, so hidden from assistive technology."
+        id="depth--band"
+        title="Band"
+        note="Three sheets that rest as an isometric stack and, on a wide screen with scroll timelines, pin and unfold into a row. A static column below lg, the flat row under reduced motion. Decorative, so hidden from assistive technology; the caption under it is visible."
       >
-        <EvidenceField />
+        <StackBand />
       </Specimen>
-      <Specimen id="depth--proof" title="Proof figure" note="The figure is a Derived value; the mark beside it is decorative.">
+      <Specimen id="depth--proof" title="Proof cell" note="One of the four ruled cells. The figure is a Derived value.">
         <ProofFigure side="Fictional side" figure={<Derived value={1353} unit="count" refs={REFS} />}>
           Visitors per group in a made-up run.
         </ProofFigure>

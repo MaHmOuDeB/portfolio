@@ -10,6 +10,9 @@ import {
   HOME_CASES,
   HOME_AUTOMATION,
   HOME_HERO,
+  HOME_BAND,
+  bandWords,
+  heroSubText,
   HOME_PROOF,
   HOME_SITE,
   HOME_TILES,
@@ -251,11 +254,12 @@ describe('the automation cards', () => {
 
 describe('the hero, proof row, tiles, site tile and decision band', () => {
   it('say the approved words', () => {
-    expect(HOME_HERO.title).toBe('I test what works, and automate the rest.');
-    expect(HOME_HERO.sub).toBe(
-      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
+    expect(HOME_HERO.chip).toBe('Open to roles in Germany');
+    expect(heroSubText()).toBe(
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
     );
-    expect([HOME_HERO.evidence, HOME_HERO.cv, HOME_HERO.contact]).toEqual(['See the evidence', 'CV', 'Contact']);
+    expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
+    expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
     expect(HOME_TRACKS.experiments).toEqual({
       title: 'Experiments and analytics',
       lede: 'How I plan a test, read it honestly and write the recommendation.',
@@ -296,7 +300,7 @@ describe('the hero, proof row, tiles, site tile and decision band', () => {
 
   it('type no numeral of their own', () => {
     const strings = [
-      HOME_HERO.title, HOME_HERO.sub, HOME_SITE.title, HOME_SITE.text, HOME_DECISION.text,
+      HOME_HERO.chip, heroSubText(), ...bandWords(), HOME_SITE.title, HOME_SITE.text, HOME_DECISION.text,
       ...HOME_TILES.test.lines, ...HOME_TILES.automate.lines,
     ];
     for (const s of strings) expect(s, s).not.toMatch(/\d/);
@@ -313,7 +317,7 @@ describe('all Home copy', () => {
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
       ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
       ...[HOME_TILES.test, HOME_TILES.automate].flatMap((t) => [t.title, ...t.lines]),
-      HOME_HERO.title, HOME_HERO.sub, ...Object.values(HOME_SITE), ...Object.values(HOME_DECISION),
+      HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE), ...Object.values(HOME_DECISION),
     ];
     for (const text of all) {
       expect(text, text).not.toMatch(BANNED_CHARS);

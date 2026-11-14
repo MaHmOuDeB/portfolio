@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// The Home motion rules in globals.css that markup tests cannot see: the hero scene pins and turns
+// The Home motion rules in globals.css that markup tests cannot see: the band pins and unfolds
 // only where scroll timelines exist, motion is allowed and the screen is wide; the proof figures
 // keep one line; the ribbon starts in view and fades at both edges; the magnet lands on whole
 // pixels; the header cover stays at the share that keeps the muted nav text at 4.5:1.
@@ -22,49 +22,69 @@ function block(head: string): string {
   throw new Error(`unclosed block ${head}`);
 }
 
-describe('the hero scene', () => {
-  const pin = block('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
+describe('the band: the stack that unfolds', () => {
+  const PIN = '@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)';
+  const pin = block(PIN);
 
-  it('pins and turns only inside the scroll-timeline support check, from lg and with motion allowed', () => {
+  it('pins and unfolds only inside the scroll-timeline support check, from lg, tall enough and with motion allowed', () => {
     const supports = block('@supports (animation-timeline: view()) and (position: sticky)');
-    expect(supports).toContain('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
+    expect(supports).toContain(PIN);
+    expect(css.split(PIN)).toHaveLength(2);
   });
 
-  it('is a tall scene with a sticky inner under the header, a viewport minus the header tall', () => {
-    expect(pin).toMatch(/\[data-depth-scene\]\s*\{[^}]*height:\s*190vh/);
-    expect(pin).toMatch(/\[data-hero-pin\]\s*\{[^}]*position:\s*sticky[^}]*top:\s*var\(--header-h\)[^}]*height:\s*calc\(100vh - var\(--header-h\)\)/);
-    // A block taller than the pin starts at its top instead of spilling above it under the header.
-    expect(pin).toMatch(/\[data-hero-pin\]\s*\{[^}]*align-content:\s*safe center/);
+  it('is a tall band on its own named view timeline, with a sticky pin under the header', () => {
+    expect(pin).toMatch(/\[data-depth-band\]\s*\{[^}]*height:\s*175vh[^}]*view-timeline:\s*--depth-band block[^}]*view-timeline-inset:\s*var\(--header-h\) 0/);
+    expect(pin).toMatch(/\[data-depth-pin\]\s*\{[^}]*position:\s*sticky[^}]*top:\s*calc\(var\(--header-h\)/);
   });
 
-  it('turns the plane and recedes the text on the scene timeline', () => {
-    expect(pin).toMatch(/\[data-depth-scene\]\s*\{[^}]*view-timeline:\s*--depth-scene block/);
-    expect(pin).toMatch(/\[data-depth-plane\]\s*\{[^}]*animation:\s*depth-plane-face[^}]*animation-timeline:\s*--depth-scene/);
-    expect(pin).toMatch(/\[data-depth-recede\]\s*\{[^}]*animation-timeline:\s*--depth-scene/);
+  it('unfolds the rig, the three sheets and the two links on the band timeline only', () => {
+    expect(pin).toMatch(/\[data-depth-rig\]\s*\{[^}]*animation:\s*depth-rig[^}]*animation-timeline:\s*--depth-band/);
+    for (const n of [1, 2, 3]) {
+      expect(pin).toMatch(new RegExp(`\\[data-depth-sheet="${n}"\\]\\s*\\{[^}]*animation:\\s*depth-sheet-${n}[^}]*animation-timeline:\\s*--depth-band`));
+    }
+    expect(pin).toMatch(/\[data-depth-link\]\s*\{[^}]*animation:\s*depth-link[^}]*animation-timeline:\s*--depth-band/);
+    // Every scroll-linked animation of the band names the band's timeline, never view() or scroll().
+    for (const m of pin.matchAll(/animation-timeline:\s*([^;]+);/g)) expect(m[1]).toBe('--depth-band');
   });
 
-  it('starts the turn from the tilted plane', () => {
-    expect(block('@keyframes depth-plane-face')).toMatch(/from\s*\{\s*transform:\s*rotateX\(58deg\) rotateZ\(-12deg\) scale\(0\.94\)/);
+  it('rests, everywhere else on a wide screen, in the isometric pose and leans to the pointer', () => {
+    expect(css).toMatch(/\[data-depth-rig\]\s*\{[^}]*transform:\s*translateY\(34px\) rotateX\(58deg\) rotateZ\(-38deg\) scale\(1\.06\)/);
+    expect(css).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*rotateX\(calc\(var\(--my, 0\) \* -4deg\)\) rotateY\(calc\(var\(--mx, 0\) \* 6deg\)\)/);
+    expect(block('@keyframes depth-rig')).toMatch(/to\s*\{\s*transform:\s*none/);
   });
 
-  it('centres the plane in the field box itself, so the box can reserve the height the plane takes', () => {
-    // An auto row would grow to the plane's full 520 px and push the scaled plane below the box.
-    expect(css).toMatch(/\[data-depth-field\]\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\)/);
-  });
-
-  it('below lg, reserves the measured footprint of the scaled plane and lifts it by its downward skew', () => {
-    // Measured in the browser: the tilted plane with its axis words is about 515 px times --k tall,
-    // its centre about 46 px times --k below the box centre.
+  it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {
     const narrow = block('@media (width < 64rem)');
-    expect(narrow).toMatch(/\[data-depth-field\]\s*\{[^}]*height:\s*calc\(33rem \* var\(--k\)\)/);
-    expect(narrow).toMatch(/\[data-depth-tilt\]\s*\{[^}]*translate:\s*0 calc\(-2\.875rem \* var\(--k, 1\)\)/);
-    for (const w of ['40rem', '30rem']) expect(block(`@media (width < ${w})`)).not.toMatch(/height:/);
+    expect(narrow).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
+    expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*static[^}]*transform:\s*none/);
+    expect(narrow).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*none/);
+    expect(narrow).toMatch(/\[data-depth-link\]\s*\{[^}]*display:\s*none/);
+    expect(narrow).not.toMatch(/sticky|animation-timeline/);
   });
 
-  it('sizes the plane in px, like the rows on it, so a larger root text size never widens it past the screen', () => {
-    // Sized in rem, a 200% root text doubled the plane while its px rows stayed put, and the square
-    // ran 88 px past a 320 px screen.
-    expect(css).toMatch(/\[data-depth-plane\]\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;/);
+  it('under reduced motion and in print is the flat row, still', () => {
+    const still = block('@media (prefers-reduced-motion: reduce), print');
+    expect(still).toMatch(/\[data-depth-rig\],\s*\[data-depth-sheet\],\s*\[data-depth-tilt\]\s*\{[^}]*transform:\s*none/);
+    expect(still).toMatch(/\[data-depth-link\]\s*\{[^}]*opacity:\s*1[^}]*transform:\s*none/);
+    for (const part of ['[data-depth-arrive]', '[data-depth-rig]', '[data-depth-sheet]', '[data-depth-link]', '[data-depth-close]']) {
+      expect(still).toContain(part);
+    }
+    expect(still).toMatch(/animation:\s*none/);
+  });
+
+  it('arrives once on load, the sheets in turn', () => {
+    expect(css).toMatch(/\[data-depth-arrive\]\s*\{[^}]*animation:\s*depth-sheet-arrive var\(--duration-arrive\)[^}]*animation-delay:\s*calc\(var\(--n, 0\) \* 140ms \+ 200ms\)/);
+  });
+
+  it('never clips with overflow hidden on the band, and keeps the old field and hero scene gone', () => {
+    expect(css).not.toMatch(/overflow:\s*hidden/);
+    for (const gone of ['data-depth-field', 'data-depth-plane', 'data-depth-row', 'data-depth-axis', 'data-depth-scene', 'data-hero-pin', 'data-depth-recede', 'depth-plane-face', 'depth-recede', 'depth-row-arrive']) {
+      expect(css, gone).not.toContain(gone);
+    }
+  });
+
+  it('names every keyframe depth-* (or the scroll moment)', () => {
+    for (const [, name] of css.matchAll(/@keyframes\s+([\w-]+)/g)) expect(name).toMatch(/^(depth-|scroll-moment-)/);
   });
 
   it('ends every fade-in by the middle of its range, so a block whose painted box is in view is never part-faded', () => {
@@ -76,7 +96,9 @@ describe('the hero scene', () => {
         const opacity = /opacity:\s*([\d.]+)/.exec(from);
         return opacity !== null && Number(opacity[1]) < 1;
       });
-    expect(fades.map((f) => f.name)).toEqual(expect.arrayContaining(['depth-rise', 'depth-rise-heading', 'depth-book-left', 'depth-book-right', 'depth-scale']));
+    expect(fades.map((f) => f.name)).toEqual(
+      expect.arrayContaining(['depth-rise', 'depth-rise-heading', 'depth-book-left', 'depth-book-right', 'depth-scale', 'depth-sheet-arrive', 'depth-link']),
+    );
     for (const { name, body } of fades) expect(body, name).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
   });
 
@@ -84,14 +106,14 @@ describe('the hero scene', () => {
     expect(tokens).toContain('--perspective-scene: 1300px;');
     expect(css).toMatch(/:has\(> \[data-depth-rise\]\)\s*\{\s*perspective:\s*87\.5rem;\s*\}/);
   });
+});
 
-  it('keeps the axis words at the text-xs size whatever the field scale', () => {
-    expect(css).toMatch(/\[data-depth-axis\]\s*\{[^}]*font-size:\s*calc\(var\(--text-xs\) \/ var\(--k, 1\)\)/);
-  });
-
-  it('never clips with overflow hidden around the hero controls', () => {
-    expect(pin).not.toMatch(/overflow:\s*hidden/);
-    expect(pin).not.toMatch(/\[data-hero-pin\]\s*\{[^}]*overflow/);
+describe('the live bar', () => {
+  it('is an ink strip from rail to rail, its link light on ink with the 44 px target kept', () => {
+    expect(css).toMatch(/\[data-live-bar\]\s*\{[^}]*margin-inline:\s*calc\(var\(--frame-pad, 0\) \* -1\)[^}]*background:\s*var\(--color-ink\)[^}]*color:\s*var\(--color-on-ink\)/);
+    // Unlayered, so the link's muted utility cannot win on ink.
+    expect(css).toMatch(/\[data-live-bar\] a(?::[a-z-]+)?[^{]*\{[^}]*color:\s*var\(--color-surface\)/);
+    expect(css).not.toMatch(/\[data-live-bar\] a[^{]*\{[^}]*min-height/);
   });
 });
 
@@ -99,6 +121,13 @@ describe('the proof figures', () => {
   it('stay on one line, with the words around the number set smaller', () => {
     expect(css).toMatch(/\[data-proof-figure\]\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\[data-proof-unit\]\s*\{[^}]*font-size:\s*0\.\d+em/);
+  });
+
+  it('are four cells ruled by hairlines, never the old grey line', () => {
+    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/\[data-proof\]\s*\{[^}]*border-left:\s*1px solid var\(--color-hairline\)/);
+    expect(css).not.toContain('var(--color-line)');
   });
 });
 
@@ -143,7 +172,7 @@ describe('accessibility guards', () => {
     expect(still).toMatch(/\[data-depth-lean\] :is\(h3, p, \[data-depth-meta\], \[data-depth-go\]\)\s*\{\s*transform:\s*none;?\s*\}/);
   });
 
-  it('pins the hero on screens only, never in print', () => {
+  it('pins the band on screens only, never in print', () => {
     expect(css).toContain('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
     expect(css).not.toContain('@media (width >= 64rem) and (height >= 43.75rem)');
   });

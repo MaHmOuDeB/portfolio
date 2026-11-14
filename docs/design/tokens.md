@@ -58,6 +58,8 @@ Contrast is given on `bg` (the grey canvas) and on `surface` (white cards).
 | `glint` | `surface` at 70% over clear | the light that follows the pointer on a lean card; it lightens the tile and never tints it, so the muted text on a hovered card keeps its 4.5:1 | decorative |
 | `rule-quiet` | `muted` at 28% over clear | the rules between the rows of a tile | decorative |
 | `rule-on-ink` | `bg` at 20% over clear | the hairline on `ink`: the rules on the ink tile and in the footer | decorative |
+| `dot` | `ink` at 14% over clear | the faint dot grid behind the Home band | decorative |
+| `sheet-edge-ink` | `ink` at 85% over `surface` | the edge of the ink sheet in the Home band | decorative |
 | `clear` | `transparent` | the clear end of a gradient or a mask, so a gradient never names `transparent` itself | n/a |
 | `mask-opaque` | the `ink` value | the kept end of a mask, where only the alpha counts and no black is drawn | n/a |
 
@@ -123,11 +125,13 @@ any such heading, so a `font-semibold` left on one does not win. Code blocks onl
 | `text-3xl` | 48 px | 1.1 | `Stat` numbers |
 | `text-readout-sm` | 48 px | 1, -0.03 em, 600 | the hero readout under 768 px |
 | `text-readout` | 64 px | 1, -0.03 em, 600 | the hero readout; always with its unit ("visitors per group") |
-| `text-display-lg` | 64 px | 1.02, -0.022 em | the Home headline from 1024 px |
+| `text-display-lg` | 64 px | 1.02, -0.022 em | the Home headline from 768 px |
 | `text-h2` | 40 px | 1.06, -0.022 em | a section headline, a page headline (`SectionHead`, `PageHead`) |
 | `text-h2-sm` | 32 px | 1.08, -0.022 em | the same under 768 px |
-| `text-display-sm` | 44 px | 1.04, -0.02 em | the name in the hero under 768 px |
-| `text-display` | 72 px | 1.04, -0.02 em | the name in the hero |
+| `text-display-sm` | 36 px | 1.06, -0.022 em | the Home headline under 480 px, a page headline under 768 px |
+| `text-display` | 48 px | 1.04, -0.022 em | the Home headline from 480 to 768 px, a page headline from 768 px |
+
+The display sizes are ordered: `display-sm` 36 px, `display` 48 px, `display-lg` 64 px.
 
 Hierarchy comes from weight and space, not from size jumps and not from capitals. The readout
 stays below the name at every width. Text is left-aligned in `container-text`, which holds about 75
@@ -141,7 +145,7 @@ characters.
 - `size-target`: 44 px, the minimum height (and width for icon-only controls) of buttons,
   segmented options, StepNav, Reset, Menu and standalone links: `min-h-(--size-target)`.
 - `header-h`: 64 px, the `SiteHeader` height.
-- `container-text` 680 px, `container-figure` 960 px, `container-page` 1280 px.
+- `container-text` 680 px, `container-figure` 960 px, `container-page` 1136 px (the frame, the header and the footer share it).
 - Page side padding: 32 px desktop, 16 px phone.
 - Radius: `radius-sm` 4 px (badges), `radius-md` 8 px (inputs and buttons: `rounded-md`),
   `radius-chip` 7 px (chips), `radius-xl` 12 px (tiles and cards: `rounded-xl`), `radius-pill`
@@ -156,9 +160,9 @@ characters.
 | (none) | under 480 px | Segmented options stack as a radio list. The header's glyph is a 28 by 10 px variant of the 48 by 10 px mark (same bar, end caps and dot with its halo), and Menu is a word without its icon, so the header stays on one row at 375 and 390 px. |
 | `xs` | 480 px | Segmented options sit in one row. The header shows the 48 px glyph and the Menu icon. |
 | `sm` | 640 px | `ChartFrame` uses its wide layout; below 640 px it redraws a narrow layout. |
-| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall. |
-| `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
-| `xl` | 1440 px | Content stays at `container-page`; only the margins grow. |
+| `md` | 768 px | Home headline `text-display-lg`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall. |
+| `lg` | 1024 px | The Home band shows the stack (pinned and unfolding where scroll timelines exist and the screen is at least 700 px tall); below it, the three sheets are a static column. |
+| `xl` | 1440 px | Content stays at `container-page` (1136 px); only the margins grow. |
 
 The screen-share size (1024 by 576) sits exactly on `lg`, so it gets the `lg` layout; it is a test
 target, not a breakpoint; the header scrolls away there (below 700 px of height it would take more
@@ -201,10 +205,9 @@ and untransformed. Only transform, opacity and clip-path change. Keyframes are n
 Every fade-in is fully opaque by the middle of its range while the movement runs on to the end,
 so a block whose painted box is already in view is never part-faded.
 
-- `[data-depth-field]`, `[data-depth-plane]`, `[data-depth-row]` (`--i`, `--e`, `--shift`): The hero evidence field: rows arrive once, the plane turns to face the reader on the view timeline of `[data-depth-scene]`, a fine pointer (`--mx`, `--my`) moves the vanishing point and turns the plane. Keyframes: `depth-row-arrive`, `depth-plane-face`.
-- `[data-proof]` with `[data-proof-bar]`: The interval line closes once on load, siblings 110 ms apart. Keyframes: `depth-settle`.
+- `[data-depth-band]`, `[data-depth-pin]`, `[data-depth-rig]`, `[data-depth-sheet]` (`1` to `3`), `[data-depth-link]`: The Home band. Wide screens rest in an isometric stack that leans to a fine pointer (`--mx`, `--my` on `[data-depth-stack]`); with scroll timelines, a screen at least 1024 by 700 px and motion allowed, the band pins and the stack unfolds into a row joined by two links on the band's view timeline (`--depth-band`); below lg a static column; reduced motion and print the flat row. Keyframes: `depth-rig`, `depth-sheet-1` to `depth-sheet-3`, `depth-link`.
+- `[data-depth-arrive]` (`--n`), `[data-depth-close]`: The band's sheets arrive once on load, and the test sheet's intervals close once. Keyframes: `depth-sheet-arrive`, `depth-close`.
 - `[data-depth-load]` (`--d`): A small rise and fade in order, once on load. Never on the h1. Keyframes: `depth-load`.
-- `[data-depth-recede]`: Text scales to 0.94 as its scene scrolls away; it does not fade. Keyframes: `depth-recede`.
 - `[data-depth-progress]`: A 2 px hairline under the header that fills with the page's scroll. Keyframes: `depth-progress`.
 - `[data-depth-rise]`, `[data-depth-rise="heading"]`: Rises out of depth on entry; siblings 2 to 4 start later. Headings use a smaller tilt. Keyframes: `depth-rise`, `depth-rise-heading`.
 - `[data-depth-draw]`: A hairline draws from the left on entry. Keyframes: `depth-draw`.

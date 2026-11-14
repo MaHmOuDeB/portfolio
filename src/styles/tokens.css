@@ -54,6 +54,8 @@
   --color-glint: color-mix(in srgb, var(--color-surface) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
   --color-rule-quiet: color-mix(in srgb, var(--color-muted) 28%, transparent); /* row rules on a tile */
   --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* the hairline on ink: row rules on the ink tile, the footer's rules */
+  --color-dot: color-mix(in srgb, var(--color-ink) 14%, transparent); /* the faint dot grid behind the Home band */
+  --color-sheet-edge-ink: color-mix(in srgb, var(--color-ink) 85%, var(--color-surface)); /* the edge of an ink sheet in the Home band */
   --color-clear: transparent; /* the clear end of a gradient or a mask */
   --color-mask-opaque: var(--color-ink); /* the kept end of a mask: only its alpha is read */
 
@@ -96,12 +98,12 @@
   --text-h2: 2.5rem; /* a section headline, a page headline */
   --text-h2--line-height: 1.06;
   --text-h2--letter-spacing: -0.022em;
-  --text-display-sm: 2.75rem; /* the name under md */
-  --text-display-sm--line-height: 1.04;
-  --text-display-sm--letter-spacing: -0.02em;
-  --text-display: 4.5rem;
+  --text-display-sm: 2.25rem; /* the Home headline under xs, a page headline under md */
+  --text-display-sm--line-height: 1.06;
+  --text-display-sm--letter-spacing: -0.022em;
+  --text-display: 3rem; /* the Home headline from xs to md, a page headline from md */
   --text-display--line-height: 1.04;
-  --text-display--letter-spacing: -0.02em;
+  --text-display--letter-spacing: -0.022em;
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;
@@ -116,7 +118,7 @@
   --header-h: 4rem; /* SiteHeader height */
   --container-text: 42.5rem; /* 680 px text column, about 75 characters */
   --container-figure: 60rem; /* 960 px figures */
-  --container-page: 80rem; /* 1280 px page */
+  --container-page: 71rem; /* 1136 px page: the frame, the header and the footer */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem; /* inputs and buttons */
   --radius-chip: 0.4375rem; /* 7 px: chips */

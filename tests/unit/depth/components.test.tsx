@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { EvidenceField } from '@/components/depth/EvidenceField';
+import { StackBand } from '@/components/depth/StackBand';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { LeanCard } from '@/components/depth/LeanCard';
 import { Ribbon } from '@/components/depth/Ribbon';
@@ -12,22 +12,21 @@ import { join } from 'node:path';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ');
 
-describe('EvidenceField', () => {
-  const html = renderToStaticMarkup(<EvidenceField />);
-  it('is hidden from assistive technology and has the contract structure', () => {
-    expect(html).toMatch(/^<div data-depth-field="" aria-hidden="true">/);
-    expect(html.match(/data-depth-plane/g)).toHaveLength(1);
-    expect(html.match(/data-depth-zero/g)).toHaveLength(1);
-    expect(html.match(/data-depth-row/g)).toHaveLength(26);
-    expect(html).not.toContain('<svg');
-    expect(html).not.toContain('<text');
+describe('StackBand', () => {
+  const html = renderToStaticMarkup(<StackBand />);
+  it('hides the stack from assistive technology and keeps the caption outside it', () => {
+    expect(html).toMatch(/^<div data-depth-band=""><div data-depth-pin=""><div data-depth-stack="" aria-hidden="true">/);
+    expect(html.match(/data-depth-sheet="/g)).toHaveLength(3);
+    expect(html.match(/data-depth-link="/g)).toHaveLength(2);
+    expect(html.match(/data-depth-arrive=""/g)).toHaveLength(3);
+    expect(html).toMatch(/<\/div><\/div><\/div><p data-depth-caption="">An illustration: a test, the agents that check the work, and the recommendation\.<\/p><\/div><\/div>$/);
   });
-  it('has the three axis words and nothing else as text', () => {
-    expect(text(html).split(/\s{1,}/).filter(Boolean).join(' ')).toBe('B lower no difference B higher');
+  it('has no digits, no SVG and no control', () => {
+    expect(text(html)).not.toMatch(/\d/);
+    expect(html).not.toMatch(/<svg|<a |<button/);
   });
-  it('gives each row its index, top, width, shift and estimate position', () => {
-    expect(html).toContain('style="--i:0;top:0.0px;width:527.0px;margin-left:13.5px;--e:50%"');
-    expect(html).toContain('--i:25;top:500.0px;width:103.4px;margin-left:33.6px;--e:50%');
+  it('arrives in turn, the recommendation first', () => {
+    expect([...html.matchAll(/data-depth-arrive="" style="--n:(\d)"/g)].map((m) => m[1])).toEqual(['2', '1', '0']);
   });
 });
 
@@ -37,11 +36,11 @@ describe('ProofFigure', () => {
       Caption words.
     </ProofFigure>,
   );
-  it('renders the side, the figure as passed, a hidden mark and the caption', () => {
+  it('renders the side, the figure as passed and the caption, with no decorative mark', () => {
     expect(html).toContain('<div data-proof="">');
     expect(html).toContain('<span data-proof-side="">Experiments</span>');
     expect(html).toContain('<div data-proof-figure=""><data value="x" data-fact="x">F</data></div>');
-    expect(html).toContain('<div data-proof-mark="" aria-hidden="true"><s></s><i></i><b></b></div>');
+    expect(html).not.toContain('data-proof-mark');
     expect(html).toContain('<p data-proof-caption="">Caption words.</p>');
   });
   it('types no numeral itself', () => {
