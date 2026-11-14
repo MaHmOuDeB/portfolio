@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { aboutPhoto } from '../../content/about-photo.ts';
 import { E2E_CV_PDF } from './cv-link';
-import { expectNoA11yViolations, test } from './fixtures';
+import { expectNoA11yViolations, test, waitForHydration } from './fixtures';
 
 // The About page and the printable CV page. Both are static: prose, a timeline, lists and, on
 // About, the photograph through next/image (480 px wide, 960 px for dense screens, loaded lazily).
@@ -111,7 +111,16 @@ test.describe('About and CV', () => {
     test(`${route}: the header links the CV page, and the page offers the PDF only when the build has one`, async ({ page }) => {
       await page.goto(route);
       const header = page.locator('[data-site-header]');
-      await expect(header.getByRole('link', { name: 'CV', exact: true }).first()).toHaveAttribute('href', '/cv');
+      // Under 1024 px the header's links and both buttons live behind Menu: open it first there.
+      const summary = header.locator('summary');
+      if (await summary.isVisible()) {
+        await waitForHydration(header.locator('details'));
+        await summary.click();
+        await expect(header.locator('details')).toHaveAttribute('open', '');
+      }
+      const cv = header.getByRole('link', { name: 'CV', exact: true });
+      await expect(cv.filter({ visible: true })).toHaveCount(1);
+      await expect(cv.filter({ visible: true })).toHaveAttribute('href', '/cv');
       await expect(page.locator('a[href="/cv.pdf"]')).toHaveCount(E2E_CV_PDF ? 1 : 0);
     });
   }
