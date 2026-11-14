@@ -6,7 +6,7 @@
 // page names its own. The group forced here decides which card headline is shown, in every state
 // (the real page shows group A's headlines in the calibration), so the two groups' geometry can be
 // compared on any state.
-import { HomeSectionsView } from '@/components/home/HomeSections';
+import { HomeSectionsView } from '@/components/home/HomeScrollHost';
 import type { ScrollMomentProps } from '@/components/home/ScrollMoment';
 import type { Arm } from '@/experiment.values';
 import type { HomeModel } from '@/lib/home/model';

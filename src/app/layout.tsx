@@ -5,6 +5,7 @@ import { SITE } from "@/lib/site";
 import { ogCard } from "../../content/seo";
 import { Footer } from "@/components/shell/Footer";
 import { SiteHeader } from "@/components/shell/SiteHeader";
+import { Lean } from "@/components/depth/Lean";
 import { RegionFocus } from "@/components/shell/RegionFocus";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { inter } from "./fonts";
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <Footer />
         <RegionFocus />
+        <Lean />
       </body>
     </html>
   );

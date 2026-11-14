@@ -1,11 +1,11 @@
-// The real home page, served at / (the proxy rewrites it to /v/a or /v/b), end to end: its sections in
-// page order, the headlines of the reader's group with both strings in the HTML for sizing, the same
+// The real home page, served at / (the proxy rewrites it to /v/a or /v/b), end to end: its blocks (hero,
+// proof row, two tracks, tiles, ribbon, site tile, decision band) in page order, the headlines of the reader's group with both strings in the HTML for sizing, the same
 // card geometry in both groups (forced with ?variant=, never a header bypass), the real next/link card
 // counted once with its secondary click, soft returns that never count a second entry, the uncounted
 // middle click, the note's "as of" time by the reader's clock, and a payload with no raw statistic.
 // The e2e run is in the calibration, so both groups show group A's headlines.
-// The scroll moment's "your view" tick under the home page's own rule (ceiling day, stale at render)
-// runs on the test build's host, whose fixtures fix the render time.
+// The scroll moment is gone from the real page; the "your view" tick under its rule (ceiling day, stale
+// at render) still runs on the test build's host, whose fixtures fix the render time.
 import { expect, type Page, type Request } from '@playwright/test';
 import { readView } from '../../src/lib/experiment/store';
 import { createRedisRest } from '../../src/lib/experiment/redis-rest';
@@ -82,11 +82,16 @@ test.describe('the home page at /', () => {
       expect(html.match(/data-headline-twin="b"/g)).toHaveLength(3);
       await page.goto(`/?variant=${variant}`);
       const order = await page.evaluate(() =>
-        [...document.querySelectorAll('[data-hero], [data-home-note], [data-experiment="cards"], [data-scroll-moment], [data-home-tools]')].map(
-          (el) => ['data-hero', 'data-home-note', 'data-experiment', 'data-scroll-moment', 'data-home-tools'].find((a) => el.hasAttribute(a)),
+        [...document.querySelectorAll('[data-hero], [data-home-proof], [data-home-track], [data-experiment="cards"], [data-home-tiles], [data-home-ribbon], [data-home-site], [data-home-note], [data-home-decision]')].map(
+          (el) => {
+            const name = ['data-hero', 'data-home-proof', 'data-home-track', 'data-experiment', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-note', 'data-home-decision'].find((a) => el.hasAttribute(a));
+            return name === 'data-home-track' ? `track:${el.getAttribute(name)}` : name;
+          },
         ),
       );
-      expect(order).toEqual(['data-hero', 'data-home-note', 'data-experiment', 'data-scroll-moment', 'data-home-tools']);
+      // The experiment's cards sit inside the first track, and the note inside the site tile.
+      expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'data-experiment', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-note', 'data-home-decision']);
+      expect(await page.locator('[data-scroll-moment], [data-hero-simulator], figure[data-figure="hero-planner"]').count()).toBe(0);
       await expect(page.locator('h1')).toHaveCount(1);
       // The calibration shows group A's headlines to both groups; only the shown twin is visible and announced.
       expect(await shownHeadlines(page)).toEqual(Array.from({ length: 3 }, () => ({ shown: ['a'], hidden: [['b', 'true', 'hidden']] })));
@@ -104,6 +109,8 @@ test.describe('the home page at /', () => {
       await hydrated;
       await waitForIslands(page);
       await page.evaluate(() => document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))));
+      // The load sequence is time-based: measure once it has finished (scroll-linked animations stay at their scroll position).
+      await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.timeline instanceof DocumentTimeline).map((a) => a.finished.catch(() => undefined))));
       const boxes = await page.evaluate(() => {
         const out: Record<string, number[]> = {};
         const put = (k: string, el: Element | null) => {
@@ -115,7 +122,8 @@ test.describe('the home page at /', () => {
           const s = card.getAttribute('data-case-card');
           put(`${s}:card`, card);
           put(`${s}:headline`, card.querySelector('[data-case-headline]'));
-          put(`${s}:link`, card.querySelector('[data-experiment-click="card"]'));
+          // The whole card is the link.
+          put(`${s}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
         }
         return out;
       });
@@ -155,9 +163,10 @@ test.describe('the home page at /', () => {
         expect(body, key).not.toMatch(new RegExp(`\\\\?"${key}\\\\?":`));
       }
     }
-    // The payload did hold the scroll moment's client props (else this would prove nothing). Whether a
-    // chart entry (and its tickFrom) is in it depends on the store's counts at the last regeneration.
-    expect(bodies[0]).toMatch(/\\"charts\\":\[/);
+    // The payload did hold the note's client props (else this would prove nothing), and the page no
+    // longer ships the scroll moment's chart entries.
+    expect(bodies[0]).toMatch(/\\"readAt\\":\\"/);
+    for (const body of bodies) expect(body).not.toMatch(/\\"charts\\":\[|data-scroll-moment/);
   });
 });
 
@@ -168,7 +177,7 @@ test.describe('counting on the home page', () => {
     const entry = await countedEntry(sent);
     await page.locator(CARDS).scrollIntoViewIfNeeded();
     await expect.poll(() => claims(entry.ns, entry.pv, ['inview']), { timeout: 10_000 }).toEqual([entry.arm]);
-    const card = page.locator('[data-case-card="audible"] [data-experiment-click="card"]');
+    const card = page.locator('a[data-case-card="audible"][data-experiment-click="card"]');
     await expect(card).toHaveAttribute('href', '/work/audible#why-so-many');
     // The link is prefetched, so the click navigates on the client: wait for the URL, not a request.
     await card.click();
@@ -225,7 +234,7 @@ test.describe('counting on the home page', () => {
     await page.goto('/');
     const entry = await countedEntry(sent);
     const popup = page.context().waitForEvent('page', { timeout: 3000 }).catch(() => null);
-    await page.locator('[data-case-card="retention"] [data-experiment-click="card"]').click({ button: 'middle' });
+    await page.locator('a[data-case-card="retention"][data-experiment-click="card"]').click({ button: 'middle' });
     await (await popup)?.close();
     await page.waitForTimeout(1500);
     expect(page.url()).toMatch(/\/$/);
