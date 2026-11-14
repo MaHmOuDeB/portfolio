@@ -26,11 +26,21 @@ export function revealRegionOnFocus(event: Pick<FocusEvent, 'target'>): void {
   if (!region && !(target.matches(LINK_SELECTOR) && target.closest('[data-site-header]') === null)) return;
   reveal(target);
   // The browser makes its own focus scroll after the focus event (WebKit aligns the box, not the ring,
-  // with the edge; Chrome centres a tall box), which can undo the scroll above. Check once more in the
-  // next frame, before it is painted; this scrolls only when part of the ring is cut off, so it changes
-  // nothing where the first pass held.
+  // with the edge; Chrome centres a tall box), which can undo the scroll above. WebKit makes it either
+  // straight after the event or late, with the next frame's layout or from a timer after that frame,
+  // so check again in each of the next two frames, before each is painted. A check scrolls only when
+  // part of the ring is cut off, so it changes nothing where the earlier pass held; after that a scroll
+  // is the reader's own and is left alone.
+  recheck(target, RECHECK_FRAMES);
+}
+
+const RECHECK_FRAMES = 2;
+
+function recheck(target: HTMLElement, frames: number): void {
   requestAnimationFrame(() => {
-    if (document.activeElement === target) reveal(target);
+    if (document.activeElement !== target) return;
+    reveal(target);
+    if (frames > 1) recheck(target, frames - 1);
   });
 }
 

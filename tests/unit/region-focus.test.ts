@@ -44,6 +44,11 @@ function stubBrowser() {
   vi.stubGlobal('document', { querySelector: () => null, activeElement: null });
 }
 
+/** Runs the callbacks queued for the next frame; a callback queued while they run waits for the frame after. */
+function runFrame() {
+  frames.splice(0).forEach((f) => f());
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('revealRegionOnFocus', () => {
@@ -150,6 +155,27 @@ describe('revealRegionOnFocus', () => {
     link.top = -110;
     frames.forEach((f) => f());
     expect(scrolls).toEqual([-4, -114]);
+  });
+
+  it('shows the top of a tall link again when the browser makes its focus scroll only after the next frame', () => {
+    // WebKit can run its own focus scroll late: after the next frame's callbacks (with that frame's
+    // layout, or from a timer), so the first check still finds the ring on screen.
+    stubBrowser();
+    const link = tallLink(411.55);
+    (document as unknown as { activeElement: unknown }).activeElement = link;
+    revealRegionOnFocus({ target: link as unknown as EventTarget });
+    expect(scrolls).toEqual([407]);
+    link.top = 4.55;
+    runFrame();
+    expect(scrolls).toEqual([407]);
+    // Now WebKit aligns the box, not the ring, with the top edge.
+    link.top = -0.45;
+    runFrame();
+    expect(scrolls).toEqual([407, -5]);
+    // It stops there: a later scroll is the reader's own.
+    link.top = -200;
+    runFrame();
+    expect(scrolls).toEqual([407, -5]);
   });
 
   it('does not reveal in the next frame when nothing is cut off or focus has moved on', () => {
