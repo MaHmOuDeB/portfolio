@@ -19,7 +19,7 @@ export function AutomationTrack() {
           // Each card drifts in from the section's outer corner on its side. The wrapper moves, never
           // the card, which keeps its own lean; so the card does not also rise.
           return (
-            <div key={c.id} data-depth-drift={i % 2 === 0 ? 'bl' : 'br'} className="grid">
+            <div key={c.id} data-depth-drift={i % 2 === 0 ? 'bl' : 'br'} className="grid min-w-0 grid-cols-1">
               <LeanCard
                 data-depth-rise={undefined}
                 href={c.href}

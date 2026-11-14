@@ -58,6 +58,12 @@ describe('Drift', () => {
     const sides = [...html.matchAll(/data-depth-drift="(bl|br)"/g)].map((m) => m[1]);
     expect(sides).toEqual(['bl', 'br', 'bl', 'br']);
     expect(html).not.toMatch(/data-depth-lean=""[^>]*data-depth-drift|data-depth-drift[^>]*data-depth-lean/);
+    // The wrapper is a bounded one-column grid: an auto column would let a card's widest sketch row
+    // push the page sideways at 320 px with enlarged text.
+    for (const m of html.matchAll(/<div[^>]*data-depth-drift="(?:bl|br)"[^>]*>/g)) {
+      expect(m[0]).toMatch(/class="[^"]*\bgrid-cols-1\b/);
+      expect(m[0]).toMatch(/class="[^"]*\bmin-w-0\b/);
+    }
     const cards = [...html.matchAll(/<a [^>]*data-depth-lean=""[^>]*>/g)].map((m) => m[0]);
     expect(cards).toHaveLength(4);
     for (const c of cards) expect(c).not.toContain('data-depth-rise');
