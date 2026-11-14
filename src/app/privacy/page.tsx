@@ -1,6 +1,7 @@
 // The privacy notice: one text column, rendered from content/privacy.ts. Plain static page.
 import type { Metadata } from 'next';
 import { Fragment, type ReactNode } from 'react';
+import { PageHead } from '@/components/frame';
 import { Callout } from '@/components/kit/Callout';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
@@ -48,8 +49,9 @@ const anchorOf = (section: PrivacySection) =>
 
 export default function PrivacyPage() {
   return (
-    <div className="max-w-text py-section">
-      <h1 className="text-2xl font-semibold md:text-3xl">{PRIVACY.title}</h1>
+    <div className="pb-12 md:pb-16">
+      <PageHead id="privacy-title" chip="Privacy" title={PRIVACY.title} />
+      <div className="max-w-text">
       {/* The notice is long, so it opens with its section headings as links; the list adds no words of its own. */}
       <nav aria-label="Sections" className="mt-8">
         {/* role="list": WebKit drops the list role from a list drawn without bullets. */}
@@ -64,7 +66,7 @@ export default function PrivacyPage() {
         </ul>
       </nav>
       {PRIVACY.sections.map((section) => (
-        <section key={section.heading} className="mt-12">
+        <section key={section.heading} data-rule="" className="mt-12 pt-12">
           <h2 id={anchorOf(section)} className="text-xl font-semibold">
             {section.heading}
           </h2>
@@ -87,6 +89,7 @@ export default function PrivacyPage() {
           )}
         </section>
       ))}
+      </div>
     </div>
   );
 }

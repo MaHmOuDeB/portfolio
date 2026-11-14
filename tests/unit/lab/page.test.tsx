@@ -109,7 +109,7 @@ describe('the Lab page', () => {
     const own = LAB.replace(/<figure [\s\S]*?<\/figure>/g, '');
     expect(own).not.toMatch(/grid-cols-|rounded-lg|shadow|card/);
     expect(own).not.toMatch(/animate-|transition|fade|slide-in/);
-    expect(LAB.slice(0, LAB.indexOf('<section'))).toMatch(/class="max-w-text"/);
+    expect(LAB.slice(0, LAB.indexOf('<section'))).toMatch(/class="[^"]*max-w-text/);
     expect(section(LAB, 'limits')).toMatch(/class="max-w-text/);
   });
 

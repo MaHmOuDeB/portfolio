@@ -7,7 +7,8 @@
 // optimiser to those widths), loads lazily and is never cropped further than its 4:5 file.
 import Image from 'next/image';
 import { Fragment, type ReactNode } from 'react';
-import { Tile } from '@/components/depth/Tile';
+import { PageHead } from '@/components/frame';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
 import { CV_LINK } from '@/lib/site';
@@ -35,26 +36,22 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = ABOUT_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`about: no section ${id}`);
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
       <h2 id={`${id}-title`} data-depth-rise="heading" className="max-w-text text-xl font-semibold">
         {entry.title}
       </h2>
-      <div className="mt-4">{children}</div>
+      <div className="mt-6">{children}</div>
     </section>
   );
 }
 
-/** A two-column list of terms and their descriptions, stacked on phones. */
-function TermList({ items }: { items: readonly (readonly [term: string, description: string])[] }) {
+/** A white hairline card with a small title and a muted line: a language or the CV. */
+function SmallCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <dl className="grid max-w-text gap-x-8 md:grid-cols-[12rem_1fr]">
-      {items.map(([term, description]) => (
-        <div key={term} className="contents">
-          <dt className="border-t border-line pt-3 font-medium md:pb-3">{term}</dt>
-          <dd className="pb-3 text-muted md:border-t md:border-line md:pt-3">{description}</dd>
-        </div>
-      ))}
-    </dl>
+    <div data-about-card="" className="rounded-xl border border-hairline bg-surface p-5">
+      <p className="text-base font-semibold">{title}</p>
+      <div className="mt-1 text-muted">{children}</div>
+    </div>
   );
 }
 
@@ -72,13 +69,11 @@ if (STORY_PARAGRAPHS.at(-1)![1] !== ABOUT_STORY.length) throw new Error('about: 
 export function AboutPage(): ReactNode {
   const pdf = cvPdf();
   return (
-    <article aria-labelledby="about-title" className="py-12 md:py-section">
-      <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-12">
+    <article aria-labelledby="about-title">
+      <PageHead id="about-title" chip="About" title="Experimentation and growth analyst" quiet="in Berlin, Germany." />
+      <div className="grid gap-8 pb-12 lg:grid-cols-12 lg:items-start lg:gap-12 md:pb-16">
         <div className="lg:col-span-7">
-          <h1 id="about-title" data-depth-rise="heading" className="text-display-sm font-semibold md:text-display">
-            {ABOUT_TITLE}
-          </h1>
-          <div data-about-story="" className="mt-4 max-w-text space-y-4 text-lg">
+          <div data-about-story="" className="max-w-text space-y-4 text-lg">
             {STORY_PARAGRAPHS.map(([from, to]) => (
               <Fragment key={from}>
                 <p>
@@ -107,14 +102,14 @@ export function AboutPage(): ReactNode {
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
             data-depth-parallax=""
-            className="h-auto w-full max-w-120 lg:max-w-none rounded-xl print:max-w-48"
+            className="h-auto w-full max-w-120 lg:max-w-none rounded-xl border border-hairline print:max-w-48"
           />
         </div>
       </div>
 
       <Section id="timeline">
         {/* The rule that draws on entry is its own decorative element: a list may hold only items. */}
-        <span data-depth-draw="" aria-hidden="true" className="block h-px max-w-text bg-ink" />
+        <span data-depth-draw="" aria-hidden="true" className="block h-px max-w-text bg-hairline-strong" />
         <ol className="max-w-text">
           {TIMELINE.map((row) => (
             <TimelineRow key={`${row.range.from}-${row.role}`} {...row} />
@@ -123,24 +118,39 @@ export function AboutPage(): ReactNode {
       </Section>
 
       <Section id="tools">
-        <Tile>
-          <TermList items={SHIPPED_TOOLS.map((t) => [t.tool, t.where] as const)} />
-        </Tile>
+        <ul role="list" data-about-tools="" className="flex flex-wrap gap-2.5">
+          {SHIPPED_TOOLS.map((t) => (
+            <li key={t.tool} className="rounded-md border border-hairline-strong bg-surface px-3.5 py-2.5 text-sm">
+              <span className="font-semibold">{t.tool}</span>
+              <span className="block text-muted">{t.where}</span>
+            </li>
+          ))}
+        </ul>
       </Section>
 
       <Section id="languages">
-        <TermList items={LANGUAGES.map((l) => [l.language, l.level] as const)} />
+        <dl data-about-languages="" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {LANGUAGES.map((l) => (
+            <div key={l.language} className="rounded-xl border border-hairline bg-surface p-4">
+              <dt className="text-base font-semibold">{l.language}</dt>
+              <dd className="mt-1 text-muted">{l.level}</dd>
+            </div>
+          ))}
+        </dl>
       </Section>
 
       <Section id="cv">
-        <p className="max-w-text">My CV as a page you can read or print.</p>
-        <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
-          <TextLink href={CV_LINK.href} standalone>
-            Read my CV
-          </TextLink>
-          {pdf ? <CvDownload pdf={pdf} variant="secondary" /> : null}
-        </div>
+        <SmallCard title="My CV as a page you can read or print.">
+          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+            <TextLink href={CV_LINK.href} standalone>
+              Read my CV
+            </TextLink>
+            {pdf ? <CvDownload pdf={pdf} variant="secondary" /> : null}
+          </div>
+        </SmallCard>
       </Section>
+
+      <PageCallToAction />
     </article>
   );
 }

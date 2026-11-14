@@ -16,7 +16,7 @@ import { WINDOW_DAYS } from '@/lib/retention/rfm';
 
 /** The story, one sentence per entry. */
 export const ABOUT_STORY: readonly ReactNode[] = [
-  <>I am an experimentation and growth analyst in Berlin, Germany.</>,
+  <>I plan A/B tests, read them honestly and build the automation around them.</>,
   <>
     For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some
     marketing analytics.
