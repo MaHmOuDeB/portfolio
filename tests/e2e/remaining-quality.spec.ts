@@ -217,8 +217,11 @@ async function incompleteText(page: Page): Promise<string[]> {
       const tag = `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`;
       if (s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) out.add(`ellipsis on ${tag}: "${text}"`);
       if (s.webkitLineClamp && s.webkitLineClamp !== 'none' && el.scrollHeight > el.clientHeight + 1) out.add(`line clamp on ${tag}: "${text}"`);
-      if (['hidden', 'clip'].includes(s.overflowX) && el.scrollWidth > el.clientWidth + 1 && !el.matches('svg, svg *')) out.add(`clipped across on ${tag}: "${text}"`);
-      if (['hidden', 'clip'].includes(s.overflowY) && el.scrollHeight > el.clientHeight + 1 && !el.matches('svg, svg *')) out.add(`clipped down on ${tag}: "${text}"`);
+      // A card's vignette is a decorative, aria-hidden sketch shown through a fixed window on purpose,
+      // like an svg; its words are not content, so its crop is not cut-off text.
+      const drawing = el.matches('svg, svg *, [data-vignette][aria-hidden="true"], [data-vignette][aria-hidden="true"] *');
+      if (['hidden', 'clip'].includes(s.overflowX) && el.scrollWidth > el.clientWidth + 1 && !drawing) out.add(`clipped across on ${tag}: "${text}"`);
+      if (['hidden', 'clip'].includes(s.overflowY) && el.scrollHeight > el.clientHeight + 1 && !drawing) out.add(`clipped down on ${tag}: "${text}"`);
     }
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
