@@ -260,7 +260,7 @@ describe('ExperimentsTrack with the live test: the tag and the line at the cards
   const CALIBRATION_LINE = 'These three headlines are what the test will compare. For now everyone sees the same ones.';
   const AB_LINE = 'These three headlines are the test: other visitors see different wording.';
 
-  it('puts one tag before the heading: the glyph, the note and "See the live test"', () => {
+  it('puts one tag before the heading: the glyph and the note, with the note\'s one link to the live page', () => {
     for (const arm of ARMS) {
       const html = track('calibration', arm);
       const d = doc(html);
@@ -269,9 +269,9 @@ describe('ExperimentsTrack with the live test: the tag and the line at the cards
       expect(html.indexOf('data-home-tag')).toBeLessThan(html.indexOf('<h2'));
       expect(all(tag, (el) => el.tagName === 'svg' && attr(el, 'aria-hidden') === 'true')).toHaveLength(1);
       expect(all(tag, (el) => has(el, 'data-home-note'))).toHaveLength(1);
-      const live = all(tag, (el) => el.tagName === 'a' && text(el) === 'See the live test');
-      expect(live).toHaveLength(1);
-      expect(attr(live[0]!, 'href')).toBe(HOME_LINKS.experiment);
+      const links = all(tag, (el) => el.tagName === 'a');
+      expect(links.map((a) => text(a))).toEqual(['See the live results']);
+      expect(attr(links[0]!, 'href')).toBe(HOME_LINKS.experiment);
       expect(text(tag)).toContain('It is calibrating first, so everyone sees the same page.');
     }
   });

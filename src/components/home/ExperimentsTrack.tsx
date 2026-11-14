@@ -4,10 +4,8 @@
 // only the cards' visible headlines do (the note in the tag is the existing LiveNote, which the
 // group comparison of the page leaves out). Server-safe.
 import type { ReactNode } from 'react';
-import { HOME_CARD_LINE, HOME_TAG, HOME_TRACKS, WORK_ANCHOR } from '../../../content/home.ts';
-import { HOME_LINKS } from '../../../content/home-destinations.ts';
+import { HOME_CARD_LINE, HOME_TRACKS, WORK_ANCHOR } from '../../../content/home.ts';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
-import { TextLink } from '@/components/kit/TextLink';
 import type { Arm } from '@/experiment.values';
 import type { HomeModel } from '@/lib/home/model';
 import { FeaturedCases } from './FeaturedCases';
@@ -31,18 +29,15 @@ export function cardLinePhase(model: HomeModel): CardLinePhase | null {
   }
 }
 
-/** One line on the live test: the glyph, the note and the link. Rises with the cards. */
+/** The live test, once, above the work: the glyph and the note, which carries its own link to the live page. Rises with the cards. */
 function ExperimentTag({ note }: { note: ReactNode }) {
   return (
     <div data-home-tag="" data-depth-rise="" className="mb-8 flex max-w-text items-start gap-3">
       <span className="mt-1.5 shrink-0">
         <IntervalGlyph />
       </span>
-      <div className="min-w-0">
-        <div data-home-note="">{note}</div>
-        <TextLink href={HOME_LINKS.experiment} standalone>
-          {HOME_TAG.live}
-        </TextLink>
+      <div data-home-note="" className="min-w-0">
+        {note}
       </div>
     </div>
   );

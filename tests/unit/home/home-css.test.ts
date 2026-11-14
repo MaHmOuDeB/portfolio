@@ -41,7 +41,7 @@ describe('the hero scene', () => {
   });
 
   it('starts the turn from the tilted plane', () => {
-    expect(block('@keyframes depth-plane-face')).toMatch(/from\s*\{\s*transform:\s*rotateX\(58deg\) rotateZ\(-12deg\) scale\(1\.05\)/);
+    expect(block('@keyframes depth-plane-face')).toMatch(/from\s*\{\s*transform:\s*rotateX\(58deg\) rotateZ\(-12deg\) scale\(0\.94\)/);
   });
 
   it('never clips with overflow hidden around the hero controls', () => {

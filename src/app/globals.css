@@ -309,7 +309,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-plane-face {
   from {
-    transform: rotateX(58deg) rotateZ(-12deg) scale(1.05);
+    transform: rotateX(58deg) rotateZ(-12deg) scale(0.94);
   }
 
   to {
@@ -355,14 +355,13 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* The text steps back by size alone. It never fades: it stays readable for as long as it is on screen. */
 @keyframes depth-recede {
   from {
-    opacity: 1;
     scale: 1;
   }
 
   to {
-    opacity: 0.35;
     scale: 0.94;
   }
 }
@@ -591,6 +590,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-hero-text] {
     position: relative;
     z-index: 1;
+    transform-origin: left center;
   }
 
   /* 2. Proof figures: four cells in a row with hairlines between, each with its side, its number,

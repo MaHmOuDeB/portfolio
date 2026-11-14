@@ -190,14 +190,6 @@ export const HOME_AUTOMATION: readonly {
 ];
 
 /**
- * The tag above the "Experiments and analytics" heading: the interval glyph, the live test's note
- * (LiveNote) and this link to the live page.
- */
-export const HOME_TAG = {
-  live: 'See the live test',
-} as const;
-
-/**
  * The muted line under the experiments track's lede, chosen by the live test's phase: the same words
  * in both groups, and never the other group's headlines. Nothing when the test is paused, stopped,
  * decided or not configured.
