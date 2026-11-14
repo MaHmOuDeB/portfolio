@@ -53,8 +53,10 @@ export function watchScripts(page: Page): ScriptWatch {
     prefetches.push(
       request
         .response()
-        // Read the body now: a response that is no longer the page's may not be readable later.
-        .then((response) => response && { pathname: new URL(request.url()).pathname, body: response.text() })
+        // Read the body now: a response that is no longer the page's may not be readable later. A body
+        // the browser has already dropped excuses nothing; its rejection is handled here, at once, so it
+        // never surfaces as an unhandled rejection that fails the test before `counted()` reads it.
+        .then((response) => response && { pathname: new URL(request.url()).pathname, body: response.text().catch(() => '') })
         .catch(() => null),
     );
   });
