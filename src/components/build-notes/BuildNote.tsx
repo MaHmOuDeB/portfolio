@@ -99,7 +99,7 @@ export function BuildNote({
     <article aria-labelledby={`${slug}-title`}>
       <CaseHead id={`${slug}-title`} chip="Build note" title={title} intro={intro} role={drawn(role) ? role : undefined} />
 
-      {glance ? <GlanceBlock {...glance} data-depth-rise="" /> : null}
+      {glance ? <GlanceBlock {...glance} /> : null}
 
       <nav aria-label="On this page" className={`${TEXT} mt-8`}>
         <ul className="flex flex-wrap gap-x-4">

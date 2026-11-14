@@ -830,7 +830,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-book-left {
   0% {
     opacity: 0;
-    rotate: y 14deg;
+    rotate: y var(--book-angle, 14deg);
   }
 
   /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
@@ -847,7 +847,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-book-right {
   0% {
     opacity: 0;
-    rotate: y -14deg;
+    rotate: y calc(var(--book-angle, 14deg) * -1);
   }
 
   /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
@@ -989,6 +989,19 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-turn {
   from {
     transform: perspective(56rem) rotateY(-28deg) rotateX(10deg) translateZ(-120px);
+  }
+}
+
+/* The case study's "at a glance" card lifts once on load from a shallow lid angle. Its perspective
+   is its own (the function, not the parent's property): its parent is the whole page column, whose
+   vanishing point sits far below the card and would drag it down the screen. */
+@keyframes depth-hinge-load {
+  from {
+    transform: perspective(87.5rem) rotateX(24deg) translateZ(-80px);
+  }
+
+  to {
+    transform: none;
   }
 }
 
@@ -2285,6 +2298,41 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* Hinge on load: the case study's "at a glance" card is in the first screen, so it lifts once when
+   the page loads, by transform only (its outcome may be the largest paint), and its four facts settle
+   in turn after it. From lg, with motion allowed. */
+@media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    [data-depth-hinge="load"] {
+      transform-origin: 50% 100%;
+      animation: depth-hinge-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div {
+      animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 360ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
+      animation-delay: 420ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
+      animation-delay: 480ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
+      animation-delay: 540ms;
+    }
+
+    [data-depth-hinge="load"]:focus-within,
+    [data-depth-hinge="load"]:focus-within [data-glance-facts] > div {
+      animation: none;
+    }
+  }
+}
+
 /* The ruled row's own borders between its cells are utility classes, which win over any layer: this
    unlayered rule hides them where their drawn rules replace them. */
 @supports (animation-timeline: view()) {
@@ -2396,6 +2444,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-parallax],
   [data-depth-drift],
   [data-depth-hinge],
+  [data-depth-hinge] [data-glance-facts] > div,
   [data-depth-focus],
   [data-depth-focus] > img,
   [data-depth-turn],

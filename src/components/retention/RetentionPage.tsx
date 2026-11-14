@@ -132,7 +132,7 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
     <article aria-labelledby="retention-title">
       <CaseHead id="retention-title" chip="Case study" title={RETENTION_TITLE} intro={<RetentionIntro />} />
 
-      <GlanceBlock {...RETENTION_GLANCE} data-depth-rise="" />
+      <GlanceBlock {...RETENTION_GLANCE} />
 
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
         <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">

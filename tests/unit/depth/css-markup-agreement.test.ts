@@ -41,7 +41,6 @@ const SET_BY_PAGES: Record<string, string> = {
   'data-depth-parallax': 'a page element that drifts with the scroll',
   'data-depth-magnet': 'a button a page marks; Lean moves it',
   'data-depth-drift': 'a grid wrapper a page marks to arrive from a corner of its section',
-  'data-depth-hinge': 'the sketch sheet of the frame Vignette, which lifts like a lid inside a card',
   'data-depth-focus': 'the wrapper of the call to action portrait, which comes into focus',
   'data-depth-follow': 'a pointer scene a page or frame component marks; Lean writes its values',
   'data-depth-turn': 'the site-test sketch on Home, which turns in on its centre',

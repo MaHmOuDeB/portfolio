@@ -132,8 +132,14 @@ export function AboutPage(): ReactNode {
 
       <Section id="languages">
         <dl data-about-languages="" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {LANGUAGES.map((l) => (
-            <div key={l.language} className="rounded-xl border border-hairline bg-surface p-4">
+          {/* Each card opens like a page on its outer edge: the left ones on their left edge, the right
+              ones on their right edge, at a steeper angle than elsewhere. */}
+          {LANGUAGES.map((l, i) => (
+            <div
+              key={l.language}
+              data-depth-book={i < Math.ceil(LANGUAGES.length / 2) ? 'right' : 'left'}
+              className="rounded-xl border border-hairline bg-surface p-4 [--book-angle:18deg]"
+            >
               <dt className="text-base font-semibold">{l.language}</dt>
               <dd className="mt-1 text-muted">{l.level}</dd>
             </div>

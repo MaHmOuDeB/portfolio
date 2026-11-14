@@ -95,7 +95,7 @@ export function AudiblePage(): ReactNode {
     <article aria-labelledby="audible-title">
       <CaseHead id="audible-title" chip="Case study" title={AUDIBLE_TITLE} intro={<AudibleIntro />} />
 
-      <GlanceBlock {...AUDIBLE_GLANCE} data-depth-rise="" />
+      <GlanceBlock {...AUDIBLE_GLANCE} />
 
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
         <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">

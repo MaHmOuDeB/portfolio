@@ -146,8 +146,9 @@ describe.each(PAGES)('the glance block on /work/$name', ({ render, title, glance
     expect(part(/<dt>When<\/dt><dd>([\s\S]*?)<\/dd>/)).toBe(sentence(glance.when));
   });
 
-  it('sits right under the h1 and its standfirst, before any section, and rises on entry', () => {
-    expect(block).toMatch(/data-depth-rise=""/);
+  it('sits right under the h1 and its standfirst, before any section, and lifts once on load (it is in the first screen)', () => {
+    expect(block).toMatch(/data-depth-hinge="load"/);
+    expect(block).not.toMatch(/data-depth-rise=""/);
     const h1 = html.indexOf(`<h1 id="${title}"`);
     expect(h1).toBeGreaterThan(-1);
     const at = html.indexOf('<section aria-label="At a glance"');

@@ -101,7 +101,7 @@ export function PulsePage(): ReactNode {
     <article aria-labelledby="pulse-page-title">
       <CaseHead id="pulse-page-title" chip="Case study" title={PULSE_TITLE} intro={<PulseIntro />} />
 
-      <GlanceBlock {...PULSE_GLANCE} data-depth-rise="" />
+      <GlanceBlock {...PULSE_GLANCE} />
 
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
         <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">

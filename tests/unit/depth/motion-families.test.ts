@@ -65,7 +65,7 @@ describe('Drift', () => {
 
 describe('Hinge', () => {
   it('lifts on its bottom edge from a steep angle and ends on none', () => {
-    const kf = block('@keyframes depth-hinge');
+    const kf = block('@keyframes depth-hinge {');
     expect(kf).toMatch(/from\s*\{\s*transform:\s*rotateX\(72deg\);\s*\}/);
     expect(kf).toMatch(/to\s*\{\s*transform:\s*none;\s*\}/);
     expect(families).toMatch(/\[data-depth-lean\] \[data-depth-hinge\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge linear backwards/);
@@ -223,5 +223,36 @@ describe('"How I test"', () => {
     const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
     expect(pointer).toMatch(/\[data-depth-follow\] \[data-how-panel\] \[data-sketch\] > \*\s*\{[^}]*translate:\s*round\(calc\(var\(--mx\) \* var\(--z\) \* 2px\), 1px\)/);
     expect(still).toMatch(/\[data-depth-follow\] \[data-how-panel\] \[data-sketch\] > \*\s*\{\s*translate:\s*none;/);
+  });
+});
+
+describe('the case study glance card', () => {
+  it('lifts once on load by transform only, then its four facts settle in turn, from lg with motion allowed', () => {
+    const kf = block('@keyframes depth-hinge-load');
+    expect(kf).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) rotateX\(24deg\) translateZ\(-80px\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
+    expect(kf).not.toContain('opacity');
+    const at = css.indexOf('[data-depth-hinge="load"] {');
+    const media = css.lastIndexOf('@media', at);
+    expect(css.slice(media, css.indexOf('{', media))).toBe(GATE + ' ');
+    const load = block(GATE, media);
+    expect(load).toMatch(/\[data-depth-hinge="load"\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge-load var\(--duration-arrive\) var\(--ease-standard\) backwards[^}]*animation-delay:\s*180ms/);
+    const delays = [...load.matchAll(/\[data-glance-facts\] > div(?::nth-child\(\d\))?\s*\{[^}]*animation-delay:\s*(\d+)ms/g)].map((m) => Number(m[1]));
+    expect(delays).toEqual([360, 420, 480, 540]);
+    expect(load).toMatch(/\[data-depth-hinge="load"\]:focus-within,[^{]*\{\s*animation:\s*none;/);
+    expect(still).toContain('[data-depth-hinge] [data-glance-facts] > div');
+  });
+});
+
+describe('About\'s language cards', () => {
+  it('open like pages on their outer edge, at 18 degrees, while every other book keeps 14', async () => {
+    expect(block('@keyframes depth-book-left')).toMatch(/rotate:\s*y var\(--book-angle, 14deg\)/);
+    expect(block('@keyframes depth-book-right')).toMatch(/rotate:\s*y calc\(var\(--book-angle, 14deg\) \* -1\)/);
+    const { AboutPage } = await import('@/components/about/AboutPage');
+    const html = renderToStaticMarkup(createElement(AboutPage));
+    const dl = html.slice(html.indexOf('<dl data-about-languages'), html.indexOf('</dl>', html.indexOf('<dl data-about-languages')));
+    const sides = [...dl.matchAll(/data-depth-book="(left|right)" class="[^"]*\[--book-angle:18deg\]/g)].map((m) => m[1]);
+    expect(sides.length).toBeGreaterThan(1);
+    expect(sides[0]).toBe('right');
+    expect(sides.at(-1)).toBe('left');
   });
 });
