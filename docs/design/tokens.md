@@ -215,7 +215,13 @@ so a block whose painted box is already in view is never part-faded.
 - `[data-depth-ribbon]`: A row of words slides sideways with the scroll. Keyframes: `depth-ribbon`.
 - `[data-depth-scale]`: Very large type scales in from depth on entry. Keyframes: `depth-scale`.
 - `[data-depth-parallax]` (`--p`, px): A block drifts against the scroll. Keyframes: `depth-parallax`.
-- `[data-depth-reveal]`: A chart's marks draw left to right as it enters. Keyframes: `depth-reveal`.
+- `[data-depth-drift]` (`bl`, `br`, `tr`, `tl`): Drift. A block comes in once from its own corner, out of depth with its own perspective, and settles flat; `tl` (a portrait) plays once on load. Keyframes: `depth-drift-bl`, `depth-drift-br`, `depth-drift-tr`, `depth-drift-tl`.
+- `[data-depth-hinge]`, `[data-depth-hinge="load"]`: Hinge. A sketch sheet stands up from its bottom edge on entry; a page's glance block tips up once on load. Keyframes: `depth-hinge`, `depth-hinge-load`.
+- `[data-depth-turn]`: Turn. A tile turns toward the reader as it enters. Keyframes: `depth-turn`.
+- `[data-depth-focus]`: A photo's frame opens from a smaller inset while the photo settles from a slight zoom. Keyframes: `depth-focus`, `depth-focus-in`.
+- `[data-depth-trace]` (`proof`, `row`, `experience`, `timeline`): Trace. The dividers of a row, the rule after a group's chip, and a timeline's spine draw as the block enters; a timeline's dots appear row by row. Keyframes: `depth-trace-x`, `depth-trace-y`, `depth-dot`.
+- `[data-depth-follow]` (`--mx`, `--my`, `--gx`, `--gy`): A scene follows a fine pointer by a few pixels per layer; a site sketch tilts slightly with a sheen. No keyframes.
+- `[data-depth-glow]`: A soft disc on the ink sheet that follows a fine pointer. No keyframes.
 - `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. Keyframes: transition.
 - `[data-depth-magnet]` (`--tx`, `--ty`): A button shifts up to 6 px toward a fine pointer. Keyframes: transition.
 - `[data-tile]`, `[data-tile="ink"]`: A white tile with a hairline and an ink tile (`radius-xl`, padding). Not motion.

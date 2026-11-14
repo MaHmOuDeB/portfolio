@@ -380,12 +380,18 @@ page, give it the primitives catalogue above and the golden page.
     complete without it, and under reduced motion. Time-based: only the load sequence and the band's
     sheets arriving, once.
   - Scroll-linked means the animation follows the scroll position exactly (`animation-timeline`,
-    linear, `both` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
+    linear, `backwards` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
     no fade-up-on-every-section.
   - Lean and magnet run only under a fine pointer. No transition while a slider is dragged.
   - Only transform, opacity and clip-path animate, never layout. The h1 never animates.
   - Reduced motion, print and browsers without scroll timelines get the final static state
     (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.
+  - Four families: Unfold (the Home band's stack), Hinge with Turn (sheets stand up from an edge,
+    tiles turn toward the reader), Drift (a block settles from its own corner) and Trace (rules,
+    dividers and a timeline's spine draw). They run from lg up only; below lg the layout is static
+    apart from the small rise, draw and ribbon. Each keyframe is `depth-*`, ends on none and fills
+    `backwards`, so the base state is the final layout.
+  - What stays still: the h1, charts and their marks, the controls, the header and the footer.
   - Components add data attributes (`data-depth-*`, `data-proof`); they write no motion CSS.
   - The Home scroll: on wide screens with scroll timelines and motion allowed, the band under the
     hero pins and its stack unfolds into a row. Nothing else pins.
