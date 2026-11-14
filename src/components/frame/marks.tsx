@@ -31,7 +31,7 @@ export function Tag({ tone = 'plain', children }: { tone?: 'plain' | 'tint'; chi
   return <span data-tag={tone}>{children}</span>;
 }
 
-/** A filled circle with a check, for a step that passed. */
+/** A filled circle with a check, for a step that passed (data-check: data-tick is the kit's axis tick). */
 export function Tick() {
-  return <span data-tick="" />;
+  return <span data-check="" />;
 }

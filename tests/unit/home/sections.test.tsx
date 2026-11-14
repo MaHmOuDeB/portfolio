@@ -242,7 +242,7 @@ describe('FeaturedCases: a vignette on each experiment card', () => {
     const v = one(doc(cards('a')), (el) => attr(el, 'data-sketch') === 'process');
     expect(all(v, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Sample size', 'Run time', 'Guardrails', 'Recommendation']);
     expect(all(v, (el) => has(el, 'data-tag')).map((el) => text(el))).toEqual(['planned', 'set', 'defined', 'written']);
-    expect(all(v, (el) => has(el, 'data-tick'))).toHaveLength(4);
+    expect(all(v, (el) => has(el, 'data-check'))).toHaveLength(4);
     expect(all(v, (el) => has(el, 'data-interval-mark'))).toHaveLength(0);
     expect(text(v)).not.toMatch(/higher|lower|clear|neutral|held|intact|win|lift/i);
   });
@@ -295,7 +295,7 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     const vigs = expectVignettes(section, 4);
     expect(vigs.map(sketchOf)).toEqual(['steps', 'agents', 'workflow', 'variants']);
     const [steps, agents, workflow, variants] = vigs as [El, El, El, El];
-    expect(all(steps, (el) => has(el, 'data-tick')).length).toBeGreaterThanOrEqual(3);
+    expect(all(steps, (el) => has(el, 'data-check')).length).toBeGreaterThanOrEqual(3);
     // The generic mechanism, never the internal tool's own steps.
     expect(all(steps, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Record', 'Replay', 'Verify']);
     expect(text(steps)).toContain('recorded once, replayed');

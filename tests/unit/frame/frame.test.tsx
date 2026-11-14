@@ -253,7 +253,7 @@ describe('Vignette and its marks', () => {
     );
     expect(renderToStaticMarkup(<Tag>intact</Tag>)).toBe('<span data-tag="plain">intact</span>');
     expect(renderToStaticMarkup(<Tag tone="tint">higher</Tag>)).toBe('<span data-tag="tint">higher</span>');
-    expect(renderToStaticMarkup(<Tick />)).toBe('<span data-tick=""></span>');
+    expect(renderToStaticMarkup(<Tick />)).toBe('<span data-check=""></span>');
   });
 });
 
@@ -290,7 +290,7 @@ describe('frame CSS and the root layout', () => {
   });
 
   it('styles every frame part it renders', () => {
-    for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-tick']) {
+    for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-check']) {
       expect(css, part).toContain(`[${part}`);
     }
   });

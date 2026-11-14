@@ -445,6 +445,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* The call to action: an ink panel, text at the left and an optional media slot at the right. */
   [data-cta] {
     display: grid;
+
+    /* One column no wider than the panel: an auto track takes its widest word or button and spills
+       out of the panel when the text is enlarged. */
+    grid-template-columns: minmax(0, 1fr);
     gap: calc(var(--spacing) * 10);
     align-items: center;
     padding: calc(var(--spacing) * 10) calc(var(--spacing) * 6);
@@ -592,7 +596,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-series-1);
   }
 
-  [data-tick] {
+  /* The passed-step check. Not named data-tick: the kit's axis tick labels carry data-tick, and
+     this fill behind them dropped their contrast. */
+  [data-check] {
     position: relative;
     display: inline-block;
     width: 16px;
@@ -602,7 +608,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     background: var(--color-series-1);
   }
 
-  [data-tick]::after {
+  [data-check]::after {
     content: "";
     position: absolute;
     top: 3px;
@@ -1212,6 +1218,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
       display: block;
       height: auto;
+
+      /* Block layout reads justify-items too: centred, the column would shrink-wrap the sheets and
+         spill past a narrow stage when the text is enlarged. Stretched, it is the stage's width. */
+      place-items: normal;
       perspective: none;
     }
 
@@ -1233,6 +1243,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       position: static;
       width: min(320px, 100%);
       transform: none;
+    }
+
+    /* The title and its note share a row while they fit and wrap when the text is enlarged. */
+    [data-depth-sheet-head] {
+      flex-wrap: wrap;
     }
 
     [data-depth-sheet]::after {
@@ -1975,4 +1990,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 [data-live-bar] :focus-visible {
   outline-color: var(--color-surface);
+}
+
+/* The kit's small muted labels (the "Updated" time) take the on-ink muted tone on the bar: the
+   canvas muted grey is too dark on ink. */
+[data-live-bar] .text-muted {
+  color: var(--color-on-ink-muted);
 }
