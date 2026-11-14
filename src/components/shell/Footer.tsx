@@ -23,8 +23,11 @@ const COLUMNS: { heading: string; links: FooterLink[] }[] = [
   { heading: 'Legal', links: [{ label: 'Privacy', href: PRIVACY_HREF }] },
 ];
 
+// scroll-my-2: the columns sit side by side, so focus moves up from the last Site link to the first
+// Contact link; WebKit then aligns the link's box, not its ring, with the top of the screen, and the
+// 8 px margin keeps the 4 px ring on screen (seen on a 320 by 180 px screen, 400% zoom).
 const LINK =
-  'inline-flex min-h-(--size-target) min-w-(--size-target) items-center text-sm text-on-ink transition-colors hover:text-surface focus-visible:text-surface';
+  'inline-flex min-h-(--size-target) min-w-(--size-target) scroll-my-2 items-center text-sm text-on-ink transition-colors hover:text-surface focus-visible:text-surface';
 
 function FooterAnchor({ href, external, children }: { href: string; external?: boolean; children: ReactNode }) {
   return external ? (
