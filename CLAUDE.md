@@ -302,6 +302,23 @@ Page-level parts built from the kit. They live outside the kit (`src/components/
 | `PulseInteractive` | `src/components/pulse/PulseInteractive.tsx` (client) | The lazy island: one bus per mount (`createPulseBus` in `src/lib/pulse/bus.ts`), the event stream in its own state through `src/lib/pulse/session.ts`. It sends Viewed Dashboard once per mount and each action's event from its handler; Reset restores the preset, drops the saved view and the open detail, empties the stream and sends one new Viewed Dashboard. Export CSV saves the rows shown, made in memory. Nothing is stored or requested, and only the view is in the URL. |
 | `PulseFigureView`, `PulseResult`, `PulseStream`, `RangeText`, `PULSE_FIGURE_TITLE` | `src/components/pulse/PulseView.tsx` | The shared, hook-free view: two line charts of made-up daily numbers on fixed value axes, each with a Detail button; Export CSV, Save view and Load saved view (disabled, with its reason, until a view is saved) as native buttons in the labelled dashboard content, not in the control row; and the last 20 events, newest first, not a live region, with each property value marked by its refs and the local demo prompt version. |
 
+### Depth components
+
+The motion and depth parts of the redesigned pages, in `src/components/depth` (server-safe unless
+marked) with their logic in `src/lib/depth`. They draw markup and set custom properties only; the
+motion is CSS keyed on their data attributes.
+
+| Export | File | Role |
+|---|---|---|
+| `EvidenceField` | `src/components/depth/EvidenceField.tsx` | The Home hero's evidence field: a confidence band on a ground plane in CSS 3D, one `[data-depth-row]` per `fieldRows()` row. Decorative, `aria-hidden`. |
+| `ProofFigure` | `src/components/depth/ProofFigure.tsx` | A proof figure (`[data-proof]`): the side word, the figure passed in as a `Fact` or `Derived`, a decorative interval mark and the caption. |
+| `LeanCard` | `src/components/depth/LeanCard.tsx` | A link drawn as a tile that rises on entry and leans toward a fine pointer. `titleMinLines` fixes the headline area's height; extra `data-*` attributes pass to the link; `prefetch` passes to `Link`. |
+| `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the field and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. |
+| `Ribbon` | `src/components/depth/Ribbon.tsx` | A row of words in a `[data-depth-ribbon]` track that slides with the scroll, done in CSS. A labelled list with each item once. |
+| `Tile` | `src/components/depth/Tile.tsx` | A tile on the quiet surface, or an ink one (`tone`). |
+| `GlanceBlock` | `src/components/depth/GlanceBlock.tsx` | The top of a case study: the outcome as a large paragraph, then Role, Methods, Tools and When. |
+| `fieldRows` | `src/lib/depth/field.ts` | The field's rows: index, top, width and the estimate's shift, pure and deterministic. |
+
 ## Golden-page rule
 
 The Retention page is the reference page: `RetentionPage` in

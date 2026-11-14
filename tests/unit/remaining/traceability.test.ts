@@ -94,6 +94,14 @@ describe('the component catalogues in CLAUDE.md', () => {
     expect(components.filter((f) => !listed.has(f))).toEqual([]);
   });
 
+  it('covers the depth components: the folder is named in the catalogue and every file in it is listed', () => {
+    const section = claudeMd.slice(claudeMd.indexOf('### Depth components'), claudeMd.indexOf('## Golden-page rule'));
+    expect(section).toContain('`src/components/depth`');
+    const listed = new Set(COMPOSITES.map((r) => r.file));
+    for (const f of readdirSync(path.join(ROOT, 'src/components/depth')).filter((x) => /\.tsx$/.test(x))) expect(listed.has(`src/components/depth/${f}`), f).toBe(true);
+    expect(listed.has('src/lib/depth/field.ts')).toBe(true);
+  });
+
   it('the parser is not vacuous: it reads a client mark, a renamed export and a type export', () => {
     const r = rows('## Primitives catalogue', '### Figure rules', 'src/components/kit').find((x) => x.names.includes('Slider'));
     expect(r).toMatchObject({ file: 'src/components/kit/Slider.tsx', client: true });
