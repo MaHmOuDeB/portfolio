@@ -7,7 +7,8 @@ function Lines({ lines }: { lines: readonly string[] }) {
   return (
     <ul className="mt-6">
       {lines.map((line) => (
-        <li key={line} data-depth-draw="" className="border-t border-current/20 py-4 text-lg">
+        <li key={line} className="py-4 text-lg">
+          <span data-depth-draw="" aria-hidden="true" />
           {line}
         </li>
       ))}

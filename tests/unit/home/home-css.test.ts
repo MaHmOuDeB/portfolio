@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 // only where scroll timelines exist, motion is allowed and the screen is wide; the proof figures
 // keep one line; the ribbon starts in view and fades at both edges; the magnet lands on whole
 // pixels; the header cover stays at the share that keeps the muted nav text at 4.5:1.
+const tokens = readFileSync(join(__dirname, '..', '..', '..', 'src/styles/tokens.css'), 'utf8');
 const css = readFileSync(join(__dirname, '..', '..', '..', 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** The body of the first block that starts with `head` (balanced braces). */
@@ -59,7 +60,7 @@ describe('the proof figures', () => {
 
 describe('the ribbon', () => {
   it('fades both edges with a mask and keeps its first item in view at the start', () => {
-    expect(css).toMatch(/\[data-depth-ribbon\]\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to right,\s*transparent/);
+    expect(css).toMatch(/\[data-depth-ribbon\]\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to right,\s*var\(--color-clear\)/);
     expect(block('@keyframes depth-ribbon')).toMatch(/from\s*\{\s*translate:\s*0 0/);
   });
 
@@ -76,6 +77,7 @@ describe('the magnet and the header', () => {
   });
 
   it('keeps the header cover at 96 percent (80 percent fails 4.5:1 over the ink tile)', () => {
-    expect(css).toContain('color-mix(in srgb, var(--color-bg) 96%, transparent)');
+    expect(css).toContain('background-color: var(--color-header-cover);');
+    expect(tokens).toContain('--color-header-cover: color-mix(in srgb, var(--color-bg) 96%, transparent);');
   });
 });

@@ -41,6 +41,13 @@ fill) are listed as overlap pairs, each with the drawing rule that makes it pass
 | `series-ghost` | `#CEDFF7` | band fill only, the projected width at the cap, inactive curves | decorative |
 | `ok` | `#1B7F3B` | the word for a passed check (for example "SRM passed") | 5.07 |
 | `warn` | `#B04A00` | the word for a real warning (SRM, paused, error) | 5.49 |
+| `hairline` | `ink` at 8% over clear | the site header's bottom rule | decorative |
+| `header-cover` | `bg` at 96% over clear | the site header's surface over its blur (96% keeps the muted nav text at 4.5:1 over a solid black region) | n/a |
+| `glint` | `series-1` at 10% over clear | the light that follows the pointer on a lean card | decorative |
+| `rule-quiet` | `muted` at 28% over clear | the rules between the rows of a tile | decorative |
+| `rule-on-ink` | `bg` at 20% over clear | the same rules on the `ink` tile | decorative |
+| `clear` | `transparent` | the clear end of a gradient or a mask, so a gradient never names `transparent` itself | n/a |
+| `mask-opaque` | the `ink` value | the kept end of a mask, where only the alpha counts and no black is drawn | n/a |
 
 Rules:
 - Text never uses `series-2`.
@@ -53,7 +60,9 @@ Rules:
   only about 10 apart under red-green colour blindness, so they are never the only cue.
 - Every `series-2` dot has a 2 px `bg` ring (a bare dot is 1.56:1 on the blue line and 2.72:1 on
   the band; with the ring it is 3.68:1).
-- No other colours. No gradients, no tinted greys, no black (`#000`).
+- No other colours. No tinted greys, no black (`#000`). Gradients exist only as masks and the lean
+  card's glint, and name their colours only through the tokens above: `globals.css` holds no
+  `color-mix()`, colour function, hex, `black`, `white` or gradient `transparent`.
 - Links are `muted` with a `muted` underline, never blue, and turn `ink` on hover and focus.
 - Input borders and the slider track edge are `muted`, never `line` (1.22:1). The active part of
   the track is filled in `accent`.
