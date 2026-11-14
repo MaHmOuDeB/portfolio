@@ -75,7 +75,7 @@ export function AboutPage(): ReactNode {
     <article aria-labelledby="about-title" className="py-12 md:py-section">
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-12">
         <div className="lg:col-span-7">
-          <h1 id="about-title" data-depth-rise="heading" className="text-2xl font-semibold md:text-3xl">
+          <h1 id="about-title" data-depth-rise="heading" className="text-display-sm font-semibold md:text-display">
             {ABOUT_TITLE}
           </h1>
           <div data-about-story="" className="mt-4 max-w-text space-y-4 text-lg">

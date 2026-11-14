@@ -200,8 +200,8 @@ describe('the About page', () => {
     expect(classes(grid[0]!)).not.toContain('md:grid-cols-12');
   });
 
-  it('uses the page-title size from md up on its h1, as every other page does', () => {
-    expect(classes(one(about(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-2xl', 'md:text-3xl']));
+  it('sets its h1 as a display title, larger than the section headings under it', () => {
+    expect(classes(one(about(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
   });
 
   it('gives the timeline and the term lists one width, and one first column', () => {

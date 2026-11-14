@@ -123,10 +123,13 @@ describe('the layout', () => {
     }
   });
 
-  it('sets each group heading as a large display heading, with the lede muted under it', () => {
+  it('sets the page title larger than the group headings, with the lede muted under each group', () => {
+    const h1 = /<h1 id="work-title" class="([^"]*)"/.exec(PAGE)![1]!.split(/\s+/);
+    expect(h1).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
     for (const [id] of GROUPS) {
       const h2 = new RegExp(`<h2 id="${id}-title" class="([^"]*)"`).exec(PAGE)![1]!.split(/\s+/);
-      expect(h2, id).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
+      expect(h2, id).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
+      expect(h2, id).not.toContain('md:text-display');
     }
     const ledes = [...PAGE.matchAll(/<p data-work-lede="" class="([^"]*)">([^<]*)<\/p>/g)];
     expect(ledes.map((m) => decode(m[2]!))).toEqual([
@@ -157,6 +160,9 @@ describe('the layout', () => {
     );
     expect(/<a [^>]*href="([^"]+)"/.exec(tile)![1]).toBe('/experiment');
     expect(PAGE.indexOf('data-work-site')).toBeGreaterThan(PAGE.lastIndexOf('</section>'));
+    // Its heading is a section heading like the groups', never as large as the page title.
+    const h2 = /^<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
+    expect(h2).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
   });
 });
 

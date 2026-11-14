@@ -32,7 +32,7 @@ export function WorkPage(): ReactNode {
   return (
     <article aria-labelledby="work-title" className="py-12 md:py-section">
       <div className={TEXT}>
-        <h1 id="work-title" className="text-2xl font-semibold md:text-3xl">
+        <h1 id="work-title" className="text-display-sm font-semibold md:text-display">
           {WORK_TITLE}
         </h1>
         <p data-work-intro="" className="mt-4 text-lg text-muted">
@@ -44,7 +44,7 @@ export function WorkPage(): ReactNode {
         <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} className="mt-16 md:mt-section">
           <h2
             id={`${section.id}-title`}
-            className={`${TEXT} text-display-sm font-semibold md:text-display`}
+            className={`${TEXT} text-2xl font-semibold md:text-display-sm`}
             data-depth-rise="heading"
           >
             {section.label}
@@ -70,7 +70,7 @@ export function WorkPage(): ReactNode {
 
       <div className="mt-16 md:mt-section">
       <Tile data-work-site="" data-depth-rise="">
-        <h2 className={`${TEXT} text-display-sm font-semibold`}>{WORK_SITE.title}</h2>
+        <h2 className={`${TEXT} text-2xl font-semibold md:text-display-sm`}>{WORK_SITE.title}</h2>
         <p className={`mt-4 ${TEXT} text-lg`}>{WORK_SITE.text}</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <ButtonLink href={HOME_LINKS.experiment} variant="primary">
