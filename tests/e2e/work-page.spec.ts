@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { HOME_LINKS } from '../../content/home-destinations.ts';
+import { HOME_SITE } from '../../content/home.ts';
 import { expectNoA11yViolations, test } from './fixtures';
 
 // The Work directory at /work: every case study and build note in three groups, as lean cards in a ruled list. The page is static and has no island. Every link must land: the page answers 200 and a
@@ -35,11 +37,24 @@ test.describe('the Work page', () => {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
     const headings = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2, main h3')].map((h) => Number(h.tagName[1])));
-    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3]);
+    // h1, the three groups with their cards, then the tile to the live test (an h2 with no h3 under it)
+    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
     expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
-    // the main links are exactly the seven cards
-    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length);
+    // the main links are exactly the seven cards and the tile's one link to the live test
+    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 1);
+  });
+
+  test('the tile at the end leads to the live test with one link', async ({ page }) => {
+    await page.goto(ROUTE);
+    const tile = page.locator('main [data-work-site]');
+    await expect(tile).toHaveCount(1);
+    await expect(tile.getByRole('heading', { level: 2 })).toHaveText(HOME_SITE.title);
+    await expect(tile.locator('a[href]')).toHaveCount(1);
+    const link = tile.getByRole('link', { name: HOME_SITE.live });
+    await expect(link).toHaveAttribute('href', HOME_LINKS.experiment);
+    // the last block of the article: nothing follows it
+    expect(await tile.evaluate((el) => el.closest('article')?.lastElementChild?.contains(el))).toBe(true);
   });
 
   test('the header marks Work as the current page', async ({ page }) => {
