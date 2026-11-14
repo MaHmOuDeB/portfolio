@@ -22,12 +22,49 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 
 const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])';
 
-/** Anything that started moving before any input (recorded from the first byte by openAt). */
+/**
+ * What broke the motion rule before any input. The rule: motion follows the visitor's scroll or
+ * pointer, or plays once on load; CSS only; nothing loops or runs on a clock. So before any input
+ * every animation seen must be a CSS animation named depth-* that is on a scroll or view timeline, or
+ * is finite and finished within 2 s of load; no CSS transition and no Web Animations API animation
+ * may run. Anything else is reported. Recorded from the first byte by openAt.
+ */
+const LOAD_BUDGET_MS = 2_000;
+
 async function motion(page: Page): Promise<string[]> {
   // Long enough for an idle island to load and for anything on a timer to start.
   await page.waitForTimeout(2_500);
-  const seen = await page.evaluate(() => (window as unknown as { __motion?: string[] }).__motion ?? []);
-  return [...new Set(seen)];
+  return page.evaluate((budget) => {
+    type MotionRecord = { kind: string; name: string; target: string; scroll?: boolean; iterations?: number; finishAt?: number };
+    const seen = (window as unknown as { __motion?: MotionRecord[] }).__motion ?? [];
+    const out = new Set<string>();
+    for (const r of seen) {
+      const what = `${r.kind} ${r.name} on ${r.target}`;
+      if (r.kind !== 'animation') out.add(`${what}: not allowed before input`);
+      else if (!r.name.startsWith('depth-')) out.add(`${what}: not a depth-* animation`);
+      else if (r.scroll === undefined) out.add(`${what}: could not be read back`);
+      else if (!r.scroll) {
+        if (r.iterations === undefined || !Number.isFinite(r.iterations)) out.add(`${what}: loops on a clock`);
+        else if ((r.finishAt ?? Infinity) > budget) out.add(`${what}: still running ${Math.round(r.finishAt ?? 0)} ms after load`);
+      }
+    }
+    // Anything running now that is not a CSS animation (a Web Animations API animation made some other way).
+    for (const a of document.getAnimations()) {
+      if (!(a instanceof CSSAnimation) && !(a instanceof CSSTransition)) out.add(`${a.constructor.name} running before input`);
+    }
+    return [...out];
+  }, LOAD_BUDGET_MS);
+}
+
+/** Under reduced motion nothing may animate or transition at all. */
+async function motionReduced(page: Page): Promise<string[]> {
+  await page.waitForTimeout(2_500);
+  return page.evaluate(() => {
+    const seen = (window as unknown as { __motion?: { kind: string; name: string; target: string }[] }).__motion ?? [];
+    const out = new Set(seen.map((r) => `${r.kind} ${r.name} on ${r.target}`));
+    for (const a of document.getAnimations()) out.add(`${a.constructor.name} running`);
+    return [...out];
+  });
 }
 
 async function sideways(page: Page): Promise<number> {
@@ -307,6 +344,10 @@ test.describe('Remaining quality: every page across the size matrix', () => {
         const page = await openAt(browser, route, size);
         const label = `${route} at ${size.name}`;
         expect.soft(await motion(page), `${label}: motion before any input`).toEqual([]);
+        // Under reduced motion, no animation at all.
+        const calm = await openAt(browser, route, size, { reducedMotion: 'reduce' });
+        expect.soft(await motionReduced(calm), `${label}: animation under reduced motion`).toEqual([]);
+        await calm.context().close();
         await common(page, label, route);
         await targets(page, route, label);
         expect.soft(await focusRings(page), `${label}: focus rings`).toEqual([]);

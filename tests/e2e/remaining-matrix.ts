@@ -202,18 +202,46 @@ export async function openAt(browser: Browser, url: string, size: Size, options:
     hasTouch: size.mobile,
     ...options,
   });
-  // Every animation and transition that starts from the first byte on, before any input.
+  // Every animation and transition that starts from the first byte on, before any input. Each is
+  // recorded as a structured fact so the test can judge it against the motion rule (see motionFindings).
   await context.addInitScript(() => {
-    const seen: string[] = [];
-    (window as unknown as { __motion: string[] }).__motion = seen;
+    type MotionRecord = { kind: string; name: string; target: string; scroll?: boolean; iterations?: number; finishAt?: number };
+    const seen: MotionRecord[] = [];
+    (window as unknown as { __motion: MotionRecord[] }).__motion = seen;
     const name = (el: EventTarget | null) => {
       if (!(el instanceof Element)) return String(el);
       const id = el.id ? `#${el.id}` : '';
       const data = [...el.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}]`).slice(0, 2).join('');
       return `${el.tagName.toLowerCase()}${id}${data}`;
     };
-    document.addEventListener('animationstart', (e) => seen.push(`animation ${e.animationName} on ${name(e.target)}`), true);
-    document.addEventListener('transitionrun', (e) => seen.push(`transition ${e.propertyName} on ${name(e.target)}`), true);
+    document.addEventListener('animationstart', (e) => {
+      const target = e.target as Element;
+      const found = document.getAnimations().find((a) => {
+        const effect = a.effect as KeyframeEffect | null;
+        return a instanceof CSSAnimation && a.animationName === e.animationName && effect?.target === target
+          && (effect.pseudoElement ?? '') === (e.pseudoElement ?? '');
+      });
+      if (!found) {
+        seen.push({ kind: 'animation', name: e.animationName, target: name(target) });
+        return;
+      }
+      const timing = found.effect!.getComputedTiming();
+      // ScrollTimeline and ViewTimeline are not in the DOM typings: anything but the document clock is one.
+      const scroll = found.timeline !== document.timeline;
+      // When it ends, in ms from the start of the page: now, plus what is left of its run.
+      const left = scroll ? 0 : Number(timing.endTime) - Number(found.currentTime ?? 0);
+      seen.push({
+        kind: 'animation', name: e.animationName, target: name(target), scroll,
+        iterations: timing.iterations, finishAt: performance.now() + left / (found.playbackRate || 1),
+      });
+    }, true);
+    document.addEventListener('transitionrun', (e) => seen.push({ kind: 'transition', name: e.propertyName, target: name(e.target) }), true);
+    // The Web Animations API is not allowed to run before input at all.
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, ...args: Parameters<Element['animate']>) {
+      seen.push({ kind: 'waapi', name: 'Element.animate', target: name(this) });
+      return animate.apply(this, args);
+    };
   });
   if (!islands) {
     await context.addInitScript(() => {

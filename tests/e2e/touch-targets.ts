@@ -16,7 +16,8 @@ export type InlineEntry = { name: string; while?: { selector: string; text: RegE
 export const HOME_INLINE: readonly InlineEntry[] = [{ name: 'Why so many?' }];
 // The contact page names LinkedIn in its intro and the privacy notice in the note under Send message.
 const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'LinkedIn' }, { name: 'privacy notice' }];
-// The Audible page's summary gives its adoption figure the same "Why so many?" link, in its sentence.
+// The Audible page's top block gives its adoption figure the "Why so many?" link twice: once in the
+// summary sentence and once in the sentence on what the rollout meant.
 export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/': HOME_INLINE,
   '/?variant=a': HOME_INLINE,
@@ -24,7 +25,7 @@ export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/contact': CONTACT_INLINE,
   // After sending, the form and its privacy note give way to the sent message; the intro stays.
   '/contact?sent=1': [{ name: 'LinkedIn' }],
-  '/work/audible': [{ name: 'Why so many?' }],
+  '/work/audible': [{ name: 'Why so many?' }, { name: 'Why so many?' }],
 };
 
 /** The names the route may exempt, in page order, in the page's current data state. */
