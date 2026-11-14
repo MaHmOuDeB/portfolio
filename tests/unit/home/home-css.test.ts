@@ -108,10 +108,25 @@ describe('the band: the stack that unfolds', () => {
         const opacity = /opacity:\s*([\d.]+)/.exec(from);
         return opacity !== null && Number(opacity[1]) < 1;
       });
-    expect(fades.map((f) => f.name)).toEqual(
-      expect.arrayContaining(['depth-rise', 'depth-rise-heading', 'depth-book-left', 'depth-book-right', 'depth-scale', 'depth-sheet-arrive', 'depth-link']),
-    );
+    expect(fades.map((f) => f.name).sort()).toEqual(['depth-link', 'depth-load', 'depth-rise-heading', 'depth-sheet-arrive']);
     for (const { name, body } of fades) expect(body, name).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
+  });
+
+  it('never fades a card, tile, drift wrapper, book or scale block in: they arrive by transform only', () => {
+    // Such a block is taller than its first lines, so its heading is fully in view while the block is
+    // still part way in. Every animation applied to one (bar the heading variant of the rise) is read
+    // from the rules that name it, and none of its keyframes may touch opacity.
+    const blocks = /\[data-(?:depth-lean|tile|depth-drift|depth-book|depth-scale|depth-rise)(?:="(?!heading")[^"]*")?\]/;
+    const names = new Set<string>();
+    for (const [, selector, body] of css.matchAll(/([^{};]+)\{([^{}]*)\}/g)) {
+      if (!selector!.split(',').some((part) => blocks.test(part) && !/\s/.test(part.trim().replace(/:[a-z-]+(\([^)]*\))?/g, '')))) continue;
+      for (const [, name] of body!.matchAll(/animation(?:-name)?:\s*(depth-[a-z-]+)/g)) names.add(name!);
+    }
+    expect([...names].sort()).toEqual(
+      expect.arrayContaining(['depth-book-left', 'depth-book-right', 'depth-drift-bl', 'depth-drift-br', 'depth-drift-tl', 'depth-drift-tr', 'depth-rise', 'depth-scale']),
+    );
+    expect(names).not.toContain('depth-rise-heading');
+    for (const name of names) expect(block(`@keyframes ${name} {`), name).not.toContain('opacity');
   });
 
   it('gives the rise a perspective in rem, 1400 px at the default root, so a larger text size never spills a block past the screen', () => {

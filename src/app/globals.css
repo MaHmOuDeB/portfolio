@@ -678,21 +678,18 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
  * element still wins. Reduced motion and browsers without scroll timelines get the final, static
  * state (the block at the end of this section).
  */
+
+/* A card or tile is taller than its first lines of text: its heading is fully in view while the
+   block is still only part way in. So every entrance on a block that holds text arrives by transform
+   only and is fully opaque from its first frame (rise, book, scale and the drifts). */
 @keyframes depth-rise {
   0% {
-    opacity: 0;
     translate: 0 80px;
     rotate: x 22deg;
     scale: 0.92;
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     translate: 0 0;
     rotate: x 0deg;
     scale: 1;
@@ -817,6 +814,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* The heading may fade: its range ends by entry 94% at the latest and it moves down, never up, so its
+   whole box is in view only once its range is over. Opaque by mid-range, a first line also reaches the
+   viewport after the fade ends for a heading of up to four lines. */
 @keyframes depth-rise-heading {
   0% {
     opacity: 0;
@@ -848,34 +848,20 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-book-left {
   0% {
-    opacity: 0;
     rotate: y var(--book-angle, 14deg);
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     rotate: y 0deg;
   }
 }
 
 @keyframes depth-book-right {
   0% {
-    opacity: 0;
     rotate: y calc(var(--book-angle, 14deg) * -1);
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     rotate: y 0deg;
   }
 }
@@ -892,17 +878,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-scale {
   0% {
-    opacity: 0;
     scale: 0.8;
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     scale: 1;
   }
 }
@@ -922,51 +901,30 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    recedes into that corner rather than toward the middle of its parent. */
 @keyframes depth-drift-bl {
   0% {
-    opacity: 0;
     transform: perspective(87.5rem) translate3d(-32px, 72px, -260px) rotateY(8deg);
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     transform: none;
   }
 }
 
 @keyframes depth-drift-br {
   0% {
-    opacity: 0;
     transform: perspective(87.5rem) translate3d(32px, 72px, -260px) rotateY(-8deg);
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     transform: none;
   }
 }
 
 @keyframes depth-drift-tr {
   0% {
-    opacity: 0;
     transform: perspective(87.5rem) translate3d(32px, -32px, -200px) rotateY(-8deg);
   }
 
-  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
-  50% {
-    opacity: 1;
-  }
-
   100% {
-    opacity: 1;
     transform: none;
   }
 }
