@@ -15,9 +15,14 @@ import type { Page, Request } from '@playwright/test';
 // reference, so no payload lists it today. If one ever did, the chunks it lists would be excused;
 // when that is all of the island's code, nothing counted arrives on intent, and each lazy test's
 // assertion on intent fails.
+//
+// The chunk list takes two forms. Some payloads list the paths inline in the import row. Others
+// write each path once as its own row, `<id>:"/_next/static/chunks/<name>.js"`, and the import rows
+// name it as `"$<id>"`, so the rows are read first and the references resolved.
 
 const PREFETCH_HEADER = 'next-router-prefetch';
 const IMPORT_ROW = /^[0-9a-z]+:I\[[^,]+,(\[[^\]]*\])/gm;
+const CHUNK_ROW = /^([0-9a-z]+):("\/_next\/static\/[^"]+\.js")$/gm;
 
 type Prefetch = { pathname: string; body: Promise<string> };
 
@@ -31,9 +36,16 @@ export type ScriptWatch = {
 /** The chunk paths of the import rows in an RSC payload. */
 function importedChunks(body: string): Set<string> {
   const chunks = new Set<string>();
+  const rows = new Map<string, string>();
+  for (const [, id = '', path = '""'] of body.matchAll(CHUNK_ROW)) rows.set(id, JSON.parse(path) as string);
   for (const [, list = '[]'] of body.matchAll(IMPORT_ROW)) {
     try {
-      for (const chunk of JSON.parse(list) as unknown[]) if (typeof chunk === 'string') chunks.add(chunk);
+      for (const chunk of JSON.parse(list) as unknown[]) {
+        if (typeof chunk !== 'string') continue;
+        // A reference to a chunk row that is not in this payload excuses nothing.
+        const path = chunk.startsWith('$') ? rows.get(chunk.slice(1)) : chunk;
+        if (path) chunks.add(path);
+      }
     } catch {
       // Not a chunk list: excuses nothing.
     }

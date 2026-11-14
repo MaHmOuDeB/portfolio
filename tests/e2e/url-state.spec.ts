@@ -21,10 +21,13 @@ async function open(page: Page, path: string) {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   // A hydration mismatch or a throw shows up here. Resource 404s do not count (shell.spec.ts checks
-  // them on the home page).
+  // them on the home page). Neither does WebKit's report of a router prefetch (`?_rsc=`) that the next
+  // navigation cancelled: this test navigates twice, and the header's links are still prefetching.
+  const cancelledPrefetch = /^Fetch API cannot load \S+\?_rsc=\S+ due to access control checks\.$/;
   page.on('console', (message) => {
-    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
-      errors.push(message.text());
+    const text = message.text();
+    if (message.type() === 'error' && !text.startsWith('Failed to load resource') && !cancelledPrefetch.test(text)) {
+      errors.push(text);
     }
   });
   await page.goto(path);
