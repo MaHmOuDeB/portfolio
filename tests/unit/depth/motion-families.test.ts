@@ -38,16 +38,17 @@ const still = block('@media (prefers-reduced-motion: reduce), print');
 
 describe('Drift', () => {
   it('arrives from a lower corner out of depth and ends on none, opaque by mid-range', () => {
-    for (const [name, x, turn] of [['bl', '-64px', '8deg'], ['br', '64px', '-8deg']] as const) {
+    for (const [name, x, turn] of [['bl', '-40px', '8deg'], ['br', '40px', '-8deg']] as const) {
       const kf = block(`@keyframes depth-drift-${name}`);
-      expect(kf).toMatch(new RegExp(`0%\\s*\\{\\s*opacity:\\s*0;\\s*transform:\\s*translate3d\\(${x}, 72px, -260px\\) rotateY\\(${turn}\\)`));
+      expect(kf).toMatch(new RegExp(`0%\\s*\\{\\s*opacity:\\s*0;\\s*transform:\\s*perspective\\(87\\.5rem\\) translate3d\\(${x}, 72px, -260px\\) rotateY\\(${turn}\\)`));
       expect(kf).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
       expect(kf).toMatch(/100%\s*\{\s*opacity:\s*1;\s*transform:\s*none;\s*\}/);
     }
   });
 
   it('runs on its own view, fills backwards only, with the perspective on the immediate parent', () => {
-    expect(families).toMatch(/:has\(> \[data-depth-drift\]\)\s*\{\s*perspective:\s*87\.5rem;\s*\}/);
+    // Each drift has its own perspective, its vanishing point at its corner: no parent perspective.
+    expect(families).not.toMatch(/:has\(> \[data-depth-drift/);
     expect(families).toMatch(/\[data-depth-drift\]\s*\{[^}]*animation:\s*depth-drift-bl linear backwards[^}]*animation-timeline:\s*view\(\)/);
     expect(families).toMatch(/\[data-depth-drift="br"\]\s*\{[^}]*animation-name:\s*depth-drift-br/);
   });
@@ -105,10 +106,11 @@ describe('the portraits', () => {
 
   it('drifts the call to action media from the top right with a fade, and About\'s portrait from the top left once on load, by transform only', () => {
     const tr = block('@keyframes depth-drift-tr');
-    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*translate3d\(40px, -32px, -200px\) rotateY\(-8deg\)/);
+    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*perspective\(87\.5rem\) translate3d\(40px, -32px, -200px\) rotateY\(-8deg\)/);
     expect(tr).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
     const tl = block('@keyframes depth-drift-tl');
     expect(tl).not.toContain('opacity');
+    expect(tl).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(-40px, -32px, -200px\) rotateY\(8deg\);/);
     expect(tl).toMatch(/to\s*\{\s*transform:\s*none;/);
     expect(families).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*animation:\s*depth-drift-tl var\(--duration-arrive\) var\(--ease-standard\) backwards/);
   });
