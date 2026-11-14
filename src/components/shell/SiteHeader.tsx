@@ -1,4 +1,4 @@
-// Wordmark, navigation and two buttons: CV (secondary), which always opens the CV page (the PDF, when
+// Wordmark at the left, the four links centred and muted, and two compact buttons at the right: CV (secondary), which always opens the CV page (the PDF, when
 // the build has one, is offered there), and Contact (primary). From lg (1024 px) up the four links and
 // both buttons show; under lg the same links and both buttons live behind Menu, because four links and
 // two buttons do not fit beside the wordmark in one row at 768 px.
@@ -20,7 +20,7 @@ const PHONE_GLYPH_LENGTH = 28;
 export function SiteHeader() {
   return (
     <header data-site-header="" className="z-(--z-header) md:h-(--header-h)">
-      <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8">
+      <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         {/* No prefetch: the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /. */}
         <Link
           href="/"
@@ -36,18 +36,18 @@ export function SiteHeader() {
           </span>
           <span>{SITE.name.replace('El Bergui', 'El Bergui')}</span>
         </Link>
-        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1 xs:gap-2 md:gap-6">
-          <nav aria-label="Main" className="hidden lg:block">
-            {/* One gap between labels whatever their length: each link pads its label evenly (a short
-                label is centred in its 44 px target), and the list's negative margin keeps the outer
-                labels on the row's edges. */}
-            <NavLinks className="-mx-2.5 flex items-center gap-1 [&_a]:justify-center [&_a]:px-2.5" />
-          </nav>
+        {/* From lg the four links sit in the middle column, centred between the wordmark and the
+            buttons. One gap between labels whatever their length: each link pads its label evenly (a
+            short label is centred in its 44 px target). */}
+        <nav aria-label="Main" className="hidden lg:block">
+          <NavLinks className="flex items-center gap-1.5 [&_a]:justify-center [&_a]:px-2.5" />
+        </nav>
+        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1 xs:gap-2 md:gap-6 lg:justify-self-end">
           <div className="hidden items-center gap-2 lg:flex">
-            <ButtonLink href={CV_LINK.href} variant="secondary">
+            <ButtonLink href={CV_LINK.href} variant="secondary" compact>
               {CV_LINK.label}
             </ButtonLink>
-            <ButtonLink href={CONTACT_LINK.href} variant="primary">
+            <ButtonLink href={CONTACT_LINK.href} variant="primary" compact>
               {CONTACT_LINK.label}
             </ButtonLink>
           </div>

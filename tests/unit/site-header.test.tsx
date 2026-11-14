@@ -42,6 +42,17 @@ describe('SiteHeader', () => {
     expect(menu).toMatch(/href="\/contact"[^>]*>/);
   });
 
+  it('centres the four links between the wordmark and the buttons from lg, with compact buttons', () => {
+    expect(MARKUP).toMatch(/<div class="[^"]*lg:grid lg:grid-cols-\[1fr_auto_1fr\][^"]*">\s*<a [^>]*href="\/"/);
+    const main = MARKUP.indexOf('aria-label="Main"');
+    const buttons = MARKUP.indexOf('lg:justify-self-end');
+    expect(main).toBeGreaterThan(-1);
+    expect(buttons).toBeGreaterThan(main);
+    const cv = anchors.find((a) => a.text === 'CV' && a.attrs.includes('border-hairline-strong'))!;
+    expect(cv.attrs).toContain('px-3');
+    expect(cv.attrs).not.toContain('px-3.5');
+  });
+
   it('shows the links and buttons from lg and the Menu under it', () => {
     expect(MARKUP).toMatch(/<nav aria-label="Main" class="hidden lg:block"/);
     expect(MARKUP).toMatch(/<details[^>]*class="[^"]*lg:hidden/);
