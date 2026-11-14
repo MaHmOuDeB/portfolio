@@ -1,8 +1,9 @@
 // The Home page as one server composition (HomeSections) and the per-group route that serves it
 // (src/app/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
-// groups, and read as a visitor and a screen reader get them, hidden markup included: the note,
-// the cards, the five steps, the chart's labels and the props serialized for the browser's client
-// components (the RSC payload). The route is checked for its static-generation settings, its one
+// groups, and read as a visitor and a screen reader get them, hidden markup included: the hero,
+// the proof row, the cards, the note and the props serialized for the browser's client components
+// (the RSC payload). The scroll moment is gone from the page; the test build's host still renders it
+// (HomeSectionsView) and keeps the note-and-steps consistency checks below. The route is checked for its static-generation settings, its one
 // snapshot read, the beacon first, and metadata that reads no snapshot.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -43,7 +44,8 @@ vi.mock('@/lib/experiment/live', async (original) => {
 });
 
 const live = await import('@/lib/experiment/live');
-const { HomeSections, homeScrollProps, homeTickAllowed } = await import('@/components/home/HomeSections');
+const { HomeSections } = await import('@/components/home/HomeSections');
+const { HomeSectionsView, homeScrollProps, homeTickAllowed } = await import('@/components/home/HomeScrollHost');
 const route = await import('@/app/v/[arm]/page');
 const { ExperimentBeacon } = await import('@/components/experiment/ExperimentBeacon');
 const { canonicalOrigin, pageMetadata } = await import('@/lib/seo/metadata');
@@ -112,6 +114,11 @@ afterEach(() => {
 function page(m: HomeModel, at: string = m.readAt): string {
   vi.setSystemTime(new Date(at));
   return renderToStaticMarkup(<HomeSections model={m} />);
+}
+/** The test build's host for a model: the same page with the scroll moment after the tiles. */
+function hostPage(m: HomeModel, at: string = m.readAt): string {
+  vi.setSystemTime(new Date(at));
+  return renderToStaticMarkup(<HomeSectionsView model={m} renderedAt={at} />);
 }
 
 type El = T.Element;
@@ -216,6 +223,10 @@ async function payload(node: unknown, out: Sent[] = []): Promise<Sent[]> {
 async function pagePayload(m: HomeModel, at: string = m.readAt): Promise<Sent[]> {
   vi.setSystemTime(new Date(at));
   return payload(<HomeSections model={m} />);
+}
+async function hostPayload(m: HomeModel, at: string = m.readAt): Promise<Sent[]> {
+  vi.setSystemTime(new Date(at));
+  return payload(<HomeSectionsView model={m} renderedAt={at} />);
 }
 /** Counts from 1 to 4 under the count keys of the serialized props. */
 function smallPayloadCounts(sent: Sent[]): string[] {
@@ -330,6 +341,9 @@ describe('the route: static per-group pages', () => {
     const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/HomeSectionsView/);
     expect(host).not.toMatch(/ExperimentBeacon|<Hero|<LiveNote|<FeaturedCases|<Tools/);
+    // The real page never imports the host's composition, so no scroll moment can reach it.
+    const real = readFileSync(path.join(ROOT, 'src/app/v/[arm]/page.tsx'), 'utf8');
+    expect(real).not.toMatch(/HomeScrollHost|ScrollMoment|ScrollShell|HeroSimulator/);
   });
 });
 
@@ -338,23 +352,40 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     ...MODES.flatMap((m) => ARMS.map((arm) => [`${m}/${arm}`, mode(m, arm)] as [string, HomeModel])),
     ...NARRATIVE_FIXTURES.map((n) => [n, named(n)] as [string, HomeModel]),
   ];
+  const RENDERS: readonly [string, (m: HomeModel) => string][] = [['page', (m) => page(m)], ['host', (m) => hostPage(m)]];
 
-  it.each(MODELS)('%s: hero and note, cards, scroll moment, tools, in that order', (_, m) => {
+  /** The blocks in page order, as the page marks them. */
+  const BLOCKS = ['data-hero', 'data-home-proof', 'data-home-track', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision'];
+  const blockName = (el: El) => {
+    const a = BLOCKS.find((n) => attr(el, n) !== undefined)!;
+    return a === 'data-home-track' ? `track:${attr(el, a)}` : a;
+  };
+
+  it.each(MODELS)('%s: hero, proof, two tracks, tiles, ribbon, site tile, decision band, in that order, with one h1', (_, m) => {
     const h = page(m);
-    const order = all(doc(h), (el) => ['data-hero', 'data-home-note', 'data-experiment', 'data-scroll-moment', 'data-home-tools'].some((a) => attr(el, a) !== undefined)).map(
-      (el) => ['data-hero', 'data-home-note', 'data-experiment', 'data-scroll-moment', 'data-home-tools'].find((a) => attr(el, a) !== undefined),
-    );
-    const expected = ['data-hero', 'data-home-note', 'data-experiment', 'data-scroll-moment', 'data-home-tools'].filter((a) => a !== 'data-home-note' || m.mode !== 'not-started');
-    expect(order).toEqual(expected);
+    const order = all(doc(h), (el) => BLOCKS.some((n) => attr(el, n) !== undefined)).map(blockName);
+    expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision']);
+    // The cards region sits inside the first track, and the note inside the site tile (absent before the start).
+    const first = section(h, has('data-home-track', 'experiments'))!;
+    expect(all(first, has('data-experiment', 'cards'))).toHaveLength(1);
+    const site = section(h, has('data-home-site'))!;
+    expect(all(site, has('data-home-note'))).toHaveLength(m.mode === 'not-started' ? 0 : 1);
     expect(all(doc(h), (el) => el.tagName === 'h1')).toHaveLength(1);
+    expect(text(all(doc(h), (el) => el.tagName === 'h1')[0]!)).toBe('I test what works, and automate the rest.');
   });
 
-  it.each(MODELS)('%s: the truth audit finds nothing, hidden markup included', (_, m) => {
-    expect(audit(page(m))).toEqual([]);
+  it.each(MODELS)('%s: no scroll moment, step, planner or hero simulator markup', (_, m) => {
+    const h = page(m);
+    expect(h).not.toMatch(/data-scroll|data-hero-simulator|hero-planner|data-home-chart|data-hero-evidence|data-home-tools/);
+    expect(all(doc(h), (el) => el.tagName === 'figure')).toEqual([]);
   });
 
-  it.each(MODELS)('%s: no repeated id', (_, m) => {
-    const ids = all(doc(page(m)), has('id')).map((el) => attr(el, 'id')!);
+  it.each(MODELS.flatMap(([n, m]) => RENDERS.map(([r, f]) => [`${n} (${r})`, m, f] as const)))('%s: the truth audit finds nothing, hidden markup included', (_, m, f) => {
+    expect(audit(f(m))).toEqual([]);
+  });
+
+  it.each(MODELS.flatMap(([n, m]) => RENDERS.map(([r, f]) => [`${n} (${r})`, m, f] as const)))('%s: no repeated id', (_, m, f) => {
+    const ids = all(doc(f(m)), has('id')).map((el) => attr(el, 'id')!);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
@@ -376,12 +407,49 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     expect(shown).toBe(m.calibration !== null || m.mode === 'not-started' ? 'a' : m.arm);
   });
 
+  it('the two groups differ only in the three headlines: same markup once the twins are neutral', () => {
+    /** The markup without the note's box (it names the reader's group) and without the twins' shown markers. */
+    const withoutNote = (html: string) => {
+      const start = html.indexOf('<div data-home-note=""');
+      if (start === -1) return html;
+      let depth = 0;
+      for (const m of html.slice(start).matchAll(/<div\b|<\/div>/g)) {
+        depth += m[0] === '</div>' ? -1 : 1;
+        if (depth === 0) return html.slice(0, start) + html.slice(start + m.index! + m[0].length);
+      }
+      throw new Error('the note box never closes');
+    };
+    const neutral = (html: string) =>
+      withoutNote(html)
+        .replaceAll(' data-headline-shown=""', '')
+        .replaceAll(' aria-hidden="true"', '')
+        .replaceAll(' invisible', '');
+    for (const m of ['not-started', 'ab', 'ship-b'] as const) {
+      const a = page(mode(m, 'a'));
+      const b = page(mode(m, 'b'));
+      if (m === 'ab') expect(a).not.toBe(b);
+      // Outside the note, which names the reader's group, only the cards' shown-twin markers differ.
+      expect(neutral(a), m).toBe(neutral(b));
+      // The text a reader sees differs only inside the three card headlines.
+      const strip = (h: string) => HEADLINES.reduce((out, hl) => out.replace(squash(headlineText(hl.a)), '').replace(squash(headlineText(hl.b)), ''), visibleText(neutral(h)));
+      expect(strip(a), m).toBe(strip(b));
+    }
+  });
+
   it.each(MODELS)('%s: the RSC payload holds no raw statistic, no model field and no small count', async (_, m) => {
-    const sent = await pagePayload(m);
-    expect(sent.map((s) => s.name)).not.toContain('HomeSections');
-    expect(rawKeys(sent)).toEqual([]);
-    expect(smallPayloadCounts(sent)).toEqual([]);
+    for (const sent of [await pagePayload(m), await hostPayload(m)]) {
+      expect(sent.map((s) => s.name)).not.toContain('HomeSections');
+      expect(rawKeys(sent)).toEqual([]);
+      expect(smallPayloadCounts(sent)).toEqual([]);
+    }
     expect(exactSmallCounts(page(m))).toEqual([]);
+    expect(exactSmallCounts(hostPage(m))).toEqual([]);
+  });
+
+  it('the page ships no scroll moment client component in its payload', async () => {
+    const sent = await pagePayload(mode('ab'));
+    expect(sent.map((s) => s.name)).not.toContain('ScrollShell');
+    expect((await hostPayload(mode('ab'))).map((s) => s.name)).toContain('ScrollShell');
   });
 });
 
@@ -403,7 +471,7 @@ describe('the note is absent before the start', () => {
     const future = toHomeModel(await read(createMemoryRedis(), { config: FIXTURE_CALIBRATION, now: '2026-11-01T12:00:00+01:00' }), 'b');
     for (const m of [none, future]) {
       expect(m.mode).toBe('not-started');
-      const h = page(m);
+      const h = hostPage(m);
       expect(noteText(h)).toBeNull();
       expect(everything(h)).not.toMatch(/paused|could not be loaded|calibrating first|views so far|A\/B test on this site|See the live results/i);
       expect(all(doc(h), (el) => (attr(el, 'data-derived') ?? '').split(' ').includes('live'))).toEqual([]);
@@ -413,7 +481,7 @@ describe('the note is absent before the start', () => {
 
 describe('the five false-copy gates, whole page', () => {
   it('(a) never started: no note, nothing counted, nothing paused', () => {
-    const h = page(mode('not-started'));
+    const h = hostPage(mode('not-started'));
     expect(noteText(h)).toBeNull();
     expect(stepText(h, 3)).toContain('The experiment has not started yet, so nothing is counted.');
     expect(everything(h)).not.toMatch(/paused|running|views so far|could not be loaded/i);
@@ -422,7 +490,7 @@ describe('the five false-copy gates, whole page', () => {
   it('(b) unreadable at build: "could not be loaded" in the note and the steps, never paused', async () => {
     const m = await placeholderAt(endPlus(-86_400_000));
     expect(m.mode).toBe('unavailable');
-    const h = page(m);
+    const h = hostPage(m);
     expect(noteText(h)).toContain('The live counts could not be loaded. They will appear at the next update.');
     for (const n of [2, 3, 5]) expect(stepText(h, n)).toContain('The live counts could not be loaded. They will appear at the next update.');
     expect(everything(h)).not.toMatch(/paused/i);
@@ -431,7 +499,7 @@ describe('the five false-copy gates, whole page', () => {
 
   it('(c) unreadable settings: stopped, with no date that would move with each regeneration', () => {
     const m = mode('settings-unreadable');
-    const h = page(m);
+    const h = hostPage(m);
     expect(noteText(h)).toContain('Counting is stopped because the experiment settings could not be read.');
     expect(all(section(h, has('data-home-note'))!, (el) => el.tagName === 'time')).toEqual([]);
     expect(all(doc(h), (el) => el.tagName === 'time' && attr(el, 'datetime') === m.readAt)).toEqual([]);
@@ -446,7 +514,7 @@ describe('the five false-copy gates, whole page', () => {
     for (const now of [AB_NOW, endPlus(86_400_000)]) {
       const m = toHomeModel(buildFixture({ config: FIXTURE_AB, now, rows }), 'b');
       expect(m.mode).toBe('held');
-      const h = page(m);
+      const h = hostPage(m);
       expect(noteText(h)).toMatch(/^The test stopped because the counts failed a consistency check\./);
       expect(everything(h)).not.toMatch(/resum|running|views so far|pause/i);
       expect(everything(h)).not.toMatch(VERDICTS);
@@ -455,7 +523,7 @@ describe('the five false-copy gates, whole page', () => {
   });
 
   it('(e) a stopped calibration: its date and reason, never running or calibrating', () => {
-    const h = page(mode('aa-failed'));
+    const h = hostPage(mode('aa-failed'));
     expect(noteText(h)).toContain('Calibration stopped on 06.11: a script error dropped some views.');
     expect(everything(h)).not.toMatch(/calibrating first|paused|running|views so far/i);
     expect(everything(h)).not.toMatch(STOPPED_PROMISES);
@@ -465,7 +533,7 @@ describe('the five false-copy gates, whole page', () => {
 describe('closure: the note, the five steps, hidden markup and labels agree', () => {
   /** The whole page on a closed test: past tense, nothing projected or promised, "closed" only when confirmed. */
   function expectClosed(m: HomeModel) {
-    const h = page(m);
+    const h = hostPage(m);
     const all_ = everything(h);
     expect(all_).not.toMatch(STOPPED_PROMISES);
     expect(all_).not.toMatch(/views so far|has fewer than|are the test|is assigned|calibrating first/i);
@@ -481,7 +549,7 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
 
   it('runs right up to the planned end and closes at it, in the margin before a decision', () => {
     const before = toHomeModel(buildFixture({ config: FIXTURE_AB, now: endPlus(-1), rows: BALANCED }), 'b');
-    const hb = page(before);
+    const hb = hostPage(before);
     expect(hb).toContain('data-cs="projection"');
     expect(stepText(hb, 1)).toContain('The case-study cards above are the test.');
     expect(noteText(hb)).toContain('This site runs an A/B test on its visitors, and you are in group B.');
@@ -531,7 +599,7 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
     await mark(redis, FIXTURE_CALIBRATION.namespace, 'aa-failed', '2026-11-06');
     const m = toHomeModel(await read(redis, { config: FIXTURE_CALIBRATION, now: CAL_NOW }), 'a');
     expect(m.mode).toBe('aa-failed');
-    const h = page(m);
+    const h = hostPage(m);
     expect(noteText(h)).toContain('Calibration stopped on 06.11: I no longer have the note explaining why.');
     expect(stepText(h, 3)).toContain('Calibration stopped on 06.11: I no longer have the note explaining why.');
     expect(h).not.toContain('data-home-chart');
@@ -551,7 +619,7 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
   it('an unreadable snapshot before, at and after the planned end: note and steps agree, no update promised at the end, no result', async () => {
     const before = await placeholderAt(endPlus(-1));
     expect(before).toMatchObject({ mode: 'unavailable', countingClosed: false });
-    const hb = page(before);
+    const hb = hostPage(before);
     const promise = 'The live counts could not be loaded. They will appear at the next update.';
     expect(noteText(hb)).toContain(promise);
     for (const n of [2, 3, 5]) expect(stepText(hb, n)).toContain(promise);
@@ -570,7 +638,7 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
 
   it('a held or closed drawn chart is named without "pause"; "counting stopped" only when held or confirmed', () => {
     for (const m of [mode('held'), mode('ship-b'), named('ship-b-confirmed'), named('paused-ship-b'), toHomeModel(buildFixture({ config: FIXTURE_AB, now: END, rows: BALANCED }), 'b')]) {
-      const h = page(m);
+      const h = hostPage(m);
       expect(h).toContain('data-home-chart');
       const chartLabels = all(doc(h), (el) => el.tagName === 'svg' && attr(el, 'aria-label') !== undefined).map((el) => attr(el, 'aria-label')!);
       expect(chartLabels.length).toBeGreaterThan(0);
@@ -587,26 +655,26 @@ describe('small counts and stopped tests with little data', () => {
   it.each(SMALL)('%s: "<5", never an exact 1 to 4, in the HTML or the payload', async (n) => {
     for (const arm of ARMS) {
       const m = named(n, arm);
-      const h = page(m);
+      const h = hostPage(m);
       expect(exactSmallCounts(h)).toEqual([]);
-      expect(smallPayloadCounts(await pagePayload(m))).toEqual([]);
+      expect(smallPayloadCounts(await hostPayload(m))).toEqual([]);
     }
   });
 
   it.each(['ab-tiny', 'calibration-tiny'] as const)('%s: the smaller group prints as "<5"', (n) => {
-    expect(everything(page(named(n)))).toContain('<5');
+    expect(everything(hostPage(named(n)))).toContain('<5');
   });
 
   it.each(['held-under-50', 'paused-under-50', 'closed-under-50', 'final-low', 'paused-tiny', 'held-enough-no-look'] as const)(
     '%s: no next look or first estimate is promised',
     (n) => {
-      expect(everything(page(named(n)))).not.toMatch(/next look|first estimate/i);
+      expect(everything(hostPage(named(n)))).not.toMatch(/next look|first estimate/i);
     },
   );
 });
 
 describe('the "your view" tick: allowed only on a fresh running chart with no ceiling day', () => {
-  const ticks = async (m: HomeModel, at: string = m.readAt) => shellCharts(await pagePayload(m, at)).map((c) => c?.tickFrom ?? null);
+  const ticks = async (m: HomeModel, at: string = m.readAt) => shellCharts(await hostPayload(m, at)).map((c) => c?.tickFrom ?? null);
 
   it('a fresh A/B with enough data and no ceiling day: allowed, and the payload carries where the tick may start', async () => {
     const m = mode('ab');
@@ -630,7 +698,7 @@ describe('the "your view" tick: allowed only on a fresh running chart with no ce
     expect(homeTickAllowed(m, late)).toBe(false);
     expect(await ticks(m, late)).toEqual([null, null, null, null, null]);
     // The note says how old the data is.
-    expect(noteText(page(m, late))).toMatch(/Updated/);
+    expect(noteText(hostPage(m, late))).toMatch(/Updated/);
   });
 
   it.each([

@@ -1,7 +1,7 @@
 // The Home host's fixed inputs: the note under the hero and the scroll moment are drawn from
 // fictional snapshots, never from the site's store, so the host looks the same on every run. Later
 // sections of the Home page join the host here as they are built.
-import { homeScrollProps } from '@/components/home/HomeSections';
+import { homeScrollProps } from '@/components/home/HomeScrollHost';
 import type { ScrollMomentProps } from '@/components/home/ScrollMoment';
 import { EXPERIMENT, type Arm } from '@/experiment.values';
 import { FIXTURE_AB, buildFixture, snapshotFixture } from '@/lib/home/fixtures';

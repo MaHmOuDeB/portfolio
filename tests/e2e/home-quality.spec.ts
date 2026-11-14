@@ -1,27 +1,26 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { expect } from '@playwright/test';
 import type { APIRequestContext, Browser, BrowserContextOptions, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { test, waitForIslands } from './fixtures';
-import { watchScripts } from './island-code';
 import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
 
 // The Home page's quality gates, in one place:
 // - the real page (/?variant=a and /?variant=b) across the size matrix: HTTP 200 with the matching
 //   x-arm, no sideways scroll, every pointer target at least 44 px (the pinned inline links aside),
 //   every focus ring visible, unclipped and clear of the sticky header, and the same geometry in both
-//   groups for every section; the phone fold at 375x812 holds the planner's title and readout in both;
-// - every text state of the Home composition on the test build's host, in the sticky and stacked
-//   layouts: one h1 and the landmarks, the five steps in order, no repeated id, no "undefined" or
+//   groups for every block; the phone fold at 375x812 holds the h1 and the primary button in both;
+// - every text state of the Home composition on the test build's host (the real page plus the scroll
+//   moment), in the sticky and stacked layouts: one h1 and the landmarks, the five steps in order, no repeated id, no "undefined" or
 //   "NaN", named charts, captioned tables, a current step only where the stage is drawn, a silent live
 //   region on load, and no axe violation;
 // - the budgets: the first-load JavaScript (unique script tags of the served HTML, gzip) against the
 //   pre-Home baseline, the HTML document, the JavaScript after 5 s idle, the time to a measured chart
 //   at 4x CPU, and no statistics code in the page-load scripts;
-// - the planner's preview before hydration (focus kept, the fold unmoved), the lazy island in each
-//   engine with the scripts it loads recorded, and the "your view" tick under forced colours.
+// - the real page holds no island and no planner (the calculator lives in the Lab), and the "your
+//   view" tick under forced colours.
 // The numbers are recorded as annotations (type "measure") in the JSON report.
 
 // Playwright runs from the repository root (experiment.spec.ts reads .next from there too).
@@ -54,6 +53,9 @@ function measure(name: string, value: unknown) {
 async function settled(page: Page) {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await waitForIslands(page);
+  // The load sequence is time-based: wait for it, so two pages are measured at rest (scroll-linked
+  // animations have no end and stay at their scroll position).
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.timeline instanceof DocumentTimeline).map((a) => a.finished.catch(() => undefined))));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
@@ -68,8 +70,8 @@ async function openHome(browser: Browser, arm: Arm, size: Size, options: Browser
 }
 
 /**
- * What a Home page was rendered from, as far as it shows: the scroll moment's layout, each Figure's
- * body and every live number (a <time> aside: it says when the page read the store, which differs
+ * What a Home page was rendered from, as far as it shows: any scroll moment's layout (none on the real
+ * page), each Figure's body and every live number (a <time> aside: it says when the page read the store, which differs
  * between two renders of the same data). Equal for both groups when both render the same data.
  */
 async function renderedData(page: Page): Promise<string> {
@@ -129,18 +131,22 @@ async function sections(page: Page): Promise<Record<string, Rect>> {
     };
     put('header', document.querySelector('[data-site-header]'));
     put('hero', document.querySelector('[data-hero]'));
-    put('planner', document.querySelector('figure[data-figure="hero-planner"]'));
-    put('note', document.querySelector('[data-home-note]'));
+    put('proof', document.querySelector('[data-home-proof]'));
+    put('experiments', document.querySelector('[data-home-track="experiments"]'));
     put('cards', document.querySelector('[data-experiment="cards"]'));
     for (const card of document.querySelectorAll('[data-case-card]')) {
       const study = card.getAttribute('data-case-card');
       put(`${study}:card`, card);
       put(`${study}:headline`, card.querySelector('[data-case-headline]'));
-      put(`${study}:link`, card.querySelector('[data-experiment-click="card"]'));
+      // The whole card is the link.
+      put(`${study}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
     }
-    put('moment', document.querySelector('[data-scroll-moment]'));
-    for (const step of document.querySelectorAll('[data-scroll-step]')) put(`step-${step.getAttribute('data-scroll-step')}`, step);
-    put('tools', document.querySelector('[data-home-tools]'));
+    put('automation', document.querySelector('[data-home-track="automation"]'));
+    put('tiles', document.querySelector('[data-home-tiles]'));
+    put('ribbon', document.querySelector('[data-home-ribbon]'));
+    put('site', document.querySelector('[data-home-site]'));
+    put('note', document.querySelector('[data-home-note]'));
+    put('decision', document.querySelector('[data-home-decision]'));
     put('footer', document.querySelector('footer'));
     out.page = { x: 0, y: 0, width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight };
     return out;
@@ -223,7 +229,7 @@ test.describe('Home quality: the real page in both groups across the size matrix
       const a = geometry.a!;
       const b = geometry.b!;
       expect(Object.keys(b).sort()).toEqual(Object.keys(a).sort());
-      for (const key of ['hero', 'planner', 'cards', 'moment', 'tools', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
+      for (const key of ['hero', 'proof', 'experiments', 'cards', 'automation', 'tiles', 'ribbon', 'site', 'decision', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
       for (const key of Object.keys(a)) {
         for (const side of ['x', 'y', 'width', 'height'] as const) {
           expect(Math.abs(a[key]![side] - b[key]![side]), `${key}.${side}: group A ${a[key]![side]}, group B ${b[key]![side]}`).toBeLessThanOrEqual(TOLERANCE);
@@ -234,14 +240,14 @@ test.describe('Home quality: the real page in both groups across the size matrix
     });
   }
 
-  test('@quality phone fold at 375x812: the planner title and readout are in view, at the same place in both groups', async ({ browser }, info) => {
+  test('@quality phone fold at 375x812: the h1 and the primary button are in view, at the same place in both groups', async ({ browser }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'explicit size');
     const boxes: Rect[][] = [];
     for (const arm of ['a', 'b'] as const) {
       const page = await openHome(browser, arm, { width: 375, height: 812, note: 'fold' }, { isMobile: true, hasTouch: true });
-      const figure = page.locator('figure[data-figure="hero-planner"]');
+      const hero = page.locator('[data-hero]');
       const found: Rect[] = [];
-      for (const el of [figure.locator('h2'), figure.locator('[data-figure-lead] [data-planner-n]')]) {
+      for (const el of [hero.locator('h1'), hero.getByRole('link', { name: 'See the evidence' })]) {
         await expect(el).toBeVisible();
         const box = (await el.boundingBox())!;
         expect(box.y + box.height, `group ${arm}: ${await el.innerText()}`).toBeLessThanOrEqual(812);
@@ -441,7 +447,7 @@ test.describe('Home quality: budgets', () => {
     expect(Math.abs(result.a!.html - result.b!.html), 'HTML, group difference').toBeLessThanOrEqual(BUDGET.armHtml);
   });
 
-  test('@quality no statistics code in the page-load scripts; the planner island brings it on intent', async ({ page, request }, info) => {
+  test('@quality no statistics code in the page-load scripts (the calculator is not on this page)', async ({ request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     for (const arm of ['a', 'b'] as const) {
       const html = await (await request.get(`/?variant=${arm}`)).text();
@@ -450,27 +456,13 @@ test.describe('Home quality: budgets', () => {
         for (const marker of STATS_MARKERS) expect(body.includes(marker), `group ${arm}: ${path} holds "${marker}"`).toBe(false);
       }
     }
-    // The check is not vacuous: the island's own code, loaded on intent, has the markers.
-    await page.addInitScript(() => {
-      window.requestIdleCallback = () => 0;
-      window.cancelIdleCallback = () => {};
-    });
-    const scripts = watchScripts(page);
-    await page.goto('/?variant=a');
-    await page.waitForLoadState('load');
-    const first = new Set(scriptTags(await (await request.get('/?variant=a')).text()));
-    scripts.start();
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    await figure.locator('h2').hover();
-    await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready');
-    const later = (await scripts.counted()).filter((p) => !first.has(p));
-    let found = false;
-    for (const path of later) {
-      const body = await (await request.get(path)).text();
-      if (STATS_MARKERS.some((m) => body.includes(m))) found = true;
-    }
-    measure('planner island scripts on intent', later);
-    expect(found, 'the island code holds the statistics markers').toBe(true);
+    // The check is not vacuous: the build does hold the statistics code in some chunk (the Lab's islands).
+    const chunks = join(ROOT, '.next/static/chunks');
+    const held = (dir: string): boolean =>
+      readdirSync(dir, { withFileTypes: true }).some((e) =>
+        e.isDirectory() ? held(join(dir, e.name)) : e.name.endsWith('.js') && STATS_MARKERS.some((m) => readFileSync(join(dir, e.name), 'utf8').includes(m)),
+      );
+    expect(held(chunks), 'some chunk of the build holds the statistics markers').toBe(true);
   });
 
   test('@quality JavaScript after 5 s idle, both groups, at phone and desktop sizes, on the real page and the enough-data host state', async ({ browser, request }, info) => {
@@ -555,78 +547,17 @@ test.describe('Home quality: budgets', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
-// The planner's preview before hydration, the lazy island, forced colours.
+// No island on the real page, and forced colours.
 
-test.describe('Home quality: islands and forced colours', () => {
-  test('@quality focus placed on the planner preview before hydration stays on that control, and the fold does not move', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'once, in Chromium (phone emulation)');
-    const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
-    const page = await context.newPage();
-    // Hold every script until the preview has focus, so the focus lands before hydration for certain.
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    await page.route('**/_next/static/**/*.js', async (route) => {
-      await gate;
-      await route.continue();
-    });
-    await page.goto('/?variant=a', { waitUntil: 'domcontentloaded' });
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    const slider = figure.getByRole('slider', { name: 'Baseline conversion' });
-    await slider.focus();
-    const before = await page.evaluate(() => {
-      const box = (sel: string) => {
-        const r = document.querySelector(sel)!.getBoundingClientRect();
-        return { y: r.y, height: r.height };
-      };
-      return {
-        hydrated: Object.keys(document.activeElement ?? {}).some((k) => k.startsWith('__react')),
-        title: box('figure[data-figure="hero-planner"] h2'),
-        readout: box('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]'),
-      };
-    });
-    expect(before.hydrated, 'focused before hydration').toBe(false);
-    release();
-    await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready', { timeout: 20_000 });
-    await expect(slider).toBeFocused();
-    const after = await page.evaluate(() => {
-      const box = (sel: string) => {
-        const r = document.querySelector(sel)!.getBoundingClientRect();
-        return { y: r.y, height: r.height };
-      };
-      return { title: box('figure[data-figure="hero-planner"] h2'), readout: box('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]') };
-    });
-    for (const key of ['title', 'readout'] as const) {
-      expect(Math.abs(after[key].y - before[key].y), `${key} moved`).toBeLessThanOrEqual(TOLERANCE);
-      expect(after[key].y + after[key].height, `${key} in the fold`).toBeLessThanOrEqual(812);
+test.describe('Home quality: no island and forced colours', () => {
+  test('@quality the real page holds no lazy island, no chart Figure and no planner, in either group', async ({ page }) => {
+    for (const arm of ['a', 'b'] as const) {
+      await page.goto(`/?variant=${arm}`);
+      await page.waitForLoadState('load');
+      await expect(page.locator('[data-island]'), `group ${arm}`).toHaveCount(0);
+      await expect(page.locator('figure[data-figure]'), `group ${arm}`).toHaveCount(0);
+      await expect(page.locator('[data-scroll-moment], [data-hero-simulator]'), `group ${arm}`).toHaveCount(0);
     }
-    await context.close();
-  });
-
-  test('@quality the real page: the planner island stays idle until intent, in every engine, and the scripts it loads are recorded', async ({ page, request }) => {
-    await page.addInitScript(() => {
-      window.requestIdleCallback = () => 0;
-      window.cancelIdleCallback = () => {};
-    });
-    const scripts = watchScripts(page);
-    await page.goto('/?variant=b');
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(500);
-    scripts.start();
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    const island = page.locator('[data-island]', { has: figure });
-    await expect(island).toHaveAttribute('data-island', 'idle');
-    await page.waitForTimeout(800);
-    const early = await scripts.counted();
-    const first = new Set(scriptTags(await (await request.get('/?variant=b')).text()));
-    const before = early.filter((p) => !first.has(p));
-    measure('scripts before intent (not first-load)', before);
-    expect(before, 'no island code before intent').toEqual([]);
-    await expect(island).toHaveAttribute('data-island', 'idle');
-    await figure.locator('h2').hover();
-    await expect(island).toHaveAttribute('data-island', 'ready');
-    const byIntent = (await scripts.counted()).filter((p) => !first.has(p));
-    measure('scripts by intent', byIntent);
-    expect(byIntent.length, 'intent loads the island code').toBeGreaterThan(0);
   });
 
   test('@quality forced colours: the "your view" tick keeps a visible stroke', async ({ browser }, info) => {
