@@ -1000,6 +1000,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     animation-delay: calc(120ms + var(--d, 0) * 90ms);
   }
 
+  /* A fast Tab can reach a button before it has faded in: with focus it shows at once. */
+  [data-depth-load]:focus-within {
+    animation: none;
+  }
+
   /* Magnet: a primary button follows a fine pointer by up to 6 px (--tx, --ty set by Lean). The
      shift is rounded to whole pixels: at a fractional offset the composited button resampled its
      right edge into a faint line. Before Lean sets --tx and --ty the rounded value is invalid at
@@ -1086,10 +1091,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       animation-range: entry 0% entry 80%;
     }
 
+    /* The slide ends a little before mid-screen, so every tool has been in full view while the
+       ribbon is still low on the screen, not only as it leaves the top. */
     [data-depth-ribbon] > ul {
       animation: depth-ribbon linear both;
       animation-timeline: view();
-      animation-range: cover 0% cover 100%;
+      animation-range: cover 0% cover 45%;
     }
 
     [data-depth-scale] {
@@ -1108,6 +1115,15 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       animation: depth-reveal linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 90%;
+    }
+
+    /* A control that has focus is never mid-entrance (at opacity 0 at the very start): its block
+       jumps to the final, static state. */
+    [data-depth-rise]:focus-within,
+    [data-depth-book]:focus-within,
+    [data-depth-scale]:focus-within,
+    [data-depth-reveal]:focus-within {
+      animation: none;
     }
 
     [data-depth-progress] {
@@ -1138,7 +1154,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    natural height, nothing is pinned, and the plane rests at its gentle tilt. No overflow on the pin:
    the buttons' focus rings must never be clipped. */
 @supports (animation-timeline: view()) and (position: sticky) {
-  @media (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference) {
+  @media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference) {
     @layer components {
       [data-depth-scene] {
         height: 190vh;
@@ -1206,6 +1222,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   [data-depth-lean] {
+    transform: none;
+  }
+
+  /* The card's parts stand flat on its face too, so nothing sits in depth at rest. */
+  [data-depth-lean] :is(h3, p, [data-depth-meta], [data-depth-go]) {
     transform: none;
   }
 

@@ -23,11 +23,11 @@ function block(head: string): string {
 }
 
 describe('the hero scene', () => {
-  const pin = block('@media (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
+  const pin = block('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
 
   it('pins and turns only inside the scroll-timeline support check, from lg and with motion allowed', () => {
     const supports = block('@supports (animation-timeline: view()) and (position: sticky)');
-    expect(supports).toContain('@media (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
+    expect(supports).toContain('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
   });
 
   it('is a tall scene with a sticky inner under the header, a viewport minus the header tall', () => {
@@ -88,6 +88,40 @@ describe('the ribbon', () => {
     const moving = block('@media screen and (prefers-reduced-motion: no-preference)');
     expect(moving).toMatch(/\[data-depth-ribbon\] > ul\s*\{[^}]*flex-wrap:\s*nowrap/);
     expect(css).toMatch(/\[data-depth-ribbon\] ul\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+});
+
+describe('accessibility guards', () => {
+  // The reduced-motion and print block, the last one in the file.
+  const still = block('@media (prefers-reduced-motion: reduce), print');
+  // The scroll-timeline block that holds rise, book, scale and reveal.
+  const timelines = block('@supports (animation-timeline: view()) {\n  @layer components {\n    :has(> [data-depth-rise])');
+
+  it('keeps the lean card glint light, so muted text on a hovered card keeps its contrast', () => {
+    expect(tokens).toContain('--color-glint: color-mix(in srgb, var(--color-bg) 70%, transparent);');
+  });
+
+  it('never leaves a focused control inside a scroll-linked entrance at opacity 0', () => {
+    expect(timelines).toMatch(
+      /\[data-depth-rise\]:focus-within,\s*\[data-depth-book\]:focus-within,\s*\[data-depth-scale\]:focus-within,\s*\[data-depth-reveal\]:focus-within\s*\{\s*animation:\s*none;?\s*\}/,
+    );
+  });
+
+  it('never leaves a focused hero button inside the load sequence at opacity 0', () => {
+    expect(css).toMatch(/\[data-depth-load\]:focus-within\s*\{\s*animation:\s*none;?\s*\}/);
+  });
+
+  it('ends the ribbon slide a little before mid-screen, so every tool has been in full view while the ribbon is still low', () => {
+    expect(timelines).toMatch(/\[data-depth-ribbon\] > ul\s*\{[^}]*animation-range:\s*cover 0% cover 45%/);
+  });
+
+  it('flattens the card parts that stand off the face under reduced motion', () => {
+    expect(still).toMatch(/\[data-depth-lean\] :is\(h3, p, \[data-depth-meta\], \[data-depth-go\]\)\s*\{\s*transform:\s*none;?\s*\}/);
+  });
+
+  it('pins the hero on screens only, never in print', () => {
+    expect(css).toContain('@media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference)');
+    expect(css).not.toContain('@media (width >= 64rem) and (height >= 43.75rem)');
   });
 });
 
