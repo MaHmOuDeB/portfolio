@@ -904,7 +904,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-drift-bl {
   0% {
     opacity: 0;
-    transform: perspective(87.5rem) translate3d(-40px, 72px, -260px) rotateY(8deg);
+    transform: perspective(87.5rem) translate3d(-32px, 72px, -260px) rotateY(8deg);
   }
 
   /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
@@ -921,7 +921,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-drift-br {
   0% {
     opacity: 0;
-    transform: perspective(87.5rem) translate3d(40px, 72px, -260px) rotateY(-8deg);
+    transform: perspective(87.5rem) translate3d(32px, 72px, -260px) rotateY(-8deg);
   }
 
   /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
@@ -938,7 +938,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @keyframes depth-drift-tr {
   0% {
     opacity: 0;
-    transform: perspective(87.5rem) translate3d(40px, -32px, -200px) rotateY(-8deg);
+    transform: perspective(87.5rem) translate3d(32px, -32px, -200px) rotateY(-8deg);
   }
 
   /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
@@ -958,7 +958,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    portrait in from below instead. */
 @keyframes depth-drift-tl {
   from {
-    transform: perspective(87.5rem) translate3d(-40px, -32px, -200px) rotateY(8deg);
+    transform: perspective(87.5rem) translate3d(-32px, -32px, -200px) rotateY(8deg);
   }
 
   to {

@@ -38,7 +38,7 @@ const still = block('@media (prefers-reduced-motion: reduce), print');
 
 describe('Drift', () => {
   it('arrives from a lower corner out of depth and ends on none, opaque by mid-range', () => {
-    for (const [name, x, turn] of [['bl', '-40px', '8deg'], ['br', '40px', '-8deg']] as const) {
+    for (const [name, x, turn] of [['bl', '-32px', '8deg'], ['br', '32px', '-8deg']] as const) {
       const kf = block(`@keyframes depth-drift-${name}`);
       expect(kf).toMatch(new RegExp(`0%\\s*\\{\\s*opacity:\\s*0;\\s*transform:\\s*perspective\\(87\\.5rem\\) translate3d\\(${x}, 72px, -260px\\) rotateY\\(${turn}\\)`));
       expect(kf).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
@@ -106,11 +106,11 @@ describe('the portraits', () => {
 
   it('drifts the call to action media from the top right with a fade, and About\'s portrait from the top left once on load, by transform only', () => {
     const tr = block('@keyframes depth-drift-tr');
-    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*perspective\(87\.5rem\) translate3d\(40px, -32px, -200px\) rotateY\(-8deg\)/);
+    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*perspective\(87\.5rem\) translate3d\(32px, -32px, -200px\) rotateY\(-8deg\)/);
     expect(tr).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
     const tl = block('@keyframes depth-drift-tl');
     expect(tl).not.toContain('opacity');
-    expect(tl).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(-40px, -32px, -200px\) rotateY\(8deg\);/);
+    expect(tl).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(-32px, -32px, -200px\) rotateY\(8deg\);/);
     expect(tl).toMatch(/to\s*\{\s*transform:\s*none;/);
     expect(families).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*animation:\s*depth-drift-tl var\(--duration-arrive\) var\(--ease-standard\) backwards/);
   });
