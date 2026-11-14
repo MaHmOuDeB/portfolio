@@ -34,8 +34,17 @@ export function SiteTile() {
               </ButtonLink>
             </div>
           </div>
-          <div className="overflow-clip rounded-xl border border-hairline lg:transform-[perspective(56rem)_rotateY(-14deg)_rotateX(6deg)] [&>[data-vignette]]:h-60 [&>[data-vignette]]:border-t-0">
-            <ConfidenceSketch />
+          {/* The sketch turns in on its centre to its resting tilt as it enters, then leans a little to a
+              fine pointer with a sheen that follows it. Its band is never drawn on: a band that grows
+              would read as live data. */}
+          <div
+            data-depth-turn=""
+            data-depth-follow=""
+            className="overflow-clip rounded-xl border border-hairline lg:transform-[perspective(56rem)_rotateY(-14deg)_rotateX(6deg)]"
+          >
+            <div data-site-sketch="" className="[&>[data-vignette]]:h-60 [&>[data-vignette]]:border-t-0">
+              <ConfidenceSketch />
+            </div>
           </div>
         </div>
       </Tile>

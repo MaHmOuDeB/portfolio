@@ -984,6 +984,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* Turn: the Hinge on a centre axis, used once (the site-test sketch). It ends on the sketch's own
+   resting tilt, its base style, so it has no last keyframe. */
+@keyframes depth-turn {
+  from {
+    transform: perspective(56rem) rotateY(-28deg) rotateX(10deg) translateZ(-120px);
+  }
+}
+
 /* Hinge: a surface rotates up on its bottom edge like a lid. */
 @keyframes depth-hinge {
   from {
@@ -2096,6 +2104,13 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         animation-range: entry 10% entry 90%;
       }
 
+      [data-depth-turn] {
+        transform-origin: 50% 50%;
+        animation: depth-turn linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% cover 45%;
+      }
+
       /* In a drifting card the lid follows its card. */
       [data-depth-drift] [data-depth-hinge] {
         animation-range: entry 40% contain 10%;
@@ -2104,7 +2119,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
       [data-depth-drift]:focus-within,
       [data-depth-hinge]:focus-within,
-      [data-depth-focus]:focus-within {
+      [data-depth-focus]:focus-within,
+      [data-depth-turn]:focus-within {
         animation: none;
       }
 
@@ -2131,6 +2147,31 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       transition: translate var(--duration-lean) var(--ease-standard);
     }
 
+    /* The site-test sketch leans a little toward the pointer, a sheen over it where the pointer is. */
+    [data-depth-follow]:has(> [data-site-sketch]) {
+      perspective: 56rem;
+    }
+
+    [data-depth-follow] > [data-site-sketch] {
+      position: relative;
+      transform: rotateY(calc(var(--mx) * 4deg)) rotateX(calc(var(--my) * -2deg));
+      transition: transform var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-follow] > [data-site-sketch]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(18rem circle at var(--gx, 50%) var(--gy, -20%), var(--color-glint), var(--color-clear) 60%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    [data-depth-follow]:hover > [data-site-sketch]::after {
+      opacity: 1;
+    }
+
     [data-depth-follow] [data-cta-text] {
       /* Whole pixels: a block of text at a fractional offset would be resampled soft. */
       translate: round(calc(var(--mx) * -2px), 1px) round(calc(var(--my) * -2px), 1px);
@@ -2153,6 +2194,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-hinge],
   [data-depth-focus],
   [data-depth-focus] > img,
+  [data-depth-turn],
   [data-depth-arrive],
   [data-depth-rig],
   [data-depth-sheet],
@@ -2182,6 +2224,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-follow] :is([data-cta-media], [data-cta-text]) {
     translate: none;
+  }
+
+  [data-depth-follow] > [data-site-sketch] {
+    transform: none;
+  }
+
+  [data-depth-follow] > [data-site-sketch]::after {
+    content: none;
   }
 
   [data-depth-link] {

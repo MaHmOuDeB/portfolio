@@ -135,3 +135,26 @@ describe('the portraits', () => {
     expect(families).toMatch(/\[data-depth-focus\]:focus-within/);
   });
 });
+
+describe('Turn', () => {
+  it('turns the site-test sketch in on its centre to its own resting tilt, never drawing its band on', async () => {
+    const kf = block('@keyframes depth-turn');
+    expect(kf).toMatch(/from\s*\{\s*transform:\s*perspective\(56rem\) rotateY\(-28deg\) rotateX\(10deg\) translateZ\(-120px\);\s*\}/);
+    expect(kf).not.toMatch(/\bto\b|100%/);
+    expect(families).toMatch(/\[data-depth-turn\]\s*\{[^}]*transform-origin:\s*50% 50%[^}]*animation:\s*depth-turn linear backwards[^}]*animation-range:\s*entry 10% cover 45%/);
+    const { SiteTile } = await import('@/components/home/SiteTile');
+    const html = renderToStaticMarkup(createElement(SiteTile));
+    expect(html).toMatch(/<div data-depth-turn="" data-depth-follow=""[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
+    expect(html).not.toMatch(/<path[^>]*data-depth/);
+  });
+
+  it('leans the sketch to a fine pointer with a sheen, and stops both under reduced motion', () => {
+    const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+    expect(pointer).toMatch(/\[data-depth-follow\] > \[data-site-sketch\]\s*\{[^}]*transform:\s*rotateY\(calc\(var\(--mx\) \* 4deg\)\)/);
+    expect(pointer).toMatch(/\[data-depth-follow\] > \[data-site-sketch\]::after\s*\{[^}]*radial-gradient\(18rem circle at var\(--gx, 50%\) var\(--gy, -20%\)/);
+    expect(still).toMatch(/\[data-depth-follow\] > \[data-site-sketch\]\s*\{\s*transform:\s*none;/);
+    expect(still).toMatch(/\[data-depth-follow\] > \[data-site-sketch\]::after\s*\{\s*content:\s*none;/);
+    expect(still).toContain('[data-depth-turn]');
+    expect(families).toMatch(/\[data-depth-turn\]:focus-within/);
+  });
+});

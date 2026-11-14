@@ -44,6 +44,7 @@ const SET_BY_PAGES: Record<string, string> = {
   'data-depth-hinge': 'the sketch sheet of the frame Vignette, which lifts like a lid inside a card',
   'data-depth-focus': 'the wrapper of the call to action portrait, which comes into focus',
   'data-depth-follow': 'a pointer scene a page or frame component marks; Lean writes its values',
+  'data-depth-turn': 'the site-test sketch on Home, which turns in on its centre',
   'data-proof-unit': 'a word around a proof figure\'s number (about, min), which the page passes inside the figure',
 };
 // Rendered parts with no rule of their own. Empty on purpose: add an entry only with a reason.
