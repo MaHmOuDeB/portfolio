@@ -4,8 +4,6 @@
 // counted once with its secondary click, soft returns that never count a second entry, the uncounted
 // middle click, the note's "as of" time by the reader's clock, and a payload with no raw statistic.
 // The e2e run is in the calibration, so both groups show group A's headlines.
-// The scroll moment is gone from the real page; the "your view" tick under its rule (ceiling day, stale
-// at render) still runs on the test build's host, whose fixtures fix the render time.
 import { expect, type Page, type Request } from '@playwright/test';
 import { readView } from '../../src/lib/experiment/store';
 import { createRedisRest } from '../../src/lib/experiment/redis-rest';
@@ -103,7 +101,7 @@ test.describe('the home page at /', () => {
       const context = await browser.newContext({ baseURL, viewport: size });
       const page = await context.newPage();
       // Measured once hydrated (the beacon has posted) and every island has settled: the note's
-      // "Updated" time and the planner swap in only then, in both groups alike.
+      // "Updated" time swaps in only then, in both groups alike.
       const hydrated = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/e', { timeout: 15_000 });
       await page.goto(`/?variant=${variant}`);
       await hydrated;
@@ -163,8 +161,8 @@ test.describe('the home page at /', () => {
         expect(body, key).not.toMatch(new RegExp(`\\\\?"${key}\\\\?":`));
       }
     }
-    // The payload did hold the note's client props (else this would prove nothing), and the page no
-    // longer ships the scroll moment's chart entries.
+    // The payload did hold the note's client props (else this would prove nothing), and the page
+    // ships no chart entries.
     expect(bodies[0]).toMatch(/\\"readAt\\":\\"/);
     for (const body of bodies) expect(body).not.toMatch(/\\"charts\\":\[|data-scroll-moment/);
   });
@@ -278,30 +276,4 @@ test.describe('the note’s time by the reader’s clock', () => {
     await expect(page.locator('[data-home-note] time')).toHaveCount(0);
     await context.close();
   });
-});
-
-test.describe('the "your view" tick under the home page’s own rule (test build host)', () => {
-  const scroll = (state: string) => `/kitchen-sink/home/scroll/${state}`;
-  for (const [state, drawn] of [['home-fresh', true], ['home-ceiling-day', false], ['home-stale-at-render', false]] as const) {
-    test(`${state}: ${drawn ? 'a tick after a counted view of this group' : 'no tick start in the payload and none drawn after a counted view of this group'}`, async ({ browser, baseURL }) => {
-      const html = await (await (await browser.newContext({ baseURL })).request.get(scroll(state))).text();
-      const starts = [...html.matchAll(/\\"tickFrom\\":(null|\d+)/g)].map((m) => m[1]);
-      expect(starts.length).toBeGreaterThan(0);
-      if (drawn) expect(starts.some((s) => s !== 'null')).toBe(true);
-      else expect(starts.every((s) => s === 'null')).toBe(true);
-
-      const context = await browser.newContext({ baseURL, viewport: { width: 1024, height: 768 } });
-      const page = await context.newPage();
-      await page.goto(scroll(state));
-      await expect(page.locator('[data-scroll-moment] [data-home-chart]:not([data-measured])')).toHaveCount(0, { timeout: 15_000 });
-      await expect(page.locator('[data-scroll-canvas] [data-home-chart][data-measured]')).toHaveCount(1, { timeout: 15_000 });
-      await page.evaluate(() => window.dispatchEvent(new CustomEvent('experiment:counted', { detail: { arm: 'b', viewN: 1e9 } })));
-      if (drawn) await expect(page.locator('[data-scroll-canvas] [data-your-view]')).toHaveCount(1);
-      else {
-        await page.waitForTimeout(500);
-        await expect(page.locator('[data-scroll-moment] [data-your-view]')).toHaveCount(0);
-      }
-      await context.close();
-    });
-  }
 });

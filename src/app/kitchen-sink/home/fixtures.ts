@@ -27,17 +27,10 @@ function manyLooks(arm: Arm = 'b'): HomeModel {
 
 /**
  * The host's states: every mode, then the narrative fixtures, then the A/B with a look on each of ten
- * days. `PAIRED_STATES` picks the ones drawn for both groups.
+ * days.
  */
 export const HOST_STATES: readonly {
   id: string;
   /** The state's model seen from a group (B unless named). */
   model: (arm?: Arm) => HomeModel;
 }[] = [...STEP_STATES, { id: 'ab-many-looks', model: manyLooks }];
-
-/**
- * The states drawn for both groups (/kitchen-sink/home/<group>/<state>), for measurements that
- * compare or cover the two groups on one state: before data, collecting, enough data, and the end
- * states the review screenshots show.
- */
-export const PAIRED_STATES = ['before-data', 'calibration', 'ab-many-looks', 'inconclusive', 'aa-failed'] as const;

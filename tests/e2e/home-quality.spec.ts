@@ -12,15 +12,13 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 //   x-arm, no sideways scroll, every pointer target at least 44 px (the pinned inline links aside),
 //   every focus ring visible, unclipped and clear of the sticky header, and the same geometry in both
 //   groups for every block; the phone fold at 375x812 holds the h1 and the primary button in both;
-// - every text state of the Home composition on the test build's host (the real page plus the scroll
-//   moment), in the sticky and stacked layouts: one h1 and the landmarks, the five steps in order, no repeated id, no "undefined" or
-//   "NaN", named charts, captioned tables, a current step only where the stage is drawn, a silent live
-//   region on load, and no axe violation;
+// - every text state of the Home composition on the test build's host, in a wide, a phone, a
+//   reduced-motion and a no-JavaScript layout: one h1 and the landmarks, no repeated id, no "undefined"
+//   or "NaN", named images, captioned tables, and no axe violation;
 // - the budgets: the first-load JavaScript (unique script tags of the served HTML, gzip) against the
-//   pre-Home baseline, the HTML document, the JavaScript after 5 s idle, the time to a measured chart
-//   at 4x CPU, and no statistics code in the page-load scripts;
-// - the real page holds no island and no planner (the calculator lives in the Lab), and the "your
-//   view" tick under forced colours.
+//   pre-Home baseline, the HTML document, the JavaScript after 5 s idle, and no statistics code in
+//   the page-load scripts;
+// - the real page holds no island, no chart and no planner (the calculator lives in the Lab).
 // The numbers are recorded as annotations (type "measure") in the JSON report.
 
 // Playwright runs from the repository root (experiment.spec.ts reads .next from there too).
@@ -70,13 +68,11 @@ async function openHome(browser: Browser, arm: Arm, size: Size, options: Browser
 }
 
 /**
- * What a Home page was rendered from, as far as it shows: any scroll moment's layout (none on the real
- * page), each Figure's body and every live number (a <time> aside: it says when the page read the store, which differs
+ * What a Home page was rendered from, as far as it shows: each Figure's body and every live number (a <time> aside: it says when the page read the store, which differs
  * between two renders of the same data). Equal for both groups when both render the same data.
  */
 async function renderedData(page: Page): Promise<string> {
   return page.evaluate(() => JSON.stringify({
-    moment: document.querySelector('[data-scroll-moment]')?.getAttribute('data-scroll-moment') ?? null,
     bodies: [...document.querySelectorAll('figure[data-figure]')].map((f) => `${f.getAttribute('data-figure')}:${f.getAttribute('data-body') ?? ''}`),
     live: [...document.querySelectorAll('[data-derived~="live"]')]
       .filter((el) => el.closest('time') === null && el.querySelector('time') === null)
@@ -94,8 +90,7 @@ const ONE_REVALIDATION_MS = 330_000;
  * Both groups' real pages, rendered from the same data. /v/a and /v/b are separate ISR pages that
  * regenerate on their own every 300 s, while the suite's counted views change the store. A pair read
  * across one group's regeneration holds two different states (CI: group A the build's "under 50",
- * group B a regenerated "fewer than 5", which has no live chart and so a stacked moment 476 px
- * shorter), and comparing their geometry measures the data, not the groups. So the pair is read
+ * group B a regenerated "fewer than 5", which prints a different note), and comparing their geometry measures the data, not the groups. So the pair is read
  * again until both show the same data: the request that got the stale page has started its
  * regeneration, so the next pair normally agrees. Only the precondition is waited for; every
  * geometry check below stays exact.
@@ -283,84 +278,55 @@ function listed(file: string, start: string, end: string): string[] {
   const body = src.slice(from + start.length, src.indexOf(end, from + start.length));
   return [...body.matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1]!);
 }
-const MODES = listed('src/app/kitchen-sink/home/steps/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
+const MODES = listed('src/app/kitchen-sink/home/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
 const NARRATIVE = listed('src/lib/home/narrative-fixtures.ts', 'export const NARRATIVE_FIXTURES = [', '] as const');
-const EXTRA = ['ab-many-looks', 'chart-error', 'ab-tick', 'ab-two-charts', 'home-fresh', 'home-ceiling-day', 'home-stale-at-render'];
-const STATES = [...MODES, ...NARRATIVE, ...EXTRA];
+const STATES = [...MODES, ...NARRATIVE, 'ab-many-looks'];
 
 type Layout = { name: string; size: { width: number; height: number }; options: BrowserContextOptions };
 const LAYOUTS: readonly Layout[] = [
-  { name: 'sticky, two columns', size: { width: 1440, height: 900 }, options: {} },
-  { name: 'sticky, one column', size: { width: 375, height: 667 }, options: {} },
-  { name: 'stacked (reduced motion)', size: { width: 375, height: 667 }, options: { reducedMotion: 'reduce' } },
-  { name: 'stacked (no JavaScript)', size: { width: 1440, height: 900 }, options: { javaScriptEnabled: false } },
+  { name: 'wide', size: { width: 1440, height: 900 }, options: {} },
+  { name: 'phone', size: { width: 375, height: 667 }, options: {} },
+  { name: 'phone (reduced motion)', size: { width: 375, height: 667 }, options: { reducedMotion: 'reduce' } },
+  { name: 'wide (no JavaScript)', size: { width: 1440, height: 900 }, options: { javaScriptEnabled: false } },
 ];
 
-const STEPS = ['Hypothesis', 'Split', 'Evidence', 'Guardrails', 'Decision'];
-
 test.describe('Home quality: every text state', () => {
-  test('@quality the state list matches the host index', async ({ page }, info) => {
+  test('@quality the state list is read from the host fixtures', async (_, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     expect(MODES).toHaveLength(14);
     expect(NARRATIVE.length).toBeGreaterThan(20);
-    await page.goto('/kitchen-sink/home/steps');
-    const ids = await page.locator('main li a').allTextContents();
-    expect(ids.map((s) => s.trim())).toEqual([...MODES, ...NARRATIVE]);
   });
 
   for (const state of STATES) {
-    test(`@quality ${state}: DOM and aria in the sticky and stacked layouts`, async ({ browser }, info) => {
+    test(`@quality ${state}: DOM and aria in the wide, phone, reduced-motion and no-JavaScript layouts`, async ({ browser }, info) => {
       test.skip(info.project.name !== 'desktop-chromium', 'explicit layouts');
       test.setTimeout(120_000);
       for (const layout of LAYOUTS) {
         const label = `${state}, ${layout.name}`;
         const context = await browser.newContext({ viewport: layout.size, ...layout.options });
         const page = await context.newPage();
-        const response = await page.goto(`/kitchen-sink/home/scroll/${state}`);
+        const response = await page.goto(`/kitchen-sink/home/b/${state}`);
         expect(response?.status(), label).toBe(200);
-        if (layout.options.javaScriptEnabled !== false) {
-          await settled(page);
-          // A chart that fails (or comes late) drops the moment to its frames: let that settle.
-          await expect(page.locator('[data-scroll-moment] [data-home-chart]:not([data-measured])')).toHaveCount(0, { timeout: 15_000 });
-        }
-        // The current step follows the stage, which a dropped chart hides: wait until the two agree.
-        await expect
-          .poll(() => page.evaluate(() => {
-            const staged = (document.querySelector('[data-scroll-stage]')?.getClientRects().length ?? 0) > 0;
-            const current = document.querySelectorAll('[data-scroll-step][aria-current]').length;
-            return staged ? current === 1 : current === 0;
-          }), { message: `${label}: aria-current follows the stage` })
-          .toBe(true);
+        if (layout.options.javaScriptEnabled !== false) await settled(page);
         await expect(page.locator('h1'), label).toHaveCount(1);
         for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role), label).toHaveCount(1);
         const report = await page.evaluate(() => {
           const ids = [...document.querySelectorAll('[id]')].map((el) => el.id);
-          const moment = document.querySelector('[data-scroll-moment]');
-          const stage = document.querySelector('[data-scroll-stage]');
           const shown = (el: Element | null) => el !== null && el.getClientRects().length > 0;
           const nameOf = (el: Element) =>
             (el.getAttribute('aria-label') ?? (el.getAttribute('aria-labelledby') ?? '').split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ')).trim();
           return {
             repeated: ids.filter((id, i) => ids.indexOf(id) !== i),
-            steps: [...(moment?.querySelectorAll('[data-scroll-step] > h3') ?? [])].map((h) => h.textContent?.trim()),
-            current: [...document.querySelectorAll('[data-scroll-step][aria-current]')].map((el) => `${el.getAttribute('data-scroll-step')}=${el.getAttribute('aria-current')}`),
-            staged: shown(stage),
             text: (document.querySelector('main') as HTMLElement).innerText,
             unnamedImages: [...document.querySelectorAll('main svg[role="img"], main [role="img"]')].filter((el) => shown(el) && nameOf(el) === '').map((el) => el.outerHTML.slice(0, 80)),
             uncaptioned: [...document.querySelectorAll('main table')].filter((t) => (t.querySelector('caption')?.textContent ?? '').trim() === '').length,
-            live: [...document.querySelectorAll('[data-step-live]')].map((el) => el.textContent ?? ''),
           };
         });
         expect(report.repeated, `${label}: repeated ids`).toEqual([]);
-        expect(report.steps, `${label}: steps`).toEqual(STEPS);
         expect(report.text, `${label}: placeholder words`).not.toMatch(/\bundefined\b|\bNaN\b|\[object Object\]/);
         expect(report.unnamedImages, `${label}: unnamed images`).toEqual([]);
         expect(report.uncaptioned, `${label}: tables without a caption`).toBe(0);
-        expect(report.live.every((t) => t.trim() === ''), `${label}: the live region speaks on load`).toBe(true);
-        // A current step only where the stage is drawn (and so the step navigation exists).
-        expect(report.current, `${label}: aria-current`).toEqual(report.staged ? ['1=step'] : []);
-        if (layout.options.javaScriptEnabled === false || layout.options.reducedMotion === 'reduce') expect(report.staged, `${label}: stacked`).toBe(false);
-        if (layout.name === 'sticky, one column') {
+        if (layout.name === 'phone') {
           const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
           expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`), `${label}: axe`).toEqual([]);
         }
@@ -425,7 +391,7 @@ test.describe('Home quality: budgets', () => {
   });
 
   test('@quality the enough-data host state in both groups: HTML and first-load JavaScript within the same budgets', async ({ request }, info) => {
-    // The heaviest Home state: an A/B with ten looks, its series in the page payload, the chart drawn.
+    // The heaviest Home state: an A/B with ten looks, so the note holds its largest counts.
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     const result: Record<string, { scripts: number; js: number; html: number }> = {};
     for (const arm of ['a', 'b'] as const) {
@@ -491,65 +457,12 @@ test.describe('Home quality: budgets', () => {
       }
     }
   });
-
-  test('@quality time to a measured chart at 4x CPU, 375x667: well inside the phone wait, with no drop', async ({ browser, request }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'CPU throttling is a Chromium protocol');
-    test.setTimeout(120_000);
-    /** The phone's wait for a measured chart (ScrollShell's CHART_WAIT_MS), which runs from when the chart starts to load. */
-    const CHART_WAIT_MS = Number(/const CHART_WAIT_MS = (\d+);/.exec(readFileSync(join(ROOT, 'src/components/home/ScrollShell.tsx'), 'utf8'))![1]);
-    for (const state of ['ab-many-looks', 'before-data', 'calibration']) {
-      const url = `/kitchen-sink/home/scroll/${state}`;
-      const first = new Set(scriptTags(await (await request.get(url)).text()));
-      const times: { fcp: number; chartRequested: number; measured: number }[] = [];
-      for (let run = 0; run < 3; run++) {
-        const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
-        const page = await context.newPage();
-        const cdp = await context.newCDPSession(page);
-        await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-        await page.addInitScript(() => {
-          const w = window as unknown as { __measuredAt: number | null };
-          w.__measuredAt = null;
-          const sel = '[data-scroll-canvas] [data-canvas-layer][data-active] [data-home-chart][data-measured]';
-          new MutationObserver((_, o) => {
-            if (w.__measuredAt === null && document.querySelector(sel)) {
-              w.__measuredAt = performance.now();
-              o.disconnect();
-            }
-          }).observe(document, { subtree: true, childList: true, attributes: true });
-        });
-        await page.goto(url);
-        await expect.poll(() => page.evaluate(() => (window as unknown as { __measuredAt: number | null }).__measuredAt), { timeout: 20_000 }).not.toBeNull();
-        const t = await page.evaluate((named) => {
-          // The first script that is not a first-load one: the chart's code, asked for as the shell's module runs.
-          const later = performance.getEntriesByType('resource').filter((e) => (e as PerformanceResourceTiming).initiatorType === 'script' && !named.includes(new URL(e.name).pathname));
-          return {
-            fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1,
-            chartRequested: later.length ? Math.min(...later.map((e) => e.startTime)) : -1,
-            measured: (window as unknown as { __measuredAt: number }).__measuredAt,
-          };
-        }, [...first]);
-        times.push({ fcp: Math.round(t.fcp), chartRequested: Math.round(t.chartRequested), measured: Math.round(t.measured) });
-        expect(t.chartRequested, `${state} run ${run}: the chart code was requested`).toBeGreaterThan(0);
-        expect(await page.locator('[data-scroll-shell][data-chart-late]').count(), `${state} run ${run}: dropped to the stacked frames`).toBe(0);
-        await context.close();
-      }
-      measure(`time to measured chart at 4x CPU, ${state} (ms from navigation)`, times);
-      // The wait starts once the chart begins to load, which is no earlier than its code is requested:
-      // the time from that request to the measured chart is an upper bound of what the wait sees.
-      const worst = Math.max(...times.map((x) => x.measured - x.chartRequested));
-      measure(`slowest chart request to measured, ${state} (ms; the wait is ${CHART_WAIT_MS})`, worst);
-      // Wall-clock under 4x CPU: on a machine busy with other jobs this can exceed the wait with no
-      // regression (measured 0.6 s on a normal run, 3.7 s margin left on the busiest one). The one CI
-      // retry is the accepted handling; a second failure is a real slowdown to look at.
-      expect(worst, `${state}: slowest of 3, from the chart request`).toBeLessThan(CHART_WAIT_MS);
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------------------------------
-// No island on the real page, and forced colours.
+// No island on the real page.
 
-test.describe('Home quality: no island and forced colours', () => {
+test.describe('Home quality: no island', () => {
   test('@quality the real page holds no lazy island, no chart Figure and no planner, in either group', async ({ page }) => {
     for (const arm of ['a', 'b'] as const) {
       await page.goto(`/?variant=${arm}`);
@@ -558,73 +471,5 @@ test.describe('Home quality: no island and forced colours', () => {
       await expect(page.locator('figure[data-figure]'), `group ${arm}`).toHaveCount(0);
       await expect(page.locator('[data-scroll-moment], [data-hero-simulator]'), `group ${arm}`).toHaveCount(0);
     }
-  });
-
-  test('@quality forced colours: the "your view" tick keeps a visible stroke', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'forced-colours emulation is Chromium only');
-    const read = async (forcedColors: 'active' | 'none') => {
-      const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, forcedColors });
-      const page = await context.newPage();
-      await page.goto('/kitchen-sink/home/scroll/ab-tick');
-      await settled(page);
-      await expect(page.locator('[data-scroll-moment] [data-home-chart]:not([data-measured])')).toHaveCount(0, { timeout: 15_000 });
-      // The host's state is seen from group B; a counted view of that group draws the tick.
-      await page.evaluate(() => window.dispatchEvent(new CustomEvent('experiment:counted', { detail: { arm: 'b', viewN: 1e9 } })));
-      const line = page.locator('[data-scroll-canvas] [data-your-view] line');
-      await expect(line).toHaveCount(1);
-      const style = await line.evaluate((el) => {
-        const s = getComputedStyle(el);
-        const plot = el.closest('svg')!;
-        let bg = 'rgba(0, 0, 0, 0)';
-        for (let p: Element | null = plot; p && bg === 'rgba(0, 0, 0, 0)'; p = p.parentElement) bg = getComputedStyle(p).backgroundColor;
-        return { stroke: s.stroke, width: s.strokeWidth, opacity: s.opacity, visibility: s.visibility, background: bg };
-      });
-      await context.close();
-      return style;
-    };
-    const normal = await read('none');
-    const forced = await read('active');
-    measure('your-view tick stroke (normal, forced colours)', { normal, forced });
-    expect(forced.stroke).not.toBe('none');
-    expect(forced.stroke).not.toMatch(/rgba\(\d+, \d+, \d+, 0\)/);
-    // Non-text contrast (WCAG 1.4.11) of the stroke against the two default forced-colours canvases,
-    // black and white: Chromium's emulation keeps the authored stroke and reports a transparent
-    // background, so the real system canvas is not readable here.
-    const luminance = (rgb: string) => {
-      const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map((v) => {
-        const c = Number(v) / 255;
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-    };
-    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-    const stroke = luminance(forced.stroke);
-    measure('your-view tick contrast in forced colours (on black, on white)', [ratio(stroke, 0), ratio(stroke, 1)].map((x) => Math.round(x * 100) / 100));
-    expect(ratio(stroke, 0), 'against a black canvas').toBeGreaterThanOrEqual(3);
-    expect(ratio(stroke, 1), 'against a white canvas').toBeGreaterThanOrEqual(3);
-    expect(parseFloat(forced.width)).toBeGreaterThan(0);
-    expect(forced.opacity).not.toBe('0');
-    expect(forced.visibility).toBe('visible');
-  });
-});
-
-test.describe('Home quality: review corrections', () => {
-  test('@quality the three outcomes stack in the narrow sticky step column and sit side by side in a wide one', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'explicit layouts');
-    const columns = async (options: BrowserContextOptions, size: { width: number; height: number }) => {
-      const context = await browser.newContext({ viewport: size, ...options });
-      const page = await context.newPage();
-      await page.goto('/kitchen-sink/home/scroll/calibration');
-      await settled(page);
-      const xs = await page.locator('[data-decision-zone]').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().x)));
-      await context.close();
-      return new Set(xs).size;
-    };
-    // Sticky, two columns: the steps' column is too narrow for three cards.
-    expect(await columns({}, { width: 1440, height: 900 })).toBe(1);
-    // Stacked frames on a wide screen: the full text column holds three.
-    expect(await columns({ reducedMotion: 'reduce' }, { width: 1440, height: 900 })).toBe(3);
-    // A phone: one.
-    expect(await columns({ reducedMotion: 'reduce' }, { width: 375, height: 667 })).toBe(1);
   });
 });
