@@ -99,7 +99,7 @@ describe('the component catalogues in CLAUDE.md', () => {
     expect(section).toContain('`src/components/depth`');
     const listed = new Set(COMPOSITES.map((r) => r.file));
     for (const f of readdirSync(path.join(ROOT, 'src/components/depth')).filter((x) => /\.tsx$/.test(x))) expect(listed.has(`src/components/depth/${f}`), f).toBe(true);
-    expect(listed.has('src/lib/depth/field.ts')).toBe(true);
+    expect(listed.has('src/lib/depth/lean.ts')).toBe(true);
   });
 
   it('the parser is not vacuous: it reads a client mark, a renamed export and a type export', () => {

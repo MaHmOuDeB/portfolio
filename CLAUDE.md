@@ -222,13 +222,15 @@ Page-level parts built from the kit. They live outside the kit (`src/components/
 | `LiveNote` | `src/components/home/LiveNote.tsx` | The Home note on the live test, from the server-only Home model (`src/lib/home/model.ts`): nothing before the start, the kit's `PhaseLabel` while the test runs, and a stated reason with a link to `/experiment` when it is stopped, unreadable or finished. Every count prints by the small-count rule (`src/lib/home/counts.ts`). |
 | `NoteFreshness`, `NoteFreshnessView`, `asOfAt` | `src/components/home/NoteFreshness.tsx` (client) | The "as of" time under the active test note, by the reader's clock: nothing on the server or before hydration, then the kit's updated label when the data is stale or the planned end has passed. It takes named props only, never the Home model. |
 | `PublishedCountText` | `src/components/home/PublishedCountText.tsx` | A count as the page prints it (`publishedCount`): a number through `Derived`, or "<5" as a marked span. Every printed count on the Home page goes through it. |
-| `Hero` | `src/components/home/Hero.tsx` | The Home hero scene, the same for every visitor: the headline, a sub line and three buttons ("See the evidence", CV, Contact) on the left, the evidence field on the right. The h1 has no animation attribute (it is the largest contentful paint); the sub line and the buttons settle in order once on load, and the primary button follows a fine pointer a few pixels. |
+| `Hero` | `src/components/home/Hero.tsx` | The Home hero, centred and the same for every visitor: the chip, the site's line in two tones as the h1, the sub line with two inline chips, and two buttons (Read my CV, Write to me), then the `StackBand`. The h1 has no animation attribute (it is the largest contentful paint); the sub line and the buttons settle in order once on load, and the primary button follows a fine pointer a few pixels. |
+| `LiveBar` | `src/components/home/LiveBar.tsx` | The ink strip at the top of Home that carries the `LiveNote` (passed in rendered); nothing when the note is null. |
+| `ExperienceBand`, `experienceName`, `experienceNames` | `src/components/home/ExperienceBand.tsx` | "Where I have worked and studied": two groups (Work, Study) of plain text names read from the About timeline, no logos. |
 | `CaseCard` | `src/components/home/CaseCard.tsx` | One featured case study, drawn as a `LeanCard`. Both headline strings share one grid cell, so the card has the same size in both groups; the other group's string is `visibility: hidden` and `aria-hidden`. The whole card is the link (`data-experiment-click="card"`, `data-case-card`) and holds no second link. |
 | `FeaturedCases` | `src/components/home/FeaturedCases.tsx` | The cards region the experiment watches (`data-experiment="cards"`, labelled "Featured case studies"): three `CaseCard`s, stacked below `lg`, three columns from `lg`. |
 | `Parts` | `src/components/home/Parts.tsx` | Content parts from `content/home.ts` (plain text and `{ fact }`) rendered with the kit's `Fact`. |
 | `EagerOrIntent` | `src/components/figures/EagerOrIntent.tsx` (client) | Wraps `LoadOnIntent`: a URL key in one of the given Figure namespaces loads the island right after hydration (`eager`), anything else waits for intent. The query is read from `location` with `useSyncExternalStore` (server snapshot "not eager"), never with `useSearchParams`, so a static page hydrates in place. |
 | `HomeSections`, `HomeBody` | `src/components/home/HomeSections.tsx` | The Home page below the header, in page order at every width: `Hero`, `ProofRow`, `ExperimentsTrack`, `AutomationTrack`, `WorkTiles`, `ToolsRibbon`, `SiteTile` (with the `LiveNote`) and `DecisionBand`. One server composition for `/v/[arm]` (which renders the beacon first) and the test build's host (no beacon); it takes the server-only Home model and hands each part only what it needs (the cards the headline group, the site tile the model for the note). |
-| `ProofRow` | `src/components/home/ProofRow.tsx` | The proof row: four figures, two for experiments and two for automation, each number a Fact. The "Why so many?" link keeps its place at the end of the adoption caption. |
+| `ProofRow` | `src/components/home/ProofRow.tsx` | The proof: four ruled cells, two for experiments and two for automation, each number a Fact. The "Why so many?" link keeps its place at the end of the adoption caption. |
 | `ExperimentsTrack` | `src/components/home/ExperimentsTrack.tsx` | The first track, "Experiments and analytics" (the target of the hero's primary button): the heading and lede, then the three featured cards, which are the live experiment's cards region. |
 | `AutomationTrack` | `src/components/home/AutomationTrack.tsx` | The second track, "Automation and agents": four lean cards to the pages that tell each story. |
 | `WorkTiles` | `src/components/home/WorkTiles.tsx` | The two tiles, "I test." on the quiet surface and "I automate." on ink. They open like a book as they enter, and their list rules draw in. |
@@ -305,14 +307,14 @@ motion is CSS keyed on their data attributes.
 
 | Export | File | Role |
 |---|---|---|
-| `EvidenceField` | `src/components/depth/EvidenceField.tsx` | The Home hero's evidence field: a confidence band on a ground plane in CSS 3D, one `[data-depth-row]` per `fieldRows()` row. Decorative, `aria-hidden`. |
-| `ProofFigure` | `src/components/depth/ProofFigure.tsx` | A proof figure (`[data-proof]`): the side word, the figure passed in as a `Fact` or `Derived`, a decorative interval mark and the caption. |
+| `StackBand` | `src/components/depth/StackBand.tsx` | The Home band under the hero: three sheets (a test, the agents, the recommendation) and two links, hidden from assistive technology, with a visible caption. They rest as an isometric stack that leans to a fine pointer, pin and unfold into a row on wide screens with scroll timelines, and stand as a column below lg. |
+| `attachLean`, `cardLean`, `fieldFollow`, `magnetShift`, `leanEnabled` | `src/lib/depth/lean.ts` | The lean's maths and guards: a card's turn toward a fine pointer, the band stack's follow values, the magnet's shift, and the delegated listeners `Lean` attaches. |
+| `ProofFigure` | `src/components/depth/ProofFigure.tsx` | A proof cell (`[data-proof]`): the side word, the figure passed in as a `Fact` or `Derived`, and the caption. |
 | `LeanCard` | `src/components/depth/LeanCard.tsx` | A link drawn as a white card that rises on entry and leans toward a fine pointer. `titleMinLines` fixes the headline area's height; `vignette` (a frame `Vignette`) ends the card; extra `data-*` attributes pass to the link; `prefetch` passes to `Link`. |
-| `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the field and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. |
+| `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the Home band's stack and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. |
 | `Ribbon` | `src/components/depth/Ribbon.tsx` | A row of words in a `[data-depth-ribbon]` track that slides with the scroll, done in CSS. A labelled list with each item once. |
 | `Tile` | `src/components/depth/Tile.tsx` | A white tile with a hairline, or an ink one (`tone`). |
 | `GlanceBlock` | `src/components/depth/GlanceBlock.tsx` | The top of a case study: the outcome as a large paragraph, then Role, Methods, Tools and When. |
-| `fieldRows` | `src/lib/depth/field.ts` | The field's rows: index, top, width and the estimate's shift, pure and deterministic. |
 
 ### Frame primitives
 
@@ -369,8 +371,8 @@ page, give it the primitives catalogue above and the golden page.
 - **Motion** (the depth system; the full attribute table is in `docs/design/tokens.md`).
   - Motion follows the reader (scroll position or a fine pointer) or plays once on load. Nothing
     loops or runs on a clock. It is CSS only (the `depth` system in `globals.css`); every state is
-    complete without it, and under reduced motion. Time-based: only the load sequence, the field's
-    rows and the proof marks, once.
+    complete without it, and under reduced motion. Time-based: only the load sequence and the band's
+    sheets arriving, once.
   - Scroll-linked means the animation follows the scroll position exactly (`animation-timeline`,
     linear, `both` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
     no fade-up-on-every-section.
