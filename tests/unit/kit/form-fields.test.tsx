@@ -241,11 +241,14 @@ describe('SubmitButton', () => {
     expect(classes(button)).toEqual(expect.arrayContaining(['bg-ink', 'cursor-progress']));
   });
 
-  it('disabled: the disabled state from the tokens', () => {
+  it('disabled: a muted secondary button, the same on the grey canvas and on a white card', () => {
     const { root } = render(<SubmitButton disabled>Send message</SubmitButton>);
     const button = byTag(root, 'button')[0]!;
     expect(hasAttr(button, 'disabled')).toBe(true);
-    expect(classes(button)).toEqual(expect.arrayContaining(['bg-surface', 'border', 'border-line', 'text-muted', 'cursor-not-allowed']));
+    // The secondary button's white fill and hairline, so its edge shows on a white card as well as on
+    // the canvas; the label is muted (5.07:1 on white). An inactive control needs no 3:1 boundary.
+    expect(classes(button)).toEqual(expect.arrayContaining(['bg-surface', 'border', 'border-hairline-strong', 'text-muted', 'cursor-not-allowed']));
+    expect(classes(button)).not.toContain('border-line');
     expect(classes(button)).not.toContain('bg-ink');
   });
 });

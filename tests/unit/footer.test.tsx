@@ -69,4 +69,12 @@ describe('Footer', () => {
     for (const attrs of links) expect(attrs).toContain('min-h-(--size-target)');
     expect(MARKUP).not.toMatch(/mailto:|>Email</);
   });
+
+  it('gives every column link a scroll margin wider than its 4 px focus ring', () => {
+    // Focus moves up from the last Site link to the first Contact link; WebKit aligns the link's box
+    // with the top of the screen, so without a margin the top of its ring is cut off.
+    const links = [...MARKUP.matchAll(/<li><a ([^>]*)>/g)].map((m) => m[1]!);
+    expect(links.length).toBe(9);
+    for (const attrs of links) expect(attrs).toMatch(/class="[^"]*\bscroll-my-2\b/);
+  });
 });
