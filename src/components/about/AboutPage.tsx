@@ -71,7 +71,7 @@ export function AboutPage(): ReactNode {
   return (
     <article aria-labelledby="about-title">
       <PageHead id="about-title" chip="About" title="Experimentation and growth analyst" quiet="in Berlin, Germany." />
-      <div className="grid gap-8 pb-12 lg:grid-cols-12 lg:items-start lg:gap-12 md:pb-16">
+      <div className="grid grid-cols-1 gap-8 pb-12 lg:grid-cols-12 lg:items-start lg:gap-12 md:pb-16">
         <div className="lg:col-span-7">
           <div data-about-story="" className="max-w-text space-y-4 text-lg">
             {STORY_PARAGRAPHS.map(([from, to]) => (

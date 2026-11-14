@@ -24,7 +24,7 @@ export function HowITest() {
     <section data-home-how="" data-rule="" aria-labelledby={TITLE_ID} className="pb-12 md:pb-16">
       <SectionHead id={TITLE_ID} chip={head.chip} title={head.title} quiet={head.quiet} sub={head.sub} />
       <div data-how-tabs="" className={`grid grid-cols-1 gap-2.5 lg:grid-cols-2 ${SHOW}`}>
-        <div role="radiogroup" aria-labelledby={TITLE_ID} className="grid content-start gap-2.5">
+        <div role="radiogroup" aria-labelledby={TITLE_ID} className="grid grid-cols-1 content-start gap-2.5">
           {tabs.map((tab, i) => (
             <label
               key={tab.id}

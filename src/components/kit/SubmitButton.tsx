@@ -1,7 +1,8 @@
 // A form's submit button, drawn as the primary ButtonLink (`buttonClass('primary')`). Server-safe and
 // stateless: the form passes `pending`. While pending the label changes and the button is
 // aria-disabled, never disabled, so focus stays on it; the fill stays ink, there is no spinner, and
-// min-w-36 keeps the width when the label is shorter. The caller ignores submits while pending.
+// a 9rem minimum keeps the width when the label is shorter, capped at the column so enlarged text
+// never pushes it past a 320 px screen. The caller ignores submits while pending.
 // `disabled` is the tokens' disabled state (the kitchen sink shows it; a form validates on submit
 // instead of disabling its button). Never full width, never an icon.
 import type { ReactNode } from 'react';
@@ -26,7 +27,7 @@ export function SubmitButton({ children, pending, pendingLabel, disabled }: Prop
       data-touch-target
       disabled={disabled}
       aria-disabled={pending && !disabled ? true : undefined}
-      className={cx(disabled ? DISABLED : buttonClass('primary'), 'min-w-36', pending && !disabled && 'cursor-progress')}
+      className={cx(disabled ? DISABLED : buttonClass('primary'), 'min-w-[min(9rem,100%)]', pending && !disabled && 'cursor-progress')}
     >
       {pending && !disabled ? (pendingLabel ?? children) : children}
     </button>

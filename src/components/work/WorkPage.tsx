@@ -85,9 +85,9 @@ export function WorkPage(): ReactNode {
           </div>
           {/* The rule that draws on entry is its own decorative element, so the cards are never scaled with it. */}
           <span data-depth-draw="" aria-hidden="true" className="block h-px bg-hairline" />
-          <ul className="grid gap-4 pb-12 pt-8 md:grid-cols-2 md:pb-16 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 pb-12 pt-8 md:grid-cols-2 md:pb-16 lg:grid-cols-3">
             {section.items.map((item) => (
-              <li key={item.href} data-work-item={item.href} className="grid">
+              <li key={item.href} data-work-item={item.href} className="grid grid-cols-1">
                 <LeanCard
                   href={item.href}
                   title={item.title}
