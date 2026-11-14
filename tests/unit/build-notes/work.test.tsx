@@ -93,7 +93,9 @@ describe('the outline', () => {
       const start = PAGE.indexOf(`<section id="${id}"`);
       const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
       expect([...body.matchAll(/<ul[\s>]/g)], id).toHaveLength(1);
-      expect(body, id).toMatch(/<ul data-depth-draw=""/);
+      // The rule that draws in is its own decorative element: the list itself is never transformed.
+      expect(body, id).toMatch(/<span data-depth-draw="" aria-hidden="true"[^>]*><\/span><ul class=/);
+      expect(body, id).not.toMatch(/<ul[^>]*data-depth-draw/);
       expect([...body.matchAll(/<li data-work-item=/g)], id).toHaveLength(count);
     }
   });

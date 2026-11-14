@@ -34,7 +34,7 @@ for (const f of files) {
 }
 
 // Hooks that pages put on their own elements (or on a depth component through its data-* pass-through).
-const PAGE_APPLIED: Record<string, string> = {
+const SET_BY_PAGES: Record<string, string> = {
   'data-depth-scene': 'the hero section a page marks, so its scroll turns the plane',
   'data-depth-load': 'the load sequence, set on a page element with --d',
   'data-depth-recede': 'a page element that recedes as it leaves',
@@ -54,7 +54,7 @@ describe('depth CSS and markup agree', () => {
   });
 
   it('every styled attribute is rendered by a component or listed as page-applied', () => {
-    const missing = [...styled].filter((a) => !rendered.has(a) && !(a in PAGE_APPLIED)).sort();
+    const missing = [...styled].filter((a) => !rendered.has(a) && !(a in SET_BY_PAGES)).sort();
     expect(missing).toEqual([]);
   });
 
@@ -64,7 +64,7 @@ describe('depth CSS and markup agree', () => {
   });
 
   it('keeps the allowlists honest: no entry is rendered and styled both', () => {
-    for (const a of Object.keys(PAGE_APPLIED)) expect(rendered.has(a) && styled.has(a), a).toBe(false);
+    for (const a of Object.keys(SET_BY_PAGES)) expect(rendered.has(a) && styled.has(a), a).toBe(false);
     for (const a of Object.keys(UNSTYLED)) expect(styled.has(a), a).toBe(false);
   });
 });
