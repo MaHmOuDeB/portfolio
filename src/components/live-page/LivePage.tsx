@@ -55,8 +55,9 @@ function Section({ id, card, children }: { id: SectionId; card?: boolean; childr
       <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
         {entry.title}
       </h2>
-      {/* The Figure kit is frozen: a figure sits on a white hairline card of the frame. */}
-      <div className={card ? 'mt-4 rounded-xl border border-hairline bg-surface p-4 md:p-8' : 'mt-4'} data-live-card={card ? '' : undefined}>
+      {/* The Figure kit is frozen: a figure sits on a white hairline card of the frame. Under 640 px
+          the card runs edge to edge, so a chart keeps the column's width for its axis labels. */}
+      <div className={card ? 'mt-4 -mx-4 rounded-none border-y border-hairline bg-surface p-4 sm:mx-0 sm:rounded-xl sm:border md:p-8' : 'mt-4'} data-live-card={card ? '' : undefined}>
         {children}
       </div>
     </section>
