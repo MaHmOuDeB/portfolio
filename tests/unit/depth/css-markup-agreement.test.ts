@@ -39,7 +39,6 @@ const SET_BY_PAGES: Record<string, string> = {
   'data-depth-book': 'a page element that opens like a book, also passed to Tile through its data-* props',
   'data-depth-scale': 'a page element that scales in, also passed to Ribbon through its data-* props',
   'data-depth-parallax': 'a page element that drifts with the scroll',
-  'data-depth-reveal': 'a page element revealed left to right',
   'data-depth-magnet': 'a button a page marks; Lean moves it',
   'data-depth-drift': 'a grid wrapper a page marks to arrive from a corner of its section',
   'data-depth-hinge': 'the sketch sheet of the frame Vignette, which lifts like a lid inside a card',

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { attachLean, cardLean, fieldFollow, leanEnabled, magnetShift, type LeanCardEl, type LeanDoc, type LeanEvent, type LeanWin } from '@/lib/depth/lean';
+import { attachLean, sceneFollow, cardLean, fieldFollow, leanEnabled, magnetShift, type LeanCardEl, type LeanDoc, type LeanEvent, type LeanWin } from '@/lib/depth/lean';
 
 const RECT = { left: 100, top: 200, width: 400, height: 200 };
 
@@ -23,6 +23,13 @@ describe('fieldFollow', () => {
     expect(fieldFollow(500, 400, 1000, 800)).toEqual({ mx: '0.000', my: '0.000' });
     expect(fieldFollow(1000, 800, 1000, 800)).toEqual({ mx: '1.000', my: '1.000' });
     expect(fieldFollow(5, 5, 0, 0)).toEqual({ mx: '0.000', my: '0.000' });
+  });
+});
+
+describe('sceneFollow', () => {
+  it('maps the scene\'s own box to -1 .. 1 and to percentages, clamped outside it', () => {
+    expect(sceneFollow(300, 300, RECT)).toEqual({ mx: '0.000', my: '0.000', gx: '50.0%', gy: '50.0%' });
+    expect(sceneFollow(0, 900, RECT)).toEqual({ mx: '-1.000', my: '1.000', gx: '0.0%', gy: '100.0%' });
   });
 });
 
@@ -70,11 +77,17 @@ function setup(opts: { reduce?: boolean; fine?: boolean } = {}) {
     getBoundingClientRect: () => ({ left: 700, top: 300, width: 100, height: 40 }),
     contains: () => false,
   };
+  const sceneProps = new Map<string, string>();
+  const log: string[] = [];
+  const scene = {
+    getBoundingClientRect: () => (log.push('read scene'), { left: 0, top: 600, width: 200, height: 100 }),
+    style: { setProperty: (k: string, v: string) => (log.push(`write ${k}`), void sceneProps.set(k, v)), removeProperty: (k: string) => void sceneProps.delete(k) },
+  };
   const handlers: Record<string, (e: LeanEvent) => void> = {};
   const doc: LeanDoc = {
     addEventListener: vi.fn((t, fn) => void (handlers[t] = fn)),
     removeEventListener: vi.fn((t) => void delete handlers[t]),
-    querySelectorAll: (sel) => (sel === '[data-depth-magnet]' ? [magnet] : [field]),
+    querySelectorAll: (sel) => (sel === '[data-depth-magnet]' ? [magnet] : sel === '[data-depth-stack]' ? [field] : sel === '[data-depth-follow]' ? [scene] : []),
   };
   let queued: (() => void) | null = null;
   const win: LeanWin = {
@@ -91,7 +104,7 @@ function setup(opts: { reduce?: boolean; fine?: boolean } = {}) {
   };
   const onCard = { closest: (s: string) => (s === '[data-depth-lean]' ? card : null) };
   const offCard = { closest: () => null };
-  return { props, fieldProps, magnetProps, handlers, doc, win, flush, onCard, offCard };
+  return { props, fieldProps, magnetProps, sceneProps, log, scene, field, magnet, handlers, doc, win, flush, onCard, offCard };
 }
 
 describe('attachLean', () => {
@@ -166,6 +179,71 @@ describe('attachLean', () => {
     s.handlers.pointerout!({ clientX: 0, clientY: 0, target: s.offCard, relatedTarget: null });
     expect(s.magnetProps.get('--tx')).toBe('0px');
     expect(s.magnetProps.get('--ty')).toBe('0px');
+  });
+
+  it('gives a pointer scene the pointer\'s place over its own box, and rests it when the pointer leaves', () => {
+    const s = setup();
+    attachLean(s.doc, s.win);
+    s.handlers.pointermove!({ clientX: 150, clientY: 625, target: s.offCard });
+    s.flush();
+    expect(s.sceneProps.get('--mx')).toBe('0.500');
+    expect(s.sceneProps.get('--my')).toBe('-0.500');
+    expect(s.sceneProps.get('--gx')).toBe('75.0%');
+    expect(s.sceneProps.get('--gy')).toBe('25.0%');
+    s.handlers.pointerout!({ clientX: 0, clientY: 0, target: s.offCard, relatedTarget: null });
+    expect(s.sceneProps.get('--mx')).toBe('0');
+    expect(s.sceneProps.has('--gx')).toBe(false);
+  });
+
+  it('reads every rect before it writes a value in the same frame', () => {
+    const s = setup();
+    attachLean(s.doc, s.win);
+    s.handlers.pointermove!({ clientX: 150, clientY: 625, target: s.offCard });
+    s.flush();
+    const firstWrite = s.log.findIndex((l) => l.startsWith('write'));
+    expect(s.log.lastIndexOf('read scene')).toBeLessThan(firstWrite);
+  });
+
+  it('finds the scenes once, when it attaches, not on every frame', () => {
+    const s = setup();
+    const query = vi.spyOn(s.doc, 'querySelectorAll');
+    attachLean(s.doc, s.win);
+    const calls = query.mock.calls.length;
+    for (const x of [10, 20, 30]) {
+      s.handlers.pointermove!({ clientX: x, clientY: x, target: s.offCard });
+      s.flush();
+    }
+    expect(query.mock.calls.length).toBe(calls);
+  });
+
+  it('skips a scene that is off screen, and rests it when it leaves the screen', () => {
+    const s = setup();
+    let report: (entries: readonly { target: unknown; isIntersecting: boolean }[]) => void = () => {};
+    const disconnect = vi.fn();
+    s.win.IntersectionObserver = class {
+      constructor(cb: typeof report) {
+        report = cb;
+      }
+      observe() {}
+      disconnect = disconnect;
+    } as unknown as LeanWin['IntersectionObserver'];
+    const cleanup = attachLean(s.doc, s.win);
+    s.handlers.pointermove!({ clientX: 150, clientY: 625, target: s.offCard });
+    s.flush();
+    expect(s.sceneProps.size).toBe(0);
+    expect(s.fieldProps.size).toBe(0);
+    expect(s.log).not.toContain('read scene');
+    report([{ target: s.scene, isIntersecting: true }, { target: s.field, isIntersecting: true }]);
+    s.handlers.pointermove!({ clientX: 150, clientY: 625, target: s.offCard });
+    s.flush();
+    expect(s.sceneProps.get('--mx')).toBe('0.500');
+    expect(s.fieldProps.has('--mx')).toBe(true);
+    report([{ target: s.scene, isIntersecting: false }]);
+    s.handlers.pointermove!({ clientX: 50, clientY: 625, target: s.offCard });
+    s.flush();
+    expect(s.sceneProps.get('--mx')).toBe('0');
+    cleanup();
+    expect(disconnect).toHaveBeenCalled();
   });
 
   it('removes both listeners on cleanup', () => {

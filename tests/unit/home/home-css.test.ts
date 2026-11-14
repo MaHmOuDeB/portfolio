@@ -179,7 +179,7 @@ describe('accessibility guards', () => {
 
   it('never leaves a focused control inside a scroll-linked entrance at opacity 0', () => {
     expect(timelines).toMatch(
-      /\[data-depth-rise\]:focus-within,\s*\[data-depth-book\]:focus-within,\s*\[data-depth-scale\]:focus-within,\s*\[data-depth-reveal\]:focus-within\s*\{\s*animation:\s*none;?\s*\}/,
+      /\[data-depth-rise\]:focus-within,\s*\[data-depth-book\]:focus-within,\s*\[data-depth-scale\]:focus-within\s*\{\s*animation:\s*none;?\s*\}/,
     );
   });
 
@@ -196,6 +196,16 @@ describe('accessibility guards', () => {
     expect(card).toMatch(/overflow:\s*clip/);
     expect(card).not.toMatch(/preserve-3d/);
     expect(css).not.toMatch(/translateZ\(\d+px\)/);
+  });
+
+  it('animates no clip-path on the main thread: the old reveal is gone', () => {
+    expect(css).not.toContain('depth-reveal');
+  });
+
+  it('lets an entrance that ends on the final layout stop applying once it is done (backwards, not both)', () => {
+    for (const name of ['depth-rise', 'depth-draw', 'depth-book-left', 'depth-book-right', 'depth-scale']) {
+      expect(timelines, name).toContain(`animation: ${name} linear backwards;`);
+    }
   });
 
   it('pins the band on screens only, never in print', () => {

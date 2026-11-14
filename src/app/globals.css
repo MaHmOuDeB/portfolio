@@ -944,16 +944,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
-@keyframes depth-reveal {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(-1rem -1rem -1rem -1rem);
-  }
-}
-
 @layer components {
   /* 1. The hero, centred: chip, two-tone h1, the sub with two inline chips, two buttons. */
   [data-hero] {
@@ -1828,7 +1818,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
 
     [data-depth-rise] {
-      animation: depth-rise linear both;
+      animation: depth-rise linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 70%;
     }
@@ -1860,21 +1850,21 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-depth-draw] {
       transform-origin: left;
-      animation: depth-draw linear both;
+      animation: depth-draw linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 80%;
     }
 
     [data-depth-book="left"] {
       transform-origin: right center;
-      animation: depth-book-left linear both;
+      animation: depth-book-left linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 80%;
     }
 
     [data-depth-book="right"] {
       transform-origin: left center;
-      animation: depth-book-right linear both;
+      animation: depth-book-right linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 80%;
     }
@@ -1888,7 +1878,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
 
     [data-depth-scale] {
-      animation: depth-scale linear both;
+      animation: depth-scale linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 80%;
     }
@@ -1899,18 +1889,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       animation-range: cover 0% cover 100%;
     }
 
-    [data-depth-reveal] {
-      animation: depth-reveal linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 90%;
-    }
-
     /* A control that has focus is never mid-entrance (at opacity 0 at the very start): its block
        jumps to the final, static state. */
     [data-depth-rise]:focus-within,
     [data-depth-book]:focus-within,
-    [data-depth-scale]:focus-within,
-    [data-depth-reveal]:focus-within {
+    [data-depth-scale]:focus-within {
       animation: none;
     }
 
@@ -2071,7 +2054,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-ribbon] > ul,
   [data-depth-scale],
   [data-depth-parallax],
-  [data-depth-reveal],
   [data-depth-drift],
   [data-depth-hinge],
   [data-depth-arrive],
