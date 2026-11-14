@@ -620,11 +620,11 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
 
 @keyframes depth-ribbon {
   from {
-    translate: 6% 0;
+    translate: 0 0;
   }
 
   to {
-    translate: -6% 0;
+    translate: min(0px, calc(100cqi - 100%)) 0;
   }
 }
 
@@ -661,11 +661,17 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
 }
 
 @layer components {
-  /* 1. The evidence field. [data-depth-scene] is the section whose scroll turns the plane. */
+  /* 1. The evidence field. [data-depth-scene] is the section whose scroll turns the plane (the pin
+     block below). The plane is a fixed 520 px square (the rows are placed in px), so a narrower
+     screen scales the whole tilt (--k) instead; the one grid column is the field's own width and the
+     square overflows it evenly on both sides, so the scaled picture stays centred. At rest, where
+     nothing turns it, the plane keeps a gentle tilt that is readable and clips nothing. */
   [data-depth-field] {
     display: grid;
     height: 35rem;
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
+    place-items: unsafe center;
     perspective: var(--perspective-scene);
 
     /* The pointer (--mx, --my in -1..1, set by Lean) moves the vanishing point. */
@@ -678,13 +684,14 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     width: 32.5rem;
     height: 32.5rem;
     transform-style: preserve-3d;
-    transform: rotateX(58deg) rotateZ(-12deg) scale(1.05);
+    transform: rotateX(32deg) rotateZ(-8deg) scale(0.9);
   }
 
   /* The pointer (--mx, --my in -1..1, set by Lean) leans the whole scene a few degrees. */
   [data-depth-tilt] {
     transform-style: preserve-3d;
     transform: rotateY(calc(var(--mx, 0) * 7deg)) rotateX(calc(var(--my, 0) * -5deg));
+    scale: var(--k, 1);
     transition: transform var(--duration-lean) var(--ease-standard);
   }
 
@@ -740,16 +747,43 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     outline: 2px solid var(--color-bg);
   }
 
-  @media (width < 56.25rem) {
+  /* The scale and the field's height per width, so the picture fits the column it sits in. */
+  @media (width < 80rem) {
     [data-depth-field] {
-      height: 22.5rem;
-    }
+      --k: 0.8;
 
-    /* Narrow screens keep the tilted plane, smaller; the scroll turn is off. */
-    [data-depth-plane] {
-      scale: 0.6;
-      animation: none;
+      height: 30rem;
     }
+  }
+
+  @media (width < 64rem) {
+    [data-depth-field] {
+      --k: 0.9;
+
+      height: 26rem;
+    }
+  }
+
+  @media (width < 40rem) {
+    [data-depth-field] {
+      --k: 0.72;
+
+      height: 20rem;
+    }
+  }
+
+  @media (width < 30rem) {
+    [data-depth-field] {
+      --k: 0.46;
+
+      height: 14rem;
+    }
+  }
+
+  /* The text block paints over the field where the tilted plane reaches into its column. */
+  [data-hero-text] {
+    position: relative;
+    z-index: 1;
   }
 
   /* 2. Proof figures: four cells in a row with hairlines between, each with its side, its number,
@@ -774,6 +808,14 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     }
   }
 
+  /* Two columns: each row starts flush left, so the marks and captions line up down the rows. */
+  @media (width >= 40rem) and (width < 64rem) {
+    [data-proof]:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+
   [data-proof-side] {
     display: block;
     font-size: var(--text-xs);
@@ -781,6 +823,8 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     color: var(--color-muted);
   }
 
+  /* One line at every width: the words around a number are a smaller unit, and the size steps up
+     only where the column has room for "about 3 min" (four columns from 64rem are narrow until 90rem). */
   [data-proof-figure] {
     margin-top: calc(var(--spacing) * 2.5);
     font-size: var(--text-readout-sm);
@@ -788,12 +832,19 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     letter-spacing: -0.03em;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  @media (width >= 64rem) {
+  @media (width >= 90rem) {
     [data-proof-figure] {
       font-size: var(--text-readout);
     }
+  }
+
+  [data-proof-unit] {
+    font-size: 0.45em;
+    letter-spacing: 0;
+    font-weight: 500;
   }
 
   [data-proof-mark] {
@@ -993,9 +1044,21 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     }
   }
 
-  /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide; the list moves. */
+  /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide and fades both edges
+     over its own inline padding, which it takes back with a negative margin: the list lines up with
+     the page, and at rest no pill sits in the fade. The list moves (block 3), from its start. */
   [data-depth-ribbon] {
+    container-type: inline-size;
+    margin-inline: calc(var(--spacing) * -4);
+    padding-inline: calc(var(--spacing) * 4);
     overflow-x: clip;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black calc(var(--spacing) * 4),
+      black calc(100% - var(--spacing) * 4),
+      transparent
+    );
   }
 
   [data-depth-ribbon] ul {
@@ -1105,10 +1168,16 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     animation-delay: calc(120ms + var(--d, 0) * 90ms);
   }
 
-  /* Magnet: a primary button follows a fine pointer by up to 6 px (--tx, --ty set by Lean). */
+  /* Magnet: a primary button follows a fine pointer by up to 6 px (--tx, --ty set by Lean). The
+     shift is rounded to whole pixels: at a fractional offset the composited button resampled its
+     right edge into a faint line. Before Lean sets --tx and --ty the rounded value is invalid at
+     computed time, which leaves translate at none: no shift. The wrapper is a plain block box the
+     size of the button. */
   @media (hover: hover) and (pointer: fine) {
     [data-depth-magnet] {
+      display: flex;
       translate: var(--tx, 0) var(--ty, 0);
+      translate: round(var(--tx), 1px) round(var(--ty), 1px);
       transition: translate var(--duration-lean) var(--ease-standard);
     }
   }
@@ -1217,16 +1286,52 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
   }
 }
 
-/* The hero turn: the plane faces the reader as the scene scrolls, on a named view timeline. */
-@supports (animation-timeline: scroll()) {
-  @layer components {
-    [data-depth-scene] {
-      view-timeline: --depth-scene block;
+/* The ribbon slides on one line only where it can move; at rest (no scroll timelines, reduced
+   motion, print) it wraps, so every tool stays readable. The slide ends with the last pill in view. */
+@supports (animation-timeline: view()) {
+  @media screen and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      [data-depth-ribbon] > ul {
+        flex-wrap: nowrap;
+        width: max-content;
+      }
     }
+  }
+}
 
-    @media (width >= 56.25rem) {
+/* The hero turn, as the mock has it: a tall scene whose inner block is pinned under the header
+   (sticky, a viewport minus the header tall) while the scroll through the scene turns the plane from
+   its tilt to face the reader and the text recedes, both on the scene's own view timeline. Only on
+   a wide, tall enough screen with scroll timelines and motion allowed; anywhere else the scene is its
+   natural height, nothing is pinned, and the plane rests at its gentle tilt. No overflow on the pin:
+   the buttons' focus rings must never be clipped. */
+@supports (animation-timeline: view()) and (position: sticky) {
+  @media (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      [data-depth-scene] {
+        height: 190vh;
+        view-timeline: --depth-scene block;
+
+        /* The header covers the top of the viewport: the turn starts at scroll 0, with the pin. */
+        view-timeline-inset: var(--header-h) 0;
+      }
+
+      [data-hero-pin] {
+        position: sticky;
+        top: var(--header-h);
+        height: calc(100vh - var(--header-h));
+        min-height: 40rem;
+        align-content: center;
+      }
+
       [data-depth-plane] {
         animation: depth-plane-face linear both;
+        animation-timeline: --depth-scene;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-scene] [data-depth-recede] {
+        animation: depth-recede linear both;
         animation-timeline: --depth-scene;
         animation-range: contain 0% contain 100%;
       }

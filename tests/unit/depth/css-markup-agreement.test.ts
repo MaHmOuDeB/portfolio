@@ -43,6 +43,7 @@ const PAGE_APPLIED: Record<string, string> = {
   'data-depth-parallax': 'a page element that drifts with the scroll',
   'data-depth-reveal': 'a page element revealed left to right',
   'data-depth-magnet': 'a button a page marks; Lean moves it',
+  'data-proof-unit': 'a word around a proof figure\'s number (about, min), which the page passes inside the figure',
 };
 // Rendered parts with no rule of their own. Empty on purpose: add an entry only with a reason.
 const UNSTYLED: Record<string, string> = {};
