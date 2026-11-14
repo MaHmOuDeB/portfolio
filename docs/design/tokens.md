@@ -14,7 +14,7 @@ face, so the character comes from elsewhere: the interval glyph, the chart syste
 
 Every Tailwind namespace the site does not use is reset to `initial`, then only the names below are
 redefined: colour, shadow, breakpoint, font, font weight, text, radius, tracking, ease, animate,
-container, drop shadow, inset shadow and text shadow. `bg-blue-500`, `shadow-md`, `font-bold`,
+container, drop shadow, inset shadow, text shadow and perspective. `bg-blue-500`, `shadow-md`, `font-bold`,
 `text-5xl`, `rounded-2xl`, `rounded-lg`, `tracking-widest` and `animate-bounce` produce nothing.
 The theme is `@theme static`, so every variable is emitted even when no utility uses it (an SVG
 `fill="var(--color-series-2)"` always resolves). There is no `--font-display` and no `.tabular`
@@ -34,6 +34,7 @@ fill) are listed as overlap pairs, each with the drawing rule that makes it pass
 | `ink` | `#1D1D1F` | text, primary button fill, selected segment, zero line | 16.83 |
 | `muted` | `#6E6E73` | secondary text, links and their underline, captions, input borders, the slider track edge, badge border, the running estimate line | 5.07 |
 | `line` | `#E8E8ED` | rules, chart grid, the inactive track fill | decorative |
+| `surface` | `#F5F5F7` | tiles and cards on the white page (`bg-surface`); `muted` text on it is 4.66, `ink` 16.0 | decorative |
 | `accent` | `#0A5FD9` | controls: focus ring, the active part of a slider track | 5.75 |
 | `series-1` | `#0A5FD9` | the first chart series, interval bounds (1 px lines), the glyph bar and caps | 5.75 |
 | `series-2` | `#D9620A` | the current estimate, the point being made | 3.68 (fills, lines and dots only, never text) |
@@ -99,6 +100,7 @@ up to a pixel and a column of figures drifts. Weights used: `font-weight-regular
 | `text-3xl` | 48 px | 1.1 | `Stat` numbers |
 | `text-readout-sm` | 48 px | 1, -0.03 em, 600 | the hero readout under 768 px |
 | `text-readout` | 64 px | 1, -0.03 em, 600 | the hero readout; always with its unit ("visitors per group") |
+| `text-display-lg` | 88 px | 1.02, -0.03 em | the Home headline from 1024 px |
 | `text-display-sm` | 44 px | 1.04, -0.02 em | the name in the hero under 768 px |
 | `text-display` | 72 px | 1.04, -0.02 em | the name in the hero |
 
@@ -117,7 +119,7 @@ characters.
 - `header-h`: 64 px, the `SiteHeader` height; the sticky chart's top offset from `md` up.
 - `container-text` 680 px, `container-figure` 960 px, `container-page` 1280 px.
 - Page side padding: 32 px desktop, 16 px phone.
-- Radius: `radius-sm` 4 px (badges, buttons), `radius-md` 8 px (inputs). `rounded-full` is used only for dots.
+- Radius: `radius-sm` 4 px (badges), `radius-md` 8 px (inputs), `radius-xl` 28 px (tiles and cards: `rounded-xl`), `radius-pill` (buttons: `rounded-pill`). `rounded-full` is used only for dots.
   No shadows exist.
 
 ## Breakpoints
@@ -157,6 +159,10 @@ Use them as `z-(--z-chart)`. Nothing else sets a z-index.
 | `duration-fast` | 120 ms | hover and press feedback |
 | `duration-base` | 240 ms | an interactive Figure changing |
 | `duration-step` | 320 ms | one scroll-moment step changing |
+| `duration-settle` | 1000 ms | a proof figure's interval line closing, once on load |
+| `duration-lean` | 500 ms | a card, a button or the hero field following a fine pointer, and springing back |
+| `duration-arrive` | 800 ms | one row of the hero field, or one load-sequence element, arriving once on load |
+| `perspective-scene` | 1300 px | the hero field's vanishing distance (`perspective: var(--perspective-scene)`; rising groups use it plus 100 px) |
 | `ease-standard` | `cubic-bezier(.2,0,0,1)` | most transitions |
 | `ease-emphasis` | `cubic-bezier(.3,0,0,1.1)` | the interval dot settling |
 
@@ -164,6 +170,30 @@ Tailwind v4 has no duration namespace, so durations are written `duration-(--dur
 `--default-transition-duration` is `var(--duration-fast)` and
 `--default-transition-timing-function` is `var(--ease-standard)`, so a bare `transition-colors`
 follows the tokens. Under `prefers-reduced-motion: reduce`, every duration is 0 ms.
+
+### Depth: the motion language
+
+Motion follows the reader (scroll position or a fine pointer) or plays once on load. Nothing
+loops. The CSS is in `globals.css`, keyed on data attributes, so a component only adds the
+attribute. Scroll-linked rules use `animation-timeline` with linear timing and sit inside
+`@supports`; without scroll timelines, under reduced motion and in print every element is visible
+and untransformed. Only transform, opacity and clip-path change. Keyframes are named `depth-*`.
+
+- `[data-depth-field]`, `[data-depth-plane]`, `[data-depth-row]` (`--i`, `--e`, `--shift`): The hero evidence field: rows arrive once, the plane turns to face the reader on the view timeline of `[data-depth-scene]`, a fine pointer (`--mx`, `--my`) moves the vanishing point and turns the plane. Keyframes: `depth-row-arrive`, `depth-plane-face`.
+- `[data-proof]` with `[data-proof-bar]`: The interval line closes once on load, siblings 110 ms apart. Keyframes: `depth-settle`.
+- `[data-depth-load]` (`--d`): A small rise and fade in order, once on load. Never on the h1. Keyframes: `depth-load`.
+- `[data-depth-recede]`: Text scales to 0.94 and fades to 0.35 as its scene scrolls away. Keyframes: `depth-recede`.
+- `[data-depth-progress]`: A 2 px hairline under the header that fills with the page's scroll. Keyframes: `depth-progress`.
+- `[data-depth-rise]`, `[data-depth-rise="heading"]`: Rises out of depth on entry; siblings 2 to 4 start later. Headings use a smaller tilt. Keyframes: `depth-rise`, `depth-rise-heading`.
+- `[data-depth-draw]`: A hairline draws from the left on entry. Keyframes: `depth-draw`.
+- `[data-depth-book="left"]`, `="right"`: Two tiles open like a book on entry. Keyframes: `depth-book-left`, `depth-book-right`.
+- `[data-depth-ribbon]`: A row of words slides sideways with the scroll. Keyframes: `depth-ribbon`.
+- `[data-depth-scale]`: Very large type scales in from depth on entry. Keyframes: `depth-scale`.
+- `[data-depth-parallax]` (`--p`, px): A block drifts against the scroll. Keyframes: `depth-parallax`.
+- `[data-depth-reveal]`: A chart's marks draw left to right as it enters. Keyframes: `depth-reveal`.
+- `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. Keyframes: transition.
+- `[data-depth-magnet]` (`--tx`, `--ty`): A button shifts up to 6 px toward a fine pointer. Keyframes: transition.
+- `[data-tile]`, `[data-tile="ink"]`: A surface tile and an ink tile (`radius-xl`, padding). Not motion.
 
 ## Base styles in `tokens.css`
 
@@ -175,6 +205,6 @@ utility can override it.
 
 Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and animations (they do
 not exist); any `text-transform: uppercase`; the arrow character, the middle dot and emoji in
-content; monospace outside code blocks; `@keyframes` other than the scroll moment's; `fade-up`,
+content; monospace outside code blocks; `@keyframes` other than the scroll moment's and the `depth-*` ones; `fade-up`,
 `animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`); dark
 mode. The rule ids are listed in `CLAUDE.md`.

@@ -19,7 +19,7 @@ type Props = {
 };
 
 const BASE =
-  'inline-flex min-h-(--size-target) max-w-full items-center justify-center gap-2 rounded-sm whitespace-normal text-sm font-medium transition-colors';
+  'inline-flex min-h-(--size-target) max-w-full items-center justify-center gap-2 rounded-pill whitespace-normal text-sm font-medium transition-colors';
 const VARIANT = {
   primary: 'bg-ink text-bg hover:bg-muted focus-visible:bg-muted',
   secondary: 'border border-muted text-ink hover:bg-line focus-visible:bg-line',
