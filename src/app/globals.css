@@ -454,3 +454,539 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
 @page {
   margin: 16mm 18mm;
 }
+
+/*
+ * Header surface: the page's white at 96% over a blur of what scrolls under it, with a hairline.
+ * 96% is the lowest cover at which the muted nav text keeps 4.5:1 even over a solid black region
+ * (4.65:1); at 76% it falls to 2.85:1 there, so the blur alone cannot be trusted. Without
+ * backdrop-filter the surface is plain white.
+ */
+@layer base {
+  [data-site-header] {
+    background-color: var(--color-bg);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+  }
+
+  /* Where the header does not stick it is still the hairline's positioning context. */
+  @media not ((width >= 48rem) and (height >= 43.75rem)) {
+    [data-site-header] {
+      position: relative;
+    }
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    [data-site-header] {
+      background-color: color-mix(in srgb, var(--color-bg) 96%, transparent);
+      backdrop-filter: saturate(180%) blur(20px);
+    }
+  }
+}
+
+/*
+ * Depth: one idea, evidence arrives in depth and settles flat. Four devices, keyed on data
+ * attributes so a component needs no CSS of its own. In a layer, so a utility class on the same
+ * element still wins. Reduced motion and browsers without scroll timelines get the final, static
+ * state (the block at the end of this section).
+ */
+@keyframes depth-row-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateZ(120px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateZ(0);
+  }
+}
+
+@keyframes depth-plane-face {
+  from {
+    transform: rotateX(58deg) rotateZ(-12deg) scale(1.05);
+  }
+
+  to {
+    transform: rotateX(0deg) rotateZ(0deg) scale(0.84);
+  }
+}
+
+@keyframes depth-settle {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0.6);
+  }
+}
+
+@keyframes depth-rise {
+  from {
+    opacity: 0;
+    translate: 0 80px;
+    rotate: x 22deg;
+    scale: 0.92;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+    rotate: x 0deg;
+    scale: 1;
+  }
+}
+
+@keyframes depth-load {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes depth-recede {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0.35;
+    scale: 0.94;
+  }
+}
+
+@keyframes depth-progress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes depth-rise-heading {
+  from {
+    opacity: 0;
+    translate: 0 40px;
+    rotate: x 10deg;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+    rotate: x 0deg;
+  }
+}
+
+@keyframes depth-draw {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes depth-book-left {
+  from {
+    opacity: 0;
+    rotate: y 14deg;
+  }
+
+  to {
+    opacity: 1;
+    rotate: y 0deg;
+  }
+}
+
+@keyframes depth-book-right {
+  from {
+    opacity: 0;
+    rotate: y -14deg;
+  }
+
+  to {
+    opacity: 1;
+    rotate: y 0deg;
+  }
+}
+
+@keyframes depth-ribbon {
+  from {
+    translate: 6% 0;
+  }
+
+  to {
+    translate: -6% 0;
+  }
+}
+
+@keyframes depth-scale {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes depth-parallax {
+  from {
+    translate: 0 calc(var(--p, 40) * 1px);
+  }
+
+  to {
+    translate: 0 calc(var(--p, 40) * -1px);
+  }
+}
+
+@keyframes depth-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(-1rem -1rem -1rem -1rem);
+  }
+}
+
+@layer components {
+  /* 1. The evidence field. [data-depth-scene] is the section whose scroll turns the plane. */
+  [data-depth-field] {
+    display: grid;
+    height: 35rem;
+    place-items: center;
+    perspective: var(--perspective-scene);
+
+    /* The pointer (--mx, --my in -1..1, set by Lean) moves the vanishing point. */
+    perspective-origin: calc(50% + var(--mx, 0) * 10%) calc(35% + var(--my, 0) * 8%);
+    transition: perspective-origin var(--duration-lean) var(--ease-standard);
+  }
+
+  [data-depth-plane] {
+    position: relative;
+    width: 32.5rem;
+    height: 32.5rem;
+    transform-style: preserve-3d;
+    transform: rotateX(58deg) rotateZ(-12deg) scale(1.05);
+    rotate: y calc(var(--mx, 0) * 7deg);
+    transition: rotate var(--duration-lean) var(--ease-standard);
+  }
+
+  /* The zero line, drawn by the plane itself. */
+  [data-depth-plane]::before {
+    content: "";
+    position: absolute;
+    top: -0.75rem;
+    bottom: -0.75rem;
+    left: 50%;
+    width: 1px;
+    background: var(--color-ink);
+    opacity: 0.55;
+  }
+
+  /* A row: inline top, width and margin-left (or --shift) place it; --i staggers it; --e is the
+     estimate dot's position along the row. */
+  [data-depth-row] {
+    position: absolute;
+    left: 50%;
+    height: 13px;
+    margin-left: var(--shift, 0);
+    border-right: 2px solid var(--color-series-1);
+    border-left: 2px solid var(--color-series-1);
+    border-radius: var(--radius-sm);
+    background: var(--color-series-ghost);
+    transform: translateX(-50%) translateZ(0);
+    animation: depth-row-arrive var(--duration-arrive) var(--ease-standard) both;
+    animation-delay: calc(200ms + var(--i, 0) * 42ms);
+  }
+
+  [data-depth-row]::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: var(--e, 50%);
+    width: 9px;
+    height: 9px;
+    margin-left: -4.5px;
+    border-radius: 50%;
+    background: var(--color-series-2);
+    outline: 2px solid var(--color-bg);
+  }
+
+  @media (width < 56.25rem) {
+    [data-depth-field] {
+      height: 22.5rem;
+    }
+
+    /* Narrow screens keep the tilted plane, smaller; the scroll turn is off. */
+    [data-depth-plane] {
+      scale: 0.6;
+      animation: none;
+    }
+  }
+
+  /* 2. Settle: a proof figure's interval line closes once on load (transform only, never width).
+     [data-proof-bar] is that line; siblings of [data-proof] settle 110 ms apart. */
+  [data-proof] [data-proof-bar] {
+    transform-origin: left;
+    animation: depth-settle var(--duration-settle) var(--ease-standard) both;
+    mask-image: linear-gradient(to right, black 60%, transparent);
+  }
+
+  [data-proof]:nth-child(2) [data-proof-bar] {
+    animation-delay: 110ms;
+  }
+
+  [data-proof]:nth-child(3) [data-proof-bar] {
+    animation-delay: 220ms;
+  }
+
+  [data-proof]:nth-child(4) [data-proof-bar] {
+    animation-delay: 330ms;
+  }
+
+  /* 4. Lean: a card follows a fine pointer (--rx, --ry as angles, --gx, --gy as percentages, set
+     by Lean) and springs back. The sheen sits under the content. */
+  [data-depth-lean] {
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    [data-depth-lean] {
+      transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+      transition: transform var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-lean]::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(
+        26rem circle at var(--gx, 50%) var(--gy, -20%),
+        color-mix(in srgb, var(--color-series-1) 10%, transparent),
+        transparent 60%
+      );
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    [data-depth-lean]:hover::before {
+      opacity: 1;
+    }
+  }
+
+  /* Tiles. */
+  [data-tile] {
+    padding: calc(var(--spacing) * 6);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  [data-tile="ink"] {
+    background: var(--color-ink);
+    color: var(--color-bg);
+  }
+
+  @media (width >= 48rem) {
+    [data-tile] {
+      padding: calc(var(--spacing) * 11);
+    }
+  }
+
+  /* Load sequence: once, in order (--d = 0, 1, 2 ...). Never on the h1, which is the LCP element. */
+  [data-depth-load] {
+    animation: depth-load var(--duration-arrive) var(--ease-standard) both;
+    animation-delay: calc(120ms + var(--d, 0) * 90ms);
+  }
+
+  /* Magnet: a primary button follows a fine pointer by up to 6 px (--tx, --ty set by Lean). */
+  @media (hover: hover) and (pointer: fine) {
+    [data-depth-magnet] {
+      translate: var(--tx, 0) var(--ty, 0);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+  }
+
+  /* The progress hairline sits under the header bar; only drawn where scroll timelines exist. */
+  [data-depth-progress] {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: none;
+    height: 2px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    pointer-events: none;
+  }
+}
+
+/* 3. Rise: scroll-linked and reversible, so it follows the scroll position exactly and runs no
+   clock. The parent gets the perspective the tilt needs. */
+@supports (animation-timeline: view()) {
+  @layer components {
+    :has(> [data-depth-rise]) {
+      perspective: calc(var(--perspective-scene) + 100px);
+    }
+
+    [data-depth-rise] {
+      animation: depth-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    [data-depth-rise]:nth-child(2) {
+      animation-range: entry 8% entry 78%;
+    }
+
+    [data-depth-rise]:nth-child(3) {
+      animation-range: entry 16% entry 86%;
+    }
+
+    [data-depth-rise]:nth-child(4) {
+      animation-range: entry 24% entry 94%;
+    }
+
+    [data-depth-rise="heading"] {
+      animation-name: depth-rise-heading;
+    }
+
+    [data-depth-recede] {
+      animation: depth-recede linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+
+    [data-depth-draw] {
+      transform-origin: left;
+      animation: depth-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-book="left"] {
+      transform-origin: right center;
+      animation: depth-book-left linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-book="right"] {
+      transform-origin: left center;
+      animation: depth-book-right linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-ribbon] {
+      animation: depth-ribbon linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+
+    [data-depth-scale] {
+      animation: depth-scale linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-parallax] {
+      animation: depth-parallax linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+
+    [data-depth-reveal] {
+      animation: depth-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+
+    [data-depth-progress] {
+      display: block;
+      animation: depth-progress linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+
+/* The hero turn: the plane faces the reader as the scene scrolls, on a named view timeline. */
+@supports (animation-timeline: scroll()) {
+  @layer components {
+    [data-depth-scene] {
+      view-timeline: --depth-scene block;
+    }
+
+    @media (width >= 56.25rem) {
+      [data-depth-plane] {
+        animation: depth-plane-face linear both;
+        animation-timeline: --depth-scene;
+        animation-range: contain 0% contain 100%;
+      }
+    }
+  }
+}
+
+/* Final, static state: reduced motion and print. Nothing moves, nothing is hidden. */
+@media (prefers-reduced-motion: reduce), print {
+  [data-depth-row],
+  [data-proof] [data-proof-bar],
+  [data-depth-rise],
+  [data-depth-load],
+  [data-depth-recede],
+  [data-depth-draw],
+  [data-depth-book],
+  [data-depth-ribbon],
+  [data-depth-scale],
+  [data-depth-parallax],
+  [data-depth-reveal],
+  [data-depth-plane] {
+    animation: none;
+  }
+
+  [data-depth-progress] {
+    display: none;
+  }
+
+  [data-depth-magnet] {
+    translate: none;
+  }
+
+  [data-depth-plane] {
+    transform: rotateX(0deg) rotateZ(0deg) scale(0.84);
+    rotate: none;
+  }
+
+  [data-proof] [data-proof-bar] {
+    transform: scaleX(0.6);
+  }
+
+  [data-depth-lean] {
+    transform: none;
+  }
+
+  [data-depth-lean]::before {
+    content: none;
+  }
+
+  [data-depth-field] {
+    perspective-origin: 50% 35%;
+  }
+}

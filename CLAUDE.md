@@ -336,12 +336,21 @@ page, give it the primitives catalogue above and the golden page.
 - **Vocabulary.** Visitor-facing copy says "group". Code says "arm".
 - **Copy.** First person, plain, sentence case. Status is a word ("SRM passed"), and colour only
   repeats it. Navigation is exactly Work, About, Lab, Live test, CV, Contact, Menu.
-- **Motion.**
-  - The Home scroll moment is the only motion the visitor doesn't trigger. No other page has any.
-  - All other motion answers a visitor's action.
-  - No transition while a slider is dragged.
-  - Respect `prefers-reduced-motion` (the tokens collapse every duration).
-  - No scroll-jacking and no fade-up-on-every-section.
+- **Motion** (the depth system; the full attribute table is in `docs/design/tokens.md`).
+  - Motion follows the reader (scroll position or a fine pointer) or plays once on load. Nothing
+    loops or runs on a clock. Time-based: only the load sequence, the field's rows and the proof
+    marks, once.
+  - Scroll-linked means the animation follows the scroll position exactly (`animation-timeline`,
+    linear, `both` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
+    no fade-up-on-every-section.
+  - Lean and magnet run only under a fine pointer. No transition while a slider is dragged.
+  - Only transform, opacity and clip-path animate, never layout. The h1 never animates.
+  - Reduced motion, print and browsers without scroll timelines get the final static state
+    (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.
+  - Components add data attributes (`data-depth-*`, `data-proof`); they write no motion CSS.
+- **Look.** Tiles and cards sit on `surface` with `rounded-xl` (28 px); buttons are pills
+  (`rounded-pill`); the header is a blurred white surface with a hairline. Light only, no shadows,
+  no new typeface.
 - **Banned by `scripts/design-lint.ts`**, one bullet per rule id. Pass 1 reads the CSS the build
   emits (`npm run lint:design`), pass 2 reads the source (`npm run lint:design:src`). Four rules run
   in both passes: in source they also read an inline `style={{ ... }}` object literal and SVG paint
@@ -351,7 +360,7 @@ page, give it the primitives catalogue above and the golden page.
   - `no-caps`: `text-transform: uppercase`, or an inline `textTransform: 'uppercase'`.
   - `no-mono`: a monospace font family outside `pre`, `code`, `kbd`, `samp` and the code block
     class, or an inline `fontFamily` naming one outside `<code>` and `<pre>`.
-  - `no-keyframes`: any `@keyframes` that is not a `scroll-moment-*` one.
+  - `no-keyframes`: any `@keyframes` that is not a `scroll-moment-*` or `depth-*` one.
   - `no-arbitrary-colour`: a hex, `rgb()` or `hsl()` literal in compiled CSS outside the theme
     variables (blocks `bg-[#fff]`); in source, a colour function or a CSS colour name (`red`) in an
     SVG paint attribute (`fill`, `stroke`, `stopColor`, `floodColor`, `lightingColor`, `color`) or

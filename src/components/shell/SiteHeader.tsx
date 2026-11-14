@@ -19,7 +19,7 @@ const PHONE_GLYPH_LENGTH = 28;
 
 export function SiteHeader() {
   return (
-    <header data-site-header="" className="z-(--z-header) border-b border-line bg-bg md:h-(--header-h)">
+    <header data-site-header="" className="z-(--z-header) md:h-(--header-h)">
       <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8">
         {/* No prefetch: the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /. */}
         <Link
@@ -64,6 +64,7 @@ export function SiteHeader() {
           </MenuDisclosure>
         </div>
       </div>
+      <span data-depth-progress="" aria-hidden="true" />
     </header>
   );
 }
