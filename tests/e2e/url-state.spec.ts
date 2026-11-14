@@ -19,11 +19,18 @@ const query = (page: Page) => new URL(page.url()).search;
 /** Waits until the Figure renders the URL's state in place of the server's preset fallback. */
 async function open(page: Page, path: string) {
   const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
   // A hydration mismatch or a throw shows up here. Resource 404s do not count (shell.spec.ts checks
   // them on the home page). Neither does WebKit's report of a router prefetch (`?_rsc=`) that the next
   // navigation cancelled: this test navigates twice, and the header's links are still prefetching.
+  // WebKit logs it as a JavaScript error, which reaches the test either as a console error or as a page
+  // error. Playwright makes the page error by cutting the text at its first colon, the one in "http:",
+  // so its name is "Fetch API cannot load http" and its message starts at "/localhost".
   const cancelledPrefetch = /^Fetch API cannot load \S+\?_rsc=\S+ due to access control checks\.$/;
+  const cancelledPrefetchError = (error: Error) =>
+    /^Fetch API cannot load https?$/.test(error.name) && /^\/\/?[^/\s]+\/\S*\?_rsc=\S+ due to access control checks\.$/.test(error.message);
+  page.on('pageerror', (error) => {
+    if (!cancelledPrefetchError(error)) errors.push(error.message);
+  });
   page.on('console', (message) => {
     const text = message.text();
     if (message.type() === 'error' && !text.startsWith('Failed to load resource') && !cancelledPrefetch.test(text)) {
