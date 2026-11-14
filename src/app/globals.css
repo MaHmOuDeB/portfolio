@@ -946,7 +946,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     position: relative;
     display: grid;
     height: 480px;
+
+    /* One column the stage's own width: the rig is laid out at 1040 px and scaled, so it may be wider
+       than the column before its scale and must stay centred on it. */
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
+    place-items: unsafe center;
     perspective: 1700px;
     perspective-origin: 50% 38%;
   }
@@ -1198,6 +1203,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
 
     [data-depth-stack] {
+      --k: 1;
+
       display: block;
       height: auto;
       perspective: none;
@@ -1205,7 +1212,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-depth-tilt] {
       transform: none;
-      scale: none;
     }
 
     [data-depth-rig] {
@@ -1231,6 +1237,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     [data-depth-link] {
       display: none;
     }
+
+    [data-depth-caption] {
+      padding-top: calc(var(--spacing) * 4);
+    }
   }
 
   /* 3. The live bar: an ink strip from rail to rail at the top of Home's content, the note centred. */
@@ -1242,7 +1252,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     text-align: center;
   }
 
-  [data-live-bar-in] > div {
+  [data-live-bar-in] div:has(> p + a) {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
