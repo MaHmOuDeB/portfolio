@@ -244,6 +244,18 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     border-color: Canvas;
     background: CanvasText;
   }
+
+  /* An ink panel loses its fill to Canvas there, but its light text tones are kept: name the system
+     colours, so the footer, an ink tile, the call to action and the live bar stay readable. Important,
+     because the on-ink rules further down are as specific or more. */
+  :is([data-ink], [data-tile="ink"], [data-live-bar]),
+  :is([data-ink], [data-tile="ink"], [data-live-bar]) * {
+    color: CanvasText !important;
+  }
+
+  :is([data-ink], [data-tile="ink"], [data-live-bar]) a {
+    color: LinkText !important;
+  }
 }
 
 /*
