@@ -1,5 +1,5 @@
 // The head of a section: a chip, the h2 (with an optional quiet clause) and an optional sub-headline,
-// centred or at the left. The h2 carries `id`, so the section can be labelled by it.
+// centred, at the left, or split (from lg the chip and h2 at the left, the sub at the right). The h2 carries `id`, so the section can be labelled by it.
 import type { ReactNode } from 'react';
 import { cx } from '@/lib/cx';
 import { Chip } from './Chip';
@@ -12,7 +12,7 @@ export type SectionHeadProps = {
   quiet?: ReactNode;
   /** One sentence under the headline; may hold inline chips. */
   sub?: ReactNode;
-  align?: 'center' | 'left';
+  align?: 'center' | 'left' | 'split';
 };
 
 export function SectionHead({ id, chip, title, quiet, sub, align = 'center' }: SectionHeadProps) {

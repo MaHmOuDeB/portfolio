@@ -159,7 +159,7 @@ a page needs the smallest possible bundle it can also import a component's file 
 | `StepNav`, `StepNavProps` | `StepNav.tsx` (client) | "3 of 5" between Previous and Next; controlled by the caller. With an `id`, the buttons' ids are `${id}-previous` and `${id}-next`, so a preview's button can hand focus to the island's. |
 | `LoadOnIntent` | `LoadOnIntent.tsx` (client) | Shows the server preview and swaps in the lazy island on pointer, focus or idle; optional `eager` (default false) loads it right after hydration instead. During the swap the root keeps the preview's height until the island has been laid out, and the swap itself reads no style or layout (`load` may measure the preview once, before the island is in the page), so the page never gets shorter under a reader further down. An island must not force layout in its own mount effects. |
 | `useFigureParams` | `useFigureParams.ts` (client) | Reads and writes a Figure's URL state. Call it inside a `<Suspense>` boundary. |
-| `ButtonLink`, `buttonClass` | `ButtonLink.tsx` | A link drawn as a button, and the class list for a real `<button>` that must match. |
+| `ButtonLink`, `buttonClass` | `ButtonLink.tsx` | A link drawn as a button (a compact rectangle with an 8 px radius, at least 44 px high; `onInk` variants for an ink panel), and the class list for a real `<button>` that must match. |
 | `TextLink` | `TextLink.tsx` | An inline link. |
 | `Callout` | `Callout.tsx` | A short note with a rule at the left, for limits and caveats. |
 | `Icon`, `IconName` | `Icon.tsx` | The one outline icon set; always decorative. `alert` and `check` sit only beside the status word they repeat, in its colour (`text-warn`, `text-ok`; colour and alignment on a wrapping span, since `Icon` has no `className`); `chevron` only marks a `SelectField`, in `muted`. |
@@ -307,10 +307,10 @@ motion is CSS keyed on their data attributes.
 |---|---|---|
 | `EvidenceField` | `src/components/depth/EvidenceField.tsx` | The Home hero's evidence field: a confidence band on a ground plane in CSS 3D, one `[data-depth-row]` per `fieldRows()` row. Decorative, `aria-hidden`. |
 | `ProofFigure` | `src/components/depth/ProofFigure.tsx` | A proof figure (`[data-proof]`): the side word, the figure passed in as a `Fact` or `Derived`, a decorative interval mark and the caption. |
-| `LeanCard` | `src/components/depth/LeanCard.tsx` | A link drawn as a tile that rises on entry and leans toward a fine pointer. `titleMinLines` fixes the headline area's height; extra `data-*` attributes pass to the link; `prefetch` passes to `Link`. |
+| `LeanCard` | `src/components/depth/LeanCard.tsx` | A link drawn as a white card that rises on entry and leans toward a fine pointer. `titleMinLines` fixes the headline area's height; `vignette` (a frame `Vignette`) ends the card; extra `data-*` attributes pass to the link; `prefetch` passes to `Link`. |
 | `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the field and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. |
 | `Ribbon` | `src/components/depth/Ribbon.tsx` | A row of words in a `[data-depth-ribbon]` track that slides with the scroll, done in CSS. A labelled list with each item once. |
-| `Tile` | `src/components/depth/Tile.tsx` | A tile on the quiet surface, or an ink one (`tone`). |
+| `Tile` | `src/components/depth/Tile.tsx` | A white tile with a hairline, or an ink one (`tone`). |
 | `GlanceBlock` | `src/components/depth/GlanceBlock.tsx` | The top of a case study: the outcome as a large paragraph, then Role, Methods, Tools and When. |
 | `fieldRows` | `src/lib/depth/field.ts` | The field's rows: index, top, width and the estimate's shift, pure and deterministic. |
 
@@ -325,10 +325,12 @@ column) and `data-rule` on an element in that column (a top hairline from rail t
 |---|---|---|
 | `Chip`, `ChipProps` | `src/components/frame/Chip.tsx` | A small text label (never a link) above a headline, or `inline` in a sentence where a word is a category. Optional dot `ok` or `live` (decorative; the word carries the meaning); `onInk` on an ink panel. |
 | `Quiet` | `src/components/frame/Quiet.tsx` | The quiet second clause of a large headline. Coloured only inside an h1 or h2; a unit test keeps it there. |
-| `SectionHead`, `SectionHeadProps` | `src/components/frame/SectionHead.tsx` | A section's chip, h2 (with its `id` and optional `quiet` clause) and optional sub, centred or at the left. |
+| `SectionHead`, `SectionHeadProps` | `src/components/frame/SectionHead.tsx` | A section's chip, h2 (with its `id` and optional `quiet` clause) and optional sub: `align` centred, at the left, or `split` (from lg the chip and h2 at the left, the sub at the right). |
 | `PageHead`, `PageHeadProps` | `src/components/frame/PageHead.tsx` | A page's chip, h1 (with its `id` and optional `quiet` clause) and optional sub. |
 | `Vignette` | `src/components/frame/Vignette.tsx` | The decorative bottom of a card: `aria-hidden`, the small visible word "Illustration", and the sketch as children on a sheet that bleeds off the bottom right. No digits and no real figures. |
 | `MiniRow`, `IntervalMark`, `Tag`, `Tick` | `src/components/frame/marks.tsx` | A sketch's marks: a hairline row (label, track, tag), the interval mark from three percentages (bar, caps, dot), a plain or tinted tag, and a tick. |
+| `Faq`, `FaqItem`, `FaqProps` | `src/components/frame/Faq.tsx` | A section of questions: a `SectionHead` (split by default), then one native `details` row per item, the first open, no JavaScript. Each summary is a 44 px target with a decorative chevron that turns when open; each answer is a node, so a figure in it is a `Fact`. |
+| `CallToAction`, `CallToActionProps` | `src/components/frame/CallToAction.tsx` | The ink panel that ends a page: an h2 with an optional quiet clause, one line, a primary and a secondary button (the `onInk` variants) and an optional media slot at the right. All text from the caller. |
 
 ## Golden-page rule
 

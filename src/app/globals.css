@@ -388,13 +388,90 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
+  /* Split: from lg the chip and the headline at the left, the sub at the right, on the last line. */
+  @media (width >= 64rem) {
+    [data-section-head][data-align="split"] {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: calc(var(--spacing) * 10);
+      align-items: end;
+    }
+
+    [data-section-head][data-align="split"] > [data-chip] {
+      grid-column: 1;
+      justify-self: start;
+    }
+
+    [data-section-head][data-align="split"] > h2 {
+      grid-column: 1;
+    }
+
+    [data-section-head][data-align="split"] > p {
+      grid-column: 2;
+      grid-row: 2;
+      margin-top: 0;
+    }
+  }
+
+  /* FAQ: hairline rows; the chevron turns when its row is open (a colour-free, visitor-led motion). */
+  [data-faq-list] {
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  [data-faq-row] {
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  [data-faq-chevron] {
+    display: inline-flex;
+    flex: none;
+    color: var(--color-muted);
+    transition: rotate var(--duration-fast) var(--ease-standard);
+  }
+
+  [data-faq-row][open] [data-faq-chevron] {
+    rotate: 180deg;
+  }
+
+  [data-faq-answer] {
+    max-width: var(--container-text);
+    padding-bottom: calc(var(--spacing) * 5);
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
+
+  /* The call to action: an ink panel, text at the left and an optional media slot at the right. */
+  [data-cta] {
+    display: grid;
+    gap: calc(var(--spacing) * 10);
+    align-items: center;
+    padding: calc(var(--spacing) * 10) calc(var(--spacing) * 6);
+  }
+
+  @media (width >= 48rem) {
+    [data-cta] {
+      padding: calc(var(--spacing) * 14) calc(var(--spacing) * 12);
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-cta]:has(> [data-cta-media]) {
+      grid-template-columns: 1.1fr 1fr;
+    }
+  }
+
+  [data-cta-media] {
+    min-width: 0;
+  }
+
   /* The quiet clause, only inside an h1 or h2 (large text): ink at 50% on the canvas, the quiet
      on-ink tone on an ink panel. */
   :is(h1, h2) [data-quiet] {
     color: var(--color-quiet);
   }
 
-  [data-tile="ink"] :is(h1, h2) [data-quiet] {
+  :is([data-tile="ink"], [data-ink]) :is(h1, h2) [data-quiet] {
     color: var(--color-on-ink-muted);
   }
 

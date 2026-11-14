@@ -1,4 +1,4 @@
-// A tile on the quiet surface, or an ink one. Extra data-* attributes go onto the tile.
+// A white tile with a hairline, or an ink one. Extra data-* attributes go onto the tile.
 import type { ReactNode } from 'react';
 import type { DataAttributes } from './data-attributes';
 

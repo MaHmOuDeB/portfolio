@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
+  CallToAction,
   Chip,
+  Faq,
   IntervalMark,
   MiniRow,
   PageHead,
@@ -99,6 +101,98 @@ describe('SectionHead', () => {
   });
 });
 
+describe('SectionHead, split', () => {
+  it('marks the split variant, keeping chip, h2 and sub in order (two columns from lg in CSS)', () => {
+    const html = renderToStaticMarkup(<SectionHead id="s" chip="C" title="T" quiet="q." sub="Sub." align="split" />);
+    expect(html).toMatch(/^<div data-section-head="" data-align="split">/);
+    expect(html.indexOf('data-chip')).toBeLessThan(html.indexOf('<h2'));
+    expect(html.indexOf('<h2')).toBeLessThan(html.indexOf('<p'));
+    expect(html).not.toContain('mx-auto');
+  });
+});
+
+describe('Faq', () => {
+  const html = renderToStaticMarkup(
+    <Faq
+      id="faq-title"
+      chip="FAQ"
+      title="Questions hiring teams ask"
+      sub="Short answers."
+      items={[
+        { question: 'First question?', answer: <>Answer with a <data value="x">figure</data>.</> },
+        { question: 'Second question?', answer: 'Second answer.' },
+      ]}
+    />,
+  );
+
+  it('is a section labelled by its h2, with the chip and sub', () => {
+    expect(html).toMatch(/^<section data-faq="" aria-labelledby="faq-title">/);
+    expect(html).toMatch(/<h2 id="faq-title"[^>]*>Questions hiring teams ask<\/h2>/);
+    expect(html).toContain('<span data-chip="">FAQ</span>');
+    expect(html).toContain('Short answers.');
+  });
+
+  it('draws one native details row per question, the first open, with no script', () => {
+    const rows = [...html.matchAll(/<details ([^>]*)>/g)].map((m) => m[1]!);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('open=""');
+    expect(rows[1]).not.toContain('open');
+    expect(html).not.toMatch(/<script|onClick|onclick/);
+  });
+
+  it('makes each summary a 44 px target with the question and a decorative chevron', () => {
+    const summaries = [...html.matchAll(/<summary ([^>]*)>([\s\S]*?)<\/summary>/g)];
+    expect(summaries).toHaveLength(2);
+    for (const [, attrs, body] of summaries) {
+      expect(attrs).toContain('min-h-(--size-target)');
+      expect(attrs).toContain('data-touch-target');
+      expect(body).toContain('data-faq-chevron=""');
+      expect(body).toMatch(/aria-hidden="true"/);
+    }
+    expect(text(summaries[0]![2]!)).toBe('First question?');
+  });
+
+  it('takes a node as the answer, so a figure can be a Fact', () => {
+    expect(html).toContain('<div data-faq-answer="">Answer with a <data value="x">figure</data>.</div>');
+  });
+});
+
+describe('CallToAction', () => {
+  const html = renderToStaticMarkup(
+    <CallToAction
+      id="cta-title"
+      title="Find out what I can do"
+      quiet="for your team."
+      line="One line."
+      primary={{ label: 'Write to me', href: '/contact' }}
+      secondary={{ label: 'Read my CV', href: '/cv' }}
+      media={<span data-portrait="">portrait</span>}
+    />,
+  );
+
+  it('is an ink section labelled by its h2 with the quiet clause', () => {
+    expect(html).toMatch(/^<section data-cta="" data-ink="" aria-labelledby="cta-title"/);
+    expect(html).toMatch(/<h2 id="cta-title"[^>]*>Find out what I can do <span data-quiet="">for your team\.<\/span><\/h2>/);
+    expect(html).toMatch(/<p [^>]*>One line\.<\/p>/);
+  });
+
+  it('has the two buttons in the on-ink variants, primary first', () => {
+    const anchors = [...html.matchAll(/<a ([^>]*)>([^<]*)<\/a>/g)].map((m) => ({ attrs: m[1]!, label: m[2]! }));
+    expect(anchors.map((a) => a.label)).toEqual(['Write to me', 'Read my CV']);
+    expect(anchors[0]!.attrs).toContain('bg-surface text-ink');
+    expect(anchors[1]!.attrs).toContain('border-rule-on-ink');
+  });
+
+  it('puts the media in its own slot, and drops the slot without it', () => {
+    expect(html).toContain('<div data-cta-media=""><span data-portrait="">portrait</span></div>');
+    const bare = renderToStaticMarkup(
+      <CallToAction id="c" title="T" line="L" primary={{ label: 'A', href: '/a' }} secondary={{ label: 'B', href: '/b' }} />,
+    );
+    expect(bare).not.toContain('data-cta-media');
+    expect(bare).not.toContain('data-quiet');
+  });
+});
+
 describe('PageHead', () => {
   const html = renderToStaticMarkup(
     <PageHead id="about-title" chip="About" title="Experimentation and growth analyst" quiet="in Berlin, Germany." sub="A line." />,
@@ -181,6 +275,14 @@ describe('frame CSS and the root layout', () => {
     expect(css).toMatch(/:is\(h1, h2, h3\):is\(\[class\*="text-display"\], \[class\*="text-h2"\]\)\s*\{[^}]*font-weight:\s*var\(--font-weight-heading\);[^}]*letter-spacing:\s*var\(--tracking-heading\)/);
   });
 
+  it('turns the FAQ chevron when its row is open', () => {
+    expect(css).toMatch(/\[data-faq-row\]\[open\] \[data-faq-chevron\]\s*\{[^}]*rotate:/);
+  });
+
+  it('sets a split head in two columns from lg, the sub at the right', () => {
+    expect(css).toMatch(/@media \(width >= 64rem\)\s*\{\s*\[data-section-head\]\[data-align="split"\]\s*\{[^}]*grid-template-columns/);
+  });
+
   it('makes the quiet clause quiet only inside an h1 or h2', () => {
     expect(css).toMatch(/:is\(h1, h2\) \[data-quiet\]\s*\{[^}]*color:\s*var\(--color-quiet\)/);
     // No rule colours a bare quiet span: a selector that starts with it would apply outside headings.
@@ -188,7 +290,7 @@ describe('frame CSS and the root layout', () => {
   });
 
   it('styles every frame part it renders', () => {
-    for (const part of ['data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-tick']) {
+    for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-tick']) {
       expect(css, part).toContain(`[${part}`);
     }
   });
