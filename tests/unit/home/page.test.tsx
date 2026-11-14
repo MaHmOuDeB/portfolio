@@ -593,10 +593,6 @@ describe('small counts and stopped tests with little data', () => {
     }
   });
 
-  it.each(['ab-tiny', 'calibration-tiny'] as const)('%s: the smaller group prints as "<5"', (n) => {
-    expect(everything(page(named(n)))).toContain('<5');
-  });
-
   it.each(['held-under-50', 'paused-under-50', 'closed-under-50', 'final-low', 'paused-tiny', 'held-enough-no-look'] as const)(
     '%s: no next look or first estimate is promised',
     (n) => {

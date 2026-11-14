@@ -291,7 +291,7 @@ const LAYOUTS: readonly Layout[] = [
 ];
 
 test.describe('Home quality: every text state', () => {
-  test('@quality the state list is read from the host fixtures', async (_, info) => {
+  test('@quality the state list is read from the host fixtures', async ({}, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     expect(MODES).toHaveLength(14);
     expect(NARRATIVE.length).toBeGreaterThan(20);
