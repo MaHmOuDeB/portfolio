@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { serverNow, testClockOffsetMs } from '@/lib/experiment/clock';
 import { eventDeps } from '@/lib/experiment/deps';
-import { FIXTURE_START } from '@/experiment.config';
+import { EXPERIMENT, FIXTURE_START, calibrationStart } from '@/experiment.config';
 import type { ServerEnv } from '@/lib/env';
 import { E2E_CLOCK_AT } from '../../e2e/constants';
 
@@ -51,7 +51,9 @@ describe('serverNow', () => {
 });
 
 describe('the e2e clock', () => {
-  it('lands after the fixture start, at midday Berlin, so a run neither starts before it nor crosses midnight', () => {
+  it('lands after the calibration start, at midday Berlin, so a run neither starts before it nor crosses midnight', () => {
+    // Outside production the start is the configured one, else the fixture start: after both.
+    expect(Date.parse(E2E_CLOCK_AT)).toBeGreaterThan(Date.parse(calibrationStart(EXPERIMENT, 'preview')!));
     expect(Date.parse(E2E_CLOCK_AT)).toBeGreaterThan(Date.parse(FIXTURE_START));
     expect(E2E_CLOCK_AT).toMatch(/T12:00:00\+0[12]:00$/);
   });

@@ -177,7 +177,7 @@ describe('launch:check', () => {
   });
 
   it('names an unset calibration start', () => {
-    const d = deps({ config: EXPERIMENT });
+    const d = deps({ config: { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: null } } as unknown as ExperimentConfig });
     expect(main(ARGS, d.deps)).toBe(1);
     expect(d.lines.join('\n')).toMatch(/^unmet: .*calibration\.startedOn/m);
   });
