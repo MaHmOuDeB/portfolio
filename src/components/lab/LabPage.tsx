@@ -34,8 +34,9 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
         {entry.title}
       </h2>
       {/* The Figure kit is frozen: the figure sits on a white hairline card of the frame. Under 640 px
-          the card runs edge to edge, so a chart keeps the column's width for its axis labels. */}
-      <div data-figure-sheet="" className="mt-6 -mx-4 rounded-none border-y border-hairline bg-surface p-4 sm:mx-0 sm:rounded-xl sm:border md:p-8">
+          the card runs edge to edge over the frame's rails, so a chart keeps the full column's width (the
+          screen less 16 px a side) for its axis labels. */}
+      <div data-figure-sheet="" className="mt-6 -mx-[calc(var(--frame-pad)_+_1px)] rounded-none border-y border-hairline bg-surface p-4 sm:mx-0 sm:rounded-xl sm:border md:p-8">
         {children}
       </div>
     </section>
