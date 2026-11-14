@@ -60,7 +60,7 @@ async function main(argv: string[]): Promise<number> {
     for (const card of plan.cards) {
       await page.setContent(card.html, { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
-      const loaded = await page.evaluate(() => document.fonts.check('600 80px Inter') && document.fonts.check('500 32px Inter'));
+      const loaded = await page.evaluate(() => document.fonts.check('600 72px Inter') && document.fonts.check('500 28px Inter'));
       if (!loaded) throw new Error(`${card.file}: the embedded Inter did not load`);
       // Everything inside the padding, nothing overlapping: the text block ends above the footer
       // rule, the footer ends at the bottom padding, and no line is wider than the content box.

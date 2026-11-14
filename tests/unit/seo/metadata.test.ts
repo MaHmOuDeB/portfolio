@@ -530,8 +530,8 @@ describe('sharingTemplate', () => {
       expect(html).toMatch(/width:\s*1200px/);
       expect(html).toMatch(/height:\s*630px/);
       expect(html).toMatch(/padding:\s*72px 80px/);
-      expect(html).toMatch(/h1\{[^}]*font-size:\s*80px/);
-      expect(html).toMatch(/\.sub\{[^}]*font-size:\s*32px/);
+      expect(html).toMatch(/h1\{[^}]*font-size:\s*72px/);
+      expect(html).toMatch(/\.sub\{[^}]*font-size:\s*28px/);
       expect(html).toMatch(/\.foot\{[^}]*font-size:\s*24px/);
       expect(html).toMatch(/\.glyph\{[^}]*width:\s*96px;\s*height:\s*16px/);
       // No remote asset and no address: the only URL is the embedded font.
