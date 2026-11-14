@@ -42,6 +42,8 @@ const SET_BY_PAGES: Record<string, string> = {
   'data-depth-magnet': 'a button a page marks; Lean moves it',
   'data-depth-drift': 'a grid wrapper a page marks to arrive from a corner of its section',
   'data-depth-hinge': 'the sketch sheet of the frame Vignette, which lifts like a lid inside a card',
+  'data-depth-focus': 'the wrapper of the call to action portrait, which comes into focus',
+  'data-depth-follow': 'a pointer scene a page or frame component marks; Lean writes its values',
   'data-proof-unit': 'a word around a proof figure\'s number (about, min), which the page passes inside the figure',
 };
 // Rendered parts with no rule of their own. Empty on purpose: add an entry only with a reason.

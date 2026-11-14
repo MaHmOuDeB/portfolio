@@ -94,7 +94,8 @@ export function AboutPage(): ReactNode {
             ))}
           </div>
         </div>
-        <div className="lg:col-span-5">
+        {/* The portrait's column drifts in once from the top left (the photo keeps its own parallax). */}
+        <div data-depth-drift="tl" className="lg:col-span-5">
           <Image
             src={aboutPhoto.src}
             alt={aboutPhoto.alt}

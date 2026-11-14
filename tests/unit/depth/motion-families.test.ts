@@ -91,3 +91,47 @@ describe('every family', () => {
     for (const m of families.matchAll(/animation:\s*depth-[a-z-]+ linear (\w+)/g)) expect(m[1]).toBe('backwards');
   });
 });
+
+describe('the portraits', () => {
+  it('pulls the call to action portrait into focus: the one clip-path animation, with the photo settling inside', () => {
+    expect(block('@keyframes depth-focus')).toMatch(/from\s*\{\s*clip-path:\s*inset\(10% round 12px\);\s*\}\s*to\s*\{\s*clip-path:\s*inset\(0 round 12px\);/);
+    expect(block('@keyframes depth-focus-in')).toMatch(/from\s*\{\s*transform:\s*scale\(1\.08\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
+    expect(families).toMatch(/\[data-depth-focus\]\s*\{[^}]*animation:\s*depth-focus linear backwards/);
+    expect(families).toMatch(/\[data-depth-focus\] > img\s*\{[^}]*animation:\s*depth-focus-in linear backwards/);
+    // Only one element animates a clip-path.
+    const clipFrames = [...css.matchAll(/@keyframes ([a-z-]+)\s*\{[^@]*?clip-path/g)].map((m) => m[1]);
+    expect(clipFrames).toEqual(['depth-focus']);
+  });
+
+  it('drifts the call to action media from the top right with a fade, and About\'s portrait from the top left once on load, by transform only', () => {
+    const tr = block('@keyframes depth-drift-tr');
+    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*translate3d\(40px, -32px, -200px\) rotateY\(-8deg\)/);
+    expect(tr).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
+    const tl = block('@keyframes depth-drift-tl');
+    expect(tl).not.toContain('opacity');
+    expect(tl).toMatch(/to\s*\{\s*transform:\s*none;/);
+    expect(families).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*animation:\s*depth-drift-tl var\(--duration-arrive\) var\(--ease-standard\) backwards/);
+  });
+
+  it('marks the call to action a pointer scene only when it has media, the media drifting', async () => {
+    const { CallToAction } = await import('@/components/frame/CallToAction');
+    const base = { id: 'x', title: 't', line: 'l', primary: { label: 'p', href: '/p' }, secondary: { label: 's', href: '/s' } };
+    const plain = renderToStaticMarkup(createElement(CallToAction, base));
+    expect(plain).not.toContain('data-depth-follow');
+    expect(plain).not.toContain('data-depth-drift');
+    const withMedia = renderToStaticMarkup(createElement(CallToAction, { ...base, media: createElement('img', { alt: '' }) }));
+    expect(withMedia).toMatch(/<section [^>]*data-depth-follow=""/);
+    expect(withMedia).toContain('<div data-cta-media="" data-depth-drift="tr">');
+    const { HomeCallToAction } = await import('@/components/home/HomeCallToAction');
+    expect(renderToStaticMarkup(createElement(HomeCallToAction))).toMatch(/<div data-depth-focus=""[^>]*><img /);
+  });
+
+  it('shifts the portrait and the text as two planes only on a fine pointer, the text in whole pixels, and never under reduced motion', () => {
+    const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+    expect(pointer).toMatch(/\[data-depth-follow\] \[data-cta-media\]\s*\{[^}]*translate:\s*calc\(var\(--mx\) \* 6px\) calc\(var\(--my\) \* 4px\)/);
+    expect(pointer).toMatch(/\[data-depth-follow\] \[data-cta-text\]\s*\{[^}]*translate:\s*round\(calc\(var\(--mx\) \* -2px\), 1px\)/);
+    expect(still).toMatch(/\[data-depth-follow\] :is\(\[data-cta-media\], \[data-cta-text\]\)\s*\{\s*translate:\s*none;/);
+    for (const part of ['[data-depth-focus]', '[data-depth-focus] > img']) expect(still).toContain(part);
+    expect(families).toMatch(/\[data-depth-focus\]:focus-within/);
+  });
+});

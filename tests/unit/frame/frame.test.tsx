@@ -171,7 +171,8 @@ describe('CallToAction', () => {
   );
 
   it('is an ink section labelled by its h2 with the quiet clause', () => {
-    expect(html).toMatch(/^<section data-cta="" data-ink="" aria-labelledby="cta-title"/);
+    // With media the panel is a pointer scene (the portrait and the text shift as two planes).
+    expect(html).toMatch(/^<section data-cta="" data-ink="" data-depth-follow="" aria-labelledby="cta-title"/);
     expect(html).toMatch(/<h2 id="cta-title"[^>]*>Find out what I can do <span data-quiet="">for your team\.<\/span><\/h2>/);
     expect(html).toMatch(/<p [^>]*>One line\.<\/p>/);
   });
@@ -184,7 +185,7 @@ describe('CallToAction', () => {
   });
 
   it('puts the media in its own slot, and drops the slot without it', () => {
-    expect(html).toContain('<div data-cta-media=""><span data-portrait="">portrait</span></div>');
+    expect(html).toContain('<div data-cta-media="" data-depth-drift="tr"><span data-portrait="">portrait</span></div>');
     const bare = renderToStaticMarkup(
       <CallToAction id="c" title="T" line="L" primary={{ label: 'A', href: '/a' }} secondary={{ label: 'B', href: '/b' }} />,
     );

@@ -1,6 +1,8 @@
 // The ink panel that ends a page: an h2 with an optional quiet clause, one line, a primary and a
 // secondary button (the on-ink variants) and an optional media slot at the right, such as the
-// portrait. All text comes from the caller.
+// portrait. With media the panel is a pointer scene: the media drifts in from the top right, and on a
+// fine pointer the media and the text shift a little in opposite directions. All text comes from the
+// caller.
 import type { ReactNode } from 'react';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { Quiet } from './Quiet';
@@ -19,8 +21,8 @@ export type CallToActionProps = {
 
 export function CallToAction({ id, title, quiet, line, primary, secondary, media }: CallToActionProps) {
   return (
-    <section data-cta="" data-ink="" aria-labelledby={id} className="rounded-xl bg-ink text-on-ink">
-      <div>
+    <section data-cta="" data-ink="" data-depth-follow={media ? '' : undefined} aria-labelledby={id} className="rounded-xl bg-ink text-on-ink">
+      <div data-cta-text="">
         <h2 id={id} className="text-h2-sm text-surface md:text-h2">
           {title}
           {quiet ? (
@@ -40,7 +42,11 @@ export function CallToAction({ id, title, quiet, line, primary, secondary, media
           </ButtonLink>
         </div>
       </div>
-      {media ? <div data-cta-media="">{media}</div> : null}
+      {media ? (
+        <div data-cta-media="" data-depth-drift="tr">
+          {media}
+        </div>
+      ) : null}
     </section>
   );
 }

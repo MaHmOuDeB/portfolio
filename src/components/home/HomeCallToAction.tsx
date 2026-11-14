@@ -20,14 +20,18 @@ export function HomeCallToAction() {
         primary={{ label: PAGE_CTA.write, href: CONTACT_HREF }}
         secondary={{ label: PAGE_CTA.cv, href: CV_LINK.href }}
         media={
-          <Image
-            src={aboutPhoto.src}
-            alt={aboutPhoto.alt}
-            width={PHOTO_WIDTH}
-            height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
-            loading="lazy"
-            className="ml-auto h-auto w-full max-w-90 rounded-xl"
-          />
+          // The focus pull: the frame opens from a smaller inset while the photo settles from a little
+          // larger, so the portrait comes into focus without a blur.
+          <div data-depth-focus="" className="ml-auto w-full max-w-90 rounded-xl">
+            <Image
+              src={aboutPhoto.src}
+              alt={aboutPhoto.alt}
+              width={PHOTO_WIDTH}
+              height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
+              loading="lazy"
+              className="h-auto w-full rounded-xl"
+            />
+          </div>
         }
       />
     </div>

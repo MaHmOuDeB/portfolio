@@ -933,6 +933,57 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+@keyframes depth-drift-tr {
+  0% {
+    opacity: 0;
+    transform: translate3d(40px, -32px, -200px) rotateY(-8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* From the top left, once on load and by transform only: About's portrait is in the first screen
+   (and may be its largest paint), so it never fades. */
+@keyframes depth-drift-tl {
+  from {
+    transform: translate3d(-40px, -32px, -200px) rotateY(8deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* The focus pull, the one clip-path animation on the site: the frame opens from a smaller inset while
+   the photo inside settles from a little larger. No blur. */
+@keyframes depth-focus {
+  from {
+    clip-path: inset(10% round 12px);
+  }
+
+  to {
+    clip-path: inset(0 round 12px);
+  }
+}
+
+@keyframes depth-focus-in {
+  from {
+    transform: scale(1.08);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
 /* Hinge: a surface rotates up on its bottom edge like a lid. */
 @keyframes depth-hinge {
   from {
@@ -2021,6 +2072,30 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         animation-range: entry 30% entry 100%;
       }
 
+      [data-depth-drift="tr"] {
+        transform-origin: 100% 0%;
+        animation-name: depth-drift-tr;
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-drift="tl"] {
+        transform-origin: 0% 0%;
+        animation: depth-drift-tl var(--duration-arrive) var(--ease-standard) backwards;
+        animation-delay: 180ms;
+      }
+
+      [data-depth-focus] {
+        animation: depth-focus linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-focus] > img {
+        animation: depth-focus-in linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% entry 90%;
+      }
+
       /* In a drifting card the lid follows its card. */
       [data-depth-drift] [data-depth-hinge] {
         animation-range: entry 40% contain 10%;
@@ -2028,7 +2103,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
       /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
       [data-depth-drift]:focus-within,
-      [data-depth-hinge]:focus-within {
+      [data-depth-hinge]:focus-within,
+      [data-depth-focus]:focus-within {
         animation: none;
       }
 
@@ -2040,6 +2116,25 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       [data-depth-lean]:nth-child(3n + 3) [data-depth-hinge] {
         animation-range: entry 42% contain 12%;
       }
+    }
+  }
+}
+
+/* Pointer scenes: on a fine pointer, with motion allowed, Lean writes --mx and --my (-1 to 1 across
+   the scene) and --gx and --gy on a [data-depth-follow] element. Until it does, each value below is
+   invalid at computed time, so nothing moves. The call to action's portrait and its text shift a
+   little in opposite directions, as two planes. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    [data-depth-follow] [data-cta-media] {
+      translate: calc(var(--mx) * 6px) calc(var(--my) * 4px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-follow] [data-cta-text] {
+      /* Whole pixels: a block of text at a fractional offset would be resampled soft. */
+      translate: round(calc(var(--mx) * -2px), 1px) round(calc(var(--my) * -2px), 1px);
+      transition: translate var(--duration-lean) var(--ease-standard);
     }
   }
 }
@@ -2056,6 +2151,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-parallax],
   [data-depth-drift],
   [data-depth-hinge],
+  [data-depth-focus],
+  [data-depth-focus] > img,
   [data-depth-arrive],
   [data-depth-rig],
   [data-depth-sheet],
@@ -2080,6 +2177,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-sheet]::after {
     animation: none;
+    translate: none;
+  }
+
+  [data-depth-follow] :is([data-cta-media], [data-cta-text]) {
     translate: none;
   }
 
