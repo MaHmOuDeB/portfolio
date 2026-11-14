@@ -48,9 +48,21 @@ describe('the band: the stack that unfolds', () => {
   });
 
   it('rests, everywhere else on a wide screen, in the isometric pose and leans to the pointer', () => {
-    expect(css).toMatch(/\[data-depth-rig\]\s*\{[^}]*transform:\s*translateY\(34px\) rotateX\(58deg\) rotateZ\(-38deg\) scale\(1\.06\)/);
+    // A shallower tilt and a larger scale than the first pose, so the sheet text reads while stacked.
+    expect(css).toMatch(/\[data-depth-rig\]\s*\{[^}]*transform:\s*translate\(-75px, 122px\) rotateX\(52deg\) rotateZ\(-34deg\) scale\(1\.1\)/);
     expect(css).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*rotateX\(calc\(var\(--my, 0\) \* -4deg\)\) rotateY\(calc\(var\(--mx, 0\) \* 6deg\)\)/);
     expect(block('@keyframes depth-rig')).toMatch(/to\s*\{\s*transform:\s*none/);
+  });
+
+  it('keeps each sheet flat in the rig\'s one 3D context, its edge an offset slab in the same plane that slides back as it unfolds', () => {
+    const sheet = /\[data-depth-sheet\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(sheet).not.toMatch(/preserve-3d/);
+    expect(sheet).toMatch(/isolation:\s*isolate/);
+    expect(css).not.toMatch(/translateZ\(-8px\)/);
+    expect(css).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*z-index:\s*-2[^}]*translate:\s*-6px 8px/);
+    expect(block('@keyframes depth-slab')).toMatch(/to\s*\{\s*translate:\s*none/);
+    expect(pin).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*animation:\s*depth-slab[^}]*animation-timeline:\s*--depth-band/);
+    expect(block('@media (prefers-reduced-motion: reduce), print')).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*animation:\s*none[^}]*translate:\s*none/);
   });
 
   it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {

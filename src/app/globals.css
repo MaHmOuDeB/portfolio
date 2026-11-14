@@ -707,7 +707,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-sheet-1 {
   from {
-    transform: translate3d(360px, 0, 220px);
+    transform: translate3d(530px, -195px, 200px);
   }
 
   to {
@@ -717,7 +717,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-sheet-2 {
   from {
-    transform: translate3d(0, 0, 110px);
+    transform: translate3d(85px, -98px, 100px);
   }
 
   to {
@@ -732,6 +732,13 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   to {
     transform: none;
+  }
+}
+
+/* A sheet's edge slides back under its face as the stack unfolds. */
+@keyframes depth-slab {
+  to {
+    translate: none;
   }
 }
 
@@ -968,7 +975,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     position: relative;
     display: grid;
-    height: 480px;
+    height: 540px;
 
     /* One column the stage's own width: the rig is laid out at 1040 px and scaled, so it may be wider
        than the column before its scale and must stay centred on it. */
@@ -979,7 +986,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     perspective-origin: 50% 38%;
   }
 
-  @media (width < 80rem) {
+  @media (width < 72rem) {
     [data-depth-stack] {
       --k: 0.88;
     }
@@ -997,7 +1004,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     width: 1040px;
     height: 210px;
     transform-style: preserve-3d;
-    transform: translateY(34px) rotateX(58deg) rotateZ(-38deg) scale(1.06);
+    transform: translate(-75px, 122px) rotateX(52deg) rotateZ(-34deg) scale(1.1);
   }
 
   [data-depth-sheet] {
@@ -1006,25 +1013,41 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     width: 320px;
     height: 210px;
     padding: 16px 18px;
-    border: 1px solid var(--color-hairline-strong);
+    border: 1px solid transparent;
     border-radius: 14px;
-    background: var(--color-surface);
     color: var(--color-ink);
     font-size: 0.8125rem;
     line-height: 1.3;
     letter-spacing: 0;
     text-align: left;
-    transform-style: preserve-3d;
+
+    /* Flat: the sheet is one plane in the rig's single 3D context, so its text is drawn once in that
+       plane and never sorted in depth. Isolated, so its face and edge paint under its own content. */
+    isolation: isolate;
   }
 
-  /* The sheet's edge: a slab behind it, so the stack reads as three sheets with thickness. */
+  /* The sheet's face and its edge, both flat in the sheet's plane: the face carries the border and
+     the fill, the edge is a slab offset toward the bottom of the screen in the stacked pose, so the
+     stack reads as three sheets with thickness. The edge slides back under the face as the stack
+     unfolds and sits hidden behind it in the row. */
+  [data-depth-sheet]::before,
   [data-depth-sheet]::after {
     content: "";
     position: absolute;
     inset: -1px;
     border-radius: inherit;
+  }
+
+  [data-depth-sheet]::before {
+    z-index: -1;
+    border: 1px solid var(--color-hairline-strong);
+    background: var(--color-surface);
+  }
+
+  [data-depth-sheet]::after {
+    z-index: -2;
     background: var(--color-hairline-strong);
-    transform: translateZ(-8px);
+    translate: -6px 8px;
   }
 
   [data-depth-sheet] > * {
@@ -1033,19 +1056,22 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-sheet="1"] {
     left: 0;
-    transform: translate3d(360px, 0, 220px);
+    transform: translate3d(530px, -195px, 200px);
   }
 
   [data-depth-sheet="2"] {
     left: 360px;
-    transform: translate3d(0, 0, 110px);
+    transform: translate3d(85px, -98px, 100px);
   }
 
   [data-depth-sheet="3"] {
     left: 720px;
+    color: var(--color-surface);
+  }
+
+  [data-depth-sheet="3"]::before {
     border-color: var(--color-ink);
     background: var(--color-ink);
-    color: var(--color-surface);
   }
 
   [data-depth-sheet="3"]::after {
@@ -1898,7 +1924,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
       [data-depth-pin] {
         position: sticky;
-        top: calc(var(--header-h) + (100vh - var(--header-h) - 37rem) / 2);
+        top: calc(var(--header-h) + (100vh - var(--header-h) - 40.75rem) / 2);
       }
 
       [data-depth-rig] {
@@ -1921,6 +1947,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
       [data-depth-sheet="3"] {
         animation: depth-sheet-3 linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-sheet]::after {
+        animation: depth-slab linear both;
         animation-timeline: --depth-band;
         animation-range: contain 0% contain 100%;
       }
@@ -1969,6 +2001,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-sheet],
   [data-depth-tilt] {
     transform: none;
+  }
+
+  [data-depth-sheet]::after {
+    animation: none;
+    translate: none;
   }
 
   [data-depth-link] {
