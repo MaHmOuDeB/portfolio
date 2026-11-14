@@ -113,8 +113,9 @@ function measure(page: Page) {
       return outside.trim() !== '';
     };
     for (const el of els) {
-      // The segment label, rather than its sr-only radio, is the actual pointer target.
-      const target = el.closest('label[data-segment]') ?? el;
+      // The label, rather than its sr-only radio, is the actual pointer target (segmented controls and the
+      // Home "How I test" tabs).
+      const target = el.closest('label[data-segment]') ?? (el.matches('input[type="radio"]') ? (el.closest('label') ?? el) : el);
       const s = getComputedStyle(target);
       const r = target.getBoundingClientRect();
       if (seen.has(target) || r.width === 0 || r.height === 0 || s.display === 'none' || s.visibility === 'hidden' || target.closest('[inert]')) continue;
