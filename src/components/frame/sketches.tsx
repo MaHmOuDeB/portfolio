@@ -29,12 +29,15 @@ function Sketch({ kind, children }: { kind: string; children: ReactNode }) {
   );
 }
 
-/** A plain row (wider than MiniRow's label column): a mark, a name and an optional end. */
+/**
+ * A plain row (wider than MiniRow's label column): a mark, a name and an optional end. On a narrow
+ * card the name wraps under itself rather than run into the end.
+ */
 function Row({ mark, name, end }: { mark: ReactNode; name: string; end?: ReactNode }) {
   return (
-    <div className="grid h-8.5 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-b border-hairline">
+    <div className="grid min-h-8.5 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-b border-hairline py-1 leading-tight">
       {mark}
-      <span data-mini-label="" className="min-w-0 whitespace-nowrap">
+      <span data-mini-label="" className="min-w-0">
         {name}
       </span>
       {end ?? null}
@@ -60,19 +63,17 @@ const Link = () => <span className="h-px min-w-3 flex-1 bg-ink" />;
 
 // Experiments ---------------------------------------------------------------------------------
 
-/** Audible: interval rows for the two groups and a guardrail. */
-export function IntervalsSketch() {
+/**
+ * Audible: the process, never a result (the results are confidential): four steps of a test, each
+ * ticked, with no outcome word.
+ */
+export function ProcessSketch() {
   return (
-    <Sketch kind="intervals">
-      <MiniRow label="A" tag={<Tag>base</Tag>}>
-        <IntervalMark left={8} width={50} dot={30} />
-      </MiniRow>
-      <MiniRow label="B" tag={<Tag tone="tint">higher</Tag>}>
-        <IntervalMark left={34} width={46} dot={58} />
-      </MiniRow>
-      <MiniRow label="Guard" tag={<Tag>intact</Tag>}>
-        <IntervalMark left={30} width={30} dot={45} />
-      </MiniRow>
+    <Sketch kind="process">
+      <Row mark={<Tick />} name="Sample size" end={<Tag>planned</Tag>} />
+      <Row mark={<Tick />} name="Run time" end={<Tag>set</Tag>} />
+      <Row mark={<Tick />} name="Guardrails" end={<Tag>defined</Tag>} />
+      <Row mark={<Tick />} name="Recommendation" end={<Tag>written</Tag>} />
     </Sketch>
   );
 }
@@ -139,21 +140,21 @@ export function ChecksSketch() {
 
 /** The experiment cards' sketches, by study. */
 export const CASE_SKETCHES = {
-  audible: IntervalsSketch,
+  audible: ProcessSketch,
   retention: CohortsSketch,
   pulse: EventsSketch,
 } as const;
 
 // Automation ----------------------------------------------------------------------------------
 
-/** The test-account tool: recorded steps, each replayed and ticked. */
+/** The test-account tool: the generic mechanism (record, replay, verify), never the tool's own steps. */
 export function StepsSketch() {
   return (
     <Sketch kind="steps">
       <Head name="Steps" note="recorded once, replayed" />
-      <Row mark={<Tick />} name="Open the sign-up page" />
-      <Row mark={<Tick />} name="Fill in the test account" />
-      <Row mark={<Tick />} name="Pick the market" />
+      <Row mark={<Tick />} name="Record" />
+      <Row mark={<Tick />} name="Replay" />
+      <Row mark={<Tick />} name="Verify" />
     </Sketch>
   );
 }

@@ -131,6 +131,20 @@ describe('HowITest: the tabs widget', () => {
     }
   });
 
+  it('marks the selected tab with a 2 px ink bar at its left edge, which hover never shows', () => {
+    for (const label of all(section, (el) => el.tagName === 'label')) {
+      const cls = attr(label, 'class')!;
+      expect(cls.split(' ')).toContain('group');
+      expect(cls).not.toMatch(/hover:bg-/);
+      expect(cls).toMatch(/hover:border-hairline-strong/);
+      const mark = one(label, (el) => has(el, 'data-how-mark'));
+      expect(attr(mark, 'aria-hidden')).toBe('true');
+      expect(classes(mark)).toEqual(expect.arrayContaining(['hidden', 'group-has-[:checked]:block', 'w-0.5', 'bg-ink']));
+      // Unselected, the title is muted; selected, the title and line are ink.
+      expect(classes(one(label, (el) => has(el, 'data-how-title')))).toEqual(expect.arrayContaining(['text-muted', 'group-has-[:checked]:text-ink']));
+    }
+  });
+
   it('says the three habits, word for word: a title and one line per tab', () => {
     const tabs = all(section, (el) => el.tagName === 'label').map((l) => ({
       title: text(one(l, (el) => has(el, 'data-how-title'))),
@@ -172,7 +186,7 @@ describe('ExperimentsTrack: the bento of the three experiment cards', () => {
     return render(createElement(ExperimentsTrack, { headlineArm: model.headlineArm, phase: cardLinePhase(model) }));
   };
 
-  it('is the ruled section #work headed "Open the work and check it yourself."', () => {
+  it('is the ruled section #work headed "Open the work and see how it was done."', () => {
     const d = doc(track('a'));
     const section = one(d, (el) => el.tagName === 'section' && attr(el, 'id') === 'work');
     expect(attr(section, 'data-home-track')).toBe('experiments');
@@ -180,9 +194,9 @@ describe('ExperimentsTrack: the bento of the three experiment cards', () => {
     const h = head(section);
     expect(h).toMatchObject({
       chip: 'Experiments and analytics',
-      title: 'Open the work and check it yourself.',
-      quiet: 'and check it yourself.',
-      sub: 'Case studies with their sources, their limits and their data.',
+      title: 'Open the work and see how it was done.',
+      quiet: 'and see how it was done.',
+      sub: 'Case studies with their sources and their limits.',
     });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
@@ -220,15 +234,17 @@ describe('FeaturedCases: a vignette on each experiment card', () => {
       expect(links.map((a) => attr(a, 'href'))).toEqual(HOME_CASES.map((c) => c.href));
       for (const a of links) expect(all(a, (el) => has(el, 'data-headline-twin'))).toHaveLength(2);
       const vigs = expectVignettes(region, 3);
-      expect(vigs.map(sketchOf)).toEqual(['intervals', 'cohorts', 'events']);
+      expect(vigs.map(sketchOf)).toEqual(['process', 'cohorts', 'events']);
     }
   });
 
-  it('draws interval rows A, B and Guard on the Audible card', () => {
-    const d = doc(cards('a'));
-    const v = one(d, (el) => attr(el, 'data-sketch') === 'intervals');
-    expect(all(v, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['A', 'B', 'Guard']);
-    expect(all(v, (el) => has(el, 'data-interval-mark'))).toHaveLength(3);
+  it('draws the process on the Audible card, never a result: four ticked steps, no outcome word', () => {
+    const v = one(doc(cards('a')), (el) => attr(el, 'data-sketch') === 'process');
+    expect(all(v, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Sample size', 'Run time', 'Guardrails', 'Recommendation']);
+    expect(all(v, (el) => has(el, 'data-tag')).map((el) => text(el))).toEqual(['planned', 'set', 'defined', 'written']);
+    expect(all(v, (el) => has(el, 'data-tick'))).toHaveLength(4);
+    expect(all(v, (el) => has(el, 'data-interval-mark'))).toHaveLength(0);
+    expect(text(v)).not.toMatch(/higher|lower|clear|neutral|held|intact|win|lift/i);
   });
 
   it('draws a cohort grid on the retention card', () => {
@@ -280,6 +296,9 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     expect(vigs.map(sketchOf)).toEqual(['steps', 'agents', 'workflow', 'variants']);
     const [steps, agents, workflow, variants] = vigs as [El, El, El, El];
     expect(all(steps, (el) => has(el, 'data-tick')).length).toBeGreaterThanOrEqual(3);
+    // The generic mechanism, never the internal tool's own steps.
+    expect(all(steps, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Record', 'Replay', 'Verify']);
+    expect(text(steps)).toContain('recorded once, replayed');
     expect(all(agents, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Author', 'Claim auditor', 'Reviewer']);
     expect(all(agents, (el) => has(el, 'data-tag')).map((el) => text(el))).toEqual(['blocked: unsupported claim']);
     expect(all(workflow, (el) => has(el, 'data-node')).map((el) => text(el))).toEqual(['Intake', 'Validate', 'Alert']);

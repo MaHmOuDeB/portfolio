@@ -16,7 +16,7 @@ import {
   ChecksSketch,
   CohortsSketch,
   EventsSketch,
-  IntervalsSketch,
+  ProcessSketch,
   VariantsSketch,
   WorkflowSketch,
 } from '@/components/frame/sketches';
@@ -41,7 +41,7 @@ const kindOf = (href: string): string => (CASE_HREFS.has(href) ? 'Case study' : 
 
 /** Each card's sketch: Home's sketch for the same project; Weather has its checks. */
 const SKETCHES: Record<string, () => ReactNode> = {
-  [HOME_LINKS.whySoMany]: IntervalsSketch,
+  [HOME_LINKS.whySoMany]: ProcessSketch,
   [HOME_LINKS.retention]: CohortsSketch,
   [HOME_LINKS.pulse]: EventsSketch,
   [HOME_LINKS.docproof]: AgentsSketch,
@@ -68,7 +68,7 @@ export function WorkPage(): ReactNode {
         id="work-title"
         chip={WORK_TITLE}
         title="Open the work"
-        quiet="and check it yourself."
+        quiet="and see how it was done."
         sub={<span data-work-intro="">Experiments and analyses first, then the tools and pipelines I&apos;ve built.</span>}
       />
 

@@ -282,8 +282,8 @@ export const HOME_HOW = {
 export const HOME_EXPERIMENTS_HEAD = {
   chip: 'Experiments and analytics',
   title: 'Open the work',
-  quiet: 'and check it yourself.',
-  sub: 'Case studies with their sources, their limits and their data.',
+  quiet: 'and see how it was done.',
+  sub: 'Case studies with their sources and their limits.',
 } as const satisfies SectionCopy;
 
 export const HOME_AUTOMATION_HEAD = {

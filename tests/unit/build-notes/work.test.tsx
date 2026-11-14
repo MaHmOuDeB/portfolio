@@ -80,7 +80,7 @@ describe('the outline', () => {
     expect(NAV.find((n) => n.href === '/work')?.label).toBe(WORK_TITLE);
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     // The page's chip carries the navigation label; the h1 is the headline in two tones.
-    expect(PAGE).toMatch(/<span data-chip="">Work<\/span><h1 id="work-title"[^>]*>Open the work <span data-quiet="">and check it yourself\.<\/span><\/h1>/);
+    expect(PAGE).toMatch(/<span data-chip="">Work<\/span><h1 id="work-title"[^>]*>Open the work <span data-quiet="">and see how it was done\.<\/span><\/h1>/);
     const intro = /<span data-work-intro="">([\s\S]*?)<\/span>/.exec(PAGE);
     expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools and pipelines I've built.");
   });
@@ -179,7 +179,7 @@ describe("the cards' sketches", () => {
 
   it("ends each card in Home's sketch for the same project; Weather keeps its checks", () => {
     expect(rows().map((r) => [r.key, sketchOf(r.body)])).toEqual([
-      ['/work/audible#why-so-many', 'intervals'],
+      ['/work/audible#why-so-many', 'process'],
       ['/work/retention', 'cohorts'],
       ['/work/pulse', 'events'],
       ['/work/docproof', 'agents'],
@@ -192,7 +192,7 @@ describe("the cards' sketches", () => {
   it('draws each sketch exactly as Home does, from the one shared module', async () => {
     const shared = await import('@/components/frame/sketches');
     const same = {
-      '/work/audible#why-so-many': shared.IntervalsSketch,
+      '/work/audible#why-so-many': shared.ProcessSketch,
       '/work/retention': shared.CohortsSketch,
       '/work/pulse': shared.EventsSketch,
       '/work/docproof': shared.AgentsSketch,
@@ -206,6 +206,9 @@ describe("the cards' sketches", () => {
     }
     expect(existsSync(join(repo, 'src/components/work/WorkVignettes.tsx'))).toBe(false);
     expect(existsSync(join(repo, 'src/components/home/Sketches.tsx'))).toBe(false);
+    // The Audible card shows how a test is run, never a result: no outcome word on it.
+    const audible = rows().find((r) => r.key === '/work/audible#why-so-many')!;
+    expect(text(/<div data-vignette=""[\s\S]*$/.exec(audible.body)![0])).not.toMatch(/higher|lower|clear|neutral|held|intact/i);
   });
 
   it('keeps every sketch decorative, digit-free and labelled "Illustration"', () => {
