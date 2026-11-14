@@ -42,7 +42,9 @@ export function HowITest() {
             </label>
           ))}
         </div>
-        <div className="relative min-h-60 rounded-xl border border-hairline bg-surface">
+        {/* The panel drifts in from the bottom right; on a fine pointer its rows shift a little, each
+            by more than the one above, as layers. The tabs stay still: they are controls. */}
+        <div data-depth-drift="br" data-depth-follow="" className="relative min-h-60 rounded-xl border border-hairline bg-surface">
           {tabs.map((tab) => {
             const Sketch = HOW_SKETCHES[tab.id];
             return (

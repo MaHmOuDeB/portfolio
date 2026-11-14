@@ -130,7 +130,7 @@ describe('the portraits', () => {
     const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
     expect(pointer).toMatch(/\[data-depth-follow\] \[data-cta-media\]\s*\{[^}]*translate:\s*calc\(var\(--mx\) \* 6px\) calc\(var\(--my\) \* 4px\)/);
     expect(pointer).toMatch(/\[data-depth-follow\] \[data-cta-text\]\s*\{[^}]*translate:\s*round\(calc\(var\(--mx\) \* -2px\), 1px\)/);
-    expect(still).toMatch(/\[data-depth-follow\] :is\(\[data-cta-media\], \[data-cta-text\]\)\s*\{\s*translate:\s*none;/);
+    expect(still).toMatch(/\[data-depth-follow\] :is\(\[data-cta-media\], \[data-cta-text\]\),[^{]*\{\s*translate:\s*none;/);
     for (const part of ['[data-depth-focus]', '[data-depth-focus] > img']) expect(still).toContain(part);
     expect(families).toMatch(/\[data-depth-focus\]:focus-within/);
   });
@@ -211,5 +211,17 @@ describe('the light on the band\'s ink sheet', () => {
     expect(still).toMatch(/\[data-depth-glow\]\s*\{\s*display:\s*none;/);
     const { StackBand } = await import('@/components/depth/StackBand');
     expect(renderToStaticMarkup(createElement(StackBand))).toMatch(/<div data-depth-sheet="3"><span data-depth-glow=""><\/span>/);
+  });
+});
+
+describe('"How I test"', () => {
+  it('drifts the sketch panel in from the bottom right, the tabs still, and shifts its rows as layers on a fine pointer', async () => {
+    const { HowITest } = await import('@/components/home/HowITest');
+    const html = renderToStaticMarkup(createElement(HowITest));
+    expect(html).toMatch(/<div data-depth-drift="br" data-depth-follow="" class="relative min-h-60[^"]*"><div data-how-panel="plan"/);
+    expect(html).not.toMatch(/<label[^>]*data-depth/);
+    const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+    expect(pointer).toMatch(/\[data-depth-follow\] \[data-how-panel\] \[data-sketch\] > \*\s*\{[^}]*translate:\s*round\(calc\(var\(--mx\) \* var\(--z\) \* 2px\), 1px\)/);
+    expect(still).toMatch(/\[data-depth-follow\] \[data-how-panel\] \[data-sketch\] > \*\s*\{\s*translate:\s*none;/);
   });
 });

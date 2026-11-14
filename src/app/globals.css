@@ -2359,6 +2359,23 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       opacity: 1;
     }
 
+    /* The "How I test" panel: each row of the sketch shifts toward the pointer by more than the one
+       above it (--z), in whole pixels. */
+    [data-depth-follow] [data-how-panel] [data-sketch] > * {
+      --z: 1;
+
+      translate: round(calc(var(--mx) * var(--z) * 2px), 1px) round(calc(var(--my) * var(--z) * 1px), 1px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-follow] [data-how-panel] [data-sketch] > :nth-child(3) {
+      --z: 2;
+    }
+
+    [data-depth-follow] [data-how-panel] [data-sketch] > :nth-child(n + 4) {
+      --z: 3;
+    }
+
     [data-depth-follow] [data-cta-text] {
       /* Whole pixels: a block of text at a fractional offset would be resampled soft. */
       translate: round(calc(var(--mx) * -2px), 1px) round(calc(var(--my) * -2px), 1px);
@@ -2413,7 +2430,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     translate: none;
   }
 
-  [data-depth-follow] :is([data-cta-media], [data-cta-text]) {
+  [data-depth-follow] :is([data-cta-media], [data-cta-text]),
+  [data-depth-follow] [data-how-panel] [data-sketch] > * {
     translate: none;
   }
 
