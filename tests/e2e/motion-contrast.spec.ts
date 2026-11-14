@@ -5,8 +5,8 @@ import { test, waitForIslands } from './fixtures';
 // The moving state of the depth system, guarded for real. axe scans the settled page (the shared
 // helper emulates reduced motion), so it cannot see an element that stays half faded while it is fully
 // on screen. This spec scrolls each page in steps of half a viewport, with motion allowed, and checks:
-// - at every stop, each element carrying a data-depth-* attribute whose box is fully inside the
-//   viewport has an effective opacity of 1 (its own opacity times that of every ancestor);
+// - at every stop, each element with text that carries a data-depth-* attribute and whose box is fully
+//   inside the viewport has an effective opacity of 1 (its own opacity times that of every ancestor);
 // - at the end of the page, no element with text of its own is left at an opacity below 1.
 // A failing case is a real page bug, never a reason to relax a threshold.
 
@@ -38,6 +38,9 @@ async function fadedInView(page: Page): Promise<Finding[]> {
     const at = `scrollY ${Math.round(window.scrollY)}`;
     for (const el of document.querySelectorAll('*')) {
       if (![...el.attributes].some((a) => a.name.startsWith('data-depth-'))) continue;
+      // The guard is for what a visitor reads. An empty decorative mark (a hairline, the field's zero
+      // line) has no text to lose contrast, and may be translucent or still drawing by design.
+      if ((el.textContent ?? '').trim() === '') continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const inside = r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth;
