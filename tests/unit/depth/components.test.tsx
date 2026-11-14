@@ -6,6 +6,9 @@ import { LeanCard } from '@/components/depth/LeanCard';
 import { Ribbon } from '@/components/depth/Ribbon';
 import { ProofFigure } from '@/components/depth/ProofFigure';
 import { Tile } from '@/components/depth/Tile';
+import { Vignette } from '@/components/frame';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ');
 
@@ -71,6 +74,55 @@ describe('LeanCard', () => {
     const plain = renderToStaticMarkup(<LeanCard href="/a" title="T" meta="M" size="md">D</LeanCard>);
     expect(plain).toMatch(/<h3 id="[^"]+">T<\/h3>/);
     expect(plain).toContain('data-size="md"');
+  });
+});
+
+describe('LeanCard with a vignette', () => {
+  const html = renderToStaticMarkup(
+    <LeanCard href="/work/x" title="A title" meta="Meta line" vignette={<Vignette>sketch</Vignette>}>
+      Describes it.
+    </LeanCard>,
+  );
+  it('renders the vignette at the bottom, after the meta line, hidden from assistive technology', () => {
+    expect(html.indexOf('data-depth-meta')).toBeLessThan(html.indexOf('data-vignette'));
+    expect(html).toContain('<div data-vignette="" aria-hidden="true">');
+  });
+  it('keeps the link named by the h3 and described by the paragraph', () => {
+    const labelled = /<a [^>]*aria-labelledby="([^"]+)"/.exec(html)![1];
+    const described = /<a [^>]*aria-describedby="([^"]+)"/.exec(html)![1];
+    expect(html).toContain(`<h3 id="${labelled}">A title</h3>`);
+    expect(html).toContain(`<p id="${described}">Describes it.</p>`);
+  });
+  it('renders no vignette without the prop', () => {
+    expect(renderToStaticMarkup(<LeanCard href="/a" title="T" meta="M">D</LeanCard>)).not.toContain('data-vignette');
+  });
+});
+
+describe('card and tile CSS (the framed look)', () => {
+  const css = readFileSync(join(__dirname, '..', '..', '..', 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    expect(at, selector).toBeGreaterThan(-1);
+    return css.slice(at, css.indexOf('}', at));
+  };
+  it('draws a tile white, with a hairline and the card radius; the ink tile keeps ink', () => {
+    expect(rule('[data-tile]')).toMatch(/border: 1px solid var\(--color-hairline\)/);
+    expect(rule('[data-tile]')).toMatch(/border-radius: var\(--radius-xl\)/);
+    expect(rule('[data-tile]')).toMatch(/background: var\(--color-surface\)/);
+    expect(rule('[data-tile="ink"]')).toMatch(/background: var\(--color-ink\)/);
+  });
+  it('sets the card title at 1.125rem and 600, the body and meta muted', () => {
+    expect(rule('[data-depth-lean] h3')).toMatch(/font-size: 1\.125rem;[\s\S]*font-weight: 600/);
+    expect(rule('[data-depth-lean] p')).toMatch(/color: var\(--color-muted\)/);
+    expect(rule('[data-depth-meta]')).toMatch(/color: var\(--color-muted\)/);
+  });
+  it('draws the "+" as a small bordered square at the top right', () => {
+    const go = rule('[data-depth-go]');
+    expect(go).toMatch(/top: /);
+    expect(go).toMatch(/right: /);
+    expect(go).toMatch(/border: 1px solid var\(--color-hairline-strong\)/);
+    expect(go).toMatch(/border-radius: var\(--radius-md\)/);
+    expect(go).not.toMatch(/bottom:/);
   });
 });
 

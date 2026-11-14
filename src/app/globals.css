@@ -1018,13 +1018,20 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* 4. Lean: a card follows a fine pointer (--rx, --ry as angles, --gx, --gy as percentages, set
      by Lean) and springs back. The sheen sits under the content. */
   [data-depth-lean] {
+    --card-pad: calc(var(--spacing) * 5.5);
+
     position: relative;
     display: flex;
     flex-direction: column;
     overflow: clip;
-    padding: calc(var(--spacing) * 8);
+    padding: var(--card-pad);
     text-decoration: none;
     transform-style: preserve-3d;
+  }
+
+  /* A card with a vignette ends in it: no bottom padding, the sketch bleeds off the bottom edge. */
+  [data-depth-lean]:has(> [data-vignette]) {
+    padding-bottom: 0;
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1054,17 +1061,19 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  /* Tiles. */
+  /* Tiles: white on the grey canvas, a hairline and the card radius; the ink tile keeps ink. */
   [data-tile] {
     padding: calc(var(--spacing) * 6);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-xl);
     background: var(--color-surface);
     color: var(--color-ink);
   }
 
   [data-tile="ink"] {
+    border-color: var(--color-ink);
     background: var(--color-ink);
-    color: var(--color-bg);
+    color: var(--color-surface);
   }
 
   @media (width >= 48rem) {
@@ -1073,63 +1082,73 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  /* Cards: a LeanCard is a tile with a heading, a description, a meta line and a "+" disc. The
-     heading's own minimum height comes from the component (titleMinLines). */
+  /* Cards: a LeanCard is a tile with a heading, a description, a meta line, an optional vignette
+     and a "+" in a small bordered square at the top right. The heading's own minimum height comes
+     from the component (titleMinLines). */
   [data-depth-lean][data-size="lg"] {
     min-height: 340px;
   }
 
   [data-depth-lean][data-size="md"] {
     min-height: 300px;
-    padding: calc(var(--spacing) * 7);
+  }
+
+  [data-depth-lean][data-size]:has(> [data-vignette]) {
+    min-height: 372px;
   }
 
   @media (width < 48rem) {
     [data-depth-lean][data-size] {
       min-height: 0;
-      padding: calc(var(--spacing) * 6);
+    }
+
+    [data-depth-lean][data-size]:has(> [data-vignette]) {
+      min-height: 0;
     }
   }
 
   [data-depth-lean] h3 {
     margin: 0;
-    font-size: 1.625rem;
+    padding-right: calc(var(--spacing) * 9);
+    font-size: 1.125rem;
     line-height: 1.2;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.012em;
     font-weight: 600;
   }
 
-  [data-depth-lean][data-size="md"] h3 {
-    font-size: var(--text-xl);
-  }
-
   [data-depth-lean] p {
-    margin: calc(var(--spacing) * 3) 0 0;
-    font-size: var(--text-base);
-    line-height: 1.5;
+    margin: calc(var(--spacing) * 2) 0 0;
+    font-size: var(--text-sm);
+    line-height: 1.45;
     color: var(--color-muted);
   }
 
   [data-depth-meta] {
     margin-top: auto;
-    padding-top: calc(var(--spacing) * 6);
-    padding-right: calc(var(--spacing) * 12);
-    font-size: var(--text-xs);
+    padding-top: calc(var(--spacing) * 2.5);
+    font-size: 0.75rem;
     line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  /* With a vignette the meta line follows the paragraph and the vignette takes the bottom. */
+  [data-depth-lean]:has(> [data-vignette]) [data-depth-meta] {
+    margin-top: 0;
+    padding-bottom: calc(var(--spacing) * 5);
   }
 
   [data-depth-go] {
     position: absolute;
-    right: calc(var(--spacing) * 6);
-    bottom: calc(var(--spacing) * 6);
+    top: calc(var(--spacing) * 4);
+    right: calc(var(--spacing) * 4);
     display: grid;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     place-items: center;
-    border-radius: 50%;
-    background: var(--color-ink);
-    color: var(--color-bg);
-    font-size: 1.125rem;
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-muted);
+    font-size: 0.9375rem;
     line-height: 1;
   }
 

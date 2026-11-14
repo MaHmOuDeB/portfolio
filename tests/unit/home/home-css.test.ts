@@ -122,7 +122,7 @@ describe('accessibility guards', () => {
   const timelines = block('@supports (animation-timeline: view()) {\n  @layer components {\n    :has(> [data-depth-rise])');
 
   it('keeps the lean card glint light, so muted text on a hovered card keeps its contrast', () => {
-    expect(tokens).toContain('--color-glint: color-mix(in srgb, var(--color-bg) 70%, transparent);');
+    expect(tokens).toContain('--color-glint: color-mix(in srgb, var(--color-surface) 70%, transparent);');
   });
 
   it('never leaves a focused control inside a scroll-linked entrance at opacity 0', () => {

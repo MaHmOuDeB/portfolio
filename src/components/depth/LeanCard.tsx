@@ -1,4 +1,5 @@
-// A link drawn as a tile that rises on entry and leans toward a fine pointer. A server component:
+// A link drawn as a white card that rises on entry and leans toward a fine pointer, with an optional
+// decorative vignette at the bottom. A server component:
 // the lean itself is the one delegated listener in Lean. Extra data-* attributes go onto the link
 // (the Home page puts its tracking attributes there). The link is named by its h3 alone and described
 // by the paragraph, so a screen reader does not read the whole card as the link's name.
@@ -19,9 +20,11 @@ export type LeanCardProps = DataAttributes & {
   idBase?: string;
   /** Links to the home page must not prefetch: pass false there. */
   prefetch?: boolean;
+  /** A decorative sketch at the bottom of the card (a frame `Vignette`); it bleeds off the bottom right. */
+  vignette?: ReactNode;
 };
 
-export function LeanCard({ href, title, titleMinLines, meta, children, size = 'lg', prefetch, idBase, ...rest }: LeanCardProps) {
+export function LeanCard({ href, title, titleMinLines, meta, children, size = 'lg', prefetch, idBase, vignette, ...rest }: LeanCardProps) {
   // A server component, and the Home tests call it as a plain function, so the ids come from the href
   // (each card on a page links to its own destination) rather than from useId.
   const id = idBase ?? `card-${href.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
@@ -44,6 +47,7 @@ export function LeanCard({ href, title, titleMinLines, meta, children, size = 'l
       </h3>
       <p id={descriptionId}>{children}</p>
       <span data-depth-meta="">{meta}</span>
+      {vignette ?? null}
       <span data-depth-go="" aria-hidden="true">
         +
       </span>
