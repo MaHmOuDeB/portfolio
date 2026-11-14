@@ -490,8 +490,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-plane] {
     position: relative;
-    width: 32.5rem;
-    height: 32.5rem;
+    width: 520px;
+    height: 520px;
     transform-style: preserve-3d;
     transform: rotateX(32deg) rotateZ(-8deg) scale(0.9);
   }

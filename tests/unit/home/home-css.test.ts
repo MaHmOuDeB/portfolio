@@ -61,6 +61,12 @@ describe('the hero scene', () => {
     for (const w of ['40rem', '30rem']) expect(block(`@media (width < ${w})`)).not.toMatch(/height:/);
   });
 
+  it('sizes the plane in px, like the rows on it, so a larger root text size never widens it past the screen', () => {
+    // Sized in rem, a 200% root text doubled the plane while its px rows stayed put, and the square
+    // ran 88 px past a 320 px screen.
+    expect(css).toMatch(/\[data-depth-plane\]\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;/);
+  });
+
   it('keeps the axis words at the text-xs size whatever the field scale', () => {
     expect(css).toMatch(/\[data-depth-axis\]\s*\{[^}]*font-size:\s*calc\(var\(--text-xs\) \/ var\(--k, 1\)\)/);
   });
