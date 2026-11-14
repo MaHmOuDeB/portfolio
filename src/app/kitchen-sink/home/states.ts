@@ -1,4 +1,4 @@
-// The states the scroll-moment pages show: one per Home mode, then the narrative fixtures (low and
+// The states the host pages show: one per Home mode, then the narrative fixtures (low and
 // enough data, small counts, stopped tests with little data, closures). Fictional data only.
 import type { Arm } from '@/experiment.values';
 import { snapshotFixture } from '@/lib/home/fixtures';
