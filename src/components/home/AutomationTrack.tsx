@@ -38,7 +38,7 @@ export function AutomationTrack() {
       </div>
       <div data-home-automate="" className="mt-2.5">
         <span data-depth-draw="" aria-hidden="true" className="block h-px bg-hairline" />
-        <ul role="list" className="grid grid-cols-1 md:grid-cols-3">
+        <ul role="list" data-depth-trace="row" className="grid grid-cols-1 md:grid-cols-3">
           {HOME_AUTOMATE_LINES.map((line) => (
             <li key={line} className="border-hairline py-5 text-sm text-muted md:px-6 md:first:pl-0 md:[&+li]:border-l max-md:[&+li]:border-t">
               {line}

@@ -66,6 +66,8 @@ export function StackBand() {
                 </span>
               </div>
               <div data-depth-sheet="3">
+                {/* A soft light under the content that follows a fine pointer across the ink. */}
+                <span data-depth-glow="" />
                 <span data-depth-arrive="" style={order(0)}>
                   <Head title={recommendation.title} note={recommendation.note} />
                   <p data-depth-verdict="">{recommendation.verdict}</p>

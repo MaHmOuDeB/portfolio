@@ -158,3 +158,58 @@ describe('Turn', () => {
     expect(families).toMatch(/\[data-depth-turn\]:focus-within/);
   });
 });
+
+describe('Trace', () => {
+  it('draws hairlines and dots by scale alone, ending on none', () => {
+    expect(block('@keyframes depth-trace-x')).toMatch(/from\s*\{\s*transform:\s*scaleX\(0\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
+    expect(block('@keyframes depth-trace-y')).toMatch(/from\s*\{\s*transform:\s*scaleY\(0\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
+    expect(block('@keyframes depth-dot')).toMatch(/from\s*\{\s*transform:\s*scale\(0\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
+  });
+
+  it('runs its pseudo-elements on the container\'s own view timeline, the timeline dots on their row\'s', () => {
+    expect(families).toMatch(/\[data-depth-trace\]\s*\{\s*view-timeline:\s*--depth-trace block;/);
+    expect(families).toMatch(/\[data-depth-trace="timeline"\] > li\s*\{\s*view-timeline:\s*--depth-row block;/);
+    expect(families).toMatch(/\[data-depth-trace="timeline"\] > li::before\s*\{[^}]*animation:\s*depth-dot linear backwards[^}]*animation-timeline:\s*--depth-row/);
+    expect(families).toMatch(/\[data-depth-trace="timeline"\]::before\s*\{[^}]*animation:\s*depth-trace-y linear backwards[^}]*animation-range:\s*cover 10% cover 55%/);
+    expect(families).toMatch(/\[data-experience-rule\]\s*\{[^}]*transform-origin:\s*50% 50%[^}]*animation:\s*depth-trace-x linear backwards/);
+  });
+
+  it('hides a real border only where its drawn rule replaces it, so the border is the fallback', () => {
+    expect(families).toMatch(/\[data-depth-trace="proof"\] > \[data-proof\]:not\(:first-child\)\s*\{\s*border-left-color:\s*transparent;/);
+    // The row's borders are utilities, so the rule that hides them is unlayered, inside the same gate.
+    const gated = [...css.matchAll(new RegExp(GATE.replace(/[()[\]]/g, '\\$&'), 'g'))].map((m) => block(GATE, m.index));
+    expect(gated.some((b) => /^\s*\[data-depth-trace="row"\] > li \+ li\s*\{\s*border-left-color:\s*transparent;/.test(b))).toBe(true);
+    // Outside the gate the proof cells keep their real hairlines.
+    expect(css).toMatch(/\[data-proof\]\s*\{[^}]*border-left:\s*1px solid var\(--color-hairline\)/);
+  });
+
+  it('marks the proof row, the experience groups, the ruled row and the About timeline', async () => {
+    const { ProofRow } = await import('@/components/home/ProofRow');
+    const { ExperienceBand } = await import('@/components/home/ExperienceBand');
+    expect(renderToStaticMarkup(createElement(ProofRow))).toMatch(/<section data-home-proof="" data-rule="" data-depth-trace="proof"/);
+    const band = renderToStaticMarkup(createElement(ExperienceBand));
+    expect(band).toContain('<div data-experience-groups="" data-depth-trace="experience">');
+    expect([...band.matchAll(/<span data-experience-rule="" aria-hidden="true"><\/span>/g)]).toHaveLength(2);
+    expect(renderToStaticMarkup(createElement(AutomationTrack))).toContain('<ul role="list" data-depth-trace="row"');
+  });
+
+  it('keeps the static spine and dots in the base style and stops every draw under reduced motion and in print', () => {
+    expect(css).toMatch(/\[data-depth-trace="timeline"\]::before\s*\{[^}]*content:\s*""[^}]*background:\s*var\(--color-hairline-strong\)/);
+    for (const part of ['[data-experience-rule]', '[data-depth-trace]::before', '[data-depth-trace] > li::before', '[data-depth-trace] > [data-proof]::before']) {
+      expect(still).toContain(part);
+    }
+    expect(families).toMatch(/\[data-depth-trace\]:focus-within::before,\s*\[data-depth-trace\]:focus-within > \*::before/);
+  });
+});
+
+describe('the light on the band\'s ink sheet', () => {
+  it('is a disc under the content, clipped to the sheet, that follows the stack\'s pointer values from lg, and is gone under reduced motion', async () => {
+    const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+    expect(pointer).toMatch(/\[data-depth-sheet\] > \[data-depth-glow\]\s*\{[^}]*z-index:\s*-1[^}]*overflow:\s*clip/);
+    expect(pointer).toMatch(/\[data-depth-glow\]::before\s*\{[^}]*translate:\s*calc\(var\(--mx\) \* 6rem\) calc\(var\(--my\) \* 4rem\)/);
+    expect(css).toMatch(/\[data-depth-glow\]\s*\{\s*display:\s*none;\s*\}/);
+    expect(still).toMatch(/\[data-depth-glow\]\s*\{\s*display:\s*none;/);
+    const { StackBand } = await import('@/components/depth/StackBand');
+    expect(renderToStaticMarkup(createElement(StackBand))).toMatch(/<div data-depth-sheet="3"><span data-depth-glow=""><\/span>/);
+  });
+});

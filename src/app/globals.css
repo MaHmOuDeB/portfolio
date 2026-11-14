@@ -992,6 +992,37 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* Trace: nothing moves, a hairline draws or a dot appears. */
+@keyframes depth-trace-x {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-trace-y {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-dot {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
 /* Hinge: a surface rotates up on its bottom edge like a lid. */
 @keyframes depth-hinge {
   from {
@@ -1167,6 +1198,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-sheet="3"]::before {
     border-color: var(--color-ink);
     background: var(--color-ink);
+  }
+
+  /* The ink sheet's light: a soft disc under the content, clipped to the sheet, that follows a fine
+     pointer (the pointer block shows it). */
+  [data-depth-glow] {
+    display: none;
   }
 
   [data-depth-sheet="3"]::after {
@@ -1444,6 +1481,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     gap: calc(var(--spacing) * 3);
   }
 
+  /* The hairline under a group's label (it draws from the centre where motion is allowed). */
+  [data-experience-rule] {
+    display: block;
+    align-self: stretch;
+    height: 1px;
+    background: var(--color-hairline);
+  }
+
   [data-experience-names] {
     display: flex;
     flex-wrap: wrap;
@@ -1478,6 +1523,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   [data-proof] {
+    position: relative;
     padding: calc(var(--spacing) * 7) calc(var(--spacing) * 6) calc(var(--spacing) * 7.5);
     border-top: 1px solid var(--color-hairline);
     border-left: 1px solid var(--color-hairline);
@@ -1724,6 +1770,38 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     font-size: var(--text-sm);
     line-height: 1.5;
     color: var(--color-muted);
+  }
+
+  /* The About timeline: a spine down its left and a dot on each row, level with the row's first line. */
+  [data-depth-trace="timeline"] {
+    position: relative;
+    padding-left: calc(var(--spacing) * 6);
+  }
+
+  [data-depth-trace="timeline"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 1px;
+    background: var(--color-hairline-strong);
+  }
+
+  [data-depth-trace="timeline"] > li,
+  [data-depth-trace="row"] > li {
+    position: relative;
+  }
+
+  [data-depth-trace="timeline"] > li::before {
+    content: "";
+    position: absolute;
+    top: calc(var(--spacing) * 5.5);
+    left: calc(var(--spacing) * -6);
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-ink);
   }
 
   /* A plain Tile: a heading and a list with hairlines between the rows. */
@@ -2111,6 +2189,75 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         animation-range: entry 10% cover 45%;
       }
 
+      /* Trace. The rules and dots run on their container's own view timeline (a pseudo-element has
+         no box of its own to watch); a timeline row has its own for its dot. */
+      [data-depth-trace] {
+        view-timeline: --depth-trace block;
+      }
+
+      [data-depth-trace="timeline"] > li {
+        view-timeline: --depth-row block;
+      }
+
+      [data-depth-trace="timeline"] > li::before {
+        animation: depth-dot linear backwards;
+        animation-timeline: --depth-row;
+        animation-range: entry 40% entry 70%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child) {
+        border-left-color: transparent;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child)::before,
+      [data-depth-trace="row"] > li + li::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -1px;
+        width: 1px;
+        background: var(--color-hairline);
+        transform-origin: top;
+        animation: depth-trace-y linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: entry 0% entry 90%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:nth-child(3)::before {
+        animation-range: entry 8% entry 98%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:nth-child(4)::before {
+        animation-range: entry 16% contain 6%;
+      }
+
+      [data-depth-trace="row"] > li + li::before {
+        animation-range: entry 16% cover 46%;
+      }
+
+      [data-depth-trace="row"] > li + li + li::before {
+        animation-range: entry 22% cover 52%;
+      }
+
+      [data-experience-rule] {
+        transform-origin: 50% 50%;
+        animation: depth-trace-x linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: entry 20% cover 35%;
+      }
+
+      [data-experience-group] + [data-experience-group] [data-experience-rule] {
+        animation-range: entry 28% cover 43%;
+      }
+
+      [data-depth-trace="timeline"]::before {
+        transform-origin: top;
+        animation: depth-trace-y linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: cover 10% cover 55%;
+      }
+
       /* In a drifting card the lid follows its card. */
       [data-depth-drift] [data-depth-hinge] {
         animation-range: entry 40% contain 10%;
@@ -2120,7 +2267,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       [data-depth-drift]:focus-within,
       [data-depth-hinge]:focus-within,
       [data-depth-focus]:focus-within,
-      [data-depth-turn]:focus-within {
+      [data-depth-turn]:focus-within,
+      [data-depth-trace]:focus-within::before,
+      [data-depth-trace]:focus-within > *::before {
         animation: none;
       }
 
@@ -2136,6 +2285,16 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* The ruled row's own borders between its cells are utility classes, which win over any layer: this
+   unlayered rule hides them where their drawn rules replace them. */
+@supports (animation-timeline: view()) {
+  @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+    [data-depth-trace="row"] > li + li {
+      border-left-color: transparent;
+    }
+  }
+}
+
 /* Pointer scenes: on a fine pointer, with motion allowed, Lean writes --mx and --my (-1 to 1 across
    the scene) and --gx and --gy on a [data-depth-follow] element. Until it does, each value below is
    invalid at computed time, so nothing moves. The call to action's portrait and its text shift a
@@ -2145,6 +2304,34 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     [data-depth-follow] [data-cta-media] {
       translate: calc(var(--mx) * 6px) calc(var(--my) * 4px);
       transition: translate var(--duration-lean) var(--ease-standard);
+    }
+
+    /* The light on the band's ink sheet, from lg where the stack is a scene, follows --mx and --my
+       (set on the stack). */
+    @media (width >= 64rem) {
+      [data-depth-sheet] > [data-depth-glow] {
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        display: block;
+        overflow: clip;
+        border-radius: inherit;
+        pointer-events: none;
+      }
+
+      [data-depth-glow]::before {
+        content: "";
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        width: 22rem;
+        height: 22rem;
+        margin: -11rem 0 0 -11rem;
+        border-radius: 50%;
+        background: radial-gradient(circle closest-side, var(--color-sheet-edge-ink), var(--color-clear));
+        translate: calc(var(--mx) * 6rem) calc(var(--my) * 4rem);
+        transition: translate var(--duration-lean) var(--ease-standard);
+      }
     }
 
     /* The site-test sketch leans a little toward the pointer, a sheen over it where the pointer is. */
@@ -2195,6 +2382,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-focus],
   [data-depth-focus] > img,
   [data-depth-turn],
+  [data-experience-rule],
+  [data-depth-trace]::before,
+  [data-depth-trace] > li::before,
+  [data-depth-trace] > [data-proof]::before,
   [data-depth-arrive],
   [data-depth-rig],
   [data-depth-sheet],
@@ -2232,6 +2423,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-follow] > [data-site-sketch]::after {
     content: none;
+  }
+
+  [data-depth-glow] {
+    display: none;
   }
 
   [data-depth-link] {

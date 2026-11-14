@@ -26,10 +26,12 @@ export function ExperienceBand() {
       <p id="experience-title" data-experience-title="">
         {HOME_EXPERIENCE.title}
       </p>
-      <div data-experience-groups="">
+      <div data-experience-groups="" data-depth-trace="experience">
         {HOME_EXPERIENCE.groups.map((g) => (
           <div key={g.label} data-experience-group="">
             <Chip>{g.label}</Chip>
+            {/* A hairline under the label; it draws from the centre as the band enters. The names stay still. */}
+            <span data-experience-rule="" aria-hidden="true" />
             <ul data-experience-names="">
               {experienceNames(g.from).map((name) => (
                 <li key={name}>{name}</li>

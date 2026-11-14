@@ -111,7 +111,8 @@ export function AboutPage(): ReactNode {
       <Section id="timeline">
         {/* The rule that draws on entry is its own decorative element: a list may hold only items. */}
         <span data-depth-draw="" aria-hidden="true" className="block h-px max-w-text bg-hairline-strong" />
-        <ol className="max-w-text">
+        {/* A spine with a dot per row: the spine draws down and the dots appear as the rows enter. */}
+        <ol data-depth-trace="timeline" className="max-w-text">
           {TIMELINE.map((row) => (
             <TimelineRow key={`${row.range.from}-${row.role}`} {...row} />
           ))}
