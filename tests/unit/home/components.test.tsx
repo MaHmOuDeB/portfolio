@@ -582,7 +582,7 @@ describe('SiteTile', () => {
       'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
     );
     expect(html.indexOf('See the live test')).toBeGreaterThan(html.indexOf('pre-registered'));
-    const buttons = all(root, (el) => el.tagName === 'a' && classes(el).includes('rounded-pill'));
+    const buttons = all(root, (el) => el.tagName === 'a' && classes(el).includes('rounded-md'));
     expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
     expect(buttons.map((a) => attr(a, 'href'))).toEqual([HOME_LINKS.experiment, HOME_LINKS.lab]);
   });

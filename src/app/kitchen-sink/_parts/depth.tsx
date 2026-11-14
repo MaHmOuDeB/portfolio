@@ -58,7 +58,7 @@ export function DepthSection() {
       </Specimen>
       <Specimen id="depth--magnet" title="Magnet" note="A fine pointer within 24 px of the button pulls it up to 6 px.">
         <span data-depth-magnet="" className="inline-block">
-          <a href="/kitchen-sink" className="inline-block min-h-(--size-target) rounded-pill bg-ink px-6 py-3 text-bg">
+          <a href="/kitchen-sink" className="inline-block min-h-(--size-target) rounded-md bg-ink px-6 py-3 text-surface">
             Fictional primary button
           </a>
         </span>

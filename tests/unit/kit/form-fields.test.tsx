@@ -226,7 +226,7 @@ describe('SubmitButton', () => {
     const button = byTag(root, 'button')[0]!;
     expect(attr(button, 'type')).toBe('submit');
     expect(hasAttr(button, 'data-touch-target')).toBe(true);
-    expect(classes(button)).toEqual(expect.arrayContaining(['bg-ink', 'text-bg', 'min-h-(--size-target)', 'min-w-36']));
+    expect(classes(button)).toEqual(expect.arrayContaining(['bg-ink', 'text-surface', 'min-h-(--size-target)', 'min-w-36']));
     expect(byTag(button, 'svg')).toHaveLength(0);
     expect(text(button)).toBe('Send message');
     expect(hasAttr(button, 'aria-disabled')).toBe(false);
@@ -245,7 +245,7 @@ describe('SubmitButton', () => {
     const { root } = render(<SubmitButton disabled>Send message</SubmitButton>);
     const button = byTag(root, 'button')[0]!;
     expect(hasAttr(button, 'disabled')).toBe(true);
-    expect(classes(button)).toEqual(expect.arrayContaining(['bg-bg', 'border', 'border-line', 'text-muted', 'cursor-not-allowed']));
+    expect(classes(button)).toEqual(expect.arrayContaining(['bg-surface', 'border', 'border-line', 'text-muted', 'cursor-not-allowed']));
     expect(classes(button)).not.toContain('bg-ink');
   });
 });

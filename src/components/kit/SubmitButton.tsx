@@ -17,7 +17,7 @@ type Props = {
 };
 
 const DISABLED =
-  'inline-flex min-h-(--size-target) max-w-full items-center justify-center rounded-sm border border-line bg-bg px-4 text-sm font-medium text-muted cursor-not-allowed';
+  'inline-flex min-h-(--size-target) max-w-full items-center justify-center rounded-md border border-line bg-surface px-3.5 text-sm font-medium text-muted cursor-not-allowed';
 
 export function SubmitButton({ children, pending, pendingLabel, disabled }: Props) {
   return (

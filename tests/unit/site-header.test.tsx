@@ -27,7 +27,7 @@ describe('SiteHeader', () => {
 
   it('has a secondary CV button and a primary Contact button after the page links', () => {
     const main = MARKUP.indexOf('aria-label="Main"');
-    const cv = anchors.find((a) => a.text === 'CV' && a.attrs.includes('border-muted'))!;
+    const cv = anchors.find((a) => a.text === 'CV' && a.attrs.includes('border-hairline-strong'))!;
     const contact = anchors.find((a) => a.text === 'Contact' && a.attrs.includes('bg-ink'))!;
     expect(cv.href).toBe('/cv');
     expect(contact.href).toBe('/contact');
