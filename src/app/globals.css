@@ -251,16 +251,20 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
      the call to action, an ink tile, the live bar, the dark sheet of the Home band) take Canvas and
      CanvasText, their links LinkText; a fill set by a utility with light text on it (the selected
      segment, the skip link) takes Canvas and CanvasText, and a link or button drawn that way
-     ButtonFace and ButtonText. Important, because the on-ink rules elsewhere are as specific or more. */
+     ButtonFace and ButtonText. Important, because the on-ink rules elsewhere are as specific or more.
+     The pairs land at once: a link's colour transition would otherwise fade its light tone out after
+     the switch, light text on Canvas for that moment. */
   :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]),
   :is(.bg-ink, .bg-muted):is(.text-bg, .text-surface),
   [class~="focus:bg-ink"]:focus {
     background-color: Canvas !important;
     color: CanvasText !important;
+    transition: none !important;
   }
 
   :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) * {
     color: CanvasText !important;
+    transition: none !important;
   }
 
   :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) a {

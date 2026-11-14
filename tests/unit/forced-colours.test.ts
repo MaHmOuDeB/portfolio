@@ -104,6 +104,13 @@ describe('forced colours: text on ink', () => {
     expect(uncovered).toEqual([]);
   });
 
+  it('the system colours land at once: no colour transition on an ink surface or inside a panel', () => {
+    // A link's transition-colors would otherwise fade it from its light tone to LinkText after the switch,
+    // and a check in between reads light text on Canvas.
+    const still = forcedRules.filter((r) => /transition:\s*none\s*!important/.test(r.body)).flatMap((r) => r.selectors);
+    expect(still).toEqual(expect.arrayContaining([panels, `${panels} *`, ':is(.bg-ink, .bg-muted):is(.text-bg, .text-surface)']));
+  });
+
   it('nothing in the forced-colours block names a light token', () => {
     expect(forced).not.toMatch(/var\(--color-(surface|bg|on-ink|on-ink-muted)\)/);
   });
