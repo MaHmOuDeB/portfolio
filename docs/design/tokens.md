@@ -1,4 +1,4 @@
-# Design tokens: Clarity (light only)
+# Design tokens: Clarity, framed (light only)
 
 `src/styles/tokens.css` is the source of truth. This file documents every name in it. A CI check
 compares the two and fails if a token exists in one and not the other.
@@ -9,6 +9,11 @@ The design is called Clarity and is light only. It extends the CV's design to th
 sans, hierarchy from weight and space, grey links with an underline. Inter is the most common web
 face, so the character comes from elsewhere: the interval glyph, the chart system and a tuned Inter
 (optical sizes, `cv05`).
+
+The framed look: the page is a very light grey canvas, cards and tiles are white with a hairline
+and a 12 px radius, the content column carries a hairline rail at each side, and sections are
+ruled off by hairlines, so a page reads as one framed sheet. Large headlines are two-tone: the
+second clause is `quiet`. Small chips label sections. There are still no shadows.
 
 ## Closed namespaces
 
@@ -28,23 +33,31 @@ two chart series. Colours that touch where the bare pair is below 3:1 (an orange
 on the blue line or the band, the band fill on white, the grid, the focus ring next to an `ink`
 fill) are listed as overlap pairs, each with the drawing rule that makes it pass.
 
-| Token | Hex | Use | Contrast on bg |
+Contrast is given on `bg` (the grey canvas) and on `surface` (white cards).
+
+| Token | Hex | Use | Contrast on bg / surface |
 |---|---|---|---|
-| `bg` | `#FFFFFF` | page and figure background, the 2 px ring round dots, annotation halos | n/a |
-| `ink` | `#1D1D1F` | text, primary button fill, selected segment, zero line | 16.83 |
-| `muted` | `#6E6E73` | secondary text, links and their underline, captions, input borders, the slider track edge, badge border, the running estimate line | 5.07 |
-| `line` | `#E8E8ED` | rules, chart grid, the inactive track fill | decorative |
-| `surface` | `#F5F5F7` | tiles and cards on the white page (`bg-surface`); `muted` text on it is 4.66, `ink` 16.0 | decorative |
-| `accent` | `#0A5FD9` | controls: focus ring, the active part of a slider track | 5.75 |
-| `series-1` | `#0A5FD9` | the first chart series, interval bounds (1 px lines), the glyph bar and caps | 5.75 |
-| `series-2` | `#D9620A` | the current estimate, the point being made | 3.68 (fills, lines and dots only, never text) |
+| `bg` | `#F7F7F8` | the page canvas, the header, the 2 px ring round dots, annotation halos | n/a |
+| `surface` | `#FFFFFF` | cards, tiles, chips, secondary buttons and chart plates on the canvas (`bg-surface`) | n/a |
+| `ink` | `#1D1D1F` | text, primary button fill, selected segment, zero line, the ink tile and the footer | 15.72 / 16.83 |
+| `muted` | `#6E6E73` | secondary text, links and their underline, captions, input borders, the slider track edge, badge border, the running estimate line | 4.74 / 5.07 |
+| `line` | `#E8E8ED` | chart grid, the inactive track fill | decorative |
+| `accent` | `#0A5FD9` | controls: focus ring, the active part of a slider track | 5.37 / 5.75 |
+| `series-1` | `#0A5FD9` | the first chart series, interval bounds (1 px lines), the glyph bar and caps, a tinted tag's word | 5.37 / 5.75 |
+| `series-2` | `#D9620A` | the current estimate, the point being made, the live dot | 3.68 on surface (fills, lines and dots only, never text) |
 | `series-ghost` | `#CEDFF7` | band fill only, the projected width at the cap, inactive curves | decorative |
-| `ok` | `#1B7F3B` | the word for a passed check (for example "SRM passed") | 5.07 |
-| `warn` | `#B04A00` | the word for a real warning (SRM, paused, error) | 5.49 |
-| `hairline` | `ink` at 8% over clear | the site header's bottom rule | decorative |
-| `glint` | `bg` at 70% over clear | the light that follows the pointer on a lean card; it lightens the tile and never tints it, so the muted text on a hovered card keeps its 4.5:1 | decorative |
+| `ok` | `#1B7F3B` | the word for a passed check (for example "SRM passed"), the chip's "open" dot | 4.73 / 5.07 |
+| `warn` | `#B04A00` | the word for a real warning (SRM, paused, error) | 5.13 / 5.49 |
+| `hairline` | `ink` at 9% over clear | the frame's rails and section rules, card and tile borders, the header's bottom rule | decorative |
+| `hairline-strong` | `ink` at 16% over clear | chip and secondary button borders, the card's "+" square, a sketch's frame | decorative |
+| `quiet` | `ink` at 50% over clear | the second clause of a headline of 24 px or more, never body text (large text, 3:1) | 3.22 / 3.27 |
+| `track` | `ink` at 5% over clear | a plain tag's fill (`muted` on it 4.60 on surface), a sketch's track | decorative |
+| `tag-tint` | `series-1` at 10% over clear | a tinted tag's fill (`series-1` on it 4.96 on surface) | decorative |
+| `on-ink` | `bg` at 70% over clear | body text and links on `ink` | 8.27 on ink |
+| `on-ink-muted` | `bg` at 52% over clear | quiet text on `ink`: the colophon, the quiet clause on ink | 5.17 on ink |
+| `glint` | `surface` at 70% over clear | the light that follows the pointer on a lean card; it lightens the tile and never tints it, so the muted text on a hovered card keeps its 4.5:1 | decorative |
 | `rule-quiet` | `muted` at 28% over clear | the rules between the rows of a tile | decorative |
-| `rule-on-ink` | `bg` at 20% over clear | the same rules on the `ink` tile | decorative |
+| `rule-on-ink` | `bg` at 20% over clear | the hairline on `ink`: the rules on the ink tile and in the footer | decorative |
 | `clear` | `transparent` | the clear end of a gradient or a mask, so a gradient never names `transparent` itself | n/a |
 | `mask-opaque` | the `ink` value | the kept end of a mask, where only the alpha counts and no black is drawn | n/a |
 
@@ -94,7 +107,9 @@ container that is not itself a number says `cv05` outright, so a number still li
 keeps its normal hyphen and spaces. These elements also set `text-rendering: geometricPrecision`:
 Linux Chromium rounds each glyph advance to a whole pixel, so without it a "1" and a "0" differ by
 up to a pixel and a column of figures drifts. Weights used: `font-weight-regular` 400,
-`font-weight-medium` 500, `font-weight-semibold` 600. Code blocks only use `font-code`, which
+`font-weight-medium` 500, `font-weight-semibold` 600, and `font-weight-heading` 550 with
+`tracking-heading` (-0.022 em) for h1 to h3 at the display and h2 sizes: `globals.css` sets both on
+any such heading, so a `font-semibold` left on one does not win. Code blocks only use `font-code`, which
 `--default-mono-font-family` also makes the default for `code`, `kbd`, `samp` and `pre`.
 
 | Token | Size | Line height | Use |
@@ -108,7 +123,9 @@ up to a pixel and a column of figures drifts. Weights used: `font-weight-regular
 | `text-3xl` | 48 px | 1.1 | `Stat` numbers |
 | `text-readout-sm` | 48 px | 1, -0.03 em, 600 | the hero readout under 768 px |
 | `text-readout` | 64 px | 1, -0.03 em, 600 | the hero readout; always with its unit ("visitors per group") |
-| `text-display-lg` | 88 px | 1.02, -0.03 em | the Home headline from 1024 px |
+| `text-display-lg` | 64 px | 1.02, -0.022 em | the Home headline from 1024 px |
+| `text-h2` | 40 px | 1.06, -0.022 em | a section headline, a page headline (`SectionHead`, `PageHead`) |
+| `text-h2-sm` | 32 px | 1.08, -0.022 em | the same under 768 px |
 | `text-display-sm` | 44 px | 1.04, -0.02 em | the name in the hero under 768 px |
 | `text-display` | 72 px | 1.04, -0.02 em | the name in the hero |
 
@@ -126,8 +143,11 @@ characters.
 - `header-h`: 64 px, the `SiteHeader` height.
 - `container-text` 680 px, `container-figure` 960 px, `container-page` 1280 px.
 - Page side padding: 32 px desktop, 16 px phone.
-- Radius: `radius-sm` 4 px (badges), `radius-md` 8 px (inputs), `radius-xl` 28 px (tiles and cards: `rounded-xl`), `radius-pill` (buttons: `rounded-pill`). `rounded-full` is used only for dots.
-  No shadows exist.
+- Radius: `radius-sm` 4 px (badges), `radius-md` 8 px (inputs and buttons: `rounded-md`),
+  `radius-chip` 7 px (chips), `radius-xl` 12 px (tiles and cards: `rounded-xl`), `radius-pill`
+  (dots, toasts and the tools' pills). No shadows exist.
+- The frame: `main` carries `data-frame`, a hairline rail at each side of the content column. An
+  element with `data-rule` is ruled off by a top hairline that runs from rail to rail.
 
 ## Breakpoints
 
@@ -195,7 +215,7 @@ so a block whose painted box is already in view is never part-faded.
 - `[data-depth-reveal]`: A chart's marks draw left to right as it enters. Keyframes: `depth-reveal`.
 - `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. Keyframes: transition.
 - `[data-depth-magnet]` (`--tx`, `--ty`): A button shifts up to 6 px toward a fine pointer. Keyframes: transition.
-- `[data-tile]`, `[data-tile="ink"]`: A surface tile and an ink tile (`radius-xl`, padding). Not motion.
+- `[data-tile]`, `[data-tile="ink"]`: A white tile with a hairline and an ink tile (`radius-xl`, padding). Not motion.
 
 ## Base styles in `tokens.css`
 

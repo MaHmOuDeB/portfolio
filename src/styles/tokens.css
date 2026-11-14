@@ -29,11 +29,11 @@
   --perspective-*: initial;
 
   /* Colour */
-  --color-bg: #ffffff;
+  --color-bg: #f7f7f8; /* the canvas: a very light grey, so white cards and the frame's hairlines read */
   --color-ink: #1d1d1f;
   --color-muted: #6e6e73;
   --color-line: #e8e8ed;
-  --color-surface: #f5f5f7; /* tiles and cards on the white page; text on it keeps AA (muted 4.68) */
+  --color-surface: #ffffff; /* cards, tiles, chips and secondary buttons on the grey canvas (muted 5.07) */
   --color-accent: #0a5fd9; /* controls and focus; shares the series-1 hue on purpose */
   --color-series-1: #0a5fd9;
   --color-series-2: #d9620a;
@@ -44,10 +44,16 @@
   /* Translucent and clear colours, named so globals.css never writes a colour function or a
      gradient stop of its own: Tailwind adds a hex fallback to each color-mix() and turns the
      words black and transparent inside a gradient into hex, which the design lint rejects. */
-  --color-hairline: color-mix(in srgb, var(--color-ink) 8%, transparent); /* the header's bottom rule */
-  --color-glint: color-mix(in srgb, var(--color-bg) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
+  --color-hairline: color-mix(in srgb, var(--color-ink) 9%, transparent); /* the frame's rails, section rules, card borders, the header's bottom rule */
+  --color-hairline-strong: color-mix(in srgb, var(--color-ink) 16%, transparent); /* chips, secondary buttons, the card's "+" square */
+  --color-quiet: color-mix(in srgb, var(--color-ink) 50%, transparent); /* the second clause of a large headline only (3.22 on bg) */
+  --color-track: color-mix(in srgb, var(--color-ink) 5%, transparent); /* a plain tag's fill, a sketch's track */
+  --color-tag-tint: color-mix(in srgb, var(--color-series-1) 10%, transparent); /* a tinted tag's fill */
+  --color-on-ink: color-mix(in srgb, var(--color-bg) 70%, transparent); /* body text and links on ink (8.27) */
+  --color-on-ink-muted: color-mix(in srgb, var(--color-bg) 52%, transparent); /* quiet text on ink: the colophon, a quiet clause (5.17) */
+  --color-glint: color-mix(in srgb, var(--color-surface) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
   --color-rule-quiet: color-mix(in srgb, var(--color-muted) 28%, transparent); /* row rules on a tile */
-  --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* row rules on the ink tile */
+  --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* the hairline on ink: row rules on the ink tile, the footer's rules */
   --color-clear: transparent; /* the clear end of a gradient or a mask */
   --color-mask-opaque: var(--color-ink); /* the kept end of a mask: only its alpha is read */
 
@@ -81,9 +87,15 @@
   --text-readout--line-height: 1;
   --text-readout--letter-spacing: -0.03em;
   --text-readout--font-weight: 600;
-  --text-display-lg: 5.5rem; /* the Home headline from lg */
+  --text-display-lg: 4rem; /* the Home headline from lg */
   --text-display-lg--line-height: 1.02;
-  --text-display-lg--letter-spacing: -0.03em;
+  --text-display-lg--letter-spacing: -0.022em;
+  --text-h2-sm: 2rem; /* a section headline under md */
+  --text-h2-sm--line-height: 1.08;
+  --text-h2-sm--letter-spacing: -0.022em;
+  --text-h2: 2.5rem; /* a section headline, a page headline */
+  --text-h2--line-height: 1.06;
+  --text-h2--letter-spacing: -0.022em;
   --text-display-sm: 2.75rem; /* the name under md */
   --text-display-sm--line-height: 1.04;
   --text-display-sm--letter-spacing: -0.02em;
@@ -94,6 +106,8 @@
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
+  --font-weight-heading: 550; /* h1 to h3 at the display and h2 sizes */
+  --tracking-heading: -0.022em; /* the same headings */
 
   /* Space and layout */
   --spacing: 0.25rem; /* 4 px base; use multiples */
@@ -104,9 +118,10 @@
   --container-figure: 60rem; /* 960 px figures */
   --container-page: 80rem; /* 1280 px page */
   --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-xl: 1.75rem; /* 28 px: tiles and cards */
-  --radius-pill: 999px; /* buttons */
+  --radius-md: 0.5rem; /* inputs and buttons */
+  --radius-chip: 0.4375rem; /* 7 px: chips */
+  --radius-xl: 0.75rem; /* 12 px: tiles and cards */
+  --radius-pill: 999px; /* dots, toasts and the tools' pills */
 
   --breakpoint-xs: 30rem; /* 480 px: Segmented stops stacking */
   --breakpoint-sm: 40rem;
