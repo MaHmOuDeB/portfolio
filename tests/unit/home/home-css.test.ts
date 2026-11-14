@@ -137,14 +137,25 @@ describe('the ribbon', () => {
     expect(block('@keyframes depth-ribbon')).toMatch(/from\s*\{\s*translate:\s*0 0/);
   });
 
-  it('runs on one line only where it can move, so it stays readable and static otherwise', () => {
-    const moving = block('@media screen and (prefers-reduced-motion: no-preference)');
+  it('runs on one line only from sm up where it can move, so it stays readable and static otherwise', () => {
+    const moving = block('@media screen and (width >= 40rem) and (prefers-reduced-motion: no-preference)');
     expect(moving).toMatch(/\[data-depth-ribbon\] > ul\s*\{[^}]*flex-wrap:\s*nowrap/);
+    expect(css).not.toContain('@media screen and (prefers-reduced-motion: no-preference) {\n    @layer components {\n      [data-depth-ribbon] > ul');
     expect(css).toMatch(/\[data-depth-ribbon\] ul\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it('never lets one item be wider than its row: a long question wraps its own text instead of being clipped', () => {
+    expect(css).toMatch(/\[data-depth-ribbon\] li\s*\{[^}]*max-width:\s*100cqi/);
   });
 });
 
 describe('accessibility guards', () => {
+  it('lets every large heading break a long word, so text-only enlargement never overflows at 320 px', () => {
+    expect(css).toMatch(/\[data-hero\] h1\s*\{[^}]*overflow-wrap:\s*anywhere/);
+    expect(css).toMatch(/\[data-section-head\] h2,\s*\[data-page-head\] h1\s*\{[^}]*overflow-wrap:\s*anywhere/);
+    expect(css).toMatch(/:is\(h1, h2, h3\):is\(\[class\*="text-display"\], \[class\*="text-h2"\]\)\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  });
+
   // The reduced-motion and print block, the last one in the file.
   const still = block('@media (prefers-reduced-motion: reduce), print');
   // The scroll-timeline block that holds rise, book, scale and reveal.

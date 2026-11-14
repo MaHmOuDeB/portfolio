@@ -369,6 +369,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-page-head] h1 {
     margin: calc(var(--spacing) * 4.5) 0 0;
     text-wrap: balance;
+    overflow-wrap: anywhere;
   }
 
   [data-section-head] p,
@@ -629,6 +630,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 :is(h1, h2, h3):is([class*="text-display"], [class*="text-h2"]) {
   font-weight: var(--font-weight-heading);
   letter-spacing: var(--tracking-heading);
+
+  /* A long word breaks rather than overflow, so text-only enlargement never scrolls sideways. */
+  overflow-wrap: anywhere;
 }
 
 /*
@@ -896,6 +900,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     margin: calc(var(--spacing) * 5.5) auto 0;
     max-width: 16em;
     text-wrap: balance;
+    overflow-wrap: anywhere;
   }
 
   [data-hero-sub] {
@@ -1580,7 +1585,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     list-style: none;
   }
 
+  /* No item is ever wider than its row: a long one wraps its own text instead of being clipped. */
   [data-depth-ribbon] li {
+    max-width: 100cqi;
     padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 4);
     border: 1px solid var(--color-hairline-strong);
     border-radius: var(--radius-pill);
@@ -1834,10 +1841,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
-/* The ribbon slides on one line only where it can move; at rest (no scroll timelines, reduced
-   motion, print) it wraps, so every tool stays readable. The slide ends with the last pill in view. */
+/* The ribbon slides on one line only where it can move and the row is wide enough (from sm); at
+   rest (narrow screens, no scroll timelines, reduced motion, print) it wraps and stays still, so
+   every item stays readable. The slide ends with the last pill in view. */
 @supports (animation-timeline: view()) {
-  @media screen and (prefers-reduced-motion: no-preference) {
+  @media screen and (width >= 40rem) and (prefers-reduced-motion: no-preference) {
     @layer components {
       [data-depth-ribbon] > ul {
         flex-wrap: nowrap;

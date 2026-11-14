@@ -1,5 +1,6 @@
 // The ink footer: the wordmark, the site's line in two tones, three link columns (Site, Contact,
-// Legal) and the one colophon line. Visible labels only; the contact form and LinkedIn are the
+// Legal) in one nav named "Footer" and the one colophon line. The column titles are plain text that
+// labels its list, not headings, so the page outline never gains a second "Contact". Visible labels only; the contact form and LinkedIn are the
 // contact routes, and there is no e-mail address. Every link is a 44 px target.
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -56,20 +57,27 @@ export function Footer() {
             {HEADLINE.lead} <span className="text-on-ink-muted">{HEADLINE.quiet}</span>
           </p>
         </div>
-        {COLUMNS.map((col) => (
-          <div key={col.heading}>
-            <h2 className="text-sm font-medium text-surface">{col.heading}</h2>
-            <ul className="mt-2">
-              {col.links.map((link) => (
-                <li key={link.href}>
-                  <FooterAnchor href={link.href} external={link.external}>
-                    {link.label}
-                  </FooterAnchor>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <nav aria-label="Footer" className="col-span-2 grid grid-cols-2 gap-x-8 gap-y-10 md:col-span-3 md:grid-cols-3">
+          {COLUMNS.map((col) => {
+            const id = `footer-${col.heading.toLowerCase()}`;
+            return (
+              <div key={col.heading}>
+                <p id={id} className="text-sm font-medium text-surface">
+                  {col.heading}
+                </p>
+                <ul aria-labelledby={id} className="mt-2">
+                  {col.links.map((link) => (
+                    <li key={link.href}>
+                      <FooterAnchor href={link.href} external={link.external}>
+                        {link.label}
+                      </FooterAnchor>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </nav>
         <p className="border-t border-rule-on-ink pt-6 text-sm text-on-ink-muted col-span-2 md:col-span-4">Built with Claude Code as pair-programmer.</p>
       </div>
     </footer>

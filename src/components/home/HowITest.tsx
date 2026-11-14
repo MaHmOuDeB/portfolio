@@ -28,10 +28,12 @@ export function HowITest() {
           {tabs.map((tab, i) => (
             <label
               key={tab.id}
-              className="block cursor-pointer rounded-xl border border-hairline px-5.5 py-4.5 text-muted transition-colors duration-(--duration-fast) has-[:checked]:bg-surface has-[:checked]:text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid hover:bg-surface"
+              className="group relative block cursor-pointer rounded-xl border border-hairline px-5.5 py-4.5 text-muted transition-colors duration-(--duration-fast) has-[:checked]:bg-surface has-[:checked]:text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid hover:border-hairline-strong"
             >
               <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only" />
-              <span data-how-title="" className="block text-lg font-semibold text-ink">
+              {/* The selected tab's mark: a shape, not only a fill, so the choice reads at 3:1 and hover never looks the same. */}
+              <span data-how-mark="" aria-hidden="true" className="absolute inset-y-4 left-0 hidden w-0.5 rounded-pill bg-ink group-has-[:checked]:block" />
+              <span data-how-title="" className="block text-lg font-semibold text-muted group-has-[:checked]:text-ink">
                 {tab.title}
               </span>
               <span data-how-line="" className="mt-1 block text-sm">

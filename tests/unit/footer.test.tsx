@@ -7,9 +7,12 @@ import { Footer } from '@/components/shell/Footer';
 const MARKUP = renderToStaticMarkup(<Footer />);
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-/** The links under the column headed `heading`, as [label, href] pairs. */
+/** The links under the column titled `heading`, as [label, href] pairs; the list is labelled by its title. */
 function column(heading: string): [string, string][] {
-  const block = new RegExp(`<h2[^>]*>${heading}</h2>\\s*<ul[^>]*>([\\s\\S]*?)</ul>`).exec(MARKUP)?.[1] ?? '';
+  const m = new RegExp(`<p id="([^"]+)"[^>]*>${heading}</p>\\s*<ul aria-labelledby="([^"]+)"[^>]*>([\\s\\S]*?)</ul>`).exec(MARKUP);
+  expect(m, heading).not.toBeNull();
+  expect(m![2]).toBe(m![1]);
+  const block = m![3]!;
   return [...block.matchAll(/<a [^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [text(m[2]!), m[1]!]);
 }
 
@@ -51,6 +54,13 @@ describe('Footer', () => {
     expect(column('Contact').map(([label]) => label)).toEqual(['Contact', 'LinkedIn', 'GitHub']);
     expect(column('Contact')[0]![1]).toBe('/contact');
     expect(column('Legal')).toEqual([['Privacy', '/privacy']]);
+  });
+
+  it('puts the columns in one nav named "Footer", with plain text titles, never headings', () => {
+    expect(MARKUP).not.toMatch(/<h[1-6]/);
+    const nav = /<nav aria-label="Footer"[^>]*>([\s\S]*?)<\/nav>/.exec(MARKUP);
+    expect(nav).not.toBeNull();
+    for (const title of ['Site', 'Contact', 'Legal']) expect(nav![1]).toMatch(new RegExp(`<p id="[^"]+"[^>]*>${title}</p>`));
   });
 
   it('makes every link a 44 px target, and has no e-mail address', () => {
