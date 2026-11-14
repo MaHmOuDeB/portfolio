@@ -89,8 +89,9 @@ test.describe('the home page at /', () => {
           },
         ),
       );
-      // The experiment's cards sit inside the first track, and the note inside the site tile.
-      expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'data-experiment', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-note', 'data-home-decision']);
+      // The note sits once, in the tag at the top of the first track (before its heading and the
+      // experiment's cards); the site tile has no second copy.
+      expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'data-home-note', 'data-experiment', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision']);
       expect(await page.locator('[data-scroll-moment], [data-hero-simulator], figure[data-figure="hero-planner"]').count()).toBe(0);
       await expect(page.locator('h1')).toHaveCount(1);
       // The calibration shows group A's headlines to both groups; only the shown twin is visible and announced.

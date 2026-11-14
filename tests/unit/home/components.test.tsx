@@ -22,7 +22,8 @@ const { CaseCard } = await import('@/components/home/CaseCard');
 const { FeaturedCases } = await import('@/components/home/FeaturedCases');
 const { Hero } = await import('@/components/home/Hero');
 const { ProofRow } = await import('@/components/home/ProofRow');
-const { ExperimentsTrack } = await import('@/components/home/ExperimentsTrack');
+const { ExperimentsTrack, cardLinePhase } = await import('@/components/home/ExperimentsTrack');
+const { LiveNote } = await import('@/components/home/LiveNote');
 const { AutomationTrack } = await import('@/components/home/AutomationTrack');
 const { WorkTiles } = await import('@/components/home/WorkTiles');
 const { ToolsRibbon } = await import('@/components/home/ToolsRibbon');
@@ -249,6 +250,72 @@ describe('ExperimentsTrack', () => {
   });
 });
 
+describe('ExperimentsTrack with the live test: the tag and the line at the cards', () => {
+  type Mode = Parameters<typeof snapshotFixture>[0];
+  const model = (m: Mode, arm: Arm) => toHomeModel(snapshotFixture(m), arm);
+  const track = (m: Mode, arm: Arm) => {
+    const mdl = model(m, arm);
+    return render(createElement(ExperimentsTrack, { headlineArm: mdl.headlineArm, note: LiveNote({ model: mdl }), phase: cardLinePhase(mdl) }));
+  };
+  const CALIBRATION_LINE = 'These three headlines are what the test will compare. For now everyone sees the same ones.';
+  const AB_LINE = 'These three headlines are the test: other visitors see different wording.';
+
+  it('puts one tag before the heading: the glyph, the note and "See the live test"', () => {
+    for (const arm of ARMS) {
+      const html = track('calibration', arm);
+      const d = doc(html);
+      const tag = one(d, (el) => has(el, 'data-home-tag'));
+      expect(has(tag, 'data-depth-rise')).toBe(true);
+      expect(html.indexOf('data-home-tag')).toBeLessThan(html.indexOf('<h2'));
+      expect(all(tag, (el) => el.tagName === 'svg' && attr(el, 'aria-hidden') === 'true')).toHaveLength(1);
+      expect(all(tag, (el) => has(el, 'data-home-note'))).toHaveLength(1);
+      const live = all(tag, (el) => el.tagName === 'a' && text(el) === 'See the live test');
+      expect(live).toHaveLength(1);
+      expect(attr(live[0]!, 'href')).toBe(HOME_LINKS.experiment);
+      expect(text(tag)).toContain('It is calibrating first, so everyone sees the same page.');
+    }
+  });
+
+  it('has no tag before the test starts (there is no note to show)', () => {
+    expect(all(doc(track('not-started', 'a')), (el) => has(el, 'data-home-tag'))).toEqual([]);
+  });
+
+  it('says what the cards are while calibrating and while the A/B runs, the same words in both groups', () => {
+    const line = (m: Mode, arm: Arm) => all(doc(track(m, arm)), (el) => has(el, 'data-home-card-line')).map((el) => text(el));
+    for (const arm of ARMS) {
+      expect(line('calibration', arm)).toEqual([CALIBRATION_LINE]);
+      expect(line('ab', arm)).toEqual([AB_LINE]);
+    }
+    const html = track('ab', 'a');
+    // Under the lede, before the cards; muted.
+    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('How I plan a test'));
+    expect(html.indexOf('data-home-card-line')).toBeLessThan(html.indexOf('data-experiment="cards"'));
+    expect(classes(one(doc(html), (el) => has(el, 'data-home-card-line')))).toEqual(expect.arrayContaining(['text-muted']));
+  });
+
+  it('says nothing at the cards when the test is paused, not configured, stopped or decided', () => {
+    for (const m of ['paused', 'not-started', 'held', 'unavailable', 'settings-unreadable', 'aa-failed', 'srm-suppressed', 'ship-b', 'inconclusive'] as const) {
+      for (const arm of ARMS) {
+        expect(cardLinePhase(model(m, arm)), `${m}/${arm}`).toBeNull();
+        expect(track(m, arm), `${m}/${arm}`).not.toContain('data-home-card-line');
+      }
+    }
+  });
+
+  it('takes the line from the phase, never from the group: no other group wording in the line', () => {
+    for (const m of ['calibration', 'ab'] as const) {
+      expect(cardLinePhase(model(m, 'a'))).toBe(cardLinePhase(model(m, 'b')));
+    }
+    for (const hl of HEADLINES) {
+      for (const arm of ARMS) expect(AB_LINE).not.toContain(headlineText(hl[arm]));
+    }
+  });
+
+  it('passes the truth audit in both phases', () => {
+    for (const m of ['calibration', 'ab'] as const) for (const arm of ARMS) expect(audit(track(m, arm))).toEqual([]);
+  });
+});
+
 describe('Hero', () => {
   const html = render(createElement(Hero));
   const d = doc(html);
@@ -298,6 +365,26 @@ describe('Hero', () => {
     const field = one(d, (el) => has(el, 'data-depth-field'));
     expect(attr(field, 'aria-hidden')).toBe('true');
     expect(all(d, (el) => has(el, 'data-depth-row'))).toHaveLength(26);
+  });
+
+  it('pins the text block and the field together inside the tall scene', () => {
+    const scene = one(d, (el) => has(el, 'data-depth-scene'));
+    const pin = one(scene, (el) => has(el, 'data-hero-pin'));
+    expect(all(pin, (el) => has(el, 'data-depth-recede'))).toHaveLength(1);
+    expect(all(pin, (el) => has(el, 'data-depth-field'))).toHaveLength(1);
+  });
+
+  it('says under the field, visibly and outside the hidden field, that it is an illustration', () => {
+    const wrap = one(d, (el) => has(el, 'data-hero-field'));
+    const caption = one(wrap, (el) => has(el, 'data-hero-caption'));
+    expect(caption.tagName).toBe('p');
+    expect(text(caption)).toBe('An illustration: a confidence band narrows as views grow.');
+    expect(classes(caption)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
+    expect(shownText(wrap)).toBe('An illustration: a confidence band narrows as views grow.');
+    // After the field, never inside it.
+    const field = one(wrap, (el) => has(el, 'data-depth-field'));
+    expect(all(field, (el) => has(el, 'data-hero-caption'))).toEqual([]);
+    expect(html.indexOf('data-hero-caption')).toBeGreaterThan(html.indexOf('data-depth-field'));
   });
 
   it('prints no figure and no planner', () => {
@@ -353,6 +440,13 @@ describe('ProofRow', () => {
 
   it('passes the truth audit: every figure is a fact', () => {
     expect(audit(html)).toEqual([]);
+  });
+
+  it('sets the words around a number in a smaller unit size, so every figure stays on one line', () => {
+    const units = all(d, (el) => has(el, 'data-proof-unit')).map((el) => text(el));
+    expect(units).toEqual(['about ', ' min']);
+    // The numbers themselves are never inside a unit.
+    for (const u of all(d, (el) => has(el, 'data-proof-unit'))) expect(all(u, (el) => has(el, 'data-fact'))).toEqual([]);
   });
 });
 
@@ -455,31 +549,30 @@ describe('ToolsRibbon', () => {
 });
 
 describe('SiteTile', () => {
-  type Mode = Parameters<typeof snapshotFixture>[0];
-  const tile = (m: Mode) => render(createElement(SiteTile, { model: toHomeModel(snapshotFixture(m), 'b') }));
+  const html = render(createElement(SiteTile));
 
-  it('says the approved heading and sentence, then the note, then the two buttons', () => {
-    const html = tile('calibration');
+  it('takes no props: the same tile for every visitor and every state', () => {
+    expect(SiteTile.length).toBe(0);
+  });
+
+  it('says the approved heading and sentence, then the two buttons', () => {
     const root = one(doc(html), (el) => has(el, 'data-home-site'));
     expect(text(one(root, (el) => el.tagName === 'h3'))).toBe('This site is part of the evidence.');
     expect(text(all(root, (el) => el.tagName === 'p' && classes(el).includes('text-lg'))[0]!)).toBe(
       'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
     );
-    // Order: sentence, note, buttons.
-    expect(html.indexOf('data-home-note')).toBeGreaterThan(html.indexOf('pre-registered'));
-    expect(html.indexOf('See the live test')).toBeGreaterThan(html.indexOf('data-home-note'));
+    expect(html.indexOf('See the live test')).toBeGreaterThan(html.indexOf('pre-registered'));
     const buttons = all(root, (el) => el.tagName === 'a' && classes(el).includes('rounded-pill'));
     expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
     expect(buttons.map((a) => attr(a, 'href'))).toEqual([HOME_LINKS.experiment, HOME_LINKS.lab]);
   });
 
-  it('shows the existing note while the test runs, and none before the start', () => {
-    expect(all(doc(tile('calibration')), (el) => has(el, 'data-home-note'))).toHaveLength(1);
-    expect(all(doc(tile('not-started')), (el) => has(el, 'data-home-note'))).toHaveLength(0);
+  it('holds no second copy of the note (the tag above the cards has it)', () => {
+    expect(all(doc(html), (el) => has(el, 'data-home-note'))).toHaveLength(0);
   });
 
   it('types no numeral, and says nothing about a count of checks', () => {
-    expect(text(doc(tile('not-started')))).not.toMatch(/\d|more than/);
+    expect(text(doc(html))).not.toMatch(/\d|more than/);
   });
 });
 
