@@ -296,12 +296,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
  * state (the block at the end of this section).
  */
 @keyframes depth-row-arrive {
-  from {
+  0% {
     opacity: 0;
     transform: translateX(-50%) translateZ(120px);
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     transform: translateX(-50%) translateZ(0);
   }
@@ -328,14 +333,19 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-rise {
-  from {
+  0% {
     opacity: 0;
     translate: 0 80px;
     rotate: x 22deg;
     scale: 0.92;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
     rotate: x 0deg;
@@ -344,12 +354,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-load {
-  from {
+  0% {
     opacity: 0;
     translate: 0 24px;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
   }
@@ -377,13 +392,18 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-rise-heading {
-  from {
+  0% {
     opacity: 0;
     translate: 0 40px;
     rotate: x 10deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
     rotate: x 0deg;
@@ -401,24 +421,34 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-book-left {
-  from {
+  0% {
     opacity: 0;
     rotate: y 14deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     rotate: y 0deg;
   }
 }
 
 @keyframes depth-book-right {
-  from {
+  0% {
     opacity: 0;
     rotate: y -14deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     rotate: y 0deg;
   }
@@ -435,12 +465,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-scale {
-  from {
+  0% {
     opacity: 0;
     scale: 0.8;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     scale: 1;
   }

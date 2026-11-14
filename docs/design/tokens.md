@@ -179,11 +179,13 @@ loops. The CSS is in `globals.css`, keyed on data attributes, so a component onl
 attribute. Scroll-linked rules use `animation-timeline` with linear timing and sit inside
 `@supports`; without scroll timelines, under reduced motion and in print every element is visible
 and untransformed. Only transform, opacity and clip-path change. Keyframes are named `depth-*`.
+Every fade-in is fully opaque by the middle of its range while the movement runs on to the end,
+so a block whose painted box is already in view is never part-faded.
 
 - `[data-depth-field]`, `[data-depth-plane]`, `[data-depth-row]` (`--i`, `--e`, `--shift`): The hero evidence field: rows arrive once, the plane turns to face the reader on the view timeline of `[data-depth-scene]`, a fine pointer (`--mx`, `--my`) moves the vanishing point and turns the plane. Keyframes: `depth-row-arrive`, `depth-plane-face`.
 - `[data-proof]` with `[data-proof-bar]`: The interval line closes once on load, siblings 110 ms apart. Keyframes: `depth-settle`.
 - `[data-depth-load]` (`--d`): A small rise and fade in order, once on load. Never on the h1. Keyframes: `depth-load`.
-- `[data-depth-recede]`: Text scales to 0.94 and fades to 0.35 as its scene scrolls away. Keyframes: `depth-recede`.
+- `[data-depth-recede]`: Text scales to 0.94 as its scene scrolls away; it does not fade. Keyframes: `depth-recede`.
 - `[data-depth-progress]`: A 2 px hairline under the header that fills with the page's scroll. Keyframes: `depth-progress`.
 - `[data-depth-rise]`, `[data-depth-rise="heading"]`: Rises out of depth on entry; siblings 2 to 4 start later. Headings use a smaller tilt. Keyframes: `depth-rise`, `depth-rise-heading`.
 - `[data-depth-draw]`: A hairline draws from the left on entry. Keyframes: `depth-draw`.

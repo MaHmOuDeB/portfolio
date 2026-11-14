@@ -67,6 +67,19 @@ describe('the hero scene', () => {
     expect(css).toMatch(/\[data-depth-plane\]\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;/);
   });
 
+  it('ends every fade-in by the middle of its range, so a block whose painted box is in view is never part-faded', () => {
+    // Each entrance also moves its block, so the painted box is fully in view before the range ends.
+    const fades = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{/g)]
+      .map(([, name]) => ({ name: name!, body: block(`@keyframes ${name}`) }))
+      .filter(({ body }) => {
+        const from = /(?:from|0%)\s*\{([^}]*)\}/.exec(body)?.[1] ?? '';
+        const opacity = /opacity:\s*([\d.]+)/.exec(from);
+        return opacity !== null && Number(opacity[1]) < 1;
+      });
+    expect(fades.map((f) => f.name)).toEqual(expect.arrayContaining(['depth-rise', 'depth-rise-heading', 'depth-book-left', 'depth-book-right', 'depth-scale']));
+    for (const { name, body } of fades) expect(body, name).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
+  });
+
   it('cuts the entering site tile at its column, so a large text size never scrolls the page sideways', () => {
     expect(css).toMatch(/\[data-home-site-wrap\]\s*\{\s*overflow-x:\s*clip;\s*\}/);
   });
