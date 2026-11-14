@@ -1,4 +1,4 @@
-// The About page: the photograph and a five-sentence story, then the timeline (Audible as a working
+// The About page: the photograph beside the story from lg up (stacked below), then the timeline (Audible as a working
 // student), the tools I have shipped with, the languages and the CV. Static: the prose comes from
 // content/about.tsx and the photo's description from content/about-photo.ts. Sections are spaced, not
 // boxed, like the Retention page, and each is a <section> named by its h2.
@@ -73,8 +73,8 @@ export function AboutPage(): ReactNode {
   const pdf = cvPdf();
   return (
     <article aria-labelledby="about-title" className="py-12 md:py-section">
-      <div className="grid gap-8 md:grid-cols-12">
-        <div className="md:col-span-7">
+      <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-12">
+        <div className="lg:col-span-7">
           <h1 id="about-title" data-depth-rise="heading" className="text-2xl font-semibold md:text-3xl">
             {ABOUT_TITLE}
           </h1>
@@ -99,7 +99,7 @@ export function AboutPage(): ReactNode {
             ))}
           </div>
         </div>
-        <div className="md:col-span-5">
+        <div className="lg:col-span-5">
           <Image
             src={aboutPhoto.src}
             alt={aboutPhoto.alt}
@@ -107,13 +107,15 @@ export function AboutPage(): ReactNode {
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
             data-depth-parallax=""
-            className="h-auto w-full max-w-120 rounded-sm print:max-w-48"
+            className="h-auto w-full max-w-120 lg:max-w-none rounded-xl print:max-w-48"
           />
         </div>
       </div>
 
       <Section id="timeline">
-        <ol data-depth-draw="" className="max-w-text">
+        {/* The rule that draws on entry is its own decorative element: a list may hold only items. */}
+        <span data-depth-draw="" aria-hidden="true" className="block h-px max-w-text bg-ink" />
+        <ol className="max-w-text">
           {TIMELINE.map((row) => (
             <TimelineRow key={`${row.range.from}-${row.role}`} {...row} />
           ))}

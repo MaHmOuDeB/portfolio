@@ -263,18 +263,16 @@ describe('the win-back section', () => {
     expect(t).not.toMatch(/revenue|£|GBP|spend/i);
   });
 
-  it('has controls only inside its planner Figures, and links to the Lab and to the Home planner', () => {
+  it('has controls only inside its planner Figures, and links to the Lab (and no longer to a Home planner)', () => {
     const outside = s.replace(/<figure [\s\S]*?<\/figure>/g, '');
     expect(outside).not.toMatch(/<input|<button|role="group"|role="radiogroup"/);
     // the Lab link lands on the Lab's sample-size section, the planner
     expect(s).toMatch(/<a [^>]*href="\/lab#sample-size"[^>]*>Try other baselines and rises in the Lab(&#x27;|')s sample-size planner<\/a>/);
-    const home = /<a [^>]*href="([^"]+)"[^>]*>The same arithmetic as the Home planner<\/a>/.exec(s);
-    expect(home?.[1]).toBe('/#hero-planner');
-    expect(home![0]).toContain('data-touch-target=""');
-    // the links follow the planner, and the targeting evidence follows them
+    expect(s).not.toContain('hero-planner');
+    expect(s).not.toContain('Home planner');
+    // the link follows the planner, and the targeting evidence follows it
     expect(s.indexOf('data-figure="winback-duration"')).toBeLessThan(s.indexOf('href="/lab#sample-size"'));
-    expect(s.indexOf('href="/lab#sample-size"')).toBeLessThan(s.indexOf('href="/#hero-planner"'));
-    expect(s.indexOf('href="/#hero-planner"')).toBeLessThan(s.indexOf('lapsed-targeting'));
+    expect(s.indexOf('href="/lab#sample-size"')).toBeLessThan(s.indexOf('lapsed-targeting'));
   });
 
   it('plans 29% plus 5 points, to 34%, at 1,353 customers per group, labelled a hypothetical uplift and Simulated', () => {

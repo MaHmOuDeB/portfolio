@@ -143,7 +143,7 @@ export const HOME_AUTOMATION: readonly {
   title: string;
   href: string;
   description: readonly HeadlinePart[];
-  meta: string;
+  meta: readonly HeadlinePart[];
 }[] = [
   {
     id: 'automation',
@@ -156,7 +156,7 @@ export const HOME_AUTOMATION: readonly {
       { fact: 'profile.audible.setup_minutes_after' },
       ' minutes and was adopted team-wide.',
     ],
-    meta: 'Browser automation, across markets',
+    meta: ['Browser automation, ', { fact: 'profile.audible.markets' }, ' markets'],
   },
   {
     id: 'docproof',
@@ -165,7 +165,7 @@ export const HOME_AUTOMATION: readonly {
     description: [
       'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     ],
-    meta: 'Multi-agent orchestration, Claude Code',
+    meta: ['Multi-agent orchestration, Claude Code'],
   },
   {
     id: 'n8n',
@@ -176,14 +176,14 @@ export const HOME_AUTOMATION: readonly {
       { fact: 'profile.n8n.automated_tests' },
       ' automated tests. A portfolio project, not used by a client.',
     ],
-    meta: 'n8n, XRechnung, ZUGFeRD',
+    meta: ['n8n, XRechnung, ZUGFeRD'],
   },
   {
     id: 'marketingws',
     title: 'MarketingWS',
     href: HOME_LINKS.marketingws,
     description: ["Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier."],
-    meta: 'Python, FastAPI, Groq',
+    meta: ['Python, FastAPI, Groq'],
   },
 ];
 

@@ -849,27 +849,25 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     border-color: color-mix(in srgb, var(--color-bg) 20%, transparent);
   }
 
-  /* At a glance: the outcome as a large paragraph, then four facts side by side (stacked under
-     640 px) between two hairlines that draw in as they arrive. */
+  /* At a glance: the outcome as one readable paragraph (text-xl, text-2xl from md, about 60
+     characters wide, normal weight), then four facts side by side (stacked under 640 px) between
+     two hairlines that draw in as they arrive. */
   [data-glance] {
     padding: calc(var(--spacing) * 8) 0 0;
   }
 
   [data-glance-outcome] {
     margin: 0;
-    max-width: 30ch;
+    max-width: 60ch;
     font-size: var(--text-xl);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-    font-weight: 600;
+    line-height: 1.4;
+    font-weight: 400;
   }
 
   @media (width >= 48rem) {
     [data-glance-outcome] {
-      max-width: 36ch;
-      font-size: var(--text-display-sm);
-      line-height: 1.04;
-      letter-spacing: -0.02em;
+      font-size: var(--text-2xl);
+      line-height: 1.35;
     }
   }
 

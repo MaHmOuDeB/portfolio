@@ -60,7 +60,7 @@ const rows = () =>
       href: decode(/href="([^"]+)"/.exec(l[1]!)![1]!),
       attrs: l[1]!,
       title: text(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(l[2]!)?.[1] ?? ''),
-      line: text(/<\/h3><p>([\s\S]*?)<\/p>/.exec(l[2]!)?.[1] ?? ''),
+      line: text(/<\/h3><p[^>]*>([\s\S]*?)<\/p>/.exec(l[2]!)?.[1] ?? ''),
       kind: /<span data-depth-meta="">([^<]*)<\/span>/.exec(l[2]!)?.[1] ?? null,
     }));
     return { key: m[1], body, links, text: text(body) };
@@ -87,7 +87,7 @@ describe('the outline', () => {
       expect(attrs).toContain('data-depth-rise="heading"');
     }
     expect(WORK_SECTIONS.map((s) => [s.id, s.label])).toEqual(GROUPS.map(([id, title]) => [id, title]));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length);
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length + 1);
     // each group holds its own items, as one list whose rule draws on entry
     for (const [id, , count] of GROUPS) {
       const start = PAGE.indexOf(`<section id="${id}"`);
@@ -100,11 +100,61 @@ describe('the outline', () => {
 
   it('names each item by an h3 inside its one card link, with no level skipped', () => {
     const headings = [...PAGE.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
-    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3]);
+    // the last h2 is the live test tile, after the three groups
+    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2]);
     for (const row of rows()) {
       expect(row.links, row.key).toHaveLength(1);
       expect(row.body, row.key).toMatch(/^<a [^>]*><h3[^>]*>[\s\S]*?<\/h3>/);
     }
+  });
+});
+
+describe('the layout', () => {
+  it('gives each group a full-width card grid: three across from lg, two from md, one below', () => {
+    for (const [id] of GROUPS) {
+      const start = PAGE.indexOf(`<section id="${id}"`);
+      const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
+      const open = /<section [^>]*class="([^"]*)"/.exec(body)![1]!;
+      expect(open, id).not.toMatch(/max-w-/);
+      const ul = /<ul [^>]*class="([^"]*)"/.exec(body)![1]!.split(/\s+/);
+      expect(ul, id).toEqual(expect.arrayContaining(['grid', 'md:grid-cols-2', 'lg:grid-cols-3']));
+    }
+  });
+
+  it('sets each group heading as a large display heading, with the lede muted under it', () => {
+    for (const [id] of GROUPS) {
+      const h2 = new RegExp(`<h2 id="${id}-title" class="([^"]*)"`).exec(PAGE)![1]!.split(/\s+/);
+      expect(h2, id).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
+    }
+    const ledes = [...PAGE.matchAll(/<p data-work-lede="" class="([^"]*)">([^<]*)<\/p>/g)];
+    expect(ledes.map((m) => decode(m[2]!))).toEqual([
+      'How I plan a test, read it honestly and get to a decision.',
+      'Tools I built so that people, including me, stop doing the same thing by hand.',
+    ]);
+    for (const m of ledes) expect(m[1]).toContain('text-muted');
+  });
+
+  it('names each card by its title only, and describes it by the line', () => {
+    for (const row of rows()) {
+      const attrs = row.links[0]!.attrs;
+      const labelled = /aria-labelledby="([^"]+)"/.exec(attrs)?.[1];
+      const described = /aria-describedby="([^"]+)"/.exec(attrs)?.[1];
+      expect(labelled, row.key).toBeDefined();
+      expect(described, row.key).toBeDefined();
+      expect(labelled).not.toBe(described);
+      expect(row.body, row.key).toMatch(new RegExp(`<h3 id="${labelled}"`));
+      expect(row.body, row.key).toMatch(new RegExp(`<p id="${described}"`));
+    }
+  });
+
+  it('ends with a tile that links to the live test, in the Home site tile words', () => {
+    const tile = /<div data-tile=""[^>]*data-work-site=""[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)?.[1] ?? '';
+    expect(tile).toMatch(/^<h2[^>]*>This site is part of the evidence\.<\/h2>/);
+    expect(text(tile)).toBe(
+      'This site is part of the evidence. It runs its own pre-registered A/B test on the three experiment cards on the Home page. I built it with coding agents, and every change passes its automated checks before it ships. See the live test',
+    );
+    expect(/<a [^>]*href="([^"]+)"/.exec(tile)![1]).toBe('/experiment');
+    expect(PAGE.indexOf('data-work-site')).toBeGreaterThan(PAGE.lastIndexOf('</section>'));
   });
 });
 
@@ -152,7 +202,7 @@ describe('the directory', () => {
       ['Pulse: analytics instrumentation demo', 'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.'],
       [
         'Docproof',
-        'I designed and built an open-source tool for document verification, with multi-agent orchestration and automated checks. The page does not claim that anyone uses it.',
+        'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       ],
       [
         'n8n Workflow Library',
@@ -198,8 +248,8 @@ describe('the directory', () => {
     expect(PAGE).not.toMatch(/href="\/"/);
   });
 
-  it('has no figures, images, buttons, tables or extra links: a list of seven cards', () => {
-    expect([...PAGE.matchAll(/<a[\s>]/g)]).toHaveLength(ORDER.length);
+  it('has no figures, images, buttons or tables, and one link besides the seven cards: the live test', () => {
+    expect([...PAGE.matchAll(/<a[\s>]/g)]).toHaveLength(ORDER.length + 1);
     expect(PAGE).not.toMatch(/<(figure|img|button|table|svg)[\s>]/);
     expect(PAGE).not.toMatch(/data-figure|data-provenance/);
   });

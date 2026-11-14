@@ -8,7 +8,7 @@
 // width (max-w-figure), so evidence is wider than text. Sections are spaced, not boxed: no card
 // grid and no motion. The win-back section is a sizing only: the sourced sizing and its table, then
 // the planner placed through `planner` (a hypothetical uplift on the observed baseline, with its own
-// Simulated badge), a link to the Lab and a link to the Home planner. RetentionCaseStudy is the page
+// Simulated badge), a link to the Lab and nothing else. RetentionCaseStudy is the page
 // as it ships, with the win-back planner; the route and its dev host both mount it.
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
@@ -26,7 +26,6 @@ import {
   RetentionCohorts,
   RetentionData,
   RetentionFindings,
-  RetentionHomePlannerLink,
   RETENTION_GLANCE,
   RetentionIntro,
   RetentionLabLink,
@@ -218,9 +217,6 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
         <ul className={`${TEXT} mt-4`}>
           <li>
             <RetentionLabLink />
-          </li>
-          <li>
-            <RetentionHomePlannerLink />
           </li>
         </ul>
         <div className={`${TEXT} mt-8`}>

@@ -175,7 +175,29 @@ describe('the About page', () => {
     const headings = all(d, (el) => el.tagName === 'h1' || el.tagName === 'h2');
     expect(headings.length).toBe(5);
     for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
-    expect(all(section(d, 'timeline'), (el) => has(el, 'data-depth-draw')).length).toBe(1);
+    // the rule that draws is a decorative span next to the list, never the list itself
+    const drawn = all(section(d, 'timeline'), (el) => has(el, 'data-depth-draw'));
+    expect(drawn.length).toBe(1);
+    expect(drawn[0]!.tagName).toBe('span');
+    expect(attr(drawn[0]!, 'aria-hidden')).toBe('true');
+    expect(has(one(section(d, 'timeline'), (el) => el.tagName === 'ol'), 'data-depth-draw')).toBe(false);
+  });
+
+  it('puts the portrait and the story side by side from lg: about 5 of 12 columns, rounded xl', () => {
+    const d = about();
+    const img = one(d, (el) => el.tagName === 'img');
+    expect(classes(img)).toContain('rounded-xl');
+    expect(classes(img)).not.toContain('rounded-sm');
+    const story = one(d, (el) => has(el, 'data-about-story'));
+    const textCol = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:col-span-7'));
+    const photoCol = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:col-span-5'));
+    expect(textCol).toHaveLength(1);
+    expect(photoCol).toHaveLength(1);
+    expect(all(textCol[0]!, (el) => el === story)).toHaveLength(1);
+    expect(all(photoCol[0]!, (el) => el === img)).toHaveLength(1);
+    const grid = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:grid-cols-12'));
+    expect(grid).toHaveLength(1);
+    expect(classes(grid[0]!)).not.toContain('md:grid-cols-12');
   });
 
   it('uses the page-title size from md up on its h1, as every other page does', () => {

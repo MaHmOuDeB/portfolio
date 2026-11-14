@@ -1,15 +1,18 @@
 // The Work directory: every case study and build note, as lean cards in the groups of
 // content/work.tsx and in its order (experiments and analytics, automation and agents, then the one
-// data pipeline). It copies the golden page's frame (one h1 with a one-line intro, then one
-// <section id> per group, each named by its own h2) and puts each group's cards in a list under an
+// data pipeline), full width, then a tile that leads to the live test. It copies the golden page's
+// frame (one h1 with a one-line intro, then one <section id> per group, each named by its own h2) and puts each group's cards in a list under an
 // ink rule that draws on entry. Each card is a link: the title (an h3), the sourced line and the
 // entry's type (case study or build note). No dates, figures or outcome numbers: each line is the
 // page's own description, and its one figure is a Fact. Server-safe, no hooks.
 import type { ReactNode } from 'react';
 import { LeanCard } from '@/components/depth/LeanCard';
+import { Tile } from '@/components/depth/Tile';
+import { ButtonLink } from '@/components/kit/ButtonLink';
 import { prefetchFor } from '@/lib/nav';
-import { HOME_CASES } from '../../../content/home.ts';
-import { WORK_GROUPS } from '../../../content/work.tsx';
+import { HOME_CASES, HOME_SITE } from '../../../content/home.ts';
+import { HOME_LINKS } from '../../../content/home-destinations.ts';
+import { WORK_GROUPS, WORK_SITE } from '../../../content/work.tsx';
 
 export const WORK_TITLE = 'Work';
 
@@ -38,18 +41,22 @@ export function WorkPage(): ReactNode {
       </div>
 
       {WORK_SECTIONS.map((section) => (
-        <section
-          key={section.id}
-          id={section.id}
-          aria-labelledby={`${section.id}-title`}
-          className="mt-12 max-w-figure md:mt-section"
-        >
-          <h2 id={`${section.id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
+        <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} className="mt-16 md:mt-section">
+          <h2
+            id={`${section.id}-title`}
+            className={`${TEXT} text-display-sm font-semibold md:text-display`}
+            data-depth-rise="heading"
+          >
             {section.label}
           </h2>
-          <ul data-depth-draw="" className="mt-6 grid gap-4 border-t border-ink pt-6 md:grid-cols-2">
+          {section.lede ? (
+            <p data-work-lede="" className={`mt-4 ${TEXT} text-lg text-muted`}>
+              {section.lede}
+            </p>
+          ) : null}
+          <ul data-depth-draw="" className="mt-8 grid gap-6 border-t border-ink pt-8 md:grid-cols-2 lg:grid-cols-3">
             {section.items.map((item) => (
-              <li key={item.href} data-work-item={item.href}>
+              <li key={item.href} data-work-item={item.href} className="grid">
                 <LeanCard href={item.href} title={item.title} meta={kindOf(item.href)} size="md" prefetch={prefetchFor(item.href)}>
                   {item.description}
                 </LeanCard>
@@ -58,6 +65,18 @@ export function WorkPage(): ReactNode {
           </ul>
         </section>
       ))}
+
+      <div className="mt-16 md:mt-section">
+      <Tile data-work-site="" data-depth-rise="">
+        <h2 className={`${TEXT} text-display-sm font-semibold`}>{WORK_SITE.title}</h2>
+        <p className={`mt-4 ${TEXT} text-lg`}>{WORK_SITE.text}</p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <ButtonLink href={HOME_LINKS.experiment} variant="primary">
+            {HOME_SITE.live}
+          </ButtonLink>
+        </div>
+      </Tile>
+      </div>
     </article>
   );
 }
