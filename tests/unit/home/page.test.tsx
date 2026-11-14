@@ -330,6 +330,13 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     return a === 'data-home-track' ? `track:${attr(el, a)}` : a;
   };
 
+  it.each(MODELS)('%s: every id is unique, so each card link is named and described by its own text', (_, m) => {
+    // LeanCard derives its ids from the href: two cards to one destination would share them.
+    const ids = all(doc(page(m))).map((el) => attr(el, 'id')).filter((id): id is string => id !== undefined);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
+
   it.each(MODELS)('%s: hero, proof, two tracks, tiles, ribbon, site tile, decision band, in that order, with one h1', (_, m) => {
     const h = page(m);
     const order = all(doc(h), (el) => BLOCKS.some((n) => attr(el, n) !== undefined)).map(blockName);

@@ -67,6 +67,13 @@ const rows = () =>
   });
 
 describe('the outline', () => {
+  it('has unique ids, so each card link is named and described by its own text', () => {
+    // LeanCard derives its ids from the href: two cards to one destination would share them.
+    const ids = [...PAGE.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]!);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
+
   it('has one h1, "Work", the navigation label, with a one-line intro', () => {
     expect(WORK_TITLE).toBe('Work');
     expect(NAV.find((n) => n.href === '/work')?.label).toBe(WORK_TITLE);
