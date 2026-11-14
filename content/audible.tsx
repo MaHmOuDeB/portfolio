@@ -7,6 +7,7 @@
 // figures are confidential, so the page shows no result of any of them: the interactive example uses
 // a made-up product with made-up metric names.
 import type { ReactNode } from 'react';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 import { CONTACT } from '@/lib/site';
@@ -26,6 +27,23 @@ export function AudibleIntro(): ReactNode {
     </p>
   );
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const AUDIBLE_GLANCE: GlanceParts = {
+  outcome: (
+    <>
+      Recommended rollouts from <Fact id="profile.audible.experiments" /> A/B tests,{' '}
+      <Fact id="profile.audible.recommendations_adopted" /> adopted, and cut test-account setup from about{' '}
+      <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" />{' '}
+      minutes; recommendations were mine, ship decisions were my manager&apos;s. <WhySoMany />
+    </>
+  ),
+  role: 'Working student, mainly growth experimentation; contributed to tests, set up and analysed them.',
+  methods:
+    'Primary, secondary and guardrail metrics per team, sample-size and duration planning, significance testing, SQL segmentation.',
+  tools: "Amazon's internal experimentation platforms, SQL, Excel, Tableau as a data source, Tampermonkey with a step recorder.",
+  when: 'Aug 2023 to Apr 2025.',
+};
 
 /** The summary box: question, my role, method, result, decision, next step. */
 export function AudibleSummary(): ReactNode {

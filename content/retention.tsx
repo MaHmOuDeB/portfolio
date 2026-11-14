@@ -8,6 +8,7 @@
 // README files.
 import type { ReactNode } from 'react';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { Stat } from '@/components/kit/Stat';
 import { TextLink } from '@/components/kit/TextLink';
@@ -60,6 +61,22 @@ function TargetRate() {
 }
 
 const ITEM = 'mt-4 first:mt-0';
+
+/** The 20-second top of the page, under the title and its line. */
+export const RETENTION_GLANCE: GlanceParts = {
+  outcome: (
+    <>
+      Cleaned returns that made returned-order value look like it grew (<Fact id="retail.returns.yoy_growth_raw" /> raw,
+      about <Fact id="retail.returns.yoy_growth_clean" /> true), then ranked likely repeat buyers (AUC{' '}
+      <Fact id="retention.model.gb_auc" /> vs <Fact id="retention.model.rule_auc" />) and sized a win-back holdout;
+      prediction only, nobody contacted.
+    </>
+  ),
+  role: 'Personal projects rebuilt from MSc projects.',
+  methods: 'Cohorts, RFM, out-of-time model, sample-size calculation.',
+  tools: 'SQL (DuckDB), scikit-learn, pytest, GitHub Actions; Chart.js for the KPI dashboard.',
+  when: 'Rebuilt in 2026, data from 2009 to 2011.',
+};
 
 /** The TL;DR box: question, my role, method, result, what I would recommend, next step. */
 export function RetentionSummary(): ReactNode {

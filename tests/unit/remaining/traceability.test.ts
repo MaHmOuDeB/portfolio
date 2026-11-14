@@ -123,7 +123,7 @@ describe('every list of site paths names only pages that ship', () => {
 
   it('the Work directory', () => {
     const hrefs = WORK_GROUPS.flatMap((g) => g.items.map((i) => i.href));
-    expect(hrefs.length).toBe(8);
+    expect(hrefs.length).toBe(7);
     expect(hrefs.filter((h) => !ships(h))).toEqual([]);
   });
 

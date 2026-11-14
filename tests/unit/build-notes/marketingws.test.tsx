@@ -75,7 +75,7 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="marketingws-title"[^>]*>MarketingWS<\/h1>/);
     expect(MARKETINGWS_TITLE).toBe('MarketingWS');
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app.",
     );
@@ -122,8 +122,8 @@ describe('the copy', () => {
   });
 
   it('is a short note of about four hundred words', () => {
-    // The prose: the screenshots' captions are pinned in note-shots.test.tsx.
-    const words = text(PAGE.replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
+    // The prose: the screenshots' captions are pinned in note-shots.test.tsx, the glance block above.
+    const words = text(PAGE.replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
       .split(' ').filter((w) => /\w/.test(w)).length;
     expect(words).toBeGreaterThanOrEqual(340);
     expect(words).toBeLessThanOrEqual(480);
@@ -138,7 +138,7 @@ describe('the copy', () => {
     expect(item?.href).toBe(ROUTE);
     expect(item?.title).toBe(MARKETINGWS_TITLE);
     const description = text(renderToStaticMarkup(<>{item!.description}</>));
-    const intro = text(PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav')));
+    const intro = text(PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"')));
     expect(description).toBe(`${intro} ${GROQ_NOTE}`);
   });
 });
