@@ -110,7 +110,9 @@ describe('the portraits', () => {
     expect(tr).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
     const tl = block('@keyframes depth-drift-tl');
     expect(tl).not.toContain('opacity');
-    expect(tl).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(-32px, -32px, -200px\) rotateY\(8deg\);/);
+    // No turn: the portrait keeps its 4 by 5 shape at every frame (depth scales it evenly).
+    expect(tl).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(-32px, -32px, -200px\);/);
+    expect(tl).not.toMatch(/rotate/);
     expect(tl).toMatch(/to\s*\{\s*transform:\s*none;/);
     expect(families).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*animation:\s*depth-drift-tl var\(--duration-arrive\) var\(--ease-standard\) backwards/);
   });

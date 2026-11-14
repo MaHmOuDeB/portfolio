@@ -955,10 +955,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 /* From the top left, once on load and by transform only: About's portrait is in the first screen
    (and may be its largest paint), so it never fades. Its perspective is its own, with the vanishing
    point at its top left corner: the parent is the whole first screen, whose centre would pull the
-   portrait in from below instead. */
+   portrait in from below instead. No turn, so the photo keeps its 4 by 5 shape at every frame. */
 @keyframes depth-drift-tl {
   from {
-    transform: perspective(87.5rem) translate3d(-32px, -32px, -200px) rotateY(8deg);
+    transform: perspective(87.5rem) translate3d(-32px, -32px, -200px);
   }
 
   to {
