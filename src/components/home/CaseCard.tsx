@@ -4,7 +4,9 @@
 // apart. Only the selected string is visible and announced; the other is visibility:hidden and
 // aria-hidden, and its figures are still Facts. The whole card is the link: it carries the
 // experiment's click marker and the card marker, and holds no second link, so the hidden string is
-// never a second focus stop. Server-safe.
+// never a second focus stop. The cell's one column is the headline's width, and a word longer than
+// that width (large text in a narrow card) breaks inside the cell, so neither string can push past
+// the card's edge, where the card clips it. Server-safe.
 import { HEADLINES, HOME_CASES, type Study } from '../../../content/home.ts';
 import { LeanCard } from '@/components/depth/LeanCard';
 import type { Arm } from '@/experiment.values';
@@ -36,7 +38,7 @@ export function CaseCard({ study, headlineArm }: { study: Study; headlineArm: Ar
       titleMinLines={TITLE_MIN_LINES}
       meta={item.meta}
       title={
-        <span id={`case-${study}-headline`} data-case-headline="" className="grid">
+        <span id={`case-${study}-headline`} data-case-headline="" className="grid grid-cols-1 wrap-anywhere">
           {ARMS.map((arm) => {
             const shown = arm === headlineArm;
             return (
