@@ -104,7 +104,7 @@ describe('Work directory', () => {
       'How I plan and analyse experiments, and why so many of my recommendations were adopted. The tests are confidential, so the page shows none of their results.',
       'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size. Nobody was contacted and no test was run.',
       'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
-      'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       'Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
       'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
@@ -228,7 +228,7 @@ describe('what each Work line says', () => {
 
   it('describes Docproof by its engineering', () => {
     const text = textOf(ROUTES.docproof);
-    expect(text).toContain('Three agents propose changes to a document');
+    expect(text).toContain('Separate agents write, audit and review a document');
     expect(text).toContain('deterministic checks decide what reaches the reader');
     expect(text).toContain('no users yet');
   });

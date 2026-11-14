@@ -86,7 +86,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work',
     'Work',
-    "Every case study and build note on this site: experiments and analyses first, then the tools I've built.",
+    "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     'site',
   ),
   entry(

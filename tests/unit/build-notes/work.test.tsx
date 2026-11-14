@@ -73,7 +73,7 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="work-title"[^>]*>Work<\/h1>/);
     const intro = /<p data-work-intro=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE);
-    expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools I've built.");
+    expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools and pipelines I've built.");
   });
 
   it('has the three groups as sections, each named by its own h2 that rises as a heading, in this order', () => {
@@ -130,7 +130,7 @@ describe('the layout', () => {
     }
     const ledes = [...PAGE.matchAll(/<p data-work-lede="" class="([^"]*)">([^<]*)<\/p>/g)];
     expect(ledes.map((m) => decode(m[2]!))).toEqual([
-      'How I plan a test, read it honestly and get to a decision.',
+      'How I plan a test, read it honestly and write the recommendation.',
       'Tools I built so that people, including me, stop doing the same thing by hand.',
     ]);
     for (const m of ledes) expect(m[1]).toContain('text-muted');
@@ -204,7 +204,7 @@ describe('the directory', () => {
       ['Pulse: analytics instrumentation demo', 'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.'],
       [
         'Docproof',
-        'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+        'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       ],
       [
         'n8n Workflow Library',
@@ -311,7 +311,7 @@ describe('the route', () => {
     };
     expect(mod.metadata.title).toBe('Work');
     expect(mod.metadata.description).toBe(
-      "Every case study and build note on this site: experiments and analyses first, then the tools I've built.",
+      "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     );
     expect(html(mod.default())).toBe(PAGE);
   });

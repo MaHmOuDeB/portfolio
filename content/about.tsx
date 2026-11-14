@@ -39,7 +39,7 @@ export const ABOUT_STORY: readonly ReactNode[] = [
 
 /** The new paragraph after the first one: what the two halves of my work have in common. */
 export const ABOUT_FOCUS =
-  'I work on two things that belong together: experiments that end in a decision, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
+  'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
 
 /** What I am looking for, as its own short paragraph. */
 export const ABOUT_LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';

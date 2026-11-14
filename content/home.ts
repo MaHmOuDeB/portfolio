@@ -27,7 +27,7 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
  */
 export const HOME_HERO = {
   title: 'I test what works, and automate the rest.',
-  sub: 'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build the agents and workflows that take the manual work out of analysis.',
+  sub: 'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
   evidence: 'See the evidence',
   cv: 'CV',
   contact: 'Contact',
@@ -99,7 +99,7 @@ export const WHY_SO_MANY = 'Why so many?';
 export const HOME_TRACKS = {
   experiments: {
     title: 'Experiments and analytics',
-    lede: 'How I plan a test, read it honestly and get to a decision.',
+    lede: 'How I plan a test, read it honestly and write the recommendation.',
   },
   automation: {
     title: 'Automation and agents',
@@ -134,7 +134,11 @@ export const HOME_CASES: readonly {
   {
     study: 'pulse',
     href: HOME_LINKS.pulse,
-    description: ['An analytics dashboard I designed and built around a seven-event taxonomy. A demo, with no real users.'],
+    description: [
+      'An analytics dashboard I designed and built around a ',
+      { fact: 'pulse.events.count' },
+      '-event taxonomy. A demo, with no real users.',
+    ],
     meta: 'Amplitude, React, event taxonomy, 2026',
   },
 ];
@@ -165,7 +169,7 @@ export const HOME_AUTOMATION: readonly {
     title: 'Docproof',
     href: HOME_LINKS.docproof,
     description: [
-      'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     ],
     meta: ['Multi-agent orchestration, Claude Code'],
   },
@@ -212,15 +216,15 @@ export const HOME_TILES = {
   automate: {
     title: 'I automate.',
     lines: [
-      'I turn repeated manual steps into tools a whole team uses.',
+      'I turn repeated manual steps into tools a whole team can use.',
       'I build agents that work in steps and check each other.',
-      'I put automated tests around every workflow, so it stays right.',
+      'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ],
   },
 } as const;
 
 /** The tools ribbon's label. */
-export const TOOLS_LABEL = 'Tools I work with';
+export const TOOLS_LABEL = 'Tools I have shipped with';
 
 /** The site tile: the test on this site is part of the evidence. */
 export const HOME_SITE = {
