@@ -154,8 +154,9 @@ describe('the magnet and the header', () => {
     expect(css).toMatch(/\[data-depth-magnet\]\s*\{[^}]*translate:\s*round\(var\(--tx\), 1px\) round\(var\(--ty\), 1px\)/);
   });
 
-  it('keeps the header cover at 96 percent (80 percent fails 4.5:1 over the ink tile)', () => {
-    expect(css).toContain('background-color: var(--color-header-cover);');
-    expect(tokens).toContain('--color-header-cover: color-mix(in srgb, var(--color-bg) 96%, transparent);');
+  it('keeps the header opaque, with no backdrop filter anywhere (it would cost every page its subpixel text)', () => {
+    expect(css).toMatch(/\[data-site-header\]\s*\{\s*background-color:\s*var\(--color-bg\);/);
+    expect(css).not.toMatch(/backdrop-filter\s*:/);
+    expect(tokens).not.toContain('--color-header-cover');
   });
 });

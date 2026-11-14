@@ -45,7 +45,6 @@
      gradient stop of its own: Tailwind adds a hex fallback to each color-mix() and turns the
      words black and transparent inside a gradient into hex, which the design lint rejects. */
   --color-hairline: color-mix(in srgb, var(--color-ink) 8%, transparent); /* the header's bottom rule */
-  --color-header-cover: color-mix(in srgb, var(--color-bg) 96%, transparent); /* the header over its blur */
   --color-glint: color-mix(in srgb, var(--color-bg) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
   --color-rule-quiet: color-mix(in srgb, var(--color-muted) 28%, transparent); /* row rules on a tile */
   --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* row rules on the ink tile */

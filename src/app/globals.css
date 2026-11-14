@@ -263,10 +263,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /*
- * Header surface: the page's white at 96% over a blur of what scrolls under it, with a hairline.
- * 96% is the lowest cover at which the muted nav text keeps 4.5:1 even over a solid black region
- * (4.65:1); at 76% it falls to 2.85:1 there, so the blur alone cannot be trusted. Without
- * backdrop-filter the surface is plain white.
+ * Header surface: the page's plain white with a hairline. No backdrop blur: a cover thin enough to
+ * show the blur fails the nav text's contrast over a dark region, and a backdrop filter anywhere on
+ * the page makes Chromium draw all of its text without subpixel antialiasing, which softens every
+ * page on a standard Windows screen for an effect that an opaque enough cover hides anyway.
  */
 @layer base {
   [data-site-header] {
@@ -278,13 +278,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   @media not ((width >= 48rem) and (height >= 43.75rem)) {
     [data-site-header] {
       position: relative;
-    }
-  }
-
-  @supports (backdrop-filter: blur(1px)) {
-    [data-site-header] {
-      background-color: var(--color-header-cover);
-      backdrop-filter: saturate(180%) blur(20px);
     }
   }
 }

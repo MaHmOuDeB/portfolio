@@ -361,7 +361,8 @@ page, give it the primitives catalogue above and the golden page.
     (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.
   - Components add data attributes (`data-depth-*`, `data-proof`); they write no motion CSS.
 - **Look.** Tiles and cards sit on `surface` with `rounded-xl` (28 px); buttons are pills
-  (`rounded-pill`); the header is a blurred white surface with a hairline. Light only, no shadows,
+  (`rounded-pill`); the header is a plain white surface with a hairline (no backdrop filter: it would cost every
+  page its subpixel text in Chromium). Light only, no shadows,
   no new typeface.
 - **Banned by `scripts/design-lint.ts`**, one bullet per rule id. Pass 1 reads the CSS the build
   emits (`npm run lint:design`), pass 2 reads the source (`npm run lint:design:src`). Four rules run

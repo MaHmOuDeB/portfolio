@@ -42,7 +42,6 @@ fill) are listed as overlap pairs, each with the drawing rule that makes it pass
 | `ok` | `#1B7F3B` | the word for a passed check (for example "SRM passed") | 5.07 |
 | `warn` | `#B04A00` | the word for a real warning (SRM, paused, error) | 5.49 |
 | `hairline` | `ink` at 8% over clear | the site header's bottom rule | decorative |
-| `header-cover` | `bg` at 96% over clear | the site header's surface over its blur (96% keeps the muted nav text at 4.5:1 over a solid black region) | n/a |
 | `glint` | `bg` at 70% over clear | the light that follows the pointer on a lean card; it lightens the tile and never tints it, so the muted text on a hovered card keeps its 4.5:1 | decorative |
 | `rule-quiet` | `muted` at 28% over clear | the rules between the rows of a tile | decorative |
 | `rule-on-ink` | `bg` at 20% over clear | the same rules on the `ink` tile | decorative |
