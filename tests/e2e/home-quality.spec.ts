@@ -137,11 +137,13 @@ async function sections(page: Page): Promise<Record<string, Rect>> {
       put(`${study}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
     }
     put('automation', document.querySelector('[data-home-track="automation"]'));
-    put('tiles', document.querySelector('[data-home-tiles]'));
-    put('ribbon', document.querySelector('[data-home-ribbon]'));
+    put('how', document.querySelector('[data-home-how]'));
+    put('questions', document.querySelector('[data-home-questions]'));
+    put('tools', document.querySelector('[data-home-shipped]'));
     put('site', document.querySelector('[data-home-site]'));
     put('note', document.querySelector('[data-home-note]'));
-    put('decision', document.querySelector('[data-home-decision]'));
+    put('faq', document.querySelector('[data-home-faq]'));
+    put('cta', document.querySelector('[data-home-cta]'));
     put('footer', document.querySelector('footer'));
     out.page = { x: 0, y: 0, width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight };
     return out;
@@ -233,7 +235,7 @@ test.describe('Home quality: the real page in both groups across the size matrix
       const a = geometry.a!;
       const b = geometry.b!;
       expect(Object.keys(b).sort()).toEqual(Object.keys(a).sort());
-      for (const key of ['hero', 'proof', 'experiments', 'cards', 'automation', 'tiles', 'ribbon', 'site', 'decision', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
+      for (const key of ['hero', 'proof', 'how', 'experiments', 'cards', 'automation', 'questions', 'tools', 'site', 'faq', 'cta', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
       for (const key of Object.keys(a)) {
         for (const side of ['x', 'y', 'width', 'height'] as const) {
           expect(Math.abs(a[key]![side] - b[key]![side]), `${key}.${side}: group A ${a[key]![side]}, group B ${b[key]![side]}`).toBeLessThanOrEqual(TOLERANCE);
@@ -251,7 +253,7 @@ test.describe('Home quality: the real page in both groups across the size matrix
       const page = await openHome(browser, arm, { width: 375, height: 812, note: 'fold' }, { isMobile: true, hasTouch: true });
       const hero = page.locator('[data-hero]');
       const found: Rect[] = [];
-      for (const el of [hero.locator('h1'), hero.getByRole('link', { name: 'See the evidence' })]) {
+      for (const el of [hero.locator('h1'), hero.getByRole('link', { name: 'Write to me' })]) {
         await expect(el).toBeVisible();
         const box = (await el.boundingBox())!;
         expect(box.y + box.height, `group ${arm}: ${await el.innerText()}`).toBeLessThanOrEqual(812);
