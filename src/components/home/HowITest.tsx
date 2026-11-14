@@ -5,7 +5,7 @@
 // sketch; the words a reader needs are in the tabs. The same for every visitor. Server-safe.
 import { HOME_HOW } from '../../../content/home.ts';
 import { SectionHead } from '@/components/frame';
-import { HOW_SKETCHES } from './Sketches';
+import { HOW_SKETCHES } from '@/components/frame/sketches';
 
 const TITLE_ID = 'how-title';
 const NAME = 'how-tab';

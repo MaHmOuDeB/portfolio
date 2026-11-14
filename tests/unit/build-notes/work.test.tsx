@@ -174,6 +174,50 @@ describe('the layout', () => {
   });
 });
 
+describe("the cards' sketches", () => {
+  const sketchOf = (body: string) => /data-sketch="([^"]+)"/.exec(body)?.[1] ?? null;
+
+  it("ends each card in Home's sketch for the same project; Weather keeps its checks", () => {
+    expect(rows().map((r) => [r.key, sketchOf(r.body)])).toEqual([
+      ['/work/audible#why-so-many', 'intervals'],
+      ['/work/retention', 'cohorts'],
+      ['/work/pulse', 'events'],
+      ['/work/docproof', 'agents'],
+      ['/work/n8n', 'workflow'],
+      ['/work/marketingws', 'variants'],
+      ['/work/weather', 'checks'],
+    ]);
+  });
+
+  it('draws each sketch exactly as Home does, from the one shared module', async () => {
+    const shared = await import('@/components/frame/sketches');
+    const same = {
+      '/work/audible#why-so-many': shared.IntervalsSketch,
+      '/work/retention': shared.CohortsSketch,
+      '/work/pulse': shared.EventsSketch,
+      '/work/docproof': shared.AgentsSketch,
+      '/work/n8n': shared.WorkflowSketch,
+      '/work/marketingws': shared.VariantsSketch,
+      '/work/weather': shared.ChecksSketch,
+    } as const;
+    for (const r of rows()) {
+      const vignette = /<div data-vignette=""[\s\S]*$/.exec(r.body)![0];
+      expect(vignette, r.key).toContain(html(createElement(same[r.key as keyof typeof same])));
+    }
+    expect(existsSync(join(repo, 'src/components/work/WorkVignettes.tsx'))).toBe(false);
+    expect(existsSync(join(repo, 'src/components/home/Sketches.tsx'))).toBe(false);
+  });
+
+  it('keeps every sketch decorative, digit-free and labelled "Illustration"', () => {
+    for (const r of rows()) {
+      const vignette = /<div data-vignette="" aria-hidden="true">([\s\S]*)$/.exec(r.body);
+      expect(vignette, r.key).not.toBeNull();
+      expect(vignette![1]).toContain('<span data-vignette-label="">Illustration</span>');
+      expect(text(vignette![1]!), r.key).not.toMatch(/\d/);
+    }
+  });
+});
+
 describe('the directory', () => {
   it('lists Audible, Retention and Pulse, then Docproof, n8n and MarketingWS, then Weather', () => {
     expect(rows().map((r) => [r.links[0]!.href, r.links[0]!.title])).toEqual(ORDER.map(([href, title]) => [href, title]));

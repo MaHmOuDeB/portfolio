@@ -11,7 +11,15 @@ import { Tile } from '@/components/depth/Tile';
 import { Chip, PageHead, Quiet, SectionHead } from '@/components/frame';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
-import { workVignette } from './WorkVignettes';
+import {
+  AgentsSketch,
+  ChecksSketch,
+  CohortsSketch,
+  EventsSketch,
+  IntervalsSketch,
+  VariantsSketch,
+  WorkflowSketch,
+} from '@/components/frame/sketches';
 import { prefetchFor } from '@/lib/nav';
 import { HOME_CASES, HOME_SITE } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
@@ -30,6 +38,22 @@ const TEXT = 'max-w-text';
  */
 const CASE_HREFS: ReadonlySet<string> = new Set(HOME_CASES.map((c) => c.href));
 const kindOf = (href: string): string => (CASE_HREFS.has(href) ? 'Case study' : 'Build note');
+
+/** Each card's sketch: Home's sketch for the same project; Weather has its checks. */
+const SKETCHES: Record<string, () => ReactNode> = {
+  [HOME_LINKS.whySoMany]: IntervalsSketch,
+  [HOME_LINKS.retention]: CohortsSketch,
+  [HOME_LINKS.pulse]: EventsSketch,
+  [HOME_LINKS.docproof]: AgentsSketch,
+  [HOME_LINKS.n8n]: WorkflowSketch,
+  [HOME_LINKS.marketingws]: VariantsSketch,
+  '/work/weather': ChecksSketch,
+};
+
+function vignette(href: string): ReactNode {
+  const Sketch = SKETCHES[href];
+  return Sketch ? <Sketch /> : undefined;
+}
 
 const CHIPS: Record<string, string> = {
   experimentation: 'Experiments',
@@ -70,7 +94,7 @@ export function WorkPage(): ReactNode {
                   meta={kindOf(item.href)}
                   size="md"
                   prefetch={prefetchFor(item.href)}
-                  vignette={workVignette(item.href)}
+                  vignette={vignette(item.href)}
                 >
                   {item.description}
                 </LeanCard>

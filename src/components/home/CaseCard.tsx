@@ -14,7 +14,7 @@ import type { Arm } from '@/experiment.values';
 import { cx } from '@/lib/cx';
 import { prefetchFor } from '@/lib/nav';
 import { Parts } from './Parts';
-import { CASE_SKETCHES } from './Sketches';
+import { CASE_SKETCHES } from '@/components/frame/sketches';
 
 const ARMS: readonly Arm[] = ['a', 'b'];
 

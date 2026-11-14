@@ -6,7 +6,7 @@ import { LeanCard } from '@/components/depth/LeanCard';
 import { SectionHead } from '@/components/frame';
 import { prefetchFor } from '@/lib/nav';
 import { Parts } from './Parts';
-import { AUTOMATION_SKETCHES } from './Sketches';
+import { AUTOMATION_SKETCHES } from '@/components/frame/sketches';
 
 export function AutomationTrack() {
   const head = HOME_AUTOMATION_HEAD;

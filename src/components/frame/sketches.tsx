@@ -1,10 +1,12 @@
-// The Home page's vignettes: small schematic sketches at the bottom of a card, in a "How I test"
-// panel or beside the site band, each inside the frame's Vignette (decorative, aria-hidden, with the
+// The site's vignettes, one per project and one per "How I test" panel: small schematic sketches at
+// the bottom of a card (Home and the Work index draw the same sketch for the same project), in a panel
+// or beside the site band, each inside the frame's Vignette (decorative, aria-hidden, with the
 // visible word "Illustration"). A sketch never prints a digit, a real figure or an Audible metric
 // name; positions and shades live in style values only. The Pulse sketch names three events of the
 // Pulse export, typed against its event names. Server-safe.
 import type { CSSProperties, ReactNode } from 'react';
-import { IntervalMark, MiniRow, Tag, Tick, Vignette } from '@/components/frame';
+import { IntervalMark, MiniRow, Tag, Tick } from './marks';
+import { Vignette } from './Vignette';
 import type { PulseEventName } from '@/lib/pulse/names';
 
 /** The sketch's own small head: a bold name and a muted note. */
@@ -118,6 +120,19 @@ export function EventsSketch() {
           </div>
         ))}
       </div>
+    </Sketch>
+  );
+}
+
+/** Weather: a table of data-quality checks, each passed. */
+export function ChecksSketch() {
+  return (
+    <Sketch kind="checks">
+      {(['Nulls', 'Range', 'Dupes'] as const).map((name) => (
+        <MiniRow key={name} label={name} tag={<Tick />}>
+          <span className="absolute inset-y-1.75 left-0 right-10 rounded-sm bg-track" />
+        </MiniRow>
+      ))}
     </Sketch>
   );
 }

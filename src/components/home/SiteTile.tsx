@@ -8,7 +8,7 @@ import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { Tile } from '@/components/depth/Tile';
 import { Chip, Quiet } from '@/components/frame';
 import { ButtonLink } from '@/components/kit/ButtonLink';
-import { ConfidenceSketch } from './Sketches';
+import { ConfidenceSketch } from '@/components/frame/sketches';
 
 const TITLE_ID = 'site-title';
 
