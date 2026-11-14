@@ -67,6 +67,7 @@ Also: `npm run typecheck`, `npm run lint`, `npm run lint:css`, `npm run build:me
 | `src/app` | Routes (App Router). `kitchen-sink/**/page.dev.tsx` is built only with `KITCHEN_SINK=1`. |
 | `src/components/kit` | The Figure kit (frozen). `src/components/kit/index.ts` is the import path for server-safe components, `src/components/kit/client.ts` for the client ones. |
 | `src/components/shell` | Site header, navigation, footer, skip link and error message. |
+| `src/components/frame` | The frame primitives: chips, the quiet clause, section and page heads, the card vignette and its marks. |
 | `src/lib/stats` | The statistics (tested against `stats-ref`). |
 | `src/lib/figure` | Pure Figure logic: URL state, states, scales, glyph geometry, formatting, time, label widths. |
 | `src/lib/facts` | The `<Fact>` data, formatters and checked lookup. |
@@ -312,6 +313,22 @@ motion is CSS keyed on their data attributes.
 | `Tile` | `src/components/depth/Tile.tsx` | A tile on the quiet surface, or an ink one (`tone`). |
 | `GlanceBlock` | `src/components/depth/GlanceBlock.tsx` | The top of a case study: the outcome as a large paragraph, then Role, Methods, Tools and When. |
 | `fieldRows` | `src/lib/depth/field.ts` | The field's rows: index, top, width and the estimate's shift, pure and deterministic. |
+
+### Frame primitives
+
+The parts of the framed look, server-safe, imported from `@/components/frame`
+(`src/components/frame/index.ts`). They render markup and data attributes; `globals.css` styles
+them. The frame itself is `data-frame` on `main` (a hairline rail at each side of the content
+column) and `data-rule` on an element in that column (a top hairline from rail to rail).
+
+| Export | File | Role |
+|---|---|---|
+| `Chip`, `ChipProps` | `src/components/frame/Chip.tsx` | A small text label (never a link) above a headline, or `inline` in a sentence where a word is a category. Optional dot `ok` or `live` (decorative; the word carries the meaning); `onInk` on an ink panel. |
+| `Quiet` | `src/components/frame/Quiet.tsx` | The quiet second clause of a large headline. Coloured only inside an h1 or h2; a unit test keeps it there. |
+| `SectionHead`, `SectionHeadProps` | `src/components/frame/SectionHead.tsx` | A section's chip, h2 (with its `id` and optional `quiet` clause) and optional sub, centred or at the left. |
+| `PageHead`, `PageHeadProps` | `src/components/frame/PageHead.tsx` | A page's chip, h1 (with its `id` and optional `quiet` clause) and optional sub. |
+| `Vignette` | `src/components/frame/Vignette.tsx` | The decorative bottom of a card: `aria-hidden`, the small visible word "Illustration", and the sketch as children on a sheet that bleeds off the bottom right. No digits and no real figures. |
+| `MiniRow`, `IntervalMark`, `Tag`, `Tick` | `src/components/frame/marks.tsx` | A sketch's marks: a hairline row (label, track, tag), the interval mark from three percentages (bar, caps, dot), a plain or tinted tag, and a tick. |
 
 ## Golden-page rule
 

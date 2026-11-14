@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CSS_RULES, SOURCE_RULES } from '../../scripts/design-lint.ts';
-import { entryExportNames, kitExportNames } from './kit-exports';
+import { entryExportNames, exportedNames, kitExportNames } from './kit-exports';
 
 const ROOT = join(import.meta.dirname, '../..');
 
@@ -57,6 +57,17 @@ describe('CLAUDE.md', () => {
     const names = kitExportNames();
     expect(names.length).toBeGreaterThan(30);
     for (const name of names) expect(claudeMd, name).toContain(`\`${name}\``);
+  });
+
+  it('lists every export of the frame primitives in their own catalogue table, with its file', () => {
+    const names = exportedNames(readFileSync(join(ROOT, 'src/components/frame/index.ts'), 'utf8'));
+    expect(names.length).toBeGreaterThan(8);
+    const table = /### Frame primitives\n[\s\S]*?(?=\n## |\n### )/.exec(claudeMd)?.[0] ?? '';
+    expect(table).toContain('`@/components/frame`');
+    for (const name of names) {
+      const row = table.split('\n').find((line) => line.startsWith('|') && line.includes(`\`${name}\``));
+      expect(row, name).toMatch(/`src\/components\/frame\/\w+\.tsx`/);
+    }
   });
 
   it('documents both kit entry points', () => {
