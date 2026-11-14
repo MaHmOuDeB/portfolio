@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { ContactForm } from '@/components/contact/ContactForm';
 import { SentStatus } from '@/components/contact/SentStatus';
+import { CaseHead } from '@/components/work/CaseHead';
 import { TextLink } from '@/components/kit/TextLink';
 import { issueTimestamp } from '@/lib/contact/issue';
 import { contactMetadata } from '@/lib/contact/title';
@@ -23,20 +24,31 @@ export async function generateMetadata({ searchParams }: PageProps<'/contact'>):
 export default async function ContactPage({ searchParams }: PageProps<'/contact'>) {
   const { sent } = await searchParams;
   return (
-    <article aria-labelledby="contact-title" className="py-12 md:py-section">
-      <div className="max-w-text">
-        <h1 id="contact-title" className="text-2xl font-semibold md:text-3xl">
-          Contact
-        </h1>
-        <p className="mt-4 text-lg text-muted">Tell me who you are and why you are writing, and I will reply by e-mail.</p>
-        <p className="mt-4 text-base">
-          You can also message me on{' '}
-          <TextLink href={CONTACT.linkedin} external>
-            LinkedIn
-          </TextLink>
-          .
-        </p>
-        {sent === '1' ? <SentStatus /> : <ContactForm issuedAt={issueTimestamp()} />}
+    <article aria-labelledby="contact-title">
+      <CaseHead
+        id="contact-title"
+        chip="Contact"
+        title="Contact"
+        intro={
+          <>
+            <p>Tell me who you are and why you are writing, and I will reply by e-mail.</p>
+            <p className="mt-4 text-base text-ink">
+              You can also message me on{' '}
+              <TextLink href={CONTACT.linkedin} external>
+                LinkedIn
+              </TextLink>
+              .
+            </p>
+          </>
+        }
+      />
+      <div className="pb-12 md:pb-16">
+        <div
+          data-contact-card=""
+          className="max-w-[40rem] rounded-xl border border-hairline bg-surface p-5 md:p-8 [&>*:first-child]:mt-0 [&>form:first-child]:mt-0"
+        >
+          {sent === '1' ? <SentStatus /> : <ContactForm issuedAt={issueTimestamp()} />}
+        </div>
       </div>
     </article>
   );

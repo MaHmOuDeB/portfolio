@@ -5,6 +5,7 @@
 // The repository links point at the commit whose README this page was checked against; the README
 // says which tests run on every push and which are run by hand.
 import type { ReactNode } from 'react';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 
@@ -25,6 +26,21 @@ export function N8nIntro(): ReactNode {
     </p>
   );
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const N8N_GLANCE: GlanceParts = {
+  outcome: (
+    <>
+      Built e-invoice intake and error alerts in n8n, installed with one command and covered by{' '}
+      <Fact id="profile.n8n.automated_tests" /> automated tests; no production use.
+    </>
+  ),
+  role: 'Set requirements and design decisions, Claude Code as pair programmer.',
+  methods:
+    'Structural/arithmetic/master-data checks, duplicate and changed-bank-detail flags, restore test, clean-install test.',
+  tools: 'n8n, Node.js, REST/webhooks, Gmail API, Docker, PostgreSQL, Caddy, GitHub Actions.',
+  when: '2026.',
+};
 
 /** The line on my role under the intro. */
 export function N8nRole(): ReactNode {

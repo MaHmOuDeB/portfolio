@@ -1,4 +1,4 @@
-// The full sample-size planner's statistics side: the visitors per group (the Home planner's model),
+// The full sample-size planner's statistics side: the visitors per group (the base planner's model),
 // the weeks the paired duration Figure needs, the result sentences and the table fallbacks. It
 // imports the statistics, so only the server and the lazy island draw with it; the values the page
 // loads at once live in full-planner-values.ts.
@@ -22,7 +22,7 @@ import { planModel } from './planner';
 export * from './full-planner-values';
 
 /**
- * Visitors per group (Cohen's h, two-sided, alpha 0.05, power 0.8: the Home planner's planModel on
+ * Visitors per group (Cohen's h, two-sided, alpha 0.05, power 0.8: the base planner's planModel on
  * the normalized pair), the target rate and the rise as a fraction of the baseline, the effect the
  * statistics call relative (target = baseline x (1 + relativeRise)). The unit never changes them.
  */

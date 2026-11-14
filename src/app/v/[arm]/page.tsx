@@ -38,7 +38,7 @@ export default async function Home({ params }: PageProps<'/v/[arm]'>) {
   return (
     <>
       <ExperimentBeacon arm={arm} ns={model.namespace} />
-      <div className="pb-section">
+      <div className="pb-section wrap-break-word">
         <HomeSections model={model} />
       </div>
     </>

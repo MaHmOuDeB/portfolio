@@ -1,5 +1,5 @@
 import * as site from '@/lib/site';
-import { CONTACT, CV_LINK, NAV, PRIVACY_HREF, SITE } from '@/lib/site';
+import { CONTACT, CONTACT_HREF, CONTACT_LINK, CV_LINK, NAV, PRIVACY_HREF, SITE } from '@/lib/site';
 
 test('identity strings match the spec', () => {
   expect(SITE).toEqual({
@@ -10,9 +10,11 @@ test('identity strings match the spec', () => {
 });
 
 test('navigation labels and targets', () => {
-  expect(NAV.map((item) => item.label)).toEqual(['Work', 'Lab', 'Live test', 'About']);
-  expect(NAV.map((item) => item.href)).toEqual(['/work', '/lab', '/experiment', '/about']);
+  expect(NAV.map((item) => item.label)).toEqual(['Work', 'About', 'Lab', 'Live test']);
+  expect(NAV.map((item) => item.href)).toEqual(['/work', '/about', '/lab', '/experiment']);
   expect(CV_LINK).toEqual({ label: 'CV', href: '/cv' });
+  expect(CONTACT_LINK).toEqual({ label: 'Contact', href: '/contact' });
+  expect(CONTACT_LINK.href).toBe(CONTACT_HREF);
   expect(PRIVACY_HREF).toBe('/privacy');
 });
 

@@ -6,6 +6,7 @@
 // header, footer and buttons drop away (globals.css and print:hidden) and entries do not split
 // across pages.
 import type { ReactNode } from 'react';
+import { Chip } from '@/components/frame';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
 import { CONTACT, SITE } from '@/lib/site';
@@ -41,8 +42,13 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = CV_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`cv: no section ${id}`);
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 print:mt-6">
-      <h2 id={`${id}-title`} className="border-b border-line pb-2 text-xl font-semibold">
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      data-rule=""
+      className="pt-12 pb-12 print:mx-0 print:border-0 print:px-0 print:pt-0 print:pb-0 print:mt-6"
+    >
+      <h2 id={`${id}-title`} data-depth-rise="heading" className="text-xl font-semibold print:border-b print:border-line print:pb-2">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -141,9 +147,12 @@ function Terms({ items }: { items: readonly (readonly [term: string, description
 export function CvPage(): ReactNode {
   const pdf = cvPdf();
   return (
-    <article aria-labelledby="cv-title" className="max-w-figure py-12 md:py-section print:py-0">
-      <header data-cv-header="">
-        <h1 id="cv-title" className="text-2xl font-semibold md:text-3xl">
+    <article aria-labelledby="cv-title" className="pb-12 md:pb-16 print:pb-0">
+      <header data-cv-header="" className="pb-12 pt-12 md:pt-16 print:py-0">
+        <div className="print:hidden">
+          <Chip>CV</Chip>
+        </div>
+        <h1 id="cv-title" className="mt-4.5 text-h2-sm md:text-h2 print:mt-0 print:text-3xl print:font-semibold">
           {SITE.name}
         </h1>
         <p data-cv-role="" className="mt-1 text-lg font-semibold">

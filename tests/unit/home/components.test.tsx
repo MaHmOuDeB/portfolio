@@ -1,32 +1,25 @@
-// The Home page's hero, featured case-study cards and "Tools I've built" rows, rendered on the
-// server. The cards are the tested element of the live experiment: both groups get the same
-// markup, both headline strings sit in the same grid cell, and only which one is shown differs.
-// Every figure must come from the facts data, including the hidden headline.
+// The Home page's top blocks and its featured cards, rendered on the server: the hero, the proof row
+// and the cards (the sections below them are in sections.test.tsx). The three featured cards are the
+// tested element of the live experiment: both groups get the same markup, both headline strings sit
+// in the same grid cell, and only which one is shown differs. Every figure must come from the facts
+// data, including the hidden headline, and every sentence of the approved is pinned once here.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
-import { HEADLINES, HOME_CASES, HOME_HERO, HOME_TOOLS, headlineText, type Study } from '../../../content/home.ts';
+import { HEADLINES, HOME_CASES, HOME_PROOF, headlineText, type Study } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import type { Arm } from '@/experiment.values';
-import { CONTACT, CV_LINK, SITE } from '@/lib/site';
-
-// The planner island reads the URL with next/navigation, which has no router in a unit test. Its
-// own tests cover it; here it is a marked stand-in, so the hero's own markup is what is checked.
-vi.mock('@/components/home/HeroSimulator', () => ({
-  HERO_PLANNER_ID: 'hero-planner',
-  HeroSimulator: () => createElement('div', { 'data-hero-simulator': '' }),
-}));
+import { CONTACT_HREF, CV_LINK } from '@/lib/site';
 
 const { CaseCard } = await import('@/components/home/CaseCard');
 const { FeaturedCases } = await import('@/components/home/FeaturedCases');
 const { Hero } = await import('@/components/home/Hero');
-const { Tools } = await import('@/components/home/Tools');
+const { ProofRow } = await import('@/components/home/ProofRow');
 
 const ARMS: readonly Arm[] = ['a', 'b'];
-const NBSP = '\u00a0';
 
 const audit = (html: string) =>
   auditHtml(html, { route: '/v/a', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] });
@@ -75,13 +68,15 @@ function shownText(node: T.ParentNode): string {
 }
 const classes = (el: El) => (attr(el, 'class') ?? '').split(/\s+/).filter(Boolean);
 const doc = (html: string) => parse(`<!doctype html><html><body>${html}</body></html>`);
+const render = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
+const style = (el: El) => attr(el, 'style') ?? '';
 
-const cards = (arm: Arm) => renderToStaticMarkup(createElement(FeaturedCases, { headlineArm: arm }));
+const cards = (arm: Arm) => render(createElement(FeaturedCases, { headlineArm: arm }));
 
 // ---------------------------------------------------------------------------------------------
 
 describe('FeaturedCases', () => {
-  it('is one labelled cards region with three cards, in the order of the headlines', () => {
+  it('is one labelled cards region with three card links, in the order of the headlines', () => {
     for (const arm of ARMS) {
       const d = doc(cards(arm));
       const region = one(d, (el) => attr(el, 'data-experiment') === 'cards');
@@ -92,7 +87,7 @@ describe('FeaturedCases', () => {
     }
   });
 
-  it('has three marked same-origin card links, the same hrefs and link text in both groups', () => {
+  it('has three marked same-origin card links, the same hrefs in both groups, the whole card being the link', () => {
     const hrefs = HOME_CASES.map((c) => c.href);
     for (const arm of ARMS) {
       const d = doc(cards(arm));
@@ -100,11 +95,14 @@ describe('FeaturedCases', () => {
       // Only the card links are links: no second focusable link inside a headline.
       expect(links).toHaveLength(3);
       for (const a of links) {
+        // The tracking contract with the beacon: the click marker and the card marker on the link itself.
         expect(attr(a, 'data-experiment-click')).toBe('card');
+        expect(has(a, 'data-case-card')).toBe(true);
+        expect(has(a, 'data-touch-target')).toBe(true);
+        expect(has(a, 'data-depth-lean')).toBe(true);
         const href = attr(a, 'href')!;
         expect(href.startsWith('/') && !href.startsWith('//'), href).toBe(true);
         expect(new URL(href, 'https://site.test').origin).toBe('https://site.test');
-        expect(text(a)).toBe('Read the case study');
         expect(has(a, 'target')).toBe(false);
         expect(has(a, 'download')).toBe(false);
       }
@@ -112,21 +110,36 @@ describe('FeaturedCases', () => {
     }
   });
 
-  it('gives every card the same description in both groups', () => {
-    const descriptions = (arm: Arm) =>
-      all(doc(cards(arm)), (el) => has(el, 'data-case-description')).map((el) => text(el));
-    const expected = HOME_CASES.map((c) => headlineText(c.description));
-    expect(descriptions('a')).toEqual(expected);
-    expect(descriptions('b')).toEqual(expected);
+  it('gives every card the same description and meta line in both groups', () => {
+    const lines = (arm: Arm, name: string) => all(doc(cards(arm)), (el) => has(el, name)).map((el) => text(el));
+    expect(lines('a', 'data-case-description')).toEqual(HOME_CASES.map((c) => headlineText(c.description)));
+    expect(lines('b', 'data-case-description')).toEqual(HOME_CASES.map((c) => headlineText(c.description)));
+    expect(lines('a', 'data-depth-meta')).toEqual(HOME_CASES.map((c) => c.meta));
+    expect(lines('b', 'data-depth-meta')).toEqual(HOME_CASES.map((c) => c.meta));
   });
 
-  it('renders both headline strings in one cell; only the selected one is shown and announced', () => {
+  it('pins the approved: every description and meta line, word for word', () => {
+    expect(HOME_CASES.map((c) => headlineText(c.description))).toEqual([
+      'How I planned and analysed A/B tests at Audible, and why so many of my recommendations were adopted.',
+      'Two years of orders from a UK online gift retailer: cohorts, segments and a win-back sample size. Public dataset, rebuilt in 2026.',
+      'An analytics dashboard I designed and built around a 7-event taxonomy. A demo, with no real users.',
+    ]);
+    expect(HOME_CASES.map((c) => c.meta)).toEqual([
+      'Sample size, significance testing, 2023 to 2025',
+      'SQL, Python, cohort analysis, 2026',
+      'Amplitude, React, event taxonomy, 2026',
+    ]);
+  });
+
+  it('renders both headline strings in one cell of an h3; only the selected one is shown and announced', () => {
     for (const arm of ARMS) {
       const d = doc(cards(arm));
       for (const h of HEADLINES) {
         const card = one(d, (el) => attr(el, 'data-case-card') === h.study);
         const heading = one(card, (el) => has(el, 'data-case-headline'));
-        expect(heading.tagName).toBe('h2');
+        // The card's heading is an h3 (the track's h2 is above it); the headline cell is inside it.
+        const h3 = one(card, (el) => el.tagName === 'h3');
+        expect(all(h3, (el) => el === heading)).toHaveLength(1);
         expect(classes(heading)).toContain('grid');
         const twins = all(heading, (el) => has(el, 'data-headline-twin'));
         expect(twins.map((t) => attr(t, 'data-headline-twin'))).toEqual(['a', 'b']);
@@ -144,6 +157,14 @@ describe('FeaturedCases', () => {
         // The headline holds no link, so the hidden twin can never be a second focusable link.
         expect(all(heading, (el) => el.tagName === 'a' || has(el, 'tabindex'))).toEqual([]);
       }
+    }
+  });
+
+  it('keeps the headline area at a fixed minimum height, the same in every card and group', () => {
+    for (const arm of ARMS) {
+      const h3s = all(doc(cards(arm)), (el) => el.tagName === 'h3');
+      expect(h3s).toHaveLength(3);
+      for (const h3 of h3s) expect(style(h3)).toBe('min-height:3lh');
     }
   });
 
@@ -170,37 +191,32 @@ describe('FeaturedCases', () => {
       const d = doc(cards(arm));
       const ids = all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'));
       // Retention B (two facts) and Pulse B (one): present in group A too, inside the hidden twin.
-      expect(ids).toEqual(['retail.returns.yoy_growth_clean', 'retail.returns.yoy_growth_raw', 'pulse.events.count']);
+      // The Pulse description itself now carries the event count as a fact as well.
+      expect(ids).toEqual([
+        'retail.returns.yoy_growth_clean',
+        'retail.returns.yoy_growth_raw',
+        'pulse.events.count',
+        'pulse.events.count',
+      ]);
       expect(audit(cards(arm))).toEqual([]);
     }
   });
 
-  it('describes each card link by its own headline, the same reference in both groups', () => {
+  it('names each card link by its shown headline (the headline is inside the link)', () => {
     for (const arm of ARMS) {
       const d = doc(cards(arm));
       for (const h of HEADLINES) {
-        const card = one(d, (el) => attr(el, 'data-case-card') === h.study);
-        const heading = one(card, (el) => has(el, 'data-case-headline'));
-        const link = one(card, (el) => el.tagName === 'a');
-        expect(attr(heading, 'id')).toBe(`case-${h.study}-headline`);
-        expect(attr(link, 'aria-describedby')).toBe(`case-${h.study}-headline`);
+        const link = one(d, (el) => attr(el, 'data-case-card') === h.study);
+        expect(link.tagName).toBe('a');
+        expect(shownText(link)).toContain(headlineText(arm === 'a' ? h.a : h.b));
+        expect(attr(one(link, (el) => has(el, 'data-case-headline')), 'id')).toBe(`case-${h.study}-headline`);
       }
-    }
-  });
-
-  it('stacks the cards below lg and puts them in three columns that share rows at lg', () => {
-    const d = doc(cards('a'));
-    const region = one(d, (el) => attr(el, 'data-experiment') === 'cards');
-    expect(classes(region)).toEqual(expect.arrayContaining(['grid', 'lg:grid-cols-3']));
-    for (const card of all(region, (el) => has(el, 'data-case-card'))) {
-      expect(classes(card)).toEqual(expect.arrayContaining(['lg:row-span-4', 'lg:grid-rows-subgrid']));
     }
   });
 
   it('renders one card alone the same way', () => {
     const study: Study = 'pulse';
-    const html = renderToStaticMarkup(createElement(CaseCard, { study, headlineArm: 'b' }));
-    const d = doc(html);
+    const d = doc(render(createElement(CaseCard, { study, headlineArm: 'b' })));
     const twins = all(d, (el) => has(el, 'data-headline-twin'));
     expect(twins).toHaveLength(2);
     expect(attr(twins[1]!, 'data-headline-shown')).toBe('');
@@ -209,126 +225,147 @@ describe('FeaturedCases', () => {
 });
 
 describe('Hero', () => {
-  const html = renderToStaticMarkup(createElement(Hero));
+  const html = render(createElement(Hero));
   const d = doc(html);
+  const hero = one(d, (el) => has(el, 'data-hero'));
+  const band = one(d, (el) => has(el, 'data-depth-band'));
 
   it('takes no props, so every visitor gets the same hero', () => {
     expect(Hero.length).toBe(0);
-    expect(renderToStaticMarkup(createElement(Hero))).toBe(html);
+    expect(render(createElement(Hero))).toBe(html);
   });
 
-  it('names him in one h1 with a non-breaking space in the surname', () => {
+  it('is centred: the chip, the two-tone h1, the sub with two inline chips and two buttons', () => {
+    expect(hero.tagName).toBe('section');
+    const h1 = one(hero, (el) => el.tagName === 'h1');
+    expect(attr(hero, 'aria-labelledby')).toBe(attr(h1, 'id'));
+    const chips = all(hero, (el) => has(el, 'data-chip'));
+    expect(text(chips[0]!)).toBe('Open to roles in Germany');
+    expect(all(chips[0]!, (el) => attr(el, 'data-chip-dot') === 'ok')).toHaveLength(1);
+    expect(text(h1)).toBe('Experimentation and AI automation for product and growth teams');
+    expect(text(one(h1, (el) => has(el, 'data-quiet')))).toBe('for product and growth teams');
+    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
+    const sub = one(hero, (el) => has(el, 'data-hero-sub'));
+    expect(text(sub)).toBe(
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
+    );
+    expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['Agents', 'Workflows']);
+    expect(html).not.toContain('I test what works');
+  });
+
+  it('never animates the h1 (the largest contentful paint)', () => {
     const h1 = one(d, (el) => el.tagName === 'h1');
-    expect(text(h1)).toBe(`Mahmoud El${NBSP}Bergui`);
-    expect(text(h1).replace(NBSP, ' ')).toBe(SITE.name);
-    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
+    expect(h1.attrs.map((a) => a.name).filter((n) => n.startsWith('data-depth') || n === 'style')).toEqual([]);
+    expect(all(h1, (el) => el.attrs.some((a) => a.name.startsWith('data-depth')))).toEqual([]);
+    // No ancestor of the h1 moves either.
+    expect(html.slice(0, html.indexOf('<h1'))).not.toMatch(/data-depth-(load|recede|rise|arrive)/);
   });
 
-  it('prints the role, place and proof lines', () => {
-    expect(HOME_HERO.role).toBe(SITE.role);
-    const role = one(d, (el) => has(el, 'data-hero-role'));
-    expect(text(role)).toBe('Experimentation & growth analyst');
-    expect(classes(role)).toEqual(expect.arrayContaining(['text-lg']));
-    expect(text(one(d, (el) => has(el, 'data-hero-place')))).toBe('Berlin, MSc Data Science');
-    const proof = one(d, (el) => has(el, 'data-hero-proof'));
-    expect(text(proof)).toBe(
-      'Nearly two years at Audible (Amazon): 25+ A/B tests across web and mobile, 20+ recommendations adopted. Why so many?',
-    );
-    expect(all(proof, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
-      'profile.audible.experiments',
-      'profile.audible.recommendations_adopted',
+  it('links Read my CV (secondary) to the CV page and Write to me (primary, the magnet) to Contact', () => {
+    const links = all(hero, (el) => el.tagName === 'a');
+    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF]);
+    expect(classes(links[0]!)).toEqual(expect.arrayContaining(['bg-surface']));
+    expect(classes(links[1]!)).toEqual(expect.arrayContaining(['bg-ink']));
+    expect(text(one(d, (el) => has(el, 'data-depth-magnet')))).toBe('Write to me');
+  });
+
+  it('settles the sub line and the two buttons in order, once on load', () => {
+    const loads = all(hero, (el) => has(el, 'data-depth-load'));
+    expect(loads.map((el) => style(el).replaceAll(' ', ''))).toEqual(['--d:0', '--d:1', '--d:2']);
+  });
+
+  it('is followed by the band: three sheets and two links, hidden from assistive technology', () => {
+    expect(html.indexOf('data-depth-band')).toBeGreaterThan(html.indexOf('</h1>'));
+    const stack = one(band, (el) => has(el, 'data-depth-stack'));
+    expect(attr(stack, 'aria-hidden')).toBe('true');
+    const sheets = all(stack, (el) => has(el, 'data-depth-sheet'));
+    expect(sheets.map((el) => attr(el, 'data-depth-sheet'))).toEqual(['1', '2', '3']);
+    expect(all(stack, (el) => has(el, 'data-depth-link'))).toHaveLength(2);
+    expect(all(stack, (el) => el.tagName === 'a' || el.tagName === 'button')).toEqual([]);
+    const leaves = (node: T.ParentNode): string[] =>
+      node.childNodes.flatMap((c) => (c.nodeName === '#text' ? [(c as T.TextNode).value] : isEl(c) ? leaves(c) : []));
+    const words = sheets.map((el) => leaves(el).join(' ').replace(/\s+/g, ' ').trim());
+    expect(words).toEqual([
+      'Test two groups, one metric A baseline B higher planned before the start guardrails intact',
+      'Agents each one checks the last Write draft Audit every figure traced Review fresh eyes',
+      'Recommendation from the evidence Ship it. Or do not. Either way it is written down, with the reasons. checks passed',
     ]);
-    const why = one(proof, (el) => el.tagName === 'a');
-    expect(attr(why, 'href')).toBe(HOME_LINKS.whySoMany);
-    expect(text(why)).toBe('Why so many?');
   });
 
-  it('says exactly its identity lines, and prints no fact but the two proof figures', () => {
-    expect(text(one(d, (el) => has(el, 'data-hero-identity')))).toBe(
-      [
-        'Experimentation & growth analyst',
-        'Berlin, MSc Data Science',
-        'Nearly two years at Audible (Amazon): 25+ A/B tests across web and mobile, 20+ recommendations adopted. Why so many?',
-        'Try the lab',
-        'CV',
-        'LinkedIn',
-      ].join(''),
-    );
+  it('says under the band, visibly and outside the hidden stack, that it is an illustration', () => {
+    const caption = one(band, (el) => has(el, 'data-depth-caption'));
+    expect(caption.tagName).toBe('p');
+    expect(text(caption)).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+  });
+
+  it('has no digits in the band and prints no figure', () => {
+    expect(text(band)).not.toMatch(/\d/);
+    expect(all(d, (el) => has(el, 'data-fact'))).toEqual([]);
+    expect(audit(html)).toEqual([]);
+  });
+});
+
+describe('ProofRow', () => {
+  const html = render(createElement(ProofRow));
+  const d = doc(html);
+  const proofs = all(d, (el) => has(el, 'data-proof'));
+
+  it('has four figures: two for experiments, two for automation', () => {
+    expect(proofs).toHaveLength(4);
+    expect(proofs.map((p) => text(one(p, (el) => has(el, 'data-proof-side'))))).toEqual(['Experiments', 'Experiments', 'Automation', 'Automation']);
+  });
+
+  it('prints the approved figures and captions, the numbers coming from facts', () => {
+    const figures = proofs.map((p) => text(one(p, (el) => has(el, 'data-proof-figure'))));
+    expect(figures).toEqual(['25+', '20+', 'about 3 min', '270+']);
+    const captions = proofs.map((p) => text(one(p, (el) => has(el, 'data-proof-caption'))));
+    expect(captions).toEqual([
+      'A/B tests I contributed to at Audible, across web and mobile.',
+      'of my recommendations adopted. Why so many?',
+      'to set up a test account, down from about 20, with a tool I built. Used across 11 markets.',
+      'automated tests behind my workflow library for e-invoice intake.',
+    ]);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
       'profile.audible.experiments',
       'profile.audible.recommendations_adopted',
+      'profile.audible.setup_minutes_after',
+      'profile.audible.setup_minutes_before',
+      'profile.audible.markets',
+      'profile.n8n.automated_tests',
     ]);
-    expect(SITE.city).toBe('Berlin, Germany');
+    expect(HOME_PROOF.map((p) => p.id)).toEqual(['experiments', 'adopted', 'setup', 'tests']);
   });
 
-  it('links Try the lab, the CV and LinkedIn; the CV button is hidden on phones', () => {
-    const lab = one(d, (el) => el.tagName === 'a' && text(el) === 'Try the lab');
-    expect(attr(lab, 'href')).toBe(HOME_LINKS.lab);
-    // "CV", the CV page, whether or not the build has a PDF (the PDF is offered on the CV page).
-    const cv = one(d, (el) => el.tagName === 'a' && text(el) === CV_LINK.label);
-    expect(attr(cv, 'href')).toBe(CV_LINK.href);
-    expect(has(cv, 'download')).toBe(false);
-    const cvWrap = one(d, (el) => has(el, 'data-hero-cv'));
-    expect(classes(cvWrap)).toEqual(expect.arrayContaining(['hidden', 'md:block']));
-    const linkedin = one(d, (el) => el.tagName === 'a' && text(el) === 'LinkedIn');
-    expect(attr(linkedin, 'href')).toBe(CONTACT.linkedin);
-    expect(attr(linkedin, 'rel')).toBe('noopener');
+  it('keeps the "Why so many?" link with its destination, once', () => {
+    const link = one(d, (el) => el.tagName === 'a');
+    expect(attr(link, 'href')).toBe(HOME_LINKS.whySoMany);
+    expect(text(link)).toBe('Why so many?');
   });
 
-  it('puts the name across the page and splits identity and evidence 7/5 below it from lg', () => {
-    const grid = one(d, (el) => has(el, 'data-hero-columns'));
-    expect(classes(grid)).toEqual(expect.arrayContaining(['lg:grid-cols-12']));
-    expect(classes(one(d, (el) => has(el, 'data-hero-identity')))).toContain('lg:col-span-7');
-    const evidence = one(d, (el) => has(el, 'data-hero-evidence'));
-    expect(classes(evidence)).toContain('lg:col-span-5');
-    one(evidence, (el) => has(el, 'data-hero-simulator'));
-    // The name is outside the grid, so it spans the full width.
-    expect(all(grid, (el) => el.tagName === 'h1')).toEqual([]);
+  it('never joins the experiment count with the markets', () => {
+    for (const p of proofs) {
+      const t = text(p);
+      expect(/25\+/.test(t) && /\b11\b/.test(t), t).toBe(false);
+    }
   });
 
   it('passes the truth audit: every figure is a fact', () => {
     expect(audit(html)).toEqual([]);
   });
-});
 
-describe('Tools', () => {
-  const html = renderToStaticMarkup(createElement(Tools));
-  const d = doc(html);
-
-  it('is a section titled "Tools I\'ve built" with one row per tool, in order', () => {
-    const section = one(d, (el) => has(el, 'data-home-tools'));
-    const h2 = one(section, (el) => el.tagName === 'h2');
-    expect(text(h2)).toBe("Tools I've built");
-    expect(attr(section, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    const rows = all(section, (el) => has(el, 'data-tool'));
-    expect(rows.map((r) => attr(r, 'data-tool'))).toEqual(HOME_TOOLS.map((t) => t.id));
+  it('is four ruled cells: a section ruled from rail to rail, no decorative mark', () => {
+    const row = one(d, (el) => has(el, 'data-home-proof'));
+    expect(row.tagName).toBe('section');
+    expect(has(row, 'data-rule')).toBe(true);
+    expect(all(d, (el) => has(el, 'data-proof-mark'))).toEqual([]);
   });
 
-  it('names each tool as a link to its page and prints its approved line', () => {
-    for (const tool of HOME_TOOLS) {
-      const row = one(d, (el) => attr(el, 'data-tool') === tool.id);
-      const link = one(row, (el) => el.tagName === 'a');
-      expect(attr(link, 'href')).toBe(tool.href);
-      expect(text(link)).toBe(tool.name);
-      expect(text(one(row, (el) => has(el, 'data-tool-line')))).toBe(headlineText(tool.parts));
-    }
-    expect(text(d)).toContain('Tampermonkey with a step recorder');
-  });
-
-  it('prints the automation figures from facts and passes the truth audit', () => {
-    const row = one(d, (el) => attr(el, 'data-tool') === 'automation');
-    expect(all(row, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
-      'profile.audible.setup_minutes_before',
-      'profile.audible.setup_minutes_after',
-      'profile.audible.markets',
-    ]);
-    expect(audit(html)).toEqual([]);
-  });
-});
-
-describe('HOME_HERO', () => {
-  it('types no numeral; its figures are fact parts', () => {
-    const strings = [HOME_HERO.role, HOME_HERO.place, ...HOME_HERO.proof.filter((p): p is string => typeof p === 'string')];
-    for (const s of strings) expect(s, s).not.toMatch(/\d/);
+  it('sets the words around a number in a smaller unit size, so every figure stays on one line', () => {
+    const units = all(d, (el) => has(el, 'data-proof-unit')).map((el) => text(el));
+    expect(units).toEqual(['about ', ' min']);
+    // The numbers themselves are never inside a unit.
+    for (const u of all(d, (el) => has(el, 'data-proof-unit'))) expect(all(u, (el) => has(el, 'data-fact'))).toEqual([]);
   });
 });

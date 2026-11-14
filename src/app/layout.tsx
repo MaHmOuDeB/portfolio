@@ -5,6 +5,7 @@ import { SITE } from "@/lib/site";
 import { ogCard } from "../../content/seo";
 import { Footer } from "@/components/shell/Footer";
 import { SiteHeader } from "@/components/shell/SiteHeader";
+import { Lean } from "@/components/depth/Lean";
 import { RegionFocus } from "@/components/shell/RegionFocus";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { inter } from "./fonts";
@@ -41,11 +42,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-svh flex-col bg-bg font-sans text-base text-ink">
         <SkipLink />
         <SiteHeader />
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-page flex-1 px-4 md:px-8">
+        <main id="main" tabIndex={-1} data-frame="" className="mx-auto w-full max-w-page flex-1 px-4 md:px-8">
           {children}
         </main>
         <Footer />
         <RegionFocus />
+        <Lean />
       </body>
     </html>
   );

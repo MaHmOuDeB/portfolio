@@ -12,6 +12,7 @@ export const HOME_LINKS = {
   retention: '/work/retention',
   pulse: '/work/pulse',
   docproof: '/work/docproof',
+  n8n: '/work/n8n',
   marketingws: '/work/marketingws',
   lab: '/lab',
   experiment: '/experiment',

@@ -96,6 +96,13 @@ type TargetReport = {
 function measureTargets(page: Page): Promise<TargetReport> {
   return page.evaluate(() => {
     const MIN = 44;
+    // Targets are measured at rest. The scroll-linked entrance (data-depth-rise and its kin) draws a
+    // block below the fold scaled down and tilted until it scrolls into view, so its 44 px buttons
+    // measure smaller there; cancelling those animations leaves each block as a reader meets it once
+    // it is in view. Time-based animations are left as they are.
+    for (const animation of document.getAnimations()) {
+      if (!(animation.timeline instanceof DocumentTimeline)) animation.cancel();
+    }
     // Truly visible: rendered, not visibility:hidden, and not the 1 px box of an sr-only element.
     const visible = (el: Element) => {
       if (!el.checkVisibility({ visibilityProperty: true })) return false;

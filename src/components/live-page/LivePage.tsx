@@ -13,6 +13,7 @@
 // committed with the configuration (the planning rate, the pre-registration's version, tag and hash)
 // and a figure quoted from the plan uses `build`.
 import type { ReactNode } from 'react';
+import { CaseHead } from '@/components/work/CaseHead';
 import { Derived, derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 import { StateExplanation } from '@/components/live-page/StateExplanation';
@@ -47,14 +48,19 @@ const TEXT = 'max-w-text';
 const P = `${TEXT} text-base`;
 const REPO = `${CONTACT.github}/portfolio`;
 
-function Section({ id, children }: { id: SectionId; children: ReactNode }) {
+function Section({ id, card, children }: { id: SectionId; card?: boolean; children: ReactNode }) {
   const entry = LIVE_SECTIONS.find((s) => s.id === id)!;
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
       <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
         {entry.title}
       </h2>
-      <div className="mt-4">{children}</div>
+      {/* The Figure kit is frozen: a figure sits on a white hairline card of the frame. Under 640 px
+          the card runs edge to edge over the frame's rails, so a chart keeps the full column's width (the
+          screen less 16 px a side) for its axis labels. */}
+      <div className={card ? 'mt-4 -mx-[calc(var(--frame-pad)_+_1px)] rounded-none border-y border-hairline bg-surface p-4 sm:mx-0 sm:rounded-xl sm:border md:p-8' : 'mt-4'} data-live-card={card ? '' : undefined}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -85,7 +91,7 @@ const Hash = ({ value }: { value: string }) => (
 function WhereItStands({ d }: { d: LivePageDisplay }) {
   const read = d.public.source === 'store' || d.public.source === 'local';
   return (
-    <section id="where-it-stands" aria-labelledby="where-it-stands-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
+    <section id="where-it-stands" aria-labelledby="where-it-stands-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
       <h2 id="where-it-stands-title" className="text-xl font-semibold">
         Where the test stands
       </h2>
@@ -251,7 +257,7 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
         </p>
       )}
       <pre
-        className="mt-3 max-w-figure overflow-x-auto rounded-sm border border-line p-3 text-sm"
+        className="mt-3 max-w-figure overflow-x-auto rounded-md border border-hairline-strong bg-surface p-3 text-sm"
         tabIndex={0}
         role="region"
         aria-label="Commands"
@@ -302,16 +308,18 @@ type Props = {
 
 export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode {
   return (
-    <article aria-labelledby="live-test-title" className="py-12 md:py-section">
-      <div className={TEXT}>
-        <h1 id="live-test-title" className="text-2xl font-semibold md:text-3xl">
-          {LIVE_TEST_TITLE}
-        </h1>
-        <p className="mt-4 text-lg text-muted">
-          This site runs an experiment on its own visitors and shows it here as it goes: the plan, every stage from beacon to
-          analysed view, the checks, the result, and the data to recompute it.
-        </p>
-      </div>
+    <article aria-labelledby="live-test-title">
+      <CaseHead
+        id="live-test-title"
+        chip="Live test"
+        title={LIVE_TEST_TITLE}
+        intro={
+          <p>
+            This site runs an experiment on its own visitors and shows it here as it goes: the plan, every stage from beacon to
+            analysed view, the checks, the result, and the data to recompute it.
+          </p>
+        }
+      />
 
       <WhereItStands d={d} />
 
@@ -319,7 +327,7 @@ export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode 
         <Plan d={d} />
       </Section>
 
-      <Section id="funnel">
+      <Section id="funnel" card>
         <FunnelFigure data={d.public} refs={d.refs} runtime={runtime} />
       </Section>
 
@@ -327,7 +335,7 @@ export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode 
         <SplitCheck d={d} />
       </Section>
 
-      <Section id="detectable">
+      <Section id="detectable" card>
         <DetectableFigure
           data={d.public}
           refs={d.refs}
@@ -338,7 +346,7 @@ export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode 
         />
       </Section>
 
-      <Section id="results">
+      <Section id="results" card>
         <ResultsFigure display={d} runtime={runtime} />
       </Section>
 
@@ -353,6 +361,7 @@ export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode 
       <Section id="colophon">
         <Colophon meta={meta} />
       </Section>
+      <div className="pb-12 md:pb-16" />
     </article>
   );
 }

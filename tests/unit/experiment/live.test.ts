@@ -529,7 +529,7 @@ describe('the source', () => {
     const LIB_ALLOWED = new Set([MODEL, LIVE_MODEL, ...FIXTURES]);
     const lib = files(join(SRC, 'lib')).filter((f) => !f.startsWith(join(SRC, 'lib/experiment') + '/'));
     const scanned = [...files(join(SRC, 'app')), ...files(join(SRC, 'components')), ...lib];
-    expect(scanned.map((f) => relative(SRC, f))).toEqual(expect.arrayContaining(['lib/home/fixtures.ts', 'lib/home/scroll.tsx', 'lib/figure/cs-band.ts']));
+    expect(scanned.map((f) => relative(SRC, f))).toEqual(expect.arrayContaining(['lib/home/fixtures.ts', 'lib/home/narrative-fixtures.ts', 'lib/figure/cs-band.ts']));
     const hits = scanned
       .filter((f) => !ALLOWED.has(f) && !LIB_ALLOWED.has(f) && FORBIDDEN.test(readFileSync(f, 'utf8')))
       .map((f) => relative(SRC, f));

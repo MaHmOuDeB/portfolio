@@ -1,6 +1,6 @@
 'use client';
 
-// The phone Menu: a <details>, so it opens and closes without JavaScript. With JavaScript, Escape
+// The compact Menu (under lg): a <details>, so it opens and closes without JavaScript. With JavaScript, Escape
 // and any navigation close it; Escape also returns focus to the summary.
 // A reader can open the Menu before the page has hydrated (the <details> works from the first
 // paint). Hydration must not close it under them: only a change of path does, never the first
@@ -49,7 +49,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
     <details
       ref={details}
       data-ready={ready ? '' : undefined}
-      className="relative md:hidden"
+      className="relative lg:hidden"
       onPointerDown={(event) => {
         if (event.button === 0 && event.target instanceof Element && event.target.closest('a')) {
           linkPress.current = event.pointerId;
@@ -93,7 +93,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
       </summary>
       <nav
         aria-label="Menu"
-        className="absolute top-full right-0 z-(--z-menu) mt-2 w-48 max-w-[calc(100vw_-_8*var(--spacing))] rounded-md border border-line bg-bg px-4 py-2"
+        className="absolute top-full right-0 z-(--z-menu) mt-2 w-48 max-w-[calc(100vw_-_8*var(--spacing))] rounded-xl border border-hairline bg-surface px-4 py-2"
       >
         {children}
       </nav>

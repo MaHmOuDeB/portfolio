@@ -2,7 +2,7 @@
 // client barrel in by accident (only the hook and control wrappers are client modules), and a client
 // module never brings the server-only Home model or live reader into the browser bundle, directly or
 // through any module it imports (followed through every value import and dynamic import(), so a
-// client file that imports, say, the scroll copy module would fail here). It may use the model's
+// client file that imports, say, the live note would fail here). It may use the model's
 // types (erased at build); for freshness it uses the client-safe freshness module.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -10,9 +10,6 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const DIRS = ['src/components/home', 'src/components/figures'];
-/** Client-safe by contract, though it has no directive: it runs only inside ScrollShell. */
-const CLIENT_SAFE = ['src/lib/home/scroll-controller.ts'];
-
 const files = DIRS.flatMap((d) => readdirSync(path.join(ROOT, d)).filter((f) => /\.tsx?$/.test(f)).map((f) => `${d}/${f}`));
 const source = (f: string) => readFileSync(path.join(ROOT, f), 'utf8');
 /** A 'use client' directive: the first statement, after comments only. */
@@ -37,14 +34,12 @@ function imports(f: string): Import[] {
 }
 
 const SERVER = files.filter((f) => !isClient(f));
-const CLIENT = [...files.filter(isClient), ...CLIENT_SAFE];
+const CLIENT = files.filter(isClient);
 
 describe('the composites keep the server/client split', () => {
   it('finds the modules it guards', () => {
-    expect(SERVER).toEqual(expect.arrayContaining(['src/components/home/HomeSections.tsx', 'src/components/home/LiveNote.tsx', 'src/components/home/ScrollMoment.tsx']));
-    expect(CLIENT).toEqual(
-      expect.arrayContaining(['src/components/home/NoteFreshness.tsx', 'src/components/home/ScrollShell.tsx', 'src/components/home/HomeChart.tsx', 'src/lib/home/scroll-controller.ts']),
-    );
+    expect(SERVER).toEqual(expect.arrayContaining(['src/components/home/HomeSections.tsx', 'src/components/home/LiveNote.tsx', 'src/components/home/ExperimentsTrack.tsx']));
+    expect(CLIENT).toEqual(expect.arrayContaining(['src/components/home/NoteFreshness.tsx']));
   });
 
   it.each(SERVER)('%s (server): never imports the kit client barrel', (f) => {
@@ -72,10 +67,10 @@ describe('the composites keep the server/client split', () => {
     expect([...reached].filter(([file]) => SERVER_ONLY.includes(file)).map(([file, via]) => `${file} (imported by ${via})`)).toEqual([]);
   });
 
-  it('the transitive walk is real: from the scroll copy module it reaches the live reader', () => {
-    expect([...reachable('src/lib/home/scroll.tsx').keys()]).toContain('src/lib/experiment/live.ts');
-    // and from a client module it reaches more than its direct imports
-    expect([...reachable('src/components/home/ScrollShell.tsx').keys()]).toEqual(expect.arrayContaining(['src/components/home/HomeChart.tsx', 'src/components/home/HomeChartView.tsx', 'src/components/kit/ConfidenceChart.tsx']));
+  it('the transitive walk is real: from the live note it reaches the live reader', () => {
+    expect([...reachable('src/components/home/LiveNote.tsx').keys()]).toContain('src/lib/experiment/live.ts');
+    // and from a server module it reaches more than its direct imports
+    expect([...reachable('src/components/home/HomeSections.tsx').keys()]).toEqual(expect.arrayContaining(['src/components/home/CaseCard.tsx', 'src/components/home/Parts.tsx']));
   });
 });
 

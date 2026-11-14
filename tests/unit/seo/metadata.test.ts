@@ -7,7 +7,8 @@ import { factText } from '@/lib/facts/text';
 import { serverEnv } from '@/lib/env';
 import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
 import { OG_HEIGHT, OG_WIDTH, ogAlt, ogHtml, themeFromTokens } from '@/lib/seo/og-template';
-import { SITE } from '@/lib/site';
+import { HEADLINE, SITE } from '@/lib/site';
+import { HOME_HERO } from '../../../content/home.ts';
 import {
   HOME_SHARE_TITLE,
   OG_CARDS,
@@ -439,12 +440,16 @@ describe('sharingTemplate', () => {
 
   it('the site card is the approved text: headline, role line and name, with no figure', () => {
     const card = ogCard('site');
-    expect(SITE_SHARING_HEADLINE).toBe('Data, experimentation, AI and automation');
+    expect(SITE_SHARING_HEADLINE).toBe('Experimentation and AI automation for product and growth teams');
     expect(card.title).toBe(SITE_SHARING_HEADLINE);
     expect(SITE_SHARING_LINE).toBe(
-      'Experimentation and growth analyst in Berlin. A/B testing, clear statistics and automation that removes manual work.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with agents and workflows.',
     );
     expect(card.sub).toBe(SITE_SHARING_LINE);
+    // The line is the hero's sub line, its two inline chips as plain lower-case words.
+    const { lead, chips, join, end } = HOME_HERO.sub;
+    expect(SITE_SHARING_LINE).toBe(`${lead}${chips[0].toLowerCase()}${join}${chips[1].toLowerCase()}${end}`);
+    expect(SITE_SHARING_HEADLINE).toBe(`${HEADLINE.lead} ${HEADLINE.quiet}`);
     expect(card.footer).toBe(SITE.name);
     expect(card.proof).toBeUndefined();
     expect(card.factIds).toEqual([]);
@@ -452,7 +457,7 @@ describe('sharingTemplate', () => {
   });
 
   it('the Home link preview has its own title; other pages add the name to theirs', () => {
-    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: data, experimentation, AI and automation');
+    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: experimentation and AI automation for product and growth teams');
     expect(shareTitle(seoEntry('/'))).toBe(HOME_SHARE_TITLE);
     expect(shareTitle(seoEntry('/lab'))).toBe('Lab | Mahmoud El Bergui');
     const home = pageMetadata(seoEntry('/'), new URL('https://site.example.com'));
@@ -525,8 +530,8 @@ describe('sharingTemplate', () => {
       expect(html).toMatch(/width:\s*1200px/);
       expect(html).toMatch(/height:\s*630px/);
       expect(html).toMatch(/padding:\s*72px 80px/);
-      expect(html).toMatch(/h1\{[^}]*font-size:\s*80px/);
-      expect(html).toMatch(/\.sub\{[^}]*font-size:\s*32px/);
+      expect(html).toMatch(/h1\{[^}]*font-size:\s*72px/);
+      expect(html).toMatch(/\.sub\{[^}]*font-size:\s*28px/);
       expect(html).toMatch(/\.foot\{[^}]*font-size:\s*24px/);
       expect(html).toMatch(/\.glyph\{[^}]*width:\s*96px;\s*height:\s*16px/);
       // No remote asset and no address: the only URL is the embedded font.
@@ -537,7 +542,7 @@ describe('sharingTemplate', () => {
       for (const hex of hexes) expect(Object.values(theme)).toContain(hex);
     }
     const site = ogHtml(ogCard('site'), theme, 'data:,');
-    expect(site).toContain('<h1>Data, experimentation, AI and automation</h1>');
+    expect(site).toContain('<h1>Experimentation and AI automation for product and growth teams</h1>');
     expect(site).toContain('<div class="foot">Mahmoud El Bergui</div>');
     expect(site).not.toContain('class="sub proof"');
     const proof = { strong: `${factText('profile.audible.experiments')} A/B tests`, rest: ' across web and mobile' };

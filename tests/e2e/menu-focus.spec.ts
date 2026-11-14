@@ -45,7 +45,9 @@ test('Menu closes on forward keyboard exit without stealing destination focus', 
 test('Menu closes on backward keyboard exit without restoring summary focus', async ({ page, browserName }) => {
   const { menu } = await openMenu(page);
   await page.keyboard.press(tabKey(browserName, true));
-  await expect(page.getByRole('banner').getByRole('link', { name: 'CV', exact: true })).toBeFocused();
+  // Under lg the header's page links and both buttons live behind Menu (display: none, so not in the
+  // tab order), which leaves the wordmark link as what precedes the summary.
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Mahmoud El Bergui' })).toBeFocused();
   await expect(menu).not.toHaveAttribute('open', '');
 });
 

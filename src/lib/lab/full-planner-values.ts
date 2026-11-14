@@ -1,4 +1,4 @@
-// The full sample-size planner's values: the Home planner's two inputs (baseline conversion in whole
+// The full sample-size planner's values: the base planner's two inputs (baseline conversion in whole
 // percentages, the rise in whole points) plus the unit the rise is shown in, and the paired duration
 // Figure's traffic. Pure and client-safe: the control row the page loads at once uses it. It must not
 // import @/lib/stats (tests/unit/lab/full-planner.test.ts walks its imports); the statistics side is
@@ -7,7 +7,7 @@
 // The rise is stored in one canonical unit, whole points, whatever unit it is shown in, so switching
 // between points and percent of the baseline never changes the baseline, the rise, the target or the
 // sample. The relative display steps on the same integer-point grid: each step is one point, shown
-// as its percent of the baseline. Both URL schemas are static; the joint cap (the Home planner's
+// as its percent of the baseline. Both URL schemas are static; the joint cap (the base planner's
 // normalizePlanner) is applied after they are read.
 import type { DerivedRef } from '@/components/kit/Derived';
 import { formatNumber } from '@/lib/figure/format';
@@ -35,7 +35,7 @@ export const FULL_PLAN_SCHEMA = {
 
 export type FullPlanValues = ParamValues<typeof FULL_PLAN_SCHEMA>;
 
-/** The preset: the Home planner's, shown in points. The Retention context reads it as its sourced sizing. */
+/** The preset: the base planner's, shown in points. The Retention context reads it as its sourced sizing. */
 export const FULL_PLAN_PRESETS: Presets<typeof FULL_PLAN_SCHEMA> = { default: { baseline: 0.29, risePoints: 5, mode: 'absolute' } };
 
 export const DURATION_SCHEMA = { traffic: { kind: 'number', min: 1, max: 10_000, step: 1 } } as const;
@@ -44,7 +44,7 @@ export const DURATION_PRESETS: Presets<typeof DURATION_SCHEMA> = { default: { tr
 
 export const FULL_PLANNER_REFS: readonly DerivedRef[] = ['simulated'];
 
-/** The baseline and the rise jointly valid (the Home planner's normalization); an unknown unit is points. */
+/** The baseline and the rise jointly valid (the base planner's normalization); an unknown unit is points. */
 export function normalizeFullPlan(v: FullPlanValues): FullPlanValues {
   const pair = normalizePlanner({ baseline: v.baseline, risePoints: v.risePoints });
   return { ...pair, mode: v.mode === 'relative' ? 'relative' : 'absolute' };

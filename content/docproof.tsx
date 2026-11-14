@@ -8,6 +8,7 @@
 // exactly as captured; its numbers carry data-derived "build", because they are part of the
 // site's source, not of a vendored export. Without a captured run the evidence says "Not recorded".
 import type { ReactNode } from 'react';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 
@@ -23,6 +24,17 @@ export function DocproofIntro(): ReactNode {
     </p>
   );
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const DOCPROOF_GLANCE: GlanceParts = {
+  outcome:
+    'Built an open-source tool where agents propose changes and deterministic checks decide what reaches the reader; no adoption claimed.',
+  role: 'Designed and built, Claude Code as pair-programmer.',
+  methods:
+    'Single fact base, claim verification, multi-agent orchestration (author, auditor, context-free reviewer), rendering checks.',
+  tools: 'Python, Claude Code agents and skills, headless Chrome, GitHub Actions.',
+  when: '2026.',
+};
 
 /** What the tool removes: a model's drift away from its source, and slow checking by hand. */
 export function DocproofProblem(): ReactNode {

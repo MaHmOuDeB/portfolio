@@ -165,7 +165,9 @@ test.describe('kit form fields', () => {
     await expect(pending).toBeFocused();
     const disabled = specimen(page, 'submit--disabled').getByRole('button');
     await expect(disabled).toBeDisabled();
-    expect(await disabled.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, 'bg'));
+    // A muted secondary button: the surface fill (white), which shows on the grey canvas and matches a card.
+    expect(await disabled.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, 'surface'));
+    expect(await disabled.evaluate((el) => getComputedStyle(el).color)).toBe(await token(page, 'muted'));
     for (const b of [button, pending, disabled]) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   });
 

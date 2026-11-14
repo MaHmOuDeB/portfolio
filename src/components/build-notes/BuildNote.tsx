@@ -8,7 +8,10 @@
 // evidence runs to the figure width. Every diagram draws its steps with DiagramStep and joins them with
 // DiagramConnector. No motion and no card grid. Server-safe, no hooks.
 import type { ReactNode } from 'react';
+import { GlanceBlock, type GlanceParts } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { CaseHead } from '@/components/work/CaseHead';
 
 /** The build-note sections in page order: anchor id, heading, link label. */
 export const BUILD_NOTE_SECTIONS = [
@@ -25,7 +28,7 @@ type BodyId = (typeof BUILD_NOTE_SECTIONS)[number]['id'];
 export const TEXT = 'max-w-text';
 export const EVIDENCE = 'mt-8';
 const ITEM = 'mt-4 first:mt-0';
-const STEP = 'min-w-0 rounded-sm border border-muted p-4';
+const STEP = 'min-w-0 rounded-md border border-hairline-strong bg-surface p-4';
 
 /** A list of short paragraphs or limits, spaced like the Retention page's. */
 export function NoteList({ items }: { items: readonly [key: string, body: ReactNode][] }) {
@@ -76,6 +79,7 @@ export function BuildNote({
   title,
   intro,
   role,
+  glance,
   sections,
 }: {
   /** The base of the h1 id (`<slug>-title`). */
@@ -85,23 +89,17 @@ export function BuildNote({
   intro: ReactNode;
   /** One short paragraph under the intro: what the project is and what I did. */
   role?: ReactNode;
+  /** The 20-second top block, drawn under the title, the intro and the role line. */
+  glance?: GlanceParts;
   /** The body of each section the note has; a section left out (or empty) is neither drawn nor linked. */
   sections: Readonly<Partial<Record<BodyId, ReactNode>>>;
 }): ReactNode {
   const present = BUILD_NOTE_SECTIONS.filter((s) => drawn(sections[s.id]));
   return (
-    <article aria-labelledby={`${slug}-title`} className="py-12 md:py-section">
-      <div className={TEXT}>
-        <h1 id={`${slug}-title`} className="text-2xl font-semibold md:text-3xl">
-          {title}
-        </h1>
-        <div className="mt-4 text-lg text-muted">{intro}</div>
-        {!drawn(role) ? null : (
-          <p data-note-role="" className="mt-4">
-            {role}
-          </p>
-        )}
-      </div>
+    <article aria-labelledby={`${slug}-title`}>
+      <CaseHead id={`${slug}-title`} chip="Build note" title={title} intro={intro} role={drawn(role) ? role : undefined} />
+
+      {glance ? <GlanceBlock {...glance} /> : null}
 
       <nav aria-label="On this page" className={`${TEXT} mt-8`}>
         <ul className="flex flex-wrap gap-x-4">
@@ -116,13 +114,14 @@ export function BuildNote({
       </nav>
 
       {present.map((s) => (
-        <section key={s.id} id={s.id} aria-labelledby={`${s.id}-title`} className="mt-12 md:mt-section">
-          <h2 id={`${s.id}-title`} className={`${TEXT} text-xl font-semibold`}>
+        <section key={s.id} id={s.id} aria-labelledby={`${s.id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
+          <h2 id={`${s.id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
             {s.title}
           </h2>
           <div className="mt-4">{sections[s.id]}</div>
         </section>
       ))}
+      <PageCallToAction />
     </article>
   );
 }

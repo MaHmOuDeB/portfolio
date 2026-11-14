@@ -13,7 +13,6 @@
 //   over every fixture, the dev-host ones included, and every runtime.
 //
 // The fixtures are the build-time test fixtures (src/lib/home), which no page ships.
-import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -26,12 +25,6 @@ import { NARRATIVE_FIXTURES, narrativeFixture } from '@/lib/home/narrative-fixtu
 import { LIVE_PAGE_FIXTURES } from '@/lib/live-page/fixtures';
 import { toLivePageDisplay, toLivePageModel, type LivePageDisplay } from '@/lib/live-page/model';
 
-// The planner island reads the URL through next/navigation, which has no router here; the home
-// tests cover it. A marked stand-in, as there.
-vi.mock('@/components/home/HeroSimulator', () => ({
-  HERO_PLANNER_ID: 'hero-planner',
-  HeroSimulator: () => createElement('div', { 'data-hero-simulator': '' }),
-}));
 const { HomeSections } = await import('@/components/home/HomeSections');
 const { LivePage } = await import('@/components/live-page/LivePage');
 

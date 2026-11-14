@@ -15,18 +15,49 @@ describe('ButtonLink', () => {
     expect(html).toContain('items-center');
     expect(html).toContain('min-h-(--size-target)');
     expect(html).toContain('data-touch-target');
-    expect(html).toContain('bg-ink text-bg');
+    expect(html).toContain('bg-ink text-surface');
     expect(html).toContain('Try the lab');
   });
 
-  it('secondary has a 1 px muted border with ink text', () => {
+  it('is a compact rectangle with an 8 px radius, never a pill', () => {
+    const html = renderToStaticMarkup(
+      <ButtonLink href="/lab" variant="primary">
+        Try the lab
+      </ButtonLink>,
+    );
+    expect(html).toContain('rounded-md');
+    expect(html).toContain('px-3.5');
+    expect(html).not.toContain('rounded-pill');
+  });
+
+  it('secondary is white with a 1 px strong hairline and ink text', () => {
     const html = renderToStaticMarkup(
       <ButtonLink href="/lab" variant="secondary">
         Lab
       </ButtonLink>,
     );
-    expect(html).toContain('border border-muted');
+    expect(html).toContain('border border-hairline-strong bg-surface');
     expect(html).toContain('text-ink');
+  });
+
+  it('on ink: the primary turns white with ink text, the secondary clear with a hairline on ink', () => {
+    const primary = renderToStaticMarkup(
+      <ButtonLink href="/contact" variant="primary" onInk>
+        Write to me
+      </ButtonLink>,
+    );
+    expect(primary).toContain('bg-surface text-ink');
+    expect(primary).not.toContain('bg-ink');
+    const secondary = renderToStaticMarkup(
+      <ButtonLink href="/cv" variant="secondary" onInk>
+        Read my CV
+      </ButtonLink>,
+    );
+    expect(secondary).toContain('border-rule-on-ink');
+    expect(secondary).toContain('text-surface');
+    expect(secondary).not.toContain('bg-surface');
+    expect(secondary).toContain('min-h-(--size-target)');
+    expect(secondary).toContain('rounded-md');
   });
 
   it('a download is a plain anchor with the download attribute and an optional icon', () => {

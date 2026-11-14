@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { MARKETINGWS_SECTIONS, MARKETINGWS_TITLE, MarketingwsPage } from '@/components/marketingws/MarketingwsPage';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
@@ -41,7 +42,7 @@ const section = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</section>', start));
 };
 
-const PAGE = renderToStaticMarkup(<MarketingwsPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<MarketingwsPage />));
 const PAGE_TEXT = text(PAGE);
 const ctx = { route: ROUTE, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
@@ -75,7 +76,7 @@ describe('the outline', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="marketingws-title"[^>]*>MarketingWS<\/h1>/);
     expect(MARKETINGWS_TITLE).toBe('MarketingWS');
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app.",
     );
@@ -122,8 +123,8 @@ describe('the copy', () => {
   });
 
   it('is a short note of about four hundred words', () => {
-    // The prose: the screenshots' captions are pinned in note-shots.test.tsx.
-    const words = text(PAGE.replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
+    // The prose: the screenshots' captions are pinned in note-shots.test.tsx, the glance block above.
+    const words = text(PAGE.replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
       .split(' ').filter((w) => /\w/.test(w)).length;
     expect(words).toBeGreaterThanOrEqual(340);
     expect(words).toBeLessThanOrEqual(480);
@@ -138,7 +139,7 @@ describe('the copy', () => {
     expect(item?.href).toBe(ROUTE);
     expect(item?.title).toBe(MARKETINGWS_TITLE);
     const description = text(renderToStaticMarkup(<>{item!.description}</>));
-    const intro = text(PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav')));
+    const intro = text(PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"')));
     expect(description).toBe(`${intro} ${GROQ_NOTE}`);
   });
 });
@@ -231,7 +232,7 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app: how it works, how I checked it and its limits.",
     );
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
   });
 
   it('ships: the route is one of the live routes', () => {

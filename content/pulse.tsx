@@ -8,6 +8,7 @@
 // taxonomy are what the events were designed to answer.
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 import { DEMO_PROMPT_VERSION } from '@/lib/pulse/bus';
@@ -37,6 +38,20 @@ export function PulseIntro(): ReactNode {
     </p>
   );
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const PULSE_GLANCE: GlanceParts = {
+  outcome: (
+    <>
+      Designed and built a <Events />-event tracking plan in Amplitude, each event tied to a product question; no real
+      users, no outcome.
+    </>
+  ),
+  role: 'Personal project, designed and built.',
+  methods: 'Event taxonomy, user identification, segmentation properties.',
+  tools: 'React, TypeScript, Vite, Tailwind, Recharts, Amplitude, Vercel.',
+  when: 'Sep 2026.',
+};
 
 /** The summary box: question, my role, method, result, what I would recommend, next step. */
 export function PulseSummary(): ReactNode {

@@ -154,12 +154,6 @@ test.describe('the site-wide claims', () => {
     });
   }
 
-  test('/kitchen-sink/home/scroll/chart-error: the Home chart error state keeps the claim rules, the truth audit and the Figure invariants', async ({ page }) => {
-    await page.goto('/kitchen-sink/home/scroll/chart-error');
-    await expect(page.locator('[data-home-chart] > [data-figure-fallback]').first()).toBeAttached({ timeout: 15_000 });
-    await holds(page, '/', 'chart error state');
-  });
-
   test('/experiment: never calls its data anonymous, in the served HTML, its React payload or the hydrated page', async ({ page, request }) => {
     expect(await (await request.get('/experiment')).text()).not.toMatch(/(?<!\bnot )\banonym/i);
     await page.goto('/experiment');

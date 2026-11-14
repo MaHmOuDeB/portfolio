@@ -24,6 +24,8 @@ describe('the contact page', () => {
     expect(contactMetadata(new Headers(), false).title).toBe('Contact');
     expect(form.match(/<h1\b/g)).toHaveLength(1);
     expect(form).toContain('>Contact</h1>');
+    expect(form).toMatch(/<span data-chip="">Contact<\/span><h1 id="contact-title" class="[^"]*text-h2-sm/);
+    expect(form).toContain('data-contact-card=""');
   });
 
   it('titles a page rendered in answer to a document form POST "Message not sent: Contact" (a sent one redirects)', () => {

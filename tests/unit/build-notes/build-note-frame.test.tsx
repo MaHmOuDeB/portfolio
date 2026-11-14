@@ -3,6 +3,7 @@
 // leaves out is neither drawn nor linked. Every note renders through the frame with one diagram step
 // style.
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep } from '@/components/build-notes/BuildNote';
 import { DocproofPage } from '@/components/docproof/DocproofPage';
@@ -12,10 +13,10 @@ import { WeatherPage } from '@/components/weather/WeatherPage';
 import { outline, sectionLinks } from './helpers';
 
 const PAGES = {
-  weather: renderToStaticMarkup(<WeatherPage />),
-  n8n: renderToStaticMarkup(<N8nPage />),
-  marketingws: renderToStaticMarkup(<MarketingwsPage />),
-  docproof: renderToStaticMarkup(<DocproofPage />),
+  weather: withoutCta(renderToStaticMarkup(<WeatherPage />)),
+  n8n: withoutCta(renderToStaticMarkup(<N8nPage />)),
+  marketingws: withoutCta(renderToStaticMarkup(<MarketingwsPage />)),
+  docproof: withoutCta(renderToStaticMarkup(<DocproofPage />)),
 };
 
 /** True when a <p> opens before the previous <p> has closed. */
@@ -33,7 +34,7 @@ describe('the frame', () => {
     const html = renderToStaticMarkup(
       <BuildNote slug="t" title="T" intro={<p>One line.</p>} sections={{ problem: <p>Body.</p> }} />,
     );
-    expect(html).toContain('<div class="mt-4 text-lg text-muted"><p>One line.</p></div>');
+    expect(html).toContain('<div class="mt-4 max-w-text text-lg text-muted"><p>One line.</p></div>');
     expect(nestsParagraphs(html)).toBe(false);
   });
 
@@ -77,7 +78,7 @@ describe('the frame', () => {
   it('draws one diagram step style and a hidden connector', () => {
     const step = renderToStaticMarkup(<DiagramStep name="Name" detail="Detail." />);
     expect(step).toBe(
-      '<div class="min-w-0 rounded-sm border border-muted p-4"><p class="text-sm font-semibold">Name</p><p class="mt-1 text-sm text-muted">Detail.</p></div>',
+      '<div class="min-w-0 rounded-md border border-hairline-strong bg-surface p-4"><p class="text-sm font-semibold">Name</p><p class="mt-1 text-sm text-muted">Detail.</p></div>',
     );
     expect(renderToStaticMarkup(<DiagramConnector />)).toBe(
       '<span aria-hidden="true" data-connector="" class="ml-6 block h-4 w-px bg-muted"></span>',
@@ -97,10 +98,10 @@ describe.each(Object.entries(PAGES))('the %s note', (_, html) => {
 
   it('draws every diagram step in the one step style', () => {
     const figure = html.slice(html.indexOf('<figure'), html.indexOf('</figure>'));
-    const boxes = [...figure.matchAll(/<div class="([^"]*rounded-sm[^"]*)"/g)].map((m) => m[1]!);
+    const boxes = [...figure.matchAll(/<div class="([^"]*rounded-md[^"]*)"/g)].map((m) => m[1]!);
     expect(boxes.length).toBeGreaterThan(3);
     // One style; a branch node may add only its narrow-layout indent.
-    for (const box of boxes) expect(box).toMatch(/^min-w-0 rounded-sm border border-muted p-4( h-full| max-xs:ml-6)?$/);
+    for (const box of boxes) expect(box).toMatch(/^min-w-0 rounded-md border border-hairline-strong bg-surface p-4( h-full| max-xs:ml-6)?$/);
     expect(figure).not.toContain('border-line');
   });
 });

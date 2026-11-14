@@ -300,7 +300,7 @@ test.describe('the Docproof build note', () => {
     expect(levels[0]).toBe(2);
     expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
     expect(figures).toEqual([['architecture', 'docproof-architecture']]);
-    expect(links).toEqual([...SECTIONS.map(([id]) => `#${id}`), '/work']);
+    expect(links).toEqual([...SECTIONS.map(([id]) => `#${id}`), '/work', '/contact', '/cv']);
   });
 
   test('the recorded run: inputs, command and output as labelled regions a keyboard reaches', async ({ page }) => {

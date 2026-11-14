@@ -46,7 +46,7 @@ const BASE_WORDS = { entry: 'entry views', analysed: 'analysed views', both: 'en
  * Where the split failed, and its counts for each failed base where both groups have 50 views.
  * `counts={false}` names the base and day only: a held test reports nothing from its fault on.
  */
-export function SplitWarning({
+function SplitWarning({
   split,
   refs,
   lead,
@@ -119,15 +119,13 @@ function activeNote(m: HomeModel): ReactNode {
 }
 
 /** The note's sentence for a failed split check, without where it failed. */
-export const SPLIT_FAILED = 'The split check failed, so no result is shown.';
+const SPLIT_FAILED = 'The split check failed, so no result is shown.';
 
 /**
- * The stated reason of a stopped, unreadable or failed test, without the link: the note's sentence,
- * which the scroll moment repeats. Null for every other mode (not started, paused, running, final).
- * `splitWarning: false` leaves out where a failed split check failed (a step that says it already).
+ * The stated reason of a stopped, unreadable or failed test, without the link. Null for every other
+ * mode (not started, paused, running, final).
  */
-export function stopSentence(m: HomeModel, o: { splitWarning?: boolean } = {}): ReactNode {
-  const warn = o.splitWarning !== false;
+function stopSentence(m: HomeModel): ReactNode {
   const refs = m.refs;
   switch (m.mode) {
     case 'closure-check':
@@ -149,7 +147,7 @@ export function stopSentence(m: HomeModel, o: { splitWarning?: boolean } = {}): 
             : 'The test stopped because a consistency check failed.'}
           {' Results use only the data up to the last check that passed. The check failed on '}
           <Day day={held.on} refs={refs} />.
-          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="The split check also failed on" counts={false} /> : null}
+          {m.split ? <SplitWarning split={m.split} refs={refs} lead="The split check also failed on" counts={false} /> : null}
         </>
       );
     }
@@ -157,7 +155,7 @@ export function stopSentence(m: HomeModel, o: { splitWarning?: boolean } = {}): 
       return (
         <>
           {SPLIT_FAILED}
-          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
+          {m.split ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
         </>
       );
     case 'aa-failed': {
@@ -173,7 +171,7 @@ export function stopSentence(m: HomeModel, o: { splitWarning?: boolean } = {}): 
               <When iso={restarts} refs={refs} />.
             </>
           ) : null}
-          {m.split && warn ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
+          {m.split ? <SplitWarning split={m.split} refs={refs} lead="It failed on" /> : null}
         </>
       );
     }

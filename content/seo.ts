@@ -10,7 +10,7 @@
 // this module.
 import type { FactId } from '../src/lib/facts/index.ts';
 import { ogAlt, type OgCard } from '../src/lib/seo/og-template.ts';
-import { SITE } from '../src/lib/site.ts';
+import { HEADLINE, SITE } from '../src/lib/site.ts';
 import { factText } from '../src/lib/facts/text.ts';
 
 export type SeoEntry = {
@@ -30,15 +30,19 @@ export type SeoEntry = {
  */
 export const SEO_EXCLUDED_ROUTES: readonly string[] = ['/exclude', '/demo'];
 
-/** The site's sharing line: the Home description and the site card's line. */
+/**
+ * The site's sharing line: the Home description and the site card's line. It is the hero's sub line
+ * with its two inline chips as plain lower-case words; a unit test keeps the two equal (this module
+ * does not import the Home content, so the experiment's copy never reaches a sharing image).
+ */
 export const SITE_SHARING_LINE =
-  'Experimentation and growth analyst in Berlin. A/B testing, clear statistics and automation that removes manual work.';
+  'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with agents and workflows.';
 
-/** The site card's headline. */
-export const SITE_SHARING_HEADLINE = 'Data, experimentation, AI and automation';
+/** The site card's headline: the hero's line in one tone. */
+export const SITE_SHARING_HEADLINE = `${HEADLINE.lead} ${HEADLINE.quiet}`;
 
 /** The Home page's title in a link preview (og:title, twitter:title). */
-export const HOME_SHARE_TITLE = 'Mahmoud El Bergui: data, experimentation, AI and automation';
+export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead.charAt(0).toLowerCase()}${HEADLINE.lead.slice(1)} ${HEADLINE.quiet}`;
 
 /**
  * A case card's headline states its landing page's finding in the page's own words. The cards have their
@@ -86,7 +90,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work',
     'Work',
-    "Every case study and build note on this site: experiments and analyses first, then the tools I've built.",
+    "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     'site',
   ),
   entry(

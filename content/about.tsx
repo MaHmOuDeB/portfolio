@@ -16,7 +16,7 @@ import { WINDOW_DAYS } from '@/lib/retention/rfm';
 
 /** The story, one sentence per entry. */
 export const ABOUT_STORY: readonly ReactNode[] = [
-  <>I am an experimentation and growth analyst in Berlin, Germany.</>,
+  <>I plan A/B tests, read them honestly and build the automation around them.</>,
   <>
     For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some
     marketing analytics.
@@ -37,7 +37,17 @@ export const ABOUT_STORY: readonly ReactNode[] = [
   </>,
 ];
 
-/** Work and study, newest first. */
+/** The new paragraph after the first one: what the two halves of my work have in common. */
+export const ABOUT_FOCUS =
+  'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
+
+/** What I am looking for, as its own short paragraph. */
+export const ABOUT_LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+
+/**
+ * Work and study, newest first. The two short earlier roles (the fundraiser job and the research
+ * internship) are on the CV page only.
+ */
 export const TIMELINE: readonly { range: MonthRange; role: string; where: string }[] = [
   { range: { from: '2026-10', to: null }, role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
   {
@@ -46,8 +56,6 @@ export const TIMELINE: readonly { range: MonthRange; role: string; where: string
     where: 'Audible (Amazon), Berlin',
   },
   { range: { from: '2023-04', to: '2025-11' }, role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
-  { range: { from: '2023-03', to: '2023-06' }, role: 'Fundraiser & Marketing Representative', where: 'Direct Results, Berlin' },
-  { range: { from: '2021-06', to: '2021-09' }, role: 'Intern, Research Assistant', where: 'Geo Engineering, Bremen' },
   {
     range: { from: '2019-09', to: '2022-11' },
     role: 'BSc Computer Science',
@@ -70,14 +78,8 @@ export const SHIPPED_TOOLS: readonly { tool: string; where: string }[] = [
   { tool: 'GitHub Actions', where: 'continuous integration for my public projects' },
 ];
 
-/** Both pages list these; German is B1. */
-export const LANGUAGES: readonly { language: string; level: string }[] = [
-  { language: 'Arabic', level: 'native' },
-  { language: 'English', level: 'fluent (C2)' },
-  { language: 'French', level: 'fluent (C2)' },
-  { language: 'German', level: 'B1' },
-  { language: 'Spanish', level: 'A2' },
-];
+/** Both pages list these, and so does the Home FAQ; German is B1. */
+export { LANGUAGES } from './languages.ts';
 
 // ── CV ──────────────────────────────────────────────────────────────────────────────────────────
 

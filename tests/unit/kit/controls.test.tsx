@@ -378,7 +378,7 @@ describe('ResetButton', () => {
     expect(hasAttr(button!, 'data-touch-target')).toBe(true);
     expect(hasAttr(button!, 'data-js-only')).toBe(true);
     expect(attr(button!, 'class')).toContain('min-h-(--size-target)');
-    expect(attr(button!, 'class')).toContain('border-muted');
+    expect(attr(button!, 'class')).toContain('border-hairline-strong');
   });
 
   it('has no id attribute when none is given', () => {

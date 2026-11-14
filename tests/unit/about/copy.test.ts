@@ -84,19 +84,21 @@ const cv = () => dom(renderToStaticMarkup(createElement(CvPage)));
 
 // ═════════════════════════════════════════ About ═════════════════════════════════════════════════
 const STORY = [
-  'I am an experimentation and growth analyst in Berlin, Germany.',
+  'I plan A/B tests, read them honestly and build the automation around them.',
   'For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some marketing analytics.',
   'I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and worked with 3 teams over my time there, one after another.',
   'I also built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.',
   "I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I have rebuilt my Master's projects on public data and built tools of my own.",
 ];
 
+const FOCUS =
+  'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
+const LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+
 const TIMELINE = [
   { dates: 'Oct 2026 – present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
   { dates: 'Aug 2023 – Apr 2025', datetimes: ['2023-08', '2025-04'], role: 'Working student: Marketing Analytics & Growth Experimentation', where: 'Audible (Amazon), Berlin' },
   { dates: 'Apr 2023 – Nov 2025', datetimes: ['2023-04', '2025-11'], role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
-  { dates: 'Mar 2023 – Jun 2023', datetimes: ['2023-03', '2023-06'], role: 'Fundraiser & Marketing Representative', where: 'Direct Results, Berlin' },
-  { dates: 'Jun 2021 – Sep 2021', datetimes: ['2021-06', '2021-09'], role: 'Intern, Research Assistant', where: 'Geo Engineering, Bremen' },
   { dates: 'Sep 2019 – Nov 2022', datetimes: ['2019-09', '2022-11'], role: 'BSc Computer Science', where: 'Jacobs University Bremen (now Constructor University), Bremen' },
 ];
 
@@ -125,7 +127,8 @@ const LANGUAGES: readonly [language: string, level: string][] = [
 describe('the About page', () => {
   it('has one h1 and the sections in order, each a region named by its h2', () => {
     const d = about();
-    expect(all(d, (el) => el.tagName === 'h1').map(text)).toEqual(['About']);
+    expect(all(d, (el) => el.tagName === 'h1').map(text)).toEqual(['Experimentation and growth analyst in Berlin, Germany.']);
+    expect(text(one(d, (el) => has(el, 'data-chip')))).toBe('About');
     const sections = all(d, (el) => el.tagName === 'section' && has(el, 'id'));
     expect(sections.map((s) => [attr(s, 'id'), text(one(s, (el) => el.tagName === 'h2'))])).toEqual([
       ['timeline', 'Timeline'],
@@ -137,20 +140,73 @@ describe('the About page', () => {
     for (const s of sections) expect(attr(s, 'aria-labelledby')).toBe(`${attr(s, 'id')}-title`);
   });
 
-  it('tells a five-sentence story, word for word', () => {
-    const story = text(one(about(), (el) => has(el, 'data-about-story')));
-    expect(story.split(/(?<=\.)\s+(?=[A-Z])/)).toEqual(STORY);
+  it('tells the five-sentence story, the new paragraph and the looking-for line, word for word', () => {
+    const story = one(about(), (el) => has(el, 'data-about-story'));
+    const paragraphs = all(story, (el) => el.tagName === 'p').map(text);
+    expect(paragraphs).toEqual([STORY.slice(0, 2).join(' '), FOCUS, LOOKING, STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...STORY.slice(0, 2), ...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), LOOKING, ...STORY.slice(2)]);
   });
 
-  it('breaks the story into three paragraphs at its own sentence breaks, with no new words', () => {
+  it('puts the new paragraph right after the first, and the looking-for line alone after it', () => {
     const story = one(about(), (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p');
-    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 2, 1]);
-    expect(paragraphs.map(text)).toEqual([STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 0, 0, 2, 1]);
+    expect(has(paragraphs[1]!, 'data-about-focus')).toBe(true);
+    expect(has(paragraphs[2]!, 'data-about-looking')).toBe(true);
   });
 
-  it('uses the page-title size from md up on its h1, as every other page does', () => {
-    expect(classes(one(about(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-2xl', 'md:text-3xl']));
+  it('keeps exactly the four timeline entries in order, and leaves the two short earlier roles to the CV', () => {
+    const d = about();
+    const roles = all(section(d, 'timeline'), (el) => el.tagName === 'h3').map(text);
+    expect(roles).toEqual([
+      'AI Data Specialist, Business and Analytics Workflows (Contract)',
+      'Working student: Marketing Analytics & Growth Experimentation',
+      'MSc Data Science',
+      'BSc Computer Science',
+    ]);
+    const page = text(d);
+    for (const gone of ['Fundraiser', 'Direct Results', 'Research Assistant', 'Geo Engineering']) expect(page).not.toContain(gone);
+    const cvText = text(cv());
+    for (const kept of ['Fundraiser & Marketing Representative', 'Direct Results', 'Intern, Research Assistant', 'Geo Engineering']) expect(cvText).toContain(kept);
+  });
+
+  it('marks the layout motion: parallax photo, rising headings, a drawn timeline rule', () => {
+    const d = about();
+    expect(has(one(d, (el) => el.tagName === 'img'), 'data-depth-parallax')).toBe(true);
+    // The four section headings rise; the h1 is the LCP element and the call to action's h2 is the ink panel's.
+    const headings = all(d, (el) => el.tagName === 'h2' && has(el, 'id') && attr(el, 'id') !== 'page-cta-title');
+    expect(headings.length).toBe(4);
+    for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
+    expect(has(one(d, (el) => el.tagName === 'h1'), 'data-depth-rise')).toBe(false);
+    // the rule that draws is a decorative span next to the list, never the list itself
+    const drawn = all(section(d, 'timeline'), (el) => has(el, 'data-depth-draw'));
+    expect(drawn.length).toBe(1);
+    expect(drawn[0]!.tagName).toBe('span');
+    expect(attr(drawn[0]!, 'aria-hidden')).toBe('true');
+    expect(has(one(section(d, 'timeline'), (el) => el.tagName === 'ol'), 'data-depth-draw')).toBe(false);
+  });
+
+  it('puts the portrait and the story side by side from lg: about 5 of 12 columns, rounded xl', () => {
+    const d = about();
+    const img = one(d, (el) => el.tagName === 'img');
+    expect(classes(img)).toContain('rounded-xl');
+    expect(classes(img)).not.toContain('rounded-sm');
+    const story = one(d, (el) => has(el, 'data-about-story'));
+    const textCol = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:col-span-7'));
+    const photoCol = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:col-span-5'));
+    expect(textCol).toHaveLength(1);
+    expect(photoCol).toHaveLength(1);
+    expect(all(textCol[0]!, (el) => el === story)).toHaveLength(1);
+    expect(all(photoCol[0]!, (el) => el === img)).toHaveLength(1);
+    const grid = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:grid-cols-12'));
+    expect(grid).toHaveLength(1);
+    expect(classes(grid[0]!)).not.toContain('md:grid-cols-12');
+  });
+
+  it('sets its h1 at the page-head size, in two tones, larger than the section headings under it', () => {
+    const h1 = one(about(), (el) => el.tagName === 'h1');
+    expect(classes(h1)).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
+    expect(text(one(h1, (el) => has(el, 'data-quiet')))).toBe('in Berlin, Germany.');
   });
 
   it('gives the timeline and the term lists one width, and one first column', () => {
@@ -158,11 +214,9 @@ describe('the About page', () => {
     const timeline = one(section(d, 'timeline'), (el) => el.tagName === 'ol');
     expect(classes(timeline)).toContain('max-w-text');
     expect(classes(timeline)).not.toContain('max-w-figure');
-    for (const id of ['tools', 'languages']) {
-      const dl = one(section(d, id), (el) => el.tagName === 'dl');
-      expect(classes(dl)).toContain('max-w-text');
-      expect(classes(dl)).toContain('md:grid-cols-[12rem_1fr]');
-    }
+    // Tools are a wrapping set of chips and the languages a grid of small cards.
+    expect(classes(one(section(d, 'tools'), (el) => el.tagName === 'ul'))).toContain('flex-wrap');
+    expect(classes(one(section(d, 'languages'), (el) => el.tagName === 'dl'))).toContain('lg:grid-cols-5');
     for (const li of all(section(d, 'timeline'), (el) => el.tagName === 'li')) expect(classes(li)).toContain('md:grid-cols-[12rem_1fr]');
   });
 
@@ -194,9 +248,11 @@ describe('the About page', () => {
 
   it('lists the tools I have shipped with and where, as plain words: no levels, bars or frequencies', () => {
     const tools = section(about(), 'tools');
-    const dts = all(tools, (el) => el.tagName === 'dt').map(text);
-    const dds = all(tools, (el) => el.tagName === 'dd').map(text);
-    expect(dts.map((t, i) => [t, dds[i]])).toEqual(TOOLS);
+    const chips = all(tools, (el) => el.tagName === 'li').map((li) => {
+      const [tool, where] = all(li, (el) => el.tagName === 'span').map(text);
+      return [tool, where];
+    });
+    expect(chips).toEqual(TOOLS);
     expect(all(tools, (el) => ['meter', 'progress', 'svg'].includes(el.tagName) || attr(el, 'role') === 'progressbar')).toEqual([]);
   });
 
@@ -352,8 +408,16 @@ describe('the CV page', () => {
     expect(CV_SECTIONS.map((s) => s.id)).toEqual(sections.map((s) => attr(s, 'id')));
   });
 
+  it('marks the section headings to rise on entry', () => {
+    // The h1 is the LCP element and never animates; the six section headings rise.
+    const headings = all(cv(), (el) => el.tagName === 'h2');
+    expect(headings.length).toBe(6);
+    for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
+    expect(has(one(cv(), (el) => el.tagName === 'h1'), 'data-depth-rise')).toBe(false);
+  });
+
   it('uses the page-title size from md up on its h1', () => {
-    expect(classes(one(cv(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-2xl', 'md:text-3xl']));
+    expect(classes(one(cv(), (el) => el.tagName === 'h1'))).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
   });
 
   it('keeps every bullet and plain line at the reading width inside the wider frame', () => {

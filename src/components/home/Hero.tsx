@@ -1,55 +1,62 @@
-// The Home hero, the same for every visitor: the name across the page, then (from lg) the identity
-// in 7 of 12 columns and the evidence slot, the sample-size planner, in the other 5. On phones the
-// name is 44 px and the role line 20 px, and the CV link stays in the header instead of repeating
-// here. "El Bergui" is joined by a non-breaking space, so the surname never splits. Server-safe.
+// The Home hero, centred: the chip, the site's line in two tones as the h1, the sub line with two
+// inline chips, and two buttons (the CV page, quiet; Contact, primary). The h1 has no animation
+// attribute (it is the largest contentful paint); the sub line and the buttons settle in order once
+// on load, and the primary button follows a fine pointer a few pixels (the magnet). The band with the
+// stack follows it. The same for every visitor. Server-safe.
+import type { CSSProperties, ReactNode } from 'react';
 import { HOME_HERO } from '../../../content/home.ts';
-import { HOME_LINKS } from '../../../content/home-destinations.ts';
+import { StackBand } from '@/components/depth/StackBand';
+import { Chip } from '@/components/frame/Chip';
+import { Quiet } from '@/components/frame/Quiet';
 import { ButtonLink } from '@/components/kit/ButtonLink';
-import { TextLink } from '@/components/kit/TextLink';
-import { CONTACT, CV_LINK, SITE } from '@/lib/site';
-import { HeroSimulator } from './HeroSimulator';
-import { Parts } from './Parts';
+import { CONTACT_HREF, CV_LINK, HEADLINE } from '@/lib/site';
 
-const NAME = SITE.name.replace('El Bergui', 'El\u00a0Bergui');
+const order = (d: number): CSSProperties => ({ '--d': d }) as CSSProperties;
+
+function Step({ d, children, magnet = false }: { d: number; children: ReactNode; magnet?: boolean }) {
+  return (
+    <span data-depth-load="" style={order(d)} className="inline-flex">
+      {magnet ? (
+        <span data-depth-magnet="" className="inline-flex">
+          {children}
+        </span>
+      ) : (
+        children
+      )}
+    </span>
+  );
+}
 
 export function Hero() {
+  const { sub } = HOME_HERO;
   return (
-    <section data-hero="" aria-labelledby="hero-name" className="pt-8 md:pt-12">
-      <h1 id="hero-name" className="text-display-sm font-semibold md:text-display">
-        {NAME}
-      </h1>
-      <div data-hero-columns="" className="mt-6 grid gap-y-8 lg:grid-cols-12 lg:gap-x-8">
-        <div data-hero-identity="" className="lg:col-span-7">
-          <p data-hero-role="" className="text-lg font-semibold md:text-xl">
-            {HOME_HERO.role}
-          </p>
-          <p data-hero-place="" className="mt-1 text-base text-muted">
-            {HOME_HERO.place}
-          </p>
-          <p data-hero-proof="" className="mt-4 max-w-text text-base">
-            <Parts parts={HOME_HERO.proof} />{' '}
-            <span className="whitespace-nowrap">
-              <TextLink href={HOME_LINKS.whySoMany}>{HOME_HERO.whySoMany}</TextLink>
-            </span>
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <ButtonLink href={HOME_LINKS.lab} variant="primary">
-              {HOME_HERO.lab}
+    <>
+      <section data-hero="" aria-labelledby="hero-title">
+        <Chip dot="ok">{HOME_HERO.chip}</Chip>
+        <h1 id="hero-title" className="text-display-sm xs:text-display md:text-display-lg">
+          {HEADLINE.lead} <Quiet>{HEADLINE.quiet}</Quiet>
+        </h1>
+        <p data-hero-sub="" data-depth-load="" style={order(0)}>
+          {sub.lead}
+          <Chip inline>{sub.chips[0]}</Chip>
+          {sub.join}
+          <Chip inline>{sub.chips[1]}</Chip>
+          {sub.end}
+        </p>
+        <div data-hero-actions="">
+          <Step d={1}>
+            <ButtonLink href={CV_LINK.href} variant="secondary">
+              {HOME_HERO.cv}
             </ButtonLink>
-            <div data-hero-cv="" className="hidden md:block">
-              <ButtonLink href={CV_LINK.href} variant="secondary">
-                {CV_LINK.label}
-              </ButtonLink>
-            </div>
-            <ButtonLink href={CONTACT.linkedin} variant="secondary" external>
-              {HOME_HERO.linkedin}
+          </Step>
+          <Step d={2} magnet>
+            <ButtonLink href={CONTACT_HREF} variant="primary">
+              {HOME_HERO.contact}
             </ButtonLink>
-          </div>
+          </Step>
         </div>
-        <div data-hero-evidence="" className="min-w-0 border-t border-line pt-6 lg:col-span-5">
-          <HeroSimulator />
-        </div>
-      </div>
-    </section>
+      </section>
+      <StackBand />
+    </>
   );
 }

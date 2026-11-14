@@ -2,8 +2,8 @@
 
 // The "Step navigation" section of the kitchen sink: StepNav in a demo that owns its state, with a
 // button that changes the step from outside (which must not be announced), then the first, middle,
-// last and single-step states. The demo's step list shows aria-current="step"; the scroll moment
-// that scrolls real steps is built later. Every number here is marked 'simulated'.
+// last and single-step states. The demo's step list shows aria-current="step". Every number here
+// is marked 'simulated'.
 import { useState, useSyncExternalStore } from 'react';
 import { buttonClass } from '@/components/kit/ButtonLink';
 import { derivedAttr } from '@/components/kit/Derived';

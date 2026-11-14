@@ -4,6 +4,7 @@
 // deliberate test change. The recorded verify run is evidence: it is printed exactly as captured, on
 // the fictional document it was captured on, and a page without a captured run says "Not recorded".
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { DOCPROOF_SECTIONS, DOCPROOF_TITLE, DocproofPage } from '@/components/docproof/DocproofPage';
 import { DocproofRunEvidence, VERIFY_RUN } from '../../../content/docproof';
@@ -28,7 +29,7 @@ const section = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</section>', start));
 };
 
-const PAGE = renderToStaticMarkup(<DocproofPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<DocproofPage />));
 const ctx = { route: '/work/docproof', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
 const ORDER = [
@@ -45,7 +46,7 @@ describe('the outline', () => {
     expect(DOCPROOF_TITLE).toBe('Docproof: a multi-agent document pipeline');
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="docproof-title"[^>]*>Docproof: a multi-agent document pipeline<\/h1>/);
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       'Document verification with multi-agent orchestration and automated checks. An open-source project under the MIT licence that I designed and built in 2026, with Claude Code as pair-programmer.',
     );
@@ -262,16 +263,16 @@ describe('truth', () => {
     const derived = [...PAGE.matchAll(/data-derived="([^"]+)"/g)].map((m) => m[1]);
     expect(derived.length).toBeGreaterThan(0);
     expect(new Set(derived)).toEqual(new Set(['build']));
-    // outside the recorded run the page has no numeral but the year
+    // outside the recorded run the page has no numeral but the year: in the intro and in the glance block
     const s = section(PAGE, 'how-i-checked-this');
     const rest = PAGE.replace(s.slice(s.indexOf('<h3')), '');
-    expect(text(rest).match(/\d+/g)).toEqual(['2026']);
+    expect(text(rest).match(/\d+/g)).toEqual(['2026', '2026']);
   });
 });
 
 describe('the route', () => {
   it('renders the page with its own title and description', () => {
-    expect(renderToStaticMarkup(<DocproofRoute />)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<DocproofRoute />))).toBe(PAGE);
     expect(metadata.title).toBe(DOCPROOF_TITLE);
     expect(metadata.description).toBe(
       'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',

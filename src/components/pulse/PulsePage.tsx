@@ -10,6 +10,9 @@
 // (TextTable), because its cells are sentences that wrap. It has no provenance
 // badge: the export is the project's own source code, not public data, and the badge is for charts.
 import type { ReactNode } from 'react';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { CaseHead } from '@/components/work/CaseHead';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
@@ -18,6 +21,7 @@ import {
   PulseDashboardIntro,
   PulseData,
   PulseFindings,
+  PULSE_GLANCE,
   PulseIntro,
   PulseLimits,
   PulseMethod,
@@ -59,8 +63,8 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = PULSE_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`pulse: no section ${id}`);
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
+      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -94,18 +98,13 @@ function SectionLinks() {
 
 export function PulsePage(): ReactNode {
   return (
-    <article aria-labelledby="pulse-page-title" className="py-12 md:py-section">
-      <div className={TEXT}>
-        <h1 id="pulse-page-title" className="text-2xl font-semibold md:text-3xl">
-          {PULSE_TITLE}
-        </h1>
-        <div className="mt-4 text-lg text-muted">
-          <PulseIntro />
-        </div>
-      </div>
+    <article aria-labelledby="pulse-page-title">
+      <CaseHead id="pulse-page-title" chip="Case study" title={PULSE_TITLE} intro={<PulseIntro />} />
 
-      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold">
+      <GlanceBlock {...PULSE_GLANCE} />
+
+      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
+        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
         <div className="mt-4">
@@ -174,6 +173,7 @@ export function PulsePage(): ReactNode {
           <PulseSources />
         </Prose>
       </Section>
+      <PageCallToAction />
     </article>
   );
 }

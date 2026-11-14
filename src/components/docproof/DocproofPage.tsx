@@ -9,6 +9,7 @@ import {
   ARCHITECTURE_CAPTION,
   ARCHITECTURE_STAGES,
   ARCHITECTURE_TITLE,
+  DOCPROOF_GLANCE,
   DocproofArchitecture,
   DocproofIntro,
   DocproofLimits,
@@ -48,6 +49,7 @@ export function DocproofPage(): ReactNode {
       slug="docproof"
       title={DOCPROOF_TITLE}
       intro={<DocproofIntro />}
+      glance={DOCPROOF_GLANCE}
       sections={{
         problem: (
           <div className={TEXT}>

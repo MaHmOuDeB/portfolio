@@ -42,11 +42,22 @@ export const test = base.extend<{ clientIdentity: string; clientNetwork: ClientP
 });
 
 export async function expectNoA11yViolations(page: Page): Promise<void> {
-  // Only violations keep every node; options() replaces the options, so it comes before withTags().
-  const { violations } = await new AxeBuilder({ page })
-    .options({ resultTypes: ['violations'] })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
+  // axe reads the settled page. Scroll-linked and load animations fade elements in while they enter
+  // the viewport, and axe would measure a half-faded colour there, so the scan runs under reduced
+  // motion, where every element is in its final state. The moving state is guarded for real by
+  // motion-contrast.spec.ts.
+  const before = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  let violations: Awaited<ReturnType<AxeBuilder['analyze']>>['violations'];
+  try {
+    // Only violations keep every node; options() replaces the options, so it comes before withTags().
+    ({ violations } = await new AxeBuilder({ page })
+      .options({ resultTypes: ['violations'] })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze());
+  } finally {
+    await page.emulateMedia({ reducedMotion: before ? 'reduce' : 'no-preference' });
+  }
   // Recorded before asserting so scripts/build-meta.ts can sum it from the Playwright JSON report.
   test.info().annotations.push({ type: 'axe-violations', description: String(violations.length) });
   expect(

@@ -164,7 +164,7 @@ export function lintCompiledCss(css: string, file: string): Violation[] {
   postcss.parse(css, { from: file }).walk((node: ChildNode) => {
     if (node.type === 'atrule') {
       const head = `@${node.name} ${node.params}`;
-      if (isKeyframes(node) && !node.params.trim().startsWith('scroll-moment-')) report('no-keyframes', node, head);
+      if (isKeyframes(node) && !/^depth-/.test(node.params.trim())) report('no-keyframes', node, head);
       if (DARK_SCHEME.test(node.params)) report('no-dark', node, head);
     } else if (node.type === 'rule') {
       if (insideAtRule(node, isKeyframes)) return; // `from`, `to` and percentages are not selectors

@@ -2,7 +2,7 @@
 // Playwright's Chromium into public/og/*.png. Pure: the colours come from tokens.css and the font
 // from a URL the caller passes (the vendored Inter as a data URL), so the page loads nothing remote.
 //
-// Layout: the large interval glyph (96 x 16) at the top, then an 80 px title, 32 px lines under it
+// Layout: the large interval glyph (96 x 16) at the top, then a 72 px title, 28 px lines under it
 // and a 24 px footer above a rule, inside 72 px by 80 px padding. The site card's title is the site's
 // headline and its line the role line; a case card's title is its finding and its line the study's
 // name. Both carry the name in the footer. A proof line under the line is optional.
@@ -80,8 +80,8 @@ export function ogHtml(card: OgCard, theme: OgTheme, fontUrl: string): string {
     '.glyph b::before,.glyph b::after{content:"";position:absolute;top:-5.4px;width:2.4px;height:12.8px;background:var(--s1)}',
     '.glyph b::before{left:0}.glyph b::after{right:0}',
     '.glyph i{position:absolute;left:62%;top:1.6px;width:12.8px;height:12.8px;margin-left:-6.4px;border-radius:50%;background:var(--s2);outline:3.2px solid var(--bg)}',
-    'h1{font-size:80px;line-height:1.04;font-weight:600;letter-spacing:-.02em;margin:0;max-width:1040px}',
-    '.sub{font-size:32px;line-height:1.3;color:var(--muted);margin:20px 0 0;font-weight:500;max-width:1040px}',
+    'h1{font-size:72px;line-height:1.04;font-weight:600;letter-spacing:-.02em;margin:0;max-width:1040px}',
+    '.sub{font-size:28px;line-height:1.3;color:var(--muted);margin:20px 0 0;font-weight:500;max-width:1040px}',
     '.sub.proof{margin-top:8px}',
     '.sub strong{color:var(--ink);font-weight:600}',
     '.foot{font-size:24px;color:var(--muted);border-top:1px solid var(--line);padding-top:22px}',

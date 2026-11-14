@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react';
 import { Figure } from '@/components/kit/Figure';
 import {
+  MARKETINGWS_GLANCE,
   MARKETINGWS_STEPS,
   MarketingwsArchitecture,
   MarketingwsChecks,
@@ -49,6 +50,7 @@ export function MarketingwsPage(): ReactNode {
       slug="marketingws"
       title={MARKETINGWS_TITLE}
       intro={<MarketingwsIntro />}
+      glance={MARKETINGWS_GLANCE}
       sections={{
         problem: (
           <div className={TEXT}>

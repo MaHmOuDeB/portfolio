@@ -10,6 +10,7 @@ import {
   N8N_FLOW,
   N8N_FLOW_CAPTION,
   N8N_FLOW_TITLE,
+  N8N_GLANCE,
   N8N_LIMITS,
   N8N_OUTCOME,
   N8N_PROBLEM,
@@ -73,6 +74,7 @@ export function N8nPage(): ReactNode {
       title={N8N_TITLE}
       intro={<N8nIntro />}
       role={<N8nRole />}
+      glance={N8N_GLANCE}
       sections={{
         problem: <Paragraphs items={N8N_PROBLEM} />,
         architecture: (

@@ -9,9 +9,13 @@ const MUST_GENERATE = [
   'font-semibold', 'font-medium', 'font-regular', 'font-sans', 'bg-ink', 'fill-series-2',
   'stroke-series-1', 'text-sm', 'text-xl', 'text-readout', 'text-readout-sm', 'text-display',
   'text-display-sm', 'max-w-text', 'max-w-figure', 'max-w-page', 'rounded-sm', 'rounded-md',
-  'py-section', 'min-h-(--size-target)', 'h-(--chart-h-phone)', 'top-(--header-h)',
+  'py-section', 'min-h-(--size-target)', 'h-(--size-target)', 'top-(--header-h)',
   'z-(--z-header)', 'ease-standard', 'duration-(--duration-base)', 'transition-colors',
   'max-xs:flex-col', 'md:sticky', 'tabular-nums',
+  // The framed look: canvas, hairlines, the quiet clause, tints, on-ink tones, radii and heading type.
+  'bg-surface', 'border-hairline', 'border-hairline-strong', 'text-quiet', 'bg-track', 'bg-tag-tint',
+  'text-on-ink', 'text-on-ink-muted', 'border-rule-on-ink', 'rounded-xl', 'rounded-chip', 'font-heading',
+  'tracking-heading', 'text-h2', 'text-h2-sm',
 ];
 
 const MUST_NOT_GENERATE = [
@@ -53,6 +57,17 @@ describe('tokens.css in Tailwind', () => {
     expect(baseline).toContain(
       '--font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;',
     );
+  });
+
+  test('the framed look: a light grey canvas, white cards, 12 px card radius, a 64 px display size', () => {
+    expect(baseline).toContain('--color-bg: #f7f7f8;');
+    expect(baseline).toContain('--color-surface: #ffffff;');
+    expect(baseline).toContain('--radius-xl: 0.75rem;');
+    expect(baseline).toContain('--radius-md: 0.5rem;');
+    expect(baseline).toContain('--text-display-lg: 4rem;');
+    expect(baseline).toContain('--text-h2: 2.5rem;');
+    expect(baseline).toContain('--font-weight-heading: 550;');
+    expect(baseline).toContain('--tracking-heading: -0.022em;');
   });
 
   test('@theme static emits --color-series-2 with no utility in use', () => {

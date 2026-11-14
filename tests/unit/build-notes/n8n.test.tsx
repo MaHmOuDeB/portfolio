@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { N8N_SECTIONS, N8N_TITLE, N8nPage } from '@/components/n8n/N8nPage';
 import { LIVE_ROUTES } from '@/lib/site';
@@ -24,7 +25,7 @@ import {
 
 const repo = join(import.meta.dirname, '../../..');
 const ROUTE = '/work/n8n';
-const PAGE = renderToStaticMarkup(<N8nPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<N8nPage />));
 const PAGE_TEXT = text(PAGE);
 const COMMIT = '626a254fdccb2ee558dca1f371fdcaa3a4523d8c';
 const BASE = 'https://github.com/MaHmOuDeB/n8n-workflow-library';
@@ -40,8 +41,9 @@ describe('the outline', () => {
     expect(text(intro)).toBe(text(renderToStaticMarkup(<>{work.description}</>)));
   });
 
-  it('is the last Work item', () => {
-    expect(WORK_GROUPS.flatMap((g) => g.items).at(-1)?.href).toBe(ROUTE);
+  it('is the second item of the automation group, after Docproof', () => {
+    const group = WORK_GROUPS.find((g) => g.id === 'automation')!;
+    expect(group.items.map((i) => i.href)).toEqual(['/work/docproof', ROUTE, '/work/marketingws']);
   });
 
   it('follows the build-note template: problem, architecture, checks, outcome, limits, links', () => {
@@ -122,8 +124,8 @@ describe('the copy, word for word', () => {
 });
 
 describe('figures', () => {
-  it('prints the test count through its profile fact, in the intro and the checks', () => {
-    expect(PAGE.match(/data-fact="profile\.n8n\.automated_tests"/g)).toHaveLength(2);
+  it('prints the test count through its profile fact, in the intro, the glance block and the checks', () => {
+    expect(PAGE.match(/data-fact="profile\.n8n\.automated_tests"/g)).toHaveLength(3);
     expect(section(PAGE, 'how-i-checked-this')).toContain('data-fact="profile.n8n.automated_tests"');
   });
 
@@ -198,7 +200,7 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       'Document and process automation in n8n: an e-invoice intake for XRechnung and ZUGFeRD, error alerts, and how it is tested. A portfolio project with no production use.',
     );
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
     expect(LIVE_ROUTES).toContain(ROUTE);
   });
 });

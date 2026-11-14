@@ -1,16 +1,9 @@
-// The Home sample-size planner: its arithmetic (integer percentages, so 29% + 5 points is exactly
-// 34%), the joint normalization of the two inputs (the target never passes 99%), the static URL
-// schema and what a hostile shared URL becomes, the key test that loads the island eagerly, and the
-// server-rendered preset view.
+// The base model of the Lab's sample-size planner: its arithmetic (integer percentages, so 29% + 5
+// points is exactly 34%), the joint normalization of the two inputs (the target never passes 99%),
+// the static URL schema and what a hostile shared URL becomes, the key test that loads an island
+// eagerly, and the result sentence and table.
 import fc from 'fast-check';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { auditHtml } from '../../../scripts/truth-audit.ts';
-import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { hasFigureKeys } from '@/components/figures/EagerOrIntent';
-import { InertPlannerControls } from '@/components/figures/PlannerFigureClient';
-import { PlannerFigureView } from '@/components/figures/PlannerView';
-import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { readFigureParams } from '@/lib/figure/url-state';
 import {
   PLANNER_ALPHA,
@@ -24,9 +17,9 @@ import {
   riseMax,
   type PlannerValues,
 } from '@/lib/lab/planner';
-import { SAMPLE_SIZE_FORMULA, sampleSizePerArm } from '@/lib/stats';
+import { sampleSizePerArm } from '@/lib/stats';
 
-const ID = 'hero-planner';
+const ID = 'planner';
 
 /** What a shared URL shows: the static schema read, then the joint normalization. */
 const fromUrl = (query: string): PlannerValues =>
@@ -129,16 +122,16 @@ describe('URL state', () => {
 
   it('reads hostile shared URLs into a valid pair', () => {
     expect(fromUrl('')).toEqual({ baseline: 0.29, risePoints: 5 });
-    expect(fromUrl('hero-planner.baseline=0.98&hero-planner.risePoints=30')).toEqual({ baseline: 0.98, risePoints: 1 });
-    expect(fromUrl('hero-planner.baseline=abc&hero-planner.risePoints=')).toEqual({ baseline: 0.29, risePoints: 5 });
-    expect(fromUrl('hero-planner.baseline=1e9&hero-planner.risePoints=-5')).toEqual({ baseline: 0.98, risePoints: 1 });
-    expect(fromUrl('hero-planner.baseline=Infinity&hero-planner.risePoints=Infinity')).toEqual({ baseline: 0.98, risePoints: 1 });
-    expect(fromUrl('hero-planner.baseline=0.4&hero-planner.baseline=0.9&hero-planner.risePoints=5.6')).toEqual({
+    expect(fromUrl('planner.baseline=0.98&planner.risePoints=30')).toEqual({ baseline: 0.98, risePoints: 1 });
+    expect(fromUrl('planner.baseline=abc&planner.risePoints=')).toEqual({ baseline: 0.29, risePoints: 5 });
+    expect(fromUrl('planner.baseline=1e9&planner.risePoints=-5')).toEqual({ baseline: 0.98, risePoints: 1 });
+    expect(fromUrl('planner.baseline=Infinity&planner.risePoints=Infinity')).toEqual({ baseline: 0.98, risePoints: 1 });
+    expect(fromUrl('planner.baseline=0.4&planner.baseline=0.9&planner.risePoints=5.6')).toEqual({
       baseline: 0.4,
       risePoints: 6,
     });
-    expect(fromUrl('hero-planner.preset=toString&hero-planner.preset=__proto__')).toEqual({ baseline: 0.29, risePoints: 5 });
-    expect(fromUrl('other.baseline=0.9&hero-plannerx.risePoints=20&baseline=0.5')).toEqual({ baseline: 0.29, risePoints: 5 });
+    expect(fromUrl('planner.preset=toString&planner.preset=__proto__')).toEqual({ baseline: 0.29, risePoints: 5 });
+    expect(fromUrl('other.baseline=0.9&plannerx.risePoints=20&baseline=0.5')).toEqual({ baseline: 0.29, risePoints: 5 });
   });
 
   it('property: any query string reads into a valid pair', () => {
@@ -146,9 +139,9 @@ describe('URL state', () => {
     fc.assert(
       fc.property(value, value, value, (b, r, p) => {
         const query = new URLSearchParams([
-          ['hero-planner.baseline', b],
-          ['hero-planner.risePoints', r],
-          ['hero-planner.preset', p],
+          ['planner.baseline', b],
+          ['planner.risePoints', r],
+          ['planner.preset', p],
         ]).toString();
         const v = fromUrl(query);
         expect(normalizePlanner(v)).toEqual(v);
@@ -163,78 +156,23 @@ describe('hasFigureKeys: what loads the island at once', () => {
   const has = (query: string, ids: readonly string[]) => hasFigureKeys(new URLSearchParams(query), ids);
 
   it('is true for any key in one of the namespaces', () => {
-    expect(has('hero-planner.baseline=0.4', [ID])).toBe(true);
-    expect(has('hero-planner.unknown=1', [ID])).toBe(true);
-    expect(has('hero-planner.preset=default', [ID])).toBe(true);
+    expect(has('planner.baseline=0.4', [ID])).toBe(true);
+    expect(has('planner.unknown=1', [ID])).toBe(true);
+    expect(has('planner.preset=default', [ID])).toBe(true);
     expect(has('other.a=1&second.b=2', ['first', 'second'])).toBe(true);
   });
 
   it('is false for foreign keys, near misses and an empty query', () => {
     expect(has('', [ID])).toBe(false);
     expect(has('other.baseline=0.4', [ID])).toBe(false);
-    expect(has('hero-plannerx.baseline=0.4', [ID])).toBe(false);
-    expect(has('hero-planner=0.4', [ID])).toBe(false);
+    expect(has('plannerx.baseline=0.4', [ID])).toBe(false);
+    expect(has('planner=0.4', [ID])).toBe(false);
     expect(has('baseline=0.4', [ID])).toBe(false);
-    expect(has('hero-planner.baseline=0.4', [])).toBe(false);
+    expect(has('planner.baseline=0.4', [])).toBe(false);
   });
 });
 
-describe('the server-rendered preset view', () => {
-  // As PlannerFigure draws it: the preset with the inert control row.
-  const values = PLANNER_PRESETS.default;
-  const html = renderToStaticMarkup(
-    createElement(PlannerFigureView, { id: ID, values, controls: createElement(InertPlannerControls, { id: ID, values }) }),
-  );
-  const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
-
-  it('shows the preset result and the hypothetical label beside it', () => {
-    expect(text).toContain('1,353');
-    expect(text).toContain('visitors per group');
-    const result = html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
-    expect(result).toContain('Hypothetical sign-up test');
-  });
-
-  it('has exactly one provenance badge, the one the Figure sets from the data\u2019s origin', () => {
-    // A badge is never hand-placed: the Figure draws it from `provenance`. Any badge kind counts.
-    const badges = (['simulated', 'public-data', 'live'] as const).map((kind) => renderToStaticMarkup(createElement(ProvenanceBadge, { kind })));
-    const count = badges.reduce((n, badge) => n + html.split(badge).length - 1, 0);
-    expect(count).toBe(1);
-    expect(html.split(badges[0]!).length - 1).toBe(1);
-    const result = html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
-    expect(result).not.toContain('Simulated');
-  });
-
-  it('says the baseline is hypothetical and names Cohen\u2019s h, two-sided, with the formula in code', () => {
-    // The preset's numbers are the Retention win-back sizing's, so the note claims no independence from the case studies.
-    expect(text).toContain('The baseline is a hypothetical sign-up conversion rate. Sample sizes');
-    expect(text).not.toMatch(/case stud/i);
-    expect(text).toContain("Cohen's h");
-    expect(text).toContain('two-sided');
-    expect(html).toContain(`<code`);
-    expect(html).toMatch(new RegExp(`<code[^>]*>${SAMPLE_SIZE_FORMULA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</code>`));
-  });
-
-  it('has the open table without JavaScript and no stray number for the truth audit', () => {
-    expect(html).toContain('Controls need JavaScript.');
-    expect(html).toContain(`id="${ID}-table-caption"`);
-    const findings = auditHtml(`<!doctype html><html><body>${html}</body></html>`, {
-      route: '/kitchen-sink/home',
-      factIds: new Set(Object.keys(FACTS)),
-      factDisplays: FACT_DISPLAYS,
-      denylist: [],
-    });
-    expect(findings).toEqual([]);
-  });
-
-  it('names no group, prints no arrow or middle dot outside the formula, and uses no digit in the title', () => {
-    const outsideCode = text.replace(SAMPLE_SIZE_FORMULA, '');
-    expect(outsideCode).not.toMatch(/[←-⇿·]/);
-    expect(outsideCode).not.toMatch(/\barm\b/i);
-    const title = html.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? '';
-    expect(title).not.toBe('');
-    expect(title).not.toMatch(/\d/);
-  });
-
+describe('the result sentence and the table', () => {
   it('table and result sentence follow the values', () => {
     const v = { baseline: 0.89, risePoints: 10 };
     expect(resultSentence(v)).toBe(`${planModel(v).nPerArm.toLocaleString('en-GB')} visitors per group to detect a rise from 89% to 99%`);

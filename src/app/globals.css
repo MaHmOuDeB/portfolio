@@ -221,199 +221,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /*
- * The Home scroll moment (components/home/ScrollMoment.tsx). The server sends both layouts and these
- * rules pick one before the first paint, from the JavaScript flag, the reduced-motion setting and the
- * screen size; nothing is swapped when the page hydrates. The inactive layout's parts are
- * display: none, so each layout has one drawn chart and one table.
- * - Stacked still frames by default: without JavaScript, with reduced motion, on short screens, and
- *   whenever the moment has no kit chart (data-scroll-moment="stacked" has no stage at all).
- * - Sticky from 1024 px (64rem) wide on a screen at least 520 px (32.5rem) tall: two columns, the
- *   steps beside the stage (the chart's canvas and the step navigation).
- * - Sticky below 1024 px on a screen at least 600 px (37.5rem) tall: one column, the stage above the
- *   steps. The canvas holds the chart's box at --chart-h-phone (40svh) from the first paint, so the
- *   Now row and the step navigation under it never move; HomeChart sizes its plot from the same
- *   height and is hidden until it has measured it.
- * - The stage sits under the header where the header is sticky (the condition in @layer base above).
- */
-[data-scroll-stage] {
-  display: none;
-}
-
-@media (prefers-reduced-motion: no-preference) and (width >= 64rem) and (height >= 32.5rem),
-  (prefers-reduced-motion: no-preference) and (width < 64rem) and (height >= 37.5rem) {
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
-    display: block;
-    position: sticky;
-    top: 0;
-    z-index: var(--z-chart);
-  }
-
-  html[data-js] [data-scroll-moment="sticky"] [data-stacked-frame] {
-    display: none;
-  }
-
-  /* Each step is at least 70svh, so one step at a time crosses the observer's thin trigger band. */
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-step] {
-    min-height: 70svh;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) and (width < 64rem) and (height >= 37.5rem) {
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
-    margin-bottom: calc(var(--spacing) * 6);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-canvas] :is([data-home-chart-sizer], [data-chart]) {
-    height: var(--chart-h-phone);
-  }
-
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-canvas] [data-home-chart]:not([data-measured]) [data-chart] {
-    visibility: hidden;
-  }
-
-  /*
-   * The stage covers the top of the screen here, so a focused element or a step the navigation
-   * scrolls to lands under it, never behind it (WCAG 2.2 SC 2.4.11): its measured height
-   * (--scroll-stage-h, set by ScrollShell) and a gap. This adds to the page's scroll-padding for the
-   * header, which is right where the stage sits under the sticky header. Before the page has measured
-   * the stage, its usual height stands in: 40svh and the Now row and step navigation under it.
-   */
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-step],
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-steps] :is(a[href], button, input, select, textarea, summary, [tabindex]) {
-    scroll-margin-top: calc(var(--scroll-stage-h, calc(var(--chart-h-phone) + 11rem)) + 1rem);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) and (width >= 64rem) and (height >= 32.5rem) {
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-shell] {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: start;
-    column-gap: calc(var(--spacing) * 14);
-  }
-
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
-    grid-row: 1;
-    grid-column: 2;
-  }
-
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-steps] {
-    grid-row: 1;
-    grid-column: 1;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) and (width >= 48rem) and (height >= 43.75rem) {
-  html[data-js] [data-scroll-moment="sticky"] [data-scroll-stage] {
-    top: var(--header-h);
-  }
-}
-
-/*
- * The canvas holds one layer per distinct chart, all in one grid cell. The current step's layer is
- * shown; a layer that stops being shown fades out while the new one fades in, in opacity only, over
- * the step duration (0 under reduced motion, which also stacks the moment, so a fade cut midway
- * snaps). A hidden layer is visibility: hidden once faded, so it is out of the accessibility tree.
- */
-[data-scroll-canvas] {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-[data-canvas-layer] {
-  grid-area: 1 / 1;
-  min-width: 0;
-  transition:
-    opacity var(--duration-step) var(--ease-standard),
-    visibility 0s linear var(--duration-step);
-}
-
-[data-canvas-layer]:not([data-active]) {
-  opacity: 0;
-  visibility: hidden;
-}
-
-[data-canvas-layer][data-active] {
-  transition-delay: 0s;
-}
-
-/* Reduced motion: no fade at all, and one already running stops at its end (ScrollShell finishes it too). */
-@media (prefers-reduced-motion: reduce) {
-  [data-canvas-layer] {
-    transition: none;
-  }
-}
-
-/*
- * "Your view", the muted x-axis tick the kit draws once this visit is counted, fades in once over the
- * step duration: ScrollShell sets data-tick-fade for that long only, so a chart redrawn later shows
- * the tick still. The window starts with the count, not with the first drawing, so a count that
- * arrives before the chart has loaded shows the tick without a fade.
- */
-@keyframes scroll-moment-your-view {
-  from {
-    opacity: 0;
-  }
-}
-
-[data-tick-fade] [data-your-view] {
-  animation: scroll-moment-your-view var(--duration-step) var(--ease-standard);
-}
-
-/*
- * A live chart that failed (HomeChart's own boundary shows its fallback: a sentence and an open table
- * that can be long), or whose code could not load (the island's preview is marked failed), or that a
- * phone's canvas waited for too long (ScrollShell's data-chart-late; that drop is final), drops the
- * moment to its stacked frames: the canvas hides, so the stage keeps only the step navigation and
- * never covers the steps, and each step's stacked frame shows its chart, the server's drawing of it or
- * its fallback. Both copies of a chart get the same input, so whichever failed, the frames are what
- * shows. The chart Figure's own table hides when the visible frame holds the fallback, whose table
- * replaces it.
- */
-html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-scroll-canvas],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-scroll-canvas],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-late]) [data-scroll-canvas] {
-  display: none;
-}
-
-html[data-js] [data-scroll-moment="sticky"]:has([data-home-chart] > [data-figure-fallback]) [data-stacked-frame],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-canvas] [data-island="failed"]) [data-stacked-frame],
-html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-late]) [data-stacked-frame] {
-  display: block;
-}
-
-[data-figure="home-chart"]:has([data-stacked-frame] [data-home-chart] > [data-figure-fallback])
-  > figcaption > [data-figure-tables] {
-  display: none;
-}
-
-/*
- * Until HomeChart has measured its box, the server's chart shows the layout its container holds (the
- * kit's own switch follows the viewport), so a narrow column never shows the wide layout first. 640 px
- * is HomeChart's narrow threshold.
- */
-@container (width < 640px) {
-  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="wide"] {
-    display: none;
-  }
-
-  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="narrow"] {
-    display: block;
-  }
-}
-
-@container (width >= 640px) {
-  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="narrow"] {
-    display: none;
-  }
-
-  [data-home-chart]:not([data-measured]) svg[data-chart-frame][data-layout="wide"] {
-    display: block;
-  }
-}
-
-/*
  * Forced colours (Windows high contrast). Unlayered, so the bg utilities cannot undo them. The
  * selected segment's ink fill is dropped there, so a Highlight border names it; the slider keeps a
  * visible thumb and a Highlight active track.
@@ -437,6 +244,37 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
     border-color: Canvas;
     background: CanvasText;
   }
+
+  /* Text on ink. Chromium forces an ink fill to Canvas but keeps the light text tones (the bg and
+     surface tokens), and WebKit keeps both the fill and the text, so neither engine is left to pick:
+     every ink surface names a system colour pair for its fill and its text. The panels (the footer,
+     the call to action, an ink tile, the live bar, the dark sheet of the Home band) take Canvas and
+     CanvasText, their links LinkText; a fill set by a utility with light text on it (the selected
+     segment, the skip link) takes Canvas and CanvasText, and a link or button drawn that way
+     ButtonFace and ButtonText. Important, because the on-ink rules elsewhere are as specific or more.
+     The pairs land at once: a link's colour transition would otherwise fade its light tone out after
+     the switch, light text on Canvas for that moment. */
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]),
+  :is(.bg-ink, .bg-muted):is(.text-bg, .text-surface),
+  [class~="focus:bg-ink"]:focus {
+    background-color: Canvas !important;
+    color: CanvasText !important;
+    transition: none !important;
+  }
+
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) * {
+    color: CanvasText !important;
+    transition: none !important;
+  }
+
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) a {
+    color: LinkText !important;
+  }
+
+  :is(a, button):is(.bg-ink, .bg-muted):is(.text-bg, .text-surface) {
+    background-color: ButtonFace !important;
+    color: ButtonText !important;
+  }
 }
 
 /*
@@ -453,4 +291,2260 @@ html[data-js] [data-scroll-moment="sticky"]:has([data-scroll-shell][data-chart-l
 /* A4 and Letter alike: margins the printer can reach, so the content box is the page's. */
 @page {
   margin: 16mm 18mm;
+}
+
+/*
+ * Header surface: the page's plain white with a hairline. No backdrop blur: a cover thin enough to
+ * show the blur fails the nav text's contrast over a dark region, and a backdrop filter anywhere on
+ * the page makes Chromium draw all of its text without subpixel antialiasing, which softens every
+ * page on a standard Windows screen for an effect that an opaque enough cover hides anyway.
+ */
+@layer base {
+  [data-site-header] {
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  /* Where the header does not stick it is still the hairline's positioning context. */
+  @media not ((width >= 48rem) and (height >= 43.75rem)) {
+    [data-site-header] {
+      position: relative;
+    }
+  }
+}
+
+/*
+ * The frame: the page's content column (main, data-frame) carries a hairline rail at each side, and
+ * an element with data-rule is ruled off by a top hairline that runs from rail to rail: it takes
+ * back the column's side padding (--frame-pad, the same 16 and 32 px as main's px-4 and md:px-8)
+ * with a negative margin and gives it back as its own padding, so its content still lines up.
+ * Use data-rule on an element that sits directly in the column, never inside a padded card.
+ */
+@layer components {
+  [data-frame] {
+    --frame-pad: calc(var(--spacing) * 4);
+
+    border-inline: 1px solid var(--color-hairline);
+  }
+
+  @media (width >= 48rem) {
+    [data-frame] {
+      --frame-pad: calc(var(--spacing) * 8);
+    }
+  }
+
+  [data-rule] {
+    margin-inline: calc(var(--frame-pad, 0) * -1);
+    padding-inline: var(--frame-pad, 0);
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  /* Chips: a small label above a headline, or inline in a sentence. Text, never a link. */
+  [data-chip] {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-chip);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0;
+  }
+
+  [data-chip-dot] {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--color-ok);
+  }
+
+  [data-chip-dot="live"] {
+    background: var(--color-series-2);
+  }
+
+  /* Inline: on the sentence's baseline, as tall as its line. */
+  [data-chip][data-inline] {
+    min-height: 26px;
+    margin: 0 2px;
+    vertical-align: baseline;
+  }
+
+  [data-chip][data-on-ink] {
+    border-color: var(--color-rule-on-ink);
+    background: var(--color-clear);
+    color: var(--color-surface);
+  }
+
+  /* Section and page heads: chip, headline, sub. */
+  [data-section-head] {
+    padding-block: calc(var(--spacing) * 16) calc(var(--spacing) * 7);
+  }
+
+  @media (width >= 48rem) {
+    [data-section-head] {
+      padding-top: calc(var(--spacing) * 21);
+    }
+  }
+
+  [data-section-head][data-align="center"] {
+    text-align: center;
+  }
+
+  [data-section-head] h2,
+  [data-page-head] h1 {
+    margin: calc(var(--spacing) * 4.5) 0 0;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+
+  [data-section-head] p,
+  [data-page-head] p {
+    margin-top: calc(var(--spacing) * 3.5);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+
+  [data-page-head] {
+    padding-block: calc(var(--spacing) * 12) calc(var(--spacing) * 8);
+  }
+
+  @media (width >= 48rem) {
+    [data-page-head] {
+      padding-top: calc(var(--spacing) * 16);
+    }
+  }
+
+  /* Split: from lg the chip and the headline at the left, the sub at the right, on the last line. */
+  @media (width >= 64rem) {
+    [data-section-head][data-align="split"] {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: calc(var(--spacing) * 10);
+      align-items: end;
+    }
+
+    [data-section-head][data-align="split"] > [data-chip] {
+      grid-column: 1;
+      justify-self: start;
+    }
+
+    [data-section-head][data-align="split"] > h2 {
+      grid-column: 1;
+    }
+
+    [data-section-head][data-align="split"] > p {
+      grid-column: 2;
+      grid-row: 2;
+      margin-top: 0;
+    }
+  }
+
+  /* FAQ: hairline rows; the chevron turns when its row is open (a colour-free, visitor-led motion). */
+  [data-faq-list] {
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  [data-faq-row] {
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  [data-faq-chevron] {
+    display: inline-flex;
+    flex: none;
+    color: var(--color-muted);
+    transition: rotate var(--duration-fast) var(--ease-standard);
+  }
+
+  [data-faq-row][open] [data-faq-chevron] {
+    rotate: 180deg;
+  }
+
+  [data-faq-answer] {
+    max-width: var(--container-text);
+    padding-bottom: calc(var(--spacing) * 5);
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
+
+  /* The call to action: an ink panel, text at the left and an optional media slot at the right. */
+  [data-cta] {
+    display: grid;
+
+    /* One column no wider than the panel: an auto track takes its widest word or button and spills
+       out of the panel when the text is enlarged. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(var(--spacing) * 10);
+    align-items: center;
+    padding: calc(var(--spacing) * 10) calc(var(--spacing) * 6);
+  }
+
+  @media (width >= 48rem) {
+    [data-cta] {
+      padding: calc(var(--spacing) * 14) calc(var(--spacing) * 12);
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-cta]:has(> [data-cta-media]) {
+      grid-template-columns: 1.1fr 1fr;
+    }
+  }
+
+  [data-cta-media] {
+    min-width: 0;
+  }
+
+  /* The quiet clause, only inside an h1 or h2 (large text): ink at 50% on the canvas, the quiet
+     on-ink tone on an ink panel. */
+  :is(h1, h2) [data-quiet] {
+    color: var(--color-quiet);
+  }
+
+  :is([data-tile="ink"], [data-ink]) :is(h1, h2) [data-quiet] {
+    color: var(--color-on-ink-muted);
+  }
+
+  /* The vignette: the bottom of a card, a hairline above it, the canvas fading into white, and a
+     sheet that bleeds off the bottom right. It takes back the card's side padding (--card-pad). */
+  [data-vignette] {
+    position: relative;
+    flex: none;
+    height: 168px;
+    margin: auto calc(var(--card-pad, 0) * -1) 0;
+    overflow: clip;
+    border-top: 1px solid var(--color-hairline);
+    background: linear-gradient(var(--color-bg), var(--color-surface));
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--color-ink);
+  }
+
+  [data-vignette-label] {
+    position: absolute;
+    top: 4px;
+    right: var(--card-pad, 12px);
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    color: var(--color-muted);
+  }
+
+  [data-vignette-sheet] {
+    position: absolute;
+    inset: 22px -30px -12px var(--card-pad, 12px);
+    padding: 12px 14px;
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: 10px 0 0;
+    background: var(--color-surface);
+  }
+
+  [data-mini-row] {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    height: 34px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  [data-mini-label] {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  [data-mini-track] {
+    position: relative;
+    height: 18px;
+  }
+
+  [data-interval-mark] {
+    position: absolute;
+    inset: 0;
+  }
+
+  [data-interval-bar] {
+    position: absolute;
+    top: 50%;
+    left: var(--l);
+    width: var(--w);
+    height: 2px;
+    margin-top: -1px;
+    background: var(--color-series-1);
+  }
+
+  [data-interval-bar]::before,
+  [data-interval-bar]::after {
+    content: "";
+    position: absolute;
+    top: -5px;
+    width: 2px;
+    height: 12px;
+    background: var(--color-series-1);
+  }
+
+  [data-interval-bar]::before {
+    left: 0;
+  }
+
+  [data-interval-bar]::after {
+    right: 0;
+  }
+
+  [data-interval-dot] {
+    position: absolute;
+    top: 50%;
+    left: var(--d);
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: var(--color-series-2);
+    outline: 2px solid var(--color-surface);
+  }
+
+  [data-tag] {
+    display: inline-flex;
+    align-items: center;
+    justify-self: end;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 5px;
+    background: var(--color-track);
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0;
+  }
+
+  [data-tag="tint"] {
+    background: var(--color-tag-tint);
+    color: var(--color-series-1);
+  }
+
+  /* The passed-step check. Not named data-tick: the kit's axis tick labels carry data-tick, and
+     this fill behind them dropped their contrast. */
+  [data-check] {
+    position: relative;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--color-series-1);
+  }
+
+  [data-check]::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    width: 4px;
+    height: 7px;
+    border: solid var(--color-surface);
+    border-width: 0 1.5px 1.5px 0;
+    rotate: 45deg;
+  }
+}
+
+/* On ink (the footer, an ink tile, the call to action) the focus ring is light: accent on ink is
+   below 3:1. In base, like the ring itself, so a utility can still override it. */
+@layer base {
+  :is([data-ink], [data-tile="ink"]) :focus-visible {
+    outline-color: var(--color-surface);
+  }
+}
+
+/*
+ * Headings at the display and h2 sizes: weight 550 and tracking -0.022em. Unlayered on purpose, so a
+ * font-semibold utility left on such a heading does not win.
+ */
+:is(h1, h2, h3):is([class*="text-display"], [class*="text-h2"]) {
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-heading);
+
+  /* A long word breaks rather than overflow, so text-only enlargement never scrolls sideways. */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Depth: one idea, evidence arrives in depth and settles flat. Four devices, keyed on data
+ * attributes so a component needs no CSS of its own. In a layer, so a utility class on the same
+ * element still wins. Reduced motion and browsers without scroll timelines get the final, static
+ * state (the block at the end of this section).
+ */
+@keyframes depth-rise {
+  0% {
+    opacity: 0;
+    translate: 0 80px;
+    rotate: x 22deg;
+    scale: 0.92;
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    rotate: x 0deg;
+    scale: 1;
+  }
+}
+
+@keyframes depth-load {
+  0% {
+    opacity: 0;
+    translate: 0 24px;
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* The band: the rig turns from its isometric pose to face the reader, the three sheets slide from a
+   stack into a row, the two links draw between them, all on the band's own view timeline. */
+@keyframes depth-rig {
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-sheet-1 {
+  from {
+    transform: translate3d(530px, -195px, 200px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-sheet-2 {
+  from {
+    transform: translate3d(85px, -98px, 100px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-sheet-3 {
+  from {
+    transform: translate3d(-360px, 0, 0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* A sheet's edge slides back under its face as the stack unfolds. */
+@keyframes depth-slab {
+  to {
+    translate: none;
+  }
+}
+
+@keyframes depth-link {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* The sheets arrive once on load, from a little nearer the reader. */
+@keyframes depth-sheet-arrive {
+  0% {
+    opacity: 0;
+    translate: 0 0 110px;
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    translate: 0 0 0;
+  }
+}
+
+/* The test sheet's intervals close once on load. */
+@keyframes depth-close {
+  from {
+    transform: scaleX(1.8);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes depth-progress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes depth-rise-heading {
+  0% {
+    opacity: 0;
+    translate: 0 40px;
+    rotate: x 10deg;
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    rotate: x 0deg;
+  }
+}
+
+@keyframes depth-draw {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes depth-book-left {
+  0% {
+    opacity: 0;
+    rotate: y var(--book-angle, 14deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    rotate: y 0deg;
+  }
+}
+
+@keyframes depth-book-right {
+  0% {
+    opacity: 0;
+    rotate: y calc(var(--book-angle, 14deg) * -1);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    rotate: y 0deg;
+  }
+}
+
+@keyframes depth-ribbon {
+  from {
+    translate: 0 0;
+  }
+
+  to {
+    translate: min(0px, calc(100cqi - 100%)) 0;
+  }
+}
+
+@keyframes depth-scale {
+  0% {
+    opacity: 0;
+    scale: 0.8;
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes depth-parallax {
+  from {
+    translate: 0 calc(var(--p, 40) * 1px);
+  }
+
+  to {
+    translate: 0 calc(var(--p, 40) * -1px);
+  }
+}
+
+/* Drift: an arrival along a diagonal out of depth from a named corner of the section. Each drift
+   carries its own perspective, with the vanishing point at its corner (its transform origin), so it
+   recedes into that corner rather than toward the middle of its parent. */
+@keyframes depth-drift-bl {
+  0% {
+    opacity: 0;
+    transform: perspective(87.5rem) translate3d(-32px, 72px, -260px) rotateY(8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-br {
+  0% {
+    opacity: 0;
+    transform: perspective(87.5rem) translate3d(32px, 72px, -260px) rotateY(-8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-tr {
+  0% {
+    opacity: 0;
+    transform: perspective(87.5rem) translate3d(32px, -32px, -200px) rotateY(-8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* From the top left, once on load and by transform only: About's portrait is in the first screen
+   (and may be its largest paint), so it never fades. Its perspective is its own, with the vanishing
+   point at its top left corner: the parent is the whole first screen, whose centre would pull the
+   portrait in from below instead. No turn, so the photo keeps its 4 by 5 shape at every frame. */
+@keyframes depth-drift-tl {
+  from {
+    transform: perspective(87.5rem) translate3d(-32px, -32px, -200px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* The focus pull, the one clip-path animation on the site: the frame opens from a smaller inset while
+   the photo inside settles from a little larger. No blur. */
+@keyframes depth-focus {
+  from {
+    clip-path: inset(10% round 12px);
+  }
+
+  to {
+    clip-path: inset(0 round 12px);
+  }
+}
+
+@keyframes depth-focus-in {
+  from {
+    transform: scale(1.08);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* Turn: the Hinge on a centre axis, used once (the site-test sketch). It ends on the sketch's own
+   resting tilt, its base style, so it has no last keyframe. */
+@keyframes depth-turn {
+  from {
+    transform: perspective(56rem) rotateY(-28deg) rotateX(10deg) translateZ(-120px);
+  }
+}
+
+/* The case study's "at a glance" card lifts once on load from a shallow lid angle. Its perspective
+   is its own (the function, not the parent's property): its parent is the whole page column, whose
+   vanishing point sits far below the card and would drag it down the screen. */
+@keyframes depth-hinge-load {
+  from {
+    transform: perspective(87.5rem) rotateX(24deg) translateZ(-80px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* Trace: nothing moves, a hairline draws or a dot appears. */
+@keyframes depth-trace-x {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-trace-y {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-dot {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* Hinge: a surface rotates up on its bottom edge like a lid. */
+@keyframes depth-hinge {
+  from {
+    transform: rotateX(72deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@layer components {
+  /* 1. The hero, centred: chip, two-tone h1, the sub with two inline chips, two buttons. */
+  [data-hero] {
+    padding: calc(var(--spacing) * 14) 0 calc(var(--spacing) * 12);
+    text-align: center;
+  }
+
+  @media (width >= 48rem) {
+    [data-hero] {
+      padding: calc(var(--spacing) * 18) 0 calc(var(--spacing) * 14);
+    }
+  }
+
+  [data-hero] h1 {
+    margin: calc(var(--spacing) * 5.5) auto 0;
+    max-width: 16em;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+
+  [data-hero-sub] {
+    max-width: 36em;
+    margin: calc(var(--spacing) * 5.5) auto 0;
+    color: var(--color-muted);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+
+  [data-hero-actions] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: calc(var(--spacing) * 2.5);
+    margin-top: calc(var(--spacing) * 7.5);
+  }
+
+  /* 2. The band: a framed stage under the hero, from rail to rail, with a faint dot grid that fades
+     toward the middle. Three sheets (test, agents, recommendation) and two links sit on the rig,
+     which the tilt leans toward a fine pointer (--mx, --my in -1..1, set by Lean). The rig is laid out
+     at its full 1040 px and scaled (--k) to the column. Wide screens rest in the isometric pose,
+     stacked; the pin block below unfolds it with the scroll; below lg it is a static column. */
+  [data-depth-band] {
+    margin-inline: calc(var(--frame-pad, 0) * -1);
+  }
+
+  [data-depth-pin] {
+    position: relative;
+    padding: calc(var(--spacing) * 10) var(--frame-pad, 0) calc(var(--spacing) * 6);
+    border-block: 1px solid var(--color-hairline);
+    background-image: radial-gradient(circle, var(--color-dot) 1px, var(--color-clear) 1.4px);
+    background-position: center;
+    background-size: 22px 22px;
+  }
+
+  [data-depth-pin]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 62% 70% at 50% 46%, var(--color-bg) 40%, var(--color-clear) 100%);
+    pointer-events: none;
+  }
+
+  [data-depth-stack] {
+    --k: 1;
+
+    position: relative;
+    display: grid;
+    height: 540px;
+
+    /* One column the stage's own width: the rig is laid out at 1040 px and scaled, so it may be wider
+       than the column before its scale and must stay centred on it. */
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    place-items: unsafe center;
+    perspective: 1700px;
+    perspective-origin: 50% 38%;
+  }
+
+  @media (width < 72rem) {
+    [data-depth-stack] {
+      --k: 0.88;
+    }
+  }
+
+  [data-depth-tilt] {
+    transform-style: preserve-3d;
+    transform: rotateX(calc(var(--my, 0) * -4deg)) rotateY(calc(var(--mx, 0) * 6deg));
+    scale: var(--k);
+    transition: transform var(--duration-lean) var(--ease-standard);
+  }
+
+  [data-depth-rig] {
+    position: relative;
+    width: 1040px;
+    height: 210px;
+    transform-style: preserve-3d;
+    transform: translate(-75px, 122px) rotateX(52deg) rotateZ(-34deg) scale(1.1);
+  }
+
+  [data-depth-sheet] {
+    position: absolute;
+    top: 0;
+    width: 320px;
+    height: 210px;
+    padding: 16px 18px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-align: left;
+
+    /* Flat: the sheet is one plane in the rig's single 3D context, so its text is drawn once in that
+       plane and never sorted in depth. Isolated, so its face and edge paint under its own content. */
+    isolation: isolate;
+  }
+
+  /* The sheet's face and its edge, both flat in the sheet's plane: the face carries the border and
+     the fill, the edge is a slab offset toward the bottom of the screen in the stacked pose, so the
+     stack reads as three sheets with thickness. The edge slides back under the face as the stack
+     unfolds and sits hidden behind it in the row. */
+  [data-depth-sheet]::before,
+  [data-depth-sheet]::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+  }
+
+  [data-depth-sheet]::before {
+    z-index: -1;
+    border: 1px solid var(--color-hairline-strong);
+    background: var(--color-surface);
+  }
+
+  [data-depth-sheet]::after {
+    z-index: -2;
+    background: var(--color-hairline-strong);
+    translate: -6px 8px;
+  }
+
+  [data-depth-sheet] > * {
+    position: relative;
+  }
+
+  [data-depth-sheet="1"] {
+    left: 0;
+    transform: translate3d(530px, -195px, 200px);
+  }
+
+  [data-depth-sheet="2"] {
+    left: 360px;
+    transform: translate3d(85px, -98px, 100px);
+  }
+
+  [data-depth-sheet="3"] {
+    left: 720px;
+    color: var(--color-surface);
+  }
+
+  [data-depth-sheet="3"]::before {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+  }
+
+  /* The ink sheet's light: a soft disc under the content, clipped to the sheet, that follows a fine
+     pointer (the pointer block shows it). */
+  [data-depth-glow] {
+    display: none;
+  }
+
+  [data-depth-sheet="3"]::after {
+    background: var(--color-sheet-edge-ink);
+  }
+
+  /* The two links between the sheets in the row: hidden while stacked, drawn as the stack unfolds. */
+  [data-depth-link] {
+    position: absolute;
+    top: 104px;
+    width: 40px;
+    height: 1.5px;
+    background: var(--color-ink);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  [data-depth-link]::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-ink);
+  }
+
+  [data-depth-link="1"] {
+    left: 320px;
+  }
+
+  [data-depth-link="2"] {
+    left: 680px;
+  }
+
+  /* The sheet's content arrives once on load, the recommendation first (--n). */
+  [data-depth-arrive] {
+    display: block;
+    height: 100%;
+    animation: depth-sheet-arrive var(--duration-arrive) var(--ease-standard) both;
+    animation-delay: calc(var(--n, 0) * 140ms + 200ms);
+  }
+
+  [data-depth-sheet-head] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+
+  [data-depth-sheet-head] b {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.8125rem;
+    font-weight: var(--font-weight-semibold);
+  }
+
+  [data-depth-sheet-head] b::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid currentcolor;
+    border-radius: 4px;
+    opacity: 0.55;
+  }
+
+  [data-depth-sheet-head] span {
+    color: var(--color-muted);
+  }
+
+  [data-depth-sheet="3"] [data-depth-sheet-head] span {
+    color: var(--color-on-ink);
+  }
+
+  [data-depth-table] {
+    margin-top: 14px;
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  [data-depth-table] [data-mini-row] {
+    grid-template-columns: 54px 1fr 58px;
+    height: 42px;
+  }
+
+  [data-depth-close] [data-interval-bar] {
+    animation: depth-close 1000ms var(--ease-standard) both;
+    animation-delay: 700ms;
+  }
+
+  [data-depth-foot] {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  [data-depth-log] {
+    margin: 14px 0 0;
+    padding: 0;
+    border-top: 1px solid var(--color-hairline);
+    list-style: none;
+  }
+
+  [data-depth-log] li {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center;
+    gap: 6px;
+    height: 42px;
+    border-bottom: 1px solid var(--color-hairline);
+    font-weight: var(--font-weight-medium);
+  }
+
+  [data-depth-log] em {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: var(--font-weight-regular);
+  }
+
+  [data-depth-verdict] {
+    margin: 26px 0 0;
+    font-size: 2.125rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-weight: var(--font-weight-heading);
+  }
+
+  [data-depth-why] {
+    max-width: 22em;
+    margin: 10px 0 0;
+    color: var(--color-on-ink);
+  }
+
+  [data-depth-toast] {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--color-rule-on-ink);
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  [data-depth-toast]::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-series-2);
+  }
+
+  [data-depth-caption] {
+    position: relative;
+    margin: 0;
+    padding-top: calc(var(--spacing) * 1.5);
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* Below lg: the three sheets as a static column, no pose, no lean, no links. */
+  @media (width < 64rem) {
+    [data-depth-pin] {
+      padding-top: calc(var(--spacing) * 8);
+    }
+
+    [data-depth-stack] {
+      --k: 1;
+
+      display: block;
+      height: auto;
+
+      /* Block layout reads justify-items too: centred, the column would shrink-wrap the sheets and
+         spill past a narrow stage when the text is enlarged. Stretched, it is the stage's width. */
+      place-items: normal;
+      perspective: none;
+    }
+
+    [data-depth-tilt] {
+      transform: none;
+    }
+
+    [data-depth-rig] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: calc(var(--spacing) * 3);
+      width: auto;
+      height: auto;
+      transform: none;
+    }
+
+    [data-depth-sheet] {
+      position: static;
+      width: min(320px, 100%);
+      transform: none;
+    }
+
+    /* The title and its note share a row while they fit and wrap when the text is enlarged. */
+    [data-depth-sheet-head] {
+      flex-wrap: wrap;
+    }
+
+    [data-depth-sheet]::after {
+      content: none;
+    }
+
+    [data-depth-link] {
+      display: none;
+    }
+
+    [data-depth-caption] {
+      padding-top: calc(var(--spacing) * 4);
+    }
+  }
+
+  /* 3. The live bar: an ink strip from rail to rail at the top of Home's content, the note centred. */
+  [data-live-bar] {
+    margin-inline: calc(var(--frame-pad, 0) * -1);
+    padding: calc(var(--spacing) * 1) var(--frame-pad, 0);
+    background: var(--color-ink);
+    color: var(--color-on-ink);
+    text-align: center;
+  }
+
+  [data-live-bar-in] div:has(> p + a) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    column-gap: calc(var(--spacing) * 3);
+  }
+
+  [data-live-bar-in] p {
+    margin: 0;
+  }
+
+  /* 4. The experience band: a small centred line, then the two groups of names. */
+  [data-experience] {
+    padding-block: calc(var(--spacing) * 10);
+    text-align: center;
+  }
+
+  [data-experience-title] {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
+  [data-experience-groups] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: calc(var(--spacing) * 6) calc(var(--spacing) * 16);
+    margin-top: calc(var(--spacing) * 6);
+  }
+
+  [data-experience-group] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  /* The hairline under a group's label (it draws from the centre where motion is allowed). */
+  [data-experience-rule] {
+    display: block;
+    align-self: stretch;
+    height: 1px;
+    background: var(--color-hairline);
+  }
+
+  [data-experience-names] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 1.125rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: -0.012em;
+    line-height: 1.3;
+  }
+
+  /* 5. Proof: four cells ruled by hairlines (one column on a phone, two from sm, four from lg), each
+     with its side, its number and a caption. The section is ruled from rail to rail. */
+  [data-home-proof] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (width >= 40rem) {
+    [data-home-proof] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-home-proof] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  [data-proof] {
+    position: relative;
+    padding: calc(var(--spacing) * 7) calc(var(--spacing) * 6) calc(var(--spacing) * 7.5);
+    border-top: 1px solid var(--color-hairline);
+    border-left: 1px solid var(--color-hairline);
+  }
+
+  [data-proof]:first-child {
+    border-top: 0;
+  }
+
+  @media (width < 40rem) {
+    [data-proof] {
+      padding-inline: 0;
+      border-left: 0;
+    }
+  }
+
+  @media (width >= 40rem) {
+    [data-proof]:nth-child(-n + 2) {
+      border-top: 0;
+    }
+
+    [data-proof]:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-proof] {
+      border-top: 0;
+    }
+
+    [data-proof]:nth-child(odd) {
+      padding-left: calc(var(--spacing) * 6);
+      border-left: 1px solid var(--color-hairline);
+    }
+
+    [data-proof]:first-child {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+
+  [data-proof-side] {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  /* One line at every width: the words around a number are a smaller unit. */
+  [data-proof-figure] {
+    margin-top: calc(var(--spacing) * 2.5);
+    font-size: 2.5rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-weight: var(--font-weight-heading);
+    white-space: nowrap;
+  }
+
+  [data-proof-unit] {
+    font-size: 0.45em;
+    letter-spacing: 0;
+    font-weight: 500;
+  }
+
+  [data-proof-caption] {
+    margin: calc(var(--spacing) * 3) 0 0;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+    color: var(--color-muted);
+  }
+
+  /* 6. Lean: a card follows a fine pointer (--rx, --ry as angles, --gx, --gy as percentages, set
+     by Lean) and springs back. The sheen sits under the content. The card is one flat plane: its
+     clip keeps the sketch inside it, and a clip flattens 3D anyway, so its text is drawn once on
+     the face and never stands off it in depth. */
+  [data-depth-lean] {
+    --card-pad: calc(var(--spacing) * 5.5);
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: clip;
+    padding: var(--card-pad);
+    text-decoration: none;
+  }
+
+  /* A card with a vignette ends in it: no bottom padding, the sketch bleeds off the bottom edge. */
+  [data-depth-lean]:has(> [data-vignette]) {
+    padding-bottom: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    [data-depth-lean] {
+      transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+      transition: transform var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-lean]::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(
+        26rem circle at var(--gx, 50%) var(--gy, -20%),
+        var(--color-glint),
+        var(--color-clear) 60%
+      );
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    [data-depth-lean]:hover::before {
+      opacity: 1;
+    }
+  }
+
+  /* Tiles: white on the grey canvas, a hairline and the card radius; the ink tile keeps ink. */
+  [data-tile] {
+    padding: calc(var(--spacing) * 6);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  [data-tile="ink"] {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-surface);
+  }
+
+  @media (width >= 48rem) {
+    [data-tile] {
+      padding: calc(var(--spacing) * 11);
+    }
+  }
+
+  /* Cards: a LeanCard is a tile with a heading, a description, a meta line, an optional vignette
+     and a "+" in a small bordered square at the top right. The heading's own minimum height comes
+     from the component (titleMinLines). */
+  [data-depth-lean][data-size="lg"] {
+    min-height: 340px;
+  }
+
+  [data-depth-lean][data-size="md"] {
+    min-height: 300px;
+  }
+
+  [data-depth-lean][data-size]:has(> [data-vignette]) {
+    min-height: 372px;
+  }
+
+  @media (width < 48rem) {
+    [data-depth-lean][data-size] {
+      min-height: 0;
+    }
+
+    [data-depth-lean][data-size]:has(> [data-vignette]) {
+      min-height: 0;
+    }
+  }
+
+  [data-depth-lean] h3 {
+    margin: 0;
+    padding-right: calc(var(--spacing) * 9);
+    font-size: 1.125rem;
+    line-height: 1.2;
+    letter-spacing: -0.012em;
+    font-weight: 600;
+  }
+
+  [data-depth-lean] p {
+    margin: calc(var(--spacing) * 2) 0 0;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+    color: var(--color-muted);
+  }
+
+  [data-depth-meta] {
+    margin-top: auto;
+    padding-top: calc(var(--spacing) * 2.5);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  /* With a vignette the meta line follows the paragraph and the vignette takes the bottom. */
+  [data-depth-lean]:has(> [data-vignette]) [data-depth-meta] {
+    margin-top: 0;
+    padding-bottom: calc(var(--spacing) * 5);
+  }
+
+  [data-depth-go] {
+    position: absolute;
+    top: calc(var(--spacing) * 4);
+    right: calc(var(--spacing) * 4);
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+    line-height: 1;
+  }
+
+  /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide and fades both edges
+     over its own inline padding, which it takes back with a negative margin: the list lines up with
+     the page, and at rest no pill sits in the fade. The list moves (block 3), from its start. */
+  [data-depth-ribbon] {
+    container-type: inline-size;
+    margin-inline: calc(var(--spacing) * -4);
+    padding-inline: calc(var(--spacing) * 4);
+    overflow-x: clip;
+    mask-image: linear-gradient(
+      to right,
+      var(--color-clear),
+      var(--color-mask-opaque) calc(var(--spacing) * 4),
+      var(--color-mask-opaque) calc(100% - var(--spacing) * 4),
+      var(--color-clear)
+    );
+  }
+
+  [data-depth-ribbon] ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* No item is ever wider than its row: a long one wraps its own text instead of being clipped. */
+  [data-depth-ribbon] li {
+    max-width: 100cqi;
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 4);
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  /* The About timeline: a spine down its left and a dot on each row, level with the row's first line. */
+  [data-depth-trace="timeline"] {
+    position: relative;
+    padding-left: calc(var(--spacing) * 6);
+  }
+
+  [data-depth-trace="timeline"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 1px;
+    background: var(--color-hairline-strong);
+  }
+
+  [data-depth-trace="timeline"] > li,
+  [data-depth-trace="row"] > li {
+    position: relative;
+  }
+
+  [data-depth-trace="timeline"] > li::before {
+    content: "";
+    position: absolute;
+    top: calc(var(--spacing) * 5.5);
+    left: calc(var(--spacing) * -6);
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-ink);
+  }
+
+  /* A plain Tile: a heading and a list with hairlines between the rows. */
+  [data-tile]:not([data-depth-lean]) h3 {
+    margin: 0 0 calc(var(--spacing) * 5);
+    font-size: var(--text-2xl);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  [data-tile] ul:not([aria-label]) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  [data-tile] ul:not([aria-label]) > li {
+    padding: calc(var(--spacing) * 3.5) 0;
+    border-top: 1px solid var(--color-rule-quiet);
+    font-size: var(--text-base);
+    line-height: 1.45;
+  }
+
+  [data-tile="ink"] ul:not([aria-label]) > li {
+    border-color: var(--color-rule-on-ink);
+  }
+
+  /* A row that carries its own rule draws that rule in (data-depth-draw scales its element, so it
+     must be an empty decorative span, never the row), and drops the row's static top border. */
+  [data-tile] ul:not([aria-label]) > li:has(> [data-depth-draw]) {
+    position: relative;
+    border-top: 0;
+  }
+
+  [data-tile] ul:not([aria-label]) > li > [data-depth-draw] {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1px;
+    background: var(--color-rule-quiet);
+  }
+
+  [data-tile="ink"] ul:not([aria-label]) > li > [data-depth-draw] {
+    background: var(--color-rule-on-ink);
+  }
+
+  /* At a glance: the outcome as one readable paragraph (text-xl, text-2xl from md, about 60
+     characters wide, normal weight), then four facts side by side (stacked under 640 px) between
+     two hairlines that draw in as they arrive. */
+  [data-glance] {
+    padding: calc(var(--spacing) * 8) 0 0;
+  }
+
+  [data-glance-outcome] {
+    margin: 0;
+    max-width: 60ch;
+    font-size: var(--text-xl);
+    line-height: 1.4;
+    font-weight: 400;
+  }
+
+  @media (width >= 48rem) {
+    [data-glance-outcome] {
+      font-size: var(--text-2xl);
+      line-height: 1.35;
+    }
+  }
+
+  [data-glance-rule] {
+    display: block;
+    height: 1px;
+    margin-top: calc(var(--spacing) * 8);
+    background: var(--color-hairline);
+  }
+
+  [data-glance-facts] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(var(--spacing) * 5) calc(var(--spacing) * 6);
+    margin: 0;
+    padding: calc(var(--spacing) * 6) 0;
+  }
+
+  @media (width >= 40rem) {
+    [data-glance-facts] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  [data-glance-facts] dt {
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  [data-glance-facts] dd {
+    margin: calc(var(--spacing) * 1) 0 0;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  /* Load sequence: once, in order (--d = 0, 1, 2 ...). Never on the h1, which is the LCP element. */
+  [data-depth-load] {
+    animation: depth-load var(--duration-arrive) var(--ease-standard) both;
+    animation-delay: calc(120ms + var(--d, 0) * 90ms);
+  }
+
+  /* A fast Tab can reach a button before it has faded in: with focus it shows at once. */
+  [data-depth-load]:focus-within {
+    animation: none;
+  }
+
+  /* Magnet: a primary button follows a fine pointer by up to 6 px (--tx, --ty set by Lean). The
+     shift is rounded to whole pixels: at a fractional offset the composited button resampled its
+     right edge into a faint line. Before Lean sets --tx and --ty the rounded value is invalid at
+     computed time, which leaves translate at none: no shift. The wrapper is a plain block box the
+     size of the button. */
+  @media (hover: hover) and (pointer: fine) {
+    [data-depth-magnet] {
+      display: flex;
+      translate: var(--tx, 0) var(--ty, 0);
+      translate: round(var(--tx), 1px) round(var(--ty), 1px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+  }
+
+  /* The progress hairline sits under the header bar; only drawn where scroll timelines exist. */
+  [data-depth-progress] {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: none;
+    height: 2px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    pointer-events: none;
+  }
+}
+
+/* 3. Rise: scroll-linked and reversible, so it follows the scroll position exactly and runs no
+   clock. The parent gets the perspective the tilt needs: the scene's distance plus 100 px at the
+   default 16 px root (1400 px), set in rem so it grows with the text. A block grows with a larger
+   text size; a fixed distance would bring its near edge closer and spill it sideways past the
+   screen while it enters. */
+@supports (animation-timeline: view()) {
+  @layer components {
+    :has(> [data-depth-rise]) {
+      perspective: 87.5rem;
+    }
+
+    [data-depth-rise] {
+      animation: depth-rise linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    [data-depth-rise]:nth-child(2) {
+      animation-range: entry 8% entry 78%;
+    }
+
+    [data-depth-rise]:nth-child(3) {
+      animation-range: entry 16% entry 86%;
+    }
+
+    [data-depth-rise]:nth-child(4) {
+      animation-range: entry 24% entry 94%;
+    }
+
+    [data-depth-rise="heading"] {
+      animation-name: depth-rise-heading;
+    }
+
+    /* A link to a section lands on its heading, which is then at rest at the top of the screen. On a
+       cold load WebKit can lay out the first frame with the scroll timeline still at the top of the
+       page, so the heading would start 40 px low and jump up a frame later. The section a link
+       targets holds its heading still from the start. */
+    :target > [data-depth-rise] {
+      animation: none;
+    }
+
+
+    [data-depth-draw] {
+      transform-origin: left;
+      animation: depth-draw linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-book="left"] {
+      transform-origin: right center;
+      animation: depth-book-left linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-book="right"] {
+      transform-origin: left center;
+      animation: depth-book-right linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    /* The slide ends a little before mid-screen, so every tool has been in full view while the
+       ribbon is still low on the screen, not only as it leaves the top. */
+    [data-depth-ribbon] > ul {
+      animation: depth-ribbon linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 45%;
+    }
+
+    [data-depth-scale] {
+      animation: depth-scale linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    [data-depth-parallax] {
+      animation: depth-parallax linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+
+    /* A control that has focus is never mid-entrance (at opacity 0 at the very start): its block
+       jumps to the final, static state. */
+    [data-depth-rise]:focus-within,
+    [data-depth-book]:focus-within,
+    [data-depth-scale]:focus-within {
+      animation: none;
+    }
+
+    [data-depth-progress] {
+      display: block;
+      animation: depth-progress linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+
+/* The ribbon slides on one line only where it can move and the row is wide enough (from sm); at
+   rest (narrow screens, no scroll timelines, reduced motion, print) it wraps and stays still, so
+   every item stays readable. The slide ends with the last pill in view. */
+@supports (animation-timeline: view()) {
+  @media screen and (width >= 40rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      [data-depth-ribbon] > ul {
+        flex-wrap: nowrap;
+        width: max-content;
+      }
+    }
+  }
+}
+
+/* The band's pin, as the mock has it: a tall band whose stage is pinned under the header (sticky,
+   centred in the space under it) while the scroll through the band unfolds the stack into a row,
+   all on the band's own view timeline. Only on a wide, tall enough screen with scroll timelines and
+   motion allowed; anywhere else the band is its natural height and nothing is pinned. No overflow on
+   the pin, so a focus ring near it is never clipped. */
+@supports (animation-timeline: view()) and (position: sticky) {
+  @media screen and (width >= 64rem) and (height >= 43.75rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      [data-depth-band] {
+        height: 175vh;
+        view-timeline: --depth-band block;
+        view-timeline-inset: var(--header-h) 0;
+      }
+
+      [data-depth-pin] {
+        position: sticky;
+        top: calc(var(--header-h) + (100vh - var(--header-h) - 40.75rem) / 2);
+      }
+
+      [data-depth-rig] {
+        animation: depth-rig linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-sheet="1"] {
+        animation: depth-sheet-1 linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-sheet="2"] {
+        animation: depth-sheet-2 linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-sheet="3"] {
+        animation: depth-sheet-3 linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-sheet]::after {
+        animation: depth-slab linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 0% contain 100%;
+      }
+
+      [data-depth-link] {
+        animation: depth-link linear both;
+        animation-timeline: --depth-band;
+        animation-range: contain 60% contain 82%;
+      }
+
+      [data-depth-link="2"] {
+        animation-range: contain 76% contain 98%;
+      }
+    }
+  }
+}
+
+/* The motion families beside the band's Unfold, from lg up where scroll timelines exist and motion
+   is allowed (narrower screens and everything else get the final layout, still). Each one ends on
+   none and fills backwards only, so a finished block is no longer a layer. Perspective sits on the
+   immediate parent alone. Drift: the automation cards arrive from the section's outer corners, each
+   on its grid wrapper so the card keeps its own lean. Hinge: the sketch at the foot of a card lifts
+   like a lid; the card's own clip keeps the lid inside it. */
+@supports (animation-timeline: view()) {
+  @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      [data-depth-drift] {
+        transform-origin: 0% 100%;
+        animation: depth-drift-bl linear backwards;
+        animation-timeline: view();
+        animation-range: entry 0% entry 85%;
+      }
+
+      [data-depth-drift="br"] {
+        transform-origin: 100% 100%;
+        animation-name: depth-drift-br;
+      }
+
+      [data-depth-drift]:nth-child(n + 3) {
+        animation-range: entry 10% entry 95%;
+      }
+
+      [data-depth-lean] > [data-vignette]:has(> [data-depth-hinge]) {
+        perspective: 87.5rem;
+      }
+
+      [data-depth-lean] [data-depth-hinge] {
+        transform-origin: 50% 100%;
+        animation: depth-hinge linear backwards;
+        animation-timeline: view();
+        animation-range: entry 30% entry 100%;
+      }
+
+      [data-depth-drift="tr"] {
+        transform-origin: 100% 0%;
+        animation-name: depth-drift-tr;
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-drift="tl"] {
+        transform-origin: 0% 0%;
+        animation: depth-drift-tl var(--duration-arrive) var(--ease-standard) backwards;
+        animation-delay: 180ms;
+      }
+
+      [data-depth-focus] {
+        animation: depth-focus linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-focus] > img {
+        animation: depth-focus-in linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-turn] {
+        transform-origin: 50% 50%;
+        animation: depth-turn linear backwards;
+        animation-timeline: view();
+        animation-range: entry 10% cover 45%;
+      }
+
+      /* Trace. The rules and dots run on their container's own view timeline (a pseudo-element has
+         no box of its own to watch); a timeline row has its own for its dot. */
+      [data-depth-trace] {
+        view-timeline: --depth-trace block;
+      }
+
+      [data-depth-trace="timeline"] > li {
+        view-timeline: --depth-row block;
+      }
+
+      [data-depth-trace="timeline"] > li::before {
+        animation: depth-dot linear backwards;
+        animation-timeline: --depth-row;
+        animation-range: entry 40% entry 70%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child) {
+        border-left-color: transparent;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child)::before,
+      [data-depth-trace="row"] > li + li::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -1px;
+        width: 1px;
+        background: var(--color-hairline);
+        transform-origin: top;
+        animation: depth-trace-y linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: entry 0% entry 90%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:nth-child(3)::before {
+        animation-range: entry 8% entry 98%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:nth-child(4)::before {
+        animation-range: entry 16% contain 6%;
+      }
+
+      [data-depth-trace="row"] > li + li::before {
+        animation-range: entry 16% cover 46%;
+      }
+
+      [data-depth-trace="row"] > li + li + li::before {
+        animation-range: entry 22% cover 52%;
+      }
+
+      [data-experience-rule] {
+        transform-origin: 50% 50%;
+        animation: depth-trace-x linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: entry 20% cover 35%;
+      }
+
+      [data-experience-group] + [data-experience-group] [data-experience-rule] {
+        animation-range: entry 28% cover 43%;
+      }
+
+      [data-depth-trace="timeline"]::before {
+        transform-origin: top;
+        animation: depth-trace-y linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: cover 10% cover 55%;
+      }
+
+      /* In a drifting card the lid follows its card. */
+      [data-depth-drift] [data-depth-hinge] {
+        animation-range: entry 40% contain 10%;
+      }
+
+      /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
+      [data-depth-drift]:focus-within,
+      [data-depth-hinge]:focus-within,
+      [data-depth-focus]:focus-within,
+      [data-depth-turn]:focus-within,
+      [data-depth-trace]:focus-within::before,
+      [data-depth-trace]:focus-within > *::before {
+        animation: none;
+      }
+
+      /* Across a row of cards the lids lift in turn, column by column. */
+      [data-depth-lean]:nth-child(3n + 2) [data-depth-hinge] {
+        animation-range: entry 36% contain 6%;
+      }
+
+      [data-depth-lean]:nth-child(3n + 3) [data-depth-hinge] {
+        animation-range: entry 42% contain 12%;
+      }
+    }
+  }
+}
+
+/* Hinge on load: the case study's "at a glance" card is in the first screen, so it lifts once when
+   the page loads, by transform only (its outcome may be the largest paint), and its four facts settle
+   in turn after it. From lg, with motion allowed. */
+@media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    [data-depth-hinge="load"] {
+      transform-origin: 50% 100%;
+      animation: depth-hinge-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div {
+      animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 360ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
+      animation-delay: 420ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
+      animation-delay: 480ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
+      animation-delay: 540ms;
+    }
+
+    [data-depth-hinge="load"]:focus-within,
+    [data-depth-hinge="load"]:focus-within [data-glance-facts] > div {
+      animation: none;
+    }
+  }
+}
+
+/* The ruled row's own borders between its cells are utility classes, which win over any layer: this
+   unlayered rule hides them where their drawn rules replace them. */
+@supports (animation-timeline: view()) {
+  @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+    [data-depth-trace="row"] > li + li {
+      border-left-color: transparent;
+    }
+  }
+}
+
+/* Pointer scenes: on a fine pointer, with motion allowed, Lean writes --mx and --my (-1 to 1 across
+   the scene) and --gx and --gy on a [data-depth-follow] element. Until it does, each value below is
+   invalid at computed time, so nothing moves. The call to action's portrait and its text shift a
+   little in opposite directions, as two planes. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    [data-depth-follow] [data-cta-media] {
+      translate: calc(var(--mx) * 6px) calc(var(--my) * 4px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+
+    /* The light on the band's ink sheet, from lg where the stack is a scene, follows --mx and --my
+       (set on the stack). */
+    @media (width >= 64rem) {
+      [data-depth-sheet] > [data-depth-glow] {
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        display: block;
+        overflow: clip;
+        border-radius: inherit;
+        pointer-events: none;
+      }
+
+      [data-depth-glow]::before {
+        content: "";
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        width: 22rem;
+        height: 22rem;
+        margin: -11rem 0 0 -11rem;
+        border-radius: 50%;
+        background: radial-gradient(circle closest-side, var(--color-sheet-edge-ink), var(--color-clear));
+        translate: calc(var(--mx) * 6rem) calc(var(--my) * 4rem);
+        transition: translate var(--duration-lean) var(--ease-standard);
+      }
+    }
+
+    /* The site-test sketch leans a little toward the pointer, a sheen over it where the pointer is. */
+    [data-depth-follow]:has(> [data-site-sketch]) {
+      perspective: 56rem;
+    }
+
+    [data-depth-follow] > [data-site-sketch] {
+      position: relative;
+      transform: rotateY(calc(var(--mx) * 4deg)) rotateX(calc(var(--my) * -2deg));
+      transition: transform var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-follow] > [data-site-sketch]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(18rem circle at var(--gx, 50%) var(--gy, -20%), var(--color-glint), var(--color-clear) 60%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    [data-depth-follow]:hover > [data-site-sketch]::after {
+      opacity: 1;
+    }
+
+    /* The "How I test" panel: each row of the sketch shifts toward the pointer by more than the one
+       above it (--z), in whole pixels. */
+    [data-depth-follow] [data-how-panel] [data-sketch] > * {
+      --z: 1;
+
+      translate: round(calc(var(--mx) * var(--z) * 2px), 1px) round(calc(var(--my) * var(--z) * 1px), 1px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+
+    [data-depth-follow] [data-how-panel] [data-sketch] > :nth-child(3) {
+      --z: 2;
+    }
+
+    [data-depth-follow] [data-how-panel] [data-sketch] > :nth-child(n + 4) {
+      --z: 3;
+    }
+
+    [data-depth-follow] [data-cta-text] {
+      /* Whole pixels: a block of text at a fractional offset would be resampled soft. */
+      translate: round(calc(var(--mx) * -2px), 1px) round(calc(var(--my) * -2px), 1px);
+      transition: translate var(--duration-lean) var(--ease-standard);
+    }
+  }
+}
+
+/* Final, static state: reduced motion and print. Nothing moves, nothing is hidden; the band is the
+   flat row on a wide screen (the column below lg). */
+@media (prefers-reduced-motion: reduce), print {
+  [data-depth-rise],
+  [data-depth-load],
+  [data-depth-draw],
+  [data-depth-book],
+  [data-depth-ribbon] > ul,
+  [data-depth-scale],
+  [data-depth-parallax],
+  [data-depth-drift],
+  [data-depth-hinge],
+  [data-depth-hinge] [data-glance-facts] > div,
+  [data-depth-focus],
+  [data-depth-focus] > img,
+  [data-depth-turn],
+  [data-experience-rule],
+  [data-depth-trace]::before,
+  [data-depth-trace] > li::before,
+  [data-depth-trace] > [data-proof]::before,
+  [data-depth-arrive],
+  [data-depth-rig],
+  [data-depth-sheet],
+  [data-depth-link],
+  [data-depth-close] [data-interval-bar] {
+    animation: none;
+  }
+
+  [data-depth-progress] {
+    display: none;
+  }
+
+  [data-depth-magnet] {
+    translate: none;
+  }
+
+  [data-depth-rig],
+  [data-depth-sheet],
+  [data-depth-tilt] {
+    transform: none;
+  }
+
+  [data-depth-sheet]::after {
+    animation: none;
+    translate: none;
+  }
+
+  [data-depth-follow] :is([data-cta-media], [data-cta-text]),
+  [data-depth-follow] [data-how-panel] [data-sketch] > * {
+    translate: none;
+  }
+
+  [data-depth-follow] > [data-site-sketch] {
+    transform: none;
+  }
+
+  [data-depth-follow] > [data-site-sketch]::after {
+    content: none;
+  }
+
+  [data-depth-glow] {
+    display: none;
+  }
+
+  [data-depth-link] {
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-depth-lean] {
+    transform: none;
+  }
+
+  [data-depth-lean]::before {
+    content: none;
+  }
+}
+
+/* The live bar's note on ink: the text in the on-ink tone and its link light, with a light
+   underline. Unlayered, so the link's muted utility cannot win on ink; the link keeps its own 44 px
+   target. */
+[data-live-bar] a,
+[data-live-bar] a:hover,
+[data-live-bar] a:focus-visible {
+  color: var(--color-surface);
+  text-decoration-color: var(--color-on-ink-muted);
+}
+
+[data-live-bar] :focus-visible {
+  outline-color: var(--color-surface);
+}
+
+/* The kit's small muted labels (the "Updated" time) take the on-ink muted tone on the bar: the
+   canvas muted grey is too dark on ink. */
+[data-live-bar] .text-muted {
+  color: var(--color-on-ink-muted);
 }
