@@ -8,6 +8,7 @@ export function GlanceBlock({ outcome, role, methods, tools, when, ...rest }: Pr
   return (
     <section aria-label="At a glance" data-glance="" {...rest}>
       <p data-glance-outcome="">{outcome}</p>
+      <span data-glance-rule="" data-depth-draw="" aria-hidden="true" />
       <dl data-glance-facts="">
         <div>
           <dt>Role</dt>
@@ -26,6 +27,7 @@ export function GlanceBlock({ outcome, role, methods, tools, when, ...rest }: Pr
           <dd>{when}</dd>
         </div>
       </dl>
+      <span data-glance-rule="" data-depth-draw="" aria-hidden="true" />
     </section>
   );
 }

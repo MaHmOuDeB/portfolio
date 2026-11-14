@@ -90,6 +90,12 @@ describe('GlanceBlock', () => {
     expect([...html.matchAll(/<dd>([^<]*)<\/dd>/g)].map((m) => m[1])).toEqual(['R', 'M', 'T', 'W']);
     expect(text(html)).not.toMatch(/\d/);
   });
+  it('draws two hidden hairlines, one above and one below the facts', () => {
+    const rule = '<span data-glance-rule="" data-depth-draw="" aria-hidden="true"></span>';
+    expect(html.split(rule)).toHaveLength(3);
+    expect(html.indexOf(rule)).toBeLessThan(html.indexOf('<dl'));
+    expect(html.lastIndexOf(rule)).toBeGreaterThan(html.indexOf('</dl>'));
+  });
 });
 
 describe('Ribbon', () => {
