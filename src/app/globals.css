@@ -1102,6 +1102,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       animation-name: depth-rise-heading;
     }
 
+    /* A link to a section lands on its heading, which is then at rest at the top of the screen. On a
+       cold load WebKit can lay out the first frame with the scroll timeline still at the top of the
+       page, so the heading would start 40 px low and jump up a frame later. The section a link
+       targets holds its heading still from the start. */
+    :target > [data-depth-rise] {
+      animation: none;
+    }
+
     [data-depth-recede] {
       animation: depth-recede linear both;
       animation-timeline: view();
