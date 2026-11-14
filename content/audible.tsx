@@ -15,8 +15,16 @@ import { HOME_LINKS } from './home-destinations.ts';
 
 const ITEM = 'mt-4 first:mt-0';
 
-/** The "Why so many?" link beside a short adoption figure, to the section that gives its context. */
-const WhySoMany = () => <TextLink href="#why-so-many">Why so many?</TextLink>;
+/**
+ * The "Why so many?" link beside a short adoption figure, to the section that gives its context. It
+ * never breaks across two lines: it moves to the next line whole, so it is the same small inline
+ * target at every width.
+ */
+const WhySoMany = () => (
+  <span className="whitespace-nowrap">
+    <TextLink href="#why-so-many">Why so many?</TextLink>
+  </span>
+);
 
 /** The line under the page title. */
 export function AudibleIntro(): ReactNode {
