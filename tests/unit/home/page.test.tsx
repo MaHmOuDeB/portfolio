@@ -2,9 +2,8 @@
 // (src/app/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
 // groups, and read as a visitor and a screen reader get them, hidden markup included: the hero,
 // the proof row, the cards, the note and the props serialized for the browser's client components
-// (the RSC payload). The scroll moment is gone from the page; the test build's host still renders it
-// (HomeSectionsView) and keeps the note-and-steps consistency checks below. The route is checked for its static-generation settings, its one
-// snapshot read, the beacon first, and metadata that reads no snapshot.
+// (the RSC payload). The route is checked for its static-generation settings, its one snapshot read,
+// the beacon first, and metadata that reads no snapshot.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { createElement, isValidElement, type ReactNode } from 'react';
@@ -31,12 +30,6 @@ import { toHomeModel, type HomeMode, type HomeModel } from '@/lib/home/model';
 import { NARRATIVE_FIXTURES, narrativeFixture, type NarrativeFixture } from '@/lib/home/narrative-fixtures';
 import { SITE } from '@/lib/site';
 
-// The planner island reads the URL with next/navigation, which has no router in a unit test; its own
-// tests cover it. Here it is a marked stand-in.
-vi.mock('@/components/home/HeroSimulator', () => ({
-  HERO_PLANNER_ID: 'hero-planner',
-  HeroSimulator: () => createElement('div', { 'data-hero-simulator': '' }),
-}));
 // The route's one store read, counted. Everything else in the module is the real reader.
 vi.mock('@/lib/experiment/live', async (original) => {
   const real = await original<typeof import('@/lib/experiment/live')>();
@@ -45,7 +38,6 @@ vi.mock('@/lib/experiment/live', async (original) => {
 
 const live = await import('@/lib/experiment/live');
 const { HomeSections } = await import('@/components/home/HomeSections');
-const { HomeSectionsView, homeScrollProps, homeTickAllowed } = await import('@/components/home/HomeScrollHost');
 const route = await import('@/app/v/[arm]/page');
 const { ExperimentBeacon } = await import('@/components/experiment/ExperimentBeacon');
 const { canonicalOrigin, pageMetadata } = await import('@/lib/seo/metadata');
@@ -115,11 +107,6 @@ function page(m: HomeModel, at: string = m.readAt): string {
   vi.setSystemTime(new Date(at));
   return renderToStaticMarkup(<HomeSections model={m} />);
 }
-/** The test build's host for a model: the same page with the scroll moment after the tiles. */
-function hostPage(m: HomeModel, at: string = m.readAt): string {
-  vi.setSystemTime(new Date(at));
-  return renderToStaticMarkup(<HomeSectionsView model={m} renderedAt={at} />);
-}
 
 type El = T.Element;
 const doc = (h: string) => parse(`<body>${h}</body>`);
@@ -152,7 +139,6 @@ const noteText = (h: string) => {
   const n = section(h, has('data-home-note'));
   return n ? squash(text(n)) : null;
 };
-const stepText = (h: string, n: number) => squash(text(section(h, has('data-scroll-step', String(n)))!));
 const ariaLabels = (h: string) => all(doc(h)).flatMap((el) => (attr(el, 'aria-label') ? [attr(el, 'aria-label')!] : []));
 
 const audit = (h: string) => auditHtml(h, { route: '/v/a', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] });
@@ -224,10 +210,6 @@ async function pagePayload(m: HomeModel, at: string = m.readAt): Promise<Sent[]>
   vi.setSystemTime(new Date(at));
   return payload(<HomeSections model={m} />);
 }
-async function hostPayload(m: HomeModel, at: string = m.readAt): Promise<Sent[]> {
-  vi.setSystemTime(new Date(at));
-  return payload(<HomeSectionsView model={m} renderedAt={at} />);
-}
 /** Counts from 1 to 4 under the count keys of the serialized props. */
 function smallPayloadCounts(sent: Sent[]): string[] {
   const small: string[] = [];
@@ -238,15 +220,6 @@ function smallPayloadCounts(sent: Sent[]): string[] {
   };
   scan(sent.map((s) => s.props));
   return small;
-}
-/**
- * The scroll moment's client half as serialized. The Figure hands the same shell to its error boundary
- * twice (as the content and as the fallback's preview), so it appears twice, always with equal props.
- */
-function shellCharts(sent: Sent[]): ({ tickFrom: number | null } | null)[] {
-  const shells = sent.filter((s) => s.name === 'ScrollShell').map((s) => JSON.stringify(s.props));
-  expect(new Set(shells).size, 'one scroll moment').toBe(1);
-  return (JSON.parse(shells[0]!) as { charts: ({ tickFrom: number | null } | null)[] }).charts;
 }
 /** Keys that only the raw snapshot or the server-only model hold. */
 const RAW_KEYS = ['chi2', 'p', 'funnel', 'itt', 'looks', 'current', 'beaconsReceived', 'flaggedLook', 'detectable', 'ceilingDays', 'srm', 'testNote', 'counts', 'splitStatus', 'hasCeilingDay', 'closureMismatch', 'afterDecisionSrm', 'yourViewN'];
@@ -339,11 +312,8 @@ describe('the route: static per-group pages', () => {
 
   it('the test build host uses the same composition, without a beacon', () => {
     const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
-    expect(host).toMatch(/HomeSectionsView/);
+    expect(host).toMatch(/HomeBody/);
     expect(host).not.toMatch(/ExperimentBeacon|<Hero|<LiveNote|<FeaturedCases|<Tools/);
-    // The real page never imports the host's composition, so no scroll moment can reach it.
-    const real = readFileSync(path.join(ROOT, 'src/app/v/[arm]/page.tsx'), 'utf8');
-    expect(real).not.toMatch(/HomeScrollHost|ScrollMoment|ScrollShell|HeroSimulator/);
   });
 });
 
@@ -352,7 +322,6 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     ...MODES.flatMap((m) => ARMS.map((arm) => [`${m}/${arm}`, mode(m, arm)] as [string, HomeModel])),
     ...NARRATIVE_FIXTURES.map((n) => [n, named(n)] as [string, HomeModel]),
   ];
-  const RENDERS: readonly [string, (m: HomeModel) => string][] = [['page', (m) => page(m)], ['host', (m) => hostPage(m)]];
 
   /** The blocks in page order, as the page marks them. */
   const BLOCKS = ['data-hero', 'data-home-proof', 'data-home-track', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision'];
@@ -376,16 +345,16 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
 
   it.each(MODELS)('%s: no scroll moment, step, planner or hero simulator markup', (_, m) => {
     const h = page(m);
-    expect(h).not.toMatch(/data-scroll|data-hero-simulator|hero-planner|data-home-chart|data-hero-evidence|data-home-tools/);
+    expect(h).not.toMatch(/data-scroll|data-hero-simulator|hero-planner|data-home-chart|data-hero-evidence|data-home-tools|data-cs="projection"/);
     expect(all(doc(h), (el) => el.tagName === 'figure')).toEqual([]);
   });
 
-  it.each(MODELS.flatMap(([n, m]) => RENDERS.map(([r, f]) => [`${n} (${r})`, m, f] as const)))('%s: the truth audit finds nothing, hidden markup included', (_, m, f) => {
-    expect(audit(f(m))).toEqual([]);
+  it.each(MODELS)('%s: the truth audit finds nothing, hidden markup included', (_, m) => {
+    expect(audit(page(m))).toEqual([]);
   });
 
-  it.each(MODELS.flatMap(([n, m]) => RENDERS.map(([r, f]) => [`${n} (${r})`, m, f] as const)))('%s: no repeated id', (_, m, f) => {
-    const ids = all(doc(f(m)), has('id')).map((el) => attr(el, 'id')!);
+  it.each(MODELS)('%s: no repeated id', (_, m) => {
+    const ids = all(doc(page(m)), has('id')).map((el) => attr(el, 'id')!);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
@@ -437,19 +406,11 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
   });
 
   it.each(MODELS)('%s: the RSC payload holds no raw statistic, no model field and no small count', async (_, m) => {
-    for (const sent of [await pagePayload(m), await hostPayload(m)]) {
-      expect(sent.map((s) => s.name)).not.toContain('HomeSections');
-      expect(rawKeys(sent)).toEqual([]);
-      expect(smallPayloadCounts(sent)).toEqual([]);
-    }
+    const sent = await pagePayload(m);
+    expect(sent.map((s) => s.name)).not.toContain('HomeSections');
+    expect(rawKeys(sent)).toEqual([]);
+    expect(smallPayloadCounts(sent)).toEqual([]);
     expect(exactSmallCounts(page(m))).toEqual([]);
-    expect(exactSmallCounts(hostPage(m))).toEqual([]);
-  });
-
-  it('the page ships no scroll moment client component in its payload', async () => {
-    const sent = await pagePayload(mode('ab'));
-    expect(sent.map((s) => s.name)).not.toContain('ScrollShell');
-    expect((await hostPayload(mode('ab'))).map((s) => s.name)).toContain('ScrollShell');
   });
 });
 
@@ -471,7 +432,7 @@ describe('the note is absent before the start', () => {
     const future = toHomeModel(await read(createMemoryRedis(), { config: FIXTURE_CALIBRATION, now: '2026-11-01T12:00:00+01:00' }), 'b');
     for (const m of [none, future]) {
       expect(m.mode).toBe('not-started');
-      const h = hostPage(m);
+      const h = page(m);
       expect(noteText(h)).toBeNull();
       expect(everything(h)).not.toMatch(/paused|could not be loaded|calibrating first|views so far|A\/B test on this site|See the live results/i);
       expect(all(doc(h), (el) => (attr(el, 'data-derived') ?? '').split(' ').includes('live'))).toEqual([]);
@@ -481,25 +442,23 @@ describe('the note is absent before the start', () => {
 
 describe('the five false-copy gates, whole page', () => {
   it('(a) never started: no note, nothing counted, nothing paused', () => {
-    const h = hostPage(mode('not-started'));
+    const h = page(mode('not-started'));
     expect(noteText(h)).toBeNull();
-    expect(stepText(h, 3)).toContain('The experiment has not started yet, so nothing is counted.');
     expect(everything(h)).not.toMatch(/paused|running|views so far|could not be loaded/i);
   });
 
-  it('(b) unreadable at build: "could not be loaded" in the note and the steps, never paused', async () => {
+  it('(b) unreadable at build: "could not be loaded" in the note, never paused', async () => {
     const m = await placeholderAt(endPlus(-86_400_000));
     expect(m.mode).toBe('unavailable');
-    const h = hostPage(m);
+    const h = page(m);
     expect(noteText(h)).toContain('The live counts could not be loaded. They will appear at the next update.');
-    for (const n of [2, 3, 5]) expect(stepText(h, n)).toContain('The live counts could not be loaded. They will appear at the next update.');
     expect(everything(h)).not.toMatch(/paused/i);
     expect(everything(h)).not.toMatch(VERDICTS);
   });
 
   it('(c) unreadable settings: stopped, with no date that would move with each regeneration', () => {
     const m = mode('settings-unreadable');
-    const h = hostPage(m);
+    const h = page(m);
     expect(noteText(h)).toContain('Counting is stopped because the experiment settings could not be read.');
     expect(all(section(h, has('data-home-note'))!, (el) => el.tagName === 'time')).toEqual([]);
     expect(all(doc(h), (el) => el.tagName === 'time' && attr(el, 'datetime') === m.readAt)).toEqual([]);
@@ -514,7 +473,7 @@ describe('the five false-copy gates, whole page', () => {
     for (const now of [AB_NOW, endPlus(86_400_000)]) {
       const m = toHomeModel(buildFixture({ config: FIXTURE_AB, now, rows }), 'b');
       expect(m.mode).toBe('held');
-      const h = hostPage(m);
+      const h = page(m);
       expect(noteText(h)).toMatch(/^The test stopped because the counts failed a consistency check\./);
       expect(everything(h)).not.toMatch(/resum|running|views so far|pause/i);
       expect(everything(h)).not.toMatch(VERDICTS);
@@ -523,22 +482,20 @@ describe('the five false-copy gates, whole page', () => {
   });
 
   it('(e) a stopped calibration: its date and reason, never running or calibrating', () => {
-    const h = hostPage(mode('aa-failed'));
+    const h = page(mode('aa-failed'));
     expect(noteText(h)).toContain('Calibration stopped on 06.11: a script error dropped some views.');
     expect(everything(h)).not.toMatch(/calibrating first|paused|running|views so far/i);
     expect(everything(h)).not.toMatch(STOPPED_PROMISES);
   });
 });
 
-describe('closure: the note, the five steps, hidden markup and labels agree', () => {
+describe('closure: the note, hidden markup and labels agree', () => {
   /** The whole page on a closed test: past tense, nothing projected or promised, "closed" only when confirmed. */
   function expectClosed(m: HomeModel) {
-    const h = hostPage(m);
+    const h = page(m);
     const all_ = everything(h);
     expect(all_).not.toMatch(STOPPED_PROMISES);
     expect(all_).not.toMatch(/views so far|has fewer than|are the test|is assigned|calibrating first/i);
-    expect(h).not.toContain('data-cs="projection"');
-    expect(stepText(h, 1)).toContain('The case-study cards above were the test.');
     if (!m.closedConfirmed) expect(all_).not.toMatch(/counting has closed|has ended|counting stopped/i);
     for (const label of ariaLabels(h)) {
       expect(label).not.toMatch(/pause/i);
@@ -549,24 +506,20 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
 
   it('runs right up to the planned end and closes at it, in the margin before a decision', () => {
     const before = toHomeModel(buildFixture({ config: FIXTURE_AB, now: endPlus(-1), rows: BALANCED }), 'b');
-    const hb = hostPage(before);
-    expect(hb).toContain('data-cs="projection"');
-    expect(stepText(hb, 1)).toContain('The case-study cards above are the test.');
+    const hb = page(before);
     expect(noteText(hb)).toContain('This site runs an A/B test on its visitors, and you are in group B.');
     for (const now of [END, endPlus(30_000)]) {
       const m = toHomeModel(buildFixture({ config: FIXTURE_AB, now, rows: BALANCED }), 'b');
       expect(m).toMatchObject({ mode: 'ab', countingClosed: true, closedConfirmed: true, outcome: null });
       const h = expectClosed(m);
       expect(noteText(h)).toContain('The A/B test on this site has ended and counting has closed.');
-      expect(stepText(h, 5)).toContain('Counting has closed; no decision is recorded in this snapshot.');
     }
   });
 
-  it('a final result: its own wording in the note and the Decision step', () => {
+  it('a final result: its own wording in the note', () => {
     const m = named('ship-b-confirmed');
     const h = expectClosed(m);
     expect(noteText(h)).toContain('The A/B test on this site has ended and counting has closed.');
-    expect(stepText(h, 5)).toMatch(/Ship B\. .* Counting has closed\./);
   });
 
   it('a matching decision marker (the real reader)', async () => {
@@ -577,10 +530,9 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
     expect(m).toMatchObject({ mode: 'ship-b', closedConfirmed: true });
     const h = expectClosed(m);
     expect(noteText(h)).toContain('has ended and counting has closed');
-    expect(ariaLabels(h).some((l) => /until counting stopped/.test(l))).toBe(true);
   });
 
-  it('a mismatching decision marker (the real reader): the closure check everywhere, no verdict', async () => {
+  it('a mismatching decision marker (the real reader): the closure check, no verdict', async () => {
     const redis = createMemoryRedis();
     await seed(redis, FIXTURE_AB.namespace, SHIP_B);
     await mark(redis, FIXTURE_AB.namespace, 'decision', '2026-12-03');
@@ -589,63 +541,43 @@ describe('closure: the note, the five steps, hidden markup and labels agree', ()
     const h = expectClosed(m);
     const sentence = 'Counting has stopped for this run. I am checking the stored result before showing it.';
     expect(noteText(h)).toContain(sentence);
-    for (const n of [2, 3, 5]) expect(stepText(h, n)).toContain(sentence);
     expect(everything(h)).not.toMatch(VERDICTS);
     expect(everything(h)).not.toMatch(/paused|views counted/i);
   });
 
-  it('an A/A flag-only marker (the real reader): the stopped calibration, no chart, no promise', async () => {
+  it('an A/A flag-only marker (the real reader): the stopped calibration, no promise', async () => {
     const redis = createMemoryRedis();
     await mark(redis, FIXTURE_CALIBRATION.namespace, 'aa-failed', '2026-11-06');
     const m = toHomeModel(await read(redis, { config: FIXTURE_CALIBRATION, now: CAL_NOW }), 'a');
     expect(m.mode).toBe('aa-failed');
-    const h = hostPage(m);
+    const h = page(m);
     expect(noteText(h)).toContain('Calibration stopped on 06.11: I no longer have the note explaining why.');
-    expect(stepText(h, 3)).toContain('Calibration stopped on 06.11: I no longer have the note explaining why.');
-    expect(h).not.toContain('data-home-chart');
     expect(everything(h)).not.toMatch(STOPPED_PROMISES);
   });
 
-  it('a derived decision with no marker yet (the real reader): being confirmed everywhere, never closed', async () => {
+  it('a derived decision with no marker yet (the real reader): being confirmed, never closed', async () => {
     const redis = createMemoryRedis();
     await seed(redis, FIXTURE_AB.namespace, SHIP_B);
     const m = toHomeModel(await read(redis, { config: FIXTURE_AB, now: AB_NOW }), 'b');
     expect(m).toMatchObject({ mode: 'ship-b', closed: null, closedConfirmed: false, countingClosed: true });
     const h = expectClosed(m);
     expect(noteText(h)).toContain('I am confirming the result.');
-    expect(stepText(h, 5)).toMatch(/The result is being confirmed\./);
   });
 
-  it('an unreadable snapshot before, at and after the planned end: note and steps agree, no update promised at the end, no result', async () => {
+  it('an unreadable snapshot before, at and after the planned end: the note promises no update at the end and no result', async () => {
     const before = await placeholderAt(endPlus(-1));
     expect(before).toMatchObject({ mode: 'unavailable', countingClosed: false });
-    const hb = hostPage(before);
+    const hb = page(before);
     const promise = 'The live counts could not be loaded. They will appear at the next update.';
     expect(noteText(hb)).toContain(promise);
-    for (const n of [2, 3, 5]) expect(stepText(hb, n)).toContain(promise);
     for (const now of [END, endPlus(1), endPlus(86_400_000)]) {
       const m = await placeholderAt(now);
       expect(m).toMatchObject({ mode: 'unavailable', closedConfirmed: true, outcome: null });
       const h = expectClosed(m);
       const closed = 'The live counts could not be loaded, and counting has closed.';
       expect(noteText(h)).toContain(closed);
-      for (const n of [2, 3, 5]) expect(stepText(h, n)).toContain(closed);
       expect(everything(h)).not.toMatch(/next update/i);
       expect(everything(h)).not.toMatch(VERDICTS);
-      expect(h).not.toContain('data-home-chart');
-    }
-  });
-
-  it('a held or closed drawn chart is named without "pause"; "counting stopped" only when held or confirmed', () => {
-    for (const m of [mode('held'), mode('ship-b'), named('ship-b-confirmed'), named('paused-ship-b'), toHomeModel(buildFixture({ config: FIXTURE_AB, now: END, rows: BALANCED }), 'b')]) {
-      const h = hostPage(m);
-      expect(h).toContain('data-home-chart');
-      const chartLabels = all(doc(h), (el) => el.tagName === 'svg' && attr(el, 'aria-label') !== undefined).map((el) => attr(el, 'aria-label')!);
-      expect(chartLabels.length).toBeGreaterThan(0);
-      for (const l of chartLabels) {
-        expect(l).not.toMatch(/pause/i);
-        if (m.held === null && !m.closedConfirmed) expect(l).not.toMatch(/counting stopped/i);
-      }
     }
   });
 });
@@ -655,75 +587,28 @@ describe('small counts and stopped tests with little data', () => {
   it.each(SMALL)('%s: "<5", never an exact 1 to 4, in the HTML or the payload', async (n) => {
     for (const arm of ARMS) {
       const m = named(n, arm);
-      const h = hostPage(m);
+      const h = page(m);
       expect(exactSmallCounts(h)).toEqual([]);
-      expect(smallPayloadCounts(await hostPayload(m))).toEqual([]);
+      expect(smallPayloadCounts(await pagePayload(m))).toEqual([]);
     }
   });
 
   it.each(['ab-tiny', 'calibration-tiny'] as const)('%s: the smaller group prints as "<5"', (n) => {
-    expect(everything(hostPage(named(n)))).toContain('<5');
+    expect(everything(page(named(n)))).toContain('<5');
   });
 
   it.each(['held-under-50', 'paused-under-50', 'closed-under-50', 'final-low', 'paused-tiny', 'held-enough-no-look'] as const)(
     '%s: no next look or first estimate is promised',
     (n) => {
-      expect(everything(hostPage(named(n)))).not.toMatch(/next look|first estimate/i);
+      expect(everything(page(named(n)))).not.toMatch(/next look|first estimate/i);
     },
   );
 });
 
-describe('the "your view" tick: allowed only on a fresh running chart with no ceiling day', () => {
-  const ticks = async (m: HomeModel, at: string = m.readAt) => shellCharts(await hostPayload(m, at)).map((c) => c?.tickFrom ?? null);
-
-  it('a fresh A/B with enough data and no ceiling day: allowed, and the payload carries where the tick may start', async () => {
-    const m = mode('ab');
-    expect(homeTickAllowed(m, m.readAt)).toBe(true);
-    expect(homeScrollProps(m, { tickAllowed: true }).charts[2]!.tickAllowed).toBe(true);
-    const t = await ticks(m);
-    expect(t.filter((x) => x !== null)).toHaveLength(1);
-    expect(t[2]).toBeGreaterThanOrEqual(50);
-  });
-
-  it('a ceiling day: not allowed, and nothing in the payload lets the browser draw it', async () => {
-    const m = toHomeModel(snapshotFixture('ab', { ceilingDays: ['2026-12-02'] }), 'b');
-    expect(m.hasCeilingDay).toBe(true);
-    expect(homeTickAllowed(m, m.readAt)).toBe(false);
-    expect(await ticks(m)).toEqual([null, null, null, null, null]);
-  });
-
-  it('stale when rendered (enough data, no ceiling day otherwise): not allowed', async () => {
+describe('the note says how old the data is', () => {
+  it('stale when rendered: the note says it was updated, and the page stays whole', () => {
     const m = mode('ab');
     const late = plusMinutes(m.readAt, EXPERIMENT.staleAfterMinutes + 1);
-    expect(homeTickAllowed(m, late)).toBe(false);
-    expect(await ticks(m, late)).toEqual([null, null, null, null, null]);
-    // The note says how old the data is.
-    expect(noteText(hostPage(m, late))).toMatch(/Updated/);
-  });
-
-  it.each([
-    ['held', mode('held')],
-    ['paused', mode('paused')],
-    ['paused-ship-b', named('paused-ship-b')],
-    ['ship-b (counting closed)', mode('ship-b')],
-    ['inconclusive (counting closed)', mode('inconclusive')],
-    ['the planned end reached', toHomeModel(buildFixture({ config: FIXTURE_AB, now: END, rows: BALANCED }), 'b')],
-    ['before-data (low data)', mode('before-data')],
-    ['ab-under-50 (low data)', named('ab-under-50')],
-    ['calibration-under-50 (low data)', named('calibration-under-50')],
-  ] as const)('%s: not allowed, and no tick start in the payload', async (_, m) => {
-    expect(homeTickAllowed(m, m.readAt)).toBe(false);
-    for (const c of homeScrollProps(m, { tickAllowed: homeTickAllowed(m, m.readAt) }).charts) if (c) expect(c.tickAllowed).toBe(false);
-    expect((await ticks(m)).every((x) => x === null)).toBe(true);
-  });
-
-  it('each chart entry comes from the narrative helpers, with the label override and the published table', () => {
-    const m = mode('held');
-    const p = homeScrollProps(m, { tickAllowed: false });
-    expect(p.arm).toBe(m.arm);
-    expect(p.refs).toBe(m.refs);
-    expect(p.steps.map((s) => s.heading)).toEqual(['Hypothesis', 'Split', 'Evidence', 'Guardrails', 'Decision']);
-    expect(p.charts.map((c) => c !== null)).toEqual([false, false, true, false, false]);
-    expect(p.charts[2]!.ariaLabel).toMatch(/until counting stopped/);
+    expect(noteText(page(m, late))).toMatch(/Updated/);
   });
 });

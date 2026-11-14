@@ -89,8 +89,7 @@
   --spacing: 0.25rem; /* 4 px base; use multiples */
   --spacing-section: 5rem; /* 80 px between major blocks: py-section */
   --size-target: 2.75rem; /* 44 px minimum touch target */
-  --chart-h-phone: 40svh; /* the sticky chart's height on phones */
-  --header-h: 4rem; /* SiteHeader height; sticky chart offset from md up */
+  --header-h: 4rem; /* SiteHeader height */
   --container-text: 42.5rem; /* 680 px text column, about 75 characters */
   --container-figure: 60rem; /* 960 px figures */
   --container-page: 80rem; /* 1280 px page */
@@ -105,15 +104,13 @@
   --breakpoint-lg: 64rem;
   --breakpoint-xl: 90rem;
 
-  /* Layers (use as z-(--z-chart) and so on) */
-  --z-chart: 10; /* the sticky scroll-moment chart */
+  /* Layers (use as z-(--z-header) and so on) */
   --z-header: 20; /* SiteHeader, sticky from md */
   --z-menu: 30; /* the phone Menu panel */
 
   /* Motion (use as duration-(--duration-fast); v4 has no duration namespace) */
   --duration-fast: 120ms;
   --duration-base: 240ms;
-  --duration-step: 320ms;
   --duration-settle: 1000ms; /* a proof figure's interval mark closing, once on load */
   --duration-lean: 500ms; /* a card or the hero field following the pointer, and springing back */
   --duration-arrive: 800ms; /* one row of the hero field arriving, once on load */
@@ -129,7 +126,6 @@
   :root {
     --duration-fast: 0ms;
     --duration-base: 0ms;
-    --duration-step: 0ms;
     --duration-settle: 0ms;
     --duration-lean: 0ms;
     --duration-arrive: 0ms;

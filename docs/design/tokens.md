@@ -115,8 +115,7 @@ characters.
   (`py-12`).
 - `size-target`: 44 px, the minimum height (and width for icon-only controls) of buttons,
   segmented options, StepNav, Reset, Menu and standalone links: `min-h-(--size-target)`.
-- `chart-h-phone`: 40svh, the sticky chart's height on phones.
-- `header-h`: 64 px, the `SiteHeader` height; the sticky chart's top offset from `md` up.
+- `header-h`: 64 px, the `SiteHeader` height.
 - `container-text` 680 px, `container-figure` 960 px, `container-page` 1280 px.
 - Page side padding: 32 px desktop, 16 px phone.
 - Radius: `radius-sm` 4 px (badges), `radius-md` 8 px (inputs), `radius-xl` 28 px (tiles and cards: `rounded-xl`), `radius-pill` (buttons: `rounded-pill`). `rounded-full` is used only for dots.
@@ -129,28 +128,22 @@ characters.
 | (none) | under 480 px | Segmented options stack as a radio list. The header's glyph is a 28 by 10 px variant of the 48 by 10 px mark (same bar, end caps and dot with its halo), and Menu is a word without its icon, so the header stays on one row at 375 and 390 px. |
 | `xs` | 480 px | Segmented options sit in one row. The header shows the 48 px glyph and the Menu icon. |
 | `sm` | 640 px | `ChartFrame` uses its wide layout; below 640 px it redraws a narrow layout. |
-| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall; the sticky chart sits beside the steps, offset by `header-h`. |
+| `md` | 768 px | Name `text-display`, readout `text-readout`; section spacing 80 px; side padding 32 px; the header shows the full navigation, and sticks if the screen is also at least 700 px tall. |
 | `lg` | 1024 px | The hero name runs on one line across the page, with identity and evidence split 7/5 below it. |
 | `xl` | 1440 px | Content stays at `container-page`; only the margins grow. |
 
-One container breakpoint is not a viewport one: the scroll moment's decision outcomes sit side by
-side only when their own column is at least 36rem (576 px) wide (`@container` with
-`@min-[36rem]:grid-cols-3`), because the sticky layout gives the steps a narrow column on wide screens.
-
 The screen-share size (1024 by 576) sits exactly on `lg`, so it gets the `lg` layout; it is a test
 target, not a breakpoint; the header scrolls away there (below 700 px of height it would take more
-than a tenth of the screen), and in-page anchors only reserve room for it while it sticks. The chart is sticky only on screens at least 600 px tall (a height
-query).
+than a tenth of the screen), and in-page anchors only reserve room for it while it sticks.
 
 ## Layers
 
 | Token | Value | Use |
 |---|---|---|
-| `z-chart` | 10 | the sticky scroll-moment chart |
 | `z-header` | 20 | `SiteHeader`, sticky from `md` on screens at least 700 px tall |
 | `z-menu` | 30 | the phone Menu panel |
 
-Use them as `z-(--z-chart)`. Nothing else sets a z-index.
+Use them as `z-(--z-header)`. Nothing else sets a z-index.
 
 ## Motion
 
@@ -158,7 +151,6 @@ Use them as `z-(--z-chart)`. Nothing else sets a z-index.
 |---|---|---|
 | `duration-fast` | 120 ms | hover and press feedback |
 | `duration-base` | 240 ms | an interactive Figure changing |
-| `duration-step` | 320 ms | one scroll-moment step changing |
 | `duration-settle` | 1000 ms | a proof figure's interval line closing, once on load |
 | `duration-lean` | 500 ms | a card, a button or the hero field following a fine pointer, and springing back |
 | `duration-arrive` | 800 ms | one row of the hero field, or one load-sequence element, arriving once on load |
@@ -205,6 +197,6 @@ utility can override it.
 
 Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and animations (they do
 not exist); any `text-transform: uppercase`; the arrow character, the middle dot and emoji in
-content; monospace outside code blocks; `@keyframes` other than the scroll moment's and the `depth-*` ones; `fade-up`,
+content; monospace outside code blocks; `@keyframes` not named `depth-*`; `fade-up`,
 `animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`); dark
 mode. The rule ids are listed in `CLAUDE.md`.
