@@ -17,7 +17,7 @@ export function QuestionsRows() {
       <div className="grid gap-2.5">
         {rows.map((row, i) => (
           <div key={i} data-depth-ribbon="">
-            <ul role="list" aria-labelledby={TITLE_ID} className={cx(
+            <ul role="list" className={cx(
                 'mx-auto justify-center [&>li]:border-0 [&>li]:p-0 [&_[data-chip]]:min-h-12 [&_[data-chip]]:rounded-xl [&_[data-chip]]:px-5 [&_[data-chip]]:text-lg',
                 i === 1 && '[animation-direction:reverse]',
               )}>

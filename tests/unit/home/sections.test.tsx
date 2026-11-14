@@ -354,7 +354,10 @@ describe('QuestionsRows', () => {
     const lists = rows.map((r) => one(r, (el) => el.tagName === 'ul'));
     expect(classes(lists[0]!)).not.toContain('[animation-direction:reverse]');
     expect(classes(lists[1]!)).toContain('[animation-direction:reverse]');
+    // role="list" because the rows drop their list style (VoiceOver); no label of their own, so the
+    // section's name is not read again for each row.
     for (const ul of lists) expect(attr(ul, 'role')).toBe('list');
+    for (const ul of lists) expect(attr(ul, 'aria-labelledby')).toBeUndefined();
     const chips = all(section, (el) => has(el, 'data-chip'));
     expect(chips.slice(1).map((c) => text(c))).toEqual(QUESTIONS);
   });
