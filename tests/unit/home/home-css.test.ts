@@ -80,8 +80,9 @@ describe('the hero scene', () => {
     for (const { name, body } of fades) expect(body, name).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
   });
 
-  it('cuts the entering site tile at its column, so a large text size never scrolls the page sideways', () => {
-    expect(css).toMatch(/\[data-home-site-wrap\]\s*\{\s*overflow-x:\s*clip;\s*\}/);
+  it('gives the rise a perspective in rem, 1400 px at the default root, so a larger text size never spills a block past the screen', () => {
+    expect(tokens).toContain('--perspective-scene: 1300px;');
+    expect(css).toMatch(/:has\(> \[data-depth-rise\]\)\s*\{\s*perspective:\s*87\.5rem;\s*\}/);
   });
 
   it('keeps the axis words at the text-xs size whatever the field scale', () => {

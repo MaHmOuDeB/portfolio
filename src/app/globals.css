@@ -930,15 +930,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
   }
 
-  /* The site tile is tall at a large text size, and its entrance tilts it toward the reader: the
-     near edge then spilled sideways past the column and the screen, and the page scrolled sideways.
-     The spill is cut at the column's edges (overflow-clip-margin is not honoured on one axis). At the
-     usual text sizes the tilted tile stays inside the column, so nothing is cut; the tile's buttons sit
-     well inside it, so no focus ring is cut either. */
-  [data-home-site-wrap] {
-    overflow-x: clip;
-  }
-
   /* A plain Tile: a heading and a list with hairlines between the rows. */
   [data-tile]:not([data-depth-lean]) h3 {
     margin: 0 0 calc(var(--spacing) * 5);
@@ -1079,11 +1070,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /* 3. Rise: scroll-linked and reversible, so it follows the scroll position exactly and runs no
-   clock. The parent gets the perspective the tilt needs. */
+   clock. The parent gets the perspective the tilt needs: the scene's distance plus 100 px at the
+   default 16 px root (1400 px), set in rem so it grows with the text. A block grows with a larger
+   text size; a fixed distance would bring its near edge closer and spill it sideways past the
+   screen while it enters. */
 @supports (animation-timeline: view()) {
   @layer components {
     :has(> [data-depth-rise]) {
-      perspective: calc(var(--perspective-scene) + 100px);
+      perspective: 87.5rem;
     }
 
     [data-depth-rise] {
