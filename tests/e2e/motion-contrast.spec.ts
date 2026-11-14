@@ -4,8 +4,11 @@ import { test, waitForIslands } from './fixtures';
 
 // The moving state of the depth system, guarded for real. axe scans the settled page (the shared
 // helper emulates reduced motion), so it cannot see an element that stays half faded while it is fully
-// on screen. This spec scrolls each page in steps of half a viewport, with motion allowed, and checks:
-// - at every stop, each element with text that carries a data-depth-* attribute and whose box is fully
+// on screen. This spec scrolls each page in steps of a twenty-fourth of the viewport (about 35 px),
+// with motion allowed, so the result does not hang on where a stop happens to fall: a card's heading
+// can be fully in view and still fading for less than a quarter of a viewport of scroll, which steps of
+// a quarter viewport stepped over on three of the four routes. It checks:
+// - at every stop, each element with text of its own that is rendered, not aria-hidden and fully
 //   inside the viewport has an effective opacity of 1 (its own opacity times that of every ancestor);
 // - at the end of the page, no element with text of its own is left at an opacity below 1.
 // A failing case is a real page bug, never a reason to relax a threshold.
@@ -21,7 +24,12 @@ const SETTLE_MS = 150;
 
 type Finding = { at: string; element: string; opacity: number };
 
-/** Elements with a data-depth-* attribute that sit fully inside the viewport yet are not fully opaque. */
+/**
+ * Elements a visitor reads that sit fully inside the viewport yet are not fully opaque: every element
+ * with a non-empty text node of its own that is rendered and not inside an aria-hidden subtree (the
+ * decorative sketches, the "+" and the band's sheets are not read). Its effective opacity counts its
+ * ancestors, so a card that is still fading in fails for the heading and paragraph inside it.
+ */
 async function fadedInView(page: Page): Promise<Finding[]> {
   return page.evaluate(() => {
     const effective = (el: Element): number => {
@@ -30,17 +38,17 @@ async function fadedInView(page: Page): Promise<Finding[]> {
       return o;
     };
     const describe = (el: Element): string => {
-      const attrs = [...el.attributes].filter((a) => a.name.startsWith('data-depth-')).map((a) => `[${a.name}]`).join('');
+      const attrs = [...el.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}]`).join('');
       const text = (el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 40);
       return `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}${attrs} "${text}"`;
     };
     const out: { at: string; element: string; opacity: number }[] = [];
     const at = `scrollY ${Math.round(window.scrollY)}`;
-    for (const el of document.querySelectorAll('*')) {
-      if (![...el.attributes].some((a) => a.name.startsWith('data-depth-'))) continue;
-      // The guard is for what a visitor reads. An empty decorative mark (a hairline, the field's zero
-      // line) has no text to lose contrast, and may be translucent or still drawing by design.
-      if ((el.textContent ?? '').trim() === '') continue;
+    for (const el of document.body.querySelectorAll('*')) {
+      const own = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');
+      if (!own) continue;
+      if (!el.checkVisibility()) continue;
+      if (el.closest('[aria-hidden="true"]')) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const inside = r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth;
@@ -85,7 +93,7 @@ for (const route of ROUTES) {
   for (const size of SIZES) {
     test(`${route} at ${size.name}: nothing in view is left part faded while scrolling, and no text at the end`, async ({ browser }, info) => {
       test.skip(info.project.name !== 'desktop-chromium', 'scroll timelines: once, in Chromium');
-      test.setTimeout(120_000);
+      test.setTimeout(300_000);
       const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, reducedMotion: 'no-preference' });
       const page = await context.newPage();
       const response = await page.goto(route);
@@ -97,7 +105,7 @@ for (const route of ROUTES) {
       await expect.poll(() => page.evaluate(() => matchMedia('(prefers-reduced-motion: no-preference)').matches)).toBe(true);
 
       const faded: Finding[] = [];
-      const step = Math.floor(size.height / 2);
+      const step = Math.floor(size.height / 24);
       let last = -1;
       for (let y = 0; ; y += step) {
         await page.evaluate((to) => window.scrollTo(0, to), y);

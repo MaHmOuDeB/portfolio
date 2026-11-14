@@ -37,12 +37,12 @@ const families = (() => {
 const still = block('@media (prefers-reduced-motion: reduce), print');
 
 describe('Drift', () => {
-  it('arrives from a lower corner out of depth and ends on none, opaque by mid-range', () => {
+  it('arrives from a lower corner out of depth and ends on none, by transform only (the card is opaque from its first frame)', () => {
     for (const [name, x, turn] of [['bl', '-32px', '8deg'], ['br', '32px', '-8deg']] as const) {
       const kf = block(`@keyframes depth-drift-${name}`);
-      expect(kf).toMatch(new RegExp(`0%\\s*\\{\\s*opacity:\\s*0;\\s*transform:\\s*perspective\\(87\\.5rem\\) translate3d\\(${x}, 72px, -260px\\) rotateY\\(${turn}\\)`));
-      expect(kf).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
-      expect(kf).toMatch(/100%\s*\{\s*opacity:\s*1;\s*transform:\s*none;\s*\}/);
+      expect(kf).toMatch(new RegExp(`0%\\s*\\{\\s*transform:\\s*perspective\\(87\\.5rem\\) translate3d\\(${x}, 72px, -260px\\) rotateY\\(${turn}\\);\\s*\\}`));
+      expect(kf).toMatch(/100%\s*\{\s*transform:\s*none;\s*\}/);
+      expect(kf).not.toContain('opacity');
     }
   });
 
@@ -110,10 +110,10 @@ describe('the portraits', () => {
     expect(clipFrames).toEqual(['depth-focus']);
   });
 
-  it('drifts the call to action media from the top right with a fade, and About\'s portrait from the top left once on load, by transform only', () => {
+  it('drifts the call to action media from the top right, and About\'s portrait from the top left once on load, both by transform only', () => {
     const tr = block('@keyframes depth-drift-tr');
-    expect(tr).toMatch(/0%\s*\{\s*opacity:\s*0;\s*transform:\s*perspective\(87\.5rem\) translate3d\(32px, -32px, -200px\) rotateY\(-8deg\)/);
-    expect(tr).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
+    expect(tr).toMatch(/0%\s*\{\s*transform:\s*perspective\(87\.5rem\) translate3d\(32px, -32px, -200px\) rotateY\(-8deg\);\s*\}/);
+    expect(tr).not.toContain('opacity');
     const tl = block('@keyframes depth-drift-tl');
     expect(tl).not.toContain('opacity');
     // No turn: the portrait keeps its 4 by 5 shape at every frame (depth scales it evenly).
