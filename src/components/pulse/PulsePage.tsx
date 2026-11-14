@@ -10,6 +10,7 @@
 // (TextTable), because its cells are sentences that wrap. It has no provenance
 // badge: the export is the project's own source code, not public data, and the badge is for charts.
 import type { ReactNode } from 'react';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
@@ -18,6 +19,7 @@ import {
   PulseDashboardIntro,
   PulseData,
   PulseFindings,
+  PULSE_GLANCE,
   PulseIntro,
   PulseLimits,
   PulseMethod,
@@ -60,7 +62,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`pulse: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
+      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -104,8 +106,10 @@ export function PulsePage(): ReactNode {
         </div>
       </div>
 
+      <GlanceBlock {...PULSE_GLANCE} data-depth-rise="" />
+
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold">
+        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
         <div className="mt-4">

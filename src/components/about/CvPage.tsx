@@ -42,7 +42,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`cv: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 print:mt-6">
-      <h2 id={`${id}-title`} className="border-b border-line pb-2 text-xl font-semibold">
+      <h2 id={`${id}-title`} data-depth-rise="heading" className="border-b border-line pb-2 text-xl font-semibold">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -143,7 +143,7 @@ export function CvPage(): ReactNode {
   return (
     <article aria-labelledby="cv-title" className="max-w-figure py-12 md:py-section print:py-0">
       <header data-cv-header="">
-        <h1 id="cv-title" className="text-2xl font-semibold md:text-3xl">
+        <h1 id="cv-title" data-depth-rise="heading" className="text-2xl font-semibold md:text-3xl">
           {SITE.name}
         </h1>
         <p data-cv-role="" className="mt-1 text-lg font-semibold">

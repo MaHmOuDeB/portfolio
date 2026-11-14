@@ -1,4 +1,4 @@
-// Snapshots for the Home scroll moment's states beyond one per mode: low and enough data in each
+// Snapshots for the Home live note's states beyond one per mode: low and enough data in each
 // phase, the small counts, stopped tests with too little data, closures and their mixes. Built
 // like the mode fixtures (src/lib/home/fixtures.ts): the real snapshot builder over hand-written day
 // rows, and a top-level override only where the builder cannot reach a state the reader can give.

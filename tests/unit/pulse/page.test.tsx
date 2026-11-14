@@ -131,7 +131,7 @@ describe('the outline', () => {
   });
 
   it('says what the page is under the title: designed and built, no real users', () => {
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section id="summary"'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       'Pulse is an analytics instrumentation demo that I designed and built: a small dashboard whose real point is its event taxonomy. It has no real users.',
     );

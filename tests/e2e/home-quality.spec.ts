@@ -1,27 +1,24 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { expect } from '@playwright/test';
 import type { APIRequestContext, Browser, BrowserContextOptions, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { test, waitForIslands } from './fixtures';
-import { watchScripts } from './island-code';
 import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
 
 // The Home page's quality gates, in one place:
 // - the real page (/?variant=a and /?variant=b) across the size matrix: HTTP 200 with the matching
 //   x-arm, no sideways scroll, every pointer target at least 44 px (the pinned inline links aside),
 //   every focus ring visible, unclipped and clear of the sticky header, and the same geometry in both
-//   groups for every section; the phone fold at 375x812 holds the planner's title and readout in both;
-// - every text state of the Home composition on the test build's host, in the sticky and stacked
-//   layouts: one h1 and the landmarks, the five steps in order, no repeated id, no "undefined" or
-//   "NaN", named charts, captioned tables, a current step only where the stage is drawn, a silent live
-//   region on load, and no axe violation;
+//   groups for every block; the phone fold at 375x812 holds the h1 and the primary button in both;
+// - every text state of the Home composition on the test build's host, in a wide, a phone, a
+//   reduced-motion and a no-JavaScript layout: one h1 and the landmarks, no repeated id, no "undefined"
+//   or "NaN", named images, captioned tables, and no axe violation;
 // - the budgets: the first-load JavaScript (unique script tags of the served HTML, gzip) against the
-//   pre-Home baseline, the HTML document, the JavaScript after 5 s idle, the time to a measured chart
-//   at 4x CPU, and no statistics code in the page-load scripts;
-// - the planner's preview before hydration (focus kept, the fold unmoved), the lazy island in each
-//   engine with the scripts it loads recorded, and the "your view" tick under forced colours.
+//   pre-Home baseline, the HTML document, the JavaScript after 5 s idle, and no statistics code in
+//   the page-load scripts;
+// - the real page holds no island, no chart and no planner (the calculator lives in the Lab).
 // The numbers are recorded as annotations (type "measure") in the JSON report.
 
 // Playwright runs from the repository root (experiment.spec.ts reads .next from there too).
@@ -54,6 +51,9 @@ function measure(name: string, value: unknown) {
 async function settled(page: Page) {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await waitForIslands(page);
+  // The load sequence is time-based: wait for it, so two pages are measured at rest (scroll-linked
+  // animations have no end and stay at their scroll position).
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.timeline instanceof DocumentTimeline).map((a) => a.finished.catch(() => undefined))));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
@@ -68,13 +68,11 @@ async function openHome(browser: Browser, arm: Arm, size: Size, options: Browser
 }
 
 /**
- * What a Home page was rendered from, as far as it shows: the scroll moment's layout, each Figure's
- * body and every live number (a <time> aside: it says when the page read the store, which differs
+ * What a Home page was rendered from, as far as it shows: each Figure's body and every live number (a <time> aside: it says when the page read the store, which differs
  * between two renders of the same data). Equal for both groups when both render the same data.
  */
 async function renderedData(page: Page): Promise<string> {
   return page.evaluate(() => JSON.stringify({
-    moment: document.querySelector('[data-scroll-moment]')?.getAttribute('data-scroll-moment') ?? null,
     bodies: [...document.querySelectorAll('figure[data-figure]')].map((f) => `${f.getAttribute('data-figure')}:${f.getAttribute('data-body') ?? ''}`),
     live: [...document.querySelectorAll('[data-derived~="live"]')]
       .filter((el) => el.closest('time') === null && el.querySelector('time') === null)
@@ -92,8 +90,7 @@ const ONE_REVALIDATION_MS = 330_000;
  * Both groups' real pages, rendered from the same data. /v/a and /v/b are separate ISR pages that
  * regenerate on their own every 300 s, while the suite's counted views change the store. A pair read
  * across one group's regeneration holds two different states (CI: group A the build's "under 50",
- * group B a regenerated "fewer than 5", which has no live chart and so a stacked moment 476 px
- * shorter), and comparing their geometry measures the data, not the groups. So the pair is read
+ * group B a regenerated "fewer than 5", which prints a different note), and comparing their geometry measures the data, not the groups. So the pair is read
  * again until both show the same data: the request that got the stale page has started its
  * regeneration, so the next pair normally agrees. Only the precondition is waited for; every
  * geometry check below stays exact.
@@ -129,18 +126,22 @@ async function sections(page: Page): Promise<Record<string, Rect>> {
     };
     put('header', document.querySelector('[data-site-header]'));
     put('hero', document.querySelector('[data-hero]'));
-    put('planner', document.querySelector('figure[data-figure="hero-planner"]'));
-    put('note', document.querySelector('[data-home-note]'));
+    put('proof', document.querySelector('[data-home-proof]'));
+    put('experiments', document.querySelector('[data-home-track="experiments"]'));
     put('cards', document.querySelector('[data-experiment="cards"]'));
     for (const card of document.querySelectorAll('[data-case-card]')) {
       const study = card.getAttribute('data-case-card');
       put(`${study}:card`, card);
       put(`${study}:headline`, card.querySelector('[data-case-headline]'));
-      put(`${study}:link`, card.querySelector('[data-experiment-click="card"]'));
+      // The whole card is the link.
+      put(`${study}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
     }
-    put('moment', document.querySelector('[data-scroll-moment]'));
-    for (const step of document.querySelectorAll('[data-scroll-step]')) put(`step-${step.getAttribute('data-scroll-step')}`, step);
-    put('tools', document.querySelector('[data-home-tools]'));
+    put('automation', document.querySelector('[data-home-track="automation"]'));
+    put('tiles', document.querySelector('[data-home-tiles]'));
+    put('ribbon', document.querySelector('[data-home-ribbon]'));
+    put('site', document.querySelector('[data-home-site]'));
+    put('note', document.querySelector('[data-home-note]'));
+    put('decision', document.querySelector('[data-home-decision]'));
     put('footer', document.querySelector('footer'));
     out.page = { x: 0, y: 0, width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight };
     return out;
@@ -174,7 +175,16 @@ async function focusFindings(page: Page): Promise<unknown[]> {
       const errors: string[] = [];
       if (!outline && s.boxShadow === 'none') errors.push('no visible focus ring');
       const vw = document.documentElement.clientWidth;
-      if (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('ring outside the viewport');
+      // A target taller than the visible area (below a sticky header) can never show its whole ring; for
+      // it WCAG 2.4.7 and 2.4.11 are met when its top edge, ring included, is on screen below the header
+      // (the page puts it at the top), with both sides in view. Every other target shows its whole ring.
+      const sticky = document.querySelector<HTMLElement>('[data-site-header]');
+      const covered = sticky && getComputedStyle(sticky).position === 'sticky' ? Math.max(0, sticky.getBoundingClientRect().bottom) : 0;
+      const tall = r.height + 2 * reach > innerHeight - covered;
+      const across = r.left - reach < -1 || r.right + reach > vw + 1;
+      if (tall) {
+        if (across || r.top - reach < covered - 1 || r.top - reach >= innerHeight) errors.push(`top of a tall target's ring outside the viewport (top ${Math.round(r.top - reach)}, visible from ${Math.round(covered)})`);
+      } else if (across || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('ring outside the viewport');
       for (let p = ring.parentElement; p; p = p.parentElement) {
         const ps = getComputedStyle(p);
         const b = p.getBoundingClientRect();
@@ -223,7 +233,7 @@ test.describe('Home quality: the real page in both groups across the size matrix
       const a = geometry.a!;
       const b = geometry.b!;
       expect(Object.keys(b).sort()).toEqual(Object.keys(a).sort());
-      for (const key of ['hero', 'planner', 'cards', 'moment', 'tools', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
+      for (const key of ['hero', 'proof', 'experiments', 'cards', 'automation', 'tiles', 'ribbon', 'site', 'decision', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
       for (const key of Object.keys(a)) {
         for (const side of ['x', 'y', 'width', 'height'] as const) {
           expect(Math.abs(a[key]![side] - b[key]![side]), `${key}.${side}: group A ${a[key]![side]}, group B ${b[key]![side]}`).toBeLessThanOrEqual(TOLERANCE);
@@ -234,14 +244,14 @@ test.describe('Home quality: the real page in both groups across the size matrix
     });
   }
 
-  test('@quality phone fold at 375x812: the planner title and readout are in view, at the same place in both groups', async ({ browser }, info) => {
+  test('@quality phone fold at 375x812: the h1 and the primary button are in view, at the same place in both groups', async ({ browser }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'explicit size');
     const boxes: Rect[][] = [];
     for (const arm of ['a', 'b'] as const) {
       const page = await openHome(browser, arm, { width: 375, height: 812, note: 'fold' }, { isMobile: true, hasTouch: true });
-      const figure = page.locator('figure[data-figure="hero-planner"]');
+      const hero = page.locator('[data-hero]');
       const found: Rect[] = [];
-      for (const el of [figure.locator('h2'), figure.locator('[data-figure-lead] [data-planner-n]')]) {
+      for (const el of [hero.locator('h1'), hero.getByRole('link', { name: 'See the evidence' })]) {
         await expect(el).toBeVisible();
         const box = (await el.boundingBox())!;
         expect(box.y + box.height, `group ${arm}: ${await el.innerText()}`).toBeLessThanOrEqual(812);
@@ -277,84 +287,55 @@ function listed(file: string, start: string, end: string): string[] {
   const body = src.slice(from + start.length, src.indexOf(end, from + start.length));
   return [...body.matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1]!);
 }
-const MODES = listed('src/app/kitchen-sink/home/steps/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
+const MODES = listed('src/app/kitchen-sink/home/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
 const NARRATIVE = listed('src/lib/home/narrative-fixtures.ts', 'export const NARRATIVE_FIXTURES = [', '] as const');
-const EXTRA = ['ab-many-looks', 'chart-error', 'ab-tick', 'ab-two-charts', 'home-fresh', 'home-ceiling-day', 'home-stale-at-render'];
-const STATES = [...MODES, ...NARRATIVE, ...EXTRA];
+const STATES = [...MODES, ...NARRATIVE, 'ab-many-looks'];
 
 type Layout = { name: string; size: { width: number; height: number }; options: BrowserContextOptions };
 const LAYOUTS: readonly Layout[] = [
-  { name: 'sticky, two columns', size: { width: 1440, height: 900 }, options: {} },
-  { name: 'sticky, one column', size: { width: 375, height: 667 }, options: {} },
-  { name: 'stacked (reduced motion)', size: { width: 375, height: 667 }, options: { reducedMotion: 'reduce' } },
-  { name: 'stacked (no JavaScript)', size: { width: 1440, height: 900 }, options: { javaScriptEnabled: false } },
+  { name: 'wide', size: { width: 1440, height: 900 }, options: {} },
+  { name: 'phone', size: { width: 375, height: 667 }, options: {} },
+  { name: 'phone (reduced motion)', size: { width: 375, height: 667 }, options: { reducedMotion: 'reduce' } },
+  { name: 'wide (no JavaScript)', size: { width: 1440, height: 900 }, options: { javaScriptEnabled: false } },
 ];
 
-const STEPS = ['Hypothesis', 'Split', 'Evidence', 'Guardrails', 'Decision'];
-
 test.describe('Home quality: every text state', () => {
-  test('@quality the state list matches the host index', async ({ page }, info) => {
+  test('@quality the state list is read from the host fixtures', async ({}, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     expect(MODES).toHaveLength(14);
     expect(NARRATIVE.length).toBeGreaterThan(20);
-    await page.goto('/kitchen-sink/home/steps');
-    const ids = await page.locator('main li a').allTextContents();
-    expect(ids.map((s) => s.trim())).toEqual([...MODES, ...NARRATIVE]);
   });
 
   for (const state of STATES) {
-    test(`@quality ${state}: DOM and aria in the sticky and stacked layouts`, async ({ browser }, info) => {
+    test(`@quality ${state}: DOM and aria in the wide, phone, reduced-motion and no-JavaScript layouts`, async ({ browser }, info) => {
       test.skip(info.project.name !== 'desktop-chromium', 'explicit layouts');
       test.setTimeout(120_000);
       for (const layout of LAYOUTS) {
         const label = `${state}, ${layout.name}`;
         const context = await browser.newContext({ viewport: layout.size, ...layout.options });
         const page = await context.newPage();
-        const response = await page.goto(`/kitchen-sink/home/scroll/${state}`);
+        const response = await page.goto(`/kitchen-sink/home/b/${state}`);
         expect(response?.status(), label).toBe(200);
-        if (layout.options.javaScriptEnabled !== false) {
-          await settled(page);
-          // A chart that fails (or comes late) drops the moment to its frames: let that settle.
-          await expect(page.locator('[data-scroll-moment] [data-home-chart]:not([data-measured])')).toHaveCount(0, { timeout: 15_000 });
-        }
-        // The current step follows the stage, which a dropped chart hides: wait until the two agree.
-        await expect
-          .poll(() => page.evaluate(() => {
-            const staged = (document.querySelector('[data-scroll-stage]')?.getClientRects().length ?? 0) > 0;
-            const current = document.querySelectorAll('[data-scroll-step][aria-current]').length;
-            return staged ? current === 1 : current === 0;
-          }), { message: `${label}: aria-current follows the stage` })
-          .toBe(true);
+        if (layout.options.javaScriptEnabled !== false) await settled(page);
         await expect(page.locator('h1'), label).toHaveCount(1);
         for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role), label).toHaveCount(1);
         const report = await page.evaluate(() => {
           const ids = [...document.querySelectorAll('[id]')].map((el) => el.id);
-          const moment = document.querySelector('[data-scroll-moment]');
-          const stage = document.querySelector('[data-scroll-stage]');
           const shown = (el: Element | null) => el !== null && el.getClientRects().length > 0;
           const nameOf = (el: Element) =>
             (el.getAttribute('aria-label') ?? (el.getAttribute('aria-labelledby') ?? '').split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ')).trim();
           return {
             repeated: ids.filter((id, i) => ids.indexOf(id) !== i),
-            steps: [...(moment?.querySelectorAll('[data-scroll-step] > h3') ?? [])].map((h) => h.textContent?.trim()),
-            current: [...document.querySelectorAll('[data-scroll-step][aria-current]')].map((el) => `${el.getAttribute('data-scroll-step')}=${el.getAttribute('aria-current')}`),
-            staged: shown(stage),
             text: (document.querySelector('main') as HTMLElement).innerText,
             unnamedImages: [...document.querySelectorAll('main svg[role="img"], main [role="img"]')].filter((el) => shown(el) && nameOf(el) === '').map((el) => el.outerHTML.slice(0, 80)),
             uncaptioned: [...document.querySelectorAll('main table')].filter((t) => (t.querySelector('caption')?.textContent ?? '').trim() === '').length,
-            live: [...document.querySelectorAll('[data-step-live]')].map((el) => el.textContent ?? ''),
           };
         });
         expect(report.repeated, `${label}: repeated ids`).toEqual([]);
-        expect(report.steps, `${label}: steps`).toEqual(STEPS);
         expect(report.text, `${label}: placeholder words`).not.toMatch(/\bundefined\b|\bNaN\b|\[object Object\]/);
         expect(report.unnamedImages, `${label}: unnamed images`).toEqual([]);
         expect(report.uncaptioned, `${label}: tables without a caption`).toBe(0);
-        expect(report.live.every((t) => t.trim() === ''), `${label}: the live region speaks on load`).toBe(true);
-        // A current step only where the stage is drawn (and so the step navigation exists).
-        expect(report.current, `${label}: aria-current`).toEqual(report.staged ? ['1=step'] : []);
-        if (layout.options.javaScriptEnabled === false || layout.options.reducedMotion === 'reduce') expect(report.staged, `${label}: stacked`).toBe(false);
-        if (layout.name === 'sticky, one column') {
+        if (layout.name === 'phone') {
           const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
           expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`), `${label}: axe`).toEqual([]);
         }
@@ -419,7 +400,7 @@ test.describe('Home quality: budgets', () => {
   });
 
   test('@quality the enough-data host state in both groups: HTML and first-load JavaScript within the same budgets', async ({ request }, info) => {
-    // The heaviest Home state: an A/B with ten looks, its series in the page payload, the chart drawn.
+    // The heaviest Home state: an A/B with ten looks, so the note holds its largest counts.
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     const result: Record<string, { scripts: number; js: number; html: number }> = {};
     for (const arm of ['a', 'b'] as const) {
@@ -441,7 +422,7 @@ test.describe('Home quality: budgets', () => {
     expect(Math.abs(result.a!.html - result.b!.html), 'HTML, group difference').toBeLessThanOrEqual(BUDGET.armHtml);
   });
 
-  test('@quality no statistics code in the page-load scripts; the planner island brings it on intent', async ({ page, request }, info) => {
+  test('@quality no statistics code in the page-load scripts (the calculator is not on this page)', async ({ request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     for (const arm of ['a', 'b'] as const) {
       const html = await (await request.get(`/?variant=${arm}`)).text();
@@ -450,27 +431,13 @@ test.describe('Home quality: budgets', () => {
         for (const marker of STATS_MARKERS) expect(body.includes(marker), `group ${arm}: ${path} holds "${marker}"`).toBe(false);
       }
     }
-    // The check is not vacuous: the island's own code, loaded on intent, has the markers.
-    await page.addInitScript(() => {
-      window.requestIdleCallback = () => 0;
-      window.cancelIdleCallback = () => {};
-    });
-    const scripts = watchScripts(page);
-    await page.goto('/?variant=a');
-    await page.waitForLoadState('load');
-    const first = new Set(scriptTags(await (await request.get('/?variant=a')).text()));
-    scripts.start();
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    await figure.locator('h2').hover();
-    await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready');
-    const later = (await scripts.counted()).filter((p) => !first.has(p));
-    let found = false;
-    for (const path of later) {
-      const body = await (await request.get(path)).text();
-      if (STATS_MARKERS.some((m) => body.includes(m))) found = true;
-    }
-    measure('planner island scripts on intent', later);
-    expect(found, 'the island code holds the statistics markers').toBe(true);
+    // The check is not vacuous: the build does hold the statistics code in some chunk (the Lab's islands).
+    const chunks = join(ROOT, '.next/static/chunks');
+    const held = (dir: string): boolean =>
+      readdirSync(dir, { withFileTypes: true }).some((e) =>
+        e.isDirectory() ? held(join(dir, e.name)) : e.name.endsWith('.js') && STATS_MARKERS.some((m) => readFileSync(join(dir, e.name), 'utf8').includes(m)),
+      );
+    expect(held(chunks), 'some chunk of the build holds the statistics markers').toBe(true);
   });
 
   test('@quality JavaScript after 5 s idle, both groups, at phone and desktop sizes, on the real page and the enough-data host state', async ({ browser, request }, info) => {
@@ -499,201 +466,19 @@ test.describe('Home quality: budgets', () => {
       }
     }
   });
-
-  test('@quality time to a measured chart at 4x CPU, 375x667: well inside the phone wait, with no drop', async ({ browser, request }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'CPU throttling is a Chromium protocol');
-    test.setTimeout(120_000);
-    /** The phone's wait for a measured chart (ScrollShell's CHART_WAIT_MS), which runs from when the chart starts to load. */
-    const CHART_WAIT_MS = Number(/const CHART_WAIT_MS = (\d+);/.exec(readFileSync(join(ROOT, 'src/components/home/ScrollShell.tsx'), 'utf8'))![1]);
-    for (const state of ['ab-many-looks', 'before-data', 'calibration']) {
-      const url = `/kitchen-sink/home/scroll/${state}`;
-      const first = new Set(scriptTags(await (await request.get(url)).text()));
-      const times: { fcp: number; chartRequested: number; measured: number }[] = [];
-      for (let run = 0; run < 3; run++) {
-        const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
-        const page = await context.newPage();
-        const cdp = await context.newCDPSession(page);
-        await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-        await page.addInitScript(() => {
-          const w = window as unknown as { __measuredAt: number | null };
-          w.__measuredAt = null;
-          const sel = '[data-scroll-canvas] [data-canvas-layer][data-active] [data-home-chart][data-measured]';
-          new MutationObserver((_, o) => {
-            if (w.__measuredAt === null && document.querySelector(sel)) {
-              w.__measuredAt = performance.now();
-              o.disconnect();
-            }
-          }).observe(document, { subtree: true, childList: true, attributes: true });
-        });
-        await page.goto(url);
-        await expect.poll(() => page.evaluate(() => (window as unknown as { __measuredAt: number | null }).__measuredAt), { timeout: 20_000 }).not.toBeNull();
-        const t = await page.evaluate((named) => {
-          // The first script that is not a first-load one: the chart's code, asked for as the shell's module runs.
-          const later = performance.getEntriesByType('resource').filter((e) => (e as PerformanceResourceTiming).initiatorType === 'script' && !named.includes(new URL(e.name).pathname));
-          return {
-            fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1,
-            chartRequested: later.length ? Math.min(...later.map((e) => e.startTime)) : -1,
-            measured: (window as unknown as { __measuredAt: number }).__measuredAt,
-          };
-        }, [...first]);
-        times.push({ fcp: Math.round(t.fcp), chartRequested: Math.round(t.chartRequested), measured: Math.round(t.measured) });
-        expect(t.chartRequested, `${state} run ${run}: the chart code was requested`).toBeGreaterThan(0);
-        expect(await page.locator('[data-scroll-shell][data-chart-late]').count(), `${state} run ${run}: dropped to the stacked frames`).toBe(0);
-        await context.close();
-      }
-      measure(`time to measured chart at 4x CPU, ${state} (ms from navigation)`, times);
-      // The wait starts once the chart begins to load, which is no earlier than its code is requested:
-      // the time from that request to the measured chart is an upper bound of what the wait sees.
-      const worst = Math.max(...times.map((x) => x.measured - x.chartRequested));
-      measure(`slowest chart request to measured, ${state} (ms; the wait is ${CHART_WAIT_MS})`, worst);
-      // Wall-clock under 4x CPU: on a machine busy with other jobs this can exceed the wait with no
-      // regression (measured 0.6 s on a normal run, 3.7 s margin left on the busiest one). The one CI
-      // retry is the accepted handling; a second failure is a real slowdown to look at.
-      expect(worst, `${state}: slowest of 3, from the chart request`).toBeLessThan(CHART_WAIT_MS);
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------------------------------
-// The planner's preview before hydration, the lazy island, forced colours.
+// No island on the real page.
 
-test.describe('Home quality: islands and forced colours', () => {
-  test('@quality focus placed on the planner preview before hydration stays on that control, and the fold does not move', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'once, in Chromium (phone emulation)');
-    const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
-    const page = await context.newPage();
-    // Hold every script until the preview has focus, so the focus lands before hydration for certain.
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    await page.route('**/_next/static/**/*.js', async (route) => {
-      await gate;
-      await route.continue();
-    });
-    await page.goto('/?variant=a', { waitUntil: 'domcontentloaded' });
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    const slider = figure.getByRole('slider', { name: 'Baseline conversion' });
-    await slider.focus();
-    const before = await page.evaluate(() => {
-      const box = (sel: string) => {
-        const r = document.querySelector(sel)!.getBoundingClientRect();
-        return { y: r.y, height: r.height };
-      };
-      return {
-        hydrated: Object.keys(document.activeElement ?? {}).some((k) => k.startsWith('__react')),
-        title: box('figure[data-figure="hero-planner"] h2'),
-        readout: box('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]'),
-      };
-    });
-    expect(before.hydrated, 'focused before hydration').toBe(false);
-    release();
-    await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready', { timeout: 20_000 });
-    await expect(slider).toBeFocused();
-    const after = await page.evaluate(() => {
-      const box = (sel: string) => {
-        const r = document.querySelector(sel)!.getBoundingClientRect();
-        return { y: r.y, height: r.height };
-      };
-      return { title: box('figure[data-figure="hero-planner"] h2'), readout: box('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]') };
-    });
-    for (const key of ['title', 'readout'] as const) {
-      expect(Math.abs(after[key].y - before[key].y), `${key} moved`).toBeLessThanOrEqual(TOLERANCE);
-      expect(after[key].y + after[key].height, `${key} in the fold`).toBeLessThanOrEqual(812);
+test.describe('Home quality: no island', () => {
+  test('@quality the real page holds no lazy island, no chart Figure and no planner, in either group', async ({ page }) => {
+    for (const arm of ['a', 'b'] as const) {
+      await page.goto(`/?variant=${arm}`);
+      await page.waitForLoadState('load');
+      await expect(page.locator('[data-island]'), `group ${arm}`).toHaveCount(0);
+      await expect(page.locator('figure[data-figure]'), `group ${arm}`).toHaveCount(0);
+      await expect(page.locator('[data-scroll-moment], [data-hero-simulator]'), `group ${arm}`).toHaveCount(0);
     }
-    await context.close();
-  });
-
-  test('@quality the real page: the planner island stays idle until intent, in every engine, and the scripts it loads are recorded', async ({ page, request }) => {
-    await page.addInitScript(() => {
-      window.requestIdleCallback = () => 0;
-      window.cancelIdleCallback = () => {};
-    });
-    const scripts = watchScripts(page);
-    await page.goto('/?variant=b');
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(500);
-    scripts.start();
-    const figure = page.locator('figure[data-figure="hero-planner"]');
-    const island = page.locator('[data-island]', { has: figure });
-    await expect(island).toHaveAttribute('data-island', 'idle');
-    await page.waitForTimeout(800);
-    const early = await scripts.counted();
-    const first = new Set(scriptTags(await (await request.get('/?variant=b')).text()));
-    const before = early.filter((p) => !first.has(p));
-    measure('scripts before intent (not first-load)', before);
-    expect(before, 'no island code before intent').toEqual([]);
-    await expect(island).toHaveAttribute('data-island', 'idle');
-    await figure.locator('h2').hover();
-    await expect(island).toHaveAttribute('data-island', 'ready');
-    const byIntent = (await scripts.counted()).filter((p) => !first.has(p));
-    measure('scripts by intent', byIntent);
-    expect(byIntent.length, 'intent loads the island code').toBeGreaterThan(0);
-  });
-
-  test('@quality forced colours: the "your view" tick keeps a visible stroke', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'forced-colours emulation is Chromium only');
-    const read = async (forcedColors: 'active' | 'none') => {
-      const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, forcedColors });
-      const page = await context.newPage();
-      await page.goto('/kitchen-sink/home/scroll/ab-tick');
-      await settled(page);
-      await expect(page.locator('[data-scroll-moment] [data-home-chart]:not([data-measured])')).toHaveCount(0, { timeout: 15_000 });
-      // The host's state is seen from group B; a counted view of that group draws the tick.
-      await page.evaluate(() => window.dispatchEvent(new CustomEvent('experiment:counted', { detail: { arm: 'b', viewN: 1e9 } })));
-      const line = page.locator('[data-scroll-canvas] [data-your-view] line');
-      await expect(line).toHaveCount(1);
-      const style = await line.evaluate((el) => {
-        const s = getComputedStyle(el);
-        const plot = el.closest('svg')!;
-        let bg = 'rgba(0, 0, 0, 0)';
-        for (let p: Element | null = plot; p && bg === 'rgba(0, 0, 0, 0)'; p = p.parentElement) bg = getComputedStyle(p).backgroundColor;
-        return { stroke: s.stroke, width: s.strokeWidth, opacity: s.opacity, visibility: s.visibility, background: bg };
-      });
-      await context.close();
-      return style;
-    };
-    const normal = await read('none');
-    const forced = await read('active');
-    measure('your-view tick stroke (normal, forced colours)', { normal, forced });
-    expect(forced.stroke).not.toBe('none');
-    expect(forced.stroke).not.toMatch(/rgba\(\d+, \d+, \d+, 0\)/);
-    // Non-text contrast (WCAG 1.4.11) of the stroke against the two default forced-colours canvases,
-    // black and white: Chromium's emulation keeps the authored stroke and reports a transparent
-    // background, so the real system canvas is not readable here.
-    const luminance = (rgb: string) => {
-      const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map((v) => {
-        const c = Number(v) / 255;
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-    };
-    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-    const stroke = luminance(forced.stroke);
-    measure('your-view tick contrast in forced colours (on black, on white)', [ratio(stroke, 0), ratio(stroke, 1)].map((x) => Math.round(x * 100) / 100));
-    expect(ratio(stroke, 0), 'against a black canvas').toBeGreaterThanOrEqual(3);
-    expect(ratio(stroke, 1), 'against a white canvas').toBeGreaterThanOrEqual(3);
-    expect(parseFloat(forced.width)).toBeGreaterThan(0);
-    expect(forced.opacity).not.toBe('0');
-    expect(forced.visibility).toBe('visible');
-  });
-});
-
-test.describe('Home quality: review corrections', () => {
-  test('@quality the three outcomes stack in the narrow sticky step column and sit side by side in a wide one', async ({ browser }, info) => {
-    test.skip(info.project.name !== 'desktop-chromium', 'explicit layouts');
-    const columns = async (options: BrowserContextOptions, size: { width: number; height: number }) => {
-      const context = await browser.newContext({ viewport: size, ...options });
-      const page = await context.newPage();
-      await page.goto('/kitchen-sink/home/scroll/calibration');
-      await settled(page);
-      const xs = await page.locator('[data-decision-zone]').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().x)));
-      await context.close();
-      return new Set(xs).size;
-    };
-    // Sticky, two columns: the steps' column is too narrow for three cards.
-    expect(await columns({}, { width: 1440, height: 900 })).toBe(1);
-    // Stacked frames on a wide screen: the full text column holds three.
-    expect(await columns({ reducedMotion: 'reduce' }, { width: 1440, height: 900 })).toBe(3);
-    // A phone: one.
-    expect(await columns({ reducedMotion: 'reduce' }, { width: 375, height: 667 })).toBe(1);
   });
 });

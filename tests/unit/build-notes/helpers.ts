@@ -37,9 +37,9 @@ export const sectionLinks = (markup: string) => {
   return [...nav[1]!.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m): [href: string, label: string] => [m[1]!, text(m[2]!)]);
 };
 
-/** The words of the prose a visitor reads: the article without its diagram and its tables. */
+/** The words of the prose a visitor reads: the article without its glance block, its diagram and its tables. */
 export const proseWords = (markup: string) =>
-  text(markup.replace(/<figure [\s\S]*?<\/figure>/g, ' ').replace(/<table[\s\S]*?<\/table>/g, ' '))
+  text(markup.replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure [\s\S]*?<\/figure>/g, ' ').replace(/<table[\s\S]*?<\/table>/g, ' '))
     .split(' ')
     .filter((w) => /[A-Za-z0-9]/.test(w)).length;
 

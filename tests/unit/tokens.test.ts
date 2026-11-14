@@ -9,7 +9,7 @@ const MUST_GENERATE = [
   'font-semibold', 'font-medium', 'font-regular', 'font-sans', 'bg-ink', 'fill-series-2',
   'stroke-series-1', 'text-sm', 'text-xl', 'text-readout', 'text-readout-sm', 'text-display',
   'text-display-sm', 'max-w-text', 'max-w-figure', 'max-w-page', 'rounded-sm', 'rounded-md',
-  'py-section', 'min-h-(--size-target)', 'h-(--chart-h-phone)', 'top-(--header-h)',
+  'py-section', 'min-h-(--size-target)', 'h-(--size-target)', 'top-(--header-h)',
   'z-(--z-header)', 'ease-standard', 'duration-(--duration-base)', 'transition-colors',
   'max-xs:flex-col', 'md:sticky', 'tabular-nums',
 ];

@@ -8,7 +8,13 @@ import { describe, expect, it } from 'vitest';
 import {
   HEADLINES,
   HOME_CASES,
-  HOME_TOOLS,
+  HOME_AUTOMATION,
+  HOME_HERO,
+  HOME_PROOF,
+  HOME_SITE,
+  HOME_TILES,
+  HOME_TRACKS,
+  HOME_DECISION,
   headlineText,
   type HeadlinePart,
   type Study,
@@ -27,9 +33,9 @@ const caseOf = (study: Study) => {
   if (!found) throw new Error(`no case for ${study}`);
   return found;
 };
-const toolOf = (id: string) => {
-  const found = HOME_TOOLS.find((t) => t.id === id);
-  if (!found) throw new Error(`no tool ${id}`);
+const automationOf = (id: string) => {
+  const found = HOME_AUTOMATION.find((t) => t.id === id);
+  if (!found) throw new Error(`no automation card ${id}`);
   return found;
 };
 const stringParts = (parts: readonly HeadlinePart[]): string[] =>
@@ -137,16 +143,21 @@ describe('the featured case studies', () => {
     ]);
   });
 
-  it('describe each study with the approved line', () => {
+  it('describe each study with the approved line and meta', () => {
     expect(headlineText(byStudy.audible.description)).toBe(
-      'How I plan and analyse experiments, and why so many of my recommendations were adopted.',
+      'How I planned and analysed A/B tests at Audible, and why so many of my recommendations were adopted.',
     );
     expect(headlineText(byStudy.retention.description)).toBe(
-      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cohorts, customer segments and a win-back sample size.',
+      'Two years of orders from a UK online gift retailer: cohorts, segments and a win-back sample size. Public dataset, rebuilt in 2026.',
     );
     expect(headlineText(byStudy.pulse.description)).toBe(
-      'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
+      'An analytics dashboard I designed and built around a 7-event taxonomy. A demo, with no real users.',
     );
+    expect(HOME_CASES.map((c) => c.meta)).toEqual([
+      'Sample size, significance testing, 2023 to 2025',
+      'SQL, Python, cohort analysis, 2026',
+      'Amplitude, React, event taxonomy, 2026',
+    ]);
   });
 
   it('keep the Audible line to what he planned, analysed and recommended', () => {
@@ -156,7 +167,7 @@ describe('the featured case studies', () => {
   });
 
   it('call the rebuilt analysis a public dataset, and Pulse a demo with no real users', () => {
-    expect(headlineText(byStudy.retention.description)).toMatch(/public dataset, rebuilt in 2026/);
+    expect(headlineText(byStudy.retention.description)).toMatch(/Public dataset, rebuilt in 2026/);
     expect(headlineText(byStudy.pulse.description)).toMatch(/no real users/);
     expect(headlineText(byStudy.pulse.description)).not.toMatch(/A\/B|experiment|result/i);
   });
@@ -167,67 +178,128 @@ describe('the featured case studies', () => {
       for (const s of stringParts(c.description)) {
         expect(s.replace(/\b20(?:0[89]|[12]\d|30)\b/g, ''), s).not.toMatch(/\d/);
       }
+      expect(c.meta.replace(/\b20(?:0[89]|[12]\d|30)\b/g, ''), c.meta).not.toMatch(/\d/);
     }
   });
 });
 
-describe('the tools I have built', () => {
+describe('the automation cards', () => {
   const byId = {
-    automation: toolOf('automation'),
-    docproof: toolOf('docproof'),
-    marketingws: toolOf('marketingws'),
+    automation: automationOf('automation'),
+    docproof: automationOf('docproof'),
+    n8n: automationOf('n8n'),
+    marketingws: automationOf('marketingws'),
   };
 
-  it('are the automation tool, Docproof and MarketingWS, with their reserved destinations', () => {
-    expect(HOME_TOOLS.map((t) => t.id)).toEqual(['automation', 'docproof', 'marketingws']);
-    expect(HOME_TOOLS.map((t) => t.href)).toEqual([
+  it('are the automation tool, Docproof, n8n and MarketingWS, with existing destinations', () => {
+    expect(HOME_AUTOMATION.map((t) => t.id)).toEqual(['automation', 'docproof', 'n8n', 'marketingws']);
+    expect(HOME_AUTOMATION.map((t) => t.href)).toEqual([
       '/work/audible#automation',
       '/work/docproof',
+      '/work/n8n',
       '/work/marketingws',
     ]);
-    for (const t of HOME_TOOLS) {
+    for (const t of HOME_AUTOMATION) {
       expect(HOME_DESTINATIONS, t.href).toContain(t.href);
       expect(new URL(t.href, 'https://site.test').origin).toBe('https://site.test');
     }
   });
 
-  it('say the approved lines, with the automation figures printed from facts', () => {
-    expect(headlineText(byId.automation.parts)).toBe(
-      'Tampermonkey with a step recorder: test-account setup from about 20 to about 3 minutes across 11 markets, adopted team-wide.',
+  it('say the approved lines, with the figures printed from facts', () => {
+    expect(headlineText(byId.automation.description)).toBe(
+      'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
     );
-    expect(headlineText(byId.docproof.parts)).toBe(
-      'Document verification with multi-agent orchestration and automated checks.',
+    expect(headlineText(byId.docproof.description)).toBe(
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     );
-    expect(headlineText(byId.marketingws.parts)).toBe(
-      "Copy variants for marketing workflows; the live demo depends on Groq's free tier.",
+    expect(headlineText(byId.n8n.description)).toBe(
+      'E-invoice intake and error alerts as reusable workflows, with 270+ automated tests. A portfolio project, not used by a client.',
     );
-    expect(factIds(byId.automation.parts)).toEqual([
+    expect(headlineText(byId.marketingws.description)).toBe(
+      "Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier.",
+    );
+    expect(factIds(byId.automation.description)).toEqual([
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
-      'profile.audible.markets',
+    ]);
+    expect(factIds(byId.n8n.description)).toEqual(['profile.n8n.automated_tests']);
+    expect(HOME_AUTOMATION.map((t) => headlineText(t.meta))).toEqual([
+      'Browser automation, 11 markets',
+      'Multi-agent orchestration, Claude Code',
+      'n8n, XRechnung, ZUGFeRD',
+      'Python, FastAPI, Groq',
     ]);
   });
 
-  it('the automation line opens with the tool and prints only the setup-time and market facts', () => {
-    expect(headlineText(byId.automation.parts)).toMatch(/^Tampermonkey with a step recorder: /);
-    for (const id of factIds(byId.automation.parts)) {
-      expect(id).toMatch(/^profile\.audible\.(?:setup_minutes_(?:before|after)|markets)$/);
-    }
-  });
-
-  it('the MarketingWS line is one plain sentence with no fact', () => {
-    expect(byId.marketingws.parts).toEqual([
-      "Copy variants for marketing workflows; the live demo depends on Groq's free tier.",
-    ]);
-    expect(factIds(byId.marketingws.parts)).toEqual([]);
+  it('keep the limits: the tool is the step recorder, n8n has no client, nothing is deployed', () => {
+    expect(headlineText(byId.automation.description)).toMatch(/^Tampermonkey with a step recorder\. /);
+    expect(headlineText(byId.n8n.description)).toMatch(/not used by a client/);
+    for (const t of HOME_AUTOMATION) expect(headlineText(t.description), t.id).not.toMatch(/deployed|in production|job|CV|AI-powered/i);
   });
 
   it('type no numeral and name only facts that exist', () => {
-    for (const t of HOME_TOOLS) {
-      for (const id of factIds(t.parts)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
-      for (const s of stringParts(t.parts)) expect(s, s).not.toMatch(/\d/);
-      expect(t.name.length).toBeGreaterThan(0);
+    for (const t of HOME_AUTOMATION) {
+      for (const id of factIds(t.description)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      for (const s of stringParts(t.description)) expect(s, s).not.toMatch(/\d/);
+      for (const id of factIds(t.meta)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      const meta = stringParts(t.meta).join('');
+      expect(meta.replace(/n8n/g, ''), meta).not.toMatch(/\d/);
+      expect(t.title.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('the hero, proof row, tiles, site tile and decision band', () => {
+  it('say the approved words', () => {
+    expect(HOME_HERO.title).toBe('I test what works, and automate the rest.');
+    expect(HOME_HERO.sub).toBe(
+      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
+    );
+    expect([HOME_HERO.evidence, HOME_HERO.cv, HOME_HERO.contact]).toEqual(['See the evidence', 'CV', 'Contact']);
+    expect(HOME_TRACKS.experiments).toEqual({
+      title: 'Experiments and analytics',
+      lede: 'How I plan a test, read it honestly and write the recommendation.',
+    });
+    expect(HOME_TRACKS.automation).toEqual({
+      title: 'Automation and agents',
+      lede: 'Tools I built so that people, including me, stop doing the same thing by hand.',
+    });
+    expect(HOME_SITE).toEqual({
+      title: 'This site is part of the evidence.',
+      text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+      live: 'See the live test',
+      lab: 'Try the Lab',
+    });
+    expect(HOME_DECISION).toEqual({
+      title: 'Your call.',
+      text: 'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
+      write: 'Write to me',
+      cv: 'Read my CV',
+      linkedin: 'LinkedIn',
+    });
+    expect(HOME_TILES.test.lines).toHaveLength(3);
+    expect(HOME_TILES.automate.lines).toHaveLength(3);
+  });
+
+  it('prints each proof figure from a fact, the numbers never typed', () => {
+    expect(HOME_PROOF.map((p) => factIds(p.figure))).toEqual([
+      ['profile.audible.experiments'],
+      ['profile.audible.recommendations_adopted'],
+      ['profile.audible.setup_minutes_after'],
+      ['profile.n8n.automated_tests'],
+    ]);
+    for (const p of HOME_PROOF) {
+      for (const id of [...factIds(p.figure), ...factIds(p.caption)]) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      for (const s of [...stringParts(p.figure), ...stringParts(p.caption)]) expect(s, s).not.toMatch(/\d/);
+    }
+  });
+
+  it('type no numeral of their own', () => {
+    const strings = [
+      HOME_HERO.title, HOME_HERO.sub, HOME_SITE.title, HOME_SITE.text, HOME_DECISION.text,
+      ...HOME_TILES.test.lines, ...HOME_TILES.automate.lines,
+    ];
+    for (const s of strings) expect(s, s).not.toMatch(/\d/);
   });
 });
 
@@ -236,7 +308,12 @@ describe('all Home copy', () => {
     const all = [
       ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
       ...HOME_CASES.map((c) => headlineText(c.description)),
-      ...HOME_TOOLS.flatMap((t) => [t.name, headlineText(t.parts)]),
+      ...HOME_CASES.map((c) => c.meta),
+      ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), headlineText(t.meta)]),
+      ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
+      ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
+      ...[HOME_TILES.test, HOME_TILES.automate].flatMap((t) => [t.title, ...t.lines]),
+      HOME_HERO.title, HOME_HERO.sub, ...Object.values(HOME_SITE), ...Object.values(HOME_DECISION),
     ];
     for (const text of all) {
       expect(text, text).not.toMatch(BANNED_CHARS);
@@ -253,6 +330,7 @@ describe('HOME_DESTINATIONS', () => {
       '/work/retention',
       '/work/pulse',
       '/work/docproof',
+      '/work/n8n',
       '/work/marketingws',
       '/lab',
       '/experiment',

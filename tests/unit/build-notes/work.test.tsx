@@ -1,6 +1,7 @@
-// The Work directory at /work: every case study and build note, in two groups, the live test,
-// Audible, Retention and Pulse first, then MarketingWS, Docproof, Weather and n8n. The page prints
-// the sourced lines of content/work.tsx and nothing else: no cards, no figures, no outcome claims.
+// The Work directory at /work: every case study and build note as a lean card, in three groups:
+// experiments and analytics (Audible, Retention, Pulse), automation and agents (Docproof, n8n,
+// MarketingWS) and data pipelines (Weather, which is a tested SQL pipeline, not an automation). The
+// page prints the sourced lines of content/work.tsx and nothing else: no figures, no outcome claims.
 //
 // Every destination must resolve: its path is a page that ships (LIVE_ROUTES, which
 // tests/unit/live-routes.test.ts keeps equal to the pages under src/app), and a #fragment is the id
@@ -34,156 +35,238 @@ const html = (node: ReactNode) => renderToStaticMarkup(createElement(Fragment, n
 
 const PAGE = renderToStaticMarkup(<WorkPage />);
 
-/** The directory, in page order: the live test, Audible, Retention and Pulse, then the four tools. */
+/** The directory, in page order: three experiments pages, three automation pages, then Weather. */
 const ORDER = [
-  ['/experiment', 'Live test'],
   ['/work/audible#why-so-many', 'Experimentation at Audible (Amazon)'],
   ['/work/retention', 'Customer retention and reactivation analysis'],
   ['/work/pulse', 'Pulse: analytics instrumentation demo'],
-  ['/work/marketingws', 'MarketingWS'],
   ['/work/docproof', 'Docproof'],
-  ['/work/weather', 'Weather data quality'],
   ['/work/n8n', 'n8n Workflow Library'],
+  ['/work/marketingws', 'MarketingWS'],
+  ['/work/weather', 'Weather data quality'],
 ] as const;
 
 const GROUPS = [
-  ['experimentation', 'Experimentation & analytics', 4],
-  ['tools', "Tools I've built", 4],
+  ['experimentation', 'Experiments and analytics', 3],
+  ['automation', 'Automation and agents', 3],
+  ['pipelines', 'Data pipelines', 1],
 ] as const;
 
-/** Every item as rendered: its section, its link (href and text) and the visible text of the row. */
+/** Every item as rendered: its card (one link holding the title, the line and the type) and its text. */
 const rows = () =>
   [...PAGE.matchAll(/<li data-work-item="([^"]*)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => {
     const body = m[2]!;
-    const links = [...body.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((l) => [decode(l[1]!), text(l[2]!)]);
-    const kind = /<p data-work-kind=""[^>]*>([^<]*)<\/p>/.exec(body)?.[1] ?? null;
-    return { key: m[1], body, links, kind, text: text(body) };
+    const links = [...body.matchAll(/<a ([^>]*)>([\s\S]*?)<\/a>/g)].map((l) => ({
+      href: decode(/href="([^"]+)"/.exec(l[1]!)![1]!),
+      attrs: l[1]!,
+      title: text(/<h3[^>]*>([\s\S]*?)<\/h3>/.exec(l[2]!)?.[1] ?? ''),
+      line: text(/<\/h3><p[^>]*>([\s\S]*?)<\/p>/.exec(l[2]!)?.[1] ?? ''),
+      kind: /<span data-depth-meta="">([^<]*)<\/span>/.exec(l[2]!)?.[1] ?? null,
+    }));
+    return { key: m[1], body, links, text: text(body) };
   });
 
 describe('the outline', () => {
+  it('has unique ids, so each card link is named and described by its own text', () => {
+    // LeanCard derives its ids from the href: two cards to one destination would share them.
+    const ids = [...PAGE.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]!);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
+
   it('has one h1, "Work", the navigation label, with a one-line intro', () => {
     expect(WORK_TITLE).toBe('Work');
     expect(NAV.find((n) => n.href === '/work')?.label).toBe(WORK_TITLE);
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="work-title"[^>]*>Work<\/h1>/);
     const intro = /<p data-work-intro=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE);
-    expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools I've built.");
+    expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools and pipelines I've built.");
   });
 
-  it('has the two groups as sections, each named by its own h2, in this order', () => {
-    const sections = [...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"[^>]*>([^<]+)<\/h2>/g)].map(
-      (m) => [m[1], m[2], m[3], decode(m[4]!)],
-    );
-    expect(sections.map(([id, , , title]) => [id, title])).toEqual(GROUPS.map(([id, title]) => [id, title]));
-    for (const [id, labelledBy, headingId] of sections) {
+  it('has the three groups as sections, each named by its own h2 that rises as a heading, in this order', () => {
+    const sections = [
+      ...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"([^>]*)>([^<]+)<\/h2>/g),
+    ].map((m) => [m[1], m[2], m[3], m[4], decode(m[5]!)] as const);
+    expect(sections.map(([id, , , , title]) => [id, title])).toEqual(GROUPS.map(([id, title]) => [id, title]));
+    for (const [id, labelledBy, headingId, attrs] of sections) {
       expect(labelledBy).toBe(`${id}-title`);
       expect(headingId).toBe(`${id}-title`);
+      expect(attrs).toContain('data-depth-rise="heading"');
     }
     expect(WORK_SECTIONS.map((s) => [s.id, s.label])).toEqual(GROUPS.map(([id, title]) => [id, title]));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length);
-    // each group holds its own items, as one list
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length + 1);
+    // each group holds its own items, as one list whose rule draws on entry
     for (const [id, , count] of GROUPS) {
       const start = PAGE.indexOf(`<section id="${id}"`);
       const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
       expect([...body.matchAll(/<ul[\s>]/g)], id).toHaveLength(1);
+      // The rule that draws in is its own decorative element: the list itself is never transformed.
+      expect(body, id).toMatch(/<span data-depth-draw="" aria-hidden="true"[^>]*><\/span><ul class=/);
+      expect(body, id).not.toMatch(/<ul[^>]*data-depth-draw/);
       expect([...body.matchAll(/<li data-work-item=/g)], id).toHaveLength(count);
     }
   });
 
-  it('names each item by an h3 that holds its one link, with no level skipped', () => {
+  it('names each item by an h3 inside its one card link, with no level skipped', () => {
     const headings = [...PAGE.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
-    expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3]);
+    // the last h2 is the live test tile, after the three groups
+    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2]);
     for (const row of rows()) {
       expect(row.links, row.key).toHaveLength(1);
-      expect(row.body, row.key).toMatch(/^\s*<h3[^>]*>\s*<a [^>]*>[\s\S]*?<\/a>\s*<\/h3>/);
+      expect(row.body, row.key).toMatch(/^<a [^>]*><h3[^>]*>[\s\S]*?<\/h3>/);
     }
   });
 });
 
+describe('the layout', () => {
+  it('gives each group a full-width card grid: three across from lg, two from md, one below', () => {
+    for (const [id] of GROUPS) {
+      const start = PAGE.indexOf(`<section id="${id}"`);
+      const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
+      const open = /<section [^>]*class="([^"]*)"/.exec(body)![1]!;
+      expect(open, id).not.toMatch(/max-w-/);
+      const ul = /<ul [^>]*class="([^"]*)"/.exec(body)![1]!.split(/\s+/);
+      expect(ul, id).toEqual(expect.arrayContaining(['grid', 'md:grid-cols-2', 'lg:grid-cols-3']));
+    }
+  });
+
+  it('sets the page title larger than the group headings, with the lede muted under each group', () => {
+    const h1 = /<h1 id="work-title" class="([^"]*)"/.exec(PAGE)![1]!.split(/\s+/);
+    expect(h1).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
+    for (const [id] of GROUPS) {
+      const h2 = new RegExp(`<h2 id="${id}-title" class="([^"]*)"`).exec(PAGE)![1]!.split(/\s+/);
+      expect(h2, id).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
+      expect(h2, id).not.toContain('md:text-display');
+    }
+    const ledes = [...PAGE.matchAll(/<p data-work-lede="" class="([^"]*)">([^<]*)<\/p>/g)];
+    expect(ledes.map((m) => decode(m[2]!))).toEqual([
+      'How I plan a test, read it honestly and write the recommendation.',
+      'Tools I built so that people, including me, stop doing the same thing by hand.',
+    ]);
+    for (const m of ledes) expect(m[1]).toContain('text-muted');
+  });
+
+  it('names each card by its title only, and describes it by the line', () => {
+    for (const row of rows()) {
+      const attrs = row.links[0]!.attrs;
+      const labelled = /aria-labelledby="([^"]+)"/.exec(attrs)?.[1];
+      const described = /aria-describedby="([^"]+)"/.exec(attrs)?.[1];
+      expect(labelled, row.key).toBeDefined();
+      expect(described, row.key).toBeDefined();
+      expect(labelled).not.toBe(described);
+      expect(row.body, row.key).toMatch(new RegExp(`<h3 id="${labelled}"`));
+      expect(row.body, row.key).toMatch(new RegExp(`<p id="${described}"`));
+    }
+  });
+
+  it('ends with a tile that links to the live test, in the Home site tile words', () => {
+    const tile = /<div data-tile=""[^>]*data-work-site=""[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)?.[1] ?? '';
+    expect(tile).toMatch(/^<h2[^>]*>This site is part of the evidence\.<\/h2>/);
+    expect(text(tile)).toBe(
+      'This site is part of the evidence. It runs its own pre-registered A/B test on the three experiment cards on the Home page. I built it with coding agents, and every change passes its automated checks before it ships. See the live test',
+    );
+    expect(/<a [^>]*href="([^"]+)"/.exec(tile)![1]).toBe('/experiment');
+    expect(PAGE.indexOf('data-work-site')).toBeGreaterThan(PAGE.lastIndexOf('</section>'));
+    // Its heading is a section heading like the groups', never as large as the page title.
+    const h2 = /^<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
+    expect(h2).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
+  });
+});
+
 describe('the directory', () => {
-  it('lists the live test, Audible, Retention and Pulse, then MarketingWS, Docproof, Weather and n8n last', () => {
-    expect(rows().map((r) => r.links[0])).toEqual(ORDER.map(([href, title]) => [href, title]));
-    expect(rows().at(-1)?.links[0]?.[0]).toBe('/work/n8n');
+  it('lists Audible, Retention and Pulse, then Docproof, n8n and MarketingWS, then Weather', () => {
+    expect(rows().map((r) => [r.links[0]!.href, r.links[0]!.title])).toEqual(ORDER.map(([href, title]) => [href, title]));
+    expect(rows().map((r) => r.key)).toEqual(ORDER.map(([href]) => href));
+  });
+
+  it('puts Weather under "Data pipelines": its page describes a tested SQL pipeline, not an automation', () => {
+    expect(WORK_GROUPS.find((g) => g.label === 'Data pipelines')?.items.map((i) => i.href)).toEqual(['/work/weather']);
+    expect(WORK_GROUPS.flatMap((g) => g.items).find((i) => i.href === '/work/weather')?.description).toContain(
+      'A tested SQL pipeline',
+    );
   });
 
   it('follows the content data exactly: no item added, dropped or reordered', () => {
     expect(WORK_GROUPS.map((g) => g.label)).toEqual(GROUPS.map(([, title]) => title));
-    expect(rows().map((r) => r.links[0]?.[0])).toEqual(WORK_GROUPS.flatMap((g) => g.items.map((i) => i.href)));
+    expect(rows().map((r) => r.links[0]?.href)).toEqual(WORK_GROUPS.flatMap((g) => g.items.map((i) => i.href)));
   });
 
-  // The exact wording of every row, title then line, so a change is always deliberate here.
-  it('prints exactly these rows', () => {
-    expect(rows().map((r) => r.text)).toEqual([
-      "Live test The experiment on this site's own visitors: its design, its checks and the counts that are safe to publish.",
-      'Experimentation at Audible (Amazon) Case study How I plan and analyse experiments, and why so many of my recommendations were adopted.',
-      'Customer retention and reactivation analysis Case study Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.',
-      'Pulse: analytics instrumentation demo Case study A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
-      "MarketingWS Build note My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
-      'Docproof Build note Document verification with multi-agent orchestration and automated checks.',
-      'Weather data quality Build note A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
-      'n8n Workflow Library Build note Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
+  it('keeps the titles the index showed before: the topic names, not the experiment headlines', () => {
+    expect(WORK_GROUPS.flatMap((g) => g.items.map((i) => i.title))).toEqual([
+      'Experimentation at Audible (Amazon)',
+      'Customer retention and reactivation analysis',
+      'Pulse: analytics instrumentation demo',
+      'Docproof',
+      'n8n Workflow Library',
+      'MarketingWS',
+      'Weather data quality',
+    ]);
+  });
+
+  // The exact wording of every card, title then line, so a change is always deliberate here.
+  it('prints exactly these lines', () => {
+    expect(rows().map((r) => [r.links[0]!.title, r.links[0]!.line])).toEqual([
+      [
+        'Experimentation at Audible (Amazon)',
+        'How I plan and analyse experiments, and why so many of my recommendations were adopted. The tests are confidential, so the page shows none of their results.',
+      ],
+      [
+        'Customer retention and reactivation analysis',
+        'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size. Nobody was contacted and no test was run.',
+      ],
+      ['Pulse: analytics instrumentation demo', 'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.'],
+      [
+        'Docproof',
+        'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+      ],
+      [
+        'n8n Workflow Library',
+        'Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
+      ],
+      [
+        'MarketingWS',
+        "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
+      ],
+      [
+        'Weather data quality',
+        'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
+      ],
     ]);
     for (const [i, item] of WORK_GROUPS.flatMap((g) => g.items).entries()) {
-      const kind = rows()[i]?.kind;
-      expect(rows()[i]?.text).toBe([item.title, kind, text(html(item.description))].filter(Boolean).join(' '));
+      expect(rows()[i]?.links[0]?.line).toBe(text(html(item.description)));
     }
   });
 
-  // The type of each entry comes from data the site already has: the Home page's featured case
-  // studies, and the "Tools I've built" group, whose pages are build notes. No year: no fact holds one.
-  it('labels each case study and build note from existing data, and the live test with neither', () => {
+  // The type of each entry comes from data the site already has: the Home page's featured case studies
+  // are case studies, every other page is a build note. No year: no fact holds one.
+  it('labels each case study and build note from existing data', () => {
     const cases = new Set(HOME_CASES.map((c) => c.href));
-    const expected = WORK_SECTIONS.flatMap((section) =>
-      section.items.map((item) => (cases.has(item.href) ? 'Case study' : section.id === 'tools' ? 'Build note' : null)),
-    );
-    expect(rows().map((r) => r.kind)).toEqual(expected);
-    expect(expected).toEqual([null, 'Case study', 'Case study', 'Case study', 'Build note', 'Build note', 'Build note', 'Build note']);
+    const expected = WORK_GROUPS.flatMap((g) => g.items.map((i) => (cases.has(i.href) ? 'Case study' : 'Build note')));
+    expect(rows().map((r) => r.links[0]!.kind)).toEqual(expected);
+    expect(expected).toEqual(['Case study', 'Case study', 'Case study', 'Build note', 'Build note', 'Build note', 'Build note']);
+  });
+
+  it('draws every item as a lean card that rises on entry: the link carries the lean, rise and tile attributes', () => {
     for (const row of rows()) {
-      if (row.kind) expect(row.body, row.key).toMatch(/<\/h3><p data-work-kind="" class="[^"]*text-sm text-muted[^"]*">/);
+      const attrs = row.links[0]!.attrs;
+      for (const a of ['data-depth-lean=""', 'data-depth-rise=""', 'data-tile=""']) expect(attrs, row.key).toContain(a);
+      expect(row.body, row.key).toContain('<span data-depth-go="" aria-hidden="true">+</span>');
     }
   });
 
-  // From md the description spans the title's row and the label's; a long one must not push the label
-  // down from its title. The title's row takes only its own height, and the label's row
-  // takes the rest, with the label at its top.
-  it('keeps each label right under its title, however long the description', () => {
-    for (const row of [...PAGE.matchAll(/<li data-work-item="([^"]*)" class="([^"]*)"/g)]) {
-      expect(row[2]!.split(/\s+/), row[1]).toContain('md:grid-rows-[auto_1fr]');
-    }
-    expect(rows().filter((r) => r.kind)).toHaveLength(7);
+  it('gives a link to the home page no prefetch, and leaves the links to pages that ship at the default', () => {
+    expect(prefetchFor('/')).toBe(false);
+    const homeLinks = rows().filter((r) => r.links[0]!.href.split(/[?#]/)[0] === '/');
+    expect(homeLinks).toEqual([]);
+    for (const row of rows()) expect(prefetchFor(row.links[0]!.href), row.key).toBeUndefined();
+    // no card links to the home page
+    expect(PAGE).not.toMatch(/href="\/"/);
   });
 
-  it('draws each title in ink with the muted underline, and the line under it in muted grey', () => {
-    for (const row of rows()) {
-      const link = /<a [^>]*class="([^"]*)"/.exec(row.body)![1]!.split(/\s+/);
-      expect(link, row.key).toContain('text-ink');
-      expect(link, row.key).toContain('decoration-muted');
-      expect(link, row.key).not.toContain('text-muted');
-      expect(row.body, row.key).toMatch(/<p class="[^"]*text-muted[^"]*">[^]*<\/p>$/);
-    }
-  });
-
-  it('has no cards, figures, images, buttons or extra links: a list of eight links', () => {
-    expect([...PAGE.matchAll(/<a[\s>]/g)]).toHaveLength(ORDER.length);
-    expect(PAGE).not.toMatch(/<(figure|img|button|table|article [^>]*data-case-card)[\s>]/);
+  it('has no figures, images, buttons or tables, and one link besides the seven cards: the live test', () => {
+    expect([...PAGE.matchAll(/<a[\s>]/g)]).toHaveLength(ORDER.length + 1);
+    expect(PAGE).not.toMatch(/<(figure|img|button|table|svg)[\s>]/);
     expect(PAGE).not.toMatch(/data-figure|data-provenance/);
-  });
-
-  // The interval glyph is the row marker: decorative, so hidden from assistive technology, and the
-  // only drawing on the page. It sits in the link, on the first line of the title, at the phone
-  // header's 28 px length, so a short title stays on one line at 375 px.
-  it('marks each row with one decorative interval glyph, before the title, inside its link', () => {
-    expect([...PAGE.matchAll(/<svg[\s>]/g)]).toHaveLength(ORDER.length);
-    for (const row of rows()) {
-      const svgs = [...row.body.matchAll(/<svg [^>]*>/g)].map((m) => m[0]);
-      expect(svgs, row.key).toHaveLength(1);
-      expect(svgs[0], row.key).toContain('aria-hidden="true"');
-      expect(svgs[0], row.key).toContain('width="28"');
-      expect(svgs[0], row.key).not.toMatch(/role=|aria-label=/);
-      const link = /<h3[^>]*>\s*<a [^>]*>([\s\S]*?)<\/a>\s*<\/h3>/.exec(row.body)?.[1] ?? '';
-      expect(link.indexOf('<svg'), row.key).toBeGreaterThan(-1);
-      expect(link.indexOf('<svg'), row.key).toBeLessThan(link.indexOf(row.links[0]![1]!.slice(0, 4)));
-    }
   });
 
   it('prints its one figure through its fact, and no number, banned phrase or character the checks report', () => {
@@ -241,7 +324,7 @@ describe('the route', () => {
     };
     expect(mod.metadata.title).toBe('Work');
     expect(mod.metadata.description).toBe(
-      "Every case study and build note on this site: experiments and analyses first, then the tools I've built.",
+      "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     );
     expect(html(mod.default())).toBe(PAGE);
   });

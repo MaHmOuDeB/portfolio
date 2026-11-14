@@ -1,7 +1,8 @@
-// The Home sample-size planner: a hypothetical sign-up page, its baseline conversion and the rise
-// to detect, in whole percentages and whole points. Pure and client-safe: the server draws the
-// preset with it and the island redraws with it. It must not import @/lib/stats: the client file the
-// page loads at once imports it (guarded by tests/unit/lab/planner-bundle.test.ts).
+// The base of the Lab's sample-size planner: a hypothetical sign-up page, its baseline conversion and
+// the rise to detect, in whole percentages and whole points. Pure and client-safe: the server draws
+// the preset with it and the island redraws with it. It must not import @/lib/stats: the control row
+// the page loads at once reaches it through full-planner-values.ts (guarded by
+// tests/unit/lab/full-planner.test.ts).
 //
 // Arithmetic is on integer percentages, so 29% plus 5 points is exactly 34% (0.29 + 0.05 is not),
 // and the target never passes 99%: the rise is capped at min(30, 99 - baseline percent). The URL

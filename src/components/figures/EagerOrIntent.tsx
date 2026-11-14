@@ -1,7 +1,7 @@
 'use client';
 
 // Loads an interactive Figure's island at once when the page was opened with that Figure's URL
-// state, and on intent otherwise. A shared link such as `?hero-planner.baseline=0.4` asks for a view
+// state, and on intent otherwise. A shared link such as `?peeking.looks=20` asks for a view
 // the server could not draw (the static HTML holds the preset), so the island loads right after
 // hydration instead of waiting for a pointer, focus or idle time. Any key in one of `ids`'
 // namespaces counts; another Figure's keys do not.

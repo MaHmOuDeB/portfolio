@@ -4,6 +4,7 @@
 // (src/components/marketingws/MarketingwsPage.tsx). The note has no figures to print: every claim
 // is in words, and the repository links are pinned to the commits the text was checked against.
 import type { ReactNode } from 'react';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 
 /** The public repository, at the commit of its README and code that this note describes. */
@@ -24,6 +25,16 @@ const ITEM = 'mt-4 first:mt-0';
 export function MarketingwsIntro(): ReactNode {
   return <p>My Master&apos;s thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app.</p>;
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const MARKETINGWS_GLANCE: GlanceParts = {
+  outcome: `Rebuilt my thesis tool as a live web app that drafts from a brief, revises the current draft, and turns unsupported figures and promises into placeholders; the demo depends on Groq's free tier.`,
+  role: 'Built independently (thesis 2025, rebuild 2026).',
+  methods:
+    'Brief-to-draft generation, revise/translate current draft, code plus model fact check, behavioural evals; thesis evaluated with marketers.',
+  tools: 'Python, FastAPI, Streamlit, Vercel, Groq, OpenAI, Docker.',
+  when: 'Thesis Apr to Nov 2025, rebuild live since Sep 2026.',
+};
 
 /** What the tool is for. */
 export function MarketingwsProblem(): ReactNode {

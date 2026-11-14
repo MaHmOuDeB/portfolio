@@ -12,6 +12,7 @@ import {
   CHECK_LEVELS_TITLE,
   WEATHER_ARCHITECTURE,
   WEATHER_CHECKS,
+  WEATHER_GLANCE,
   WEATHER_LIMITS,
   WEATHER_OUTCOME,
   WEATHER_PIPELINE,
@@ -90,6 +91,7 @@ export function WeatherPage(): ReactNode {
       title={WEATHER_TITLE}
       intro={<WeatherIntro />}
       role={<WeatherRole />}
+      glance={WEATHER_GLANCE}
       sections={{
         problem: <Paragraphs items={WEATHER_PROBLEM} />,
         architecture: (

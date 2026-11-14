@@ -40,6 +40,10 @@ describe('CLAUDE.md', () => {
     expect(claudeMd).toContain('## Repository notes');
   });
 
+  it('pins the header navigation sentence', () => {
+    expect(claudeMd.replace(/\s+/g, ' ')).toContain('Navigation is exactly Work, About, Lab, Live test, CV, Contact, Menu.');
+  });
+
   it('imports only files inside the repository', () => {
     const imports = [...claudeMd.matchAll(/^@(\S+)$/gm)].map((m) => m[1]!);
     expect(imports).toEqual(['AGENTS.md']);

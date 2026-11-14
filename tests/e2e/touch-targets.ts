@@ -13,14 +13,11 @@ const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, tex
  * while a group has fewer than 50 views.
  */
 export type InlineEntry = { name: string; while?: { selector: string; text: RegExp } };
-export const HOME_INLINE: readonly InlineEntry[] = [
-  { name: 'Why so many?' },
-  { name: 'Live test page', while: { selector: '[data-scroll-step="2"]', text: /fewer than/ } },
-  { name: 'Why so many?' },
-];
+export const HOME_INLINE: readonly InlineEntry[] = [{ name: 'Why so many?' }];
 // The contact page names LinkedIn in its intro and the privacy notice in the note under Send message.
 const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'LinkedIn' }, { name: 'privacy notice' }];
-// The Audible page's summary gives its adoption figure the same "Why so many?" link, in its sentence.
+// The Audible page's top block gives its adoption figure the "Why so many?" link twice: once in the
+// summary sentence and once in the sentence on what the rollout meant.
 export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/': HOME_INLINE,
   '/?variant=a': HOME_INLINE,
@@ -28,7 +25,7 @@ export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/contact': CONTACT_INLINE,
   // After sending, the form and its privacy note give way to the sent message; the intro stays.
   '/contact?sent=1': [{ name: 'LinkedIn' }],
-  '/work/audible': [{ name: 'Why so many?' }],
+  '/work/audible': [{ name: 'Why so many?' }, { name: 'Why so many?' }],
 };
 
 /** The names the route may exempt, in page order, in the page's current data state. */
@@ -63,6 +60,20 @@ export function unpinnedExemptions(exempt: readonly string[], pinned: readonly s
  * such link that overlaps another target.
  */
 export async function touchTargetReport(page: Page) {
+  // Measured on the settled page: scroll-linked entry animations hold a block that has not entered the
+  // viewport at opacity 0 (a short viewport, such as 1280x720 at 400%, leaves most of the page there),
+  // and checkVisibility({ checkOpacity }) below would then skip its links. Reduced motion shows every
+  // block in its final state; the moving state is guarded by motion-contrast.spec.ts.
+  const before = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  try {
+    return await measure(page);
+  } finally {
+    await page.emulateMedia({ reducedMotion: before ? 'reduce' : 'no-preference' });
+  }
+}
+
+function measure(page: Page) {
   return page.locator(pointerTargets).evaluateAll((els) => {
     type Box = { tag: string; id: string; href: string | null; name: string | undefined; width: number; height: number };
     const seen = new Set<Element>();

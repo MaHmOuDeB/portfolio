@@ -8,6 +8,7 @@ import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
 import { TextLink } from '@/components/kit/TextLink';
 import { ChartFrameSection } from './chartframe';
 import { ControlsSection } from './controls';
+import { DepthSection } from './depth';
 import { FactsSection } from './facts';
 import { FiguresSection } from './figures';
 import { FormFieldsSection } from './form-fields';
@@ -184,5 +185,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'figures',
     title: 'Figures',
     render: () => <FiguresSection />,
+  },
+  {
+    id: 'depth',
+    title: 'Depth components',
+    render: () => <DepthSection />,
   },
 ];

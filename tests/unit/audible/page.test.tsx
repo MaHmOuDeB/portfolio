@@ -96,7 +96,7 @@ describe('the outline', () => {
   });
 
   it('says what the page is under the title', () => {
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section id="summary"'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       'Experimentation at Audible (Amazon), where I was a working student for nearly two years: how I plan and analyse experiments, and why so many of my recommendations were adopted.',
     );

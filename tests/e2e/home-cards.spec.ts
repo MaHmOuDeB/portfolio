@@ -2,11 +2,12 @@ import { expect } from '@playwright/test';
 import type { Browser, BrowserContextOptions, Page } from '@playwright/test';
 import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 
-// The Home hero, featured case-study cards and tools on the dev host, with the headline group forced
-// (/kitchen-sink/home/a and /kitchen-sink/home/b). The cards are the tested element of the live
-// experiment, so the two groups must have the same geometry: every card, headline, description,
-// link and the cards region itself sit at the same place with the same size, at every width, zoom
-// and font state. Only which of the two headline strings is visible differs.
+// The Home hero, featured case-study cards and automation cards on the dev host, with the headline
+// group forced (/kitchen-sink/home/a and /kitchen-sink/home/b). The cards are the tested element of
+// the live experiment, so the two groups must have the same geometry: every card, headline,
+// description, link and the cards region itself, and every block around them, sit at the same place
+// with the same size, at every width, zoom and font state. Only which of the two headline strings is
+// visible differs. Each featured card is one link (the card itself carries the click marker).
 
 type Arm = 'a' | 'b';
 const host = (arm: Arm) => `/kitchen-sink/home/${arm}`;
@@ -45,6 +46,8 @@ async function open(browser: Browser, arm: Arm, font: FontState, options: Browse
   if (font === 'large-text') await page.evaluate(() => (document.documentElement.style.fontSize = '24px'));
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await waitForIslands(page);
+  // The load sequence is time-based: measure once it has finished (scroll-linked animations stay at their scroll position).
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.timeline instanceof DocumentTimeline).map((a) => a.finished.catch(() => undefined))));
   return page;
 }
 
@@ -65,10 +68,18 @@ async function geometry(page: Page): Promise<Geometry> {
       put(`${study}:card`, card);
       put(`${study}:headline`, card.querySelector('[data-case-headline]'));
       put(`${study}:description`, card.querySelector('[data-case-description]'));
-      put(`${study}:link`, card.querySelector('[data-experiment-click="card"]'));
+      // The whole card is the link, so its box is the link's box.
+      put(`${study}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
       for (const twin of card.querySelectorAll('[data-headline-twin]')) put(`${study}:twin-${twin.getAttribute('data-headline-twin')}`, twin);
     }
-    put('tools', document.querySelector('[data-home-tools]'));
+    // Everything around the cards is identical in both groups.
+    put('proof', document.querySelector('[data-home-proof]'));
+    put('experiments', document.querySelector('[data-home-track="experiments"]'));
+    put('automation', document.querySelector('[data-home-track="automation"]'));
+    put('tiles', document.querySelector('[data-home-tiles]'));
+    put('ribbon', document.querySelector('[data-home-ribbon]'));
+    put('site', document.querySelector('[data-home-site]'));
+    put('decision', document.querySelector('[data-home-decision]'));
     return out;
   });
 }
@@ -202,13 +213,17 @@ test.describe('Home cards: the region and its links', () => {
         ? ['Most tests pitted personalisation against plain baselines', '7 events, each designed to answer a product question']
         : ['How I run experiments', 'Pulse: analytics instrumentation demo'];
       // Accessible names, not textContent: the hidden twin is in the DOM but never announced.
-      await expect(region.getByRole('heading', { level: 2 })).toHaveCount(3);
-      for (const name of shown) await expect(region.getByRole('heading', { level: 2, name, exact: true })).toHaveCount(1);
+      // Each card is one link whose name starts with its shown headline; the hidden twin is in no name.
+      await expect(region.getByRole('heading', { level: 3 })).toHaveCount(3);
+      for (const name of shown) await expect(region.getByRole('heading', { level: 3, name, exact: true })).toHaveCount(1);
       for (const name of hidden) await expect(region.getByRole('heading', { name })).toHaveCount(0);
       for (const name of hidden) await expect(region.getByText(name, { exact: true })).toBeHidden();
-      const links = region.getByRole('link', { name: 'Read the case study' });
+      const links = region.locator('a[data-experiment-click="card"]');
       await expect(links).toHaveCount(3);
-      for (let i = 0; i < 3; i++) await expect(links.nth(i)).toHaveAccessibleDescription(shown[i]!);
+      for (let i = 0; i < 3; i++) {
+        await expect(links.nth(i)).toHaveAccessibleName(new RegExp(`^${shown[i]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+        for (const name of hidden) await expect(links.nth(i)).not.toHaveAccessibleName(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      }
       // Tab from the region's first link: three stops, then out of the region.
       await links.first().focus();
       const stops: string[] = [];
@@ -277,45 +292,40 @@ test.describe('Home hero', () => {
     }
   });
 
-  test('phone fold at 375x812: the name is 44 px, the role 20 px, and the planner title and readout are in view', async ({ browser }) => {
+  test('phone fold at 375x812: the h1 is 44 px and the primary button is in view, with all three buttons reachable', async ({ browser }) => {
     for (const arm of ['a', 'b'] as const) {
       const page = await open(browser, arm, 'inter', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
       const hero = page.locator('[data-hero]');
       await expect(hero.locator('h1')).toHaveCSS('font-size', '44px');
-      await expect(hero.locator('[data-hero-role]')).toHaveCSS('font-size', '20px');
-      const title = hero.locator('figure[data-figure="hero-planner"] h2');
-      const readout = hero.locator('figure[data-figure="hero-planner"] [data-figure-lead] [data-planner-n]');
-      for (const el of [title, readout]) {
-        await expect(el).toBeVisible();
-        const box = (await el.boundingBox())!;
-        expect(box.y + box.height, await el.innerText()).toBeLessThanOrEqual(812);
-      }
-      // The CV link is in the header on phones, not repeated in the hero.
-      await expect(hero.getByRole('link', { name: 'CV', exact: true })).toBeHidden();
-      await expect(page.locator('[data-site-header]').getByRole('link', { name: 'CV', exact: true })).toBeVisible();
-      await expect(hero.getByRole('link', { name: 'LinkedIn' })).toBeVisible();
+      await expect(hero.locator('h1')).toHaveText('I test what works, and automate the rest.');
+      const primary = hero.getByRole('link', { name: 'See the evidence' });
+      await expect(primary).toBeVisible();
+      const box = (await primary.boundingBox())!;
+      expect(box.y + box.height, 'the primary button is above the fold').toBeLessThanOrEqual(812);
+      await expect(hero.getByRole('link')).toHaveText(['See the evidence', 'CV', 'Contact']);
+      // The evidence field is decoration only: hidden from assistive technology.
+      await expect(hero.locator('[data-depth-field]')).toHaveAttribute('aria-hidden', 'true');
       await page.context().close();
     }
   });
 
-  test('from 1024 px the name runs on one line across the page, with identity and evidence split 7/5', async ({ browser }) => {
+  test('See the evidence scrolls to the Experiments and analytics track', async ({ browser }) => {
+    const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
+    await page.locator('[data-hero]').getByRole('link', { name: 'See the evidence' }).click();
+    await expect(page).toHaveURL(/#work$/);
+    await expect(page.locator('#work h2')).toHaveText('Experiments and analytics');
+    await expect(page.locator('#work h2')).toBeInViewport();
+    await page.context().close();
+  });
+
+  test('from 1024 px the text and the evidence field sit side by side, the field to the right of the text', async ({ browser }) => {
     for (const width of [1024, 1440]) {
       const page = await open(browser, 'a', 'inter', { viewport: { width, height: 900 } });
-      const hero = page.locator('[data-hero]');
-      const h1 = hero.locator('h1');
-      const lineHeight = await h1.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-      const name = (await h1.boundingBox())!;
-      expect(name.height, `${width} one line`).toBeLessThanOrEqual(lineHeight + TOLERANCE);
-      const columns = (await hero.locator('[data-hero-columns]').boundingBox())!;
-      expect(Math.abs(name.width - columns.width), `${width} full width`).toBeLessThanOrEqual(TOLERANCE);
-      const identity = (await hero.locator('[data-hero-identity]').boundingBox())!;
-      const evidence = (await hero.locator('[data-hero-evidence]').boundingBox())!;
-      expect(identity.x + identity.width, `${width} identity left of evidence`).toBeLessThan(evidence.x);
-      const gap = await hero.locator('[data-hero-columns]').evaluate((el) => parseFloat(getComputedStyle(el).columnGap));
-      const unit = (columns.width - 11 * gap) / 12;
-      expect(Math.abs(identity.width - (7 * unit + 6 * gap)), `${width} seven columns`).toBeLessThanOrEqual(TOLERANCE);
-      expect(Math.abs(evidence.width - (5 * unit + 4 * gap)), `${width} five columns`).toBeLessThanOrEqual(TOLERANCE);
-      await expect(hero.getByRole('link', { name: 'CV', exact: true })).toBeVisible();
+      const text = (await page.locator('[data-hero-text]').boundingBox())!;
+      const field = (await page.locator('[data-hero] [data-depth-field]').boundingBox())!;
+      expect(text.x + text.width, `${width} text left of the field`).toBeLessThanOrEqual(field.x + TOLERANCE);
+      expect(text.x, `${width} text inside the page`).toBeGreaterThanOrEqual(0);
+      expect(field.x + field.width, `${width} field inside the page`).toBeLessThanOrEqual(width + TOLERANCE);
       await page.context().close();
     }
   });
@@ -326,9 +336,10 @@ test.describe('Home reflow and focus', () => {
     test(`at ${size.width}x${size.height} nothing scrolls sideways and every link and button shows its focus unclipped`, async ({ browser }) => {
       const page = await open(browser, 'b', 'inter', { viewport: size });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      const targets = page.locator('[data-hero] a, [data-experiment="cards"] a, [data-home-tools] a');
+      const targets = page.locator('[data-hero] a, [data-experiment="cards"] a, [data-home-track="automation"] a, [data-home-site] a, [data-home-decision] a');
       const count = await targets.count();
-      expect(count).toBeGreaterThanOrEqual(3 + 3 + 3);
+      // Three hero buttons, three cards, four automation cards, two site buttons, three decision buttons.
+      expect(count).toBeGreaterThanOrEqual(3 + 3 + 4 + 2 + 3);
       for (let i = 0; i < count; i++) {
         const target = targets.nth(i);
         if (!(await target.isVisible())) continue;
@@ -356,15 +367,26 @@ test.describe('Home reflow and focus', () => {
   }
 });
 
-test.describe('Home tools', () => {
-  test('three rows after the cards, each tool named by a link to its page', async ({ page }) => {
+test.describe('Home automation track', () => {
+  test('four cards after the experiments, each a link to its page, under the heading "Automation and agents"', async ({ page }) => {
     await page.goto(host('a'));
-    const tools = page.getByRole('region', { name: "Tools I've built" });
-    await expect(tools.getByRole('heading', { level: 2 })).toHaveText("Tools I've built");
-    await expect(tools.getByRole('link')).toHaveText(['Test-account automation', 'Docproof', 'MarketingWS']);
-    await expect(tools).toContainText('Tampermonkey with a step recorder');
+    const track = page.locator('[data-home-track="automation"]');
+    await expect(track.getByRole('heading', { level: 2 })).toHaveText('Automation and agents');
+    const links = track.getByRole('link');
+    await expect(links).toHaveCount(4);
+    await expect(links.locator('h3')).toHaveText(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(await links.evaluateAll((els) => els.map((a) => a.getAttribute('href')))).toEqual([
+      '/work/audible#automation',
+      '/work/docproof',
+      '/work/n8n',
+      '/work/marketingws',
+    ]);
+    await expect(track).toContainText('Tampermonkey with a step recorder');
     const cards = (await page.locator('[data-experiment="cards"]').boundingBox())!;
-    const box = (await tools.boundingBox())!;
-    expect(box.y).toBeGreaterThan(cards.y + cards.height);
+    const box = (await track.boundingBox())!;
+    expect(box.y).toBeGreaterThan(cards.y + cards.height - TOLERANCE);
+    // The automation cards are not the experiment's: no click marker, outside the cards region.
+    await expect(track.locator('[data-experiment-click]')).toHaveCount(0);
+    await expect(page.locator('[data-experiment="cards"] [data-home-track]')).toHaveCount(0);
   });
 });

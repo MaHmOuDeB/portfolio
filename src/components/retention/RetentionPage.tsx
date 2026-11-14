@@ -8,11 +8,12 @@
 // width (max-w-figure), so evidence is wider than text. Sections are spaced, not boxed: no card
 // grid and no motion. The win-back section is a sizing only: the sourced sizing and its table, then
 // the planner placed through `planner` (a hypothetical uplift on the observed baseline, with its own
-// Simulated badge), a link to the Lab and a link to the Home planner. RetentionCaseStudy is the page
+// Simulated badge), a link to the Lab and nothing else. RetentionCaseStudy is the page
 // as it ships, with the win-back planner; the route and its dev host both mount it.
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
 import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import { FullPlanner } from '@/components/lab/FullPlanner';
 import { COHORTS, RETENTION, figureProvenance } from '@/lib/retention/data';
@@ -25,7 +26,7 @@ import {
   RetentionCohorts,
   RetentionData,
   RetentionFindings,
-  RetentionHomePlannerLink,
+  RETENTION_GLANCE,
   RetentionIntro,
   RetentionLabLink,
   RetentionLimits,
@@ -75,7 +76,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`retention: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
+      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -136,8 +137,10 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
         </div>
       </div>
 
+      <GlanceBlock {...RETENTION_GLANCE} data-depth-rise="" />
+
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold">
+        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
         <div className="mt-4">
@@ -214,9 +217,6 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
         <ul className={`${TEXT} mt-4`}>
           <li>
             <RetentionLabLink />
-          </li>
-          <li>
-            <RetentionHomePlannerLink />
           </li>
         </ul>
         <div className={`${TEXT} mt-8`}>

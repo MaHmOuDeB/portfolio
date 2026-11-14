@@ -94,6 +94,14 @@ describe('the component catalogues in CLAUDE.md', () => {
     expect(components.filter((f) => !listed.has(f))).toEqual([]);
   });
 
+  it('covers the depth components: the folder is named in the catalogue and every file in it is listed', () => {
+    const section = claudeMd.slice(claudeMd.indexOf('### Depth components'), claudeMd.indexOf('## Golden-page rule'));
+    expect(section).toContain('`src/components/depth`');
+    const listed = new Set(COMPOSITES.map((r) => r.file));
+    for (const f of readdirSync(path.join(ROOT, 'src/components/depth')).filter((x) => /\.tsx$/.test(x))) expect(listed.has(`src/components/depth/${f}`), f).toBe(true);
+    expect(listed.has('src/lib/depth/field.ts')).toBe(true);
+  });
+
   it('the parser is not vacuous: it reads a client mark, a renamed export and a type export', () => {
     const r = rows('## Primitives catalogue', '### Figure rules', 'src/components/kit').find((x) => x.names.includes('Slider'));
     expect(r).toMatchObject({ file: 'src/components/kit/Slider.tsx', client: true });
@@ -115,7 +123,7 @@ describe('every list of site paths names only pages that ship', () => {
 
   it('the Work directory', () => {
     const hrefs = WORK_GROUPS.flatMap((g) => g.items.map((i) => i.href));
-    expect(hrefs.length).toBe(8);
+    expect(hrefs.length).toBe(7);
     expect(hrefs.filter((h) => !ships(h))).toEqual([]);
   });
 
@@ -227,6 +235,6 @@ describe('no client module reaches the raw experiment data', () => {
     const fromRoute = [...reachable('src/app/experiment/page.tsx').keys()];
     expect(fromRoute).toEqual(expect.arrayContaining(['src/lib/experiment/live.ts', 'src/lib/live-page/model.ts']));
     for (const f of SERVER_ONLY) expect(existsSync(path.join(ROOT, f)), f).toBe(true);
-    expect(valueImports('src/components/home/HomeChart.tsx')).not.toContain('src/lib/home/model.ts');
+    expect(valueImports('src/components/home/SiteTile.tsx')).not.toContain('src/lib/home/model.ts');
   });
 });

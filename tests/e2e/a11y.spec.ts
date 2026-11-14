@@ -50,10 +50,21 @@ for (const route of routes) {
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('html')).toHaveAttribute('lang', /\S+/);
       for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+      // axe reads the settled page. The Home hero's sub line and buttons fade in once on load, and a
+      // scan that starts during the fade measures a half-faded colour, so every scan state runs under
+      // reduced motion, where each element is in its final state (as expectNoA11yViolations does). The
+      // moving state is guarded by motion-contrast.spec.ts.
       // Only violations keep every node; options() replaces the options, so it comes before withTags().
-      const scan = () => new AxeBuilder({ page })
-        .options({ resultTypes: ['violations'] })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+      const scan = async () => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        try {
+          return await new AxeBuilder({ page })
+            .options({ resultTypes: ['violations'] })
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+        } finally {
+          await page.emulateMedia({ reducedMotion: null });
+        }
+      };
       const scans = [{ state: 'default', result: await scan() }];
       if (await openMenu(page)) scans.push({ state: 'menu-open', result: await scan() });
       await testInfo.attach('axe-findings', { body: JSON.stringify(scans, null, 2), contentType: 'application/json' });
@@ -201,11 +212,12 @@ for (const route of routes) {
   });
 }
 
-for (const route of ['/privacy', '/missing-a11y-page', '/kitchen-sink']) {
+// Home holds the depth components (the evidence field, the proof figures) that the kitchen sink shows.
+for (const route of ['/', '/privacy', '/missing-a11y-page', '/kitchen-sink']) {
   test(`accessibility ${route} reflows at 320 CSS px with enlarged root text`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(route);
-    if (route === '/kitchen-sink') await waitForIslands(page);
+    if (route === '/kitchen-sink' || route === '/') await waitForIslands(page);
     const [before, after] = await page.evaluate(async () => {
       const root = document.documentElement;
       const initial = Number.parseFloat(getComputedStyle(root).fontSize);

@@ -8,6 +8,7 @@
 // evidence runs to the figure width. Every diagram draws its steps with DiagramStep and joins them with
 // DiagramConnector. No motion and no card grid. Server-safe, no hooks.
 import type { ReactNode } from 'react';
+import { GlanceBlock, type GlanceParts } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 
 /** The build-note sections in page order: anchor id, heading, link label. */
@@ -76,6 +77,7 @@ export function BuildNote({
   title,
   intro,
   role,
+  glance,
   sections,
 }: {
   /** The base of the h1 id (`<slug>-title`). */
@@ -85,6 +87,8 @@ export function BuildNote({
   intro: ReactNode;
   /** One short paragraph under the intro: what the project is and what I did. */
   role?: ReactNode;
+  /** The 20-second top block, drawn under the title, the intro and the role line. */
+  glance?: GlanceParts;
   /** The body of each section the note has; a section left out (or empty) is neither drawn nor linked. */
   sections: Readonly<Partial<Record<BodyId, ReactNode>>>;
 }): ReactNode {
@@ -103,6 +107,8 @@ export function BuildNote({
         )}
       </div>
 
+      {glance ? <GlanceBlock {...glance} data-depth-rise="" /> : null}
+
       <nav aria-label="On this page" className={`${TEXT} mt-8`}>
         <ul className="flex flex-wrap gap-x-4">
           {present.map((s) => (
@@ -117,7 +123,7 @@ export function BuildNote({
 
       {present.map((s) => (
         <section key={s.id} id={s.id} aria-labelledby={`${s.id}-title`} className="mt-12 md:mt-section">
-          <h2 id={`${s.id}-title`} className={`${TEXT} text-xl font-semibold`}>
+          <h2 id={`${s.id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
             {s.title}
           </h2>
           <div className="mt-4">{sections[s.id]}</div>

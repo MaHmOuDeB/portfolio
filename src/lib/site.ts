@@ -7,9 +7,9 @@ export const SITE = {
 // The four page links, in header order. `href` is the route; "Live test" is the /experiment page.
 export const NAV = [
   { label: 'Work', href: '/work' },
+  { label: 'About', href: '/about' },
   { label: 'Lab', href: '/lab' },
   { label: 'Live test', href: '/experiment' },
-  { label: 'About', href: '/about' },
 ] as const;
 
 // The CV link of the header and the hero: always the CV page, whether or not the build has a PDF.
@@ -25,6 +25,9 @@ export const CONTACT = {
 
 export const PRIVACY_HREF = '/privacy';
 export const CONTACT_HREF = '/contact';
+
+// The header's primary button: the contact form.
+export const CONTACT_LINK = { label: 'Contact', href: CONTACT_HREF } as const;
 
 // The routes that have a page today. next/link prefetches every in-view site link, and a prefetch of
 // a page a later plan builds is a 404 in the console (Lighthouse Best Practices), so links to other

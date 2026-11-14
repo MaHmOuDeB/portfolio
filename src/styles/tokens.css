@@ -26,18 +26,30 @@
   --drop-shadow-*: initial;
   --inset-shadow-*: initial;
   --text-shadow-*: initial;
+  --perspective-*: initial;
 
   /* Colour */
   --color-bg: #ffffff;
   --color-ink: #1d1d1f;
   --color-muted: #6e6e73;
   --color-line: #e8e8ed;
+  --color-surface: #f5f5f7; /* tiles and cards on the white page; text on it keeps AA (muted 4.68) */
   --color-accent: #0a5fd9; /* controls and focus; shares the series-1 hue on purpose */
   --color-series-1: #0a5fd9;
   --color-series-2: #d9620a;
   --color-series-ghost: #cedff7; /* band fill only, decorative */
   --color-ok: #1b7f3b;
   --color-warn: #b04a00;
+
+  /* Translucent and clear colours, named so globals.css never writes a colour function or a
+     gradient stop of its own: Tailwind adds a hex fallback to each color-mix() and turns the
+     words black and transparent inside a gradient into hex, which the design lint rejects. */
+  --color-hairline: color-mix(in srgb, var(--color-ink) 8%, transparent); /* the header's bottom rule */
+  --color-glint: color-mix(in srgb, var(--color-bg) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
+  --color-rule-quiet: color-mix(in srgb, var(--color-muted) 28%, transparent); /* row rules on a tile */
+  --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* row rules on the ink tile */
+  --color-clear: transparent; /* the clear end of a gradient or a mask */
+  --color-mask-opaque: var(--color-ink); /* the kept end of a mask: only its alpha is read */
 
   /* Type: Inter with the opsz axis and cv05 (l with a tail). Tabular figures (tnum) are not here:
      tnum also widens the hyphen, the full stop, the colon and the space, so "kitchen-sink" reads
@@ -69,6 +81,9 @@
   --text-readout--line-height: 1;
   --text-readout--letter-spacing: -0.03em;
   --text-readout--font-weight: 600;
+  --text-display-lg: 5.5rem; /* the Home headline from lg */
+  --text-display-lg--line-height: 1.02;
+  --text-display-lg--letter-spacing: -0.03em;
   --text-display-sm: 2.75rem; /* the name under md */
   --text-display-sm--line-height: 1.04;
   --text-display-sm--letter-spacing: -0.02em;
@@ -84,13 +99,14 @@
   --spacing: 0.25rem; /* 4 px base; use multiples */
   --spacing-section: 5rem; /* 80 px between major blocks: py-section */
   --size-target: 2.75rem; /* 44 px minimum touch target */
-  --chart-h-phone: 40svh; /* the sticky chart's height on phones */
-  --header-h: 4rem; /* SiteHeader height; sticky chart offset from md up */
+  --header-h: 4rem; /* SiteHeader height */
   --container-text: 42.5rem; /* 680 px text column, about 75 characters */
   --container-figure: 60rem; /* 960 px figures */
   --container-page: 80rem; /* 1280 px page */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
+  --radius-xl: 1.75rem; /* 28 px: tiles and cards */
+  --radius-pill: 999px; /* buttons */
 
   --breakpoint-xs: 30rem; /* 480 px: Segmented stops stacking */
   --breakpoint-sm: 40rem;
@@ -98,17 +114,19 @@
   --breakpoint-lg: 64rem;
   --breakpoint-xl: 90rem;
 
-  /* Layers (use as z-(--z-chart) and so on) */
-  --z-chart: 10; /* the sticky scroll-moment chart */
+  /* Layers (use as z-(--z-header) and so on) */
   --z-header: 20; /* SiteHeader, sticky from md */
   --z-menu: 30; /* the phone Menu panel */
 
   /* Motion (use as duration-(--duration-fast); v4 has no duration namespace) */
   --duration-fast: 120ms;
   --duration-base: 240ms;
-  --duration-step: 320ms;
+  --duration-settle: 1000ms; /* a proof figure's interval mark closing, once on load */
+  --duration-lean: 500ms; /* a card or the hero field following the pointer, and springing back */
+  --duration-arrive: 800ms; /* one row of the hero field arriving, once on load */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasis: cubic-bezier(0.3, 0, 0, 1.1);
+  --perspective-scene: 1300px; /* the hero field's vanishing distance */
   --default-transition-duration: var(--duration-fast);
   --default-transition-timing-function: var(--ease-standard);
 }
@@ -118,7 +136,9 @@
   :root {
     --duration-fast: 0ms;
     --duration-base: 0ms;
-    --duration-step: 0ms;
+    --duration-settle: 0ms;
+    --duration-lean: 0ms;
+    --duration-arrive: 0ms;
   }
 }
 

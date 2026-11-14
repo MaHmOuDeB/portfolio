@@ -7,6 +7,7 @@
 // gives no licence.
 import type { ReactNode } from 'react';
 import { derivedAttr, Derived } from '@/components/kit/Derived';
+import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 import { WEATHER_DATASET, sparsePlaceThreshold } from '@/lib/weather/checks';
@@ -29,6 +30,20 @@ export function WeatherIntro(): ReactNode {
     </p>
   );
 }
+
+/** The 20-second top of the page, under the title and its line. */
+export const WEATHER_GLANCE: GlanceParts = {
+  outcome:
+    'Built a tested SQL pipeline that quarantines impossible sensor readings and loads the rest into a star schema; all error-level checks pass.',
+  role: 'Personal project rebuilt from MSc project; built pipeline, schema, checks, tests.',
+  methods: (
+    <>
+      Star schema, <Fact id="weather.checks.count" /> checks, quarantine.
+    </>
+  ),
+  tools: 'DuckDB SQL, Python, pytest.',
+  when: 'Rebuilt in 2026.',
+};
 
 /** The line on my role under the intro. */
 export function WeatherRole(): ReactNode {

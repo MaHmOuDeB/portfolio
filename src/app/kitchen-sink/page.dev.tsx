@@ -18,7 +18,9 @@ export default function KitchenSink() {
       </p>
       {SECTIONS.map(({ id, title, render }) => (
         <section key={id} data-section={id} aria-labelledby={`section-${id}`} className="mt-12">
-          <h2 id={`section-${id}`} className="text-xl font-semibold">
+          {/* A long word ("components") is wider than a 320 px screen at doubled root text in WebKit's
+              font metrics: it breaks inside the word rather than push the page sideways. */}
+          <h2 id={`section-${id}`} className="text-xl font-semibold wrap-anywhere">
             {title}
           </h2>
           <div className="mt-4">{render()}</div>
