@@ -23,6 +23,13 @@ export const CONTACT = {
   github: 'https://github.com/MaHmOuDeB',
 } as const;
 
+// The site's line in two tones: what the work is, then (quiet) who it is for. The Home hero and the
+// footer print it.
+export const HEADLINE = {
+  lead: 'Experimentation and AI automation',
+  quiet: 'for product and growth teams',
+} as const;
+
 export const PRIVACY_HREF = '/privacy';
 export const CONTACT_HREF = '/contact';
 

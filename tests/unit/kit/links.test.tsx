@@ -40,6 +40,26 @@ describe('ButtonLink', () => {
     expect(html).toContain('text-ink');
   });
 
+  it('on ink: the primary turns white with ink text, the secondary clear with a hairline on ink', () => {
+    const primary = renderToStaticMarkup(
+      <ButtonLink href="/contact" variant="primary" onInk>
+        Write to me
+      </ButtonLink>,
+    );
+    expect(primary).toContain('bg-surface text-ink');
+    expect(primary).not.toContain('bg-ink');
+    const secondary = renderToStaticMarkup(
+      <ButtonLink href="/cv" variant="secondary" onInk>
+        Read my CV
+      </ButtonLink>,
+    );
+    expect(secondary).toContain('border-rule-on-ink');
+    expect(secondary).toContain('text-surface');
+    expect(secondary).not.toContain('bg-surface');
+    expect(secondary).toContain('min-h-(--size-target)');
+    expect(secondary).toContain('rounded-md');
+  });
+
   it('a download is a plain anchor with the download attribute and an optional icon', () => {
     const html = renderToStaticMarkup(
       <ButtonLink href="/cv.pdf" variant="secondary" icon="download" download>

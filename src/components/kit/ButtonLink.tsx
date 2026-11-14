@@ -16,6 +16,8 @@ type Props = {
   external?: boolean;
   /** Tighter side padding (12 px, not 14), for a crowded row such as the header. */
   compact?: boolean;
+  /** On an ink panel: the primary is white with ink text, the secondary clear with a hairline on ink. */
+  onInk?: boolean;
   children: ReactNode;
 };
 
@@ -25,14 +27,18 @@ const VARIANT = {
   primary: 'border border-ink bg-ink text-surface hover:border-muted hover:bg-muted focus-visible:border-muted focus-visible:bg-muted',
   secondary: 'border border-hairline-strong bg-surface text-ink hover:border-ink focus-visible:border-ink',
 } as const;
+const ON_INK = {
+  primary: 'border border-surface bg-surface text-ink hover:border-line hover:bg-line focus-visible:border-line focus-visible:bg-line',
+  secondary: 'border border-rule-on-ink text-surface hover:border-surface focus-visible:border-surface',
+} as const;
 
 /** The class list of a button, for a real `<button>` that must look like a ButtonLink. */
-export function buttonClass(variant: keyof typeof VARIANT, compact = false): string {
-  return cx(BASE, compact ? 'px-3' : 'px-3.5', VARIANT[variant]);
+export function buttonClass(variant: keyof typeof VARIANT, compact = false, onInk = false): string {
+  return cx(BASE, compact ? 'px-3' : 'px-3.5', (onInk ? ON_INK : VARIANT)[variant]);
 }
 
-export function ButtonLink({ href, variant, icon, download, external, compact, children }: Props) {
-  const className = buttonClass(variant, compact);
+export function ButtonLink({ href, variant, icon, download, external, compact, onInk, children }: Props) {
+  const className = buttonClass(variant, compact, onInk);
   const content = (
     <>
       {icon ? <Icon name={icon} /> : null}

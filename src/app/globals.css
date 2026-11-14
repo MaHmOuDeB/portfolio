@@ -537,6 +537,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* On ink (the footer, an ink tile, the call to action) the focus ring is light: accent on ink is
+   below 3:1. In base, like the ring itself, so a utility can still override it. */
+@layer base {
+  :is([data-ink], [data-tile="ink"]) :focus-visible {
+    outline-color: var(--color-surface);
+  }
+}
+
 /*
  * Headings at the display and h2 sizes: weight 550 and tracking -0.022em. Unlayered on purpose, so a
  * font-semibold utility left on such a heading does not win.
