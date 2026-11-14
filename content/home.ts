@@ -40,6 +40,8 @@ export const HOME_HERO = {
     ' recommendations adopted.',
   ] as readonly HeadlinePart[],
   whySoMany: 'Why so many?',
+  /** The visible caption under the evidence field: the field is an illustration, not data. */
+  fieldCaption: 'An illustration: a confidence band narrows as views grow.',
 } as const;
 
 /** The anchor of the first track, which the hero's primary button scrolls to. */
@@ -186,6 +188,24 @@ export const HOME_AUTOMATION: readonly {
     meta: ['Python, FastAPI, Groq'],
   },
 ];
+
+/**
+ * The tag above the "Experiments and analytics" heading: the interval glyph, the live test's note
+ * (LiveNote) and this link to the live page.
+ */
+export const HOME_TAG = {
+  live: 'See the live test',
+} as const;
+
+/**
+ * The muted line under the experiments track's lede, chosen by the live test's phase: the same words
+ * in both groups, and never the other group's headlines. Nothing when the test is paused, stopped,
+ * decided or not configured.
+ */
+export const HOME_CARD_LINE = {
+  calibration: 'These three headlines are what the test will compare. For now everyone sees the same ones.',
+  ab: 'These three headlines are the test: other visitors see different wording.',
+} as const;
 
 /** The two tiles. */
 export const HOME_TILES = {

@@ -334,11 +334,18 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     const h = page(m);
     const order = all(doc(h), (el) => BLOCKS.some((n) => attr(el, n) !== undefined)).map(blockName);
     expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision']);
-    // The cards region sits inside the first track, and the note inside the site tile (absent before the start).
+    // The cards region sits inside the first track, and the note once, in the tag before the
+    // track's heading (absent before the start); the site tile has no second copy.
     const first = section(h, has('data-home-track', 'experiments'))!;
     expect(all(first, has('data-experiment', 'cards'))).toHaveLength(1);
+    const started = m.mode === 'not-started' ? 0 : 1;
+    expect(all(doc(h), has('data-home-tag'))).toHaveLength(started);
+    expect(all(first, has('data-home-tag'))).toHaveLength(started);
+    expect(all(doc(h), has('data-home-note'))).toHaveLength(started);
+    if (started) expect(h.indexOf('data-home-tag')).toBeLessThan(h.indexOf('id="track-experiments-title"'));
+    expect(h.indexOf('data-home-tag') === -1 || h.indexOf('data-home-tag') > h.indexOf('data-home-proof')).toBe(true);
     const site = section(h, has('data-home-site'))!;
-    expect(all(site, has('data-home-note'))).toHaveLength(m.mode === 'not-started' ? 0 : 1);
+    expect(all(site, has('data-home-note'))).toHaveLength(0);
     expect(all(doc(h), (el) => el.tagName === 'h1')).toHaveLength(1);
     expect(text(all(doc(h), (el) => el.tagName === 'h1')[0]!)).toBe('I test what works, and automate the rest.');
   });
