@@ -15,9 +15,15 @@ import {
   heroSubText,
   HOME_PROOF,
   HOME_SITE,
-  HOME_TILES,
+  HOME_SITE_HEAD,
   HOME_TRACKS,
-  HOME_DECISION,
+  HOME_HOW,
+  HOME_EXPERIMENTS_HEAD,
+  HOME_AUTOMATION_HEAD,
+  HOME_AUTOMATE_LINES,
+  HOME_QUESTIONS,
+  HOME_FAQ,
+  TOOLS_LABEL,
   headlineText,
   type HeadlinePart,
   type Study,
@@ -252,7 +258,16 @@ describe('the automation cards', () => {
   });
 });
 
-describe('the hero, proof row, tiles, site tile and decision band', () => {
+/** Every string of the sections from "How I test" to the site band (heads, tabs, lines, questions). */
+const sectionCopy = (): string[] => [
+  ...[HOME_HOW.head, HOME_EXPERIMENTS_HEAD, HOME_AUTOMATION_HEAD, HOME_QUESTIONS.head, HOME_SITE_HEAD, HOME_FAQ.head].flatMap((h) => Object.values(h) as string[]),
+  ...HOME_HOW.tabs.flatMap((t) => [t.title, t.line]),
+  ...HOME_AUTOMATE_LINES,
+  ...HOME_QUESTIONS.rows.flat(),
+  TOOLS_LABEL,
+];
+
+describe('the hero, proof row, the sections and the site band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.chip).toBe('Open to roles in Germany');
     expect(heroSubText()).toBe(
@@ -274,15 +289,31 @@ describe('the hero, proof row, tiles, site tile and decision band', () => {
       live: 'See the live test',
       lab: 'Try the Lab',
     });
-    expect(HOME_DECISION).toEqual({
-      title: 'Your call.',
-      text: 'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
-      write: 'Write to me',
-      cv: 'Read my CV',
-      linkedin: 'LinkedIn',
-    });
-    expect(HOME_TILES.test.lines).toHaveLength(3);
-    expect(HOME_TILES.automate.lines).toHaveLength(3);
+    expect(HOME_SITE_HEAD).toEqual({ chip: 'Live test', title: 'This site is', quiet: 'part of the evidence.' });
+    expect(TOOLS_LABEL).toBe('Tools I have shipped with');
+  });
+
+  it('keep the old "I test." and "I automate." lines word for word, in the tabs and the row under the cards', () => {
+    expect(HOME_HOW.tabs.map((t) => [t.title, t.line])).toEqual([
+      ['Plan', 'I plan the sample size and the run time before a test starts.'],
+      ['Read', 'I read the result against the primary metric and its guardrails.'],
+      ['Recommend', 'I write the recommendation: ship it, or do not.'],
+    ]);
+    expect(HOME_AUTOMATE_LINES).toEqual([
+      'I turn repeated manual steps into tools a whole team can use.',
+      'I build agents that work in steps and check each other.',
+      'I put automated tests around my workflows and agent pipelines, so they stay right.',
+    ]);
+    // The automation sub is the track's existing lede, which the Work page reads too.
+    expect(HOME_AUTOMATION_HEAD.sub).toBe(HOME_TRACKS.automation.lede);
+  });
+
+  it('give the FAQ figures as facts that exist, never typed', () => {
+    const ids = HOME_FAQ.items.flatMap((i) => factIds(i.answer));
+    expect(ids).toEqual(['profile.audible.experiments', 'profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after', 'profile.n8n.automated_tests']);
+    for (const id of ids) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+    // CEFR levels and the name n8n are names, not figures (the truth audit allows them).
+    for (const i of HOME_FAQ.items) for (const s of stringParts(i.answer)) expect(s.replace(/\b[ABC][12]\b|\bn8n\b/g, ''), s).not.toMatch(/\d/);
   });
 
   it('prints each proof figure from a fact, the numbers never typed', () => {
@@ -300,8 +331,8 @@ describe('the hero, proof row, tiles, site tile and decision band', () => {
 
   it('type no numeral of their own', () => {
     const strings = [
-      HOME_HERO.chip, heroSubText(), ...bandWords(), HOME_SITE.title, HOME_SITE.text, HOME_DECISION.text,
-      ...HOME_TILES.test.lines, ...HOME_TILES.automate.lines,
+      HOME_HERO.chip, heroSubText(), ...bandWords(), HOME_SITE.title, HOME_SITE.text,
+      ...sectionCopy(),
     ];
     for (const s of strings) expect(s, s).not.toMatch(/\d/);
   });
@@ -316,8 +347,9 @@ describe('all Home copy', () => {
       ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), headlineText(t.meta)]),
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
       ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
-      ...[HOME_TILES.test, HOME_TILES.automate].flatMap((t) => [t.title, ...t.lines]),
-      HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE), ...Object.values(HOME_DECISION),
+      HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
+      ...sectionCopy(),
+      ...HOME_FAQ.items.flatMap((i) => [i.question, headlineText(i.answer)]),
     ];
     for (const text of all) {
       expect(text, text).not.toMatch(BANNED_CHARS);

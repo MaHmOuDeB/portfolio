@@ -323,12 +323,33 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     ...NARRATIVE_FIXTURES.map((n) => [n, named(n)] as [string, HomeModel]),
   ];
 
-  /** The blocks in page order, as the page marks them. */
-  const BLOCKS = ['data-hero', 'data-home-proof', 'data-home-track', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision'];
+  /** The parts in page order, as the page marks them (the header and the footer are the layout's). */
+  const BLOCKS = [
+    'data-live-bar', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'data-home-track',
+    'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta',
+  ];
   const blockName = (el: El) => {
     const a = BLOCKS.find((n) => attr(el, n) !== undefined)!;
     return a === 'data-home-track' ? `track:${attr(el, a)}` : a;
   };
+  /** The outermost marked parts only (a part may hold marked pieces of its own). */
+  const parts = (h: string) => {
+    const marked = (el: El) => BLOCKS.some((n) => attr(el, n) !== undefined);
+    const out: El[] = [];
+    const walk = (node: T.ParentNode) => {
+      for (const child of node.childNodes) {
+        if (!('tagName' in child)) continue;
+        if (marked(child as El)) out.push(child as El);
+        else walk(child as El);
+      }
+    };
+    walk(doc(h));
+    return out.map(blockName);
+  };
+  const ORDER = [
+    'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'track:experiments', 'track:automation',
+    'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta',
+  ];
 
   it.each(MODELS)('%s: every id is unique, so each card link is named and described by its own text', (_, m) => {
     // LeanCard derives its ids from the href: two cards to one destination would share them.
@@ -337,24 +358,40 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
-  it.each(MODELS)('%s: hero, proof, two tracks, tiles, ribbon, site tile, decision band, in that order, with one h1', (_, m) => {
+  it.each(MODELS)('%s: the live bar (once the test has a note), then the eleven parts in order, with one h1', (_, m) => {
     const h = page(m);
-    const order = all(doc(h), (el) => BLOCKS.some((n) => attr(el, n) !== undefined)).map(blockName);
-    expect(order).toEqual(['data-hero', 'data-home-proof', 'track:experiments', 'track:automation', 'data-home-tiles', 'data-home-ribbon', 'data-home-site', 'data-home-decision']);
-    // The cards region sits inside the first track, and the note once, in the tag before the
-    // track's heading (absent before the start); the site tile has no second copy.
+    const started = m.mode === 'not-started' ? 0 : 1;
+    expect(parts(h)).toEqual(started ? ['data-live-bar', ...ORDER] : ORDER);
+    // The cards region sits inside the experiments track; the note once, in the live bar before the
+    // hero (absent before the start), with its own link to the live page; no tag at the cards and no
+    // second copy in the site band.
     const first = section(h, has('data-home-track', 'experiments'))!;
     expect(all(first, has('data-experiment', 'cards'))).toHaveLength(1);
-    const started = m.mode === 'not-started' ? 0 : 1;
-    expect(all(doc(h), has('data-home-tag'))).toHaveLength(started);
-    expect(all(first, has('data-home-tag'))).toHaveLength(started);
+    expect(all(doc(h), has('data-home-tag'))).toHaveLength(0);
     expect(all(doc(h), has('data-home-note'))).toHaveLength(started);
-    if (started) expect(h.indexOf('data-home-tag')).toBeLessThan(h.indexOf('id="track-experiments-title"'));
-    expect(h.indexOf('data-home-tag') === -1 || h.indexOf('data-home-tag') > h.indexOf('data-home-proof')).toBe(true);
+    if (started) {
+      const bar = section(h, has('data-live-bar'))!;
+      expect(all(bar, has('data-home-note'))).toHaveLength(1);
+      expect(all(bar, (el) => el.tagName === 'a').map((a) => attr(a, 'href'))).toContain('/experiment');
+      expect(h.indexOf('data-live-bar')).toBeLessThan(h.indexOf('data-hero'));
+    }
     const site = section(h, has('data-home-site'))!;
     expect(all(site, has('data-home-note'))).toHaveLength(0);
     expect(all(doc(h), (el) => el.tagName === 'h1')).toHaveLength(1);
-    expect(text(all(doc(h), (el) => el.tagName === 'h1')[0]!)).toBe('I test what works, and automate the rest.');
+    expect(squash(text(all(doc(h), (el) => el.tagName === 'h1')[0]!))).toBe('Experimentation and AI automation for product and growth teams');
+    // Retired from the page: the two tiles, the sliding tools ribbon, "Your call." and the old slogan.
+    expect(h).not.toMatch(/data-home-tiles|data-home-ribbon|data-home-decision|Your call\.|I test what works/);
+  });
+
+  it.each(MODELS)('%s: every vignette is decorative, says "Illustration" and prints no digit', (_, m) => {
+    const vigs = all(doc(page(m)), has('data-vignette'));
+    // Three in "How I test", three experiment cards, four automation cards, one in the site band.
+    expect(vigs).toHaveLength(11);
+    for (const v of vigs) {
+      expect(attr(v, 'aria-hidden')).toBe('true');
+      expect(text(v)).toMatch(/^Illustration/);
+      expect(text(v)).not.toMatch(/\d/);
+    }
   });
 
   it.each(MODELS)('%s: no scroll moment, step, planner or hero simulator markup', (_, m) => {

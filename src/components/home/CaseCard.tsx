@@ -6,13 +6,15 @@
 // experiment's click marker and the card marker, and holds no second link, so the hidden string is
 // never a second focus stop. The cell's one column is the headline's width, and a word longer than
 // that width (large text in a narrow card) breaks inside the cell, so neither string can push past
-// the card's edge, where the card clips it. Server-safe.
+// the card's edge, where the card clips it. The card ends in its study's sketch (the same in both
+// groups, decorative). Server-safe.
 import { HEADLINES, HOME_CASES, type Study } from '../../../content/home.ts';
 import { LeanCard } from '@/components/depth/LeanCard';
 import type { Arm } from '@/experiment.values';
 import { cx } from '@/lib/cx';
 import { prefetchFor } from '@/lib/nav';
 import { Parts } from './Parts';
+import { CASE_SKETCHES } from './Sketches';
 
 const ARMS: readonly Arm[] = ['a', 'b'];
 
@@ -28,6 +30,7 @@ function lookup(study: Study) {
 
 export function CaseCard({ study, headlineArm }: { study: Study; headlineArm: Arm }) {
   const { headlines, item } = lookup(study);
+  const Sketch = CASE_SKETCHES[study];
   return (
     <LeanCard
       href={item.href}
@@ -37,6 +40,7 @@ export function CaseCard({ study, headlineArm }: { study: Study; headlineArm: Ar
       data-touch-target=""
       titleMinLines={TITLE_MIN_LINES}
       meta={item.meta}
+      vignette={<Sketch />}
       title={
         <span id={`case-${study}-headline`} data-case-headline="" className="grid grid-cols-1 wrap-anywhere">
           {ARMS.map((arm) => {

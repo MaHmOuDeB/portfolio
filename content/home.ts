@@ -1,5 +1,6 @@
 // The Home page's content as data: the hero, the proof row, the two tracks (featured case studies and
-// automation cards), the tiles, the site tile and the decision band, plus the headline text helper.
+// automation cards), "How I test", the questions, the tools band, the site band and the FAQ, plus
+// the headline text helper.
 // Prose with a figure is a list of parts: plain text, or `{ fact }` for a number that is printed from
 // the facts data, never typed. The group A and B card headlines are frozen with the experiment
 // (content/experiment/headlines.ts) and only re-exported here.
@@ -258,30 +259,59 @@ export const HOME_CARD_LINE = {
   ab: 'These three headlines are the test: other visitors see different wording.',
 } as const;
 
-/** The two tiles. */
-export const HOME_TILES = {
-  test: {
-    title: 'I test.',
-    lines: [
-      'I plan the sample size and the run time before a test starts.',
-      'I read the result against the primary metric and its guardrails.',
-      'I write the recommendation: ship it, or do not.',
-    ],
-  },
-  automate: {
-    title: 'I automate.',
-    lines: [
-      'I turn repeated manual steps into tools a whole team can use.',
-      'I build agents that work in steps and check each other.',
-      'I put automated tests around my workflows and agent pipelines, so they stay right.',
-    ],
-  },
-} as const;
+/** A section head: the chip, the headline with its quiet clause, and an optional sub. */
+export type SectionCopy = { chip: string; title: string; quiet?: string; sub?: string };
 
-/** The tools ribbon's label. */
+/** "How I test": three tabs, each a title and the line it stands for (the old "I test." lines). */
+export const HOME_HOW = {
+  head: {
+    chip: 'How I test',
+    title: 'Know what a test',
+    quiet: 'really says.',
+    sub: 'Three habits behind every result I report.',
+  },
+  tabs: [
+    { id: 'plan', title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
+    { id: 'read', title: 'Read', line: 'I read the result against the primary metric and its guardrails.' },
+    { id: 'recommend', title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
+  ],
+} as const satisfies { head: SectionCopy; tabs: readonly { id: string; title: string; line: string }[] };
+
+/** The heads of the two tracks (the ledes stay in HOME_TRACKS, which the Work page reads too). */
+export const HOME_EXPERIMENTS_HEAD = {
+  chip: 'Experiments and analytics',
+  title: 'Open the work',
+  quiet: 'and check it yourself.',
+  sub: 'Case studies with their sources, their limits and their data.',
+} as const satisfies SectionCopy;
+
+export const HOME_AUTOMATION_HEAD = {
+  chip: 'Automation and agents',
+  title: 'Take the manual steps',
+  quiet: "out of your team's week.",
+  sub: HOME_TRACKS.automation.lede,
+} as const satisfies SectionCopy;
+
+/** The three "I automate." lines, in the ruled row under the automation cards. */
+export const HOME_AUTOMATE_LINES = [
+  'I turn repeated manual steps into tools a whole team can use.',
+  'I build agents that work in steps and check each other.',
+  'I put automated tests around my workflows and agent pipelines, so they stay right.',
+] as const;
+
+/** The questions rows: two rows of question chips that slide in opposite directions. */
+export const HOME_QUESTIONS = {
+  head: { chip: 'Questions', title: 'The questions a team asks.', quiet: 'I bring the answers, written down.' },
+  rows: [
+    ['Is the sample big enough?', 'How long should the test run?', 'Did the guardrails hold?', 'Is the difference real?'],
+    ['Should we ship it?', 'Which step can be automated?', "Who checks the agent's work?", 'Will it still work next month?'],
+  ],
+} as const satisfies { head: SectionCopy; rows: readonly (readonly string[])[] };
+
+/** The tools band's line. */
 export const TOOLS_LABEL = 'Tools I have shipped with';
 
-/** The site tile: the test on this site is part of the evidence. */
+/** The site band: the test on this site is part of the evidence. The Work page reads `title` and `text`. */
 export const HOME_SITE = {
   title: 'This site is part of the evidence.',
   text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
@@ -289,11 +319,59 @@ export const HOME_SITE = {
   lab: 'Try the Lab',
 } as const;
 
-/** The decision band. */
-export const HOME_DECISION = {
-  title: 'Your call.',
-  text: 'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
-  write: 'Write to me',
-  cv: 'Read my CV',
-  linkedin: 'LinkedIn',
-} as const;
+/** The site band's head on Home: the same headline in two tones. */
+export const HOME_SITE_HEAD = {
+  chip: 'Live test',
+  title: 'This site is',
+  quiet: 'part of the evidence.',
+} as const satisfies SectionCopy;
+
+/** The Home FAQ. Answers are parts, so each figure is printed from the facts data. */
+export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; answer: readonly HeadlinePart[] }[] } = {
+  head: { chip: 'FAQ', title: 'Questions hiring teams ask', sub: 'Short answers; the pages behind them have the detail.' },
+  items: [
+    {
+      question: 'What roles are you looking for?',
+      answer: ['Roles in AI automation, experimentation and product analytics in Germany. I am based in Berlin.'],
+    },
+    {
+      question: 'What did you do at Audible?',
+      answer: [
+        'I was a working student for nearly two years, mainly in growth experimentation with some marketing analytics. I contributed to ',
+        { fact: 'profile.audible.experiments' },
+        ' A/B tests across web and mobile, did the sample-size planning and significance testing myself, and built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about ',
+        { fact: 'profile.audible.setup_minutes_before' },
+        ' to about ',
+        { fact: 'profile.audible.setup_minutes_after' },
+        ' minutes.',
+      ],
+    },
+    {
+      question: 'Can I see the Audible results?',
+      answer: [
+        'No. Revenue, conversion and lift figures are confidential, so this site shows none of them. The Audible page explains how I worked, and the Lab shows the statistics on simulated data.',
+      ],
+    },
+    {
+      question: 'How do you work with AI?',
+      answer: [
+        'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has ',
+        { fact: 'profile.n8n.automated_tests' },
+        ' automated tests.',
+      ],
+    },
+    {
+      question: 'Is the code public?',
+      answer: ['Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
+    },
+    {
+      question: 'Which languages do you speak?',
+      answer: ['Arabic (native), English and French (fluent, C2) and German (B1).'],
+    },
+    {
+      // The contact form passes each message on to my inbox (the privacy notice says so), so "I answer myself." stays.
+      question: 'How do I reach you?',
+      answer: ['Through the contact form or on LinkedIn. I answer myself.'],
+    },
+  ],
+};

@@ -1,5 +1,5 @@
-// The Home page's blocks, rendered on the server: the hero scene, the proof row, the two tracks, the
-// tiles, the ribbon of tools, the site tile and the decision band. The three featured cards are the
+// The Home page's top blocks and its featured cards, rendered on the server: the hero, the proof row
+// and the cards (the sections below them are in sections.test.tsx). The three featured cards are the
 // tested element of the live experiment: both groups get the same markup, both headline strings sit
 // in the same grid cell, and only which one is shown differs. Every figure must come from the facts
 // data, including the hidden headline, and every sentence of the approved is pinned once here.
@@ -8,27 +8,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
-import { HEADLINES, HOME_CASES, HOME_AUTOMATION, HOME_PROOF, headlineText, type Study } from '../../../content/home.ts';
+import { HEADLINES, HOME_CASES, HOME_PROOF, headlineText, type Study } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { SHIPPED_TOOLS } from '../../../content/about';
-import { aboutPhoto } from '../../../content/about-photo';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import type { Arm } from '@/experiment.values';
-import { toHomeModel } from '@/lib/home/model';
-import { snapshotFixture } from '@/lib/home/fixtures';
-import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
+import { CONTACT_HREF, CV_LINK } from '@/lib/site';
 
 const { CaseCard } = await import('@/components/home/CaseCard');
 const { FeaturedCases } = await import('@/components/home/FeaturedCases');
 const { Hero } = await import('@/components/home/Hero');
 const { ProofRow } = await import('@/components/home/ProofRow');
-const { ExperimentsTrack, cardLinePhase } = await import('@/components/home/ExperimentsTrack');
-const { LiveNote } = await import('@/components/home/LiveNote');
-const { AutomationTrack } = await import('@/components/home/AutomationTrack');
-const { WorkTiles } = await import('@/components/home/WorkTiles');
-const { ToolsRibbon } = await import('@/components/home/ToolsRibbon');
-const { SiteTile } = await import('@/components/home/SiteTile');
-const { DecisionBand } = await import('@/components/home/DecisionBand');
 
 const ARMS: readonly Arm[] = ['a', 'b'];
 
@@ -235,93 +224,6 @@ describe('FeaturedCases', () => {
   });
 });
 
-describe('ExperimentsTrack', () => {
-  const html = render(createElement(ExperimentsTrack, { headlineArm: 'a' }));
-  const d = doc(html);
-
-  it('is the section #work, headed "Experiments and analytics", with its lede and the cards region', () => {
-    const section = one(d, (el) => el.tagName === 'section' && attr(el, 'id') === 'work');
-    const h2 = one(section, (el) => el.tagName === 'h2');
-    expect(text(h2)).toBe('Experiments and analytics');
-    expect(attr(h2, 'data-depth-rise')).toBe('heading');
-    expect(attr(section, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    expect(text(one(section, (el) => el.tagName === 'p' && classes(el).includes('text-lg') && !has(el, 'data-case-description')))).toBe(
-      'How I plan a test, read it honestly and write the recommendation.',
-    );
-    expect(all(section, (el) => attr(el, 'data-experiment') === 'cards')).toHaveLength(1);
-  });
-
-  it('passes the truth audit', () => {
-    expect(audit(html)).toEqual([]);
-  });
-});
-
-describe('ExperimentsTrack with the live test: the tag and the line at the cards', () => {
-  type Mode = Parameters<typeof snapshotFixture>[0];
-  const model = (m: Mode, arm: Arm) => toHomeModel(snapshotFixture(m), arm);
-  const track = (m: Mode, arm: Arm) => {
-    const mdl = model(m, arm);
-    return render(createElement(ExperimentsTrack, { headlineArm: mdl.headlineArm, note: LiveNote({ model: mdl }), phase: cardLinePhase(mdl) }));
-  };
-  const CALIBRATION_LINE = 'These three headlines are what the test will compare. For now everyone sees the same ones.';
-  const AB_LINE = 'These three headlines are the test: other visitors see different wording.';
-
-  it('puts one tag before the heading: the glyph and the note, with the note\'s one link to the live page', () => {
-    for (const arm of ARMS) {
-      const html = track('calibration', arm);
-      const d = doc(html);
-      const tag = one(d, (el) => has(el, 'data-home-tag'));
-      expect(has(tag, 'data-depth-rise')).toBe(true);
-      expect(html.indexOf('data-home-tag')).toBeLessThan(html.indexOf('<h2'));
-      expect(all(tag, (el) => el.tagName === 'svg' && attr(el, 'aria-hidden') === 'true')).toHaveLength(1);
-      expect(all(tag, (el) => has(el, 'data-home-note'))).toHaveLength(1);
-      const links = all(tag, (el) => el.tagName === 'a');
-      expect(links.map((a) => text(a))).toEqual(['See the live results']);
-      expect(attr(links[0]!, 'href')).toBe(HOME_LINKS.experiment);
-      expect(text(tag)).toContain('It is calibrating first, so everyone sees the same page.');
-    }
-  });
-
-  it('has no tag before the test starts (there is no note to show)', () => {
-    expect(all(doc(track('not-started', 'a')), (el) => has(el, 'data-home-tag'))).toEqual([]);
-  });
-
-  it('says what the cards are while calibrating and while the A/B runs, the same words in both groups', () => {
-    const line = (m: Mode, arm: Arm) => all(doc(track(m, arm)), (el) => has(el, 'data-home-card-line')).map((el) => text(el));
-    for (const arm of ARMS) {
-      expect(line('calibration', arm)).toEqual([CALIBRATION_LINE]);
-      expect(line('ab', arm)).toEqual([AB_LINE]);
-    }
-    const html = track('ab', 'a');
-    // Under the lede, before the cards; muted.
-    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('How I plan a test'));
-    expect(html.indexOf('data-home-card-line')).toBeLessThan(html.indexOf('data-experiment="cards"'));
-    expect(classes(one(doc(html), (el) => has(el, 'data-home-card-line')))).toEqual(expect.arrayContaining(['text-muted']));
-  });
-
-  it('says nothing at the cards when the test is paused, not configured, stopped or decided', () => {
-    for (const m of ['paused', 'not-started', 'held', 'unavailable', 'settings-unreadable', 'aa-failed', 'srm-suppressed', 'ship-b', 'inconclusive'] as const) {
-      for (const arm of ARMS) {
-        expect(cardLinePhase(model(m, arm)), `${m}/${arm}`).toBeNull();
-        expect(track(m, arm), `${m}/${arm}`).not.toContain('data-home-card-line');
-      }
-    }
-  });
-
-  it('takes the line from the phase, never from the group: no other group wording in the line', () => {
-    for (const m of ['calibration', 'ab'] as const) {
-      expect(cardLinePhase(model(m, 'a'))).toBe(cardLinePhase(model(m, 'b')));
-    }
-    for (const hl of HEADLINES) {
-      for (const arm of ARMS) expect(AB_LINE).not.toContain(headlineText(hl[arm]));
-    }
-  });
-
-  it('passes the truth audit in both phases', () => {
-    for (const m of ['calibration', 'ab'] as const) for (const arm of ARMS) expect(audit(track(m, arm))).toEqual([]);
-  });
-});
-
 describe('Hero', () => {
   const html = render(createElement(Hero));
   const d = doc(html);
@@ -465,176 +367,5 @@ describe('ProofRow', () => {
     expect(units).toEqual(['about ', ' min']);
     // The numbers themselves are never inside a unit.
     for (const u of all(d, (el) => has(el, 'data-proof-unit'))) expect(all(u, (el) => has(el, 'data-fact'))).toEqual([]);
-  });
-});
-
-describe('AutomationTrack', () => {
-  const html = render(createElement(AutomationTrack));
-  const d = doc(html);
-
-  it('is headed "Automation and agents" with the approved lede', () => {
-    const section = one(d, (el) => attr(el, 'data-home-track') === 'automation');
-    const h2 = one(section, (el) => el.tagName === 'h2');
-    expect(text(h2)).toBe('Automation and agents');
-    expect(attr(h2, 'data-depth-rise')).toBe('heading');
-    expect(attr(section, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    expect(text(one(section, (el) => el.tagName === 'p' && classes(el).includes('text-lg')))).toBe(
-      'Tools I built so that people, including me, stop doing the same thing by hand.',
-    );
-  });
-
-  it('has four medium lean cards to the existing pages, in order, with the approved lines', () => {
-    const links = all(d, (el) => el.tagName === 'a');
-    expect(links.map((a) => attr(a, 'href'))).toEqual([
-      '/work/audible#automation',
-      '/work/docproof',
-      '/work/n8n',
-      '/work/marketingws',
-    ]);
-    for (const a of links) {
-      expect(has(a, 'data-depth-lean')).toBe(true);
-      expect(attr(a, 'data-size')).toBe('md');
-      // They are not the experiment's cards.
-      expect(has(a, 'data-experiment-click')).toBe(false);
-    }
-    expect(links.map((a) => text(one(a, (el) => el.tagName === 'h3')))).toEqual([
-      'Test-account automation',
-      'Docproof',
-      'n8n workflow library',
-      'MarketingWS',
-    ]);
-    expect(HOME_AUTOMATION.map((c) => headlineText(c.description))).toEqual([
-      'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
-      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
-      'E-invoice intake and error alerts as reusable workflows, with 270+ automated tests. A portfolio project, not used by a client.',
-      "Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier.",
-    ]);
-    expect(links.map((a) => text(one(a, (el) => has(el, 'data-depth-meta'))))).toEqual([
-      'Browser automation, 11 markets',
-      'Multi-agent orchestration, Claude Code',
-      'n8n, XRechnung, ZUGFeRD',
-      'Python, FastAPI, Groq',
-    ]);
-  });
-
-  it('prints its figures from facts and passes the truth audit', () => {
-    expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
-      'profile.audible.setup_minutes_before',
-      'profile.audible.setup_minutes_after',
-      'profile.audible.markets',
-      'profile.n8n.automated_tests',
-    ]);
-    expect(text(d)).toContain('Tampermonkey with a step recorder');
-    expect(text(d)).not.toMatch(/deployed|in production|\bused by (?!a client)/i);
-    expect(audit(html)).toEqual([]);
-  });
-});
-
-describe('WorkTiles', () => {
-  const d = doc(render(createElement(WorkTiles)));
-
-  it('opens "I test." (surface) from the left and "I automate." (ink) from the right', () => {
-    const tiles = all(d, (el) => has(el, 'data-tile'));
-    expect(tiles.map((t) => attr(t, 'data-tile'))).toEqual(['', 'ink']);
-    expect(tiles.map((t) => attr(t, 'data-depth-book'))).toEqual(['left', 'right']);
-    expect(tiles.map((t) => text(one(t, (el) => el.tagName === 'h3')))).toEqual(['I test.', 'I automate.']);
-  });
-
-  it('keeps list semantics on both lists in Safari (list-style none drops them without a role)', () => {
-    const lists = all(d, (el) => el.tagName === 'ul');
-    expect(lists).toHaveLength(2);
-    for (const ul of lists) expect(attr(ul, 'role')).toBe('list');
-  });
-
-  it('prints the approved lines, each on a rule that draws in', () => {
-    const items = all(d, (el) => el.tagName === 'li');
-    expect(items.map((li) => text(li))).toEqual([
-      'I plan the sample size and the run time before a test starts.',
-      'I read the result against the primary metric and its guardrails.',
-      'I write the recommendation: ship it, or do not.',
-      'I turn repeated manual steps into tools a whole team can use.',
-      'I build agents that work in steps and check each other.',
-      'I put automated tests around my workflows and agent pipelines, so they stay right.',
-    ]);
-    for (const li of items) {
-      expect(has(li, 'data-depth-draw')).toBe(false);
-      const rules = all(li, (el) => has(el, 'data-depth-draw'));
-      expect(rules.map((r) => r.tagName)).toEqual(['span']);
-    }
-  });
-});
-
-describe('ToolsRibbon', () => {
-  const d = doc(render(createElement(ToolsRibbon)));
-
-  it("is the About page's tools list, labelled \"Tools I have shipped with\", each item once", () => {
-    const ribbon = one(d, (el) => has(el, 'data-depth-ribbon'));
-    const list = one(ribbon, (el) => el.tagName === 'ul');
-    expect(attr(list, 'aria-label')).toBe('Tools I have shipped with');
-    const items = all(list, (el) => el.tagName === 'li').map((li) => text(li));
-    expect(items).toEqual(SHIPPED_TOOLS.map((t) => t.tool));
-    expect(new Set(items).size).toBe(items.length);
-  });
-});
-
-describe('SiteTile', () => {
-  const html = render(createElement(SiteTile));
-
-  it('takes no props: the same tile for every visitor and every state', () => {
-    expect(SiteTile.length).toBe(0);
-  });
-
-  it('says the approved heading and sentence, then the two buttons', () => {
-    const root = one(doc(html), (el) => has(el, 'data-home-site'));
-    expect(text(one(root, (el) => el.tagName === 'h3'))).toBe('This site is part of the evidence.');
-    expect(text(all(root, (el) => el.tagName === 'p' && classes(el).includes('text-lg'))[0]!)).toBe(
-      'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
-    );
-    expect(html.indexOf('See the live test')).toBeGreaterThan(html.indexOf('pre-registered'));
-    const buttons = all(root, (el) => el.tagName === 'a' && classes(el).includes('rounded-md'));
-    expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
-    expect(buttons.map((a) => attr(a, 'href'))).toEqual([HOME_LINKS.experiment, HOME_LINKS.lab]);
-  });
-
-  it('holds no second copy of the note (the tag above the cards has it)', () => {
-    expect(all(doc(html), (el) => has(el, 'data-home-note'))).toHaveLength(0);
-  });
-
-  it('types no numeral, and says nothing about a count of checks', () => {
-    expect(text(doc(html))).not.toMatch(/\d|more than/);
-  });
-});
-
-describe('DecisionBand', () => {
-  const d = doc(render(createElement(DecisionBand)));
-
-  it('says "Your call." as a scaling h2, then the looking-for sentence', () => {
-    const section = one(d, (el) => el.tagName === 'section');
-    const h2 = one(section, (el) => el.tagName === 'h2');
-    expect(text(h2)).toBe('Your call.');
-    expect(has(h2, 'data-depth-scale')).toBe(true);
-    expect(attr(section, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    expect(text(one(section, (el) => el.tagName === 'p'))).toBe(
-      'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
-    );
-  });
-
-  it('has Write to me, Read my CV and LinkedIn', () => {
-    const links = all(d, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV', 'LinkedIn']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href, CONTACT.linkedin]);
-    expect(attr(links[2]!, 'rel')).toBe('noopener');
-  });
-
-  it("shows the About page's photograph, lazily loaded, drifting against the scroll", () => {
-    const wrap = one(d, (el) => has(el, 'data-depth-parallax'));
-    const img = one(wrap, (el) => el.tagName === 'img');
-    expect(attr(img, 'alt')).toBe(aboutPhoto.alt);
-    expect(attr(img, 'loading')).toBe('lazy');
-    expect(decodeURIComponent(attr(img, 'src') ?? '')).toContain(aboutPhoto.src);
-  });
-
-  it('claims no work authorisation and no phone number', () => {
-    expect(text(d)).not.toMatch(/visa|permit|authori[sz]ation|\+?\d[\d ()-]{7,}/i);
   });
 });
