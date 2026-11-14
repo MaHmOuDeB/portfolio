@@ -6,11 +6,12 @@
 // The photo renders at 480 px wide and 960 px for dense screens (next.config.ts limits the
 // optimiser to those widths), loads lazily and is never cropped further than its 4:5 file.
 import Image from 'next/image';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
+import { Tile } from '@/components/depth/Tile';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
 import { CV_LINK } from '@/lib/site';
-import { ABOUT_STORY, LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
+import { ABOUT_FOCUS, ABOUT_LOOKING, ABOUT_STORY, LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
 import { aboutPhoto } from '../../../content/about-photo';
 import { CvDownload } from './CvDownload';
 import { TimelineRow } from './TimelineRow';
@@ -35,7 +36,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`about: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className="max-w-text text-xl font-semibold">
+      <h2 id={`${id}-title`} data-depth-rise="heading" className="max-w-text text-xl font-semibold">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -74,19 +75,27 @@ export function AboutPage(): ReactNode {
     <article aria-labelledby="about-title" className="py-12 md:py-section">
       <div className="grid gap-8 md:grid-cols-12">
         <div className="md:col-span-7">
-          <h1 id="about-title" className="text-2xl font-semibold md:text-3xl">
+          <h1 id="about-title" data-depth-rise="heading" className="text-2xl font-semibold md:text-3xl">
             {ABOUT_TITLE}
           </h1>
           <div data-about-story="" className="mt-4 max-w-text space-y-4 text-lg">
             {STORY_PARAGRAPHS.map(([from, to]) => (
-              <p key={from}>
-                {ABOUT_STORY.slice(from, to).map((sentence, j) => (
-                  <span key={from + j} data-sentence="">
-                    {from + j > 0 ? ' ' : null}
-                    {sentence}
-                  </span>
-                ))}
-              </p>
+              <Fragment key={from}>
+                <p>
+                  {ABOUT_STORY.slice(from, to).map((sentence, j) => (
+                    <span key={from + j} data-sentence="">
+                      {from + j > 0 ? ' ' : null}
+                      {sentence}
+                    </span>
+                  ))}
+                </p>
+                {from === 0 ? (
+                  <>
+                    <p data-about-focus="">{ABOUT_FOCUS}</p>
+                    <p data-about-looking="">{ABOUT_LOOKING}</p>
+                  </>
+                ) : null}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -97,13 +106,14 @@ export function AboutPage(): ReactNode {
             width={PHOTO_WIDTH}
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
+            data-depth-parallax=""
             className="h-auto w-full max-w-120 rounded-sm print:max-w-48"
           />
         </div>
       </div>
 
       <Section id="timeline">
-        <ol className="max-w-text">
+        <ol data-depth-draw="" className="max-w-text">
           {TIMELINE.map((row) => (
             <TimelineRow key={`${row.range.from}-${row.role}`} {...row} />
           ))}
@@ -111,7 +121,9 @@ export function AboutPage(): ReactNode {
       </Section>
 
       <Section id="tools">
-        <TermList items={SHIPPED_TOOLS.map((t) => [t.tool, t.where] as const)} />
+        <Tile>
+          <TermList items={SHIPPED_TOOLS.map((t) => [t.tool, t.where] as const)} />
+        </Tile>
       </Section>
 
       <Section id="languages">

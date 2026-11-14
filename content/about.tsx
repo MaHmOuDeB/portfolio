@@ -37,7 +37,17 @@ export const ABOUT_STORY: readonly ReactNode[] = [
   </>,
 ];
 
-/** Work and study, newest first. */
+/** The new paragraph after the first one: what the two halves of my work have in common. */
+export const ABOUT_FOCUS =
+  'I work on two things that belong together: experiments that end in a decision, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
+
+/** What I am looking for, as its own short paragraph. */
+export const ABOUT_LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+
+/**
+ * Work and study, newest first. The two short earlier roles (the fundraiser job and the research
+ * internship) are on the CV page only.
+ */
 export const TIMELINE: readonly { range: MonthRange; role: string; where: string }[] = [
   { range: { from: '2026-10', to: null }, role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
   {
@@ -46,8 +56,6 @@ export const TIMELINE: readonly { range: MonthRange; role: string; where: string
     where: 'Audible (Amazon), Berlin',
   },
   { range: { from: '2023-04', to: '2025-11' }, role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
-  { range: { from: '2023-03', to: '2023-06' }, role: 'Fundraiser & Marketing Representative', where: 'Direct Results, Berlin' },
-  { range: { from: '2021-06', to: '2021-09' }, role: 'Intern, Research Assistant', where: 'Geo Engineering, Bremen' },
   {
     range: { from: '2019-09', to: '2022-11' },
     role: 'BSc Computer Science',

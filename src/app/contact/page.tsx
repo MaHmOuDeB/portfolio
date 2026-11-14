@@ -25,7 +25,7 @@ export default async function ContactPage({ searchParams }: PageProps<'/contact'
   return (
     <article aria-labelledby="contact-title" className="py-12 md:py-section">
       <div className="max-w-text">
-        <h1 id="contact-title" className="text-2xl font-semibold md:text-3xl">
+        <h1 id="contact-title" data-depth-rise="heading" className="text-2xl font-semibold md:text-3xl">
           Contact
         </h1>
         <p className="mt-4 text-lg text-muted">Tell me who you are and why you are writing, and I will reply by e-mail.</p>

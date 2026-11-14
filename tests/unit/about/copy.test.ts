@@ -91,12 +91,14 @@ const STORY = [
   "I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I have rebuilt my Master's projects on public data and built tools of my own.",
 ];
 
+const FOCUS =
+  'I work on two things that belong together: experiments that end in a decision, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
+const LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+
 const TIMELINE = [
   { dates: 'Oct 2026 – present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
   { dates: 'Aug 2023 – Apr 2025', datetimes: ['2023-08', '2025-04'], role: 'Working student: Marketing Analytics & Growth Experimentation', where: 'Audible (Amazon), Berlin' },
   { dates: 'Apr 2023 – Nov 2025', datetimes: ['2023-04', '2025-11'], role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
-  { dates: 'Mar 2023 – Jun 2023', datetimes: ['2023-03', '2023-06'], role: 'Fundraiser & Marketing Representative', where: 'Direct Results, Berlin' },
-  { dates: 'Jun 2021 – Sep 2021', datetimes: ['2021-06', '2021-09'], role: 'Intern, Research Assistant', where: 'Geo Engineering, Bremen' },
   { dates: 'Sep 2019 – Nov 2022', datetimes: ['2019-09', '2022-11'], role: 'BSc Computer Science', where: 'Jacobs University Bremen (now Constructor University), Bremen' },
 ];
 
@@ -137,16 +139,43 @@ describe('the About page', () => {
     for (const s of sections) expect(attr(s, 'aria-labelledby')).toBe(`${attr(s, 'id')}-title`);
   });
 
-  it('tells a five-sentence story, word for word', () => {
-    const story = text(one(about(), (el) => has(el, 'data-about-story')));
-    expect(story.split(/(?<=\.)\s+(?=[A-Z])/)).toEqual(STORY);
+  it('tells the five-sentence story, the new paragraph and the looking-for line, word for word', () => {
+    const story = one(about(), (el) => has(el, 'data-about-story'));
+    const paragraphs = all(story, (el) => el.tagName === 'p').map(text);
+    expect(paragraphs).toEqual([STORY.slice(0, 2).join(' '), FOCUS, LOOKING, STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...STORY.slice(0, 2), ...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), LOOKING, ...STORY.slice(2)]);
   });
 
-  it('breaks the story into three paragraphs at its own sentence breaks, with no new words', () => {
+  it('puts the new paragraph right after the first, and the looking-for line alone after it', () => {
     const story = one(about(), (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p');
-    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 2, 1]);
-    expect(paragraphs.map(text)).toEqual([STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 0, 0, 2, 1]);
+    expect(has(paragraphs[1]!, 'data-about-focus')).toBe(true);
+    expect(has(paragraphs[2]!, 'data-about-looking')).toBe(true);
+  });
+
+  it('keeps exactly the four timeline entries in order, and leaves the two short earlier roles to the CV', () => {
+    const d = about();
+    const roles = all(section(d, 'timeline'), (el) => el.tagName === 'h3').map(text);
+    expect(roles).toEqual([
+      'AI Data Specialist, Business and Analytics Workflows (Contract)',
+      'Working student: Marketing Analytics & Growth Experimentation',
+      'MSc Data Science',
+      'BSc Computer Science',
+    ]);
+    const page = text(d);
+    for (const gone of ['Fundraiser', 'Direct Results', 'Research Assistant', 'Geo Engineering']) expect(page).not.toContain(gone);
+    const cvText = text(cv());
+    for (const kept of ['Fundraiser & Marketing Representative', 'Direct Results', 'Intern, Research Assistant', 'Geo Engineering']) expect(cvText).toContain(kept);
+  });
+
+  it('marks the layout motion: parallax photo, rising headings, a drawn timeline rule', () => {
+    const d = about();
+    expect(has(one(d, (el) => el.tagName === 'img'), 'data-depth-parallax')).toBe(true);
+    const headings = all(d, (el) => el.tagName === 'h1' || el.tagName === 'h2');
+    expect(headings.length).toBe(5);
+    for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
+    expect(all(section(d, 'timeline'), (el) => has(el, 'data-depth-draw')).length).toBe(1);
   });
 
   it('uses the page-title size from md up on its h1, as every other page does', () => {
@@ -350,6 +379,12 @@ describe('the CV page', () => {
       ['projects', 'Projects'],
     ]);
     expect(CV_SECTIONS.map((s) => s.id)).toEqual(sections.map((s) => attr(s, 'id')));
+  });
+
+  it('marks the h1 and the section headings to rise on entry', () => {
+    const headings = all(cv(), (el) => el.tagName === 'h1' || el.tagName === 'h2');
+    expect(headings.length).toBe(7);
+    for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
   });
 
   it('uses the page-title size from md up on its h1', () => {
