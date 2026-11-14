@@ -271,7 +271,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @layer base {
   [data-site-header] {
     background-color: var(--color-bg);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+    border-bottom: 1px solid var(--color-hairline);
   }
 
   /* Where the header does not stick it is still the hairline's positioning context. */
@@ -283,7 +283,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   @supports (backdrop-filter: blur(1px)) {
     [data-site-header] {
-      background-color: color-mix(in srgb, var(--color-bg) 96%, transparent);
+      background-color: var(--color-header-cover);
       backdrop-filter: saturate(180%) blur(20px);
     }
   }
@@ -671,7 +671,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     text-decoration: none;
     transform-origin: left;
     animation: depth-settle var(--duration-settle) var(--ease-standard) both;
-    mask-image: linear-gradient(to right, black 60%, transparent);
+    mask-image: linear-gradient(to right, var(--color-mask-opaque) 60%, var(--color-clear));
   }
 
   [data-proof-mark] i {
@@ -740,8 +740,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       border-radius: inherit;
       background: radial-gradient(
         26rem circle at var(--gx, 50%) var(--gy, -20%),
-        color-mix(in srgb, var(--color-series-1) 10%, transparent),
-        transparent 60%
+        var(--color-glint),
+        var(--color-clear) 60%
       );
       opacity: 0;
       pointer-events: none;
@@ -861,10 +861,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     overflow-x: clip;
     mask-image: linear-gradient(
       to right,
-      transparent,
-      black calc(var(--spacing) * 4),
-      black calc(100% - var(--spacing) * 4),
-      transparent
+      var(--color-clear),
+      var(--color-mask-opaque) calc(var(--spacing) * 4),
+      var(--color-mask-opaque) calc(100% - var(--spacing) * 4),
+      var(--color-clear)
     );
   }
 
@@ -903,13 +903,31 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-tile] ul:not([aria-label]) > li {
     padding: calc(var(--spacing) * 3.5) 0;
-    border-top: 1px solid color-mix(in srgb, var(--color-muted) 28%, transparent);
+    border-top: 1px solid var(--color-rule-quiet);
     font-size: var(--text-base);
     line-height: 1.45;
   }
 
   [data-tile="ink"] ul:not([aria-label]) > li {
-    border-color: color-mix(in srgb, var(--color-bg) 20%, transparent);
+    border-color: var(--color-rule-on-ink);
+  }
+
+  /* A row that carries its own rule draws that rule in (data-depth-draw scales its element, so it
+     must be an empty decorative span, never the row), and drops the row's static top border. */
+  [data-tile] ul:not([aria-label]) > li:has(> [data-depth-draw]) {
+    position: relative;
+    border-top: 0;
+  }
+
+  [data-tile] ul:not([aria-label]) > li > [data-depth-draw] {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1px;
+    background: var(--color-rule-quiet);
+  }
+
+  [data-tile="ink"] ul:not([aria-label]) > li > [data-depth-draw] {
+    background: var(--color-rule-on-ink);
   }
 
   /* At a glance: the outcome as one readable paragraph (text-xl, text-2xl from md, about 60

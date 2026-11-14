@@ -532,7 +532,11 @@ describe('WorkTiles', () => {
       'I build agents that work in steps and check each other.',
       'I put automated tests around every workflow, so it stays right.',
     ]);
-    for (const li of items) expect(has(li, 'data-depth-draw')).toBe(true);
+    for (const li of items) {
+      expect(has(li, 'data-depth-draw')).toBe(false);
+      const rules = all(li, (el) => has(el, 'data-depth-draw'));
+      expect(rules.map((r) => r.tagName)).toEqual(['span']);
+    }
   });
 });
 
