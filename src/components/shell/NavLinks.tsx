@@ -1,6 +1,6 @@
 'use client';
 
-// The four page links. A client component only for usePathname, which marks the current page.
+// The four page links (the Menu adds the CV and Contact buttons after them). A client component only for usePathname, which marks the current page.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cx } from '@/lib/cx';

@@ -335,7 +335,7 @@ page, give it the primitives catalogue above and the golden page.
 
 - **Vocabulary.** Visitor-facing copy says "group". Code says "arm".
 - **Copy.** First person, plain, sentence case. Status is a word ("SRM passed"), and colour only
-  repeats it. Navigation is exactly Work, Lab, Live test, About, CV, Menu.
+  repeats it. Navigation is exactly Work, About, Lab, Live test, CV, Contact, Menu.
 - **Motion.**
   - The Home scroll moment is the only motion the visitor doesn't trigger. No other page has any.
   - All other motion answers a visitor's action.

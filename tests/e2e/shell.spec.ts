@@ -172,7 +172,8 @@ test('a dragged figure turns off mark transitions even when a duration utility i
 });
 
 const PHONE = /\+\d{2}[\d\s]{8,}|\b0\d{3}\s?\d{3,}/;
-const LABELS = ['Work', 'Lab', 'Live test', 'About'];
+const LABELS = ['Work', 'About', 'Lab', 'Live test'];
+const MENU_LABELS = [...LABELS, 'CV', 'Contact'];
 
 /**
  * Makes the page 3000 px taller without touching the DOM React hydrates. A node added to <main> before
@@ -192,9 +193,14 @@ function isPhone(page: Page): boolean {
   return (page.viewportSize()?.width ?? 0) < 768;
 }
 
+// The page links and both buttons show from lg (1024 px); under it they live in the Menu.
+function isCompact(page: Page): boolean {
+  return (page.viewportSize()?.width ?? 0) < 1024;
+}
+
 test.describe('site header', () => {
-  test('desktop: wordmark, full navigation in order, the CV link, no Menu', async ({ page }) => {
-    test.skip(isPhone(page), 'desktop layout');
+  test('desktop: wordmark, full navigation in order, the CV and Contact buttons, no Menu', async ({ page }) => {
+    test.skip(isCompact(page), 'desktop layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toHaveAttribute('href', '/');
@@ -204,21 +210,40 @@ test.describe('site header', () => {
     const cv = header.getByRole('link', { name: 'CV', exact: true });
     await expect(cv).toHaveAttribute('href', '/cv');
     await expect(cv).not.toHaveAttribute('download');
+    // Contact is the primary button, after CV, and is not one of the page links.
+    const contact = header.getByRole('link', { name: 'Contact', exact: true });
+    await expect(contact).toHaveAttribute('href', '/contact');
+    await expect(contact).toHaveClass(/bg-ink/);
+    await expect(cv).toHaveClass(/border-muted/);
+    await expect(nav.getByRole('link', { name: 'Contact' })).toHaveCount(0);
+    // Keyboard order is visual order: wordmark, four page links, CV, Contact.
+    const hrefs = await header.getByRole('link').evaluateAll((els) => els.map((el) => el.getAttribute('href')));
+    expect(hrefs).toEqual(['/', '/work', '/about', '/lab', '/experiment', '/cv', '/contact']);
     await expect(header.locator('summary')).toBeHidden();
   });
 
-  test('phone: full navigation is hidden, wordmark, the CV link and Menu are shown', async ({ page }) => {
-    test.skip(!isPhone(page), 'phone layout');
+  test('one row from 1024 px: wordmark, links and both buttons', async ({ page }) => {
+    test.skip(isCompact(page), 'desktop layout');
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    const rows = await header.locator('a:visible').evaluateAll((els) => [...new Set(els.map((el) => Math.round(el.getBoundingClientRect().top)))]);
+    // Labels are centred in 44 px targets and buttons are 44 px tall: every target starts on one line.
+    expect(rows).toHaveLength(1);
+  });
+
+  test('under lg: only the wordmark and Menu show; the Menu has the links, CV and Contact', async ({ page }) => {
+    test.skip(!isCompact(page), 'compact layout');
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
-    await expect(header.getByRole('link', { name: 'CV', exact: true })).toBeVisible();
     await expect(header.locator('summary')).toHaveText('Menu');
+    await expect(header.locator('summary')).toBeVisible();
   });
 
-  test('phone: Menu lists the same four labels and Escape closes it', async ({ page }) => {
-    test.skip(!isPhone(page), 'phone layout');
+  test('under lg: Menu lists the four labels, CV and Contact, and Escape closes it', async ({ page }) => {
+    test.skip(!isCompact(page), 'compact layout');
     await page.goto('/');
     const summary = page.getByRole('banner').locator('summary');
     const list = page.getByRole('navigation', { name: 'Menu' });
@@ -226,19 +251,23 @@ test.describe('site header', () => {
     // The Menu opens without JavaScript, but Escape closes it only once it is hydrated.
     await waitForHydration(page.getByRole('banner').locator('details'));
     await summary.click();
-    await expect(list.getByRole('link')).toHaveText(LABELS);
+    await expect(list.getByRole('link')).toHaveText(MENU_LABELS);
+    await expect(list.getByRole('link', { name: 'CV', exact: true })).toHaveAttribute('href', '/cv');
+    const contact = list.getByRole('link', { name: 'Contact', exact: true });
+    await expect(contact).toHaveAttribute('href', '/contact');
+    await expect(contact).toHaveClass(/bg-ink/);
     await page.keyboard.press('Escape');
     await expect(list).toBeHidden();
     await expect(summary).toBeFocused();
   });
 
   test('phone: Menu opens without JavaScript', async ({ browser, baseURL, page: runner }) => {
-    test.skip(!isPhone(runner), 'phone layout');
+    test.skip(!isCompact(runner), 'compact layout');
     const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 375, height: 812 } });
     const page = await context.newPage();
     await page.goto('/');
     await page.getByRole('banner').locator('summary').click();
-    await expect(page.getByRole('navigation', { name: 'Menu' }).getByRole('link')).toHaveText(LABELS);
+    await expect(page.getByRole('navigation', { name: 'Menu' }).getByRole('link')).toHaveText(MENU_LABELS);
     await context.close();
   });
 
