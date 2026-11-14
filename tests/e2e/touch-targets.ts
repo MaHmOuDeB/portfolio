@@ -60,6 +60,20 @@ export function unpinnedExemptions(exempt: readonly string[], pinned: readonly s
  * such link that overlaps another target.
  */
 export async function touchTargetReport(page: Page) {
+  // Measured on the settled page: scroll-linked entry animations hold a block that has not entered the
+  // viewport at opacity 0 (a short viewport, such as 1280x720 at 400%, leaves most of the page there),
+  // and checkVisibility({ checkOpacity }) below would then skip its links. Reduced motion shows every
+  // block in its final state; the moving state is guarded by motion-contrast.spec.ts.
+  const before = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  try {
+    return await measure(page);
+  } finally {
+    await page.emulateMedia({ reducedMotion: before ? 'reduce' : 'no-preference' });
+  }
+}
+
+function measure(page: Page) {
   return page.locator(pointerTargets).evaluateAll((els) => {
     type Box = { tag: string; id: string; href: string | null; name: string | undefined; width: number; height: number };
     const seen = new Set<Element>();
