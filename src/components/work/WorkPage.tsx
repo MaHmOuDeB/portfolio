@@ -36,7 +36,7 @@ export function WorkPage(): ReactNode {
           {WORK_TITLE}
         </h1>
         <p data-work-intro="" className="mt-4 text-lg text-muted">
-          Experiments and analyses first, then the tools I&apos;ve built.
+          Experiments and analyses first, then the tools and pipelines I&apos;ve built.
         </p>
       </div>
 

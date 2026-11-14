@@ -49,7 +49,7 @@ export const WORK_GROUPS: readonly WorkGroup[] = [
         href: HOME_LINKS.docproof,
         title: 'Docproof',
         description:
-          'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+          'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       },
       {
         href: '/work/n8n',

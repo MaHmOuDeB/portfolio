@@ -133,7 +133,7 @@ describe('FeaturedCases', () => {
     expect(HOME_CASES.map((c) => headlineText(c.description))).toEqual([
       'How I planned and analysed A/B tests at Audible, and why so many of my recommendations were adopted.',
       'Two years of orders from a UK online gift retailer: cohorts, segments and a win-back sample size. Public dataset, rebuilt in 2026.',
-      'An analytics dashboard I designed and built around a seven-event taxonomy. A demo, with no real users.',
+      'An analytics dashboard I designed and built around a 7-event taxonomy. A demo, with no real users.',
     ]);
     expect(HOME_CASES.map((c) => c.meta)).toEqual([
       'Sample size, significance testing, 2023 to 2025',
@@ -202,7 +202,13 @@ describe('FeaturedCases', () => {
       const d = doc(cards(arm));
       const ids = all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'));
       // Retention B (two facts) and Pulse B (one): present in group A too, inside the hidden twin.
-      expect(ids).toEqual(['retail.returns.yoy_growth_clean', 'retail.returns.yoy_growth_raw', 'pulse.events.count']);
+      // The Pulse description itself now carries the event count as a fact as well.
+      expect(ids).toEqual([
+        'retail.returns.yoy_growth_clean',
+        'retail.returns.yoy_growth_raw',
+        'pulse.events.count',
+        'pulse.events.count',
+      ]);
       expect(audit(cards(arm))).toEqual([]);
     }
   });
@@ -240,7 +246,7 @@ describe('ExperimentsTrack', () => {
     expect(attr(h2, 'data-depth-rise')).toBe('heading');
     expect(attr(section, 'aria-labelledby')).toBe(attr(h2, 'id'));
     expect(text(one(section, (el) => el.tagName === 'p' && classes(el).includes('text-lg') && !has(el, 'data-case-description')))).toBe(
-      'How I plan a test, read it honestly and get to a decision.',
+      'How I plan a test, read it honestly and write the recommendation.',
     );
     expect(all(section, (el) => attr(el, 'data-experiment') === 'cards')).toHaveLength(1);
   });
@@ -337,7 +343,7 @@ describe('Hero', () => {
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display', 'xl:text-display-lg']));
     expect(classes(h1)).not.toContain('lg:text-display-lg');
     expect(text(one(d, (el) => has(el, 'data-hero-sub')))).toBe(
-      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build the agents and workflows that take the manual work out of analysis.',
+      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
     );
   });
 
@@ -490,7 +496,7 @@ describe('AutomationTrack', () => {
     ]);
     expect(HOME_AUTOMATION.map((c) => headlineText(c.description))).toEqual([
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
-      'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       'E-invoice intake and error alerts as reusable workflows, with 270+ automated tests. A portfolio project, not used by a client.',
       "Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier.",
     ]);
@@ -537,9 +543,9 @@ describe('WorkTiles', () => {
       'I plan the sample size and the run time before a test starts.',
       'I read the result against the primary metric and its guardrails.',
       'I write the recommendation: ship it, or do not.',
-      'I turn repeated manual steps into tools a whole team uses.',
+      'I turn repeated manual steps into tools a whole team can use.',
       'I build agents that work in steps and check each other.',
-      'I put automated tests around every workflow, so it stays right.',
+      'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
     for (const li of items) {
       expect(has(li, 'data-depth-draw')).toBe(false);
@@ -552,10 +558,10 @@ describe('WorkTiles', () => {
 describe('ToolsRibbon', () => {
   const d = doc(render(createElement(ToolsRibbon)));
 
-  it("is the About page's tools list, labelled \"Tools I work with\", each item once", () => {
+  it("is the About page's tools list, labelled \"Tools I have shipped with\", each item once", () => {
     const ribbon = one(d, (el) => has(el, 'data-depth-ribbon'));
     const list = one(ribbon, (el) => el.tagName === 'ul');
-    expect(attr(list, 'aria-label')).toBe('Tools I work with');
+    expect(attr(list, 'aria-label')).toBe('Tools I have shipped with');
     const items = all(list, (el) => el.tagName === 'li').map((li) => text(li));
     expect(items).toEqual(SHIPPED_TOOLS.map((t) => t.tool));
     expect(new Set(items).size).toBe(items.length);

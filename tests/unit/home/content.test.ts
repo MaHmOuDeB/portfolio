@@ -151,7 +151,7 @@ describe('the featured case studies', () => {
       'Two years of orders from a UK online gift retailer: cohorts, segments and a win-back sample size. Public dataset, rebuilt in 2026.',
     );
     expect(headlineText(byStudy.pulse.description)).toBe(
-      'An analytics dashboard I designed and built around a seven-event taxonomy. A demo, with no real users.',
+      'An analytics dashboard I designed and built around a 7-event taxonomy. A demo, with no real users.',
     );
     expect(HOME_CASES.map((c) => c.meta)).toEqual([
       'Sample size, significance testing, 2023 to 2025',
@@ -210,7 +210,7 @@ describe('the automation cards', () => {
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
     );
     expect(headlineText(byId.docproof.description)).toBe(
-      'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     );
     expect(headlineText(byId.n8n.description)).toBe(
       'E-invoice intake and error alerts as reusable workflows, with 270+ automated tests. A portfolio project, not used by a client.',
@@ -253,12 +253,12 @@ describe('the hero, proof row, tiles, site tile and decision band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.title).toBe('I test what works, and automate the rest.');
     expect(HOME_HERO.sub).toBe(
-      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build the agents and workflows that take the manual work out of analysis.',
+      'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build agents and workflows that take over repetitive manual steps.',
     );
     expect([HOME_HERO.evidence, HOME_HERO.cv, HOME_HERO.contact]).toEqual(['See the evidence', 'CV', 'Contact']);
     expect(HOME_TRACKS.experiments).toEqual({
       title: 'Experiments and analytics',
-      lede: 'How I plan a test, read it honestly and get to a decision.',
+      lede: 'How I plan a test, read it honestly and write the recommendation.',
     });
     expect(HOME_TRACKS.automation).toEqual({
       title: 'Automation and agents',
