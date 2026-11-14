@@ -565,7 +565,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
      times --k), so it sits inside its own box above the caption. */
   @media (width < 80rem) {
     [data-depth-field] {
-      --k: 0.8;
+      --k: 0.7;
 
       height: 30rem;
     }
