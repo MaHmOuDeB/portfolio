@@ -35,7 +35,7 @@ export function HomeBody({ model, extra }: { model: HomeModel; extra?: ReactNode
       <WorkTiles />
       {extra}
       <ToolsRibbon />
-      <div className="mt-12 md:mt-section">
+      <div data-home-site-wrap="" className="mt-12 md:mt-section">
         <SiteTile />
       </div>
       <DecisionBand />

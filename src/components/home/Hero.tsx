@@ -31,7 +31,7 @@ function Step({ d, children, magnet = false }: { d: number; children: ReactNode;
 export function Hero() {
   return (
     <section data-hero="" data-depth-scene="" aria-labelledby="hero-title">
-      <div data-hero-pin="" className="grid items-center gap-y-10 pt-8 md:pt-12 lg:grid-cols-12 lg:gap-x-8">
+      <div data-hero-pin="" className="grid grid-cols-1 items-center gap-y-10 pt-8 md:pt-12 lg:grid-cols-12 lg:gap-x-8">
         <div data-hero-text="" data-depth-recede="" className="lg:col-span-6">
           <h1 id="hero-title" className="text-display-sm font-semibold md:text-display xl:text-display-lg">
             {HOME_HERO.title}

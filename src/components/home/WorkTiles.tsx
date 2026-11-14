@@ -18,7 +18,7 @@ function Lines({ lines }: { lines: readonly string[] }) {
 
 export function WorkTiles() {
   return (
-    <div data-home-tiles="" className="mt-12 md:mt-section grid gap-6 md:grid-cols-2">
+    <div data-home-tiles="" className="mt-12 md:mt-section grid grid-cols-1 gap-6 md:grid-cols-2">
       <Tile data-depth-book="left" data-home-tile="test">
         <h3 className="text-display-sm font-semibold">{HOME_TILES.test.title}</h3>
         <Lines lines={HOME_TILES.test.lines} />

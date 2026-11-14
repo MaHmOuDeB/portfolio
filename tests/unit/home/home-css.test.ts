@@ -67,6 +67,10 @@ describe('the hero scene', () => {
     expect(css).toMatch(/\[data-depth-plane\]\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;/);
   });
 
+  it('cuts the entering site tile at its column, so a large text size never scrolls the page sideways', () => {
+    expect(css).toMatch(/\[data-home-site-wrap\]\s*\{\s*overflow-x:\s*clip;\s*\}/);
+  });
+
   it('keeps the axis words at the text-xs size whatever the field scale', () => {
     expect(css).toMatch(/\[data-depth-axis\]\s*\{[^}]*font-size:\s*calc\(var\(--text-xs\) \/ var\(--k, 1\)\)/);
   });
