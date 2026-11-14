@@ -1,4 +1,4 @@
-// The full sample-size planner: the sizing model (the Home planner's arithmetic plus a display unit
+// The full sample-size planner: the sizing model (the base planner's arithmetic plus a display unit
 // for the rise), the duration model, their static URL schemas and what hostile shared URLs become,
 // the relative display on the integer-point grid, the paired eager-loading keys, the server-rendered
 // preset views in both contexts, and the code the page loads at once.
@@ -55,7 +55,7 @@ describe('fullPlanModel and durationModel', () => {
     expect(durationModel(1353, 100)).toEqual({ weeks: 4 });
   });
 
-  it('delegates to the Home planner and to durationWeeks', () => {
+  it('delegates to the base planner and to durationWeeks', () => {
     for (const v of [PRESET, { baseline: 0.1, risePoints: 2, mode: 'relative' as const }, { baseline: 0.98, risePoints: 1, mode: 'absolute' as const }]) {
       const home = planModel(normalizePlanner(v));
       expect(fullPlanModel(v).nPerArm).toBe(home.nPerArm);
@@ -248,7 +248,7 @@ describe('URL state', () => {
     expect(has('planner.mode=relative')).toBe(true);
     expect(has('duration.traffic=500')).toBe(true);
     expect(has('winback.baseline=0.3')).toBe(false);
-    expect(has('hero-planner.baseline=0.3&plannerx.mode=relative&duration=5&traffic=5')).toBe(false);
+    expect(has('planner-x.baseline=0.3&plannerx.mode=relative&duration=5&traffic=5')).toBe(false);
     expect(hasFigureKeys(new URLSearchParams('winback-duration.traffic=9'), ['winback', 'winback-duration'])).toBe(true);
   });
 });

@@ -31,15 +31,6 @@ export const HOME_HERO = {
   evidence: 'See the evidence',
   cv: 'CV',
   contact: 'Contact',
-  /** The old hero's proof line and its link text, which only the scroll moment's closing step still prints. */
-  proof: [
-    'Nearly two years at Audible (Amazon): ',
-    { fact: 'profile.audible.experiments' },
-    ' A/B tests across web and mobile, ',
-    { fact: 'profile.audible.recommendations_adopted' },
-    ' recommendations adopted.',
-  ] as readonly HeadlinePart[],
-  whySoMany: 'Why so many?',
   /** The visible caption under the evidence field: the field is an illustration, not data. */
   fieldCaption: 'An illustration: a confidence band narrows as views grow.',
 } as const;

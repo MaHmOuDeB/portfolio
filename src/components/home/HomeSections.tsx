@@ -9,7 +9,6 @@
 // The headline group is `model.headlineArm`: group A's headlines in the calibration in both groups,
 // the assigned group's in the A/B. Each card holds both strings for sizing; only the selected one is
 // visible and announced (CaseCard). Everything else on the page is the same in both groups.
-import type { ReactNode } from 'react';
 import type { HomeModel } from '@/lib/home/model';
 import { AutomationTrack } from './AutomationTrack';
 import { DecisionBand } from './DecisionBand';
@@ -22,10 +21,10 @@ import { ToolsRibbon } from './ToolsRibbon';
 import { WorkTiles } from './WorkTiles';
 
 /**
- * The composition, with an optional `extra` node placed after the tiles. The page passes none; the
- * test build's scroll-moment host passes the scroll moment.
+ * The Home composition, in order: hero, proof row, the experiments and automation tracks, the two
+ * tiles, the tools ribbon, the site tile and the decision band.
  */
-export function HomeBody({ model, extra }: { model: HomeModel; extra?: ReactNode }) {
+export function HomeBody({ model }: { model: HomeModel }) {
   return (
     <>
       <Hero />
@@ -33,7 +32,6 @@ export function HomeBody({ model, extra }: { model: HomeModel; extra?: ReactNode
       <ExperimentsTrack headlineArm={model.headlineArm} note={LiveNote({ model })} phase={cardLinePhase(model)} />
       <AutomationTrack />
       <WorkTiles />
-      {extra}
       <ToolsRibbon />
       <div className="mt-12 md:mt-section">
         <SiteTile />

@@ -1,6 +1,6 @@
-// The Home sample-size planner's statistics side: the visitors needed per group, the result line and
-// the table fallback. It imports the statistics, so only the planner's island and the server draw
-// with it; the values and text helpers the page loads at once live in planner-values.ts.
+// The statistics side of the Lab planner's base model: the visitors needed per group, the result line
+// and the table fallback. It imports the statistics, so only the full planner's island and the server
+// draw with it; the values and text helpers the page loads at once live in planner-values.ts.
 import type { TableData } from '@/components/kit/DataTable';
 import { formatNumber } from '@/lib/figure/format';
 import { sampleSizePerArm } from '@/lib/stats';
