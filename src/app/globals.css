@@ -245,16 +245,31 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     background: CanvasText;
   }
 
-  /* An ink panel loses its fill to Canvas there, but its light text tones are kept: name the system
-     colours, so the footer, an ink tile, the call to action and the live bar stay readable. Important,
-     because the on-ink rules further down are as specific or more. */
-  :is([data-ink], [data-tile="ink"], [data-live-bar]),
-  :is([data-ink], [data-tile="ink"], [data-live-bar]) * {
+  /* Text on ink. Chromium forces an ink fill to Canvas but keeps the light text tones (the bg and
+     surface tokens), and WebKit keeps both the fill and the text, so neither engine is left to pick:
+     every ink surface names a system colour pair for its fill and its text. The panels (the footer,
+     the call to action, an ink tile, the live bar, the dark sheet of the Home band) take Canvas and
+     CanvasText, their links LinkText; a fill set by a utility with light text on it (the selected
+     segment, the skip link) takes Canvas and CanvasText, and a link or button drawn that way
+     ButtonFace and ButtonText. Important, because the on-ink rules elsewhere are as specific or more. */
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]),
+  :is(.bg-ink, .bg-muted):is(.text-bg, .text-surface),
+  [class~="focus:bg-ink"]:focus {
+    background-color: Canvas !important;
     color: CanvasText !important;
   }
 
-  :is([data-ink], [data-tile="ink"], [data-live-bar]) a {
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) * {
+    color: CanvasText !important;
+  }
+
+  :is([data-ink], [data-tile="ink"], [data-live-bar], [data-depth-sheet="3"]) a {
     color: LinkText !important;
+  }
+
+  :is(a, button):is(.bg-ink, .bg-muted):is(.text-bg, .text-surface) {
+    background-color: ButtonFace !important;
+    color: ButtonText !important;
   }
 }
 
