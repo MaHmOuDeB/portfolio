@@ -45,7 +45,7 @@ describe('the outline', () => {
     expect(DOCPROOF_TITLE).toBe('Docproof: a multi-agent document pipeline');
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
     expect(PAGE).toMatch(/<h1 id="docproof-title"[^>]*>Docproof: a multi-agent document pipeline<\/h1>/);
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<nav'));
+    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
     expect(text(intro)).toBe(
       'Document verification with multi-agent orchestration and automated checks. An open-source project under the MIT licence that I designed and built in 2026, with Claude Code as pair-programmer.',
     );
@@ -262,10 +262,10 @@ describe('truth', () => {
     const derived = [...PAGE.matchAll(/data-derived="([^"]+)"/g)].map((m) => m[1]);
     expect(derived.length).toBeGreaterThan(0);
     expect(new Set(derived)).toEqual(new Set(['build']));
-    // outside the recorded run the page has no numeral but the year
+    // outside the recorded run the page has no numeral but the year: in the intro and in the glance block
     const s = section(PAGE, 'how-i-checked-this');
     const rest = PAGE.replace(s.slice(s.indexOf('<h3')), '');
-    expect(text(rest).match(/\d+/g)).toEqual(['2026']);
+    expect(text(rest).match(/\d+/g)).toEqual(['2026', '2026']);
   });
 });
 

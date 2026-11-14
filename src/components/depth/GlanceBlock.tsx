@@ -2,7 +2,8 @@
 import type { ReactNode } from 'react';
 import type { DataAttributes } from './data-attributes';
 
-type Props = DataAttributes & { outcome: ReactNode; role: ReactNode; methods: ReactNode; tools: ReactNode; when: ReactNode };
+export type GlanceParts = { outcome: ReactNode; role: ReactNode; methods: ReactNode; tools: ReactNode; when: ReactNode };
+type Props = DataAttributes & GlanceParts;
 
 export function GlanceBlock({ outcome, role, methods, tools, when, ...rest }: Props) {
   return (

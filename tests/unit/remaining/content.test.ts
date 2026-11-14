@@ -31,14 +31,13 @@ const ROUTES = {
 
 /** The Work directory, in the order the page lists it. */
 const WORK_ORDER = [
-  ROUTES.experiment,
   ROUTES.whySoMany,
   ROUTES.retention,
   ROUTES.pulse,
-  ROUTES.marketingws,
   ROUTES.docproof,
-  ROUTES.weather,
   ROUTES.n8n,
+  ROUTES.marketingws,
+  ROUTES.weather,
 ];
 
 const items = WORK_GROUPS.flatMap((g) => g.items);
@@ -81,37 +80,34 @@ const auditContext = {
 };
 
 describe('Work directory', () => {
-  it('has two groups: experimentation and analytics first, then the tools', () => {
-    expect(WORK_GROUPS.map((g) => g.label)).toEqual(['Experimentation & analytics', "Tools I've built"]);
-    expect(WORK_GROUPS.map((g) => g.items.length)).toEqual([4, 4]);
+  it('has three groups: experiments and analytics, automation and agents, then data pipelines', () => {
+    expect(WORK_GROUPS.map((g) => g.label)).toEqual(['Experiments and analytics', 'Automation and agents', 'Data pipelines']);
+    expect(WORK_GROUPS.map((g) => g.items.length)).toEqual([3, 3, 1]);
   });
 
-  it('lists the live test, Audible, Retention and Pulse, then MarketingWS, Docproof, Weather and n8n', () => {
+  it('lists Audible, Retention and Pulse, then Docproof, n8n and MarketingWS, then Weather', () => {
     expect(items.map((i) => i.href)).toEqual(WORK_ORDER);
-    expect(items.at(-1)?.href).toBe(ROUTES.n8n);
     expect(items.map((i) => i.title)).toEqual([
-      'Live test',
       'Experimentation at Audible (Amazon)',
       'Customer retention and reactivation analysis',
       'Pulse: analytics instrumentation demo',
-      'MarketingWS',
       'Docproof',
-      'Weather data quality',
       'n8n Workflow Library',
+      'MarketingWS',
+      'Weather data quality',
     ]);
   });
 
   // The exact wording, so a change to any line is always a deliberate change here.
   it('prints exactly these descriptions, as a visitor reads them', () => {
     expect(items.map((i) => visible(html(i.description)))).toEqual([
-      "The experiment on this site's own visitors: its design, its checks and the counts that are safe to publish.",
-      'How I plan and analyse experiments, and why so many of my recommendations were adopted.',
-      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.',
+      'How I plan and analyse experiments, and why so many of my recommendations were adopted. The tests are confidential, so the page shows none of their results.',
+      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size. Nobody was contacted and no test was run.',
       'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
-      "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
-      'Document verification with multi-agent orchestration and automated checks.',
-      'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
+      'I designed and built an open-source tool for document verification, with multi-agent orchestration and automated checks. The page does not claim that anyone uses it.',
       'Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
+      "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
+      'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
     ]);
   });
 
@@ -232,7 +228,7 @@ describe('what each Work line says', () => {
 
   it('describes Docproof by its engineering', () => {
     const text = textOf(ROUTES.docproof);
-    expect(text).toContain('Document verification');
+    expect(text).toContain('document verification');
     expect(text).toContain('multi-agent orchestration');
   });
 

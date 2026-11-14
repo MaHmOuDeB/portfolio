@@ -1,4 +1,5 @@
 p: Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size.
+p: Cleaned returns that made returned-order value look like it grew (29% raw, about 2% true), then ranked likely repeat buyers (AUC 0.793 vs 0.762) and sized a win-back holdout; prediction only, nobody contacted.
 h2: Summary
 li: Problem
 li: Data

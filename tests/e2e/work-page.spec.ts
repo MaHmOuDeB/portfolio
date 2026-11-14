@@ -2,30 +2,30 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The Work directory at /work: every case study and build note in two groups, as a ruled list of
-// links. The page is static and has no island. Every link must land: the page answers 200 and a
+// The Work directory at /work: every case study and build note in three groups, as lean cards in a ruled list. The page is static and has no island. Every link must land: the page answers 200 and a
 // #fragment names an element on it.
 
 const ROUTE = '/work';
 const SECTIONS = [
-  ['experimentation', 'Experimentation & analytics'],
-  ['tools', "Tools I've built"],
+  ['experimentation', 'Experiments and analytics'],
+  ['automation', 'Automation and agents'],
+  ['pipelines', 'Data pipelines'],
 ] as const;
 const LINKS = [
-  ['/experiment', 'Live test'],
   ['/work/audible#why-so-many', 'Experimentation at Audible (Amazon)'],
   ['/work/retention', 'Customer retention and reactivation analysis'],
   ['/work/pulse', 'Pulse: analytics instrumentation demo'],
-  ['/work/marketingws', 'MarketingWS'],
   ['/work/docproof', 'Docproof'],
-  ['/work/weather', 'Weather data quality'],
   ['/work/n8n', 'n8n Workflow Library'],
+  ['/work/marketingws', 'MarketingWS'],
+  ['/work/weather', 'Weather data quality'],
 ] as const;
 
-const items = (page: Page) => page.locator('main [data-work-item] h3 a');
+const items = (page: Page) => page.locator('main [data-work-item] h3');
+const cards = (page: Page) => page.locator('main [data-work-item] > a');
 
 test.describe('the Work page', () => {
-  test('outline: one h1, the two groups as named regions, each item an h3 link, in order', async ({ page }) => {
+  test('outline: one h1, the three groups as named regions, each item a card with an h3, in order', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle('Work');
@@ -35,10 +35,10 @@ test.describe('the Work page', () => {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
     const headings = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2, main h3')].map((h) => Number(h.tagName[1])));
-    expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3]);
+    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
-    expect(await items(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
-    // the main links are exactly the eight items
+    expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
+    // the main links are exactly the seven cards
     await expect(page.locator('main a[href]')).toHaveCount(LINKS.length);
   });
 
@@ -61,19 +61,19 @@ test.describe('the Work page', () => {
       const [path, fragment] = href.split('#');
       const response = await page.request.get(path!);
       expect(response.status(), `${path} answers`).toBe(200);
-      await items(page).filter({ hasText: name }).click();
+      await cards(page).filter({ has: page.locator('h3', { hasText: name }) }).click();
       await page.waitForURL((url) => url.pathname === path);
       if (fragment) await expect(page.locator(`[id="${fragment}"]`)).toHaveCount(1);
     });
   }
 
-  test('keyboard: Tab reaches the eight links in page order', async ({ page, browserName }) => {
+  test('keyboard: Tab reaches the seven cards in page order', async ({ page, browserName }) => {
     const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
     await page.goto(ROUTE);
-    await items(page).first().focus();
+    await cards(page).first().focus();
     for (const [, name] of LINKS.slice(1)) {
       await page.keyboard.press(key);
-      await expect(page.locator(':focus')).toHaveText(name);
+      await expect(page.locator(':focus')).toContainText(name);
     }
   });
 
@@ -81,45 +81,9 @@ test.describe('the Work page', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(ROUTE);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-    for (const box of await items(page).evaluateAll((as) => as.map((a) => a.getBoundingClientRect().height))) {
+    for (const box of await cards(page).evaluateAll((as) => as.map((a) => a.getBoundingClientRect().height))) {
       expect(box).toBeGreaterThanOrEqual(44);
     }
-  });
-
-  test('each row has one hidden glyph marker, on the first line of its title, at 375 px and on desktop', async ({ page }) => {
-    for (const width of [375, 1280]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(ROUTE);
-      const rows = await page.locator('main [data-work-item]').evaluateAll((lis) =>
-        lis.map((li) => {
-          const svgs = [...li.querySelectorAll('svg')];
-          const glyph = svgs[0]!.getBoundingClientRect();
-          const title = li.querySelector('[data-work-title]')!;
-          const range = document.createRange();
-          range.selectNodeContents(title);
-          const first = range.getClientRects()[0]!;
-          const mid = glyph.top + glyph.height / 2;
-          return {
-            count: svgs.length,
-            hidden: svgs[0]!.getAttribute('aria-hidden'),
-            onFirstLine: mid >= first.top && mid <= first.bottom,
-            before: glyph.right <= first.left,
-          };
-        }),
-      );
-      expect(rows, `${width}px`).toHaveLength(LINKS.length);
-      for (const row of rows) expect(row, `${width}px`).toEqual({ count: 1, hidden: 'true', onFirstLine: true, before: true });
-    }
-    // At 375 px a short title stays on one line beside its marker.
-    await page.setViewportSize({ width: 375, height: 900 });
-    await page.goto(ROUTE);
-    const live = page.locator('main [data-work-item="/experiment"] [data-work-title]');
-    const lines = await live.evaluate((el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
-    });
-    expect(lines).toBe(1);
   });
 
   test('no axe violations', async ({ page }) => {

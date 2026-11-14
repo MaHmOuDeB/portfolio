@@ -13,6 +13,7 @@
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
 import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import { FullPlanner } from '@/components/lab/FullPlanner';
 import { COHORTS, RETENTION, figureProvenance } from '@/lib/retention/data';
@@ -26,6 +27,7 @@ import {
   RetentionData,
   RetentionFindings,
   RetentionHomePlannerLink,
+  RETENTION_GLANCE,
   RetentionIntro,
   RetentionLabLink,
   RetentionLimits,
@@ -75,7 +77,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`retention: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
+      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -136,8 +138,10 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
         </div>
       </div>
 
+      <GlanceBlock {...RETENTION_GLANCE} data-depth-rise="" />
+
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold">
+        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
         <div className="mt-4">

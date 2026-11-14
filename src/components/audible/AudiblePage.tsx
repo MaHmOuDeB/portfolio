@@ -9,12 +9,14 @@
 // ship-rule Figure is a made-up product with typed-in bounds, and the automation Figure is a
 // reconstruction from reported timings; both carry the "Simulated" badge.
 import type { ReactNode } from 'react';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import {
   AudibleAutomation,
   AudibleChecks,
   AudibleData,
   AudibleFindings,
+  AUDIBLE_GLANCE,
   AudibleIntro,
   AudibleLimits,
   AudibleLinks,
@@ -54,7 +56,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`audible: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
+      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -98,8 +100,10 @@ export function AudiblePage(): ReactNode {
         </div>
       </div>
 
+      <GlanceBlock {...AUDIBLE_GLANCE} data-depth-rise="" />
+
       <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold">
+        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
         <div className="mt-4">
