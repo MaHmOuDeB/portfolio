@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import AudibleRoute, { metadata } from '@/app/work/audible/page';
 import { AUDIBLE_SECTIONS, AUDIBLE_TITLE, AudiblePage } from '@/components/audible/AudiblePage';
@@ -68,7 +69,7 @@ function unmarkedAriaDigits(markup: string): string[] {
   return found;
 }
 
-const PAGE = renderToStaticMarkup(<AudiblePage />);
+const PAGE = withoutCta(renderToStaticMarkup(<AudiblePage />));
 const ctx = { route: '/work/audible', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
 const ORDER = [
@@ -470,7 +471,7 @@ describe('numbers and the route', () => {
         'How I plan and analyse experiments, why so many of my recommendations were adopted, a ship rule on a made-up product and the tool I built for test-account setup.',
     });
     expect(metadata.robots).toBeUndefined();
-    expect(renderToStaticMarkup(<AudibleRoute />)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<AudibleRoute />))).toBe(PAGE);
   });
 });
 

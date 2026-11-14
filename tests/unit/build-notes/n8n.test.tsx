@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { N8N_SECTIONS, N8N_TITLE, N8nPage } from '@/components/n8n/N8nPage';
 import { LIVE_ROUTES } from '@/lib/site';
@@ -24,7 +25,7 @@ import {
 
 const repo = join(import.meta.dirname, '../../..');
 const ROUTE = '/work/n8n';
-const PAGE = renderToStaticMarkup(<N8nPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<N8nPage />));
 const PAGE_TEXT = text(PAGE);
 const COMMIT = '626a254fdccb2ee558dca1f371fdcaa3a4523d8c';
 const BASE = 'https://github.com/MaHmOuDeB/n8n-workflow-library';
@@ -199,7 +200,7 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       'Document and process automation in n8n: an e-invoice intake for XRechnung and ZUGFeRD, error alerts, and how it is tested. A portfolio project with no production use.',
     );
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
     expect(LIVE_ROUTES).toContain(ROUTE);
   });
 });

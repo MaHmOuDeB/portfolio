@@ -12,6 +12,7 @@ import { createElement, Fragment, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { WORK_SECTIONS, WORK_TITLE, WorkPage } from '@/components/work/WorkPage';
+import { withoutCta } from '../page-cta';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { prefetchFor } from '@/lib/nav';
 import { LIVE_ROUTES, NAV } from '@/lib/site';
@@ -33,7 +34,7 @@ const text = (markup: string) =>
     .trim();
 const html = (node: ReactNode) => renderToStaticMarkup(createElement(Fragment, null, node));
 
-const PAGE = renderToStaticMarkup(<WorkPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<WorkPage />));
 
 /** The directory, in page order: three experiments pages, three automation pages, then Weather. */
 const ORDER = [
@@ -78,20 +79,21 @@ describe('the outline', () => {
     expect(WORK_TITLE).toBe('Work');
     expect(NAV.find((n) => n.href === '/work')?.label).toBe(WORK_TITLE);
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="work-title"[^>]*>Work<\/h1>/);
-    const intro = /<p data-work-intro=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE);
+    // The page's chip carries the navigation label; the h1 is the headline in two tones.
+    expect(PAGE).toMatch(/<span data-chip="">Work<\/span><h1 id="work-title"[^>]*>Open the work <span data-quiet="">and check it yourself\.<\/span><\/h1>/);
+    const intro = /<span data-work-intro="">([\s\S]*?)<\/span>/.exec(PAGE);
     expect(text(intro?.[1] ?? '')).toBe("Experiments and analyses first, then the tools and pipelines I've built.");
   });
 
   it('has the three groups as sections, each named by its own h2 that rises as a heading, in this order', () => {
     const sections = [
-      ...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"([^>]*)>([^<]+)<\/h2>/g),
+      ...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>[\s\S]*?<h2 id="([^"]+)"([^>]*)>([^<]+)<\/h2>/g),
     ].map((m) => [m[1], m[2], m[3], m[4], decode(m[5]!)] as const);
     expect(sections.map(([id, , , , title]) => [id, title])).toEqual(GROUPS.map(([id, title]) => [id, title]));
     for (const [id, labelledBy, headingId, attrs] of sections) {
       expect(labelledBy).toBe(`${id}-title`);
       expect(headingId).toBe(`${id}-title`);
-      expect(attrs).toContain('data-depth-rise="heading"');
+      expect(attrs).toContain('class="text-h2-sm md:text-h2"');
     }
     expect(WORK_SECTIONS.map((s) => [s.id, s.label])).toEqual(GROUPS.map(([id, title]) => [id, title]));
     expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length + 1);
@@ -123,8 +125,7 @@ describe('the layout', () => {
     for (const [id] of GROUPS) {
       const start = PAGE.indexOf(`<section id="${id}"`);
       const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
-      const open = /<section [^>]*class="([^"]*)"/.exec(body)![1]!;
-      expect(open, id).not.toMatch(/max-w-/);
+      expect(body, id).not.toMatch(/<section [^>]*max-w-/);
       const ul = /<ul [^>]*class="([^"]*)"/.exec(body)![1]!.split(/\s+/);
       expect(ul, id).toEqual(expect.arrayContaining(['grid', 'md:grid-cols-2', 'lg:grid-cols-3']));
     }
@@ -132,13 +133,13 @@ describe('the layout', () => {
 
   it('sets the page title larger than the group headings, with the lede muted under each group', () => {
     const h1 = /<h1 id="work-title" class="([^"]*)"/.exec(PAGE)![1]!.split(/\s+/);
-    expect(h1).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display']));
+    expect(h1).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
     for (const [id] of GROUPS) {
       const h2 = new RegExp(`<h2 id="${id}-title" class="([^"]*)"`).exec(PAGE)![1]!.split(/\s+/);
-      expect(h2, id).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
-      expect(h2, id).not.toContain('md:text-display');
+      expect(h2, id).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
     }
-    const ledes = [...PAGE.matchAll(/<p data-work-lede="" class="([^"]*)">([^<]*)<\/p>/g)];
+    // The lede is the section head's sub, muted by the head's own paragraph class.
+    const ledes = [...PAGE.matchAll(/<p class="([^"]*)"><span data-work-lede="">([^<]*)<\/span><\/p>/g)];
     expect(ledes.map((m) => decode(m[2]!))).toEqual([
       'How I plan a test, read it honestly and write the recommendation.',
       'Tools I built so that people, including me, stop doing the same thing by hand.',
@@ -161,15 +162,15 @@ describe('the layout', () => {
 
   it('ends with a tile that links to the live test, in the Home site tile words', () => {
     const tile = /<div data-tile=""[^>]*data-work-site=""[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)?.[1] ?? '';
-    expect(tile).toMatch(/^<h2[^>]*>This site is part of the evidence\.<\/h2>/);
+    expect(tile).toMatch(/^<span data-chip=""><span data-chip-dot="live" aria-hidden="true"><\/span>Live test<\/span><h2[^>]*>This site is <span data-quiet="">part of the evidence\.<\/span><\/h2>/);
     expect(text(tile)).toBe(
-      'This site is part of the evidence. It runs its own pre-registered A/B test on the three experiment cards on the Home page. I built it with coding agents, and every change passes its automated checks before it ships. See the live test',
+      'Live test This site is part of the evidence. It runs its own pre-registered A/B test on the three experiment cards on the Home page. I built it with coding agents, and every change passes its automated checks before it ships. See the live test',
     );
     expect(/<a [^>]*href="([^"]+)"/.exec(tile)![1]).toBe('/experiment');
     expect(PAGE.indexOf('data-work-site')).toBeGreaterThan(PAGE.lastIndexOf('</section>'));
     // Its heading is a section heading like the groups', never as large as the page title.
-    const h2 = /^<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
-    expect(h2).toEqual(expect.arrayContaining(['text-2xl', 'md:text-display-sm']));
+    const h2 = /<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
+    expect(h2).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
   });
 });
 
@@ -326,6 +327,6 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     );
-    expect(html(mod.default())).toBe(PAGE);
+    expect(withoutCta(html(mod.default()))).toBe(PAGE);
   });
 });

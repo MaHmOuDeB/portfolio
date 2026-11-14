@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ComponentProps, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import PulseRoute, { metadata } from '@/app/work/pulse/page';
 import type { EagerOrIntent } from '@/components/figures/EagerOrIntent';
@@ -101,7 +102,7 @@ function unmarkedAriaDigits(markup: string): string[] {
   return found;
 }
 
-const PAGE = renderToStaticMarkup(<PulsePage />);
+const PAGE = withoutCta(renderToStaticMarkup(<PulsePage />));
 const ctx = { route: '/work/pulse', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 const TAXONOMY = pulseTaxonomy();
 const PRESET: DashboardView = { channel: 'all', range: '30d' };
@@ -667,7 +668,7 @@ describe('numbers and the route', () => {
       description:
         'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
     });
-    expect(renderToStaticMarkup(<PulseRoute />)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<PulseRoute />))).toBe(PAGE);
   });
 });
 

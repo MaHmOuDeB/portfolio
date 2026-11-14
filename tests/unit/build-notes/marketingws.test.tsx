@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { MARKETINGWS_SECTIONS, MARKETINGWS_TITLE, MarketingwsPage } from '@/components/marketingws/MarketingwsPage';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
@@ -41,7 +42,7 @@ const section = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</section>', start));
 };
 
-const PAGE = renderToStaticMarkup(<MarketingwsPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<MarketingwsPage />));
 const PAGE_TEXT = text(PAGE);
 const ctx = { route: ROUTE, factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
@@ -231,7 +232,7 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app: how it works, how I checked it and its limits.",
     );
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
   });
 
   it('ships: the route is one of the live routes', () => {

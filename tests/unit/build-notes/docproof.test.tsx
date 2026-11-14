@@ -4,6 +4,7 @@
 // deliberate test change. The recorded verify run is evidence: it is printed exactly as captured, on
 // the fictional document it was captured on, and a page without a captured run says "Not recorded".
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { DOCPROOF_SECTIONS, DOCPROOF_TITLE, DocproofPage } from '@/components/docproof/DocproofPage';
 import { DocproofRunEvidence, VERIFY_RUN } from '../../../content/docproof';
@@ -28,7 +29,7 @@ const section = (markup: string, id: string) => {
   return markup.slice(start, markup.indexOf('</section>', start));
 };
 
-const PAGE = renderToStaticMarkup(<DocproofPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<DocproofPage />));
 const ctx = { route: '/work/docproof', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
 const ORDER = [
@@ -271,7 +272,7 @@ describe('truth', () => {
 
 describe('the route', () => {
   it('renders the page with its own title and description', () => {
-    expect(renderToStaticMarkup(<DocproofRoute />)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<DocproofRoute />))).toBe(PAGE);
     expect(metadata.title).toBe(DOCPROOF_TITLE);
     expect(metadata.description).toBe(
       'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',

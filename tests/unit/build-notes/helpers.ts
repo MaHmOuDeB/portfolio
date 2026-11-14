@@ -39,7 +39,7 @@ export const sectionLinks = (markup: string) => {
 
 /** The words of the prose a visitor reads: the article without its glance block, its diagram and its tables. */
 export const proseWords = (markup: string) =>
-  text(markup.replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure [\s\S]*?<\/figure>/g, ' ').replace(/<table[\s\S]*?<\/table>/g, ' '))
+  text(markup.replace(/<span data-chip=""[^>]*>[^<]*<\/span>/g, ' ').replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure [\s\S]*?<\/figure>/g, ' ').replace(/<table[\s\S]*?<\/table>/g, ' '))
     .split(' ')
     .filter((w) => /[A-Za-z0-9]/.test(w)).length;
 

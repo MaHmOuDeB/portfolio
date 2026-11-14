@@ -92,3 +92,6 @@ export const WORK_SITE = {
   title: HOME_SITE.title,
   text: HOME_SITE.text.replace('the three experiment cards above', 'the three experiment cards on the Home page'),
 } as const;
+
+/** The site band's headline in two tones: the lead, then the quiet clause. Together they are WORK_SITE.title. */
+export const WORK_SITE_HEAD = { lead: 'This site is', quiet: 'part of the evidence.' } as const;

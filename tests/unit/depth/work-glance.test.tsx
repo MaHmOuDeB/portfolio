@@ -12,6 +12,7 @@ import { N8nPage } from '@/components/n8n/N8nPage';
 import { PulsePage } from '@/components/pulse/PulsePage';
 import { RetentionPage } from '@/components/retention/RetentionPage';
 import { WeatherPage } from '@/components/weather/WeatherPage';
+import { withoutCta } from '../page-cta';
 import { type FactId } from '@/lib/facts';
 import { factText } from '@/lib/facts/text';
 
@@ -131,7 +132,7 @@ const PAGES: readonly { name: string; render: () => string; title: string; glanc
 ];
 
 describe.each(PAGES)('the glance block on /work/$name', ({ render, title, glance }) => {
-  const html = render();
+  const html = withoutCta(render());
   const block = /<section aria-label="At a glance"[^>]*data-glance=""[^>]*>[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
 
   it('is there once, with its five parts', () => {

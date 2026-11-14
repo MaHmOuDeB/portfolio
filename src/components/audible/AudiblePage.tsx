@@ -9,6 +9,8 @@
 // ship-rule Figure is a made-up product with typed-in bounds, and the automation Figure is a
 // reconstruction from reported timings; both carry the "Simulated" badge.
 import type { ReactNode } from 'react';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { CaseHead } from '@/components/work/CaseHead';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { TextLink } from '@/components/kit/TextLink';
 import {
@@ -55,7 +57,7 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = AUDIBLE_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`audible: no section ${id}`);
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 md:mt-section">
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
       <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
         {entry.title}
       </h2>
@@ -90,19 +92,12 @@ function SectionLinks() {
 
 export function AudiblePage(): ReactNode {
   return (
-    <article aria-labelledby="audible-title" className="py-12 md:py-section">
-      <div className={TEXT}>
-        <h1 id="audible-title" className="text-2xl font-semibold md:text-3xl">
-          {AUDIBLE_TITLE}
-        </h1>
-        <div className="mt-4 text-lg text-muted">
-          <AudibleIntro />
-        </div>
-      </div>
+    <article aria-labelledby="audible-title">
+      <CaseHead id="audible-title" chip="Case study" title={AUDIBLE_TITLE} intro={<AudibleIntro />} />
 
       <GlanceBlock {...AUDIBLE_GLANCE} data-depth-rise="" />
 
-      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-line py-6`}>
+      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
         <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
           Summary
         </h2>
@@ -178,6 +173,7 @@ export function AudiblePage(): ReactNode {
           <AudibleLinks />
         </Prose>
       </Section>
+      <PageCallToAction />
     </article>
   );
 }

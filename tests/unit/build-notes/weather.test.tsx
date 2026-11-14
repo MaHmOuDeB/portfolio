@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { WEATHER_SECTIONS, WEATHER_TITLE, WeatherPage } from '@/components/weather/WeatherPage';
 import { getFact } from '@/lib/facts';
@@ -28,7 +29,7 @@ import {
 
 const repo = join(import.meta.dirname, '../../..');
 const ROUTE = '/work/weather';
-const PAGE = renderToStaticMarkup(<WeatherPage />);
+const PAGE = withoutCta(renderToStaticMarkup(<WeatherPage />));
 const PAGE_TEXT = text(PAGE);
 
 describe('the outline', () => {
@@ -286,7 +287,7 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(
       'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
     );
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
     expect(LIVE_ROUTES).toContain(ROUTE);
   });
 });

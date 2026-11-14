@@ -31,18 +31,18 @@ test.describe('the Work page', () => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle('Work');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Work');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Open the work and check it yourself.');
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
     const headings = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2, main h3')].map((h) => Number(h.tagName[1])));
-    // h1, the three groups with their cards, then the tile to the live test (an h2 with no h3 under it)
-    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2]);
+    // h1, the three groups with their cards, then the site band and the call to action (an h2 each, no h3 under them)
+    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2, 2]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
     expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
-    // the main links are exactly the seven cards and the tile's one link to the live test
-    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 1);
+    // the main links are exactly the seven cards, the site band's one link to the live test and the call to action's two
+    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 3);
   });
 
   test('the tile at the end leads to the live test with one link', async ({ page }) => {
@@ -53,8 +53,8 @@ test.describe('the Work page', () => {
     await expect(tile.locator('a[href]')).toHaveCount(1);
     const link = tile.getByRole('link', { name: HOME_SITE.live });
     await expect(link).toHaveAttribute('href', HOME_LINKS.experiment);
-    // the last block of the article: nothing follows it
-    expect(await tile.evaluate((el) => el.closest('article')?.lastElementChild?.contains(el))).toBe(true);
+    // the last block of the article but the shared call to action: nothing else follows it
+    expect(await tile.evaluate((el) => el.closest('article')?.lastElementChild?.previousElementSibling?.contains(el))).toBe(true);
   });
 
   test('the header marks Work as the current page', async ({ page }) => {

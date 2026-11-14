@@ -8,11 +8,14 @@
 import type { ReactNode } from 'react';
 import { LeanCard } from '@/components/depth/LeanCard';
 import { Tile } from '@/components/depth/Tile';
+import { Chip, PageHead, Quiet, SectionHead } from '@/components/frame';
 import { ButtonLink } from '@/components/kit/ButtonLink';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { workVignette } from './WorkVignettes';
 import { prefetchFor } from '@/lib/nav';
 import { HOME_CASES, HOME_SITE } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { WORK_GROUPS, WORK_SITE } from '../../../content/work.tsx';
+import { WORK_GROUPS, WORK_SITE, WORK_SITE_HEAD } from '../../../content/work.tsx';
 
 export const WORK_TITLE = 'Work';
 
@@ -28,38 +31,47 @@ const TEXT = 'max-w-text';
 const CASE_HREFS: ReadonlySet<string> = new Set(HOME_CASES.map((c) => c.href));
 const kindOf = (href: string): string => (CASE_HREFS.has(href) ? 'Case study' : 'Build note');
 
+const CHIPS: Record<string, string> = {
+  experimentation: 'Experiments',
+  automation: 'Automation',
+  pipelines: 'Pipelines',
+};
+
 export function WorkPage(): ReactNode {
   return (
-    <article aria-labelledby="work-title" className="py-12 md:py-section">
-      <div className={TEXT}>
-        <h1 id="work-title" className="text-display-sm font-semibold md:text-display">
-          {WORK_TITLE}
-        </h1>
-        <p data-work-intro="" className="mt-4 text-lg text-muted">
-          Experiments and analyses first, then the tools and pipelines I&apos;ve built.
-        </p>
-      </div>
+    <article aria-labelledby="work-title">
+      <PageHead
+        id="work-title"
+        chip={WORK_TITLE}
+        title="Open the work"
+        quiet="and check it yourself."
+        sub={<span data-work-intro="">Experiments and analyses first, then the tools and pipelines I&apos;ve built.</span>}
+      />
 
       {WORK_SECTIONS.map((section) => (
-        <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} className="mt-16 md:mt-section">
-          <h2
-            id={`${section.id}-title`}
-            className={`${TEXT} text-2xl font-semibold md:text-display-sm`}
-            data-depth-rise="heading"
-          >
-            {section.label}
-          </h2>
-          {section.lede ? (
-            <p data-work-lede="" className={`mt-4 ${TEXT} text-lg text-muted`}>
-              {section.lede}
-            </p>
-          ) : null}
+        <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} data-rule="">
+          <div data-work-head="">
+            <SectionHead
+              id={`${section.id}-title`}
+              chip={CHIPS[section.id] ?? section.label}
+              title={section.label}
+              sub={section.lede ? <span data-work-lede="">{section.lede}</span> : undefined}
+              align="split"
+            />
+          </div>
           {/* The rule that draws on entry is its own decorative element, so the cards are never scaled with it. */}
-          <span data-depth-draw="" aria-hidden="true" className="mt-8 block h-px bg-ink" />
-          <ul className="grid gap-6 pt-8 md:grid-cols-2 lg:grid-cols-3">
+          <span data-depth-draw="" aria-hidden="true" className="block h-px bg-hairline" />
+          <ul className="grid gap-4 pb-12 pt-8 md:grid-cols-2 md:pb-16 lg:grid-cols-3">
             {section.items.map((item) => (
               <li key={item.href} data-work-item={item.href} className="grid">
-                <LeanCard href={item.href} title={item.title} meta={kindOf(item.href)} size="md" prefetch={prefetchFor(item.href)}>
+                <LeanCard
+                  href={item.href}
+                  title={item.title}
+                  meta={kindOf(item.href)}
+                  size="md"
+                  prefetch={prefetchFor(item.href)}
+                  vignette={workVignette(item.href)}
+                >
                   {item.description}
                 </LeanCard>
               </li>
@@ -68,17 +80,22 @@ export function WorkPage(): ReactNode {
         </section>
       ))}
 
-      <div className="mt-16 md:mt-section">
-      <Tile data-work-site="" data-depth-rise="">
-        <h2 className={`${TEXT} text-2xl font-semibold md:text-display-sm`}>{WORK_SITE.title}</h2>
-        <p className={`mt-4 ${TEXT} text-lg`}>{WORK_SITE.text}</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <ButtonLink href={HOME_LINKS.experiment} variant="primary">
-            {HOME_SITE.live}
-          </ButtonLink>
-        </div>
-      </Tile>
+      <div data-rule="" className="pb-12 pt-12 md:pb-16 md:pt-16">
+        <Tile data-work-site="" data-depth-rise="">
+          <Chip dot="live">Live test</Chip>
+          <h2 className="mt-4.5 max-w-[22em] text-h2-sm md:text-h2">
+            {WORK_SITE_HEAD.lead} <Quiet>{WORK_SITE_HEAD.quiet}</Quiet>
+          </h2>
+          <p className={`mt-3.5 ${TEXT} text-muted`}>{WORK_SITE.text}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <ButtonLink href={HOME_LINKS.experiment} variant="primary">
+              {HOME_SITE.live}
+            </ButtonLink>
+          </div>
+        </Tile>
       </div>
+
+      <PageCallToAction />
     </article>
   );
 }

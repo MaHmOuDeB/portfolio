@@ -170,7 +170,7 @@ describe('Tile', () => {
 describe('GlanceBlock', () => {
   const html = renderToStaticMarkup(<GlanceBlock outcome="The outcome." role="R" methods="M" tools="T" when="W" />);
   it('is a labelled section with the outcome and four terms', () => {
-    expect(html).toContain('<section aria-label="At a glance" data-glance="">');
+    expect(html).toMatch(/<section aria-label="At a glance" data-glance="" class="[^"]*rounded-xl border border-hairline bg-surface[^"]*">/);
     expect(html).toContain('<p data-glance-outcome="">The outcome.</p>');
     expect([...html.matchAll(/<dt>([^<]*)<\/dt>/g)].map((m) => m[1])).toEqual(['Role', 'Methods', 'Tools', 'When']);
     expect([...html.matchAll(/<dd>([^<]*)<\/dd>/g)].map((m) => m[1])).toEqual(['R', 'M', 'T', 'W']);
@@ -195,7 +195,7 @@ describe('Ribbon', () => {
 describe('data-* pass-through', () => {
   it('reaches the root of Tile, GlanceBlock and LeanCard (and may replace the rise value)', () => {
     expect(renderToStaticMarkup(<Tile data-depth-book="left">x</Tile>)).toBe('<div data-tile="" data-depth-book="left">x</div>');
-    expect(renderToStaticMarkup(<GlanceBlock outcome="o" role="r" methods="m" tools="t" when="w" data-depth-rise="" />)).toContain('<section aria-label="At a glance" data-glance="" data-depth-rise="">');
+    expect(renderToStaticMarkup(<GlanceBlock outcome="o" role="r" methods="m" tools="t" when="w" data-depth-rise="" />)).toMatch(/<section aria-label="At a glance" data-glance="" class="[^"]*" data-depth-rise="">/);
     expect(renderToStaticMarkup(<LeanCard href="/a" title="T" meta="M" data-depth-rise="heading">D</LeanCard>)).toContain('data-depth-rise="heading"');
   });
 });

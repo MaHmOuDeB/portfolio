@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { withoutCta } from '../page-cta';
 import { describe, expect, it } from 'vitest';
 import { RETENTION_SECTIONS, RetentionCaseStudy, RetentionPage } from '@/components/retention/RetentionPage';
 import { REVERSAL_SQL_READ_AT } from '../../../content/retention';
@@ -37,7 +38,7 @@ const section = (markup: string, id: string) => {
 };
 
 // The page as it ships: the composition with its win-back planner.
-const PAGE = renderToStaticMarkup(<RetentionCaseStudy />);
+const PAGE = withoutCta(renderToStaticMarkup(<RetentionCaseStudy />));
 const PAGE_TEXT = text(PAGE);
 const ctx = { route: '/work/retention', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
@@ -430,7 +431,7 @@ describe('the route and the host', () => {
     expect(mod.metadata.title).toBe('Customer retention and reactivation analysis');
     // the description is plain words: its only digits are the literal year of the rebuild
     expect(String(mod.metadata.description).replace('rebuilt in 2026', '')).not.toMatch(/\d/);
-    expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
+    expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
   });
 
   it('the dev host renders the same composition', () => {
