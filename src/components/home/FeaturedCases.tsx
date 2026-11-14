@@ -8,7 +8,7 @@ import { CaseCard } from './CaseCard';
 
 export function FeaturedCases({ headlineArm }: { headlineArm: Arm }) {
   return (
-    <section data-experiment="cards" aria-label="Featured case studies" className="mt-8 grid gap-6 lg:grid-cols-3">
+    <section data-experiment="cards" aria-label="Featured case studies" className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
       {HOME_CASES.map((c) => (
         <CaseCard key={c.study} study={c.study} headlineArm={headlineArm} />
       ))}

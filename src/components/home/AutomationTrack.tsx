@@ -12,7 +12,7 @@ export function AutomationTrack() {
         {HOME_TRACKS.automation.title}
       </h2>
       <p className="mt-4 max-w-text text-lg text-muted">{HOME_TRACKS.automation.lede}</p>
-      <div data-home-cards="automation" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-home-cards="automation" className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {HOME_AUTOMATION.map((c) => (
           <LeanCard key={c.id} href={c.href} prefetch={prefetchFor(c.href)} data-home-card={c.id} title={c.title} meta={<Parts parts={c.meta} />} size="md">
             <Parts parts={c.description} />

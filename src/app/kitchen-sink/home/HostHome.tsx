@@ -13,7 +13,7 @@ import { hostNoteModel } from './fixtures';
 export function HostHome({ arm, model }: { arm: Arm; model?: HomeModel }) {
   const note = { ...(model ?? hostNoteModel()), headlineArm: arm };
   return (
-    <div data-host-home={arm} className="pb-section">
+    <div data-host-home={arm} className="pb-section wrap-break-word">
       <HomeFontPreload />
       <HomeBody model={note} />
       <p className="mt-12 max-w-text text-sm text-muted">

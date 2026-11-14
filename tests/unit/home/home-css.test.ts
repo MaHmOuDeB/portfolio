@@ -61,6 +61,30 @@ describe('the hero scene', () => {
     for (const w of ['40rem', '30rem']) expect(block(`@media (width < ${w})`)).not.toMatch(/height:/);
   });
 
+  it('sizes the plane in px, like the rows on it, so a larger root text size never widens it past the screen', () => {
+    // Sized in rem, a 200% root text doubled the plane while its px rows stayed put, and the square
+    // ran 88 px past a 320 px screen.
+    expect(css).toMatch(/\[data-depth-plane\]\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;/);
+  });
+
+  it('ends every fade-in by the middle of its range, so a block whose painted box is in view is never part-faded', () => {
+    // Each entrance also moves its block, so the painted box is fully in view before the range ends.
+    const fades = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{/g)]
+      .map(([, name]) => ({ name: name!, body: block(`@keyframes ${name}`) }))
+      .filter(({ body }) => {
+        const from = /(?:from|0%)\s*\{([^}]*)\}/.exec(body)?.[1] ?? '';
+        const opacity = /opacity:\s*([\d.]+)/.exec(from);
+        return opacity !== null && Number(opacity[1]) < 1;
+      });
+    expect(fades.map((f) => f.name)).toEqual(expect.arrayContaining(['depth-rise', 'depth-rise-heading', 'depth-book-left', 'depth-book-right', 'depth-scale']));
+    for (const { name, body } of fades) expect(body, name).toMatch(/50%\s*\{\s*opacity:\s*1;\s*\}/);
+  });
+
+  it('gives the rise a perspective in rem, 1400 px at the default root, so a larger text size never spills a block past the screen', () => {
+    expect(tokens).toContain('--perspective-scene: 1300px;');
+    expect(css).toMatch(/:has\(> \[data-depth-rise\]\)\s*\{\s*perspective:\s*87\.5rem;\s*\}/);
+  });
+
   it('keeps the axis words at the text-xs size whatever the field scale', () => {
     expect(css).toMatch(/\[data-depth-axis\]\s*\{[^}]*font-size:\s*calc\(var\(--text-xs\) \/ var\(--k, 1\)\)/);
   });

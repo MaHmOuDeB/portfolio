@@ -296,12 +296,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
  * state (the block at the end of this section).
  */
 @keyframes depth-row-arrive {
-  from {
+  0% {
     opacity: 0;
     transform: translateX(-50%) translateZ(120px);
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     transform: translateX(-50%) translateZ(0);
   }
@@ -328,14 +333,19 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-rise {
-  from {
+  0% {
     opacity: 0;
     translate: 0 80px;
     rotate: x 22deg;
     scale: 0.92;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
     rotate: x 0deg;
@@ -344,12 +354,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-load {
-  from {
+  0% {
     opacity: 0;
     translate: 0 24px;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
   }
@@ -377,13 +392,18 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-rise-heading {
-  from {
+  0% {
     opacity: 0;
     translate: 0 40px;
     rotate: x 10deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     translate: 0 0;
     rotate: x 0deg;
@@ -401,24 +421,34 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-book-left {
-  from {
+  0% {
     opacity: 0;
     rotate: y 14deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     rotate: y 0deg;
   }
 }
 
 @keyframes depth-book-right {
-  from {
+  0% {
     opacity: 0;
     rotate: y -14deg;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     rotate: y 0deg;
   }
@@ -435,12 +465,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 @keyframes depth-scale {
-  from {
+  0% {
     opacity: 0;
     scale: 0.8;
   }
 
-  to {
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
     opacity: 1;
     scale: 1;
   }
@@ -490,8 +525,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-depth-plane] {
     position: relative;
-    width: 32.5rem;
-    height: 32.5rem;
+    width: 520px;
+    height: 520px;
     transform-style: preserve-3d;
     transform: rotateX(32deg) rotateZ(-8deg) scale(0.9);
   }
@@ -1035,11 +1070,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /* 3. Rise: scroll-linked and reversible, so it follows the scroll position exactly and runs no
-   clock. The parent gets the perspective the tilt needs. */
+   clock. The parent gets the perspective the tilt needs: the scene's distance plus 100 px at the
+   default 16 px root (1400 px), set in rem so it grows with the text. A block grows with a larger
+   text size; a fixed distance would bring its near edge closer and spill it sideways past the
+   screen while it enters. */
 @supports (animation-timeline: view()) {
   @layer components {
     :has(> [data-depth-rise]) {
-      perspective: calc(var(--perspective-scene) + 100px);
+      perspective: 87.5rem;
     }
 
     [data-depth-rise] {

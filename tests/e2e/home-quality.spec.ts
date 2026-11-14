@@ -175,7 +175,16 @@ async function focusFindings(page: Page): Promise<unknown[]> {
       const errors: string[] = [];
       if (!outline && s.boxShadow === 'none') errors.push('no visible focus ring');
       const vw = document.documentElement.clientWidth;
-      if (r.left - reach < -1 || r.right + reach > vw + 1 || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('ring outside the viewport');
+      // A target taller than the visible area (below a sticky header) can never show its whole ring; for
+      // it WCAG 2.4.7 and 2.4.11 are met when its top edge, ring included, is on screen below the header
+      // (the page puts it at the top), with both sides in view. Every other target shows its whole ring.
+      const sticky = document.querySelector<HTMLElement>('[data-site-header]');
+      const covered = sticky && getComputedStyle(sticky).position === 'sticky' ? Math.max(0, sticky.getBoundingClientRect().bottom) : 0;
+      const tall = r.height + 2 * reach > innerHeight - covered;
+      const across = r.left - reach < -1 || r.right + reach > vw + 1;
+      if (tall) {
+        if (across || r.top - reach < covered - 1 || r.top - reach >= innerHeight) errors.push(`top of a tall target's ring outside the viewport (top ${Math.round(r.top - reach)}, visible from ${Math.round(covered)})`);
+      } else if (across || r.top - reach < -1 || r.bottom + reach > innerHeight + 1) errors.push('ring outside the viewport');
       for (let p = ring.parentElement; p; p = p.parentElement) {
         const ps = getComputedStyle(p);
         const b = p.getBoundingClientRect();

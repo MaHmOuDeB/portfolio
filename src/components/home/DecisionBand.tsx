@@ -13,7 +13,7 @@ const PHOTO_WIDTH = 480;
 
 export function DecisionBand() {
   return (
-    <section id="decide" data-home-decision="" aria-labelledby="decision-title" className="mt-12 md:mt-section grid items-center gap-10 md:grid-cols-12 md:gap-8">
+    <section id="decide" data-home-decision="" aria-labelledby="decision-title" className="mt-12 md:mt-section grid grid-cols-1 items-center gap-10 md:grid-cols-12 md:gap-8">
       <div className="md:col-span-7">
         <h2 id="decision-title" data-depth-scale="" className="text-display-lg font-semibold">
           {HOME_DECISION.title}
