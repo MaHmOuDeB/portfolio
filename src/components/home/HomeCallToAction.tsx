@@ -11,7 +11,7 @@ const PHOTO_WIDTH = 480;
 
 export function HomeCallToAction() {
   return (
-    <div data-home-cta="" data-rule="" className="py-2.5">
+    <div data-home-cta="" data-rule="" className="pb-12 pt-12 md:pb-16 md:pt-16">
       <CallToAction
         id="cta-title"
         title={PAGE_CTA.title}

@@ -496,6 +496,13 @@ describe('HomeCallToAction: the dark call to action with the portrait', () => {
     expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href]);
   });
 
+  it('sits in the same ruled band, with the same space above and below, as on every other page', async () => {
+    const { PageCallToAction } = await import('@/components/shell/PageCallToAction');
+    const page = one(doc(render(createElement(PageCallToAction))), (el) => has(el, 'data-page-cta'));
+    const spacing = (el: El) => classes(el).filter((c) => /^(md:)?p[tb]-/.test(c)).sort();
+    expect(spacing(root)).toEqual(spacing(page));
+  });
+
   it("shows the About page's portrait at the right, lazily loaded", () => {
     const media = one(root, (el) => has(el, 'data-cta-media'));
     const img = one(media, (el) => el.tagName === 'img');
