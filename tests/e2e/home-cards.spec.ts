@@ -294,11 +294,11 @@ test.describe('Home hero', () => {
     }
   });
 
-  test('phone fold at 375x812: the h1 is 44 px and the primary button is in view, with both buttons reachable', async ({ browser }) => {
+  test('phone fold at 375x812: the h1 is 36 px and the primary button is in view, with both buttons reachable', async ({ browser }) => {
     for (const arm of ['a', 'b'] as const) {
       const page = await open(browser, arm, 'inter', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
       const hero = page.locator('[data-hero]');
-      await expect(hero.locator('h1')).toHaveCSS('font-size', '44px');
+      await expect(hero.locator('h1')).toHaveCSS('font-size', '36px');
       await expect(hero.locator('h1')).toHaveText('Experimentation and AI automation for product and growth teams');
       const primary = hero.getByRole('link', { name: 'Write to me' });
       await expect(primary).toBeVisible();

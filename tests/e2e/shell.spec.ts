@@ -214,7 +214,7 @@ test.describe('site header', () => {
     const contact = header.getByRole('link', { name: 'Contact', exact: true });
     await expect(contact).toHaveAttribute('href', '/contact');
     await expect(contact).toHaveClass(/bg-ink/);
-    await expect(cv).toHaveClass(/border-muted/);
+    await expect(cv).toHaveClass(/border-hairline-strong/);
     await expect(nav.getByRole('link', { name: 'Contact' })).toHaveCount(0);
     // Keyboard order is visual order: wordmark, four page links, CV, Contact.
     const hrefs = await header.getByRole('link').evaluateAll((els) => els.map((el) => el.getAttribute('href')));
@@ -361,8 +361,11 @@ test.describe('footer', () => {
     await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
     const contact = footer.getByRole('link', { name: 'Contact', exact: true });
     await expect(contact).toHaveAttribute('href', '/contact');
-    // The contact form is the first link in the footer.
-    await expect(footer.getByRole('link').first()).toHaveAttribute('href', '/contact');
+    // The footer starts with the wordmark; the contact link comes before the legal links.
+    const hrefs = await footer.getByRole('link').evaluateAll((els) => els.map((el) => el.getAttribute('href')));
+    expect(hrefs[0]).toBe('/');
+    expect(hrefs.indexOf('/contact')).toBeGreaterThan(-1);
+    expect(hrefs.indexOf('/contact')).toBeLessThan(hrefs.indexOf('/privacy'));
     expect(await footer.innerText()).not.toContain('@');
     for (const height of await footer
       .locator('[data-touch-target]')
