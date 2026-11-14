@@ -40,8 +40,8 @@ function FooterAnchor({ href, external, children }: { href: string; external?: b
 export function Footer() {
   return (
     <footer data-ink="" className="mt-20 bg-ink text-on-ink">
-      <div className="mx-auto grid max-w-page gap-x-8 gap-y-10 px-4 pt-14 pb-10 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:px-8">
-        <div>
+      <div className="mx-auto grid max-w-page grid-cols-2 gap-x-8 gap-y-10 px-4 pt-14 pb-10 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:px-8">
+        <div className="col-span-2 md:col-span-1">
           {/* No prefetch: the proxy draws a group per request to /. */}
           <Link
             href="/"
@@ -70,7 +70,7 @@ export function Footer() {
             </ul>
           </div>
         ))}
-        <p className="border-t border-rule-on-ink pt-6 text-sm text-on-ink-muted md:col-span-4">Built with Claude Code as pair-programmer.</p>
+        <p className="border-t border-rule-on-ink pt-6 text-sm text-on-ink-muted col-span-2 md:col-span-4">Built with Claude Code as pair-programmer.</p>
       </div>
     </footer>
   );
