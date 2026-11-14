@@ -332,7 +332,10 @@ describe('Hero', () => {
     const h1 = one(d, (el) => el.tagName === 'h1');
     expect(text(h1)).toBe('I test what works, and automate the rest.');
     expect(attr(scene, 'aria-labelledby')).toBe(attr(h1, 'id'));
-    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display', 'lg:text-display-lg']));
+    // The largest size waits for xl: from lg to xl the text column is narrow and the pinned block
+    // would be taller than the pin at 1100x720.
+    expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'md:text-display', 'xl:text-display-lg']));
+    expect(classes(h1)).not.toContain('lg:text-display-lg');
     expect(text(one(d, (el) => has(el, 'data-hero-sub')))).toBe(
       'Analyst in Berlin for experimentation and AI automation. Nearly two years of A/B testing at Audible (Amazon), and I build the agents and workflows that take the manual work out of analysis.',
     );

@@ -33,6 +33,8 @@ describe('the hero scene', () => {
   it('is a tall scene with a sticky inner under the header, a viewport minus the header tall', () => {
     expect(pin).toMatch(/\[data-depth-scene\]\s*\{[^}]*height:\s*190vh/);
     expect(pin).toMatch(/\[data-hero-pin\]\s*\{[^}]*position:\s*sticky[^}]*top:\s*var\(--header-h\)[^}]*height:\s*calc\(100vh - var\(--header-h\)\)/);
+    // A block taller than the pin starts at its top instead of spilling above it under the header.
+    expect(pin).toMatch(/\[data-hero-pin\]\s*\{[^}]*align-content:\s*safe center/);
   });
 
   it('turns the plane and recedes the text on the scene timeline', () => {
@@ -43,6 +45,24 @@ describe('the hero scene', () => {
 
   it('starts the turn from the tilted plane', () => {
     expect(block('@keyframes depth-plane-face')).toMatch(/from\s*\{\s*transform:\s*rotateX\(58deg\) rotateZ\(-12deg\) scale\(0\.94\)/);
+  });
+
+  it('centres the plane in the field box itself, so the box can reserve the height the plane takes', () => {
+    // An auto row would grow to the plane's full 520 px and push the scaled plane below the box.
+    expect(css).toMatch(/\[data-depth-field\]\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\)/);
+  });
+
+  it('below lg, reserves the measured footprint of the scaled plane and lifts it by its downward skew', () => {
+    // Measured in the browser: the tilted plane with its axis words is about 515 px times --k tall,
+    // its centre about 46 px times --k below the box centre.
+    const narrow = block('@media (width < 64rem)');
+    expect(narrow).toMatch(/\[data-depth-field\]\s*\{[^}]*height:\s*calc\(33rem \* var\(--k\)\)/);
+    expect(narrow).toMatch(/\[data-depth-tilt\]\s*\{[^}]*translate:\s*0 calc\(-2\.875rem \* var\(--k, 1\)\)/);
+    for (const w of ['40rem', '30rem']) expect(block(`@media (width < ${w})`)).not.toMatch(/height:/);
+  });
+
+  it('keeps the axis words at the text-xs size whatever the field scale', () => {
+    expect(css).toMatch(/\[data-depth-axis\]\s*\{[^}]*font-size:\s*calc\(var\(--text-xs\) \/ var\(--k, 1\)\)/);
   });
 
   it('never clips with overflow hidden around the hero controls', () => {

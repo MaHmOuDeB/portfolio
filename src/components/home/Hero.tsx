@@ -33,7 +33,7 @@ export function Hero() {
     <section data-hero="" data-depth-scene="" aria-labelledby="hero-title">
       <div data-hero-pin="" className="grid items-center gap-y-10 pt-8 md:pt-12 lg:grid-cols-12 lg:gap-x-8">
         <div data-hero-text="" data-depth-recede="" className="lg:col-span-6">
-          <h1 id="hero-title" className="text-display-sm font-semibold md:text-display lg:text-display-lg">
+          <h1 id="hero-title" className="text-display-sm font-semibold md:text-display xl:text-display-lg">
             {HOME_HERO.title}
           </h1>
           <p data-hero-sub="" data-depth-load="" style={order(0)} className="mt-6 max-w-text text-lg text-muted md:text-xl">

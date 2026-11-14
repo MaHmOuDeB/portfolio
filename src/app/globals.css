@@ -470,12 +470,15 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* 1. The evidence field. [data-depth-scene] is the section whose scroll turns the plane (the pin
      block below). The plane is a fixed 520 px square (the rows are placed in px), so a narrower
      screen scales the whole tilt (--k) instead; the one grid column is the field's own width and the
-     square overflows it evenly on both sides, so the scaled picture stays centred. At rest, where
-     nothing turns it, the plane keeps a gentle tilt that is readable and clips nothing. */
+     square overflows it evenly on both sides, so the scaled picture stays centred. The one row is the
+     field's own height for the same reason: an auto row would grow to the plane's 520 px and centre
+     the plane in that row, below the box. At rest, where nothing turns it, the plane keeps a gentle
+     tilt that is readable and clips nothing. */
   [data-depth-field] {
     display: grid;
     height: 35rem;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
     place-items: unsafe center;
     perspective: var(--perspective-scene);
@@ -519,7 +522,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     left: 0;
     display: flex;
     justify-content: space-between;
-    font-size: var(--text-xs);
+
+    /* Divided by the field scale, so the words still land at text-xs on a narrow screen. */
+    font-size: calc(var(--text-xs) / var(--k, 1));
     line-height: 1.5;
     color: var(--color-muted);
   }
@@ -553,7 +558,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     outline: 2px solid var(--color-bg);
   }
 
-  /* The scale and the field's height per width, so the picture fits the column it sits in. */
+  /* The scale per width, so the picture fits the column it sits in. From lg the field has a fixed
+     height in the hero's text row. Below lg, where nothing pins or turns it, the box reserves what
+     the tilted plane really occupies (measured: about 515 px times --k with its axis words) and the
+     picture is lifted by the amount the tilt and the words below it skew it downward (about 46 px
+     times --k), so it sits inside its own box above the caption. */
   @media (width < 80rem) {
     [data-depth-field] {
       --k: 0.8;
@@ -566,23 +575,23 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     [data-depth-field] {
       --k: 0.9;
 
-      height: 26rem;
+      height: calc(33rem * var(--k));
+    }
+
+    [data-depth-tilt] {
+      translate: 0 calc(-2.875rem * var(--k, 1));
     }
   }
 
   @media (width < 40rem) {
     [data-depth-field] {
       --k: 0.72;
-
-      height: 20rem;
     }
   }
 
   @media (width < 30rem) {
     [data-depth-field] {
       --k: 0.46;
-
-      height: 14rem;
     }
   }
 
@@ -1144,7 +1153,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         top: var(--header-h);
         height: calc(100vh - var(--header-h));
         min-height: 40rem;
-        align-content: center;
+        align-content: safe center;
       }
 
       [data-depth-plane] {
