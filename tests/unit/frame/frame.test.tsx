@@ -228,7 +228,8 @@ describe('Vignette and its marks', () => {
   it('is hidden from assistive technology and says it is an illustration', () => {
     expect(html).toMatch(/^<div data-vignette="" aria-hidden="true">/);
     expect(html).toContain('<span data-vignette-label="">Illustration</span>');
-    expect(html).toContain('<div data-vignette-sheet="">');
+    // The sheet lifts like a lid inside a card (the hinge is styled in globals.css).
+    expect(html).toContain('<div data-vignette-sheet="" data-depth-hinge="">');
   });
 
   it('prints no digits as text: positions live in custom properties only', () => {

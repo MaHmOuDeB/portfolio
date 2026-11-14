@@ -898,6 +898,52 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* Drift: an arrival along a diagonal out of depth from a named corner of the section. */
+@keyframes depth-drift-bl {
+  0% {
+    opacity: 0;
+    transform: translate3d(-64px, 72px, -260px) rotateY(8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-br {
+  0% {
+    opacity: 0;
+    transform: translate3d(64px, 72px, -260px) rotateY(-8deg);
+  }
+
+  /* Opaque by mid-range: the block is moving in, so its painted box is in view before the range ends. */
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hinge: a surface rotates up on its bottom edge like a lid. */
+@keyframes depth-hinge {
+  from {
+    transform: rotateX(72deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
 @keyframes depth-reveal {
   from {
     clip-path: inset(0 100% 0 0);
@@ -1457,7 +1503,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* 6. Lean: a card follows a fine pointer (--rx, --ry as angles, --gx, --gy as percentages, set
-     by Lean) and springs back. The sheen sits under the content. */
+     by Lean) and springs back. The sheen sits under the content. The card is one flat plane: its
+     clip keeps the sketch inside it, and a clip flattens 3D anyway, so its text is drawn once on
+     the face and never stands off it in depth. */
   [data-depth-lean] {
     --card-pad: calc(var(--spacing) * 5.5);
 
@@ -1467,7 +1515,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     overflow: clip;
     padding: var(--card-pad);
     text-decoration: none;
-    transform-style: preserve-3d;
   }
 
   /* A card with a vignette ends in it: no bottom padding, the sketch bleeds off the bottom edge. */
@@ -1591,25 +1638,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
     font-size: 0.9375rem;
     line-height: 1;
-  }
-
-  /* The card's parts stand off its face a little, so the lean reads as depth. */
-  @media (hover: hover) and (pointer: fine) {
-    [data-depth-lean] h3 {
-      transform: translateZ(28px);
-    }
-
-    [data-depth-lean] p {
-      transform: translateZ(16px);
-    }
-
-    [data-depth-meta] {
-      transform: translateZ(10px);
-    }
-
-    [data-depth-go] {
-      transform: translateZ(36px);
-    }
   }
 
   /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide and fades both edges
@@ -1970,6 +1998,69 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* The motion families beside the band's Unfold, from lg up where scroll timelines exist and motion
+   is allowed (narrower screens and everything else get the final layout, still). Each one ends on
+   none and fills backwards only, so a finished block is no longer a layer. Perspective sits on the
+   immediate parent alone. Drift: the automation cards arrive from the section's outer corners, each
+   on its grid wrapper so the card keeps its own lean. Hinge: the sketch at the foot of a card lifts
+   like a lid; the card's own clip keeps the lid inside it. */
+@supports (animation-timeline: view()) {
+  @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      :has(> [data-depth-drift]) {
+        perspective: 87.5rem;
+      }
+
+      [data-depth-drift] {
+        transform-origin: 0% 50%;
+        animation: depth-drift-bl linear backwards;
+        animation-timeline: view();
+        animation-range: entry 0% entry 85%;
+      }
+
+      [data-depth-drift="br"] {
+        transform-origin: 100% 50%;
+        animation-name: depth-drift-br;
+      }
+
+      [data-depth-drift]:nth-child(n + 3) {
+        animation-range: entry 10% entry 95%;
+      }
+
+      [data-depth-lean] > [data-vignette]:has(> [data-depth-hinge]) {
+        perspective: 87.5rem;
+      }
+
+      [data-depth-lean] [data-depth-hinge] {
+        transform-origin: 50% 100%;
+        animation: depth-hinge linear backwards;
+        animation-timeline: view();
+        animation-range: entry 30% entry 100%;
+      }
+
+      /* In a drifting card the lid follows its card. */
+      [data-depth-drift] [data-depth-hinge] {
+        animation-range: entry 40% contain 10%;
+      }
+
+      /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
+      [data-depth-drift]:focus-within,
+      [data-depth-hinge]:focus-within {
+        animation: none;
+      }
+
+      /* Across a row of cards the lids lift in turn, column by column. */
+      [data-depth-lean]:nth-child(3n + 2) [data-depth-hinge] {
+        animation-range: entry 36% contain 6%;
+      }
+
+      [data-depth-lean]:nth-child(3n + 3) [data-depth-hinge] {
+        animation-range: entry 42% contain 12%;
+      }
+    }
+  }
+}
+
 /* Final, static state: reduced motion and print. Nothing moves, nothing is hidden; the band is the
    flat row on a wide screen (the column below lg). */
 @media (prefers-reduced-motion: reduce), print {
@@ -1981,6 +2072,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-scale],
   [data-depth-parallax],
   [data-depth-reveal],
+  [data-depth-drift],
+  [data-depth-hinge],
   [data-depth-arrive],
   [data-depth-rig],
   [data-depth-sheet],
@@ -2014,11 +2107,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   [data-depth-lean] {
-    transform: none;
-  }
-
-  /* The card's parts stand flat on its face too, so nothing sits in depth at rest. */
-  [data-depth-lean] :is(h3, p, [data-depth-meta], [data-depth-go]) {
     transform: none;
   }
 

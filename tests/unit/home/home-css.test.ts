@@ -191,8 +191,11 @@ describe('accessibility guards', () => {
     expect(timelines).toMatch(/\[data-depth-ribbon\] > ul\s*\{[^}]*animation-range:\s*cover 0% cover 45%/);
   });
 
-  it('flattens the card parts that stand off the face under reduced motion', () => {
-    expect(still).toMatch(/\[data-depth-lean\] :is\(h3, p, \[data-depth-meta\], \[data-depth-go\]\)\s*\{\s*transform:\s*none;?\s*\}/);
+  it('keeps the lean card one flat plane: no 3D context under its clip and no part standing off its face', () => {
+    const card = /\[data-depth-lean\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(card).toMatch(/overflow:\s*clip/);
+    expect(card).not.toMatch(/preserve-3d/);
+    expect(css).not.toMatch(/translateZ\(\d+px\)/);
   });
 
   it('pins the band on screens only, never in print', () => {

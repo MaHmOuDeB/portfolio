@@ -1,5 +1,5 @@
 // The second track, "Automation and agents": the section head, four lean cards to the pages that tell
-// each story, each ending in its sketch, then one ruled row with the three "I automate." lines as a
+// each story, each ending in its sketch and drifting in from its outer corner, then one ruled row with the three "I automate." lines as a
 // compact list without a title, under a hairline that draws in as it enters. Server-safe.
 import { HOME_AUTOMATE_LINES, HOME_AUTOMATION, HOME_AUTOMATION_HEAD } from '../../../content/home.ts';
 import { LeanCard } from '@/components/depth/LeanCard';
@@ -14,21 +14,25 @@ export function AutomationTrack() {
     <section data-home-track="automation" data-rule="" aria-labelledby="track-automation-title">
       <SectionHead id="track-automation-title" chip={head.chip} title={head.title} quiet={head.quiet} sub={head.sub} />
       <div data-home-cards="automation" className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-        {HOME_AUTOMATION.map((c) => {
+        {HOME_AUTOMATION.map((c, i) => {
           const Sketch = AUTOMATION_SKETCHES[c.id];
+          // Each card drifts in from the section's outer corner on its side. The wrapper moves, never
+          // the card, which keeps its own lean; so the card does not also rise.
           return (
-            <LeanCard
-              key={c.id}
-              href={c.href}
-              prefetch={prefetchFor(c.href)}
-              data-home-card={c.id}
-              title={c.title}
-              meta={<Parts parts={c.meta} />}
-              size="md"
-              vignette={Sketch ? <Sketch /> : undefined}
-            >
-              <Parts parts={c.description} />
-            </LeanCard>
+            <div key={c.id} data-depth-drift={i % 2 === 0 ? 'bl' : 'br'} className="grid">
+              <LeanCard
+                data-depth-rise={undefined}
+                href={c.href}
+                prefetch={prefetchFor(c.href)}
+                data-home-card={c.id}
+                title={c.title}
+                meta={<Parts parts={c.meta} />}
+                size="md"
+                vignette={Sketch ? <Sketch /> : undefined}
+              >
+                <Parts parts={c.description} />
+              </LeanCard>
+            </div>
           );
         })}
       </div>
