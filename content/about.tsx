@@ -78,14 +78,8 @@ export const SHIPPED_TOOLS: readonly { tool: string; where: string }[] = [
   { tool: 'GitHub Actions', where: 'continuous integration for my public projects' },
 ];
 
-/** Both pages list these; German is B1. */
-export const LANGUAGES: readonly { language: string; level: string }[] = [
-  { language: 'Arabic', level: 'native' },
-  { language: 'English', level: 'fluent (C2)' },
-  { language: 'French', level: 'fluent (C2)' },
-  { language: 'German', level: 'B1' },
-  { language: 'Spanish', level: 'A2' },
-];
+/** Both pages list these, and so does the Home FAQ; German is B1. */
+export { LANGUAGES } from './languages.ts';
 
 // ── CV ──────────────────────────────────────────────────────────────────────────────────────────
 

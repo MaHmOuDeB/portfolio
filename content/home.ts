@@ -10,6 +10,7 @@
 import { factText } from '../src/lib/facts/text.ts';
 import { HEADLINES, type CardHeadlines, type HeadlinePart } from './experiment/headlines.ts';
 import { HOME_LINKS } from './home-destinations.ts';
+import { languagesSentence } from './languages.ts';
 
 export { HEADLINES };
 export type { HeadlinePart };
@@ -366,7 +367,8 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
     },
     {
       question: 'Which languages do you speak?',
-      answer: ['Arabic (native), English and French (fluent, C2) and German (B1).'],
+      // From the About page's own list, so the two never disagree.
+      answer: [languagesSentence()],
     },
     {
       // The contact form passes each message on to my inbox (the privacy notice says so), so "I answer myself." stays.

@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, HOME_CASES } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { SHIPPED_TOOLS } from '../../../content/about';
+import { LANGUAGES, SHIPPED_TOOLS } from '../../../content/about';
 import { aboutPhoto } from '../../../content/about-photo';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { PULSE_EVENT_NAMES } from '@/lib/pulse/names';
@@ -433,10 +433,16 @@ describe('HomeFaq', () => {
         'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has 270+ automated tests.',
       ],
       ['Is the code public?', 'Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
-      ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2) and German (B1).'],
+      ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2), German (B1) and Spanish (A2).'],
       // The contact form passes each message on to my inbox (the privacy notice says so), so the last sentence stays.
       ['How do I reach you?', 'Through the contact form or on LinkedIn. I answer myself.'],
     ]);
+  });
+
+  it("answers the languages question from the About page's own list, so the two never disagree", () => {
+    const row = all(root, (el) => el.tagName === 'details').find((r) => text(r).includes('Which languages do you speak?'));
+    for (const l of LANGUAGES) expect(text(row!)).toContain(l.language);
+    for (const l of LANGUAGES) expect(text(row!)).toContain(l.level.replace(' (', ', ').replace(')', ''));
   });
 
   it('prints every figure as a Fact and passes the truth audit', () => {
