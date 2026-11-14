@@ -62,15 +62,50 @@ describe('LeanCard', () => {
     expect(html).toContain('data-card-id="one"');
   });
   it('has an h3 with a fixed minimum height, the description, the meta and a hidden disc', () => {
-    expect(html).toContain('<h3 style="min-height:3lh">A title</h3>');
-    expect(html).toContain('<p>Describes it.</p>');
+    expect(html).toMatch(/<h3 id="[^"]+" style="min-height:3lh">A title<\/h3>/);
+    expect(html).toMatch(/<p id="[^"]+">Describes it\.<\/p>/);
     expect(html).toContain('<span data-depth-meta="">Meta line</span>');
     expect(html).toContain('<span data-depth-go="" aria-hidden="true">+</span>');
   });
   it('omits the minimum height without the prop and takes the md size', () => {
     const plain = renderToStaticMarkup(<LeanCard href="/a" title="T" meta="M" size="md">D</LeanCard>);
-    expect(plain).toContain('<h3>T</h3>');
+    expect(plain).toMatch(/<h3 id="[^"]+">T<\/h3>/);
     expect(plain).toContain('data-size="md"');
+  });
+});
+
+describe('LeanCard accessible name', () => {
+  const html = renderToStaticMarkup(
+    <LeanCard href="/work/x" title="A title" meta="Meta line">
+      Describes it.
+    </LeanCard>,
+  );
+  it('is named by the h3 alone and described by the paragraph', () => {
+    const labelled = /<a [^>]*aria-labelledby="([^"]+)"/.exec(html)?.[1];
+    const described = /<a [^>]*aria-describedby="([^"]+)"/.exec(html)?.[1];
+    expect(labelled).toBeTruthy();
+    expect(described).toBeTruthy();
+    expect(labelled).not.toBe(described);
+    expect(html).toContain(`<h3 id="${labelled}"`);
+    expect(html).toContain(`<p id="${described}"`);
+    // the meta line is in neither
+    expect(html).not.toMatch(/id="[^"]*"[^>]*>Meta line/);
+  });
+  it('gives two cards on one page different ids', () => {
+    const two = renderToStaticMarkup(
+      <>
+        <LeanCard href="/a" title="A" meta="m">a</LeanCard>
+        <LeanCard href="/b" title="B" meta="m">b</LeanCard>
+      </>,
+    );
+    const ids = [...two.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(ids).size).toBe(4);
+  });
+  it('takes a node as the meta line', () => {
+    const node = renderToStaticMarkup(
+      <LeanCard href="/a" title="T" meta={<>Browser automation, <data value="11">11</data> markets</>}>d</LeanCard>,
+    );
+    expect(node).toContain('<span data-depth-meta="">Browser automation, <data value="11">11</data> markets</span>');
   });
 });
 

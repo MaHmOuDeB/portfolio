@@ -398,7 +398,7 @@ describe('AutomationTrack', () => {
       "Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier.",
     ]);
     expect(links.map((a) => text(one(a, (el) => has(el, 'data-depth-meta'))))).toEqual([
-      'Browser automation, across markets',
+      'Browser automation, 11 markets',
       'Multi-agent orchestration, Claude Code',
       'n8n, XRechnung, ZUGFeRD',
       'Python, FastAPI, Groq',
@@ -409,6 +409,7 @@ describe('AutomationTrack', () => {
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
+      'profile.audible.markets',
       'profile.n8n.automated_tests',
     ]);
     expect(text(d)).toContain('Tampermonkey with a step recorder');

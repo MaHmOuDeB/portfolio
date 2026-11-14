@@ -7,15 +7,18 @@
 // with the Home page come from its link list.
 import type { ReactNode } from 'react';
 import { Fact } from '@/components/kit/Fact';
+import { HOME_SITE, HOME_TRACKS } from './home.ts';
 import { HOME_LINKS } from './home-destinations.ts';
 
 export type WorkItem = { href: string; title: string; description: ReactNode };
-export type WorkGroup = { id: string; label: string; items: readonly WorkItem[] };
+/** A group's lede is the Home track's sentence for the same group; the data-pipelines group has none. */
+export type WorkGroup = { id: string; label: string; lede?: string; items: readonly WorkItem[] };
 
 export const WORK_GROUPS: readonly WorkGroup[] = [
   {
     id: 'experimentation',
     label: 'Experiments and analytics',
+    lede: HOME_TRACKS.experiments.lede,
     items: [
       {
         // The description speaks of adoption, so it opens the section that gives the context.
@@ -40,12 +43,13 @@ export const WORK_GROUPS: readonly WorkGroup[] = [
   {
     id: 'automation',
     label: 'Automation and agents',
+    lede: HOME_TRACKS.automation.lede,
     items: [
       {
         href: HOME_LINKS.docproof,
         title: 'Docproof',
         description:
-          'I designed and built an open-source tool for document verification, with multi-agent orchestration and automated checks. The page does not claim that anyone uses it.',
+          'Three agents propose changes to a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
       },
       {
         href: '/work/n8n',
@@ -79,3 +83,12 @@ export const WORK_GROUPS: readonly WorkGroup[] = [
     ],
   },
 ];
+
+/**
+ * The tile at the end of the directory that leads to the live test. It is the Home site tile's
+ * sentence with one place word changed: the experiment cards are on the Home page, not above this one.
+ */
+export const WORK_SITE = {
+  title: HOME_SITE.title,
+  text: HOME_SITE.text.replace('the three experiment cards above', 'the three experiment cards on the Home page'),
+} as const;

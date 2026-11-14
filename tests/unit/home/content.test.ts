@@ -223,8 +223,8 @@ describe('the automation cards', () => {
       'profile.audible.setup_minutes_after',
     ]);
     expect(factIds(byId.n8n.description)).toEqual(['profile.n8n.automated_tests']);
-    expect(HOME_AUTOMATION.map((t) => t.meta)).toEqual([
-      'Browser automation, across markets',
+    expect(HOME_AUTOMATION.map((t) => headlineText(t.meta))).toEqual([
+      'Browser automation, 11 markets',
       'Multi-agent orchestration, Claude Code',
       'n8n, XRechnung, ZUGFeRD',
       'Python, FastAPI, Groq',
@@ -241,7 +241,9 @@ describe('the automation cards', () => {
     for (const t of HOME_AUTOMATION) {
       for (const id of factIds(t.description)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
       for (const s of stringParts(t.description)) expect(s, s).not.toMatch(/\d/);
-      expect(t.meta.replace(/n8n/g, ''), t.meta).not.toMatch(/\d/);
+      for (const id of factIds(t.meta)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      const meta = stringParts(t.meta).join('');
+      expect(meta.replace(/n8n/g, ''), meta).not.toMatch(/\d/);
       expect(t.title.length).toBeGreaterThan(0);
     }
   });
@@ -307,7 +309,7 @@ describe('all Home copy', () => {
       ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
       ...HOME_CASES.map((c) => headlineText(c.description)),
       ...HOME_CASES.map((c) => c.meta),
-      ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), t.meta]),
+      ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), headlineText(t.meta)]),
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
       ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
       ...[HOME_TILES.test, HOME_TILES.automate].flatMap((t) => [t.title, ...t.lines]),
