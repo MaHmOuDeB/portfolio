@@ -30,17 +30,18 @@ function Sketch({ kind, children }: { kind: string; children: ReactNode }) {
 }
 
 /**
- * A plain row (wider than MiniRow's label column): a mark, a name and an optional end. On a narrow
- * card the name wraps under itself rather than run into the end.
+ * A plain row (wider than MiniRow's label column): a mark, a name and an optional end. When the
+ * name and the end do not fit on one line of a narrow card, the end moves under the name, so the
+ * two never overlap.
  */
 function Row({ mark, name, end }: { mark: ReactNode; name: string; end?: ReactNode }) {
   return (
-    <div className="grid min-h-8.5 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-b border-hairline py-1 leading-tight">
-      {mark}
-      <span data-mini-label="" className="min-w-0">
+    <div className="flex min-h-8.5 flex-wrap items-center gap-x-2 gap-y-1 border-b border-hairline py-1 leading-tight">
+      <span className="flex w-4 shrink-0">{mark}</span>
+      <span data-mini-label="" className="min-w-0 flex-auto">
         {name}
       </span>
-      {end ?? null}
+      {end ? <span className="ml-auto flex">{end}</span> : null}
     </div>
   );
 }
