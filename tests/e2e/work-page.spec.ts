@@ -31,7 +31,7 @@ test.describe('the Work page', () => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle('Work');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Open the work and check it yourself.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Open the work and see how it was done.');
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);

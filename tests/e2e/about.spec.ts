@@ -127,7 +127,8 @@ test.describe('About and CV', () => {
 
   test('/about links the CV page, which opens', async ({ page }) => {
     await page.goto('/about');
-    await page.getByRole('main').getByRole('link', { name: 'Read my CV' }).click();
+    // The CV card holds one link; the call to action at the end repeats it as a button.
+    await page.locator('#cv').getByRole('link', { name: 'Read my CV' }).click();
     await expect(page).toHaveURL(/\/cv$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mahmoud El Bergui');
   });

@@ -314,7 +314,7 @@ test.describe('Home hero', () => {
   test('a link to #work lands on the experiments heading', async ({ browser }) => {
     const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
     await page.goto(`${page.url().split('#')[0]}#work`);
-    await expect(page.locator('#work h2')).toHaveText('Open the work and check it yourself.');
+    await expect(page.locator('#work h2')).toHaveText('Open the work and see how it was done.');
     await expect(page.locator('#work h2')).toBeInViewport();
     await page.context().close();
   });
