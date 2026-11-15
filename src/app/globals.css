@@ -1403,8 +1403,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       transform: none;
     }
 
+    /* Positioned, never static: each sheet's face is its ::before (absolute, inset -1px), and a static
+       sheet would hand all three faces to the rig, where the ink one covers the column. Its row
+       offsets (left, top) are for the wide rig only. */
     [data-depth-sheet] {
-      position: static;
+      position: relative;
+      inset: auto;
       width: min(320px, 100%);
       transform: none;
     }
