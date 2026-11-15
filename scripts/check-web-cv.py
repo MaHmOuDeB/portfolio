@@ -30,9 +30,10 @@ every link and action inside the file (compressed object streams included):
   more than the normal extraction);
 - structure: every section, entry and claim of the manifest is found once, in order, on its page,
   with its bullet marker; a page continuation only where the manifest declares it;
-- numerals: every numeral (digits or a number word) that is not a date, a year or a CEFR level is
-  covered by exactly one approval record bound to that exact claim, subject and span; a figure from
-  the facts must print as that fact's display.
+- numerals: every numeral (digits or a number word) that is not a date, a year, a CEFR level or a
+  digit inside an e-mail address on a header line (before the first section heading) is covered
+  by exactly one approval record bound to that exact claim, subject and span; a figure from the
+  facts must print as that fact's display.
 
 Findings name the rule and where it fired (page, line, claim id, span), never the matched text.
 Exit 0 when every check passes, 1 on any finding or when the PDF cannot be inspected, 2 on usage.
@@ -941,7 +942,7 @@ def parse_layout(pages: list[list[str]], manifest: dict) -> tuple[list[dict], li
                     summary_par["text"] = collapse(summary_par["text"] + " " + raw)
                     summary_par["lines"].append((pi, li))
                 continue
-            plain.append({"page": pi, "line": li, "text": raw})
+            plain.append({"page": pi, "line": li, "text": raw, "header": section is None})
         if open_claim:
             suspended, open_claim = open_claim, None
         close_summary()
@@ -987,8 +988,15 @@ def parse_layout(pages: list[list[str]], manifest: dict) -> tuple[list[dict], li
 
 
 # ───────────────────────────── checks ─────────────────────────────
-def numeral_findings_plain(text: str) -> list[tuple[int, int]]:
-    return [(a, b) for a, b in numeral_tokens(text) if not exempt(text, a, b)]
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+
+
+def numeral_findings_plain(text: str, header: bool = False) -> list[tuple[int, int]]:
+    """Numerals on a line outside any claim. On a header line (before the first section heading),
+    the digits inside an e-mail address are part of the address, not a figure."""
+    mail = [(m.start(), m.end()) for m in EMAIL.finditer(text)] if header else []
+    return [(a, b) for a, b in numeral_tokens(text)
+            if not exempt(text, a, b) and not any(s <= a and b <= e for s, e in mail)]
 
 
 def check_pdf(args) -> list[str]:
@@ -1110,7 +1118,7 @@ def check_pdf(args) -> list[str]:
             if key not in matched:
                 findings.append(f"records: {key} binds a claim that was not found")
         for p in plain:
-            for a, b in numeral_findings_plain(p["text"]):
+            for a, b in numeral_findings_plain(p["text"], p.get("header", False)):
                 findings.append(f"page {p['page']} line {p['line']}: numeral at column {a} outside any approved claim")
 
     if args.claims_out and manifest is not None:
