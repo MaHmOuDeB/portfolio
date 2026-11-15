@@ -55,6 +55,7 @@ const STORY_PARAGRAPHS: readonly (readonly [from: number, to: number])[] = [
   [0, 2],
   [2, 4],
   [4, 5],
+  [5, 6],
 ];
 if (STORY_PARAGRAPHS.at(-1)![1] !== ABOUT_STORY.length) throw new Error('about: the story paragraphs do not cover every sentence');
 
