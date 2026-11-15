@@ -315,7 +315,7 @@ describe('the About page', () => {
 /** Every claim on the CV page, in page order, word for word as it renders (figures as their facts print). */
 const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['summary-tenure', 'Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.'],
-  ['summary-tool', 'Built a browser-automation tool that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.'],
+  ['summary-tool', 'Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.'],
   ['summary-skills', 'MSc in Data Science (2025); I work in SQL and Python and build LLM applications and agentic workflows.'],
   ['mercor-data', 'Build high-quality training data for AI models, applying business and analytics expertise to produce accurate, well-documented work samples.'],
   ['mercor-accuracy', 'Put accuracy first: check and explain every result, and document the work so others can review and repeat it.'],
@@ -324,7 +324,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['audible-adopted', '20+ of my recommendations were adopted: most tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
   ['audible-metrics', 'Evaluated experiments for the teams that used mirrored metric setups (revenue primary and listening minutes secondary, or the reverse), with churn and incremental long-term value (ILTV) as guardrails.'],
   ['audible-crm', 'Contributed to CRM-driven personalisation for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.'],
-  ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from about 20 to about 3 minutes (about 85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
+  ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
   ['audible-ai-tools', 'Built AI tools adopted by the wider team after assessing Amazon Bedrock for team-efficiency use cases: an A/B test ideation tool that mines past experiment results, and a Jira launch-ticket generator.'],
   ['audible-reports', 'Built fortnightly Excel performance reports on experiments, campaigns and lifecycle KPIs from Tableau data for senior stakeholders of the teams I worked with.'],
   ['audible-campaigns', 'Set up and updated content campaigns in the CMS across app and website in 11 marketplaces, placing titles chosen with the content curation team; supported French-market content discovery and merchandising.'],

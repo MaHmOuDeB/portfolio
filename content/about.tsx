@@ -112,9 +112,8 @@ export const CV_SUMMARY: readonly CvClaim[] = [
     id: 'summary-tool',
     body: (
       <>
-        Built a browser-automation tool that cut test-account setup from about{' '}
-        <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" /> minutes
-        and was adopted team-wide.
+        Built a browser-automation tool that cut test-account setup from ~<Fact id="profile.audible.setup_minutes_before" />{' '}
+        to ~<Fact id="profile.audible.setup_minutes_after" /> minutes and was adopted team-wide.
       </>
     ),
   },
@@ -181,8 +180,8 @@ export const CV_EXPERIENCE: readonly CvEntry[] = [
         body: (
           <>
             Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut
-            test-account setup from about <Fact id="profile.audible.setup_minutes_before" /> to about{' '}
-            <Fact id="profile.audible.setup_minutes_after" /> minutes (about <Fact id="profile.audible.setup_time_cut" />)
+            test-account setup from ~<Fact id="profile.audible.setup_minutes_before" /> to ~
+            <Fact id="profile.audible.setup_minutes_after" /> minutes (~<Fact id="profile.audible.setup_time_cut" />)
             across <Fact id="profile.audible.markets" /> markets, then drove team-wide adoption via a guide and video.
           </>
         ),
