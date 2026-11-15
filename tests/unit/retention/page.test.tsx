@@ -1,7 +1,7 @@
 // The Retention case study page, the reference page later pages copy. It composes the sourced prose
-// and the four public-data Figures in the analysis template's order: a summary, then the problem,
-// the data, the method, one section per analysis step, the findings, how I checked this, the limits
-// and the links. Every number on it is a <Fact> or a <Derived> (the build's truth audit), the
+// and the four public-data Figures in the reading model: the plain opening and the glance card, four
+// findings (each a lead-in, its Figure, a takeaway and its method one click deeper), how I did it and
+// checked it as details rows, the limits, the links, the close and previous and next. Every number on it is a <Fact> or a <Derived> (the build's truth audit), the
 // win-back part is a sample-size calculation (with a planner of a hypothetical uplift beside it),
 // and nothing on it comes from the live experiment.
 import { readFileSync } from 'node:fs';
@@ -43,28 +43,64 @@ const PAGE_TEXT = text(PAGE);
 const ctx = { route: '/work/retention', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
 const ORDER = [
-  ['summary', 'Summary'],
-  ['problem', 'The problem'],
-  ['data', 'The data'],
-  ['method', 'Method'],
-  ['returns-cleaning', 'Cleaning: reversed orders and returns'],
-  ['cohort-retention', 'Cohorts: who orders again, month by month'],
-  ['customer-segments', 'Customer segments'],
+  ['returns-cleaning', 'A double count made returns look like they grew'],
+  ['cohort-retention', 'Who orders again, month by month'],
   ['repeat-order-model', 'A model of who orders again'],
   ['win-back-sizing', 'Sizing a win-back test'],
-  ['findings', 'Findings'],
-  ['how-i-checked-this', 'How I checked this'],
+  ['how-i-checked-this', 'How I did it and checked it'],
   ['limits', 'Limits'],
   ['sources', 'Sources and links'],
 ] as const;
+/** The four findings: each a lead-in, its Figure in a sheet, a takeaway and a details row. */
+const FINDINGS = ['returns-cleaning', 'cohort-retention', 'repeat-order-model', 'win-back-sizing'] as const;
+/** The markup of every native details row in some markup, keyed by its summary text. */
+const detailsRows = (markup: string) =>
+  Object.fromEntries(
+    [...markup.matchAll(/<details data-method=""[^>]*>([\s\S]*?)<\/details>/g)].map((m) => [
+      text(/<summary[^>]*>([\s\S]*?)<\/summary>/.exec(m[1]!)![1]!),
+      m[1]!.slice(m[1]!.indexOf('</summary>')),
+    ]),
+  );
+const between = (markup: string, from: string, to: string) => markup.slice(markup.indexOf(from), markup.indexOf(to, markup.indexOf(from)));
+const GLANCE = between(PAGE, '<section aria-label="At a glance"', '</section>');
+const exhibit = (id: string, part: 'lead-in' | 'takeaway') =>
+  text(new RegExp(`<div data-${part}=""><p data-exhibit-label="">[^<]*</p><p data-exhibit-text="">([\\s\\S]*?)</p></div>`).exec(section(PAGE, id))![1]!);
 
 describe('the outline', () => {
-  it('has one h1, the page title', () => {
+  it('has one h1 in two tones: who orders again, and how to test a win-back offer', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="retention-title"[^>]*>Customer retention and reactivation analysis<\/h1>/);
+    const h1 = /<h1 id="retention-title"[^>]*>([\s\S]*?)<\/h1>/.exec(PAGE)![1]!;
+    expect(text(h1)).toBe('Who orders again, and how to test a win-back offer.');
+    expect(h1).toMatch(/^Who orders again, <span[^>]*>and how to test a win-back offer\.<\/span>$/);
   });
 
-  it('puts the sections in the analysis template order, each named by its own h2', () => {
+  it('opens in plain words, then the repository button', () => {
+    const head = between(PAGE, '</h1>', '<section aria-label="At a glance"');
+    expect(text(/<p data-plain-opening="">([\s\S]*?)<\/p>/.exec(head)![1]!)).toBe(
+      "A shop wants to win back customers who stopped ordering. Before it spends on offers it needs to know two things: are its numbers right, and who would have come back anyway? I worked through both on two years of public order data from a UK gift retailer, rebuilt in 2026 from my Master's projects.",
+    );
+    const { repo: name, commit } = lock.sources.retention!;
+    expect(head).toMatch(new RegExp(`<div data-case-actions=""[^>]*><a href="https://github.com/${name}/tree/${commit}"[\\s\\S]*See the code on GitHub</a></div>`));
+  });
+
+  it('has the glance card: three pull figures from the facts, one sentence, the facts and the scope, and no Summary block', () => {
+    const points = /<ul role="list" data-glance-points=""[^>]*>([\s\S]*?)<\/ul>/.exec(GLANCE)![1]!;
+    const ids = [...points.matchAll(/data-fact="([^"]+)"/g)].map((m) => m[1]);
+    expect(ids).toEqual(['retail.returns.yoy_growth_raw', 'retail.returns.yoy_growth_clean', 'retention.winback.n_per_arm']);
+    expect(text(points)).toBe(
+      '29% growth in returns, as a double count first showed it about 2% the real growth, with the double count removed 1,353 customers per group for a fair test of a win-back offer',
+    );
+    expect(text(/<p data-glance-outcome="">([\s\S]*?)<\/p>/.exec(GLANCE)![1]!)).toBe(
+      'A model predicts who orders again only slightly better than putting the most recent buyers first, so the next step is a test with a holdout group, not a campaign to the top scorers.',
+    );
+    expect(text(GLANCE)).toContain(
+      "Scope Public dataset, rebuilt in 2026 from my Master's projects. A prediction and a sample size: nobody was contacted and no test was run.",
+    );
+    expect(PAGE).not.toContain('id="summary"');
+    expect(PAGE_TEXT).not.toMatch(/\bSummary\b|Next step|What I would recommend/);
+  });
+
+  it('puts the visible sections in the reading order, each named by its own h2, then the close', () => {
     const sections = [...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"[^>]*>([^<]+)<\/h2>/g)].map(
       (m) => [m[1], m[2], m[3], decode(m[4]!)],
     );
@@ -74,33 +110,28 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(RETENTION_SECTIONS.map((s) => s.id)).toEqual(ORDER.map(([id]) => id));
-    // every h2 on the page is a section title: no stray level
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length);
+    const h2s = [...PAGE.matchAll(/<h2 [^>]*>([\s\S]*?)<\/h2>/g)].map((m) => text(m[1]!));
+    expect(h2s).toEqual([...ORDER.map(([, title]) => title), 'What this shows about how I work']);
   });
 
-  it('has concise section links whose targets exist, in page order, under a named navigation', () => {
+  it('never skips a heading level', () => {
+    const levels = [...PAGE.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
+    for (let i = 1; i < levels.length; i++) expect(levels[i]! - levels[i - 1]!, `heading ${i}`).toBeLessThanOrEqual(1);
+  });
+
+  it('has in-page links whose targets are visible headings, in page order, after the glance card', () => {
     const nav = /<nav aria-label="On this page"[^>]*>([\s\S]*?)<\/nav>/.exec(PAGE);
     expect(nav).not.toBeNull();
     const links = [...nav![1]!.matchAll(/<a [^>]*href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
-    expect(links.map(([href]) => href)).toEqual(ORDER.slice(1).map(([id]) => id));
-    expect(links.map(([, label]) => label)).toEqual([
-      'Problem',
-      'Data',
-      'Method',
-      'Cleaning',
-      'Cohorts',
-      'Segments',
-      'Model',
-      'Win-back sizing',
-      'Findings',
-      'How I checked this',
-      'Limits',
-      'Sources',
-    ]);
-    for (const [id] of links) expect(PAGE).toContain(`id="${id}"`);
-    // the summary comes before the section links, the problem after them
-    expect(PAGE.indexOf('<nav aria-label="On this page"')).toBeGreaterThan(PAGE.indexOf('<section id="summary"'));
-    expect(PAGE.indexOf('<nav aria-label="On this page"')).toBeLessThan(PAGE.indexOf('<section id="problem"'));
+    expect(links.map(([href]) => href)).toEqual(ORDER.map(([id]) => id));
+    expect(links.map(([, label]) => label)).toEqual(['Returns', 'Cohorts', 'Model', 'Win-back sizing', 'How I checked this', 'Limits', 'Sources']);
+    for (const [id] of links) {
+      const at = PAGE.indexOf(`id="${id}"`);
+      expect(at).toBeGreaterThan(0);
+      const before = PAGE.slice(0, at);
+      expect(before.split('<details').length, id).toBe(before.split('</details>').length);
+    }
+    expect(PAGE.indexOf('<nav aria-label="On this page"')).toBeGreaterThan(PAGE.indexOf('aria-label="At a glance"'));
   });
 
   it('keeps every element id unique', () => {
@@ -108,11 +139,11 @@ describe('the outline', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('places each Figure in its own analysis section, after the prose that explains it', () => {
+  it('places each Figure in its own section, after the sentence that says what to look at', () => {
     const placed: [string, string][] = [
       ['returns-cleaning', 'returns'],
       ['cohort-retention', 'cohorts'],
-      ['customer-segments', 'rfm'],
+      ['how-i-checked-this', 'rfm'],
       ['repeat-order-model', 'models'],
       ['win-back-sizing', 'winback'],
       ['win-back-sizing', 'winback-duration'],
@@ -123,6 +154,11 @@ describe('the outline', () => {
       expect(s.indexOf('<p')).toBeLessThan(s.indexOf(`data-figure="${figureId}"`));
     }
     expect([...PAGE.matchAll(/<figure [^>]*data-figure="/g)]).toHaveLength(placed.length);
+    // The segments Figure sits in its details row, with the SQL.
+    const rows = detailsRows(section(PAGE, 'how-i-checked-this'));
+    expect(Object.keys(rows)).toEqual(['The data', 'Method', 'Customer segments', 'The reversal rule in SQL', 'How I checked this']);
+    expect(rows['Customer segments']).toContain('data-figure="rfm"');
+    expect(rows['The reversal rule in SQL']).toContain('<pre');
   });
 
   it('badges each of the four public-data Figures Public data, never Simulated', () => {
@@ -134,58 +170,106 @@ describe('the outline', () => {
     }
   });
 
-  it('keeps prose in the readable column and lets the evidence run wider', () => {
-    for (const [id] of ORDER) {
+  it('gives each finding a lead-in, its evidence in a sheet, a takeaway and its method one click deeper', () => {
+    for (const id of FINDINGS) {
       const s = section(PAGE, id);
-      expect(s, id).toMatch(/class="[^"]*max-w-text/);
+      const lead = s.indexOf('data-lead-in');
+      const sheet = s.indexOf('data-figure-sheet');
+      const take = s.indexOf('data-takeaway');
+      const details = s.indexOf('<details data-method');
+      expect(lead, id).toBeGreaterThan(0);
+      expect(sheet, id).toBeGreaterThan(lead);
+      expect(take, id).toBeGreaterThan(sheet);
+      expect(details, id).toBeGreaterThan(take);
     }
-    expect(PAGE).toContain('max-w-figure');
-    // The page's own markup (Figures aside: their marks move only in answer to a control) has no
-    // animation and no grid of identical cards.
-    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '');
+    expect(exhibit('returns-cleaning', 'lead-in')).toBe(
+      'Switch between counting cancelled orders as returns and removing them, and watch January 2011: the axis keeps room for the counted spike, so the empty space is what the double count added.',
+    );
+    expect(exhibit('returns-cleaning', 'takeaway')).toBe(
+      'One £77k order, placed and cancelled within a day, produced most of the apparent growth, so a dashboard would have reported a returns problem that did not exist.',
+    );
+    expect(exhibit('cohort-retention', 'lead-in')).toBe(
+      'A cohort is customers grouped by the month of their first order; read each row across to see what share of them ordered again in each later month.',
+    );
+    expect(exhibit('cohort-retention', 'takeaway')).toBe(
+      'About 20% of new customers order again the next month, and about 18% in the twelfth month after their first order.',
+    );
+    expect(exhibit('repeat-order-model', 'lead-in')).toBe(
+      'Compare the model with the simple rule that puts the most recent buyers first, and see how close their two scores are.',
+    );
+    expect(exhibit('repeat-order-model', 'takeaway')).toBe(
+      'The model finds people who were coming back anyway, so a campaign to its top scorers would look like a success and prove nothing.',
+    );
+    expect(exhibit('win-back-sizing', 'lead-in')).toBe(
+      'A holdout is customers who get no offer, so their behaviour shows what would have happened anyway; the table shows how many customers each group of such a test needs.',
+    );
+    expect(exhibit('win-back-sizing', 'takeaway')).toBe(
+      'The next step is a test with 1,353 lapsed customers per group against a holdout, not a campaign to the top scorers.',
+    );
+  });
+
+  it('has no motion and no card grid of its own', () => {
+    // The kit's buttons change colour on hover (transition-colors); nothing on the page moves.
+    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '').replace(/ transition-colors/g, '');
     expect(own).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(own).not.toMatch(/grid-cols-/);
   });
 
-  it('makes the cleaning evidence lead: the two growth figures before the Figure', () => {
-    const s = section(PAGE, 'returns-cleaning');
-    const raw = s.indexOf('data-fact="retail.returns.yoy_growth_raw"');
-    const clean = s.indexOf('data-fact="retail.returns.yoy_growth_clean"');
-    expect(raw).toBeGreaterThan(-1);
-    expect(clean).toBeGreaterThan(raw);
-    expect(clean).toBeLessThan(s.indexOf('data-figure="returns"'));
+  it('ends with the close, then previous Audible and next Pulse', () => {
+    const close = between(PAGE, '<section data-page-close=""', '</section>');
+    expect(close).toContain('id="what-this-shows"');
+    expect(text(close)).toContain(
+      'I check that the numbers are right before I analyse them, and I treat a prediction as a reason to test, not as proof that an offer works.',
+    );
+    const next = /<nav aria-label="More work" data-next-row=""[^>]*>([\s\S]*?)<\/nav>/.exec(PAGE)![1]!;
+    const links = [...next.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
+    expect(links).toEqual([
+      ['/work/audible', 'Previous Audible'],
+      ['/work/pulse', 'Next Pulse'],
+    ]);
   });
 });
 
 describe('periods, denominators and names', () => {
   it('names the cohorts, the cutoff, the rise the sizing depends on and the model', () => {
-    const summary = text(section(PAGE, 'summary'));
-    expect(summary).toContain('Across the January to November 2010 cohorts, weighted by size, about 20% order again in the month after their first order.');
-    const findings = text(section(PAGE, 'findings'));
-    expect(findings).toContain('Across the January to November 2010 cohorts, about 20% order again in the month after their first order, and about 18% in the twelfth month after it.');
-    expect(findings).toContain('Champions are 23% of customers at the September 2011 cutoff and hold 71% of spend up to it, partly by construction.');
-    expect(findings).toContain('Sized to detect a rise of 5 percentage points, a holdout test of all lapsed customers needs 1,353 per group and fits in one period');
+    const rows = detailsRows(section(PAGE, 'how-i-checked-this'));
+    expect(text(rows['Customer segments']!)).toContain(
+      'They are 23% of customers and hold 71% of spend up to the cutoff.',
+    );
     expect(text(section(PAGE, 'limits'))).toContain('The scores rank customers but are not calibrated probabilities: in the tenth of customers with the lowest scores, the gradient-boosting model predicted 3.1% on average and 8.7% ordered again.');
     expect(text(section(PAGE, 'limits'))).not.toContain('it predicted');
-    expect(text(section(PAGE, 'method'))).toContain('I worked in five steps; most have their own period and their own group of customers:');
+    expect(text(rows.Method!)).toContain('I worked in five steps; most have their own period and their own group of customers:');
     expect(text(section(PAGE, 'cohort-retention'))).toContain(
       'about 20% order again in the month after their first order and about 18% in the twelfth month after it.',
+    );
+    expect(text(section(PAGE, 'win-back-sizing'))).toContain(
+      'detecting a rise from 29% to 34%, an uplift of 5 percentage points, needs 1,353 lapsed customers in each group',
     );
     expect(PAGE_TEXT).not.toMatch(/About 20% of a cohort|the model predicted|each with its own period|a year after it/);
   });
 });
 
-describe('the summary', () => {
-  it('has question, my role, method, result, what I would recommend and next step', () => {
-    const s = section(PAGE, 'summary');
-    const labels = [...s.matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((m) => decode(m[1]!));
-    expect(labels).toEqual(['Question', 'My role', 'Method', 'Result', 'What I would recommend', 'Next step']);
+describe('repetition', () => {
+  const count = (re: RegExp) => (PAGE_TEXT.match(re) ?? []).length;
+
+  it('says nobody was contacted at most twice, and "partly by construction" at most twice', () => {
+    expect(count(/nobody was contacted/gi)).toBeLessThanOrEqual(2);
+    expect(count(/no test was run/gi)).toBeLessThanOrEqual(2);
+    expect(count(/partly by construction/gi)).toBeLessThanOrEqual(2);
   });
 
-  it('labels the decision as a recommendation, never as a decision someone took', () => {
-    const s = text(section(PAGE, 'summary'));
-    expect(s).toContain('What I would recommend');
-    expect(s).not.toMatch(/\bDecision\b/);
+  it('says the review caught the inflated growth once, under Limits', () => {
+    expect(count(/The inflated growth was not my catch: a review caught it and I fixed it\./g)).toBe(1);
+    expect(text(section(PAGE, 'limits'))).toContain('The inflated growth was not my catch: a review caught it and I fixed it.');
+  });
+
+  it('says the win-back was sized, never designed or run', () => {
+    expect(PAGE_TEXT).toContain('I sized a possible holdout test.');
+    expect(PAGE_TEXT).not.toMatch(/I (designed|ran) (a|the) (win-back|holdout)/i);
+  });
+
+  it('has no em or en dash in its own words', () => {
+    expect(PAGE_TEXT).not.toMatch(/[–—]/);
   });
 });
 
@@ -195,7 +279,8 @@ describe('truth', () => {
   });
 
   it('names the work as a public dataset rebuilt in 2026', () => {
-    expect(PAGE_TEXT).toContain('public dataset, rebuilt in 2026');
+    expect(PAGE_TEXT).toMatch(/Public dataset, rebuilt in 2026/);
+    expect(PAGE_TEXT).toContain('public order data from a UK gift retailer, rebuilt in 2026');
   });
 
   const ariaText = [...PAGE.matchAll(/aria-label="([^"]*)"/g)].map((m) => decode(m[1]!)).join(' ');
@@ -231,8 +316,8 @@ describe('the win-back section', () => {
   const s = section(PAGE, 'win-back-sizing');
   const t = text(s);
 
-  it('says it was sized, that nobody was contacted and no test was run', () => {
-    expect(t).toContain('I sized a possible holdout test; nobody was contacted and no test was run.');
+  it('says it was sized', () => {
+    expect(t).toContain('I sized a possible holdout test.');
   });
 
   it('prints the baseline, the uplift and the size per group through their facts, and derives the target', () => {
@@ -405,7 +490,7 @@ describe('links', () => {
   it('makes every link on the page a 44 px target', () => {
     const anchors = [...PAGE.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
     expect(anchors.length).toBeGreaterThan(15);
-    for (const a of anchors) expect(a, a).toContain('data-touch-target=""');
+    for (const a of anchors) expect(a, a).toMatch(/data-touch-target="(true)?"/);
   });
 
   it('links each repository at its pinned commit', () => {
@@ -428,7 +513,7 @@ describe('the route and the host', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('Customer retention and reactivation analysis | Mahmoud El Bergui');
+    expect(mod.metadata.title).toBe('Retention analysis: who orders again, and how to test a win-back offer | Mahmoud El Bergui');
     // the description is plain words: its only digits are the literal year of the rebuild
     expect(String(mod.metadata.description).replace('rebuilt in 2026', '')).not.toMatch(/\d/);
     expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);

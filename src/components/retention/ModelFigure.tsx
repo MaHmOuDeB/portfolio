@@ -6,7 +6,7 @@
 //   half (chance) to one (a perfect ranking), with its value from its fact. Neither AUC has an
 //   interval of its own, so none is drawn: the interval belongs to the gain, which the result line
 //   gives through its facts (never the difference of the two printed AUCs).
-// - It is ranking accuracy on observed orders, not a response to an offer: nobody was contacted.
+// - It is ranking accuracy on observed orders, not a response to an offer (the page says once that nobody was contacted).
 // - The table is the sourced models table, with logistic regression and the lapsed-only scores too.
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
@@ -151,8 +151,8 @@ export function ModelFigure() {
           <Derived value={WINDOW_DAYS} unit="count" refs={REFS} /> days after the September 2011 cutoff. The model learned
           on an earlier cutoff and both were scored on this later one. A ROC AUC is the chance that a customer who
           ordered again is ranked above one who did not: one half is no better than chance, one is a perfect ranking.
-          This is ranking accuracy, not a response to any offer: nobody was contacted, and a high score is a
-          prediction, not an effect of contact. The table adds logistic regression and the scores for lapsed customers
+          This is ranking accuracy, not a response to any offer: a high score is a prediction, not an effect of
+          contact. The table adds logistic regression and the scores for lapsed customers
           only.
         </>
       }

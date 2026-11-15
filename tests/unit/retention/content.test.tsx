@@ -7,12 +7,16 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
+  RETENTION_GLANCE,
   RetentionChecks,
+  RetentionIntro,
   RetentionLimits,
   RetentionMethod,
   RetentionSources,
-  RetentionSummary,
+  ReturnsTakeaway,
+  WinBackTakeaway,
 } from '../../../content/retention';
+import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { FACTS, FACT_DISPLAYS, getFact } from '@/lib/facts';
 import { RETAIL, RETENTION } from '@/lib/retention/data';
 import { sampleSizePerArm } from '@/lib/stats';
@@ -24,7 +28,10 @@ const lock = JSON.parse(readFileSync(join(repo, 'sources.lock.json'), 'utf8')) a
 };
 
 const SECTIONS: readonly [name: string, Section: () => ReactNode][] = [
-  ['summary', RetentionSummary],
+  ['opening', RetentionIntro],
+  ['glance', () => <GlanceBlock {...RETENTION_GLANCE} />],
+  ['returns-takeaway', ReturnsTakeaway],
+  ['win-back-takeaway', WinBackTakeaway],
   ['method', RetentionMethod],
   ['checks', RetentionChecks],
   ['limits', RetentionLimits],
@@ -56,20 +63,19 @@ describe('every section', () => {
 
 describe('honest wording', () => {
   it('names the project as a public dataset, rebuilt in 2026, with the literal year', () => {
-    expect(pageText).toContain('public dataset, rebuilt in 2026');
+    expect(pageText).toContain('Public dataset, rebuilt in 2026');
     const source = readFileSync(join(repo, 'content/retention.tsx'), 'utf8');
-    expect(source).toContain('public dataset, rebuilt in 2026');
-    expect(pageText).toContain('Two personal projects on the same public dataset, rebuilt in 2026');
-    expect(pageText).toContain('sized a holdout test');
+    expect(source).toContain('Public dataset, rebuilt in 2026');
+    expect(pageText).toContain('public order data from a UK gift retailer, rebuilt in 2026');
+    expect(pageText).toContain('I sized a possible holdout test.');
     expect(source).not.toMatch(/getFullYear|new Date\(|Date\.now/);
   });
 
   it('says the win-back test was sized, that nobody was contacted and no test was run', () => {
     expect(pageText).toMatch(/\bsized\b/);
-    expect(pageText).toContain('Nobody was contacted');
-    expect(pageText).toContain('no test was run');
-    // Both sample-size sentences carry the settings the size depends on.
-    expect(pageText.split('two-sided, a 5% significance level and 80% power')).toHaveLength(3);
+    expect(pageText).toContain('nobody was contacted and no test was run');
+    // The sample-size sentence carries the settings the size depends on.
+    expect(pageText.split('two-sided, a 5% significance level and 80% power')).toHaveLength(2);
   });
 
   it('gives the exact Champions definition and its by-construction caveat', () => {
@@ -91,31 +97,32 @@ describe('honest wording', () => {
   });
 });
 
-describe('the summary', () => {
-  const summary = html(RetentionSummary);
+describe('the glance card and the takeaways', () => {
+  const glance = html(() => <GlanceBlock {...RETENTION_GLANCE} />);
+  const method = html(RetentionMethod);
 
-  it('has the six labelled items, the decision as what I would recommend', () => {
-    const labels = [...summary.matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((m) => decode(m[1]!));
-    expect(labels).toEqual(['Question', 'My role', 'Method', 'Result', 'What I would recommend', 'Next step']);
+  it('pulls the raw and clean returns growth and the per-group size through their facts', () => {
+    expect(glance).toContain('data-fact="retail.returns.yoy_growth_raw"');
+    expect(glance).toContain('data-fact="retail.returns.yoy_growth_clean"');
+    expect(glance).toContain('data-fact="retention.winback.n_per_arm"');
+    expect(html(WinBackTakeaway)).toContain('data-fact="retention.winback.n_per_arm"');
   });
 
   it('prints the returns growth through the retail facts, mostly one order on its source date', () => {
-    expect(summary).toContain('data-fact="retail.returns.yoy_growth_raw"');
-    expect(summary).toContain('data-fact="retail.returns.yoy_growth_clean"');
-    expect(text(summary)).toContain('grew 29% in January to November 2011 against the same months of 2010');
-    const method = html(RetentionMethod);
+    expect(text(method)).toContain('January to November 2011 with the same months of 2010');
     expect(method).toContain('data-fact="retail.reversal.january_gbp"');
+    expect(html(ReturnsTakeaway)).toContain('data-fact="retail.reversal.january_gbp"');
     const january = RETAIL.tables.largest_reversals.find((r) => r.value_gbp === getFact('retail.reversal.january_gbp').value);
     expect(january?.date).toBe('2011-01-18');
     expect(text(method)).toContain('mostly from one £77k order, placed on 18 Jan 2011 and cancelled within 24 hours');
   });
 
   it('derives the target rate from the baseline and the uplift', () => {
-    const target = /<data value="([^"]+)" data-derived="retention\.winback\.baseline_rate retention\.winback\.uplift_pp">([^<]*)<\/data>/.exec(summary);
+    const target = /<data value="([^"]+)" data-derived="retention\.winback\.baseline_rate retention\.winback\.uplift_pp">([^<]*)<\/data>/.exec(method);
     expect(target).not.toBeNull();
     expect(target![1]).toBe('0.34');
     expect(target![2]).toBe('34%');
-    expect(summary).toContain('data-fact="retention.winback.n_per_arm"');
+    expect(method).toContain('data-fact="retention.winback.n_per_arm"');
   });
 });
 

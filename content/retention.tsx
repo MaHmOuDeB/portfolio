@@ -164,6 +164,11 @@ export function RetentionCleaning(): ReactNode {
   return (
     <>
       <p className={ITEM}>
+        Removing orders cancelled within <Hours /> hours changes the returns story: returned-order value grew about{' '}
+        <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{' '}
+        <Fact id="retail.returns.yoy_growth_raw" />.
+      </p>
+      <p className={ITEM}>
         A cancellation that matches an order line from the same customer, for the same product and quantity, placed up
         to <Hours /> hours before it, marks an order that never happened, so I remove both lines. That rule takes out
         orders cancelled within <Hours /> hours, about <Fact id="retention.data.reversed_revenue_gbp" /> of revenue.
@@ -205,7 +210,7 @@ export function RetentionSegments(): ReactNode {
       <Derived value={TOP_SCORE} unit="count" refs={['source:retention']} /> out of{' '}
       <Derived value={TOP_SCORE} unit="count" refs={['source:retention']} /> on each of recency, frequency and spend
       (roughly the top two-fifths on each). They are <Fact id="retention.rfm.champions_customer_share" /> of customers
-      and hold <Fact id="retention.rfm.champions_revenue_share" /> of spend up to the cutoff, partly by construction.
+      and hold <Fact id="retention.rfm.champions_revenue_share" /> of spend up to the cutoff.
     </p>
   );
 }
@@ -489,8 +494,8 @@ export function CohortTakeaway(): ReactNode {
 export function ModelLeadIn(): ReactNode {
   return (
     <>
-      Compare the model with the simple rule that puts the most recent buyers first; ROC AUC is the chance that a customer
-      who ordered again is ranked above one who did not, so a coin flip scores one half and a perfect ranking scores one.
+      Compare the model with the simple rule that puts the most recent buyers first, and see how close their two scores
+      are.
     </>
   );
 }
@@ -541,7 +546,7 @@ export function RetentionLimits(): ReactNode {
       'observational',
       <>
         This is historic, observational data from one UK gift retailer. It shows who ordered again, not how anyone would
-        respond to a win-back offer. Nobody was contacted.
+        respond to a win-back offer.
       </>,
     ],
     [

@@ -460,10 +460,9 @@ describe('the model Figure', () => {
     expect(text(MODELS)).not.toMatch(/0\.031|0\.023|0\.038/);
   });
 
-  it('is ranking accuracy, not a response to contact: nobody was contacted', () => {
+  it('is ranking accuracy, not a response to contact (the page states once, in its scope, that nobody was contacted)', () => {
     const c = prose(caption(MODELS));
     expect(c).toContain('ranking accuracy, not a response to any offer');
-    expect(c).toContain('nobody was contacted');
     expect(c).toContain('a prediction, not an effect of contact');
     expect(text(MODELS)).not.toMatch(/response rate|responded|uplift/i);
     // the table is the sourced models table: all three models, all customers and lapsed only, every
