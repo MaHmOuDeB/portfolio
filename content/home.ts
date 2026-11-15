@@ -348,8 +348,20 @@ export const HOME_SITE_HEAD = {
   quiet: 'part of the evidence.',
 } as const satisfies SectionCopy;
 
+/**
+ * A part of a FAQ answer: text, a fact, a link (a site path, or a repository the site already links,
+ * marked external) or a month (yyyy-mm, printed in a <time> the way the About timeline prints it).
+ */
+export type FaqPart = HeadlinePart | { text: string; href: string; external?: true } | { month: `${number}-${number}` };
+
+/** The public repositories the FAQ links (the same addresses as the Docproof and n8n pages). */
+export const FAQ_REPOS = {
+  docproof: 'https://github.com/MaHmOuDeB/docproof',
+  n8n: 'https://github.com/MaHmOuDeB/n8n-workflow-library',
+} as const;
+
 /** The Home FAQ. Answers are parts, so each figure is printed from the facts data. */
-export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; answer: readonly HeadlinePart[] }[] } = {
+export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; answer: readonly FaqPart[] }[] } = {
   head: { chip: 'FAQ', title: 'Questions hiring teams ask', sub: 'Short answers; the pages behind them have the detail.' },
   items: [
     {
@@ -369,22 +381,44 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
       ],
     },
     {
-      question: 'Can I see the Audible results?',
+      // Mercor only in the words the About page and the CV use: a contract role, training data for AI models.
+      question: 'What have you done since Audible?',
       answer: [
-        'No. Revenue, conversion and lift figures are confidential, so this site shows none of them. The Audible page explains how I worked, and the Lab shows the statistics on simulated data.',
+        'I finished my MSc in Data Science in ',
+        { month: '2025-11' },
+        ". Since then I have rebuilt my Master's projects on public data and built Docproof, the n8n workflow library and this site. Since ",
+        { month: '2026-10' },
+        ' I also work on contract at Mercor, building training data for AI models.',
       ],
     },
     {
+      question: 'Can I see the Audible results?',
+      answer: [
+        'Not the figures: revenue, conversion and lift numbers are confidential. You can see how I worked on ',
+        { text: 'the Audible page', href: HOME_LINKS.audible },
+        ', the statistics on simulated data in ',
+        { text: 'the Lab', href: HOME_LINKS.lab },
+        ', and a real test with public data on ',
+        { text: 'the Live test page', href: HOME_LINKS.experiment },
+        '.',
+      ],
+    },
+    {
+      // The two Audible tools and the Bedrock evaluation are separate sentences: nothing says the tools ran on it.
       question: 'How do you work with AI?',
       answer: [
-        'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has ',
-        { fact: 'profile.n8n.automated_tests' },
-        ' automated tests.',
+        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
       ],
     },
     {
       question: 'Is the code public?',
-      answer: ['Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
+      answer: [
+        'Yes. ',
+        { text: 'Docproof', href: FAQ_REPOS.docproof, external: true },
+        ' and ',
+        { text: 'the n8n workflow library', href: FAQ_REPOS.n8n, external: true },
+        ' are on GitHub under the MIT licence, and so is the code of this site.',
+      ],
     },
     {
       question: 'Which languages do you speak?',

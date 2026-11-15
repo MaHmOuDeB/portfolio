@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, HOME_CASES } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { LANGUAGES, SHIPPED_TOOLS } from '../../../content/about';
+import { LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
+import { DOCPROOF_REPO } from '../../../content/docproof';
+import { N8N_REPO } from '../../../content/n8n';
 import { aboutPhoto } from '../../../content/about-photo';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { PULSE_EVENT_NAMES } from '@/lib/pulse/names';
@@ -62,6 +64,7 @@ function text(node: T.ParentNode): string {
   return s;
 }
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
+const row0 = (root: El, q: string) => all(root, (el) => el.tagName === 'details').find((r) => text(r).includes(q))!;
 const classes = (el: El) => (attr(el, 'class') ?? '').split(/\s+/).filter(Boolean);
 const doc = (html: string) => parse(`<!doctype html><html><body>${html}</body></html>`);
 const render = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
@@ -453,9 +456,9 @@ describe('HomeFaq', () => {
     expect(head(root)).toMatchObject({ chip: 'FAQ', title: 'Questions hiring teams ask', quiet: null, sub: 'Short answers; the pages behind them have the detail.' });
   });
 
-  it('has seven native rows, the first open, with the answers word for word', () => {
+  it('has eight native rows, the first open, with the answers word for word', () => {
     const rows = all(root, (el) => el.tagName === 'details');
-    expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false]);
+    expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false, false]);
     const qa = rows.map((r) => [squash(text(one(r, (el) => el.tagName === 'summary'))), squash(text(one(r, (el) => has(el, 'data-faq-answer'))))]);
     expect(qa).toEqual([
       ['What roles are you looking for?', 'Roles in AI automation, experimentation and product analytics in Germany. I am based in Berlin.'],
@@ -464,18 +467,48 @@ describe('HomeFaq', () => {
         'I was a working student for nearly two years, mainly in growth experimentation with some marketing analytics. I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes.',
       ],
       [
+        'What have you done since Audible?',
+        "I finished my MSc in Data Science in Nov 2025. Since then I have rebuilt my Master's projects on public data and built Docproof, the n8n workflow library and this site. Since Oct 2026 I also work on contract at Mercor, building training data for AI models.",
+      ],
+      [
         'Can I see the Audible results?',
-        'No. Revenue, conversion and lift figures are confidential, so this site shows none of them. The Audible page explains how I worked, and the Lab shows the statistics on simulated data.',
+        'Not the figures: revenue, conversion and lift numbers are confidential. You can see how I worked on the Audible page, the statistics on simulated data in the Lab, and a real test with public data on the Live test page.',
       ],
       [
         'How do you work with AI?',
-        'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has 270+ automated tests.',
+        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
       ],
       ['Is the code public?', 'Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
       ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2), German (B1) and Spanish (A2).'],
       // The contact form passes each message on to my inbox (the privacy notice says so), so the last sentence stays.
       ['How do I reach you?', 'Through the contact form or on LinkedIn. I answer myself.'],
     ]);
+  });
+
+  it('links the pages and the repositories its answers name', () => {
+    const row = (q: string) => all(root, (el) => el.tagName === 'details').find((r) => text(r).includes(q))!;
+    const links = (q: string) => all(row(q), (el) => el.tagName === 'a').map((a) => [squash(text(a)), attr(a, 'href')]);
+    expect(links('Can I see the Audible results?')).toEqual([
+      ['the Audible page', '/work/audible'],
+      ['the Lab', '/lab'],
+      ['the Live test page', '/experiment'],
+    ]);
+    expect(links('Is the code public?')).toEqual([
+      ['Docproof', DOCPROOF_REPO],
+      ['the n8n workflow library', N8N_REPO.base],
+    ]);
+  });
+
+  it('prints the months of the new row the way the About timeline prints them, from its own entries', () => {
+    const times = all(row0(root, 'What have you done since Audible?'), (el) => el.tagName === 'time');
+    const msc = TIMELINE.find((t) => t.role === 'MSc Data Science')!;
+    const mercor = TIMELINE.find((t) => t.where.startsWith('Mercor'))!;
+    expect(times.map((t) => attr(t, 'datetime'))).toEqual([msc.range.to, mercor.range.from]);
+    expect(times.map((t) => text(t))).toEqual(['Nov 2025', 'Oct 2026']);
+  });
+
+  it('aligns its head like the other Home heads: centred, the sub under the h2', () => {
+    expect(attr(one(root, (el) => has(el, 'data-section-head')), 'data-align')).toBe('center');
   });
 
   it("answers the languages question from the About page's own list, so the two never disagree", () => {
@@ -489,7 +522,6 @@ describe('HomeFaq', () => {
       'profile.audible.experiments',
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
-      'profile.n8n.automated_tests',
     ]);
     expect(audit(html)).toEqual([]);
   });

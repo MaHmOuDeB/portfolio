@@ -23,6 +23,7 @@ import {
   HOME_AUTOMATE_LINES,
   HOME_QUESTIONS,
   HOME_FAQ,
+  type FaqPart,
   TOOLS_LABEL,
   headlineText,
   type HeadlinePart,
@@ -37,6 +38,12 @@ const repo = join(import.meta.dirname, '../../..');
 const codePoints = (s: string) => [...s].length;
 const factIds = (parts: readonly HeadlinePart[]): FactId[] =>
   parts.flatMap((p) => (typeof p === 'string' ? [] : [p.fact]));
+/** A FAQ answer's fact ids, its plain text parts, and its words (link text as shown, a month as yyyy-mm). */
+const faqFacts = (parts: readonly FaqPart[]): FactId[] => parts.flatMap((p) => (typeof p !== 'string' && 'fact' in p ? [p.fact] : []));
+const faqStrings = (parts: readonly FaqPart[]): string[] =>
+  parts.flatMap((p) => (typeof p === 'string' ? [p] : 'text' in p ? [p.text] : []));
+const faqText = (parts: readonly FaqPart[]): string =>
+  parts.map((p) => (typeof p === 'string' ? p : 'fact' in p ? headlineText([p]) : 'text' in p ? p.text : p.month)).join('');
 const caseOf = (study: Study) => {
   const found = HOME_CASES.find((c) => c.study === study);
   if (!found) throw new Error(`no case for ${study}`);
@@ -322,11 +329,12 @@ describe('the hero, proof row, the sections and the site band', () => {
   });
 
   it('give the FAQ figures as facts that exist, never typed', () => {
-    const ids = HOME_FAQ.items.flatMap((i) => factIds(i.answer));
-    expect(ids).toEqual(['profile.audible.experiments', 'profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after', 'profile.n8n.automated_tests']);
+    const ids = HOME_FAQ.items.flatMap((i) => faqFacts(i.answer));
+    expect(ids).toEqual(['profile.audible.experiments', 'profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after']);
     for (const id of ids) expect(Object.hasOwn(FACTS, id), id).toBe(true);
     // CEFR levels and the name n8n are names, not figures (the truth audit allows them).
-    for (const i of HOME_FAQ.items) for (const s of stringParts(i.answer)) expect(s.replace(/\b[ABC][12]\b|\bn8n\b/g, ''), s).not.toMatch(/\d/);
+    // A month is its own part (printed in a <time>), never digits in the prose.
+    for (const i of HOME_FAQ.items) for (const s of faqStrings(i.answer)) expect(s.replace(/\b[ABC][12]\b|\bn8n\b/g, ''), s).not.toMatch(/\d/);
   });
 
   it('prints each proof figure from a fact, the numbers never typed', () => {
@@ -362,7 +370,7 @@ describe('all Home copy', () => {
       ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
       HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
       ...sectionCopy(),
-      ...HOME_FAQ.items.flatMap((i) => [i.question, headlineText(i.answer)]),
+      ...HOME_FAQ.items.flatMap((i) => [i.question, faqText(i.answer)]),
     ];
     for (const text of all) {
       expect(text, text).not.toMatch(BANNED_CHARS);
@@ -376,6 +384,7 @@ describe('HOME_DESTINATIONS', () => {
     expect(HOME_DESTINATIONS).toEqual([
       '/work/audible#why-so-many',
       '/work/audible#automation',
+      '/work/audible',
       '/work/retention',
       '/work/pulse',
       '/work/docproof',
