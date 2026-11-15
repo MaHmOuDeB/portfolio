@@ -20,6 +20,16 @@ import type { CurseInteractiveProps } from './CurseInteractive';
 
 const LazyCurse = lazy(() => import('./CurseInteractive'));
 
+// The power is a proportion in the URL and the view, but its number box takes whole percents, as its
+// readout says: typing "50" means 50%. The Slider works in percent and the caller divides by 100.
+const toPercent = (share: number) => Math.round(share * 100);
+const POWER_PERCENT = {
+  min: toPercent(CURSE_SCHEMA.power.min),
+  max: toPercent(CURSE_SCHEMA.power.max),
+  step: toPercent(CURSE_SCHEMA.power.step),
+};
+const powerPercentText = (percent: number) => powerTimeText(percent / 100);
+
 export function CurseIsland(props: CurseInteractiveProps) {
   return <LazyCurse {...props} />;
 }
@@ -44,12 +54,13 @@ export function CurseControls({ values, onChange, onCommit, onReset }: CurseCont
         <Slider
           id={`${CURSE_ID}-power`}
           label={CURSE_LABELS.power}
-          {...CURSE_SCHEMA.power}
-          value={values.power}
-          onChange={(v) => onChange('power', v)}
-          onCommit={(v) => onCommit('power', v)}
-          valueText={powerTimeText}
-          readout={powerTimeText}
+          {...POWER_PERCENT}
+          value={toPercent(values.power)}
+          onChange={(v) => onChange('power', v / 100)}
+          onCommit={(v) => onCommit('power', v / 100)}
+          valueText={powerPercentText}
+          readout={powerPercentText}
+          numberLabel={`${CURSE_LABELS.power}, percent`}
           refs={DIAGNOSTICS_REFS}
         />
       </div>

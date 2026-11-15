@@ -265,7 +265,7 @@ describe('the Lab page', () => {
     );
     expect(text(figure('peeking'))).toContain('Checked daily for 20 days, 22.1% of 1,000 tests found a false winner. Checked once at the end, about 5% would.');
     // the winner's curse: the slider's power and the readout's factor at the preset
-    expect(figure('curse')).toMatch(/id="curse-power"[^>]*value="0.17"/);
+    expect(figure('curse')).toMatch(/id="curse-power"[^>]*value="17"/);
     expect(text(figure('curse'))).toContain('17% of the time');
     const factor = text(/<span data-curse-exaggeration=""[^>]*>([^<]*)<\/span>/.exec(figure('curse'))![1]!);
     expect(factor).toBe('2.5');
@@ -397,10 +397,10 @@ describe('the Lab page', () => {
         'Group B visitors',
         'Group B visitors, exact value',
         'How often the test clears the bar (power)',
-        'How often the test clears the bar (power), exact value',
+        'How often the test clears the bar (power), percent',
         'No fix',
         'Sign-up rate today',
-        'Sign-up rate today, exact value',
+        'Sign-up rate today, percent',
         'Smallest rise worth acting on',
         'Smallest rise worth acting on, points',
         'Stricter early checks',

@@ -159,7 +159,7 @@ test.describe('Full planner, the Retention page\'s pair', () => {
     const errors = watchErrors(page);
     await page.goto(`${RETENTION_HOST}?${ID}.baseline=0.4&${ID}.mode=relative`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await expect(baseline(page)).toHaveValue('0.4');
+    await expect(baseline(page)).toHaveValue('40');
     await expect(unit(page, 'Percent of baseline')).toBeChecked();
     await expect(result(page)).toContainText('To detect a rise of 12.5% of the baseline, from 40% to 45%.');
     await expect(readoutN(page)).not.toHaveText(PRESET_N);
@@ -195,7 +195,7 @@ test.describe('Full planner, the Retention page\'s pair', () => {
     const errors = watchErrors(page);
     await page.goto(`${RETENTION_HOST}?${ID}.baseline=0.98&${ID}.risePoints=30&${ID}.mode=__proto__&${ID}.preset=toString&${DURATION}.traffic=-Infinity`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await expect(baseline(page)).toHaveValue('0.98');
+    await expect(baseline(page)).toHaveValue('98');
     await expect(rise(page)).toHaveValue('1');
     await expect(rise(page)).toHaveAttribute('max', '1');
     await expect(unit(page, 'Points')).toBeChecked();
@@ -244,14 +244,14 @@ test.describe('Full planner, the Retention page\'s pair', () => {
       expect(query(page).get('other.keep')).toBe('1');
       expect(new URL(page.url()).hash).toBe('#note');
     };
-    await expect(baseline(page)).toHaveValue('0.29');
+    await expect(baseline(page)).toHaveValue('29');
     await expect(rise(page)).toHaveValue('5');
-    await typeExact(page, 'Baseline conversion, exact value', '0.98');
+    await typeExact(page, 'Baseline conversion, percent', '98');
     await expect(rise(page)).toHaveValue('1');
     await expect(rise(page)).toHaveAttribute('max', '1');
     await expect(result(page)).toContainText('from 98% to 99%.');
     await expectUrl('0.98', '1');
-    await typeExact(page, 'Baseline conversion, exact value', '0.29');
+    await typeExact(page, 'Baseline conversion, percent', '29');
     await expect(rise(page)).toHaveValue('1');
     await expect(rise(page)).toHaveAttribute('max', '30');
     await expect(result(page)).toContainText('To detect a rise of 1 point, from 29% to 30%.');
@@ -265,7 +265,7 @@ test.describe('Full planner, the Retention page\'s pair', () => {
     await expect(traffic(page)).toHaveValue('500');
     const sizedWeeks = await weeks(page).textContent();
     await reset(page, ID).click();
-    await expect(baseline(page)).toHaveValue('0.29');
+    await expect(baseline(page)).toHaveValue('29');
     await expect(unit(page, 'Points')).toBeChecked();
     await expect(readoutN(page)).toHaveText(PRESET_N);
     // the weeks at the traffic still on screen: 2 x 1,353 at 500 a day is 1 week
@@ -277,14 +277,14 @@ test.describe('Full planner, the Retention page\'s pair', () => {
     await expect(weeks(page)).toHaveText('1');
     expect(sizedWeeks).not.toBeNull();
 
-    await typeExact(page, 'Baseline conversion, exact value', '0.4');
-    await expect(baseline(page)).toHaveValue('0.4');
+    await typeExact(page, 'Baseline conversion, percent', '40');
+    await expect(baseline(page)).toHaveValue('40');
     await reset(page, DURATION).click();
     await expect(traffic(page)).toHaveValue('100');
     await expect(live(page, DURATION)).toHaveText(/^\d+ weeks? at 100 customers a day to reach [\d,]+ customers per group$/);
     expect(ownKeys(page, DURATION)).toEqual([]);
     await expect.poll(() => query(page).get(`${ID}.baseline`)).toBe('0.4');
-    await expect(baseline(page)).toHaveValue('0.4');
+    await expect(baseline(page)).toHaveValue('40');
     expect(query(page).get('other.keep')).toBe('1');
     expect(new URL(page.url()).hash).toBe('#note');
   });
@@ -297,7 +297,7 @@ test.describe('Full planner, the Retention page\'s pair', () => {
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(baseline(page)).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(baseline(page)).toHaveValue('0.3');
+    await expect(baseline(page)).toHaveValue('30');
     await expect(live(page)).toHaveText(SIZING_RESULT);
     // the sizing change moves the weeks too, so the one announcement says both; the duration
     // Figure's own region stays quiet, so nothing is announced twice
@@ -572,7 +572,7 @@ test.describe('Full planner, the Retention page\'s pair', () => {
       'The fewer customers a day, the more weeks it takes to fill both groups',
     );
     // once the baseline moves off the observed one, nothing beside the live results calls it observed
-    await typeExact(page, 'Baseline conversion, exact value', '0.6', 'winback');
+    await typeExact(page, 'Baseline conversion, percent', '60', 'winback');
     await expect(result(page, 'winback')).toContainText('from 60% to 65%.');
     for (const id of ['winback', 'winback-duration']) {
       await expect(result(page, id)).toContainText('Hypothetical uplift');
@@ -639,7 +639,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(controls.getByRole('radio')).toHaveCount(0);
     await expect(controls.getByRole('group', { name: 'Rise to detect, in' })).toHaveCount(0);
     await expect(controls.getByRole('button')).toHaveText(['Reset']);
-    await expect(baseline(page, LAB)).toHaveValue('0.29');
+    await expect(baseline(page, LAB)).toHaveValue('29');
     await expect(rise(page, LAB)).toHaveValue('5');
     await expect(traffic(page, LAB)).toHaveValue('100');
     await expect(figure(page, LAB).locator('[data-slider-readout]')).toHaveText(['29% of visitors', 'Up 5 points, to 34%', '100 a day']);
@@ -693,7 +693,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     const errors = watchErrors(page);
     await page.goto(url);
     await expect(island(page, LAB)).toHaveAttribute('data-island', 'ready');
-    await expect(baseline(page, LAB)).toHaveValue('0.05');
+    await expect(baseline(page, LAB)).toHaveValue('5');
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(traffic(page, LAB)).toHaveValue('1000');
     await expect(result(page, LAB)).toHaveText('To catch a real rise from 5% to 6% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 1,000 visitors a day:');
@@ -726,7 +726,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?${LAB}.baseline=0.98&${LAB}.risePoints=30&${LAB}.preset=toString&${LAB}.traffic=-Infinity`);
     await expect(island(page, LAB)).toHaveAttribute('data-island', 'ready');
-    await expect(baseline(page, LAB)).toHaveValue('0.98');
+    await expect(baseline(page, LAB)).toHaveValue('98');
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(rise(page, LAB)).toHaveAttribute('max', '1');
     await expect(traffic(page, LAB)).toHaveValue('1');
@@ -749,12 +749,12 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
       expect(query(page).get('other.keep')).toBe('1');
       expect(new URL(page.url()).hash).toBe('#note');
     };
-    await typeExact(page, 'Sign-up rate today, exact value', '0.98', LAB);
+    await typeExact(page, 'Sign-up rate today, percent', '98', LAB);
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(rise(page, LAB)).toHaveAttribute('max', '1');
     await expect(result(page, LAB)).toContainText('from 98% to 99%');
     await expectUrl('0.98', '1', '100');
-    await typeExact(page, 'Sign-up rate today, exact value', '0.29', LAB);
+    await typeExact(page, 'Sign-up rate today, percent', '29', LAB);
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(rise(page, LAB)).toHaveAttribute('max', '30');
     await expect(figure(page, LAB).locator('[data-slider-readout]').nth(1)).toHaveText('Up 1 point, to 30%');
@@ -762,6 +762,26 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await typeExact(page, 'Visitors per day, exact value', '500', LAB);
     await expect(weeks(page, LAB)).toHaveText(/^\d+$/);
     await expectUrl('0.29', '1', '500');
+  });
+
+  test('on /lab the sign-up rate box takes whole percents: typing 30 sets 30%, and the URL keeps the proportion', async ({ page }) => {
+    await withoutIdle(page);
+    const errors = watchErrors(page);
+    await page.goto('/lab');
+    await ready(page, LAB);
+    const box = figure(page, LAB).getByRole('spinbutton', { name: 'Sign-up rate today, percent' });
+    await expect(box).toHaveValue('29');
+    await expect(box).toHaveAttribute('min', '1');
+    await expect(box).toHaveAttribute('max', '98');
+    await typeExact(page, 'Sign-up rate today, percent', '30', LAB);
+    await expect(box).toHaveValue('30');
+    await expect(baseline(page, LAB)).toHaveValue('30');
+    await expect(figure(page, LAB).locator('[data-slider-readout]').first()).toHaveText('30% of visitors');
+    await expect(rise(page, LAB)).toHaveValue('5');
+    await expect(result(page, LAB)).toContainText('from 30% to 35%');
+    await expect.poll(() => query(page).get(`${LAB}.baseline`)).toBe('0.3');
+    expect(query(page).get(`${LAB}.risePoints`)).toBe('5');
+    expect(errors).toEqual([]);
   });
 
   test('keyboard: focus moving into the preview loads the island and stays on the slider; a key release announces the line and both readouts once', async ({ page }) => {
@@ -772,7 +792,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(island(page, LAB)).toHaveAttribute('data-island', 'ready');
     await expect(baseline(page, LAB)).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(baseline(page, LAB)).toHaveValue('0.3');
+    await expect(baseline(page, LAB)).toHaveValue('30');
     await expect(live(page, LAB)).toHaveText(LAB_RESULT);
     const n = await readoutN(page, LAB).textContent();
     const w = await weeks(page, LAB).textContent();
@@ -818,7 +838,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(island(page, LAB)).toHaveAttribute('data-island', 'ready');
     await expect(traffic(page, LAB)).toHaveValue('500');
     await reset(page, LAB).click();
-    await expect(baseline(page, LAB)).toHaveValue('0.29');
+    await expect(baseline(page, LAB)).toHaveValue('29');
     await expect(rise(page, LAB)).toHaveValue('5');
     await expect(traffic(page, LAB)).toHaveValue('100');
     await expect(readoutN(page, LAB)).toHaveText(PRESET_N);

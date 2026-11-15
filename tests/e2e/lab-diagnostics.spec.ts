@@ -321,7 +321,7 @@ test.describe('Exaggeration Figure', () => {
     await page.goto(`${HOST}?curse.trueEffect=0&curse.se=2`);
     await ready(page, 'curse');
     await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
-    await expect(range(page, 'curse-power')).toHaveValue('0.17');
+    await expect(range(page, 'curse-power')).toHaveValue('17');
     await expect(page.locator('#curse-trueEffect, #curse-se')).toHaveCount(0);
     await expect(figure(page, 'curse').getByRole('slider')).toHaveCount(1);
     await expect(figure(page, 'curse').getByRole('group', { name: 'Controls' }).getByRole('button')).toHaveText(['Reset']);
@@ -344,11 +344,11 @@ test.describe('Exaggeration Figure', () => {
     await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
     await page.goto(`${HOST}?curse.power=Infinity`);
     await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-    await expect(range(page, 'curse-power')).toHaveValue('0.99');
+    await expect(range(page, 'curse-power')).toHaveValue('99');
     expect((await dotGeometry(page))!.power).toBe(0.99);
     await page.goto(`${HOST}?curse.power=-3`);
     await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-    await expect(range(page, 'curse-power')).toHaveValue('0.1');
+    await expect(range(page, 'curse-power')).toHaveValue('10');
     expect((await dotGeometry(page))!.power).toBe(0.1);
     expect(errors).toEqual([]);
   });
@@ -359,7 +359,7 @@ test.describe('Exaggeration Figure', () => {
     await focusAndLoad(page, 'curse', 'curse-power');
     await expect(range(page, 'curse-power')).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(range(page, 'curse-power')).toHaveValue('0.18');
+    await expect(range(page, 'curse-power')).toHaveValue('18');
     await expect(live(page, 'curse')).toHaveText('At this size, results that clear the bar are on average 2.4 times the real effect, and 0.8% of them point the wrong way.');
     await expect(live(page, 'curse')).toHaveAttribute('data-derived', 'simulated');
     const before = await readout(page);
@@ -372,6 +372,18 @@ test.describe('Exaggeration Figure', () => {
     expect([...url.searchParams.keys()].filter((k) => k.startsWith('curse.'))).toEqual([]);
     expect(url.searchParams.get('srm.nA')).toBe('7');
     expect(url.hash).toBe('#exaggeration');
+  });
+
+  test('the power box takes whole percents: typing 50 sets 50%, and the URL keeps the proportion', async ({ page }) => {
+    await page.goto(HOST);
+    await ready(page, 'curse');
+    const box = figure(page, 'curse').getByRole('spinbutton', { name: 'How often the test clears the bar (power), percent' });
+    await expect(box).toHaveValue('17');
+    await box.fill('50');
+    await box.press('Enter');
+    await expect(range(page, 'curse-power')).toHaveValue('50');
+    await expect(figure(page, 'curse').locator('[data-slider-readout]')).toHaveText('50% of the time');
+    await expect.poll(() => new URL(page.url()).searchParams.get('curse.power')).toBe('0.5');
   });
 
   test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {
@@ -388,7 +400,7 @@ test.describe('Exaggeration Figure', () => {
     await ready(page, 'curse');
     await range(page, 'curse-power').focus();
     await page.keyboard.press('End');
-    await expect(range(page, 'curse-power')).toHaveValue('0.99');
+    await expect(range(page, 'curse-power')).toHaveValue('99');
     const motion = await page.evaluate(() => {
       const marks = [...document.querySelectorAll('figure[data-figure] [data-mark]')];
       return {

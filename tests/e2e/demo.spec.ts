@@ -199,7 +199,7 @@ test.describe('/demo', () => {
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}${url.hash}` === PLANNER[1]);
     const planner = page.locator('figure[data-figure="planner"]');
     await expect(page.locator('[data-island]', { has: planner })).toHaveAttribute('data-island', 'ready');
-    await expect(planner.getByRole('slider', { name: 'Sign-up rate today', exact: true })).toHaveValue('0.05');
+    await expect(planner.getByRole('slider', { name: 'Sign-up rate today', exact: true })).toHaveValue('5');
     await expect(planner.getByRole('slider', { name: 'Smallest rise worth acting on', exact: true })).toHaveValue('1');
     await expect(planner.getByRole('slider', { name: 'Visitors per day', exact: true })).toHaveValue('1000');
     // one planner Figure on the Lab, with no unit toggle

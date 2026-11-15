@@ -61,6 +61,16 @@ export function LabPlannerIsland(props: LabPlannerClientProps) {
 
 const SLIDER = 'w-full xs:w-72';
 
+// The baseline is a proportion in the URL and the views, but its number box takes whole percents,
+// as its label and readout say: typing "30" means 30%. The Slider works in percent and the caller
+// divides by 100.
+const toPercent = (share: number) => Math.round(share * 100);
+const BASELINE_PERCENT = {
+  min: toPercent(FULL_PLAN_SCHEMA.baseline.min),
+  max: toPercent(FULL_PLAN_SCHEMA.baseline.max),
+  step: toPercent(FULL_PLAN_SCHEMA.baseline.step),
+};
+
 const MODE_OPTIONS: readonly { value: MdeMode; label: string }[] = [
   { value: 'absolute', label: 'Points' },
   { value: 'relative', label: 'Percent of baseline' },
@@ -95,12 +105,13 @@ export function SizingControls({ id, context = 'hypothetical', values, onBaselin
         <Slider
           id={`${id}-baseline`}
           label={words.baseline}
-          {...FULL_PLAN_SCHEMA.baseline}
-          value={baseline}
-          onChange={onBaseline}
-          onCommit={onBaselineCommit}
-          valueText={(v) => `${percentText(v)} baseline conversion`}
-          readout={words.baselineHint ? (v) => `${percentText(v)} ${words.baselineHint}` : percentText}
+          {...BASELINE_PERCENT}
+          value={toPercent(baseline)}
+          onChange={(v) => onBaseline(v / 100)}
+          onCommit={(v) => onBaselineCommit(v / 100)}
+          valueText={(v) => `${percentText(v / 100)} baseline conversion`}
+          readout={words.baselineHint ? (v) => `${percentText(v / 100)} ${words.baselineHint}` : (v) => percentText(v / 100)}
+          numberLabel={`${words.baseline}, percent`}
           refs={FULL_PLANNER_REFS}
         />
       </div>
@@ -192,12 +203,13 @@ export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, o
         <Slider
           id={`${id}-baseline`}
           label={words.baseline}
-          {...FULL_PLAN_SCHEMA.baseline}
-          value={baseline}
-          onChange={onBaseline}
-          onCommit={onBaselineCommit}
-          valueText={(v) => `${percentText(v)} ${words.baselineHint}`}
-          readout={(v) => `${percentText(v)} ${words.baselineHint}`}
+          {...BASELINE_PERCENT}
+          value={toPercent(baseline)}
+          onChange={(v) => onBaseline(v / 100)}
+          onCommit={(v) => onBaselineCommit(v / 100)}
+          valueText={(v) => `${percentText(v / 100)} ${words.baselineHint}`}
+          readout={(v) => `${percentText(v / 100)} ${words.baselineHint}`}
+          numberLabel={`${words.baseline}, percent`}
           refs={FULL_PLANNER_REFS}
         />
       </div>
