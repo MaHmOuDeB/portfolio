@@ -245,6 +245,34 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     background: CanvasText;
   }
 
+  /* A clickable card on hover, focus and press: its ink fill would be forced back to Canvas, so the
+     border and the plus take Highlight, the plus with its text in HighlightText. */
+  [data-depth-lean]:is(:focus-visible, :active),
+  [data-next]:is(:focus-visible, :active) {
+    border-color: Highlight;
+  }
+
+  [data-depth-lean]:is(:focus-visible, :active) [data-depth-go] {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  @media (hover: hover) {
+    [data-depth-lean]:hover,
+    [data-next]:hover {
+      border-color: Highlight;
+    }
+
+    [data-depth-lean]:hover [data-depth-go] {
+      forced-color-adjust: none;
+      border-color: Highlight;
+      background-color: Highlight;
+      color: HighlightText;
+    }
+  }
+
   /* Text on ink. Chromium forces an ink fill to Canvas but keeps the light text tones (the bg and
      surface tokens), and WebKit keeps both the fill and the text, so neither engine is left to pick:
      every ink surface names a system colour pair for its fill and its text. The panels (the footer,
@@ -524,15 +552,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     font-size: 0.75rem;
     line-height: 1.3;
     color: var(--color-ink);
-  }
-
-  [data-vignette-label] {
-    position: absolute;
-    top: 4px;
-    right: var(--card-pad, 12px);
-    font-size: var(--text-xs);
-    line-height: 1.3;
-    color: var(--color-muted);
   }
 
   [data-vignette-sheet] {
@@ -820,7 +839,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  /* What the sheet holds ("Screenshot"), small at the top right, where a sketch says "Illustration". */
+  /* What the sheet holds ("Screenshot"), small at the top right. */
   [data-figure-sheet-label] {
     margin: 0 0 calc(var(--spacing) * 2);
     color: var(--color-muted);
@@ -953,7 +972,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* Previous and next: two quiet cards, stacked on a phone, side by side from sm. A lone next card
-     keeps the second column. Hover and focus change the border only. */
+     keeps the second column. Hover, focus and press are the clickable card's (section 6. Lean): the
+     border turns ink, the label underlines and the card rises 4 px where motion is allowed. */
   [data-next-row] {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -974,12 +994,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-ink);
     text-decoration: none;
     overflow-wrap: anywhere;
-    transition: border-color var(--duration-fast) var(--ease-standard);
-  }
-
-  [data-next]:hover,
-  [data-next]:focus-visible {
-    border-color: var(--color-ink);
+    -webkit-tap-highlight-color: var(--color-hairline-strong);
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      translate var(--duration-base) var(--ease-standard);
   }
 
   [data-next-kicker] {
@@ -993,6 +1011,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.3;
     letter-spacing: -0.012em;
     font-weight: var(--font-weight-semibold);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
   }
 
   @media (width >= 40rem) {
@@ -1504,7 +1524,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     position: relative;
     display: grid;
-    height: 540px;
+    height: 522px;
 
     /* One column the stage's own width: the rig is laid out at 1040 px and scaled, so it may be wider
        than the column before its scale and must stay centred on it. */
@@ -1533,7 +1553,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     width: 1040px;
     height: 210px;
     transform-style: preserve-3d;
-    transform: translate(-75px, 122px) rotateX(52deg) rotateZ(-34deg) scale(1.1);
+    transform: translate(-75px, 126px) rotateX(52deg) rotateZ(-34deg) scale(0.97);
   }
 
   [data-depth-sheet] {
@@ -1773,7 +1793,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-caption] {
     position: relative;
     margin: 0;
-    padding-top: calc(var(--spacing) * 1.5);
+    padding-top: calc(var(--spacing) * 6);
     color: var(--color-muted);
     font-size: var(--text-xs);
     line-height: 1.5;
@@ -1833,10 +1853,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-depth-link] {
       display: none;
-    }
-
-    [data-depth-caption] {
-      padding-top: calc(var(--spacing) * 4);
     }
   }
 
@@ -2023,8 +2039,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
      clip keeps the sketch inside it, and a clip flattens 3D anyway, so its text is drawn once on
      the face and never stands off it in depth. Lean writes up to 3.5 and 4.5 degrees; the card
      turns by a fraction of that, about 0.6 degrees at a corner, because its title and text went
-     soft at more. That it is a link is said by colour: on hover and on focus the border darkens
-     and the plus button turns ink. Nothing moves on hover. */
+     soft at more. That it is a link is said by colour and by a small lift (the card's states,
+     below): the one hover movement on the site is that 4 px rise of a clickable card. */
   [data-depth-lean] {
     --card-pad: calc(var(--spacing) * 5.5);
 
@@ -2034,7 +2050,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     overflow: clip;
     padding: var(--card-pad);
     text-decoration: none;
-    transition: border-color var(--duration-fast) var(--ease-standard);
+    -webkit-tap-highlight-color: var(--color-hairline-strong);
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      translate var(--duration-base) var(--ease-standard);
   }
 
   /* A card with a vignette ends in it: no bottom padding, the sketch bleeds off the bottom edge. */
@@ -2047,7 +2066,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       transform: rotateX(calc(var(--rx, 0deg) * 0.17)) rotateY(calc(var(--ry, 0deg) * 0.13));
       transition:
         transform var(--duration-lean) var(--ease-standard),
-        border-color var(--duration-fast) var(--ease-standard);
+        border-color var(--duration-fast) var(--ease-standard),
+        translate var(--duration-base) var(--ease-standard);
     }
 
     [data-depth-lean]::before {
@@ -2175,17 +2195,66 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
     font-size: 0.9375rem;
     line-height: 1;
-    transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
   }
 
-  /* The card as a link: on hover and on focus the border darkens and the plus button turns ink. */
-  [data-depth-lean]:is(:hover, :focus-visible) {
-    border-color: var(--color-hairline-strong);
+  /* A clickable card (a lean card, a previous or next card) on hover, focus and press: the border
+     turns ink and the plus fills ink with a white glyph (a Next card's label underlines instead),
+     and on hover, where motion is allowed, the card rises 4 px. Hover applies only where hover exists, so a tap
+     never leaves a card looking hovered; there the plus is ink at rest and a press shows the colour.
+     The rise is the individual translate, so it adds to the pointer lean's transform; a card still
+     inside its scroll-linked rise (which animates translate) lifts once that entrance is over, and
+     a focused card has no entrance. A tap also flashes the card light grey (its tap highlight), in
+     case a phone does not apply :active to a link. */
+  @media (hover: hover) {
+    [data-depth-lean]:hover,
+    [data-next]:hover {
+      border-color: var(--color-ink);
+    }
+
+    [data-depth-lean]:hover [data-depth-go] {
+      border-color: var(--color-ink);
+      background-color: var(--color-ink);
+      color: var(--color-surface);
+    }
+
+    [data-next]:hover [data-next-label] {
+      text-decoration-line: underline;
+    }
   }
 
-  [data-depth-lean]:is(:hover, :focus-visible) [data-depth-go] {
+  [data-depth-lean]:is(:focus-visible, :active),
+  [data-next]:is(:focus-visible, :active) {
     border-color: var(--color-ink);
-    color: var(--color-ink);
+  }
+
+  [data-depth-lean]:is(:focus-visible, :active) [data-depth-go] {
+    border-color: var(--color-ink);
+    background-color: var(--color-ink);
+    color: var(--color-surface);
+  }
+
+  [data-next]:is(:focus-visible, :active) [data-next-label] {
+    text-decoration-line: underline;
+  }
+
+  @media (hover: none) {
+    [data-depth-go] {
+      color: var(--color-ink);
+    }
+  }
+
+  /* The rise is for the pointer only. Keyboard focus keeps the ink border, the plus and the focus
+     ring, but does not move the card: a tall card focused at the top of a small viewport would push
+     its ring off the screen (WebKit at 320x180). */
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    [data-depth-lean]:hover,
+    [data-next]:hover {
+      translate: 0 calc(var(--spacing) * -1);
+    }
   }
 
   /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide and fades both edges
@@ -3021,6 +3090,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-sheet],
   [data-depth-tilt] {
     transform: none;
+  }
+
+  /* The row is flat and still here, so the stage is the row's own height and the caption sits one
+     figure gap under it, not under the stacked pose's empty stage. */
+  @media (width >= 64rem) {
+    [data-depth-stack] {
+      height: calc(210px * var(--k));
+
+      /* The track is the stage's height, not the unscaled row's, so the scaled row centres in it. */
+      grid-template-rows: minmax(0, 1fr);
+    }
   }
 
   [data-depth-sheet]::after {

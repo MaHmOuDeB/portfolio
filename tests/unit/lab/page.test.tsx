@@ -122,10 +122,10 @@ describe('the Lab page', () => {
       expect(line, id).toBe(LAB_SECTIONS[i]!.line);
       expect(line, id).toMatch(/^[A-Z][\s\S]{20,}\.$/);
       expect(line, id).not.toMatch(/\d/);
-      // the sketch: decorative, labelled Illustration, without a digit
+      // the sketch: decorative, untagged, without a digit
       const sketch = /<div data-vignette="" aria-hidden="true">([\s\S]*?)<span data-depth-go/.exec(item);
       expect(sketch, id).not.toBeNull();
-      expect(text(sketch![1]!), id).toMatch(/^Illustration /);
+      expect(text(sketch![1]!), id).not.toMatch(/Illustration/);
       expect(text(sketch![1]!), id).not.toMatch(/\d/);
       expect(sketch![1], id).toContain(`data-lab-sketch="`);
       // only the peeking card says where a reader with one minute starts

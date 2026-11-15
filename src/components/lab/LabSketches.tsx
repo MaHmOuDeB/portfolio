@@ -1,6 +1,6 @@
 // The Lab's four card sketches, one per check: sample bars, two split bars, the rising peeking line
-// and the falling exaggeration curve. Each sits in the frame's Vignette (decorative, aria-hidden, with
-// the visible word "Illustration") and is drawn from the frame's marks and plain shapes. A sketch
+// and the falling exaggeration curve. Each sits in the frame's Vignette (decorative, aria-hidden,
+// unlabelled) and is drawn from the frame's marks and plain shapes. A sketch
 // never prints a digit or a real figure: lengths and positions are made-up shapes in style values.
 // Server-safe.
 import type { CSSProperties, ReactNode } from 'react';

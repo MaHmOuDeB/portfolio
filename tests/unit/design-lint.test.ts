@@ -77,6 +77,42 @@ describe('lintCompiledCss fixtures', () => {
   });
 });
 
+// Hover movement is banned with one exception: a clickable card (a lean card or a previous/next
+// card) may rise by at most 4 px, by the `translate` property alone.
+describe('no-hover-move and the clickable-card lift', () => {
+  const hoverMoves = (css: string) => lintCompiledCss(css, 'lift.css').filter((v) => v.rule === 'no-hover-move');
+
+  test.each([
+    '@media (hover: hover) and (prefers-reduced-motion: no-preference) { [data-depth-lean]:hover, [data-next]:hover { translate: 0 calc(var(--spacing) * -1); } }',
+    '[data-depth-lean]:hover { translate: 0 calc(var(--spacing)*-1); }',
+    '[data-next]:hover { translate: 0 -4px; }',
+    'a[data-next="prev"]:hover { translate: 0px -0.25rem; }',
+    '[data-depth-lean]:is(:hover, :focus-visible) { translate: 0 -2px; }',
+  ])('allows the lift of a clickable card: %s', (css) => {
+    expect(hoverMoves(css)).toEqual([]);
+  });
+
+  test.each([
+    ['more than 4 px', '[data-depth-lean]:hover { translate: 0 -5px; }'],
+    ['more than 4 px in spacing units', '[data-next]:hover { translate: 0 calc(var(--spacing) * -2); }'],
+    ['more than 4 px in rem', '[data-next]:hover { translate: 0 -0.5rem; }'],
+    ['downward', '[data-depth-lean]:hover { translate: 0 4px; }'],
+    ['sideways', '[data-depth-lean]:hover { translate: -4px 0; }'],
+    ['diagonal', '[data-depth-lean]:hover { translate: 1px -4px; }'],
+    ['an unparsed value', '[data-depth-lean]:hover { translate: 0 var(--lift); }'],
+    ['another element', '[data-tile]:hover { translate: 0 -4px; }'],
+    ['a similar attribute name', '[data-next-label]:hover { translate: 0 -4px; }'],
+    ['a list that also names another element', '[data-depth-lean]:hover, .card:hover { translate: 0 -4px; }'],
+    ['a part inside the card', '[data-depth-lean]:hover [data-depth-go] { translate: 0 -4px; }'],
+    ['a card inside a hovered ancestor', '.grid:hover [data-depth-lean] { translate: 0 -4px; }'],
+    ['transform on the card', '[data-depth-lean]:hover { transform: translateY(-4px); }'],
+    ['scale on the card', '[data-depth-lean]:hover { scale: 1.02; }'],
+    ['nested CSS', '[data-depth-lean] { &:hover { translate: 0 -4px; } }'],
+  ])('still bans %s', (_, css) => {
+    expect(hoverMoves(css)).toHaveLength(1);
+  });
+});
+
 describe('lintSource fixtures', () => {
   test.each(srcFixtures.filter((f) => f.kind === 'pass'))('$rel has no violations', ({ rel }) => {
     expect(lintSource(read(rel), rel)).toEqual([]);
