@@ -4,6 +4,7 @@
 // source adapter reads from the vendored export (src/lib/weather/checks.ts). Static, server only.
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
+import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
 import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { checkLevels, weatherProvenance } from '@/lib/weather/checks';
@@ -12,17 +13,22 @@ import {
   CHECK_LEVELS_TITLE,
   WEATHER_ARCHITECTURE,
   WEATHER_CHECKS,
+  WEATHER_CLOSE,
   WEATHER_GLANCE,
+  WEATHER_H1,
   WEATHER_LIMITS,
   WEATHER_OUTCOME,
   WEATHER_PIPELINE,
   WEATHER_PIPELINE_CAPTION,
+  WEATHER_PIPELINE_LEAD_IN,
   WEATHER_PIPELINE_TITLE,
   WEATHER_PROBLEM,
+  WEATHER_QUIET,
+  WEATHER_REPO,
   WEATHER_TESTS,
   WEATHER_TITLE,
   WeatherIntro,
-  WeatherRole,
+  WeatherPipelineTakeaway,
   WeatherSources,
 } from '../../../content/weather';
 import {
@@ -30,7 +36,6 @@ import {
   BuildNote,
   DiagramConnector,
   DiagramStep,
-  EVIDENCE,
   NoteList,
   Paragraphs,
   TEXT,
@@ -70,12 +75,14 @@ function CheckLevelsTable() {
     refs: ['weather.checks.error_count', 'weather.checks.count', 'source:weather'] as const,
   };
   return (
-    <div className={`${EVIDENCE} max-w-figure`}>
+    <div className="max-w-figure">
       <h3 id="check-levels-heading" className={`${TEXT} text-xl font-semibold`}>
         {CHECK_LEVELS_TITLE}
       </h3>
       <div className="mt-3">
-        <DataTable id="check-levels" caption={CHECK_LEVELS_TITLE} table={table} mode="open" />
+        <div className="[&_table]:w-full">
+          <DataTable id="check-levels" caption={CHECK_LEVELS_TITLE} table={table} mode="open" />
+        </div>
       </div>
       <div className="mt-2">
         <ProvenanceBadge kind={weatherProvenance()} />
@@ -85,31 +92,41 @@ function CheckLevelsTable() {
 }
 
 export function WeatherPage(): ReactNode {
+  const code = `${WEATHER_REPO.base}/tree/${WEATHER_REPO.commit}`;
   return (
     <BuildNote
       slug="weather"
-      title={WEATHER_TITLE}
+      title={WEATHER_H1}
+      quiet={WEATHER_QUIET}
       intro={<WeatherIntro />}
-      role={<WeatherRole />}
+      actions={[{ href: code, label: 'See the code on GitHub', icon: 'github', external: true }]}
       glance={WEATHER_GLANCE}
       sections={{
         problem: <Paragraphs items={WEATHER_PROBLEM} />,
         architecture: (
           <>
             <Paragraphs items={WEATHER_ARCHITECTURE} />
-            <div className={EVIDENCE}>
+            <LeadIn>{WEATHER_PIPELINE_LEAD_IN}</LeadIn>
+            <FigureSheet>
               <PipelineDiagram />
-            </div>
+            </FigureSheet>
+            <Takeaway>
+              <WeatherPipelineTakeaway />
+            </Takeaway>
           </>
         ),
         'how-i-checked-this': (
           <>
             <Paragraphs items={WEATHER_CHECKS} />
-            <NoteShot shot="weatherChecks" />
-            <CheckLevelsTable />
-            <div className="mt-8">
+            <FigureSheet label="Screenshot">
+              <NoteShot shot="weatherChecks" />
+            </FigureSheet>
+            <FigureSheet>
+              <CheckLevelsTable />
+            </FigureSheet>
+            <MethodDetails summary="The unit tests">
               <Paragraphs items={WEATHER_TESTS} />
-            </div>
+            </MethodDetails>
           </>
         ),
         outcome: <Paragraphs items={WEATHER_OUTCOME} />,
@@ -124,6 +141,7 @@ export function WeatherPage(): ReactNode {
           </div>
         ),
       }}
+      close={{ body: <p>{WEATHER_CLOSE}</p>, links: [{ href: code, label: 'See the code on GitHub', external: true }] }}
     />
   );
 }

@@ -20,7 +20,7 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
       height={s.height}
       loading="lazy"
       decoding="async"
-      className="h-auto w-full rounded-sm border border-line"
+      className="h-auto w-full rounded-sm border border-line bg-surface"
       style={s.minWidth ? { minWidth: `${s.minWidth}px` } : undefined}
     />
   );
