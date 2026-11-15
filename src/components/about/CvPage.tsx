@@ -225,7 +225,7 @@ export function CvPage(): ReactNode {
         ))}
       </Section>
 
-      <PageCallToAction />
+      <PageCallToAction omitCv />
     </article>
   );
 }
