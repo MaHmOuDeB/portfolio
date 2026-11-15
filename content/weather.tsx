@@ -31,8 +31,8 @@ export function WeatherIntro(): ReactNode {
     <p>
       One reading in this public weather dataset reports wind at <Fact id="weather.quarantine.max_wind_kmh" />. Keep it
       and every wind average is off; delete it and nobody knows it was there. I built a pipeline that sets such readings
-      aside with their reason and refuses to publish the data unless <Fact id="weather.checks.error_count" /> checks
-      pass.
+      aside with their reason and refuses to publish the data unless <Fact id="weather.checks.error_count" /> of its{' '}
+      <Fact id="weather.checks.count" /> checks pass.
     </p>
   );
 }
