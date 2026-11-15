@@ -90,7 +90,7 @@ export function FrameSection() {
           <p>A second paragraph of the method.</p>
         </MethodDetails>
       </Specimen>
-      <Specimen id="frame--figure-sheet-label" title="Figure sheet, labelled" note='A sheet that says what it holds, where a sketch says "Illustration".'>
+      <Specimen id="frame--figure-sheet-label" title="Figure sheet, labelled" note="A sheet that says what it holds.">
         <FigureSheet label="Screenshot">
           <div className="h-32 rounded-md bg-track" aria-hidden="true" />
         </FigureSheet>

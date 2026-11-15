@@ -526,15 +526,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-ink);
   }
 
-  [data-vignette-label] {
-    position: absolute;
-    top: 4px;
-    right: var(--card-pad, 12px);
-    font-size: var(--text-xs);
-    line-height: 1.3;
-    color: var(--color-muted);
-  }
-
   [data-vignette-sheet] {
     position: absolute;
     inset: 22px -30px -12px var(--card-pad, 12px);
@@ -812,7 +803,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  /* What the sheet holds ("Screenshot"), small at the top right, where a sketch says "Illustration". */
+  /* What the sheet holds ("Screenshot"), small at the top right. */
   [data-figure-sheet-label] {
     margin: 0 0 calc(var(--spacing) * 2);
     color: var(--color-muted);

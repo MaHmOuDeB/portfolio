@@ -256,11 +256,11 @@ describe("the cards' sketches", () => {
     expect(text(/<div data-vignette=""[\s\S]*$/.exec(audible.body)![0])).not.toMatch(/higher|lower|clear|neutral|held|intact/i);
   });
 
-  it('keeps every sketch decorative, digit-free and labelled "Illustration"', () => {
+  it('keeps every sketch decorative, digit-free and without a visible tag', () => {
     for (const r of rows()) {
       const vignette = /<div data-vignette="" aria-hidden="true">([\s\S]*)$/.exec(r.body);
       expect(vignette, r.key).not.toBeNull();
-      expect(vignette![1]).toContain('<span data-vignette-label="">Illustration</span>');
+      expect(vignette![1]).not.toMatch(/data-vignette-label|Illustration/);
       expect(text(vignette![1]!), r.key).not.toMatch(/\d/);
     }
   });
