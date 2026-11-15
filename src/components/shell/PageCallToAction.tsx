@@ -6,7 +6,7 @@ import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
 export const PAGE_CTA = {
   title: 'Find out what I can do',
   quiet: 'for your team.',
-  line: 'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
+  line: 'Open to roles in experimentation, product analytics and AI automation in Germany. Based in Berlin.',
   write: 'Write to me',
   cv: 'Read my CV',
   linkedin: 'LinkedIn',

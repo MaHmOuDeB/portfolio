@@ -32,7 +32,7 @@ export const HOME_HERO = {
   chip: 'Open to roles in Germany',
   sub: {
     lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the ',
-    chips: ['Agents', 'Workflows'],
+    chips: ['agents', 'workflows'],
     join: ' and ',
     end: ' that take the manual work out.',
   },
@@ -400,7 +400,7 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
   items: [
     {
       question: 'What roles are you looking for?',
-      answer: ['Roles in AI automation, experimentation and product analytics in Germany. I am based in Berlin.'],
+      answer: ['Roles in experimentation, product analytics and AI automation in Germany. I am based in Berlin.'],
     },
     {
       question: 'What did you do at Audible?',

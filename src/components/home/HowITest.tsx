@@ -49,7 +49,7 @@ export function HowITest() {
         </div>
         {/* The panel drifts in from the bottom right; on a fine pointer its rows shift a little, each
             by more than the one above, as layers. The tabs stay still: they are controls. */}
-        <div data-depth-drift="br" data-depth-follow="" className="relative self-start rounded-xl border border-hairline bg-surface">
+        <div data-depth-drift="br" data-depth-follow="" className="relative self-start max-lg:order-first rounded-xl border border-hairline bg-surface">
           {tabs.map((tab) => {
             const Sketch = HOW_SKETCHES[SKETCH[tab.id]];
             return (

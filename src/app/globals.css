@@ -408,6 +408,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     margin-top: calc(var(--spacing) * 3.5);
     font-size: 1.0625rem;
     line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  [data-section-head][data-align="center"] p {
+    text-wrap: balance;
   }
 
   [data-page-head] {
@@ -1440,6 +1445,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
     font-size: 1.0625rem;
     line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  [data-section-head][data-align="center"] p {
+    text-wrap: balance;
   }
 
   @media (width >= 40rem) {

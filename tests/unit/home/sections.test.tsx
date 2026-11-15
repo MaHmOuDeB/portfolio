@@ -256,7 +256,7 @@ describe('FeaturedCases: a vignette on each experiment card', () => {
   it('draws the process on the Audible card, never a result: four ticked steps, no outcome word', () => {
     const v = one(doc(cards('a')), (el) => attr(el, 'data-sketch') === 'process');
     expect(all(v, (el) => has(el, 'data-mini-label')).map((el) => text(el))).toEqual(['Sample size', 'Run time', 'Guardrails', 'Recommendation']);
-    expect(all(v, (el) => has(el, 'data-tag')).map((el) => text(el))).toEqual(['planned', 'set', 'defined', 'written']);
+    expect(all(v, (el) => has(el, 'data-tag')).map((el) => text(el))).toEqual(['planned', 'set', 'checked', 'written']);
     expect(all(v, (el) => has(el, 'data-check'))).toHaveLength(4);
     expect(all(v, (el) => has(el, 'data-interval-mark'))).toHaveLength(0);
     expect(text(v)).not.toMatch(/higher|lower|clear|neutral|held|intact|win|lift/i);
@@ -401,7 +401,7 @@ describe('ToolsBand', () => {
   const band = one(d, (el) => has(el, 'data-home-shipped'));
   const groups = all(band, (el) => has(el, 'data-tools-group'));
 
-  it('is a ruled band labelled by its centred line "Methods and tools", with no ribbon', () => {
+  it('is a ruled band labelled by its left-aligned line "Methods and tools", with no ribbon', () => {
     expect(band.tagName).toBe('section');
     expect(has(band, 'data-rule')).toBe(true);
     expect(has(band, 'data-depth-ribbon')).toBe(false);
@@ -410,7 +410,8 @@ describe('ToolsBand', () => {
     expect(label.tagName).toBe('p');
     expect(text(label)).toBe('Methods and tools');
     expect(attr(band, 'aria-labelledby')).toBe(attr(label, 'id'));
-    expect(classes(label)).toContain('text-center');
+    expect(classes(label)).not.toContain('text-center');
+    expect(classes(label)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-figure']));
   });
 
   it('holds two groups, side by side from lg and one column below', () => {
@@ -523,7 +524,7 @@ describe('HomeFaq', () => {
     expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false, false]);
     const qa = rows.map((r) => [squash(text(one(r, (el) => el.tagName === 'summary'))), squash(text(one(r, (el) => has(el, 'data-faq-answer'))))]);
     expect(qa).toEqual([
-      ['What roles are you looking for?', 'Roles in AI automation, experimentation and product analytics in Germany. I am based in Berlin.'],
+      ['What roles are you looking for?', 'Roles in experimentation, product analytics and AI automation in Germany. I am based in Berlin.'],
       [
         'What did you do at Audible?',
         'I was a working student for nearly two years, mainly in growth experimentation with some marketing analytics. I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes.',
@@ -600,7 +601,7 @@ describe('HomeCallToAction: the dark call to action with the portrait', () => {
     expect(squash(text(h2))).toBe('Find out what I can do for your team.');
     expect(text(one(h2, (el) => has(el, 'data-quiet')))).toBe('for your team.');
     expect(text(one(panel, (el) => el.tagName === 'p'))).toBe(
-      'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
+      'Open to roles in experimentation, product analytics and AI automation in Germany. Based in Berlin.',
     );
     const links = all(panel, (el) => el.tagName === 'a');
     expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV', 'LinkedIn']);
