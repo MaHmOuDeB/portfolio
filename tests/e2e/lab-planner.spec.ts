@@ -815,13 +815,13 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(live(page, LAB)).toHaveText(LAB_RESULT);
     const n = await readoutN(page, LAB).textContent();
     const w = await weeks(page, LAB).textContent();
-    await expect(live(page, LAB)).toHaveText(new RegExp(`from 30% to 35% .* at 100 visitors a day: ${n} visitors per group and ${w} weeks?$`));
+    await expect(live(page, LAB)).toHaveText(new RegExp(`^To catch a real rise from 30% to 35% in 8 tests out of 10, you need: ${n} visitors per group and ${w} weeks?$`));
     await expect(live(page, LAB)).toHaveAttribute('data-derived', 'simulated');
-    // the traffic moves only the weeks
+    // the traffic moves only the weeks (the line names no traffic: it is on its own control)
     await traffic(page, LAB).focus();
     await page.keyboard.press('ArrowLeft');
     await expect(traffic(page, LAB)).toHaveValue('99');
-    await expect(live(page, LAB)).toHaveText(new RegExp(`at 99 visitors a day: ${n} visitors per group and \\d+ weeks?$`));
+    await expect(live(page, LAB)).toHaveText(new RegExp(`^To catch a real rise from 30% to 35% in 8 tests out of 10, you need: ${n} visitors per group and \\d+ weeks?$`));
     await expect(readoutN(page, LAB)).toHaveText(n!);
     await expect.poll(() => query(page).get(`${LAB}.traffic`)).toBe('99');
   });
