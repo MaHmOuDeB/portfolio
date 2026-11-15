@@ -285,7 +285,7 @@ describe('Audible truth', () => {
       [
         'Why so many were adopted',
         'Of my recommendations from 25+ tests, 20+ were adopted, which means rolled out permanently. That is not a win rate. Three things explain it.',
-        'Strong bets. Most tests were machine-learning personalisation or carousel ordering, for habituated and not yet habituated members, against baselines without personalisation.',
+        'Strong bets. Many tests were machine-learning personalisation or carousel ordering, for habituated and not yet habituated members, against baselines without personalisation.',
         'Vetted ideas. Ideas reached a test through a pre-vetted, iterative pipeline in a mature team.',
         'A ship rule that allowed neutral results. A change could roll out with a neutral primary metric when the guardrails held and there was a product reason.',
       ].join(' '),

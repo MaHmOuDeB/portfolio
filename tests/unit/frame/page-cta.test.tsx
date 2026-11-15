@@ -16,7 +16,7 @@ describe('PageCallToAction', () => {
 
   it('says the shared words, with the headline in two tones', () => {
     expect(html).toMatch(/<h2 id="page-cta-title"[^>]*>Find out what I can do <span data-quiet="">for your team\.<\/span><\/h2>/);
-    expect(plain(html)).toContain('Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.');
+    expect(plain(html)).toContain('Open to roles in experimentation, product analytics and AI automation in Germany. Based in Berlin.');
   });
 
   it('offers "Write to me" (the contact form), "Read my CV" (the CV page) and a quiet LinkedIn link, and no portrait', () => {
@@ -28,6 +28,14 @@ describe('PageCallToAction', () => {
     ]);
     expect(html).toMatch(/<a [^>]*rel="noopener"[^>]*data-cta-quiet-link=""[^>]*>LinkedIn<\/a>/);
     expect(html).not.toContain('<img');
+  });
+
+  it('leaves out "Read my CV" on the CV page only', () => {
+    const links = [...renderToStaticMarkup(<PageCallToAction omitCv />).matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], plain(m[2]!)]);
+    expect(links).toEqual([
+      ['/contact', 'Write to me'],
+      [CONTACT.linkedin, 'LinkedIn'],
+    ]);
   });
 
   it.each([

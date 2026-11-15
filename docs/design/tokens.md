@@ -88,7 +88,7 @@ All states use existing tokens; there are no extra tints.
 | State | Rule |
 |---|---|
 | hover | `muted` text, icons, underlines and borders turn `ink`. The primary button keeps its `ink` fill. A colour change only: no movement, no scale, no shadow, except the clickable card below. |
-| clickable card | A lean card or a previous/next card. On hover (only where hover exists), keyboard focus and press its border turns `ink` and its "+" square fills `ink` with a `surface` glyph; a Next card's label underlines instead. With motion allowed it also rises 4 px (`translate`, `duration-base`) on hover, the one hover movement on the site (keyboard focus changes colour and shows the ring, but does not move the card); under reduced motion it changes colour only. Where there is no hover the "+" is `ink` at rest. In forced-colors mode the border and the "+" take `Highlight`. Cards that are not links never change on hover. |
+| clickable card | A closed list: a lean card (`[data-depth-lean]`), a previous/next card (`[data-next]`) and a Home "How I test" tab (`[data-how-tab]`). On hover (only where hover exists), keyboard focus and press its border turns `ink`; a lean card's "+" square also fills `ink` with a `surface` glyph, a Next card's label underlines, and a tab keeps the focus ring of its radio (the selected tab keeps its `surface` fill and `ink` bar, so a hovered tab never reads as selected). With motion allowed it also rises 4 px (`translate`, `duration-base`) on hover, the one hover movement on the site (keyboard focus changes colour and shows the ring, but does not move it); under reduced motion it changes colour only. Where there is no hover the "+" is `ink` at rest. In forced-colors mode the border and the "+" take `Highlight`. Cards that are not links or tabs never change on hover; buttons, segmented controls, sliders, chips, details rows and inline links keep their own hover. |
 | pressed | The same as hover, held while pressed. |
 | selected | `ink` fill with a `bg` label (selected segment). The current step and the current navigation item are `ink` text with a 2 px `ink` bar. In forced-colors mode the selected segment gets a `Highlight` border. |
 | disabled | `muted` text, a `line` border, no fill. StepNav ends use `aria-disabled`, so they keep focus. |
@@ -240,5 +240,6 @@ Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and 
 not exist); any `text-transform: uppercase`; the arrow character, the middle dot and emoji in
 content; monospace outside code blocks; `@keyframes` not named `depth-*`; `fade-up`,
 `animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`, or a
-transform, scale or translate in a `:hover` rule), except the 4 px lift of a clickable card; dark
+transform, scale or translate in a `:hover` rule), except the 4 px lift of a clickable card
+(`[data-depth-lean]`, `[data-next]`, `[data-how-tab]`, a closed list); dark
 mode. The rule ids are listed in `CLAUDE.md`.

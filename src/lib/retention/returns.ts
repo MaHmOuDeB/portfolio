@@ -46,7 +46,7 @@ const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'nu
 /** "Jan 2010" for "2010-01". */
 export function monthLabel(month: string): string {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new TypeError(`expected a YYYY-MM month, got ${JSON.stringify(month)}`);
-  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`));
+  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`)).replace(/^Sept\b/, 'Sep');
 }
 
 /** The returned-order value of a month in the chosen mode, checked to be a finite, non-negative number. */
@@ -121,7 +121,7 @@ export function comparisonPeriod(rows: readonly RetailMonth[]): string {
       if (!full.has(key)) throw new Error(`returns: the comparison needs the full month ${key}`);
     }
   }
-  const name = (m: number) => shortMonth.format(Date.UTC(2000, m - 1, 1));
+  const name = (m: number) => shortMonth.format(Date.UTC(2000, m - 1, 1)).replace(/^Sept$/, 'Sep');
   const span = endMonth === 1 ? name(1) : `${name(1)} to ${name(endMonth)}`;
   return `${span} ${year} versus ${span} ${year - 1}`;
 }

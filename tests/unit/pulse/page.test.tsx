@@ -240,7 +240,7 @@ describe('the outline', () => {
     const links = [...next.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
     expect(links).toEqual([
       ['/work/retention', 'Previous Retention'],
-      ['/work/docproof', 'Next Docproof'],
+      ['/work/weather', 'Next Weather pipeline'],
     ]);
     expect(PAGE.indexOf('data-page-close')).toBeLessThan(PAGE.indexOf('data-next-row'));
   });

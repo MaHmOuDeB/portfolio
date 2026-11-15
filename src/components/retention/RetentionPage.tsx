@@ -178,7 +178,14 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
           <RetentionWinBack />
           <RetentionWinBackReach />
         </MethodDetails>
-        {planner ? <FigureSheet>{planner}</FigureSheet> : null}
+        {planner ? (
+          <FigureSheet>
+            {/* The planner's kind-of-case label follows the result sentence; it stands on its own line, not glued to it. */}
+            <div data-planner-wrap="" className="[&_[data-planner-result]+span]:mt-1 [&_[data-planner-result]+span]:block">
+              {planner}
+            </div>
+          </FigureSheet>
+        ) : null}
         <ul className={`${TEXT} mt-4`}>
           <li>
             <RetentionLabLink />

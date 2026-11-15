@@ -103,7 +103,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work',
     'Work: experiments, analyses and automation',
-    'Seven projects with their sources and limits: A/B testing at Audible, a retention analysis, a tracking plan, agents, n8n workflows and a SQL pipeline.',
+    'Seven projects and one tool, with their sources and limits: A/B testing at Audible, a retention analysis, a tracking plan, agents, n8n workflows and a SQL pipeline.',
     'site',
   ),
   entry(

@@ -227,7 +227,7 @@ function Plan({ d }: { d: LivePageDisplay }) {
         Pre-registration <MarkedText value={prereg.version} refs={BUILD} />, design hash <ShortHash value={prereg.configSha256} />.
       </p>
       <div className={TEXT}>
-        <TextLink href={`${REPO}/tree/${prereg.tag}`} external standalone>
+        <TextLink href={`${REPO}/blob/${prereg.tag}/docs/experiment/prereg.md`} external standalone>
           Read the pre-registration at its tag
         </TextLink>
       </div>
@@ -405,7 +405,7 @@ type Props = {
 };
 
 export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode {
-  const preregHref = `${REPO}/tree/${d.public.prereg.tag}`;
+  const preregHref = `${REPO}/blob/${d.public.prereg.tag}/docs/experiment/prereg.md`;
   return (
     <article aria-labelledby="live-test-title">
       <CaseHead

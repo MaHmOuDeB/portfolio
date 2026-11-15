@@ -94,7 +94,7 @@ const STORY = [
 
 const FOCUS =
   'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
-const LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+const LOOKING = 'Open to roles in experimentation, product analytics and AI automation in Germany.';
 
 const TIMELINE = [
   { dates: 'Oct 2026 to present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
@@ -325,7 +325,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['mercor-accuracy', 'Put accuracy first: check and explain every result, and document the work so others can review and repeat it.'],
   ['mercor-standards', 'Work to strict quality standards and stay disciplined about privacy and confidentiality.'],
   ['audible-tests', "Contributed to 25+ A/B tests across web and mobile on Amazon's internal platforms, from hypothesis to a recommendation, doing the sample-size planning and significance testing myself."],
-  ['audible-adopted', '20+ of my recommendations were adopted: most tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
+  ['audible-adopted', '20+ of my recommendations were adopted: many tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
   ['audible-metrics', 'Evaluated experiments for the teams that used mirrored metric setups (revenue primary and listening minutes secondary, or the reverse), with churn and incremental long-term value (ILTV) as guardrails.'],
   ['audible-crm', 'Contributed to CRM-driven personalisation for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.'],
   ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
@@ -342,7 +342,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['pulse-replay', 'Layered autocapture and Session Replay under the explicit taxonomy and deployed through GitHub and Vercel CI/CD.'],
   ['thesis-tool', 'Built a web-based generative AI tool that writes platform-specific marketing content (social, email, PPC, product launches) from a brief, with iterative feedback from marketers.'],
   ['thesis-rebuild', 'Rebuilt in 2026 as a live web app (FastAPI, Vercel) with copy variants and a fact check against invented claims.'],
-  ['docproof-pipeline', 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (Claude, GPT, Gemini).'],
+  ['docproof-pipeline', 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (tested with Claude models; GPT and Gemini by design).'],
   ['docproof-verification', 'Automated claim verification: every figure must trace to the fact base and listed gaps are blocked.'],
   ['docproof-agents', 'Split the work across agents (author, claim auditor, context-free reviewer), backed by unit tests and GitHub Actions CI with headless-Chrome rendering checks.'],
   ['weather-pipeline', 'Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).'],

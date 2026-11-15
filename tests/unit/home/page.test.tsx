@@ -11,7 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import Link from 'next/link';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { auditHtml } from '../../../scripts/truth-audit.ts';
+import { auditHtml, parseDenylist } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, headlineText } from '../../../content/home.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { EXPERIMENT, FIXTURE_START, type ExperimentConfig } from '@/experiment.config';
@@ -453,6 +453,30 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
       // The text a reader sees differs only inside the three card headlines.
       const strip = (h: string) => HEADLINES.reduce((out, hl) => out.replace(squash(headlineText(hl.a)), '').replace(squash(headlineText(hl.b)), ''), visibleText(neutral(h)));
       expect(strip(a), m).toBe(strip(b));
+    }
+  });
+
+  /** The whole page's words in three modes, hidden markup included. */
+  const pageWords = () => (['not-started', 'calibration', 'ab'] as const).map((m) => [m, squash(text(doc(page(mode(m)))))] as const);
+
+  it('names no Excel, no Tableau "as a data source", and Tampermonkey only with its step recorder', () => {
+    for (const [m, all] of pageWords()) {
+      expect(all, m).toContain('Methods and tools');
+      expect(all, m).not.toMatch(/\bExcel\b|as a data source/i);
+      const tm = all.match(/Tampermonkey/g) ?? [];
+      expect(tm.length, m).toBeGreaterThan(0);
+      expect(all.match(/Tampermonkey with a step recorder/g) ?? [], m).toHaveLength(tm.length);
+    }
+  });
+
+  // The tools he has not used are a private list, so it is never written into the repository: it
+  // comes from HOME_KNOWN_GAPS, one term per line, and a hit is reported by its position, never its text.
+  const gaps = parseDenylist(process.env.HOME_KNOWN_GAPS);
+  it.runIf(gaps.length > 0)('names no tool he has not used (HOME_KNOWN_GAPS)', () => {
+    const escape = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const [m, all] of pageWords()) {
+      const hits = gaps.flatMap((t, i) => (new RegExp(`(?<![\\w])${escape(t)}(?![\\w])`).test(all) ? [`term #${i + 1}`] : []));
+      expect(hits, m).toEqual([]);
     }
   });
 

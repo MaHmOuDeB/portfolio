@@ -73,7 +73,7 @@ export function ProcessSketch() {
     <Sketch kind="process">
       <Row mark={<Tick />} name="Sample size" end={<Tag>planned</Tag>} />
       <Row mark={<Tick />} name="Run time" end={<Tag>set</Tag>} />
-      <Row mark={<Tick />} name="Guardrails" end={<Tag>defined</Tag>} />
+      <Row mark={<Tick />} name="Guardrails" end={<Tag>checked</Tag>} />
       <Row mark={<Tick />} name="Recommendation" end={<Tag>written</Tag>} />
     </Sketch>
   );

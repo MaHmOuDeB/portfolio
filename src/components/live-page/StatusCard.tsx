@@ -166,9 +166,9 @@ function NextDate({ d }: { d: LivePageDisplay }): ReactNode {
   const earliest = d.plannedEndKind === 'earliest';
   return (
     <div data-status-cell="date">
-      <dt className={LABEL}>{earliest ? 'Earliest end' : 'Planned end'}</dt>
+      <dt className={LABEL}>{earliest ? 'Time limit' : 'Planned end'}</dt>
       <dd className={VALUE}>
-        <When iso={d.plannedEnd} refs={configRefs} />
+        <When iso={d.plannedEnd} refs={configRefs} withYear={earliest} />
       </dd>
       {/* Only while the test is collecting: a stopped or paused test is promised no decision. */}
       {earliest && isRunning(d) ? <dd className={NOTE}>A decision can end the test sooner.</dd> : null}
