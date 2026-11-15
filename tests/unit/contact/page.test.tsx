@@ -7,6 +7,7 @@ import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts/facts.generated';
 import { CONTACT_LIMITS } from '@/lib/contact/fields';
 import { StatusBlock } from '@/components/contact/StatusBlock';
+import { CONTACT } from '@/lib/site';
 
 async function render(sent?: string): Promise<string> {
   const element = await ContactPage({ searchParams: Promise.resolve(sent === undefined ? {} : { sent }) } as PageProps<'/contact'>);
@@ -20,12 +21,29 @@ const form = await render();
 const sent = await render('1');
 
 describe('the contact page', () => {
-  it('is titled Contact, with one h1 and a one-line intro', () => {
+  it('is titled Contact, with one two-tone h1 "Write to me, I reply by e-mail." and a one-line sub', () => {
     expect(contactMetadata(new Headers(), false).title).toBe('Contact | Mahmoud El Bergui');
-    expect(form.match(/<h1\b/g)).toHaveLength(1);
-    expect(form).toContain('>Contact</h1>');
-    expect(form).toMatch(/<span data-chip="">Contact<\/span><h1 id="contact-title" class="[^"]*text-h2-sm/);
+    for (const html of [form, sent]) {
+      expect(html.match(/<h1\b/g)).toHaveLength(1);
+      expect(html).toMatch(/<span data-chip="">Contact<\/span><h1 id="contact-title" class="[^"]*text-h2-sm[^"]*">Write to me,? <span data-quiet="">I reply by e-mail\.<\/span><\/h1>/);
+      expect(html).toContain('Tell me who you are and what the role or question is.');
+    }
     expect(form).toContain('data-contact-card=""');
+  });
+
+  it('puts a side card beside the form from lg (under it on a phone): the CV first, then LinkedIn and GitHub', () => {
+    for (const html of [form, sent]) {
+      const side = html.slice(html.indexOf('data-contact-side'));
+      expect(html.indexOf('data-contact-side')).toBeGreaterThan(html.indexOf('data-contact-card'));
+      expect(side).toContain('Want the facts first?');
+      const links = [...side.matchAll(/<a [^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g)].map((m) => [m[1], m[2]!.replace(/<[^>]+>/g, '')]);
+      expect(links.slice(0, 3)).toEqual([
+        ['/cv', 'Read my CV'],
+        [CONTACT.linkedin, 'LinkedIn'],
+        [CONTACT.github, 'GitHub'],
+      ]);
+      expect(html).toMatch(/class="[^"]*lg:grid-cols-\[minmax\(0,40rem\)_minmax\(0,1fr\)\]/);
+    }
   });
 
   it('titles a page rendered in answer to a document form POST "Message not sent: Contact" (a sent one redirects)', () => {

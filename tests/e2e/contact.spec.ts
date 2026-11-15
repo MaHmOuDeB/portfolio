@@ -50,7 +50,7 @@ const status = (page: Page) => page.locator('#contact-status');
 test.describe('with JavaScript', () => {
   test('sends a message, shows "Message sent" with focus on it, and the fake inbox gets exactly the five fields', async ({ page }) => {
     await page.goto('/contact');
-    await expect(page.locator('h1')).toHaveText('Contact');
+    await expect(page.locator('h1')).toHaveText('Write to me, I reply by e-mail.');
     const v = values();
     await fill(page, v);
     await letFormAge(page);
@@ -272,7 +272,7 @@ test.describe('with JavaScript', () => {
     await page.goto('/');
     await page.getByRole('contentinfo').getByRole('link', { name: 'Contact', exact: true }).click();
     await expect(page).toHaveURL(/\/contact$/);
-    await expect(page.locator('h1')).toHaveText('Contact');
+    await expect(page.locator('h1')).toHaveText('Write to me, I reply by e-mail.');
     await expect(page).toHaveTitle(/^Contact/);
   });
 });
