@@ -214,6 +214,17 @@ describe('the automation cards', () => {
     }
   });
 
+  it('name the project in a small label, and say what each does as a verb and its object', () => {
+    expect(HOME_AUTOMATION.map((t) => t.label)).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(HOME_AUTOMATION.map((t) => headlineText(t.title))).toEqual([
+      'Set up a test account in about 3 minutes, not 20',
+      'Let agents write, and let checks decide',
+      'Check every e-invoice before a person has to',
+      'Draft marketing copy, with a check for invented figures',
+    ]);
+    expect(factIds(byId.automation.title)).toEqual(['profile.audible.setup_minutes_after', 'profile.audible.setup_minutes_before']);
+  });
+
   it('say the approved lines, with the figures printed from facts', () => {
     expect(headlineText(byId.automation.description)).toBe(
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
@@ -253,7 +264,9 @@ describe('the automation cards', () => {
       for (const id of factIds(t.meta)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
       const meta = stringParts(t.meta).join('');
       expect(meta.replace(/n8n/g, ''), meta).not.toMatch(/\d/);
-      expect(t.title.length).toBeGreaterThan(0);
+      expect(t.label.length).toBeGreaterThan(0);
+      for (const id of factIds(t.title)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      for (const s of stringParts(t.title)) expect(s, s).not.toMatch(/\d/);
     }
   });
 });
@@ -300,7 +313,7 @@ describe('the hero, proof row, the sections and the site band', () => {
       ['Recommend', 'I write the recommendation: ship it, or do not.'],
     ]);
     expect(HOME_AUTOMATE_LINES).toEqual([
-      'I turn repeated manual steps into tools a whole team can use.',
+      'At Audible I built a browser tool and AI tools that the team adopted.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
@@ -344,7 +357,7 @@ describe('all Home copy', () => {
       ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
       ...HOME_CASES.map((c) => headlineText(c.description)),
       ...HOME_CASES.map((c) => c.meta),
-      ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), headlineText(t.meta)]),
+      ...HOME_AUTOMATION.flatMap((t) => [t.label, headlineText(t.title), headlineText(t.description), headlineText(t.meta)]),
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
       ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
       HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),

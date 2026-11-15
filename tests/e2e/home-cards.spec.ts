@@ -365,7 +365,13 @@ test.describe('Home automation track', () => {
     await expect(track.getByRole('heading', { level: 2 })).toHaveText("Take the manual steps out of your team's week.");
     const links = track.getByRole('link');
     await expect(links).toHaveCount(4);
-    await expect(links.locator('h3')).toHaveText(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    await expect(links.locator('h3 [data-card-label]')).toHaveText(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    await expect(links.locator('h3 [data-card-title]')).toHaveText([
+      'Set up a test account in about 3 minutes, not 20',
+      'Let agents write, and let checks decide',
+      'Check every e-invoice before a person has to',
+      'Draft marketing copy, with a check for invented figures',
+    ]);
     expect(await links.evaluateAll((els) => els.map((a) => a.getAttribute('href')))).toEqual([
       '/work/audible#automation',
       '/work/docproof',

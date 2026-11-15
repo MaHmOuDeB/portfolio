@@ -2112,6 +2112,21 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     font-weight: 600;
   }
 
+  /* A card's small label above its title: the project's name. */
+  [data-card-label] {
+    display: block;
+    margin-bottom: calc(var(--spacing) * 1.5);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-weight: 500;
+    color: var(--color-muted);
+  }
+
+  [data-card-title] {
+    display: block;
+  }
+
   [data-depth-lean] p {
     margin: calc(var(--spacing) * 2) 0 0;
     font-size: var(--text-sm);

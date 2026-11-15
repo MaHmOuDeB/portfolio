@@ -208,17 +208,27 @@ export const HOME_CASES: readonly {
   },
 ];
 
-/** The "Automation and agents" cards in display order. */
+/**
+ * The "Automation and agents" cards in display order: the project's name as a small label, and a
+ * title that says what it does (a verb and its object; a figure in it is a fact part).
+ */
 export const HOME_AUTOMATION: readonly {
   id: string;
-  title: string;
+  label: string;
+  title: readonly HeadlinePart[];
   href: string;
   description: readonly HeadlinePart[];
   meta: readonly HeadlinePart[];
 }[] = [
   {
     id: 'automation',
-    title: 'Test-account automation',
+    label: 'Test-account automation',
+    title: [
+      'Set up a test account in about ',
+      { fact: 'profile.audible.setup_minutes_after' },
+      ' minutes, not ',
+      { fact: 'profile.audible.setup_minutes_before' },
+    ],
     href: HOME_LINKS.automation,
     description: [
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about ',
@@ -231,7 +241,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'docproof',
-    title: 'Docproof',
+    label: 'Docproof',
+    title: ['Let agents write, and let checks decide'],
     href: HOME_LINKS.docproof,
     description: [
       'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
@@ -240,7 +251,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'n8n',
-    title: 'n8n workflow library',
+    label: 'n8n workflow library',
+    title: ['Check every e-invoice before a person has to'],
     href: HOME_LINKS.n8n,
     description: [
       'E-invoice intake and error alerts as reusable workflows, with ',
@@ -251,7 +263,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'marketingws',
-    title: 'MarketingWS',
+    label: 'MarketingWS',
+    title: ['Draft marketing copy, with a check for invented figures'],
     href: HOME_LINKS.marketingws,
     description: ["Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier."],
     meta: ['Python, FastAPI, Groq'],
@@ -303,7 +316,7 @@ export const HOME_AUTOMATION_HEAD = {
 
 /** The three "I automate." lines, in the ruled row under the automation cards. */
 export const HOME_AUTOMATE_LINES = [
-  'I turn repeated manual steps into tools a whole team can use.',
+  'At Audible I built a browser tool and AI tools that the team adopted.',
   'I build agents that work in steps and check each other.',
   'I put automated tests around my workflows and agent pipelines, so they stay right.',
 ] as const;

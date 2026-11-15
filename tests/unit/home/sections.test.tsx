@@ -285,9 +285,19 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
   it('keeps the four cards, their links, titles and Facts', () => {
     const links = all(section, (el) => el.tagName === 'a');
     expect(links.map((a) => attr(a, 'href'))).toEqual(['/work/audible#automation', '/work/docproof', '/work/n8n', '/work/marketingws']);
-    expect(links.map((a) => text(one(a, (el) => el.tagName === 'h3')))).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    // The project name is a small label inside the h3, so the link's name carries both.
+    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-label'))))).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-title'))))).toEqual([
+      'Set up a test account in about 3 minutes, not 20',
+      'Let agents write, and let checks decide',
+      'Check every e-invoice before a person has to',
+      'Draft marketing copy, with a check for invented figures',
+    ]);
+    for (const a of links) expect(all(one(a, (el) => el.tagName === 'h3'), (el) => has(el, 'data-card-label'))).toHaveLength(1);
     for (const a of links) expect(has(a, 'data-experiment-click')).toBe(false);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
+      'profile.audible.setup_minutes_after',
+      'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
       'profile.audible.markets',
@@ -316,8 +326,11 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     expect(all(row, (el) => /^h\d$/.test(el.tagName))).toEqual([]);
     const ul = one(row, (el) => el.tagName === 'ul');
     expect(attr(ul, 'role')).toBe('list');
+    // Three equal cells: the outer two have one padding, so their tracks are a third of it narrower.
+    expect(classes(ul)).toContain('md:grid-cols-[minmax(0,calc(100%/3_-_0.5rem))_minmax(0,1fr)_minmax(0,calc(100%/3_-_0.5rem))]');
+    for (const li of all(ul, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['md:px-6', 'md:first:pl-0', 'md:last:pr-0']));
     expect(all(ul, (el) => el.tagName === 'li').map((li) => text(li))).toEqual([
-      'I turn repeated manual steps into tools a whole team can use.',
+      'At Audible I built a browser tool and AI tools that the team adopted.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
