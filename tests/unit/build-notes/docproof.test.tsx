@@ -99,7 +99,7 @@ describe('the outline', () => {
   it('links only to the code, its own sections, the Work page and its neighbours', () => {
     const hrefs = [...PAGE.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
     const REPO = 'https://github.com/MaHmOuDeB/docproof';
-    expect(hrefs).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/pulse', '/work/n8n']);
+    expect(hrefs).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/weather', '/work/n8n']);
     // every link is a 44 px target
     for (const a of PAGE.match(/<a [^>]*>/g)!) expect(a).toContain('data-touch-target');
   });

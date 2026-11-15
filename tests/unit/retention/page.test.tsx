@@ -369,6 +369,8 @@ describe('the win-back section', () => {
     expect(sizing).toMatch(new RegExp(`<data data-planner-n="" data-num="" value="${n}"[^>]*data-derived="simulated"[^>]*>1,353</data>`));
     expect(text(sizing)).toContain('customers per group');
     expect(text(sizing)).toContain('To detect a rise of 5 points, from 29% to 34%.');
+    // the label after each result sentence stands on its own line
+    expect(s).toMatch(/data-planner-wrap="" class="[^"]*\[&amp;_\[data-planner-result\]\+span\]:block/);
     for (const f of [sizing, duration]) {
       expect(text(f)).toContain('Simulated');
       expect(text(f)).toContain('Hypothetical uplift');

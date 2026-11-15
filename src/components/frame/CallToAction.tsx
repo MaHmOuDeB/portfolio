@@ -18,7 +18,8 @@ export type CallToActionProps = {
   quiet?: ReactNode;
   line: ReactNode;
   primary: Action;
-  secondary: Action;
+  /** Left out where the second button would link to the page it is on. */
+  secondary?: Action;
   /** A quiet text link after the two buttons, such as LinkedIn. */
   tertiary?: Action;
   media?: ReactNode;
@@ -59,9 +60,11 @@ export function CallToAction({ id, title, quiet, line, primary, secondary, terti
           <ButtonLink href={primary.href} variant="primary" external={primary.external} onInk>
             {primary.label}
           </ButtonLink>
-          <ButtonLink href={secondary.href} variant="secondary" external={secondary.external} onInk>
-            {secondary.label}
-          </ButtonLink>
+          {secondary ? (
+            <ButtonLink href={secondary.href} variant="secondary" external={secondary.external} onInk>
+              {secondary.label}
+            </ButtonLink>
+          ) : null}
           {tertiary ? <QuietLink {...tertiary} /> : null}
         </div>
       </div>

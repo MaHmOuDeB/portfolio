@@ -274,7 +274,7 @@ describe('the first screen', () => {
     const date = cells.find((c) => attr(c, 'data-status-cell') === 'date');
     if (date) {
       expect(elements(date).filter((el) => el.tagName === 'time')).toHaveLength(1);
-      expect(text(elements(date).find((el) => el.tagName === 'dt')!)).toBe(d.outcome !== null ? 'Decided on' : d.plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end');
+      expect(text(elements(date).find((el) => el.tagName === 'dt')!)).toBe(d.outcome !== null ? 'Decided on' : d.plannedEndKind === 'earliest' ? 'Time limit' : 'Planned end');
     }
     if (d.public.source === 'unavailable') expect(kinds).toEqual(['state']);
     // "A decision can end the test sooner" only while the test is collecting.
@@ -291,7 +291,7 @@ describe('the first screen', () => {
     const cell = (kind: string) => text(elements(card).find((el) => attr(el, 'data-status-cell') === kind)!).replace(/\s+/g, ' ');
     expect(cell('state')).toContain('StatusCalibrating');
     expect(cell('progress')).toBe('Progress0 of 50views in the smaller group. Estimates appear at 50 views per group.');
-    expect(cell('date')).toMatch(/^Earliest end\d{2}\.\d{2}A decision can end the test sooner\.$/);
+    expect(cell('date')).toMatch(/^Time limit\d{2}\.\d{2}\.\d{4}A decision can end the test sooner\.$/);
     const points = all(h).filter((el) => attr(el, 'data-key-body') !== undefined).map((el) => text(el).replace(/\s+/g, ' '));
     expect(points[0]).toBe(
       'The three featured cards on the home page. Group A: headlines that name the topic. Group B: headlines that state the finding. Nothing else differs. ' +
@@ -830,7 +830,7 @@ describe('the pre-registration and build lines', () => {
     const line = byId(h, 'plan-prereg')!;
     expect(text(line).replace(/\s+/g, ' ')).toBe(`Pre-registration ${config.prereg.version}, tag ${config.prereg.tag}, design hash ${preregHash()}.`);
     expect(elements(line).filter((el) => attr(el, 'data-derived') === 'build').map(text)).toEqual([config.prereg.version, config.prereg.tag, preregHash()]);
-    const link = all(h).find((el) => el.tagName === 'a' && attr(el, 'href') === `${CONTACT.github}/portfolio/tree/${config.prereg.tag}`);
+    const link = all(h).find((el) => el.tagName === 'a' && attr(el, 'href') === `${CONTACT.github}/portfolio/blob/${config.prereg.tag}/docs/experiment/prereg.md`);
     expect(link).toBeDefined();
     expect(text(byId(h, 'plan-build')!).replace(/\s+/g, ' ')).toBe('This page was built from commit abcdef0.');
   });

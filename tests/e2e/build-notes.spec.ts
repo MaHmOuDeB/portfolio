@@ -326,7 +326,7 @@ test.describe('the Docproof build note', () => {
       REPO,
       '/work',
       REPO,
-      '/work/pulse',
+      '/work/weather',
       '/work/n8n',
       '/contact',
       '/cv',
@@ -455,10 +455,10 @@ const SEQUENCE = [
   ['/work/audible', 'Audible'],
   ['/work/retention', 'Retention'],
   ['/work/pulse', 'Pulse'],
+  ['/work/weather', 'Weather pipeline'],
   ['/work/docproof', 'Docproof'],
   ['/work/n8n', 'n8n e-invoice intake'],
   ['/work/marketingws', 'MarketingWS'],
-  ['/work/weather', 'Weather pipeline'],
   ['/experiment', 'The live test'],
 ] as const;
 
@@ -481,6 +481,6 @@ test('previous and next: the work pages lead through the sequence and back', asy
   // following a card by click opens the page it names
   await page.goto('/work/pulse');
   await page.getByRole('navigation', { name: 'More work' }).locator('[data-next="next"]').click();
-  await expect(page).toHaveURL(/\/work\/docproof$/);
+  await expect(page).toHaveURL(/\/work\/weather$/);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 });

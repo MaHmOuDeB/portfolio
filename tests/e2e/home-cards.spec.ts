@@ -210,9 +210,9 @@ test.describe('Home cards: the region and its links', () => {
       const region = page.getByRole('region', { name: 'Featured case studies' });
       const shown = arm === 'a'
         ? ['How I run experiments', 'Customer retention and reactivation analysis', 'Pulse: analytics instrumentation demo']
-        : ['Most tests pitted personalisation against plain baselines', 'Reversed orders turned 2% returns growth into 29%', '7 events, each designed to answer a product question'];
+        : ['Many tests pitted personalisation against plain baselines', 'Reversed orders turned 2% returns growth into 29%', '7 events, each designed to answer a product question'];
       const hidden = arm === 'a'
-        ? ['Most tests pitted personalisation against plain baselines', '7 events, each designed to answer a product question']
+        ? ['Many tests pitted personalisation against plain baselines', '7 events, each designed to answer a product question']
         : ['How I run experiments', 'Pulse: analytics instrumentation demo'];
       // Accessible names, not textContent: the hidden twin is in the DOM but never announced.
       // Each card is one link whose name starts with its shown headline; the hidden twin is in no name.

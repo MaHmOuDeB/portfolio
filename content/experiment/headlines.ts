@@ -17,7 +17,7 @@ export const HEADLINES: readonly CardHeadlines[] = [
   {
     study: 'audible',
     a: ['How I run experiments'],
-    b: ['Most tests pitted personalisation against plain baselines'],
+    b: ['Many tests pitted personalisation against plain baselines'],
   },
   {
     study: 'retention',

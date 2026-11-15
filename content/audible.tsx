@@ -110,7 +110,7 @@ export function AudibleWhySoMany(): ReactNode {
   const reasons: readonly [title: string, body: string][] = [
     [
       'Strong bets.',
-      'Most tests were machine-learning personalisation or carousel ordering, for habituated and not yet habituated members, against baselines without personalisation.',
+      'Many tests were machine-learning personalisation or carousel ordering, for habituated and not yet habituated members, against baselines without personalisation.',
     ],
     ['Vetted ideas.', 'Ideas reached a test through a pre-vetted, iterative pipeline in a mature team.'],
     [

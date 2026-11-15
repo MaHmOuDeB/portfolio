@@ -37,6 +37,12 @@ export function berlinDate(iso: string): string {
   return `${p.day}.${p.month}`;
 }
 
+/** "25.10.2026": the Berlin calendar day of an instant with its year, for a date that needs it. */
+export function berlinDateYear(iso: string): string {
+  const p = parts(iso);
+  return `${p.day}.${p.month}.${p.year}`;
+}
+
 /** "00:30": the Berlin wall-clock time of an instant, 24-hour. */
 export function berlinTime(iso: string): string {
   const p = parts(iso);

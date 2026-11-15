@@ -105,7 +105,7 @@ describe('the frozen card headlines', () => {
   it('read as the approved wording once their facts are printed', () => {
     const rendered = HEADLINES.map((h) => [h.study, headlineText(h.a), headlineText(h.b)]);
     expect(rendered).toEqual([
-      ['audible', 'How I run experiments', 'Most tests pitted personalisation against plain baselines'],
+      ['audible', 'How I run experiments', 'Many tests pitted personalisation against plain baselines'],
       [
         'retention',
         'Customer retention and reactivation analysis',
