@@ -188,7 +188,7 @@ describe('HEADLINES', () => {
   });
 
   it('states the finding in group B, with numbers as facts', () => {
-    expect(by('audible').b).toEqual(['Most tests pitted personalisation against plain baselines']);
+    expect(by('audible').b).toEqual(['Many tests pitted personalisation against plain baselines']);
     expect(by('retention').b).toEqual([
       'Reversed orders turned ',
       { fact: 'retail.returns.yoy_growth_clean' },

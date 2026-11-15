@@ -166,7 +166,7 @@ export const CV_EXPERIENCE: readonly CvEntry[] = [
         id: 'audible-adopted',
         body: (
           <>
-            <Fact id="profile.audible.recommendations_adopted" /> of my recommendations were adopted: most tests were
+            <Fact id="profile.audible.recommendations_adopted" /> of my recommendations were adopted: many tests were
             personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted
             pipeline, and neutral results could ship when guardrails held and there was a product reason.
           </>
@@ -383,7 +383,7 @@ export const CV_PROJECTS: readonly CvEntry[] = [
     claims: [
       {
         id: 'docproof-pipeline',
-        body: 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (Claude, GPT, Gemini).',
+        body: 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (tested with Claude models; GPT and Gemini by design).',
       },
       {
         id: 'docproof-verification',

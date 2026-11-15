@@ -14,7 +14,7 @@ const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'nu
 /** "Jan 2010" for "2010-01". */
 function monthLabel(month: string): string {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new TypeError(`expected a YYYY-MM month, got ${JSON.stringify(month)}`);
-  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`));
+  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`)).replace(/^Sept\b/, 'Sep');
 }
 
 /** The value itself, after checking it is a finite number (a share also between zero and one). */
@@ -132,7 +132,7 @@ export function targetingTable(): TableData {
 /** The holdout-test sizing: customers needed in each group to detect each rise. */
 export function holdoutTable(): TableData {
   return {
-    columns: ['Customers sized for', 'Share who ordered again within the window', 'Rise to detect (percentage points)', 'Customers per group'],
+    columns: ['Sized for', 'Ordered again', 'Rise (points)', 'Customers per group'],
     rows: RETENTION.tables.holdout_sizes.map((h) => [
       capitalise(h.group),
       finite(h.baseline_rate, `${h.group} baseline`, true),
@@ -140,7 +140,7 @@ export function holdoutTable(): TableData {
       finite(h.customers_per_arm, `${h.group} customers per group`),
     ]),
     formats: ['number', 'share', 'count', 'count'],
-    note: 'A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
+    note: 'Ordered again is the share who ordered again within the window, and the rise is in percentage points. A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
     refs: ['source:retention', 'retention.winback.n_per_arm', 'retention.winback.baseline_rate', 'retention.winback.uplift_pp'],
   };
 }

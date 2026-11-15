@@ -30,6 +30,14 @@ describe('PageCallToAction', () => {
     expect(html).not.toContain('<img');
   });
 
+  it('leaves out "Read my CV" on the CV page only', () => {
+    const links = [...renderToStaticMarkup(<PageCallToAction omitCv />).matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], plain(m[2]!)]);
+    expect(links).toEqual([
+      ['/contact', 'Write to me'],
+      [CONTACT.linkedin, 'LinkedIn'],
+    ]);
+  });
+
   it.each([
     ['Work', () => renderToStaticMarkup(<WorkPage />)],
     ['About', () => renderToStaticMarkup(<AboutPage />)],

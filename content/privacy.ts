@@ -154,7 +154,7 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
     {
       heading: 'Cookies and storage',
       paragraphs: [
-        ['This site sets no cookies in your browser, and writes nothing to its storage.'],
+        ['Visitors get no cookies from this site, and it writes nothing to their storage.'],
         ['The only cookie it ever sets is one I set on my own devices, through a private link, to leave my own visits out of the counts.'],
       ],
     },

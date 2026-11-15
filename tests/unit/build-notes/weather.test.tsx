@@ -41,7 +41,7 @@ describe('the outline', () => {
     expect(WORK_GROUPS.flatMap((g) => g.items).some((i) => i.href === ROUTE)).toBe(true);
     const intro = /<h1[\s\S]*?<\/h1>\s*<div[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)![1]!;
     expect(text(intro)).toBe(
-      'One reading in this public weather dataset reports wind at 2,963 km/h. Keep it and every wind average is off; delete it and nobody knows it was there. I built a pipeline that sets such readings aside with their reason and refuses to publish the data unless 14 checks pass.',
+      'One reading in this public weather dataset reports wind at 2,963 km/h. Keep it and every wind average is off; delete it and nobody knows it was there. I built a pipeline that sets such readings aside with their reason and refuses to publish the data unless 14 of its 18 checks pass.',
     );
     // the 14 are the error-level checks, the ones whose failure stops the pipeline
     expect(intro).toContain('data-fact="weather.checks.error_count"');
