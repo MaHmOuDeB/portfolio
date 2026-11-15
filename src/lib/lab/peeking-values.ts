@@ -29,18 +29,27 @@ export const PEEK_VISITORS_PER_LOOK = 100;
 export const PEEK_UI_REFS: readonly DerivedRef[] = ['simulated'];
 
 export const MODE_OPTIONS = [
-  { value: 'daily', label: 'Peek daily' },
-  { value: 'once', label: 'Look once' },
+  { value: 'daily', label: 'Check every day' },
+  { value: 'once', label: 'Check once at the end' },
 ] as const;
 
 export const FIX_OPTIONS = [
   { value: 'naive', label: 'None' },
-  { value: 'obf', label: "O'Brien-Fleming" },
-  { value: 'cs', label: 'Confidence sequence' },
+  { value: 'obf', label: "Stricter early looks (O'Brien-Fleming)" },
+  { value: 'cs', label: 'Always-valid interval (confidence sequence)' },
 ] as const;
 
-/** Shown under Fix while it is disabled. */
-export const ONCE_FIX_REASON = 'One look at the end needs no fix.';
+/** The control row's words: plain first, the statistic's name in brackets on the option. */
+export const PEEK_LABELS = { looks: 'Daily checks', mode: 'Schedule', fix: 'Correction' } as const;
+
+/** Shown under Correction while it is disabled. */
+export const ONCE_FIX_REASON = 'One check at the end needs no correction.';
+
+/** The links under the exhibit: the same setting with each correction, as a full page load so the island reads it. */
+export const PEEK_PRESET_LINKS = [
+  { href: '?peeking.fix=obf#peeking-at-results', label: 'See it with stricter early looks' },
+  { href: '?peeking.fix=cs#peeking-at-results', label: 'See it with an always-valid interval' },
+] as const;
 
 const visitors = (looks: number) => formatNumber(looks * PEEK_VISITORS_PER_LOOK, 0);
 

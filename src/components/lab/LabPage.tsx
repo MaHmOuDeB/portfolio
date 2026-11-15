@@ -35,7 +35,10 @@ import {
 import { CurseFigure } from './CurseFigure';
 import { FullPlanner } from './FullPlanner';
 import { LAB_SKETCHES } from './LabSketches';
-import { SrmEvenLink, SrmFigure } from './SrmFigure';
+import { CURSE_PRESET_LINK } from '@/lib/lab/diagnostics-values';
+import { FULL_PLANNER_REFS, PLANNER_PRESET_HREF, PLANNER_PRESET_RISE } from '@/lib/lab/full-planner-values';
+import { PEEK_PRESET_LINKS } from '@/lib/lab/peeking-values';
+import { PresetLinks, SrmEvenLink, SrmFigure } from './SrmFigure';
 
 /** The document's title (the tab and the search result). The h1 says what the page is for. */
 export const LAB_TITLE = 'Lab';
@@ -113,6 +116,18 @@ export function LabPage(): ReactNode {
 
       <Section id="sample-size">
         <FullPlanner />
+        <PresetLinks
+          links={[
+            {
+              href: PLANNER_PRESET_HREF,
+              label: (
+                <>
+                  Try a rise of <Derived value={PLANNER_PRESET_RISE} unit="count" refs={FULL_PLANNER_REFS} /> points
+                </>
+              ),
+            },
+          ]}
+        />
       </Section>
 
       <Section id="split-check">
@@ -122,10 +137,12 @@ export function LabPage(): ReactNode {
 
       <Section id="peeking-at-results">
         <PeekingFigure />
+        <PresetLinks links={PEEK_PRESET_LINKS} />
       </Section>
 
       <Section id="exaggeration">
         <CurseFigure />
+        <PresetLinks links={[CURSE_PRESET_LINK]} />
       </Section>
 
       <section id="limits" aria-labelledby="limits-title" data-rule="" className={BAND}>
@@ -162,6 +179,7 @@ export function LabPeekingPage(): ReactNode {
 
       <Section id="peeking-at-results" chip={false}>
         <PeekingFigure />
+        <PresetLinks links={PEEK_PRESET_LINKS} />
       </Section>
 
       <div className={`${TEXT} mt-8 pb-12 md:pb-16`}>

@@ -13,10 +13,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
-import { SRM_ID, SRM_PRESETS, SRM_SCHEMA, normalizeSrm, srmResultText, type SrmValues } from '@/lib/lab/diagnostics';
+import { SRM_ID, SRM_PRESETS, SRM_SCHEMA, normalizeSrm, type SrmValues } from '@/lib/lab/diagnostics';
 import { useResetHandoff } from './resetHandoff';
 import { SrmControls } from './SrmFigureClient';
-import { SrmFigureView } from './SrmView';
+import { SrmFigureView, srmPlainText } from './SrmView';
 
 export type SrmInteractiveProps = {
   faultAfterChange?: true;
@@ -51,13 +51,13 @@ export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps
             set(key, v[key]);
             setChanged(true);
           }}
-          onCommit={(key, value) => setAnnouncement(srmResultText(next(key, value)))}
+          onCommit={(key, value) => setAnnouncement(srmPlainText(next(key, value)))}
           onReset={() =>
             instantly(SRM_ID, () => {
               reset();
               const restored = normalizeSrm(SRM_PRESETS[preset]!);
               latest.current = restored;
-              setAnnouncement(srmResultText(restored));
+              setAnnouncement(srmPlainText(restored));
             })
           }
         />

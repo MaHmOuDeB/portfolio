@@ -63,29 +63,29 @@ function relation(view: PeekView): string {
   return view.mc.lower > alpha ? 'above' : view.mc.upper < alpha ? 'below' : 'about';
 }
 
-/** The result line and the announcement, as one list of words and numbers. */
+const daysWord = (n: number) => (n === 1 ? 'day' : 'days');
+
+/** How the tests were checked, in plain words: the opening of the result line. */
+function checked(view: PeekView): Seg[] {
+  const { values, selected } = view;
+  if (values.mode === 'once') return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, '];
+  const how = values.fix === 'obf' ? ' with stricter early looks' : values.fix === 'cs' ? ' with an always-valid interval' : '';
+  return ['Checked every day for ', count(selected.looks), ` ${daysWord(selected.looks)}${how}, `];
+}
+
+/**
+ * The result line and the announcement, as one list of words and numbers: the plain verdict first.
+ * The Monte Carlo range of the rate is in the method row.
+ */
 function resultSegments(view: PeekView): Seg[] {
-  const { values, selected, mc, cost } = view;
-  const where: Seg[] =
-    values.mode === 'once'
-      ? ['at one look after ', count(selected.nPerLook), ' visitors per group']
-      : ['by look ', count(selected.looks)];
+  const { values, selected, cost } = view;
   const segs: Seg[] = [
-    'Under these simulation assumptions, ',
+    ...checked(view),
     share(selected.falsePositiveRate, 1),
     ' of ',
     count(selected.runs),
-    ' runs found a false winner ',
-    ...where,
-    ' (',
-    share(MC_LEVEL),
-    ' Monte Carlo range ',
-    share(mc.lower, 1),
-    ' to ',
-    share(mc.upper, 1),
-    `): ${relation(view)} the nominal `,
-    share(selected.alpha),
-    '.',
+    ' tests of two identical versions declared a winner.',
+    ...(values.mode === 'once' ? [] : [' Read once at the end, about ', share(selected.alpha), ' would.']),
   ];
   if (cost?.kind === 'boundary') {
     segs.push(
@@ -186,8 +186,19 @@ function captionSegments(view: PeekView): Seg[] {
 
 /** The method row's text for the setting on screen: the schedule, the criterion, the marks, the runs. */
 function methodSegments(view: PeekView): Seg[] {
-  const { values, selected } = view;
+  const { values, selected, mc } = view;
   return [
+    'Under these simulation assumptions the rate is ',
+    share(selected.falsePositiveRate, 1),
+    ' (',
+    share(MC_LEVEL),
+    ' Monte Carlo range ',
+    share(mc.lower, 1),
+    ' to ',
+    share(mc.upper, 1),
+    `): ${relation(view)} the nominal `,
+    share(selected.alpha),
+    '. ',
     ...(values.mode === 'once'
       ? ['Looking once means one check after ', count(selected.nPerLook), ' visitors per group. ']
       : ['Each scheduled look adds ', count(selected.nPerLook), ' visitors per group. ']),

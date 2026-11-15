@@ -20,6 +20,7 @@ import {
   CURSE_ALPHA,
   CURSE_HEIGHT,
   CURSE_ID,
+  CURSE_LABELS,
   CURSE_PRESETS,
   CURSE_TITLE,
   CURSE_UNBOUNDED,
@@ -182,9 +183,9 @@ export function CurseReadout({ result }: { result: CurseResult }) {
         : ['not shown', 'not shown', 'no finite value'];
   return (
     <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-3">
-      {item('Power', values[0])}
-      {item('Wrong sign, among significant estimates', values[1])}
-      {item('Exaggeration, among significant estimates', values[2])}
+      {item(CURSE_LABELS.power, values[0])}
+      {item(CURSE_LABELS.wrongSign, values[1])}
+      {item(CURSE_LABELS.exaggeration, values[2])}
     </dl>
   );
 }

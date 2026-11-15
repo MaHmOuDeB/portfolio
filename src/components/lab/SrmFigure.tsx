@@ -8,6 +8,7 @@
 //
 // `faultAfterChange` is a test seam, absent in production: it is forwarded unchanged to the island,
 // whose chart then throws after a change. Only a test host sets it.
+import type { ReactNode } from 'react';
 import { SRM_EVEN_HREF, SRM_PRESETS } from '@/lib/lab/diagnostics';
 import { InertSrmControls, SrmFigureClient } from './SrmFigureClient';
 import { SrmFigureView } from './SrmView';
@@ -22,18 +23,29 @@ export function SrmFigure({ faultAfterChange }: { faultAfterChange?: true } = {}
   );
 }
 
-/** The link under the Figure to the even preset: JavaScript only, since the static page draws the default. */
-export function SrmEvenLink() {
+/**
+ * Links under an exhibit to another setting of its Figure: JavaScript only, since the static page
+ * draws the preset, and plain anchors, so each is a full page load and the island reads the address.
+ */
+export function PresetLinks({ links }: { links: readonly { href: string; label: ReactNode }[] }) {
   return (
-    <p data-js-only="" className="mt-4">
-      <a
-        href={SRM_EVEN_HREF}
-        data-touch-target=""
-        data-full-load=""
-        className="inline-flex min-h-(--size-target) max-w-full items-center wrap-anywhere text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
-      >
-        See the same check on an even split
-      </a>
+    <p data-js-only="" data-preset-links="" className="mt-4 flex flex-wrap gap-x-6">
+      {links.map((link) => (
+        <a
+          key={link.href}
+          href={link.href}
+          data-touch-target=""
+          data-full-load=""
+          className="inline-flex min-h-(--size-target) max-w-full items-center wrap-anywhere text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
+        >
+          {link.label}
+        </a>
+      ))}
     </p>
   );
+}
+
+/** The link under the split check to the even preset. */
+export function SrmEvenLink() {
+  return <PresetLinks links={[{ href: SRM_EVEN_HREF, label: 'See the same check on an even split' }]} />;
 }

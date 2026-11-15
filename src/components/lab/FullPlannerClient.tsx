@@ -85,6 +85,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
         controls={
           <SizingControls
             id={id}
+            context={context}
             values={shown}
             onBaseline={(baseline) => apply(normalizeFullPlan({ ...current(), baseline }))}
             onBaselineCommit={(baseline) => commit(normalizeFullPlan({ ...current(), baseline }))}

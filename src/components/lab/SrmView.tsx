@@ -189,24 +189,39 @@ function Legend() {
   );
 }
 
-/** The result line: the statistic, the p-value and the flag in words; nothing to test without visitors. */
+const withoutStop = (sentence: string) => sentence.replace(/\.$/, '');
+
+/**
+ * The result line as plain text, the verdict first and the statistic after it in brackets: the
+ * announcement, and what the view prints.
+ */
+export function srmPlainText(v: SrmValues, deps?: SrmDeps): string {
+  const r = srmModel(v, deps);
+  if (r.kind === 'empty') return SRM_EMPTY;
+  const parts = [
+    `${r.flagged ? 'Flagged' : 'Not flagged'}. ${withoutStop(r.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square ${chi2Text(r.chi2)}, one degree of freedom, p-value ${pValueText(r)}).`,
+  ];
+  if (srmSmallExpected(v)) parts.push(smallExpectedNote());
+  return parts.join(' ');
+}
+
+/** The result line: the flag as a word and what it means, then the statistic and the p-value; nothing to test without visitors. */
 export function SrmResultLine({ values, result }: { values: SrmValues; result: SrmResult }) {
   if (result.kind === 'empty') return <>{SRM_EMPTY}</>;
   return (
     <>
-      Chi-square{' '}
+      <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
+        {result.flagged ? 'Flagged' : 'Not flagged'}
+      </span>
+      . {withoutStop(result.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square{' '}
       <span data-srm-chi2="" data-num="" {...SIMULATED}>
         {chi2Text(result.chi2)}
-      </span>{' '}
-      with one degree of freedom, p-value{' '}
+      </span>
+      , one degree of freedom, p-value{' '}
       <span data-srm-p="" {...SIMULATED}>
         {pValueText(result)}
       </span>
-      :{' '}
-      <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
-        {result.flagged ? 'flagged' : 'not flagged'}
-      </span>
-      . {result.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE}
+      ).
       {srmSmallExpected(values) ? (
         <>
           {' '}

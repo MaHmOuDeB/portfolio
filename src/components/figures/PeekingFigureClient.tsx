@@ -7,7 +7,7 @@
 //   is fetched only when the loader renders it. This file imports the client-safe values only, never
 //   the model (tests/unit/lab/peeking-bundle.test.ts).
 // - PeekingControls is the control row, in a group named by the Figure's title, shared by the island
-//   and the preview: Looks, Schedule, Fix and Reset. Looking once disables Fix and says why; the
+//   and the preview: Daily checks, Schedule, Correction and Reset. Checking once disables Correction and says why; the
 //   line holding the reason keeps its room while it is hidden, so the row never moves, and while
 //   Fix is disabled the reason describes the Fix group.
 //   InertPeekingControls is the preview's copy, with handlers that do nothing.
@@ -26,6 +26,7 @@ import {
   FIX_OPTIONS,
   MODE_OPTIONS,
   ONCE_FIX_REASON,
+  PEEK_LABELS,
   PEEK_SCHEMA,
   PEEK_UI_REFS,
   looksReadout,
@@ -64,7 +65,7 @@ export function PeekingControls({ id, values, onLooks, onLooksCommit, onMode, on
       <div className="w-full xs:w-96">
         <Slider
           id={`${id}-looks`}
-          label="Looks"
+          label={PEEK_LABELS.looks}
           min={PEEK_SCHEMA.looks.min}
           max={PEEK_SCHEMA.looks.max}
           step={PEEK_SCHEMA.looks.step}
@@ -76,8 +77,8 @@ export function PeekingControls({ id, values, onLooks, onLooksCommit, onMode, on
           refs={PEEK_UI_REFS}
         />
       </div>
-      <Segmented name={`${id}-mode`} legend="Schedule" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
-      <Segmented name={`${id}-fix`} legend="Fix" options={FIX_OPTIONS} value={values.fix} onChange={onFix} disabled={once} disabledReasonId={reasonId} />
+      <Segmented name={`${id}-mode`} legend={PEEK_LABELS.mode} options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
+      <Segmented name={`${id}-fix`} legend={PEEK_LABELS.fix} options={FIX_OPTIONS} value={values.fix} onChange={onFix} disabled={once} disabledReasonId={reasonId} />
       <ResetButton onReset={onReset} />
       <p id={reasonId} data-peek-fix-reason="" className={cx('w-full text-sm text-muted', once ? undefined : 'invisible')} aria-hidden={once ? undefined : true}>
         {ONCE_FIX_REASON}
