@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
-import { NAV } from '../../src/lib/site';
+import { CONTACT, NAV } from '../../src/lib/site';
 import { expectNoA11yViolations, test } from './fixtures';
 
 // The build notes under /work: short static pages in the one build-note frame, under the section
@@ -174,10 +174,12 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
   }
   await page.goto('/work/weather');
   const external = await page.locator('main a[href^="http"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  // the repository is linked from the head, the sources and the close, always at the same fixed commit
+  // the repository is linked from the head, the sources and the close, always at the same fixed commit;
+  // the call to action that ends the page adds the footer's LinkedIn link
   expect([...new Set(external)].sort()).toEqual([
     'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
     'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
+    CONTACT.linkedin,
   ]);
   for (const a of await page.locator('main a[href^="http"]').all()) await expect(a).toHaveAttribute('rel', 'noopener');
 });
@@ -318,7 +320,18 @@ test.describe('the Docproof build note', () => {
     expect(levels[0]).toBe(2);
     expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
     expect(figures).toEqual([['architecture', 'docproof-architecture']]);
-    expect(links).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/pulse', '/work/n8n', '/contact', '/cv']);
+    expect(links).toEqual([
+      REPO,
+      ...ORDER.map(([id]) => `#${id}`),
+      REPO,
+      '/work',
+      REPO,
+      '/work/pulse',
+      '/work/n8n',
+      '/contact',
+      '/cv',
+      CONTACT.linkedin,
+    ]);
   });
 
   test('the recorded run: inputs, command and output as labelled regions a keyboard reaches', async ({ page }) => {
