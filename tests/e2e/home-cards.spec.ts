@@ -358,6 +358,79 @@ test.describe('Home reflow and focus', () => {
   }
 });
 
+test.describe('Home cards: which cards are clickable', () => {
+  type Look = { border: string; translate: string; plus: string | null };
+  const look = (el: Element): Look => {
+    const go = el.querySelector('[data-depth-go]');
+    return {
+      border: getComputedStyle(el).borderTopColor,
+      translate: getComputedStyle(el).translate,
+      plus: go ? getComputedStyle(go).backgroundColor : null,
+    };
+  };
+  const ink = (page: Page) =>
+    page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--color-ink)';
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).color;
+      probe.remove();
+      return colour;
+    });
+  /** Scrolled to the middle of the screen, past its scroll-linked rise, with the pointer parked off it. */
+  async function settle(page: Page, selector: string) {
+    await page.mouse.move(1, 1);
+    await page.locator(selector).first().evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  }
+
+  test('a clickable card lifts 4 px and turns its border and plus ink on hover; a tile that is not a link does not change', async ({ browser }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'hover needs a desktop pointer');
+    const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
+    const colourInk = await ink(page);
+    const card = '[data-experiment="cards"] a[data-depth-lean]';
+    await settle(page, card);
+    const target = page.locator(card).first();
+    const rest = await target.evaluate(look);
+    expect(rest.translate).toBe('none');
+    expect(rest.border).not.toBe(colourInk);
+    // The rise has ended (its backwards fill no longer applies), so the lift is not overridden.
+    expect(await target.evaluate((el) => el.getAnimations().every((a) => a.effect?.getComputedTiming().progress === null))).toBe(true);
+    const box = (await target.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect.poll(() => target.evaluate(look)).toEqual({ border: colourInk, translate: '0px -4px', plus: colourInk });
+
+    // A tile that is not a link keeps its look under the pointer.
+    const tile = '[data-tile]:not(a)';
+    await settle(page, tile);
+    const still = page.locator(tile).first();
+    const before = await still.evaluate(look);
+    const tileBox = (await still.boundingBox())!;
+    await page.mouse.move(tileBox.x + tileBox.width / 2, tileBox.y + tileBox.height / 2);
+    await page.waitForTimeout(400);
+    expect(await still.evaluate(look)).toEqual(before);
+    expect(before.translate).toBe('none');
+    await page.context().close();
+  });
+
+  test('on a touch screen a tapped card does not stay hovered, and its plus is ink at rest', async ({ browser, browserName }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'one run per engine');
+    const page = await open(browser, 'a', 'inter', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: browserName === 'chromium' });
+    const colourInk = await ink(page);
+    const card = '[data-experiment="cards"] a[data-depth-lean]';
+    await settle(page, card);
+    const target = page.locator(card).first();
+    const rest = await target.evaluate(look);
+    expect(await target.locator('[data-depth-go]').evaluate((el) => getComputedStyle(el).color)).toBe(colourInk);
+    // The tap must not navigate, so the card can be read after it.
+    await page.evaluate(() => document.addEventListener('click', (e) => e.preventDefault(), { capture: true }));
+    await target.tap();
+    await page.waitForTimeout(400);
+    expect(await target.evaluate(look)).toEqual({ border: rest.border, translate: 'none', plus: 'rgba(0, 0, 0, 0)' });
+    await page.context().close();
+  });
+});
+
 test.describe('Home automation track', () => {
   test('four cards after the experiments, each a link to its page, under the heading "Take the manual steps out of your team\'s week."', async ({ page }) => {
     await page.goto(host('a'));

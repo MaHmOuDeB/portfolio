@@ -99,8 +99,11 @@ describe('LeanCard with a vignette', () => {
 
 describe('card and tile CSS (the framed look)', () => {
   const css = readFileSync(join(__dirname, '..', '..', '..', 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  // The first rule whose whole selector is `selector` (not a rule that merely ends in it, such as a
+  // state rule on a part inside the card).
   const rule = (selector: string) => {
-    const at = css.indexOf(`${selector} {`);
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const at = css.search(new RegExp(`(?<=\\n\\s*)${escaped} \\{`));
     expect(at, selector).toBeGreaterThan(-1);
     return css.slice(at, css.indexOf('}', at));
   };
