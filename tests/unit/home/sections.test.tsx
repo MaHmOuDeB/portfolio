@@ -148,7 +148,11 @@ describe('HowITest: the tabs widget', () => {
       const cls = attr(label, 'class')!;
       expect(cls.split(' ')).toContain('group');
       expect(cls).not.toMatch(/hover:bg-/);
-      expect(cls).toMatch(/hover:border-hairline-strong/);
+      // Its hover, focus and press states are a clickable card's, in globals.css under [data-how-tab]:
+      // no utility may set its border colour or its transition, since a utility would beat those rules.
+      expect(has(label, 'data-how-tab')).toBe(true);
+      expect(cls).not.toMatch(/(?:^|\s)(?:hover:)?border-(?:hairline|ink|line)/);
+      expect(cls).not.toMatch(/(?:^|\s)(?:transition|duration-)/);
       const mark = one(label, (el) => has(el, 'data-how-mark'));
       expect(attr(mark, 'aria-hidden')).toBe('true');
       expect(classes(mark)).toEqual(expect.arrayContaining(['hidden', 'group-has-[:checked]:block', 'w-0.5', 'bg-ink']));

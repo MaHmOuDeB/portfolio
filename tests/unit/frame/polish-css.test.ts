@@ -144,6 +144,46 @@ describe('a clickable card on hover, focus and press', () => {
   });
 });
 
+// The "How I test" tabs are clickable too, so they say so the way a card does: the border turns ink
+// on hover (only where hover exists), on keyboard focus of the radio and on press, and the tab rises
+// 4 px where motion is allowed. The selected tab keeps its own look (a surface fill and an ink bar).
+describe('a "How I test" tab on hover, focus and press', () => {
+  const lift = 'translate: 0 calc(var(--spacing) * -1);';
+  const focus = '[data-how-tab]:is(:has(:focus-visible), :active)';
+
+  it('rests on a hairline and transitions its border and its lift with the card tokens', () => {
+    const tr = (prop: string, duration: string) => `${prop} var(--duration-${duration}) var(--ease-standard)`;
+    expect(flat(css)).toMatch(
+      new RegExp(
+        `\\[data-how-tab\\] \\{ border-color: var\\(--color-hairline\\); transition: ${escape(
+          `${tr('background-color', 'fast')}, ${tr('border-color', 'fast')}, ${tr('color', 'fast')}, ${tr('translate', 'base')}`,
+        )}; \\}`,
+      ),
+    );
+  });
+
+  it('turns the border ink on hover only where hover exists, and on keyboard focus and press everywhere', () => {
+    expect(blocks('@media (hover: hover)')).toContain('[data-how-tab]:hover { border-color: var(--color-ink); }');
+    expect(flat(without('@media (hover: hover)'))).toContain(`${focus} { border-color: var(--color-ink); }`);
+    const heads = new Set([...css.matchAll(/@media \(hover: hover\)[^{]*(?= \{)/g)].map((m) => m[0]));
+    const rest = [...heads].reduce((text, head) => without(head, text), css);
+    expect(rest).not.toMatch(/\[data-how-tab\]:(?:is\([^)]*)?hover/);
+  });
+
+  it('rises 4 px by translate only, on hover and on keyboard focus, where motion is allowed', () => {
+    expect(blocks('@media (hover: hover) and (prefers-reduced-motion: no-preference)')).toContain(`[data-how-tab]:hover { ${lift} }`);
+    expect(blocks('@media (prefers-reduced-motion: no-preference)')).toContain(`[data-how-tab]:has(:focus-visible) { ${lift} }`);
+    const rest = flat(without('@media (prefers-reduced-motion: no-preference)', without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
+    expect(rest).not.toMatch(/\[data-how-tab\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
+  });
+
+  it('keeps a Highlight border in forced colours on hover, focus and press', () => {
+    const forcedText = spans(css, '@media (forced-colors: active)').map(([a, b]) => css.slice(a, b)).join('\n');
+    expect(blocks('@media (forced-colors: active)')).toContain(`${focus} { border-color: Highlight; }`);
+    expect(blocks('@media (hover: hover)', forcedText)).toContain('[data-how-tab]:hover { border-color: Highlight; }');
+  });
+});
+
 function escape(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

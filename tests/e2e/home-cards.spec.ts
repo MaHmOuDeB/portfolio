@@ -413,6 +413,44 @@ test.describe('Home cards: which cards are clickable', () => {
     await page.context().close();
   });
 
+  test('a "How I test" tab lifts 4 px and turns its border ink on hover and on keyboard focus, and the selected tab still reads as selected', async ({ browser }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'hover needs a desktop pointer');
+    const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
+    const colourInk = await ink(page);
+    const tabs = page.locator('[data-home-how] label[data-how-tab]');
+    await expect(tabs).toHaveCount(3);
+    await settle(page, '[data-home-how] label[data-how-tab]');
+    const tabLook = (el: Element) => ({
+      border: getComputedStyle(el).borderTopColor,
+      translate: getComputedStyle(el).translate,
+      fill: getComputedStyle(el).backgroundColor,
+      bar: getComputedStyle(el.querySelector('[data-how-mark]')!).display,
+    });
+    const selected = await tabs.nth(0).evaluate(tabLook);
+    const second = tabs.nth(1);
+    const rest = await second.evaluate(tabLook);
+    expect(rest.translate).toBe('none');
+    expect(rest.border).not.toBe(colourInk);
+    expect(selected.bar).toBe('block');
+    expect(rest.bar).toBe('none');
+    expect(rest.fill).not.toBe(selected.fill);
+
+    // Hover: the border turns ink and the tab rises; it keeps no fill and no bar, so it never reads as the selected tab.
+    const box = (await second.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect.poll(() => second.evaluate(tabLook)).toEqual({ border: colourInk, translate: '0px -4px', fill: rest.fill, bar: 'none' });
+
+    // Keyboard focus: the arrow key selects and focuses the next radio, and its tab takes the same states with the focus ring.
+    await page.mouse.move(1, 1);
+    await expect.poll(() => second.evaluate((el) => getComputedStyle(el).translate)).toBe('none');
+    await page.locator('#how-plan').focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('#how-analyse')).toBeFocused();
+    await expect.poll(() => second.evaluate(tabLook)).toEqual({ border: colourInk, translate: '0px -4px', fill: selected.fill, bar: 'block' });
+    expect(await second.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+    await page.context().close();
+  });
+
   test('on a touch screen a tapped card does not stay hovered, and its plus is ink at rest', async ({ browser, browserName }, info) => {
     test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'one run per engine');
     const page = await open(browser, 'a', 'inter', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: browserName === 'chromium' });
