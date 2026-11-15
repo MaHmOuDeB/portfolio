@@ -84,6 +84,24 @@ test('Menu pointer activation navigates to a different page after keyboard open'
   await expect(menu).not.toHaveAttribute('open', '');
 });
 
+// A touch tap: WebKit (iOS Safari) fires pointerup and touchend before the compatibility mousedown
+// that blurs the summary, and the click comes last. The Menu must stay open until that click.
+test('Menu link tapped on a touch screen navigates', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, hasTouch: true, viewport: { width: 375, height: 812 } });
+  const page = await context.newPage();
+  for (const [from, label, to] of [['/', 'Lab', /\/lab$/], ['/about', 'Work', /\/work$/]] as const) {
+    await page.goto(from);
+    const menu = page.locator('[data-site-header] details');
+    await expect(menu).toHaveAttribute('data-ready', '');
+    await menu.locator('summary').tap();
+    await expect(menu).toHaveAttribute('open', '');
+    await menu.getByRole('link', { name: label, exact: true }).tap();
+    await expect(page).toHaveURL(to);
+    await expect(menu).not.toHaveAttribute('open', '');
+  }
+  await context.close();
+});
+
 test('Menu opened before the page hydrates stays open through hydration', async ({ page }) => {
   // Hold the JavaScript back so the reader opens the native <details> first.
   let release!: () => void;
