@@ -33,7 +33,9 @@ export function HowITest() {
               key={tab.id}
               className="group relative block cursor-pointer rounded-xl border border-hairline px-5.5 py-4.5 text-muted transition-colors duration-(--duration-fast) has-[:checked]:bg-surface has-[:checked]:text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid hover:border-hairline-strong"
             >
-              <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only" />
+              {/* The radio is a 1 px box at the label's top, so focus would scroll only that box into view and
+                  leave the label's ring below the fold; the bottom scroll margin covers the label's height. */}
+              <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only scroll-mb-36" />
               {/* The selected tab's mark: a shape, not only a fill, so the choice reads at 3:1 and hover never looks the same. */}
               <span data-how-mark="" aria-hidden="true" className="absolute inset-y-4 left-0 hidden w-0.5 rounded-pill bg-ink group-has-[:checked]:block" />
               <span data-how-title="" className="block text-lg font-semibold text-muted group-has-[:checked]:text-ink">

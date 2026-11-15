@@ -135,6 +135,8 @@ describe('HowITest: the tabs widget', () => {
       expect(all(label, (el) => el === radios[i])).toHaveLength(1);
       // The radio is visually hidden, the label shows the focus ring and the selected state.
       expect(classes(radios[i]!)).toContain('sr-only');
+      // Focus scrolls the whole label into view, not only the radio's 1 px box at its top.
+      expect(classes(radios[i]!)).toContain('scroll-mb-36');
       expect(attr(label, 'class')).toMatch(/has-\[:focus-visible\]:outline/);
       expect(attr(label, 'class')).toMatch(/has-\[:checked\]:/);
     }
