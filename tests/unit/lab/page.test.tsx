@@ -298,7 +298,7 @@ describe('the Lab page', () => {
       columns: names(/<th\b[^>]*scope="col"[^>]*>([\s\S]*?)<\/th>/g),
     }).toEqual({
       labels: [
-        'Always-valid interval (confidence sequence)',
+        'Always valid (confidence sequence)',
         'Baseline conversion',
         'Baseline conversion, exact value',
         'Check every day',

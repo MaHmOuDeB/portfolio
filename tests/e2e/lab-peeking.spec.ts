@@ -5,7 +5,7 @@ import { expectNoA11yViolations, test } from './fixtures';
 // The peeking Figure on the dev host /kitchen-sink/lab/peeking, mounted as the Lab's deep link
 // mounts it: "More looks, more false winners", a lookup of seeded A/A simulations (1,000 runs, seed
 // 42, both groups at 35%, 100 visitors per group per daily look). Controls: Looks 1 to 50 (preset
-// 20), Schedule (Check every day or Check once at the end), Correction (None, Stricter early looks, Always-valid interval) and
+// 20), Schedule (Check every day or Check once at the end), Correction (None, Stricter early looks, Always valid) and
 // Reset. The server draws the preset (daily, 20 looks, no fix: 22.1%); the island loads on intent,
 // or at once when the URL holds `peeking.` keys. /kitchen-sink/lab/peeking/faults sets the test seam,
 // so the chart throws on the first render after a committed change.

@@ -423,7 +423,7 @@ describe('the controls', () => {
       'Correction',
       'None',
       "Stricter early looks (O'Brien-Fleming)",
-      'Always-valid interval (confidence sequence)',
+      'Always valid (confidence sequence)',
       'Reset',
     ]) {
       expect(words).toContain(w);

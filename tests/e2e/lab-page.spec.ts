@@ -244,7 +244,7 @@ test.describe('the Lab routes', () => {
     await figure(page, 'peeking').locator('label', { hasText: 'Check once at the end' }).click();
     await auditLive(page, LAB, 'peeking once');
     await figure(page, 'peeking').locator('label', { hasText: 'Check every day' }).click();
-    for (const fix of ['Stricter early looks', 'Always-valid interval']) {
+    for (const fix of ['Stricter early looks', 'Always valid']) {
       await figure(page, 'peeking').locator('label', { hasText: fix }).click();
       await nudge(page, 'peeking', 'End');
       await auditLive(page, LAB, `peeking ${fix} at 50 looks`);

@@ -36,7 +36,7 @@ export const MODE_OPTIONS = [
 export const FIX_OPTIONS = [
   { value: 'naive', label: 'None' },
   { value: 'obf', label: "Stricter early looks (O'Brien-Fleming)" },
-  { value: 'cs', label: 'Always-valid interval (confidence sequence)' },
+  { value: 'cs', label: 'Always valid (confidence sequence)' },
 ] as const;
 
 /** The control row's words: plain first, the statistic's name in brackets on the option. */
