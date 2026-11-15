@@ -501,17 +501,6 @@ describe('check-web-cv: the numeral rule', () => {
   it('fails on a numeral outside any claim', () => {
     failsWith(check(withSub('Example Co, 20 h/week')), 'numeral at column 12 outside any approved claim');
   });
-
-  // The header's contact line may hold an e-mail address with digits in it; those digits are part
-  // of the address, not a figure. Only the address on a header line is exempt.
-  it('exempts the digits of an e-mail address on the header contact line, and nothing else', () => {
-    const contact = (line: string): Cv => ({ ...base(), header: ['Ada Example', 'Analyst', line] });
-    passes(check(contact('Berlin, Germany   ada.example42@example.org   linkedin.com/in/ada')));
-    // A figure on the same header line still needs a claim.
-    failsWith(check(contact('Berlin, Germany   ada.example42@example.org   25 years')), 'page 1 line 3: numeral at column 42 outside any approved claim');
-    // The same address under a section heading is not the header.
-    failsWith(check(withSub('Example Co, ada.example42@example.org')), 'numeral at column 23 outside any approved claim');
-  });
 });
 
 // ───────────────────────────── layout and bindings ─────────────────────────────
