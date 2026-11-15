@@ -18,7 +18,7 @@ import { PULSE_EVENT_NAMES } from '@/lib/pulse/names';
 import { toHomeModel } from '@/lib/home/model';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import type { Arm } from '@/experiment.values';
-import { CONTACT_HREF, CV_LINK } from '@/lib/site';
+import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
 
 const { HowITest } = await import('@/components/home/HowITest');
 const { ExperimentsTrack, cardLinePhase } = await import('@/components/home/ExperimentsTrack');
@@ -541,8 +541,9 @@ describe('HomeCallToAction: the dark call to action with the portrait', () => {
       'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
     );
     const links = all(panel, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href]);
+    expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV', 'LinkedIn']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href, CONTACT.linkedin]);
+    expect(attr(links[2]!, 'rel')).toBe('noopener');
   });
 
   it('sits in the same ruled band, with the same space above and below, as on every other page', async () => {

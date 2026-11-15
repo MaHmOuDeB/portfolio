@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { aboutPhoto } from '../../../content/about-photo';
 import { CallToAction } from '@/components/frame';
 import { PAGE_CTA } from '@/components/shell/PageCallToAction';
-import { CONTACT_HREF, CV_LINK } from '@/lib/site';
+import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
 
 /** The rendered width of the portrait in CSS px; the optimiser serves it at this and twice this. */
 const PHOTO_WIDTH = 480;
@@ -19,6 +19,7 @@ export function HomeCallToAction() {
         line={PAGE_CTA.line}
         primary={{ label: PAGE_CTA.write, href: CONTACT_HREF }}
         secondary={{ label: PAGE_CTA.cv, href: CV_LINK.href }}
+        tertiary={{ label: PAGE_CTA.linkedin, href: CONTACT.linkedin, external: true }}
         media={
           // The focus pull: the frame opens from a smaller inset while the photo settles from a little
           // larger, so the portrait comes into focus without a blur.

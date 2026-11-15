@@ -6,6 +6,7 @@ import { AboutPage } from '@/components/about/AboutPage';
 import { AudiblePage } from '@/components/audible/AudiblePage';
 import { DocproofPage } from '@/components/docproof/DocproofPage';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { CONTACT } from '@/lib/site';
 import { WorkPage } from '@/components/work/WorkPage';
 
 const plain = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -18,12 +19,14 @@ describe('PageCallToAction', () => {
     expect(plain(html)).toContain('Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.');
   });
 
-  it('offers "Write to me" (the contact form) and "Read my CV" (the CV page), and no portrait', () => {
+  it('offers "Write to me" (the contact form), "Read my CV" (the CV page) and a quiet LinkedIn link, and no portrait', () => {
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], plain(m[2]!)]);
     expect(links).toEqual([
       ['/contact', 'Write to me'],
       ['/cv', 'Read my CV'],
+      [CONTACT.linkedin, 'LinkedIn'],
     ]);
+    expect(html).toMatch(/<a [^>]*rel="noopener"[^>]*data-cta-quiet-link=""[^>]*>LinkedIn<\/a>/);
     expect(html).not.toContain('<img');
   });
 

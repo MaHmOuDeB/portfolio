@@ -191,6 +191,35 @@ describe('CallToAction', () => {
     );
     expect(bare).not.toContain('data-cta-media');
     expect(bare).not.toContain('data-quiet');
+    expect(bare).not.toContain('data-cta-quiet-link');
+  });
+
+  it('takes an optional third link: a quiet text link on ink after the buttons, a 44 px target', () => {
+    const three = renderToStaticMarkup(
+      <CallToAction
+        id="c"
+        title="T"
+        line="L"
+        primary={{ label: 'A', href: '/a' }}
+        secondary={{ label: 'B', href: '/b' }}
+        tertiary={{ label: 'LinkedIn', href: 'https://example.com/in/x', external: true }}
+      />,
+    );
+    const anchors = [...three.matchAll(/<a ([^>]*)>([^<]*)<\/a>/g)].map((m) => ({ attrs: m[1]!, label: m[2]! }));
+    expect(anchors.map((a) => a.label)).toEqual(['A', 'B', 'LinkedIn']);
+    const quiet = anchors[2]!.attrs;
+    expect(quiet).toContain('href="https://example.com/in/x"');
+    expect(quiet).toContain('rel="noopener"');
+    expect(quiet).toContain('data-cta-quiet-link=""');
+    expect(quiet).toContain('data-touch-target=""');
+    expect(quiet).toMatch(/\bmin-h-\(--size-target\)/);
+    expect(quiet).toMatch(/\btext-on-ink\b/);
+    expect(quiet).toMatch(/focus-visible:text-surface\b/);
+    // Not a button: no fill and no border.
+    expect(quiet).not.toMatch(/\bbg-surface\b|\bborder-rule-on-ink\b/);
+    // On a phone it takes a row of its own, under the buttons.
+    expect(quiet).toMatch(/(^|\s|")basis-full\b/);
+    expect(quiet).toMatch(/\bsm:basis-auto\b/);
   });
 });
 
