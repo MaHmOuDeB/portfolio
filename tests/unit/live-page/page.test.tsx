@@ -230,7 +230,10 @@ describe('the first screen', () => {
     for (const li of current) {
       // A word in a chip and a heavier name, not only a colour.
       const chip = elements(li).find((el) => attr(el, 'data-chip') !== undefined)!;
-      expect(text(chip)).toMatch(/^(Now|Paused|Stopped|Reached)$/);
+      expect(text(chip)).toMatch(/^(Now|Paused|Stopped|Closed|Reached)$/);
+      // "Now" only while nothing has stopped the test for good; "Closed" only for a confirmed stop.
+      if (text(chip) === 'Closed') expect(d.closedConfirmed).toBe(true);
+      if (['held', 'aa-failed', 'settings-unreadable', 'paused'].includes(d.mode) || d.outcome !== null) expect(text(chip)).not.toBe('Now');
       expect(elements(li).some((el) => /\bfont-semibold\b/.test(attr(el, 'class') ?? ''))).toBe(true);
     }
     // A step before the current one is done, and says so in a word; a step is never done when none is current.
@@ -274,6 +277,8 @@ describe('the first screen', () => {
       expect(text(elements(date).find((el) => el.tagName === 'dt')!)).toBe(d.outcome !== null ? 'Decided on' : d.plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end');
     }
     if (d.public.source === 'unavailable') expect(kinds).toEqual(['state']);
+    // "A decision can end the test sooner" only while the test is collecting.
+    if (!collecting) expect(text(card)).not.toContain('A decision can end the test sooner.');
     // Every number in the card is marked with where it comes from.
     for (const el of elements(card).filter((e) => e.tagName === 'data' || e.tagName === 'time')) expect(attr(el, 'data-derived')).toBeTruthy();
     expect(audit(h)).toEqual([]);

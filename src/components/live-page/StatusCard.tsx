@@ -51,10 +51,12 @@ export function currentStep(d: LivePageDisplay): StepId | null {
 }
 
 /** The word on the current step's chip. */
-function stepWord(d: LivePageDisplay): 'Now' | 'Paused' | 'Stopped' | 'Reached' {
+function stepWord(d: LivePageDisplay): 'Now' | 'Paused' | 'Stopped' | 'Closed' | 'Reached' {
   if (d.outcome !== null) return 'Reached';
   if (d.mode === 'paused') return 'Paused';
   if (STOPPED.includes(d.mode)) return 'Stopped';
+  // Only a confirmed stop is called closed; until then the step is where the test is now.
+  if (d.countingClosed && d.closedConfirmed) return 'Closed';
   return 'Now';
 }
 
@@ -168,7 +170,8 @@ function NextDate({ d }: { d: LivePageDisplay }): ReactNode {
       <dd className={VALUE}>
         <When iso={d.plannedEnd} refs={configRefs} />
       </dd>
-      {earliest ? <dd className={NOTE}>A decision can end the test sooner.</dd> : null}
+      {/* Only while the test is collecting: a stopped or paused test is promised no decision. */}
+      {earliest && isRunning(d) ? <dd className={NOTE}>A decision can end the test sooner.</dd> : null}
     </div>
   );
 }
