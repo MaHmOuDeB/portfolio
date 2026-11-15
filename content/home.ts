@@ -132,7 +132,7 @@ export const HOME_PROOF: readonly ProofItem[] = [
     caption: [
       'to set up a test account, down from about ',
       { fact: 'profile.audible.setup_minutes_before' },
-      ', with a tool I built. Used across ',
+      ', with a tool I built. Adopted team-wide, across ',
       { fact: 'profile.audible.markets' },
       ' markets.',
     ],

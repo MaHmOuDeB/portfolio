@@ -336,7 +336,7 @@ describe('ProofRow', () => {
     expect(captions).toEqual([
       'A/B tests I contributed to at Audible, across web and mobile.',
       'of my recommendations adopted. Why so many?',
-      'to set up a test account, down from about 20, with a tool I built. Used across 11 markets.',
+      'to set up a test account, down from about 20, with a tool I built. Adopted team-wide, across 11 markets.',
       'automated tests behind my workflow library for e-invoice intake.',
     ]);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([

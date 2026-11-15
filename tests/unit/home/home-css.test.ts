@@ -153,7 +153,8 @@ describe('the proof figures', () => {
 
   it('are four cells ruled by hairlines, never the old grey line', () => {
     expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
-    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+    // Four equal columns: the outer two lose one padding each, so their tracks are that much narrower.
+    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, calc\(25% - var\(--spacing\) \* 3\)\) repeat\(2, minmax\(0, 1fr\)\) minmax\(0, calc\(25% - var\(--spacing\) \* 3\)\)/);
     expect(css).toMatch(/\[data-proof\]\s*\{[^}]*border-left:\s*1px solid var\(--color-hairline\)/);
     expect(css).not.toContain('var(--color-line)');
   });
