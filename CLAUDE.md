@@ -395,9 +395,9 @@ page, give it the primitives catalogue above and the golden page.
     no fade-up-on-every-section.
   - Lean and magnet run only under a fine pointer. No transition while a slider is dragged.
   - Hover movement is banned except the 4 px lift of a clickable card (a lean card or a
-    previous/next card): on hover where hover exists, and on keyboard focus, with motion allowed,
-    by `translate` only. Its border and plus turn ink on hover, focus and press; nothing else moves
-    on hover.
+    previous/next card): on hover where hover exists, with motion allowed, by `translate` only.
+    Keyboard focus never moves it. Its border and plus turn ink on hover, focus and press; nothing
+    else moves on hover.
   - Only transform, opacity and clip-path animate, never layout. The h1 never animates.
   - Reduced motion, print and browsers without scroll timelines get the final static state
     (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.

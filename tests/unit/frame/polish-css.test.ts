@@ -104,16 +104,16 @@ describe('a clickable card on hover, focus and press', () => {
     expect(flat(css)).toMatch(/\[data-next-label\] \{[^}]*text-decoration-thickness: 1px; text-underline-offset: 0\.18em;/);
   });
 
-  it('rises 4 px by translate only, on hover where hover exists and motion is allowed, and on keyboard focus where motion is allowed', () => {
+  it('rises 4 px by translate only, on hover where hover exists and motion is allowed, never on keyboard focus', () => {
     const lift = 'translate: 0 calc(var(--spacing) * -1);';
     expect(blocks('@media (hover: hover) and (prefers-reduced-motion: no-preference)')).toContain(
       `[data-depth-lean]:hover, [data-next]:hover { ${lift} }`,
     );
-    expect(blocks('@media (prefers-reduced-motion: no-preference)')).toContain(
-      `[data-depth-lean]:focus-visible, [data-next]:focus-visible { ${lift} }`,
-    );
+    // Focus never moves the card: a tall focused card at the top of a small viewport would push its
+    // ring off screen (WebKit at 320x180).
+    expect(flat(css)).not.toMatch(/\[data-(?:depth-lean|next)\]:focus-visible[^{]*\{[^}]*translate/);
     // Nowhere else does a card move on hover, focus or press, and never by scale or transform.
-    const rest = flat(without('@media (prefers-reduced-motion: no-preference)', without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
+    const rest = flat(without('@media (hover: hover) and (prefers-reduced-motion: no-preference)'));
     expect(rest).not.toMatch(/\[data-(?:depth-lean|next)\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
   });
 
