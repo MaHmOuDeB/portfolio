@@ -457,7 +457,7 @@ describe('the exaggeration readout and table', () => {
   });
 
   it('links to a test sized as the planner sizes one: the planner power, set as a full page load', () => {
-    expect(CURSE_PRESET_LINK).toEqual({ href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check 1' });
+    expect(CURSE_PRESET_LINK).toEqual({ href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check' });
     expect(curseFromUrl(CURSE_PRESET_LINK.href.slice(1, CURSE_PRESET_LINK.href.indexOf('#')))).toEqual({ power: PLANNER_POWER });
   });
 });

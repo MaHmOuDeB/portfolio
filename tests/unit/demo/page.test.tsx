@@ -25,16 +25,7 @@ import { classifyEntry, type EntrySignals } from '@/lib/experiment/entry';
 import { readFigureParams } from '@/lib/figure/url-state';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import { toHomeModel } from '@/lib/home/model';
-import {
-  DURATION_ID,
-  DURATION_PRESETS,
-  DURATION_SCHEMA,
-  FULL_PLANNER_ID,
-  FULL_PLAN_PRESETS,
-  FULL_PLAN_SCHEMA,
-  normalizeFullPlan,
-  normalizeTraffic,
-} from '@/lib/lab/full-planner-values';
+import { DURATION_ID, FULL_PLANNER_ID, LAB_PLAN_PRESETS, LAB_PLAN_SCHEMA, normalizeLabPlan } from '@/lib/lab/full-planner-values';
 import { PEEK_ID, PEEK_PRESETS, PEEK_SCHEMA } from '@/lib/lab/peeking-values';
 import { LIVE_ROUTES, NAV } from '@/lib/site';
 import { proxy } from '@/proxy';
@@ -72,7 +63,7 @@ const PAGE = renderToStaticMarkup(<DemoPage />);
 
 const FORCED_HREFS = ['/?variant=a', '/?variant=b'] as const;
 const PEEKING_HREF = '/lab/peeking?peeking.preset=interview';
-const PLANNER_HREF = '/lab?planner.baseline=0.05&planner.risePoints=1&duration.traffic=1000#sample-size';
+const PLANNER_HREF = '/lab?planner.baseline=0.05&planner.risePoints=1&planner.traffic=1000#sample-size';
 
 // The page's words, exactly as a visitor reads them.
 const INTRO =
@@ -285,23 +276,23 @@ describe('the Lab links reuse the Lab routes and their URL state', () => {
     expect(readFigureParams(search, PEEK_ID, PEEK_SCHEMA, PEEK_PRESETS)).toEqual({ values: PEEK_PRESETS.interview, preset: 'interview' });
   });
 
-  it('the planner link sets only planner and duration keys, to valid values other than the presets', () => {
+  it('the planner link sets only the Lab planner\'s own keys, to valid values other than the presets', () => {
     const search = new URL(PLANNER_LINK.href, ORIGIN).searchParams;
-    expect([...search.keys()].every((k) => k.startsWith(`${FULL_PLANNER_ID}.`) || k.startsWith(`${DURATION_ID}.`))).toBe(true);
-    const plan = readFigureParams(search, FULL_PLANNER_ID, FULL_PLAN_SCHEMA, FULL_PLAN_PRESETS);
-    const duration = readFigureParams(search, DURATION_ID, DURATION_SCHEMA, DURATION_PRESETS);
-    expect(plan.values).toEqual({ baseline: PLANNER_LINK.baseline, risePoints: PLANNER_LINK.risePoints, mode: 'absolute' });
-    expect(normalizeFullPlan(plan.values)).toEqual(plan.values);
-    expect(duration.values).toEqual({ traffic: PLANNER_LINK.traffic });
-    expect(normalizeTraffic(duration.values.traffic)).toBe(PLANNER_LINK.traffic);
+    expect([...search.keys()]).toEqual([`${FULL_PLANNER_ID}.baseline`, `${FULL_PLANNER_ID}.risePoints`, `${FULL_PLANNER_ID}.traffic`]);
+    // the Lab has one planner Figure now: no key of the old duration Figure, which the Lab ignores
+    expect([...search.keys()].some((k) => k.startsWith(`${DURATION_ID}.`))).toBe(false);
+    const plan = readFigureParams(search, FULL_PLANNER_ID, LAB_PLAN_SCHEMA, LAB_PLAN_PRESETS);
+    expect(plan.values).toEqual({ baseline: PLANNER_LINK.baseline, risePoints: PLANNER_LINK.risePoints, traffic: PLANNER_LINK.traffic });
+    expect(normalizeLabPlan(plan.values)).toEqual(plan.values);
+    const preset = LAB_PLAN_PRESETS.default;
     // each value differs from the preset, so a browser test can tell the link's view from the default
-    expect(PLANNER_LINK.baseline).not.toBe(FULL_PLAN_PRESETS.default.baseline);
-    expect(PLANNER_LINK.risePoints).not.toBe(FULL_PLAN_PRESETS.default.risePoints);
-    expect(PLANNER_LINK.traffic).not.toBe(DURATION_PRESETS.default.traffic);
+    expect(PLANNER_LINK.baseline).not.toBe(preset.baseline);
+    expect(PLANNER_LINK.risePoints).not.toBe(preset.risePoints);
+    expect(PLANNER_LINK.traffic).not.toBe(preset.traffic);
     // a small rise on a low baseline, and more traffic than the default, as the words say
-    expect(PLANNER_LINK.baseline).toBeLessThan(FULL_PLAN_PRESETS.default.baseline);
-    expect(PLANNER_LINK.risePoints).toBeLessThan(FULL_PLAN_PRESETS.default.risePoints);
-    expect(PLANNER_LINK.traffic).toBeGreaterThan(DURATION_PRESETS.default.traffic);
+    expect(PLANNER_LINK.baseline).toBeLessThan(preset.baseline);
+    expect(PLANNER_LINK.risePoints).toBeLessThan(preset.risePoints);
+    expect(PLANNER_LINK.traffic).toBeGreaterThan(preset.traffic);
   });
 });
 

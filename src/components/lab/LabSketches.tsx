@@ -82,10 +82,10 @@ function Curve({ d, level, dot }: { d: string; level?: number; dot: { x: number;
   );
 }
 
-/** Peeking: the share of false alarms climbs with every check, away from the planned level. */
+/** Peeking: the share of false winners climbs with every check, away from the planned level. */
 export function PeekSketch() {
   return (
-    <Sketch kind="peek" name="False alarms" note="by daily check">
+    <Sketch kind="peek" name="False winners" note="by daily check">
       <Curve d="M0 86 C 18 62, 34 46, 52 36 S 84 20, 96 14" level={86} dot={{ x: 96, y: 14 }} />
     </Sketch>
   );

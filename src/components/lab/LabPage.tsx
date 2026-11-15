@@ -1,8 +1,8 @@
-// The Lab: four ways an A/B test can mislead and the check for each, as one reading page in the order
-// of a test's life (sample size, split check, peeking, exaggeration). The head says what the page is
+// The Lab: four ways an A/B test can mislead and how I catch each one, as one reading page in the
+// order of a test's life (sample size, split check, peeking, the winner's curse). The head says what the page is
 // for; four cards, each with a small sketch, link to the four sections; each section is the short
 // label as a chip, the question as its h2 and one exhibit in the reading model: a sentence on what to
-// look at, the Figure on its sheet, a sentence on what it means and the method one click deeper. Then
+// try, the Figure on its sheet, a sentence on what I do about it and the method one click deeper. Then
 // what the examples cannot show, what the page shows about how I work, and the shared call to action.
 // Every number is in the exhibits (simulated, or computed from values the visitor sets); the page's
 // own copy is plain words (content/lab.tsx).
@@ -44,6 +44,9 @@ import { PresetLinks, SrmEvenLink, SrmFigure } from './SrmFigure';
 export const LAB_TITLE = 'Lab';
 
 type SectionId = (typeof LAB_SECTIONS)[number]['id'];
+
+/** The planner's place in the list of checks, as its card numbers it. */
+const PLANNER_CHECK = LAB_SECTIONS.findIndex((s) => s.figure === 'planner') + 1;
 
 const TEXT = 'max-w-text';
 const BAND = 'mt-12 pt-12 md:mt-16 md:pt-16';
@@ -122,7 +125,7 @@ export function LabPage(): ReactNode {
               href: PLANNER_PRESET_HREF,
               label: (
                 <>
-                  Try a rise of <Derived value={PLANNER_PRESET_RISE} unit="count" refs={FULL_PLANNER_REFS} /> points
+                  Try a smaller rise: <Derived value={PLANNER_PRESET_RISE} unit="count" refs={FULL_PLANNER_REFS} /> points
                 </>
               ),
             },
@@ -142,7 +145,19 @@ export function LabPage(): ReactNode {
 
       <Section id="exaggeration">
         <CurseFigure />
-        <PresetLinks links={[CURSE_PRESET_LINK]} />
+        <PresetLinks
+          links={[
+            {
+              href: CURSE_PRESET_LINK.href,
+              // "check 1": the planner's place in the list of checks, the number its card prints
+              label: (
+                <>
+                  {CURSE_PRESET_LINK.label} <Derived value={PLANNER_CHECK} unit="count" refs={['build']} />
+                </>
+              ),
+            },
+          ]}
+        />
       </Section>
 
       <section id="limits" aria-labelledby="limits-title" data-rule="" className={BAND}>

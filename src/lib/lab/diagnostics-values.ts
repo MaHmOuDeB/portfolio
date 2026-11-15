@@ -81,7 +81,7 @@ export const CURSE_LABELS = {
 } as const;
 
 /** The link under the exhibit: a test sized as the planner sizes one, at the planner's power. */
-export const CURSE_PRESET_LINK = { href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check 1' } as const;
+export const CURSE_PRESET_LINK = { href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check' } as const;
 
 /**
  * The preset: a test that clears the bar 17% of the time, which is a ratio of true effect to standard
