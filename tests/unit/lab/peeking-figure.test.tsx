@@ -1,18 +1,19 @@
-// The peeking Figure ("More looks, more false winners"): a lookup of seeded A/A simulations, never a
+// The peeking Figure ("More checks, more false winners"): a lookup of seeded A/A simulations, never a
 // simulation in the browser. One set of control values gives one PeekView, and the chart, the result
 // line, the caption, the announcement and the table are all drawn from it, so they always agree.
 // - Every numeral is marked simulated: the audit finds no stray number in any of the 200 states.
-// - The result line states the rate over the runs, its 95% Monte Carlo range and how it stands
-//   against the nominal 5%: with no fix and looking once read from that range (above, about when
-//   the range holds 5%, or below); O'Brien-Fleming "close to or under", the confidence sequence
-//   "well under", true at every look count.
+// - The result line states, in plain words, the rate over the runs and how it stands against the
+//   5% a single check allows; the method row gives its 95% Monte Carlo range and the same word: with no fix and
+//   looking once read from that range (above, about when the range holds 5%, or below);
+//   O'Brien-Fleming "close to or under", the confidence sequence "well under", true at every look count.
 // - O'Brien-Fleming's price is its last-look bar over one look's, as an approximate whole percent
 //   (none at one look); the confidence sequence's is its interval width at the planned sample, the
 //   same at every look count, so no copy ties it to the looks.
 // - Neighbouring look counts are separate simulations, so no copy says a rate grows by a fixed step
 //   per look, and the deck's stale 25% never appears in the rendered words.
-// - Looking once is one check after 100 visitors per group per look of the daily schedule, against
-//   the daily schedule with no fix as the comparison.
+// - The controls check daily: days checked, the fix and Reset. Looking once is no longer a control;
+//   the method row of every daily view quotes the check-once rate, and the model still draws a
+//   check-once view (one check after 100 visitors per group per day of the daily schedule).
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { PeekingFigure } from '@/components/figures/PeekingFigure';
@@ -24,9 +25,9 @@ import { PEEK_MAX_LOOKS, PEEK_PRESET, computePeek, type PeekValues, type PeekVie
 import { PEEK_TABLE_MANIFEST } from '@/lib/lab/peeking-table.generated';
 import {
   FIX_OPTIONS,
-  MODE_OPTIONS,
-  ONCE_FIX_REASON,
   PEEK_ID,
+  PEEK_LABELS,
+  PEEK_PRESET_LINKS,
   PEEK_PRESETS,
   PEEK_SCHEMA,
   PEEK_TITLE,
@@ -66,7 +67,7 @@ const pct = (v: number, decimals: number) => formatValue(v, 'share', { decimals 
 function draw(v: PeekValues): { view: PeekView; html: string } {
   const view = computePeek(v);
   const html = renderToStaticMarkup(
-    <PeekingFigureView id={PEEK_ID} view={view} controls={<InertPeekingControls id={PEEK_ID} values={view.values} />} />,
+    <PeekingFigureView id={PEEK_ID} view={view} controls={<InertPeekingControls id={PEEK_ID} values={{ looks: view.values.looks, fix: view.values.fix }} />} />,
   );
   return { view, html };
 }
@@ -103,41 +104,50 @@ function chart(html: string, layout: 'wide' | 'narrow') {
 describe('the values the page loads at once', () => {
   it('match the model: the same looks, the same preset and the same visitors per look', () => {
     expect(PEEK_SCHEMA.looks).toEqual({ kind: 'number', min: 1, max: PEEK_MAX_LOOKS, step: 1 });
-    expect(PEEK_SCHEMA.mode.values).toEqual(['daily', 'once']);
+    expect(Object.keys(PEEK_SCHEMA)).toEqual(['looks', 'fix']);
     expect(PEEK_SCHEMA.fix.values).toEqual(['naive', 'obf', 'cs']);
-    expect(PEEK_PRESETS.default).toEqual(PEEK_PRESET);
-    // The interview deep link is the same view: daily, 20 looks, no fix.
-    expect(PEEK_PRESETS.interview).toEqual({ looks: 20, mode: 'daily', fix: 'naive' });
+    expect({ ...PEEK_PRESETS.default, mode: 'daily' }).toEqual(PEEK_PRESET);
+    // The interview deep link is the same view: daily, 20 days, no fix.
+    expect(PEEK_PRESETS.interview).toEqual({ looks: 20, fix: 'naive' });
+    expect(PEEK_PRESETS.default).toEqual(PEEK_PRESETS.interview);
     expect(Object.keys(PEEK_PRESETS).sort()).toEqual(['default', 'interview']);
     expect(PEEK_VISITORS_PER_LOOK).toBe(PEEK_TABLE_MANIFEST.nPerLook);
     expect(PEEK_ID).toBe('peeking');
-    expect(PEEK_TITLE).toBe('More looks, more false winners');
+    expect(PEEK_TITLE).toBe('More checks, more false winners');
   });
 
   it('read a hostile or unknown URL as values inside the schema, never throwing', () => {
     const read = (q: string) => readFigureParams(new URLSearchParams(q), PEEK_ID, PEEK_SCHEMA, PEEK_PRESETS);
-    expect(read('').values).toEqual(PEEK_PRESET);
-    expect(read('peeking.preset=interview')).toEqual({ values: PEEK_PRESET, preset: 'interview' });
+    const PRESET = { looks: PEEK_PRESET.looks, fix: PEEK_PRESET.fix };
+    expect(read('').values).toEqual(PRESET);
+    expect(read('peeking.preset=interview')).toEqual({ values: PRESET, preset: 'interview' });
     expect(read('peeking.looks=999').values.looks).toBe(50);
     expect(read('peeking.looks=0').values.looks).toBe(1);
     expect(read('peeking.looks=-Infinity').values.looks).toBe(1);
     expect(read('peeking.looks=7.6').values.looks).toBe(8);
     expect(read('peeking.looks=abc').values.looks).toBe(20);
-    expect(read('peeking.mode=__proto__&peeking.fix=toString&peeking.preset=constructor')).toEqual({ values: PEEK_PRESET, preset: 'default' });
-    expect(read('peeking.mode=once&peeking.fix=cs&peeking.looks=50').values).toEqual({ looks: 50, mode: 'once', fix: 'cs' });
-    expect(read('planner.looks=5&peekingx.looks=5&looks=5').values).toEqual(PEEK_PRESET);
+    expect(read('peeking.mode=__proto__&peeking.fix=toString&peeking.preset=constructor')).toEqual({ values: PRESET, preset: 'default' });
+    expect(read('peeking.fix=cs&peeking.looks=50').values).toEqual({ looks: 50, fix: 'cs' });
+    expect(read('planner.looks=5&peekingx.looks=5&looks=5').values).toEqual(PRESET);
   });
 
-  it('name the controls in words, and the looks with the visitors they add up to', () => {
-    expect(MODE_OPTIONS.map((o) => o.value)).toEqual(PEEK_SCHEMA.mode.values);
+  it('ignore an old link that chose to check once: the Figure checks daily and nothing throws', () => {
+    const read = (q: string) => readFigureParams(new URLSearchParams(q), PEEK_ID, PEEK_SCHEMA, PEEK_PRESETS);
+    expect(read('peeking.mode=once').values).toEqual({ looks: 20, fix: 'naive' });
+    expect(read('peeking.mode=once&peeking.fix=cs&peeking.looks=50').values).toEqual({ looks: 50, fix: 'cs' });
+    expect('mode' in read('peeking.mode=once').values).toBe(false);
+  });
+
+  it('name the controls in plain words, and the days with the visitors they add up to', () => {
+    expect(PEEK_LABELS).toEqual({ looks: 'Days checked', fix: 'Fix' });
     expect(FIX_OPTIONS.map((o) => o.value)).toEqual(PEEK_SCHEMA.fix.values);
-    expect([...MODE_OPTIONS, ...FIX_OPTIONS].map((o) => o.label).join(' ')).not.toMatch(/\d/);
-    expect(ONCE_FIX_REASON).not.toMatch(/\d/);
-    expect(looksReadout(20)).toBe('2,000 per group');
-    expect(looksReadout(1)).toBe('100 per group');
-    expect(looksValueText(20, 'daily')).toBe('20 looks, 2,000 visitors per group by the last');
-    expect(looksValueText(1, 'daily')).toBe('1 look, 100 visitors per group');
-    expect(looksValueText(50, 'once')).toBe('one look after 5,000 visitors per group');
+    expect(FIX_OPTIONS.map((o) => o.label)).toEqual(['No fix', 'Stricter early checks', 'Always-valid check']);
+    expect(FIX_OPTIONS.map((o) => o.label).join(' ')).not.toMatch(/\d|O'Brien|sequence/);
+    expect(looksReadout(20)).toBe('20 days');
+    expect(looksReadout(1)).toBe('1 day');
+    expect(looksValueText(20)).toBe('20 days, 2,000 visitors per group by the last');
+    expect(looksValueText(1)).toBe('1 day, 100 visitors per group');
+    expect(PEEK_PRESET_LINKS.map((l) => l.label)).toEqual(['Try stricter early checks', 'Try the always-valid check']);
   });
 });
 
@@ -150,22 +160,38 @@ describe('the Figure as the server draws it', () => {
     expect(html).toContain('data-island="idle"');
   });
 
-  it('draws the interview preset: daily, 20 looks, no fix, 22.1% of the runs', () => {
+  it('draws the interview preset: daily, 20 days, no fix, 22.1% of the runs', () => {
     const preset = computePeek(PEEK_PRESET);
     expect(preset.selected.falsePositiveRate).toBe(0.221);
     // plain first: how it was checked, what happened, and what one reading at the end would give
-    expect(prose(result(html))).toBe(
-      'Checked every day for 20 days, 22.1% of 1,000 tests of two identical versions declared a winner. Read once at the end, about 5% would.',
-    );
+    expect(prose(result(html))).toBe('Checked daily for 20 days, 22.1% of 1,000 tests found a false winner. Checked once at the end, about 5% would.');
     // the Monte Carlo range of that rate is one click deeper, in the method row
     expect(prose(method(html))).toContain(
       `Under these simulation assumptions the rate is 22.1% (95% Monte Carlo range ${pct(preset.mc.lower, 1)} to ${pct(preset.mc.upper, 1)}): above the nominal 5%.`,
     );
     expect(prose(result(html))).not.toMatch(/Monte Carlo/);
     // the sentence under the chart is one sentence; the rest of the method is in the row
-    expect(prose(underChart(html))).toBe(`Simulated A/A tests: both groups convert at ${pct(preset.selected.p, 0)}, so every winner is a false one.`);
-    expect(html).toMatch(/<input type="radio"[^>]*name="peeking-mode"[^>]*checked=""[^>]*value="daily"/);
+    expect(prose(underChart(html))).toBe(`Simulated tests of two identical pages, each with a ${pct(preset.selected.p, 0)} sign-up rate.`);
+    // A/A, the nominal level and the check-once simulated rate are one click deeper
+    const once = computePeek({ ...PEEK_PRESET, mode: 'once' }).selected;
+    expect(once.falsePositiveRate).toBe(0.044);
+    expect(prose(method(html))).toContain('These are A/A tests: both groups see the same version, so every winner is a false one.');
+    expect(prose(method(html))).toContain('Checked once at the end, after the same 2,000 visitors per group, the simulated rate is 4.4%.');
+    expect(html).not.toContain('name="peeking-mode"');
     expect(html).toMatch(/<input type="radio"[^>]*name="peeking-fix"[^>]*checked=""[^>]*value="naive"/);
+  });
+
+  it('says the point above and below the Figure in plain words, and ends in my decision', () => {
+    const t = prose(html);
+    // above: the one control to move and what to watch
+    expect(t).toContain('Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of 1,000 tests find one.');
+    // below: the read plan, the same at every setting, so it quotes no number
+    const decision =
+      'I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.';
+    expect(t).toContain(decision);
+    expect(decision).not.toMatch(/\d/);
+    expect(t).toContain('How the simulation works');
+    expect(t).not.toMatch(/false alarm/);
   });
 
   it('holds no stray number', () => {
@@ -175,7 +201,7 @@ describe('the Figure as the server draws it', () => {
   it('takes another id for every name it writes', () => {
     const other = renderToStaticMarkup(<PeekingFigure id="peek-two" />);
     expect(other).toContain('id="peek-two-title"');
-    expect(other).toContain('name="peek-two-mode"');
+    expect(other).toContain('name="peek-two-fix"');
     expect(other).toContain('id="peek-two-looks"');
     expect(other).not.toContain('"peeking');
   });
@@ -193,9 +219,18 @@ describe('every one of the 200 states', () => {
     const opening =
       values.mode === 'once'
         ? `Checked once at the end, after ${formatValue(selected.nPerLook, 'count')} visitors per group, `
-        : `Checked every day for ${L} ${L === 1 ? 'day' : 'days'}${values.fix === 'obf' ? ' with stricter early looks' : values.fix === 'cs' ? ' with an always-valid interval' : ''}, `;
-    expect(line.startsWith(`${opening}${pct(selected.falsePositiveRate, 1)} of 1,000 tests of two identical versions declared a winner.`)).toBe(true);
-    expect(line.includes(' Read once at the end, about 5% would.')).toBe(values.mode === 'daily');
+        : values.fix === 'cs'
+          ? 'With the always-valid check, '
+          : L === 1
+            ? 'With a single check, '
+            : values.fix === 'obf'
+              ? 'With stricter early checks, '
+              : `Checked daily for ${L} days, `;
+    expect(line.startsWith(`${opening}${pct(selected.falsePositiveRate, 1)} of 1,000 tests found a false winner`), line).toBe(true);
+    expect(line.includes(' Checked once at the end, about 5% would.')).toBe(values.mode === 'daily' && values.fix === 'naive' && L > 1);
+    // the level a single check allows is named in every line, and no statistics word is
+    expect(line).toMatch(/5%/);
+    expect(line).not.toMatch(/nominal|Monte Carlo|O'Brien|confidence sequence|A\/A/);
     // the Monte Carlo range of this tuple's rate is in the method row
     expect(prose(method(html))).toContain(
       `the rate is ${pct(selected.falsePositiveRate, 1)} (95% Monte Carlo range ${pct(view.mc.lower, 1)} to ${pct(view.mc.upper, 1)}): `,
@@ -204,7 +239,7 @@ describe('every one of the 200 states', () => {
     expect(peekAnnouncement(view)).toBe(line);
     const key = /<p data-nominal-key=""[^>]*>([\s\S]*?)<\/p>/.exec(html);
     expect(key, 'the dotted-line key').not.toBeNull();
-    expect(text(key![1]!)).toBe('Dotted line: nominal 5%');
+    expect(prose(key![1]!)).toBe('Dotted line: 5%, the false winners one check at the end allows');
     expect(key![1]).toMatch(/<svg aria-hidden="true"[^>]*><line [^>]*stroke-dasharray="2 3"/);
     expect(key![1]).toContain('data-derived="simulated"');
     for (const layout of ['wide', 'narrow'] as const) {
@@ -234,7 +269,7 @@ describe('every one of the 200 states', () => {
     expect(cells.length).toBe(view.table.rows.flat().filter((v) => typeof v === 'number').length);
     // the caption reads its values from the tuple's metadata
     const words = prose(caption(html));
-    expect(words).toContain(`both groups convert at ${pct(selected.p, 0)}`);
+    expect(words).toContain(`each with a ${pct(selected.p, 0)} sign-up rate`);
     expect(words).toContain(`${formatValue(selected.runs, 'count')} runs from seed ${selected.seed}`);
     expect(words).toContain('Evan Miller, “How Not To Run an A/B Test”');
     if (values.mode === 'once') {
@@ -242,12 +277,16 @@ describe('every one of the 200 states', () => {
       if (L === 1) {
         // one look: the comparison gives the same share, so its pale dot is under the ringed dot
         expect(naive.falsePositiveRate).toBe(selected.falsePositiveRate);
-        expect(words).toContain(`The comparison schedule is ${naive.looks} daily look of ${naive.nPerLook} visitors per group with no fix.`);
+        expect(words).toContain(`The comparison schedule is ${naive.looks} daily check of ${naive.nPerLook} visitors per group with no fix.`);
       } else {
-        expect(words).toContain(`The pale line is the comparison schedule: ${naive.looks} daily looks of ${naive.nPerLook} visitors per group with no fix.`);
+        expect(words).toContain(`The pale line is the comparison schedule: ${naive.looks} daily checks of ${naive.nPerLook} visitors per group with no fix.`);
       }
     } else {
-      expect(words).toContain(`Each scheduled look adds ${selected.nPerLook} visitors per group.`);
+      expect(words).toContain(`Each day checked adds ${selected.nPerLook} visitors per group.`);
+      const once = computePeek({ ...values, mode: 'once' }).selected;
+      expect(words).toContain(
+        `Checked once at the end, after the same ${formatValue(once.nPerLook, 'count')} visitors per group, the simulated rate is ${pct(once.falsePositiveRate, 1)}.`,
+      );
     }
     // never the deck's stale 25% in the title, result, caption or announcement (as text or as a
     // marked value), and never a zero printed with a decimal
@@ -292,7 +331,8 @@ describe('the copy of each method', () => {
 
   it("O'Brien-Fleming: the last-look bar over one look's as an approximate whole percent, and no extra bar at one look", () => {
     const one = prose(result(at({ looks: 1, mode: 'daily', fix: 'obf' }).html));
-    expect(one).toContain('With one look there is no extra bar: this is the fixed design.');
+    expect(one).toBe(`With a single check, ${pct(at({ looks: 1, mode: 'daily', fix: 'obf' }).view.selected.falsePositiveRate, 1)} of 1,000 tests found a false winner, close to or under the 5% a single check allows. With one check there is nothing to correct.`);
+    expect(one).not.toMatch(/every day for 1 day/);
     expect(one).not.toMatch(/higher/);
     expect(one).not.toMatch(/(?<![\d.])0%/);
     for (const [looks, price] of [[2, '1%'], [10, '7%'], [20, '8%'], [50, '11%']] as const) {
@@ -300,17 +340,19 @@ describe('the copy of each method', () => {
       expect(view.cost).toEqual({ kind: 'boundary', ratio: expect.any(Number) });
       expect(pct(view.cost!.ratio - 1, 0)).toBe(price);
       expect(prose(result(html))).toContain(
-        `At the last look the bar for a winner is about ${price} higher than for one look at the end; early looks need stronger evidence.`,
+        `close to or under the 5% a single check allows. The price: at the last check, the bar is about ${price} higher than for one check.`,
       );
     }
   });
 
-  it('the confidence sequence: conservative here, not a guarantee, and its width at the same planning sample', () => {
+  it('the confidence sequence: well under here, how far depends on the setting, and its width at the same planning sample', () => {
     for (const looks of [1, 2, 20, 50]) {
       const line = prose(result(at({ looks, mode: 'daily', fix: 'cs' }).html));
       expect(prose(method(at({ looks, mode: 'daily', fix: 'cs' }).html))).toContain('well under the nominal 5%.');
-      expect(line).toContain('It is conservative here; that is not a guarantee for every population.');
-      expect(line).toContain("At the planned sample, the confidence sequence's interval is about 55% wider than a single fixed test's.");
+      expect(line).toContain('That is well under the 5% a single check allows. How far under depends on the setting.');
+      // the validity at 5% is never put in doubt, only how far under it lands
+      expect(line).not.toMatch(/not guaranteed|not a guarantee/);
+      expect(line).toContain("The price: at the last check, its margin of error is about 55% wider than one check's.");
       // never a claim that the price changes with the number of looks, nor a sample or power cost
       expect(line).not.toMatch(/more looks|fewer looks|grows|rises|shrinks|more visitors|power/i);
     }
@@ -356,15 +398,15 @@ describe('the copy of each method', () => {
 
   it('never names a pale dot as if it showed when the ringed dot covers it (one look, the same share)', () => {
     const once = prose(caption(at({ looks: 1, mode: 'once', fix: 'naive' }).html));
-    expect(once).toContain('With one look the comparison schedule gives the same share, so its pale dot sits under the ringed dot.');
+    expect(once).toContain('With one check the comparison schedule gives the same share, so its pale dot sits under the ringed dot.');
     expect(once).not.toContain('The pale dot is');
     const obf = prose(caption(at({ looks: 1, mode: 'daily', fix: 'obf' }).html));
-    expect(obf).toContain('The comparison is the same 1 daily look of 100 visitors per group with no fix; with one look the fix changes nothing, so the pale dot sits under the ringed dot.');
+    expect(obf).toContain('The comparison is the same 1 daily check of 100 visitors per group with no fix; with one check the fix changes nothing, so the pale dot sits under the ringed dot.');
     expect(obf).not.toContain('The pale dot is');
     // the confidence sequence at one look differs from the comparison, so its pale dot shows
     const cs = at({ looks: 1, mode: 'daily', fix: 'cs' });
     expect(cs.view.naive.falsePositiveRate).not.toBe(cs.view.selected.falsePositiveRate);
-    expect(prose(caption(cs.html))).toContain('The pale dot is the same 1 daily look of 100 visitors per group with no fix; the ringed dot uses the fix.');
+    expect(prose(caption(cs.html))).toContain('The pale dot is the same 1 daily check of 100 visitors per group with no fix; the ringed dot uses the fix.');
   });
 
   it('says what the Monte Carlo range is: where the rate would settle with far more runs', () => {
@@ -377,7 +419,7 @@ describe('the copy of each method', () => {
 
   it('says each setting is its own simulation', () => {
     expect(prose(caption(at({ looks: 20, mode: 'daily', fix: 'naive' }).html))).toContain(
-      'Each setting is its own simulation, so nearby look counts can differ by a few points.',
+      'Each setting is its own simulation, so nearby numbers of days can differ by a few points.',
     );
   });
 
@@ -386,13 +428,13 @@ describe('the copy of each method', () => {
       'A run counts as a false winner the first time its p-value (pooled z-test, two-sided) falls below 0.05.',
     );
     expect(prose(caption(at({ looks: 20, mode: 'daily', fix: 'obf' }).html))).toContain(
-      "A run counts as a false winner the first time the size of its z statistic reaches the O'Brien-Fleming bar for that look, set for an overall two-sided level of 0.05.",
+      "A run counts as a false winner the first time the size of its z statistic reaches the O'Brien-Fleming bar for that check, set for an overall two-sided level of 0.05.",
     );
     expect(prose(caption(at({ looks: 20, mode: 'daily', fix: 'cs' }).html))).toContain(
       'A run counts as a false winner the first time the 95% confidence sequence for the difference excludes zero.',
     );
     expect(prose(caption(at({ looks: 20, mode: 'once', fix: 'naive' }).html))).toContain(
-      'A run counts as a false winner if its p-value (pooled z-test, two-sided) at that one look falls below 0.05.',
+      'A run counts as a false winner if its p-value (pooled z-test, two-sided) at that one check falls below 0.05.',
     );
   });
 
@@ -407,57 +449,28 @@ describe('the copy of each method', () => {
 
 describe('the controls', () => {
   const daily = draw({ looks: 20, mode: 'daily', fix: 'obf' }).html;
-  const once = draw({ looks: 20, mode: 'once', fix: 'obf' }).html;
-  const fixGroup = (html: string) => html.match(/<fieldset[^>]*>(?:(?!<\/fieldset>)[\s\S])*name="peeking-fix"[\s\S]*?<\/fieldset>/)?.[0] ?? '';
-  const reason = (html: string) => html.match(/<p[^>]*data-peek-fix-reason=""[^>]*>[^<]*<\/p>/)?.[0] ?? '';
 
-  it('sit in a group named by the Figure title: looks, schedule, fix and Reset, four controls', () => {
+  it('sit in a group named by the Figure title: days checked, the fix and Reset, three controls, no schedule', () => {
     const group = daily.match(/<div role="group" aria-labelledby="peeking-title"[^>]*>[\s\S]*$/)?.[0] ?? '';
     expect(group).not.toBe('');
-    const words = text(group);
-    for (const w of [
-      'Daily checks',
-      'Schedule',
-      'Check every day',
-      'Check once at the end',
-      'Correction',
-      'None',
-      "Stricter early looks (O'Brien-Fleming)",
-      'Always valid (confidence sequence)',
-      'Reset',
-    ]) {
+    // the row ends at its Reset button
+    const words = text(group.slice(0, group.indexOf('>Reset</button>') + '>Reset</button>'.length));
+    for (const w of ['Days checked', 'Fix', 'No fix', 'Stricter early checks', 'Always-valid check', 'Reset']) {
       expect(words).toContain(w);
     }
+    for (const w of ['Schedule', 'Check every day', 'Check once at the end', 'Correction', "O'Brien-Fleming", 'confidence sequence']) {
+      expect(words).not.toContain(w);
+    }
     expect(daily.match(/type="range"/g)).toHaveLength(1);
-    expect(daily.match(/<fieldset/g)).toHaveLength(2);
+    expect(daily.match(/<fieldset/g)).toHaveLength(1);
     expect(daily.match(/>Reset<\/button>/g)).toHaveLength(1);
+    expect(daily).not.toContain('data-peek-fix-reason');
+    expect(daily).not.toMatch(/<fieldset[^>]*disabled/);
   });
 
-  it('keeps Looks selectable when looking once, and disables Fix with its reason in view', () => {
-    expect(fixGroup(daily)).not.toMatch(/<fieldset[^>]*disabled/);
-    expect(fixGroup(once)).toMatch(/<fieldset[^>]*disabled=""/);
-    // the fix is kept, so a switch back to daily restores it
-    expect(once).toMatch(/<input type="radio"[^>]*name="peeking-fix"[^>]*checked=""[^>]*value="obf"/);
-    expect(once).not.toMatch(/<input[^>]*type="range"[^>]*\sdisabled=""/);
-    expect(text(reason(once))).toBe(ONCE_FIX_REASON);
-    expect(reason(once)).not.toMatch(/invisible|aria-hidden/);
-    // daily keeps the line's room, hidden, so the row does not move
-    expect(reason(daily)).toMatch(/invisible/);
-    expect(reason(daily)).toMatch(/aria-hidden="true"/);
-  });
-
-  it('describe the disabled Fix group by its reason, and the enabled group by nothing', () => {
-    expect(reason(once)).toMatch(/<p id="peeking-fix-reason"/);
-    expect(fixGroup(once)).toMatch(/<fieldset[^>]*aria-describedby="peeking-fix-reason"/);
-    expect(fixGroup(daily)).not.toContain('aria-describedby');
-    // exactly one element carries the id the group points at
-    expect(once.match(/ id="peeking-fix-reason"/g)).toHaveLength(1);
-  });
-
-  it('give the looks with the visitors they add up to, under a simulated marker', () => {
+  it('give the days with the visitors they add up to, under a simulated marker', () => {
     expect(daily).toMatch(/<div data-slider="[^"]*" data-js-only="[^"]*" data-derived="simulated"/);
-    expect(daily).toContain('aria-valuetext="20 looks, 2,000 visitors per group by the last"');
-    expect(once).toContain('aria-valuetext="one look after 2,000 visitors per group"');
-    expect(text(daily)).toContain('2,000 per group');
+    expect(daily).toContain('aria-valuetext="20 days, 2,000 visitors per group by the last"');
+    expect(text(daily)).toContain('20 days');
   });
 });

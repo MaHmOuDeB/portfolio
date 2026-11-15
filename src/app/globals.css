@@ -817,6 +817,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     font-weight: var(--font-weight-medium);
   }
 
+  /* The Lab's phone point sits between a Figure's title and its controls: body text there, so it
+     does not push the controls off the screen. It follows the rule above, so it wins. */
+  [data-lab-point="phone"] [data-exhibit-text] {
+    font-size: var(--text-base);
+    line-height: 1.6;
+    font-weight: var(--font-weight-regular);
+  }
+
   /* The figure sheet: the white card around a figure, a table, a diagram or a screenshot. Under
      640 px it runs edge to edge over the frame's rails (it takes back the column's padding and the
      rail's 1 px, so use it directly in the column), and a chart keeps the column's full width. From

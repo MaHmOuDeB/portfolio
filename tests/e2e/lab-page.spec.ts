@@ -23,21 +23,20 @@ const SECTIONS = [
   ['exaggeration', 'Is the win as big as it looks?'],
   ['limits', 'What these examples cannot show'],
 ] as const;
-const H1 = 'Four ways an A/B test can mislead, and the check for each.';
+const H1 = 'Four ways an A/B test can mislead you, and how I catch each one.';
 const PEEKING_H1 = 'Peeking at results, why checking early finds false winners.';
 const FIGURES = [
   ['sample-size', 'planner'],
-  ['sample-size', 'duration'],
   ['split-check', 'srm'],
   ['peeking-at-results', 'peeking'],
   ['exaggeration', 'curse'],
 ] as const;
 // Each card's one line, in card order (content/lab.tsx).
 const PURPOSES = [
-  'Too few visitors and a real improvement goes unseen. The size is worked out before the test starts.',
-  'If one group gets more visitors than planned, the set-up is broken and the result cannot be trusted.',
-  'Checking every day and stopping at the first win turns chance into winners.',
-  'Small tests that win tend to overstate the win.',
+  'With too few visitors, luck can hide a real gain. So I work out the visitors a test needs before it starts.',
+  'The groups should come out close to half each. A bigger gap than luck allows means the setup is broken. Then no result can be trusted, however good it looks.',
+  'Check daily and stop at the first win, and luck can pick your winner.',
+  'A test too small for the effect wins only on a lucky reading. So its wins look bigger than they are.',
 ];
 // Each card link's name: when the check comes, with its place in the list, then the question.
 const CARDS = [
@@ -46,7 +45,7 @@ const CARDS = [
   '3 When reading it Did we stop too early?',
   '4 After a win Is the win as big as it looks?',
 ];
-const PEEK_PRESET_LINE = /^Checked every day for 20 days, 22\.1% of 1,000 tests of two identical versions declared a winner\. /;
+const PEEK_PRESET_LINE = /^Checked daily for 20 days, 22\.1% of 1,000 tests found a false winner\. Checked once at the end, about 5% would\./;
 const CHUNK_ERRORS = ['chunk', 'Chunk', 'Failed to fetch', 'dynamically imported module', 'Importing a module script failed'];
 
 const figure = (page: Page, id: string) => page.locator(`figure[data-figure="${id}"]`);
@@ -101,7 +100,7 @@ test.describe('the Lab routes', () => {
     await expect(page).toHaveTitle('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
-    await expect(page.locator('main')).toContainText('These are the four checks I make before I believe a result.');
+    await expect(page.locator('main')).toContainText('These are the four checks I make before I trust a result.');
     const nav = page.getByRole('navigation', { name: 'On this page' });
     for (const [i, name] of CARDS.entries()) await expect(nav.getByRole('link').nth(i)).toHaveAccessibleName(name);
     await expect(nav.getByRole('link')).toHaveCount(CARDS.length);
@@ -138,11 +137,10 @@ test.describe('the Lab routes', () => {
     await page.goto(LAB);
     const rows = page.locator('details[data-method]');
     await expect(rows.locator('summary')).toHaveText([
-      'The method behind the sample size',
-      'The method behind the run time',
-      'The method behind the split check',
-      'The method behind the peeking chart',
-      'The method behind the exaggeration chart',
+      'How I worked out the size and the weeks',
+      'How the split check works',
+      'How the simulation works',
+      'How the overstatement is calculated',
     ]);
     const row = rows.first();
     const body = row.locator('[data-method-body]');
@@ -188,11 +186,11 @@ test.describe('the Lab routes', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(PEEKING_H1);
     await expect(page.locator('main figure[data-figure]')).toHaveCount(1);
     await expect(island(page, 'peeking')).toHaveAttribute('data-island', 'ready');
-    // the interview preset is the default view: daily, 20 looks, no fix
+    // the interview preset is the default view: 20 days checked, no fix, and no schedule toggle
     await expect(result(page, 'peeking')).toHaveText(PEEK_PRESET_LINE);
-    await expect(figure(page, 'peeking').getByRole('slider', { name: 'Daily checks' })).toHaveValue('20');
-    await expect(figure(page, 'peeking').getByRole('radio', { name: 'Check every day' })).toBeChecked();
-    await expect(figure(page, 'peeking').getByRole('radio', { name: 'None' })).toBeChecked();
+    await expect(figure(page, 'peeking').getByRole('slider', { name: 'Days checked' })).toHaveValue('20');
+    await expect(figure(page, 'peeking').getByRole('radio', { name: 'Check every day' })).toHaveCount(0);
+    await expect(figure(page, 'peeking').getByRole('radio', { name: 'No fix' })).toBeChecked();
     await page.getByRole('link', { name: 'All the examples in the Lab' }).click();
     await expect(page).toHaveURL(/\/lab$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
@@ -214,7 +212,7 @@ test.describe('the Lab routes', () => {
   test('without JavaScript: every preset with its open table, whatever the query, and no controls', async ({ browser }) => {
     const context = await (browser as Browser).newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
-    await page.goto(`${LAB}?planner.baseline=0.6&peeking.looks=50&srm.nA=7&curse.se=3`);
+    await page.goto(`${LAB}?planner.baseline=0.6&peeking.looks=50&srm.nA=7&curse.power=0.5`);
     for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
     for (const [, id] of FIGURES) {
       const f = figure(page, id);
@@ -223,6 +221,7 @@ test.describe('the Lab routes', () => {
       await expect(f.getByText('Controls need JavaScript.'), id).toBeVisible();
     }
     await expect(figure(page, 'planner').locator('[data-planner-n]')).toHaveText('1,353');
+    await expect(figure(page, 'planner').locator('[data-duration-weeks]')).toHaveText('4');
     await expect(result(page, 'peeking')).toHaveText(PEEK_PRESET_LINE);
     await page.goto(INTERVIEW);
     await expect(figure(page, 'peeking').locator('[data-nojs-only] table')).toBeVisible();
@@ -256,28 +255,30 @@ test.describe('the Lab routes', () => {
     await auditLive(page, LAB, 'served preview');
     await waitForIslands(page);
     await auditLive(page, LAB, 'islands loaded');
-    // the planner: the unit switch, both sliders and the traffic
-    await figure(page, 'planner').locator('label', { hasText: 'Percent of baseline' }).click();
+    // the planner: all three sliders
     await nudge(page, 'planner');
-    await figure(page, 'planner').locator('input[type="range"]').nth(1).focus();
-    await page.keyboard.press('ArrowRight');
-    await nudge(page, 'duration');
-    await auditLive(page, LAB, 'planner in percent');
-    // peeking: once, then daily with each fix
-    await figure(page, 'peeking').locator('label', { hasText: 'Check once at the end' }).click();
-    await auditLive(page, LAB, 'peeking once');
-    await figure(page, 'peeking').locator('label', { hasText: 'Check every day' }).click();
-    for (const fix of ['Stricter early looks', 'Always valid']) {
+    for (const i of [1, 2]) {
+      await figure(page, 'planner').locator('input[type="range"]').nth(i).focus();
+      await page.keyboard.press('ArrowRight');
+    }
+    await auditLive(page, LAB, 'planner moved');
+    // peeking: each fix, at the most days
+    for (const fix of ['Stricter early checks', 'Always-valid check']) {
       await figure(page, 'peeking').locator('label', { hasText: fix }).click();
       await nudge(page, 'peeking', 'End');
-      await auditLive(page, LAB, `peeking ${fix} at 50 looks`);
+      await auditLive(page, LAB, `peeking ${fix} at 50 days`);
     }
-    // the split check and exaggeration, at their ends
+    // a single check
+    await nudge(page, 'peeking', 'Home');
+    await auditLive(page, LAB, 'peeking at one check');
+    // the split check and the winner's curse, at both ends
     await nudge(page, 'srm', 'Home');
     await nudge(page, 'curse', 'Home');
-    await auditLive(page, LAB, 'split and exaggeration at the low ends');
+    await auditLive(page, LAB, 'split and curse at the low ends');
+    await nudge(page, 'curse', 'End');
+    await auditLive(page, LAB, 'curse at the high end');
     // every Reset
-    for (const id of ['planner', 'duration', 'peeking', 'srm', 'curse']) await figure(page, id).getByRole('button', { name: 'Reset' }).click();
+    for (const id of ['planner', 'peeking', 'srm', 'curse']) await figure(page, id).getByRole('button', { name: 'Reset' }).click();
     await expect(result(page, 'peeking')).toHaveText(PEEK_PRESET_LINE);
     await auditLive(page, LAB, 'after every Reset');
     expect(errors).toEqual([]);
@@ -298,7 +299,6 @@ test.describe('the Lab routes', () => {
     await page.waitForTimeout(500);
     block = true;
     for (const [, id] of FIGURES) {
-      if (id === 'duration') continue;
       await figure(page, id).locator('h3').hover();
       await expect(page.locator('[data-island="failed"]', { has: figure(page, id) }), id).toHaveCount(1);
     }
@@ -321,22 +321,27 @@ test.describe('the Lab routes', () => {
     }
   });
 
-  test('the exaggeration dot at ratio 50 keeps its whole ring on the real page at 320, 375 and 1440 px', async ({ page }) => {
+  test('the curse dot at both ends of the power slider keeps its whole ring on the real page at 320, 375 and 1440 px', async ({ page }) => {
     test.slow();
     for (const width of [320, 375, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`${LAB}?curse.trueEffect=5&curse.se=0.1#exaggeration`);
-      await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-      await figure(page, 'curse').scrollIntoViewIfNeeded();
-      const dot = await dotGeometry(page);
-      expect(dot, String(width)).not.toBeNull();
-      expect(dot!.ratio).toBe(50);
-      expect(dot!.centreInPlot, String(width)).toBe(true);
-      expect(dot!.atRightEdge, String(width)).toBe(true);
-      expect(dot!.clippedBy, String(width)).toEqual([]);
-      expect(dot!.inViewport, String(width)).toBe(true);
-      expect(dot!.ring, String(width)).toEqual({ stroke: expect.not.stringMatching(/^none$/), width: '4px', order: expect.stringContaining('stroke') });
-      await noHorizontalScroll(page);
+      for (const [power, edge] of [['0.99', 'atRightEdge'], ['0.1', 'atLeftEdge']] as const) {
+        await page.goto(`${LAB}?curse.power=${power}#exaggeration`);
+        await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
+        await figure(page, 'curse').scrollIntoViewIfNeeded();
+        const dot = await dotGeometry(page);
+        const at = `${width} px, power ${power}`;
+        expect(dot, at).not.toBeNull();
+        expect(dot!.power, at).toBe(Number(power));
+        expect(dot!.centreInPlot, at).toBe(true);
+        expect(dot![edge], at).toBe(true);
+        // the highest point (power 0.1, about 3.7 times) stays under the plot's top
+        expect(dot!.ringBelowPlotTop, at).toBe(true);
+        expect(dot!.clippedBy, at).toEqual([]);
+        expect(dot!.inViewport, at).toBe(true);
+        expect(dot!.ring, at).toEqual({ stroke: expect.not.stringMatching(/^none$/), width: '4px', order: expect.stringContaining('stroke') });
+        await noHorizontalScroll(page);
+      }
     }
   });
 

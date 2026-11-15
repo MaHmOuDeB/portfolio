@@ -29,8 +29,8 @@ export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps
   const latest = useRef(shown);
   // Back or Forward can bring new values without a handler here; follow them after the render.
   useEffect(() => {
-    latest.current = { nA: shown.nA, nB: shown.nB, shareA: shown.shareA };
-  }, [shown.nA, shown.nB, shown.shareA]);
+    latest.current = { nA: shown.nA, nB: shown.nB };
+  }, [shown.nA, shown.nB]);
   const [announcement, setAnnouncement] = useState('');
   const [changed, setChanged] = useState(false);
 

@@ -1,7 +1,7 @@
 'use client';
 
 // The duration Figure's live side, rendered by the paired island (FullPlannerClient). It owns only
-// its traffic and that traffic's URL state (`?duration.traffic=500`); the visitors per group come
+// its traffic and that traffic's URL state (`?winback-duration.traffic=500` on Retention); the visitors per group come
 // from the sizing Figure as `nPerArm`. It announces on a committed traffic change only (slider
 // release, a key release, a typed value or Reset), never during a drag. Its Reset restores the
 // traffic only; the sizing Figure's own Reset leaves the traffic alone.

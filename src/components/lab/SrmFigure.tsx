@@ -1,5 +1,5 @@
 // The split-check Figure as a page places it. The server draws the default preset (a simulated
-// 5,170 to 4,830 split against an expected even split, flagged) with the open table: the static
+// 5,170 to 4,830 split against an even split, flagged) with the open table: the static
 // HTML, also what a visitor without JavaScript keeps. Under it the page places SrmEvenLink: with
 // JavaScript, one link opens the even preset, as a full page load so the island reads `srm.preset`
 // from the address. The island receives no data: it computes the reader's setting itself, with the
@@ -48,5 +48,5 @@ export function PresetLinks({ links }: { links: readonly { href: string; label: 
 
 /** The link under the split check to the even preset. */
 export function SrmEvenLink() {
-  return <PresetLinks links={[{ href: SRM_EVEN_HREF, label: 'See the same check on an even split' }]} />;
+  return <PresetLinks links={[{ href: SRM_EVEN_HREF, label: 'See an even split pass' }]} />;
 }

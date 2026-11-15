@@ -1,6 +1,7 @@
 // The full sample-size planner's values: the base planner's two inputs (baseline conversion in whole
 // percentages, the rise in whole points) plus the unit the rise is shown in, and the paired duration
-// Figure's traffic. Pure and client-safe: the control row the page loads at once uses it. It must not
+// Figure's traffic (the Retention page's pair), and the Lab's merged planner: the same two inputs and
+// the traffic in one Figure, with no unit toggle. Pure and client-safe: the control row the page loads at once uses it. It must not
 // import @/lib/stats (tests/unit/lab/full-planner.test.ts walks its imports); the statistics side is
 // full-planner.ts.
 //
@@ -12,9 +13,9 @@
 import type { DerivedRef } from '@/components/kit/Derived';
 import { formatNumber } from '@/lib/figure/format';
 import type { ParamValues, Presets } from '@/lib/figure/url-state';
-import { normalizePlanner, percentText, pointsText, riseMax } from './planner-values';
+import { normalizePlanner, percentText, pointsText, riseMax, targetRate } from './planner-values';
 
-/** The Lab's ids; the Retention page passes its own pair. */
+/** The Lab's merged planner's id, and the pair's default duration id; the Retention page passes its own pair. */
 export const FULL_PLANNER_ID = 'planner';
 export const DURATION_ID = 'duration';
 
@@ -32,7 +33,7 @@ export const PLANNER_NOUN: Record<PlannerContext, PlannerNoun> = { hypothetical:
  * the terms its own text uses.
  */
 export const SIZING_LABELS: Record<PlannerContext, { baseline: string; baselineHint: string; rise: string }> = {
-  hypothetical: { baseline: 'Baseline conversion', baselineHint: 'share of visitors who convert today', rise: 'Smallest rise worth detecting' },
+  hypothetical: { baseline: 'Sign-up rate today', baselineHint: 'of visitors', rise: 'Smallest rise worth acting on' },
   retention: { baseline: 'Baseline conversion', baselineHint: '', rise: 'Rise to detect' },
 };
 
@@ -56,6 +57,30 @@ export type DurationValues = ParamValues<typeof DURATION_SCHEMA>;
 export const DURATION_PRESETS: Presets<typeof DURATION_SCHEMA> = { default: { traffic: 100 } };
 
 export const FULL_PLANNER_REFS: readonly DerivedRef[] = ['simulated'];
+
+/**
+ * The Lab's merged planner: the sizing pair and the daily traffic in one Figure and one URL namespace
+ * (`?planner.baseline=0.3&planner.risePoints=4&planner.traffic=500`). There is no unit toggle: the
+ * rise is in points, and the table gives it as a percent of the baseline too. A `planner.mode` or a
+ * `duration.traffic` key, from the pair the Lab had before, is not in the schema and is ignored.
+ */
+export const LAB_PLAN_SCHEMA = {
+  baseline: FULL_PLAN_SCHEMA.baseline,
+  risePoints: FULL_PLAN_SCHEMA.risePoints,
+  traffic: DURATION_SCHEMA.traffic,
+} as const;
+export type LabPlanValues = ParamValues<typeof LAB_PLAN_SCHEMA>;
+export const LAB_PLAN_PRESETS: Presets<typeof LAB_PLAN_SCHEMA> = {
+  default: { baseline: FULL_PLAN_PRESETS.default.baseline, risePoints: FULL_PLAN_PRESETS.default.risePoints, traffic: DURATION_PRESETS.default.traffic },
+};
+
+/** The Lab's three values on their grids and jointly valid: the base planner's pair and the traffic. */
+export function normalizeLabPlan(v: LabPlanValues): LabPlanValues {
+  return { ...normalizePlanner({ baseline: v.baseline, risePoints: v.risePoints }), traffic: normalizeTraffic(v.traffic) };
+}
+
+/** The rise's readout on the Lab: "Up 5 points, to 34%". */
+export const upText = (baseline: number, risePoints: number) => `Up ${pointsText(risePoints)}, to ${percentText(targetRate(baseline, risePoints))}`;
 
 /** The baseline and the rise jointly valid (the base planner's normalization); an unknown unit is points. */
 export function normalizeFullPlan(v: FullPlanValues): FullPlanValues {

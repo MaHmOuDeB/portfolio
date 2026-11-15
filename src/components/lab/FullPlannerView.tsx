@@ -1,9 +1,11 @@
-// The full planner's two Figures, drawn from their inputs: the sizing Figure (the visitors each
-// group needs to detect a rise, shown in points or as a percent of the baseline) and the duration
-// Figure (the whole weeks the test then needs at a given traffic). Shared and hook-free: the server
-// draws the preset pair with them (the static HTML, also the no-JS view) and the island draws the
-// live pair with the same markup. Every computed number is marked 'simulated'; the Retention
-// context's sourced baseline and target carry their fact refs (content/lab.tsx).
+// The full planner's Figures, drawn from their inputs. The Retention page's pair: the sizing Figure
+// (the visitors each group needs to detect a rise, shown in points or as a percent of the baseline)
+// and the duration Figure (the whole weeks the test then needs at a given traffic). The Lab's merged
+// Figure (LabPlannerView): the same model in one Figure, both readouts under one result line, in the
+// Lab's reading model. Shared and hook-free: the server draws the presets with them (the static HTML,
+// also the no-JS view) and the islands draw the live values with the same markup. Every computed
+// number is marked 'simulated'; the Retention context's sourced baseline and target carry their fact
+// refs (content/lab.tsx).
 //
 // `faultAfterChange` is a test seam, absent in production: with `changed`, the Figure's body throws,
 // so a test can see the kit's error fallback after an input change. The island forwards it
@@ -20,20 +22,25 @@ import {
   fullPlanModel,
   fullPlanTable,
   durationTable,
+  labPlanLead,
+  labPlanModel,
+  labPlanTable,
   normalizeFullPlan,
+  normalizeLabPlan,
   normalizeTraffic,
   percentText,
   riseText,
   type FullPlanValues,
+  type LabPlanValues,
   type PlannerContext,
 } from '@/lib/lab/full-planner';
 import {
-  DURATION_LEAD_IN,
-  DURATION_TAKEAWAY,
   DurationCaption,
   PLANNER_COPY,
-  SIZING_LEAD_IN,
-  SIZING_TAKEAWAY,
+  PLANNER_LEAD_IN,
+  PLANNER_METHOD_SUMMARY,
+  PLANNER_TAKEAWAY,
+  PlannerWeeksMethod,
   SizingContextNote,
   SizingMethod,
   SizingTerms,
@@ -56,6 +63,11 @@ function SizingSeamFailure(): never {
 /** The duration Figure's counterpart of SizingSeamFailure. */
 function DurationSeamFailure(): never {
   throw new Error('The duration readout failed after a change (test seam)');
+}
+
+/** The Lab's merged Figure's counterpart of SizingSeamFailure. */
+function LabPlannerSeamFailure(): never {
+  throw new Error('The planner readout failed after a change (test seam)');
 }
 
 /** The kind of case beside the result. The provenance badge comes from the Figure, not from here. */
@@ -101,13 +113,10 @@ export function SizingFigureView({ id, context, values, controls, announcement, 
   const v = normalizeFullPlan(values);
   const plan = fullPlanModel(v);
   const noun = PLANNER_NOUN[context];
-  // The Lab shows the exhibit in the reading model; the Retention page places the bare Figure itself.
-  const exhibit = context === 'hypothetical';
-  const figure = (
+  return (
     <Figure
       id={id}
       title={PLANNER_COPY[context].sizingTitle}
-      lead={exhibit ? <PhonePoint>{SIZING_TAKEAWAY}</PhonePoint> : undefined}
       provenance="simulated"
       table={fullPlanTable(v, noun)}
       controls={controls}
@@ -122,38 +131,14 @@ export function SizingFigureView({ id, context, values, controls, announcement, 
         </>
       }
       caption={
-        exhibit ? (
-          <SizingContextNote context={context} />
-        ) : (
-          <>
-            <SizingContextNote context={context} /> <SizingMethod context={context} />
-          </>
-        )
+        <>
+          <SizingContextNote context={context} /> <SizingMethod context={context} />
+        </>
       }
     >
       <Readout value={plan.nPerArm} unit={`${noun} per group`} mark="data-planner-n" />
       {faultAfterChange && changed ? <SizingSeamFailure /> : null}
     </Figure>
-  );
-  if (!exhibit) return figure;
-  return (
-    <Exhibit
-      summary="The method behind the sample size"
-      leadIn={SIZING_LEAD_IN}
-      takeaway={SIZING_TAKEAWAY}
-      method={
-        <>
-          <p data-method-terms="">
-            <SizingTerms />
-          </p>
-          <p data-method-text="">
-            <SizingMethod context={context} />
-          </p>
-        </>
-      }
-    >
-      {figure}
-    </Exhibit>
   );
 }
 
@@ -177,12 +162,10 @@ export function DurationFigureView({ id, context, nPerArm, traffic, controls, an
   const t = normalizeTraffic(traffic);
   const { weeks } = durationModel(nPerArm, t);
   const noun = PLANNER_NOUN[context];
-  const exhibit = context === 'hypothetical';
-  const figure = (
+  return (
     <Figure
       id={id}
       title={PLANNER_COPY[context].durationTitle}
-      lead={exhibit ? <PhonePoint>{DURATION_TAKEAWAY}</PhonePoint> : undefined}
       provenance="simulated"
       table={durationTable(nPerArm, t, noun)}
       controls={controls}
@@ -197,22 +180,77 @@ export function DurationFigureView({ id, context, nPerArm, traffic, controls, an
           <ResultBadge context={context} />
         </>
       }
-      caption={<DurationCaption context={context} traffic={t} part={exhibit ? 'first' : 'all'} />}
+      caption={<DurationCaption context={context} traffic={t} />}
     >
       <Readout value={weeks} unit={`${weeks === 1 ? 'week' : 'weeks'}, rounded up`} mark="data-duration-weeks" />
       {faultAfterChange && changed ? <DurationSeamFailure /> : null}
     </Figure>
   );
-  if (!exhibit) return figure;
+}
+
+export type LabPlannerViewProps = {
+  id: string;
+  values: LabPlanValues;
+  controls?: ReactNode;
+  announcement?: string;
+  /** The island passes false, so a failure shows the kit's sentence and the current table only. */
+  preview?: ReactNode;
+  /** Test seam, as on the pair: with `changed`, the readout throws. */
+  faultAfterChange?: true;
+  /** Whether the visitor has committed a change since the island loaded. */
+  changed?: boolean;
+};
+
+/**
+ * The Lab's planner: one Figure in the reading model, three sliders and Reset, one result line in
+ * plain words (power and the false-winner risk as "8 tests out of 10" and "1 in 20") and two
+ * readouts, the visitors per group and the weeks. The method row holds the terms, the formula and the
+ * assumptions.
+ */
+export function LabPlannerView({ id, values, controls, announcement, preview, faultAfterChange, changed }: LabPlannerViewProps) {
+  const v = normalizeLabPlan(values);
+  const { nPerArm, weeks } = labPlanModel(v);
+  const figure = (
+    <Figure
+      id={id}
+      title={PLANNER_COPY.hypothetical.sizingTitle}
+      lead={<PhonePoint>{PLANNER_TAKEAWAY}</PhonePoint>}
+      provenance="simulated"
+      table={labPlanTable(v)}
+      controls={controls}
+      preview={preview}
+      announcement={announcement}
+      result={
+        <span data-planner-result="" {...SIMULATED}>
+          {labPlanLead(v)}
+        </span>
+      }
+      caption={<SizingContextNote context="hypothetical" />}
+    >
+      <div className="flex flex-wrap gap-x-12 gap-y-6">
+        <Readout value={nPerArm} unit="visitors per group" mark="data-planner-n" />
+        <Readout value={weeks} unit={weeks === 1 ? 'week' : 'weeks'} mark="data-duration-weeks" />
+      </div>
+      {faultAfterChange && changed ? <LabPlannerSeamFailure /> : null}
+    </Figure>
+  );
   return (
     <Exhibit
-      summary="The method behind the run time"
-      leadIn={DURATION_LEAD_IN}
-      takeaway={DURATION_TAKEAWAY}
+      summary={PLANNER_METHOD_SUMMARY}
+      leadIn={PLANNER_LEAD_IN}
+      takeaway={PLANNER_TAKEAWAY}
       method={
-        <p data-method-text="">
-          <DurationCaption context={context} traffic={t} part="rest" />
-        </p>
+        <>
+          <p data-method-terms="">
+            <SizingTerms />
+          </p>
+          <p data-method-text="">
+            <SizingMethod context="hypothetical" />
+          </p>
+          <p data-method-text="">
+            <PlannerWeeksMethod traffic={v.traffic} />
+          </p>
+        </>
       }
     >
       {figure}

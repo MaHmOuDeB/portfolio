@@ -14,7 +14,7 @@
 // Plain words only: the link values live in the URLs, never in the text.
 import type { ReactNode } from 'react';
 import type { ExperimentPhase } from '@/experiment.values';
-import { DURATION_ID, FULL_PLANNER_ID } from '@/lib/lab/full-planner-values';
+import { FULL_PLANNER_ID } from '@/lib/lab/full-planner-values';
 import { PEEK_ID } from '@/lib/lab/peeking-values';
 import { LAB_SECTIONS } from './lab';
 
@@ -74,21 +74,21 @@ export function ForcedExclusion(): ReactNode {
 
 type PlannerSettings = { baseline: number; risePoints: number; traffic: number };
 
-/** The Lab address that opens the planner pair with these settings, at the planner's section. */
+/** The Lab address that opens the planner with these settings, at the planner's section. */
 function plannerHref(s: PlannerSettings): string {
   const section = LAB_SECTIONS.find((entry) => entry.figure === FULL_PLANNER_ID);
   if (!section) throw new Error(`demo: the Lab has no section for the ${FULL_PLANNER_ID} Figure`);
   const search = new URLSearchParams([
     [`${FULL_PLANNER_ID}.baseline`, String(s.baseline)],
     [`${FULL_PLANNER_ID}.risePoints`, String(s.risePoints)],
-    [`${DURATION_ID}.traffic`, String(s.traffic)],
+    [`${FULL_PLANNER_ID}.traffic`, String(s.traffic)],
   ]);
   return `/lab?${search.toString()}#${section.id}`;
 }
 
 /**
  * The planner link's settings: a small rise (one point) on a low baseline (five percent), and more
- * daily visitors than the default. The unit points stays the preset's, so the link does not set it.
+ * daily visitors than the default.
  */
 const PLANNER_SETTINGS: PlannerSettings = { baseline: 0.05, risePoints: 1, traffic: 1000 };
 export const PLANNER_LINK: PlannerSettings & { href: string } = { ...PLANNER_SETTINGS, href: plannerHref(PLANNER_SETTINGS) };

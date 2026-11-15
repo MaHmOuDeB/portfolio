@@ -152,8 +152,8 @@ test.describe('an entry made before hydration, in place (kitchen sink controls)'
 test.describe('an entry made before hydration, in a preview the island replaces (/lab/peeking)', () => {
   const figure = (page: Page) => page.locator('figure[data-figure="peeking"]');
   const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
-  const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Daily checks' });
-  const exact = (page: Page) => figure(page).getByRole('spinbutton', { name: 'Daily checks, exact value' });
+  const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Days checked' });
+  const exact = (page: Page) => figure(page).getByRole('spinbutton', { name: 'Days checked, exact value' });
   const live = (page: Page) => figure(page).locator('[data-figure-announcement]');
   const segment = (page: Page, name: string) => figure(page).locator('label[data-segment]', { hasText: name });
   const query = (page: Page) => new URL(page.url()).searchParams;
@@ -183,8 +183,8 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     await arrive(page, release);
     await expect(exact(page)).toHaveValue('50');
     await expect(looks(page)).toHaveValue('50');
-    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
-    await expect(live(page)).toContainText('Checked every day for 50 days');
+    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 days, 5,000 visitors per group by the last');
+    await expect(live(page)).toContainText('Checked daily for 50 days');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 
@@ -198,8 +198,8 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     expect(query(page).get('peeking.looks')).toBeNull();
     await page.keyboard.press(tabKey(browserName));
     await expect(exact(page)).toHaveValue('50');
-    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
-    await expect(live(page)).toContainText('Checked every day for 50 days');
+    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 days, 5,000 visitors per group by the last');
+    await expect(live(page)).toContainText('Checked daily for 50 days');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 
@@ -233,17 +233,17 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     await expect(looks(page)).toHaveValue('20');
     await page.keyboard.press(tabKey(browserName));
     await expect(exact(page)).toHaveValue('50');
-    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
+    await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 days, 5,000 visitors per group by the last');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 
   test('a segment picked in the preview becomes the island choice and its URL key', async ({ page }) => {
     const release = await openHeld(page);
-    await segment(page, "O'Brien-Fleming").click();
+    await segment(page, 'Stricter early checks').click();
     await arrive(page, release);
-    await expect(figure(page).getByRole('radio', { name: "O'Brien-Fleming" })).toBeChecked();
-    await expect(segment(page, "O'Brien-Fleming")).toHaveClass(/\bbg-ink\b/);
-    await expect(segment(page, 'None')).not.toHaveClass(/\bbg-ink\b/);
+    await expect(figure(page).getByRole('radio', { name: 'Stricter early checks' })).toBeChecked();
+    await expect(segment(page, 'Stricter early checks')).toHaveClass(/\bbg-ink\b/);
+    await expect(segment(page, 'No fix')).not.toHaveClass(/\bbg-ink\b/);
     await expect.poll(() => query(page).get('peeking.fix')).toBe('obf');
   });
 });

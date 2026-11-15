@@ -17,9 +17,9 @@ import { SAMPLE_SIZE_FORMULA } from '@/lib/stats';
 const SIMULATED = ['simulated'] as const;
 
 type PlannerCopy = {
-  /** The sizing Figure's title: the relationship, never a number. */
+  /** The sizing Figure's title (on the Lab, the one Figure's): the relationship, never a number. */
   sizingTitle: string;
-  /** The duration Figure's title. */
+  /** The duration Figure's title (the pair only). */
   durationTitle: string;
   /** The words beside each Figure's Simulated badge: true whatever the controls are set to. */
   label: string;
@@ -30,10 +30,10 @@ type PlannerCopy = {
 /** Per context; the groups are visitors in a hypothetical test and lapsed customers on Retention. */
 export const PLANNER_COPY: Record<PlannerContext, PlannerCopy> = {
   hypothetical: {
-    sizingTitle: 'Smaller rises need more visitors per group',
+    sizingTitle: 'Smaller rises need more visitors and more weeks',
     durationTitle: 'The fewer visitors a day, the more weeks a test needs',
     label: 'Hypothetical test',
-    trafficLabel: 'Total visitors per day',
+    trafficLabel: 'Visitors per day',
   },
   retention: {
     sizingTitle: 'Smaller rises need more customers per group',
@@ -67,9 +67,7 @@ export function SizingContextNote({ context }: { context: PlannerContext }): Rea
       uplift to plan for, not the effect of any offer. Nobody was contacted and no test was run.
     </>
   ) : (
-    <>
-      A hypothetical test: the baseline conversion and the rise are numbers to plan with, not results from a real test.
-    </>
+    <>Made-up numbers to plan with. Visitors are split evenly between the two groups.</>
   );
 }
 
@@ -99,8 +97,8 @@ export function DurationCaption({
 }: {
   context: PlannerContext;
   traffic: number;
-  /** The Lab shows the first sentence under the Figure and the rest in the method row. */
-  part?: 'all' | 'first' | 'rest';
+  /** The Lab's method row takes only the sentences after the first. */
+  part?: 'all' | 'rest';
 }): ReactNode {
   const count = <Derived value={traffic} unit="count" refs={SIMULATED} />;
   const first = (
@@ -113,7 +111,6 @@ export function DurationCaption({
       , this is how long both groups take to reach the size from the planner above, in whole weeks, rounded up.
     </>
   );
-  if (part === 'first') return first;
   const rest = (
     <>
       The traffic is a number to plan with, not a promise of actual traffic: it assumes every one of them enters the
@@ -136,27 +133,41 @@ export function DurationCaption({
 }
 
 // ---------------------------------------------------------------------------------------------
-// The planner's two exhibits on the Lab: the sentence above each Figure, the one below it, and the
-// terms its method row defines. Plain words; the numbers are the planner's own constants.
+// The planner's exhibit on the Lab: the sentence above the Figure, the one below it, its method row's
+// summary, and the terms and the run-time method it holds. Plain words; the numbers are the planner's
+// own constants.
 
-export const SIZING_LEAD_IN =
-  'Set how many visitors convert today and the smallest rise worth acting on. The large number is how many visitors each group needs.';
-export const SIZING_TAKEAWAY =
-  'Halve the rise you want to detect and the test needs about four times the visitors. So the first planning question is always: what is the smallest rise worth acting on?';
-export const DURATION_LEAD_IN = 'Now set the daily traffic. The number is how many whole weeks the test has to run.';
-export const DURATION_TAKEAWAY =
-  'A quiet page can need months to show a small rise. Knowing that before the start lets a team test a bolder change or a busier page instead.';
+export const PLANNER_LEAD_IN =
+  'Make the smallest rise smaller and watch the visitors climb. Halve the rise, and each group needs about four times as many.';
+export const PLANNER_TAKEAWAY =
+  'Before a test, I agree on the smallest rise worth acting on. Some pages get too few visitors to show it within weeks. For those, I test a bolder change or a busier page instead of waiting months.';
+export const PLANNER_METHOD_SUMMARY = 'How I worked out the size and the weeks';
 
-/** The two terms the planner's method uses, each in one sentence. */
+/** The terms the planner's method uses, each in one sentence, with the expert name for each. */
 export function SizingTerms(): ReactNode {
   return (
     <>
       <strong className="font-semibold">Sample size</strong>: how many visitors each group needs before the test can tell
-      a real difference of the size you care about from chance. <strong className="font-semibold">Power</strong>: the
-      chance that a test detects an effect of a given size when the effect is really there;{' '}
-      <Derived value={PLANNER_POWER} unit="share" refs={SIMULATED} /> means{' '}
+      a real difference of the size you care about from chance.{' '}
+      <strong className="font-semibold">Minimum detectable effect</strong>: the smallest rise worth acting on, agreed
+      before the test. <strong className="font-semibold">Power</strong>: the chance that a test detects an effect of a
+      given size when the effect is really there; <Derived value={PLANNER_POWER} unit="share" refs={SIMULATED} /> means{' '}
       <Derived value={Math.round(PLANNER_POWER * 10)} unit="count" refs={SIMULATED} /> times in{' '}
-      <Derived value={10} unit="count" refs={SIMULATED} />.
+      <Derived value={10} unit="count" refs={SIMULATED} />. <strong className="font-semibold">Significance level</strong>
+      : the risk of a false winner when there is no real rise; <Derived value={PLANNER_ALPHA} unit="share" refs={SIMULATED} />{' '}
+      means <Derived value={1} unit="count" refs={SIMULATED} /> time in{' '}
+      <Derived value={Math.round(1 / PLANNER_ALPHA)} unit="count" refs={SIMULATED} />.
+    </>
+  );
+}
+
+/** The Lab's run-time method: the weeks at the traffic set, rounded up, and what the traffic assumes. */
+export function PlannerWeeksMethod({ traffic }: { traffic: number }): ReactNode {
+  return (
+    <>
+      The weeks are how long both groups take to reach that size at{' '}
+      <Derived value={traffic} unit="count" refs={SIMULATED} /> {traffic === 1 ? 'visitor' : 'visitors'} a day, split equally between them, in whole
+      weeks, rounded up. <DurationCaption context="hypothetical" traffic={traffic} part="rest" />
     </>
   );
 }
@@ -169,17 +180,19 @@ export function SizingTerms(): ReactNode {
 /** The page's head: the chip, the h1 and its quiet second clause. */
 export const LAB_HEAD = {
   chip: 'Lab',
-  title: 'Four ways an A/B test can mislead,',
-  quiet: 'and the check for each.',
+  title: 'Four ways an A/B test can mislead you,',
+  quiet: 'and how I catch each one.',
 } as const;
 
-/** The page's opening, under its heading. */
+/** The page's opening, under its heading: it says once what luck and the bar are, which every check rests on. */
 export function LabIntro(): ReactNode {
   return (
     <p>
-      An A/B test shows two versions of a page to two groups of visitors and compares what they do. It only helps a
-      business if the result can be trusted. These are the four checks I make before I believe a result. Move the
-      controls: every number is made up or simulated, none comes from a real test.
+      An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. Show
+      both groups the same page, and their results still differ a little, by luck. So a test calls a winner only when
+      the gap clears a bar. The bar is set so that luck alone rarely clears it. A wrong call can ship a change that does
+      nothing, or drop one that works. These are the four checks I make before I trust a result. Every number below is
+      made up or simulated.
     </p>
   );
 }
@@ -187,39 +200,44 @@ export function LabIntro(): ReactNode {
 /**
  * The four checks in the order of a test's life, which is the page's order: the section's anchor, when
  * in a test the check comes, the question (the card's title and the section's h2), one plain line, the
- * section's short label, and the Figure it holds.
+ * section's short label, the trap (one everyday picture of the mistake, under the h2, without a
+ * number) and the Figure it holds.
  */
 export const LAB_SECTIONS = [
   {
     id: 'sample-size',
     when: 'Before the test',
     question: 'Is the test big enough?',
-    line: 'Too few visitors and a real improvement goes unseen. The size is worked out before the test starts.',
-    label: 'Sample size and duration',
+    line: 'With too few visitors, luck can hide a real gain. So I work out the visitors a test needs before it starts.',
+    label: 'Sample size and power',
+    trap: 'Toss a coin a few times and you may get mostly heads, just by luck. A test with few visitors swings by luck the same way. A small real rise can vanish inside those swings.',
     figure: 'planner',
   },
   {
     id: 'split-check',
     when: 'While it runs',
     question: 'Did each group get its share?',
-    line: 'If one group gets more visitors than planned, the set-up is broken and the result cannot be trusted.',
-    label: 'Split check',
+    line: 'The groups should come out close to half each. A bigger gap than luck allows means the setup is broken. Then no result can be trusted, however good it looks.',
+    label: 'Sample ratio mismatch',
+    trap: 'Each visitor is put in group A or B by a fair coin toss. A fair coin lands near half each, but rarely exactly half. A much bigger gap means something broke, say a page that fails on some phones. Then the groups differ in who is in them, not just in the page.',
     figure: 'srm',
   },
   {
     id: 'peeking-at-results',
     when: 'When reading it',
     question: 'Did we stop too early?',
-    line: 'Checking every day and stopping at the first win turns chance into winners.',
-    label: 'Peeking at results',
+    line: 'Check daily and stop at the first win, and luck can pick your winner.',
+    label: 'Peeking',
+    trap: 'Roll a die until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
     figure: 'peeking',
   },
   {
     id: 'exaggeration',
     when: 'After a win',
     question: 'Is the win as big as it looks?',
-    line: 'Small tests that win tend to overstate the win.',
-    label: 'Exaggeration',
+    line: 'A test too small for the effect wins only on a lucky reading. So its wins look bigger than they are.',
+    label: "Winner's curse (type M error)",
+    trap: 'A cheap bathroom scale wobbles a little each day. Write down only the days it shows a big loss. Your notes will say you lost more than you really did. A small test is that scale: only its luckiest readings clear the bar.',
     figure: 'curse',
   },
 ] as const;
@@ -234,22 +252,18 @@ export function LabLimits(): ReactNode {
   return (
     <ul className="list-disc pl-5">
       <li className="mt-2 first:mt-0">
-        The numbers here are simulated or hypothetical. None of them comes from a real test or from this site&apos;s
-        live test.
+        Every number here is made up or simulated. None comes from a real test or from this site&apos;s live test.
       </li>
       <li className="mt-2 first:mt-0">
-        The planner assumes two groups of equal size, a result read once at the end, the same traffic every day and
-        every visitor entering the test.
-        Checking the result as it comes in needs a different plan, as the peeking example shows.
+        The planner assumes two equal groups, the same traffic every day and one reading at the end. Checking as you go
+        needs a different plan, as the peeking example shows.
       </li>
       <li className="mt-2 first:mt-0">
-        The peeking results come from one seeded simulation with one conversion rate and one number of visitors per
-        look. Other settings give other rates, and the Monte Carlo range covers only the simulation&apos;s own noise.
+        The peeking numbers come from one simulation with one sign-up rate. Other settings give other rates.
       </li>
       <li className="mt-2 first:mt-0">
-        The split check and the exaggeration example use standard approximations: a chi-square test on counts, and an
-        estimate that is normally distributed with a known standard error. What they show is a reason to look closer,
-        not a verdict on a real test.
+        The split check and the overstatement example use simple, standard formulas. They tell you when to look closer.
+        They are not a verdict on a real test.
       </li>
     </ul>
   );
@@ -259,16 +273,18 @@ export function LabLimits(): ReactNode {
 export function LabClose(): ReactNode {
   return (
     <p>
-      I size a test before it starts, check the split before I read anything, decide in advance how often I will look,
-      and treat a small test&apos;s win with suspicion. The live test on this site sizes itself, checks its split and
-      fixes its looks in advance, on real visitors.
+      I size a test before it starts. I check the split before I read anything. I decide in advance how often I will
+      look. And I treat a surprising win from a small test with suspicion. The live test on this site follows the same
+      rules on real visitors. Its plan was written down before the first visitor was counted. It checks its split after
+      every completed day. It uses the always-valid check, so it can be read every day. With this site&apos;s traffic it
+      can only catch a large effect, and the plan says so.
     </p>
   );
 }
 
 export const LAB_CLOSE_LINKS = [
   { href: '/experiment', label: 'See the live test' },
-  { href: '/work/audible', label: 'See how I planned tests at Audible' },
+  { href: '/work/audible', label: 'See how I sized and evaluated tests at Audible' },
 ] as const;
 
 /** The head of the peeking example's own page, the interview link. */

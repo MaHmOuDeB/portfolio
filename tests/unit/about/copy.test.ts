@@ -89,7 +89,7 @@ const STORY = [
   'I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and worked with 3 teams over my time there, one after another.',
   'I also built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.',
   "I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I have rebuilt my Master's projects on public data and built tools of my own.",
-  'In an earlier role I built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act (DMA).',
+  'At Audible I also built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act (DMA).',
 ];
 
 const FOCUS =
@@ -118,10 +118,10 @@ const TOOLS: readonly [tool: string, where: string][] = [
 ];
 
 const LANGUAGES: readonly [language: string, level: string][] = [
-  ['Arabic', 'native'],
   ['English', 'fluent (C2)'],
-  ['French', 'fluent (C2)'],
   ['German', 'B1'],
+  ['French', 'fluent (C2)'],
+  ['Arabic', 'native'],
   ['Spanish', 'A2'],
 ];
 
@@ -150,9 +150,11 @@ describe('the About page', () => {
     expect(paragraphs).toEqual([FOCUS, STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4], STORY[5]]);
     expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), ...STORY]);
     expect(text(story)).not.toMatch(/honestly/i);
-    // The AI tools and the consent-aware SQL work stand in their own paragraph, after the degree, naming no employer.
+    // The AI tools and the consent-aware SQL work stand in their own paragraph, after the degree. It names Audible
+    // (owner, 2026-11-15) but no internal platform: never Amazon or Bedrock.
     expect(paragraphs.at(-1)).toBe(STORY[5]);
-    expect(paragraphs.at(-1)).not.toMatch(/Audible|Amazon/);
+    expect(paragraphs.at(-1)).toMatch(/^At Audible /);
+    expect(paragraphs.at(-1)).not.toMatch(/Amazon|Bedrock/);
   });
 
   it('puts the focus paragraph first, and leaves the looking-for line to the close with its Write to me button', () => {

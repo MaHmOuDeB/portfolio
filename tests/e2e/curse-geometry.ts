@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
-// Shared by the exaggeration Figure's own spec and the Lab page's: where the current dot and its ring
-// sit on the visible chart.
+// Shared by the winner's curse Figure's own spec and the Lab page's: where the current dot and its
+// ring sit on the visible chart.
 
 /**
  * The dot and its ring against the plot of the visible exaggeration chart. The plot is measured from
@@ -37,6 +37,7 @@ export async function dotGeometry(page: Page) {
     }
     const ticks = [...svg.querySelectorAll('[data-tick]')].map((t) => t.getBoundingClientRect());
     return {
+      power: Number(dot.dataset.power),
       ratio: Number(dot.dataset.ratio),
       value: Number(dot.dataset.exaggeration),
       centreInPlot: cx >= plot.left - 0.5 && cx <= plot.right + 0.5 && cy >= plot.top - 0.5 && cy <= plot.bottom + 0.5,
