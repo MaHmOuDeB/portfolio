@@ -46,7 +46,7 @@ export const DOCPROOF_GLANCE: GlanceParts = {
     'Single fact base, claim verification, multi-agent orchestration (author, auditor, context-free reviewer), rendering checks.',
   tools: 'Python, Claude Code agents and skills, headless Chrome, GitHub Actions.',
   when: '2026.',
-  scope: 'Open source (MIT), built in 2026 with Claude Code as pair-programmer. No users yet.',
+  scope: 'Open source (MIT), built in 2026. No users yet.',
 };
 
 /** What the tool removes: a model's drift away from its source, and slow checking by hand. */

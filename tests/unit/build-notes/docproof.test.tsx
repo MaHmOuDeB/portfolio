@@ -58,10 +58,10 @@ describe('the outline', () => {
     expect(text(actions.slice(actions.indexOf('>') + 1))).toBe('See the code on GitHub');
   });
 
-  it('says "No users yet" once in Scope and once in Limits, and names the pair programmer once', () => {
+  it('says "No users yet" once in Scope and once in Limits, and never says pair programmer', () => {
     expect(text(PAGE).match(/No users yet/g)).toHaveLength(2);
     expect(text(section(PAGE, 'limits'))).toContain('No users yet');
-    expect(text(PAGE).match(/pair-programmer|pair programmer/g)).toHaveLength(1);
+    expect(text(PAGE)).not.toMatch(/pair/i);
     expect(text(PAGE)).not.toContain('not who uses it');
     expect(text(PAGE)).not.toMatch(/job|CV|résumé|resume/);
   });
