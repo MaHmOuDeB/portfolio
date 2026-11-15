@@ -40,8 +40,11 @@ export function Hero() {
           {sub.lead}
           <Chip inline>{sub.chips[0]}</Chip>
           {sub.join}
-          <Chip inline>{sub.chips[1]}</Chip>
-          {sub.end}
+          {/* The second chip and the last words never break apart (from sm up; a phone wraps freely). */}
+          <span data-hero-tail="">
+            <Chip inline>{sub.chips[1]}</Chip>
+            {sub.end}
+          </span>
         </p>
         <div data-hero-actions="">
           <Step d={1}>

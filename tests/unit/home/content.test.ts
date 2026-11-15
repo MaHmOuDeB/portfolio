@@ -271,7 +271,7 @@ describe('the hero, proof row, the sections and the site band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.chip).toBe('Open to roles in Germany');
     expect(heroSubText()).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
     expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');

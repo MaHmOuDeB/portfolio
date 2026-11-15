@@ -1435,6 +1435,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.55;
   }
 
+  @media (width >= 40rem) {
+    [data-hero-tail] {
+      white-space: nowrap;
+    }
+  }
+
   [data-hero-actions] {
     display: flex;
     flex-wrap: wrap;

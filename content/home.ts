@@ -31,10 +31,10 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
 export const HOME_HERO = {
   chip: 'Open to roles in Germany',
   sub: {
-    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with ',
+    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the ',
     chips: ['Agents', 'Workflows'],
     join: ' and ',
-    end: '.',
+    end: ' that take the manual work out.',
   },
   cv: 'Read my CV',
   contact: 'Write to me',

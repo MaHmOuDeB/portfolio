@@ -247,9 +247,12 @@ describe('Hero', () => {
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
     const sub = one(hero, (el) => has(el, 'data-hero-sub'));
     expect(text(sub)).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
     );
     expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['Agents', 'Workflows']);
+    // The second chip and the last words stay together: one tail that does not wrap from sm up.
+    const tail = one(sub, (el) => has(el, 'data-hero-tail'));
+    expect(text(tail)).toBe('Workflows that take the manual work out.');
     expect(html).not.toContain('I test what works');
   });
 
