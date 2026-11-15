@@ -529,7 +529,7 @@ describe('HomeFaq', () => {
     expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false, false]);
     const qa = rows.map((r) => [squash(text(one(r, (el) => el.tagName === 'summary'))), squash(text(one(r, (el) => has(el, 'data-faq-answer'))))]);
     expect(qa).toEqual([
-      ['What roles are you looking for?', 'Roles in experimentation, product analytics and AI automation in Germany. I am based in Berlin.'],
+      ['What roles are you looking for?', 'Roles in experimentation, product analytics and AI automation in Germany, at junior to mid level. I am based in Berlin.'],
       [
         'What did you do at Audible?',
         'I was a working student for nearly two years, mainly in growth experimentation with some marketing analytics. I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes.',
