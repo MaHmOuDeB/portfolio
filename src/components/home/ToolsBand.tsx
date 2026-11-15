@@ -1,4 +1,5 @@
-// The methods and tools band: a small line at the groups' left edge, then two groups side by side from lg (one column
+// The methods and tools band: its name as a centred chip, like every other Home section's head (owner, 2026-11-15),
+// then two groups side by side from lg (one column
 // below), each with its name, what it is for, a static list of chips and where the site shows them,
 // then one quiet line for the engineering. Home's own list (HOME_TOOLS); About keeps its longer one.
 // Server-safe: no link, no control, no motion.
@@ -10,8 +11,8 @@ const LINE_ID = 'shipped-title';
 export function ToolsBand() {
   return (
     <section data-home-shipped="" data-rule="" aria-labelledby={LINE_ID} className="py-10 md:py-12">
-      <p id={LINE_ID} data-tools-label="" className="mx-auto max-w-figure text-sm text-muted">
-        {TOOLS_LABEL}
+      <p id={LINE_ID} data-tools-label="" className="mx-auto max-w-figure text-center">
+        <Chip>{TOOLS_LABEL}</Chip>
       </p>
       <div data-tools-groups="" className="mx-auto mt-6 grid max-w-figure grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         {HOME_TOOLS.groups.map((g) => {
