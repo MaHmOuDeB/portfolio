@@ -394,10 +394,12 @@ page, give it the primitives catalogue above and the golden page.
     linear, `backwards` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
     no fade-up-on-every-section.
   - Lean and magnet run only under a fine pointer. No transition while a slider is dragged.
-  - Hover movement is banned except the 4 px lift of a clickable card (a lean card or a
-    previous/next card): on hover where hover exists, and on keyboard focus, with motion allowed,
-    by `translate` only. Its border and plus turn ink on hover, focus and press; nothing else moves
-    on hover.
+  - Hover movement is banned except the 4 px lift of a clickable card, a closed list: a lean card
+    (`[data-depth-lean]`), a previous/next card (`[data-next]`) and a Home "How I test" tab
+    (`[data-how-tab]`). It lifts on hover where hover exists, and on keyboard focus, with motion
+    allowed, by `translate` only. Its border (and a lean card's plus) turns ink on hover, focus and
+    press; the selected tab keeps its fill and ink bar. Buttons, segmented controls, sliders, chips,
+    details rows and inline links keep their own hover; nothing else moves on hover.
   - Only transform, opacity and clip-path animate, never layout. The h1 never animates.
   - Reduced motion, print and browsers without scroll timelines get the final static state
     (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.
@@ -437,7 +439,8 @@ page, give it the primitives catalogue above and the golden page.
   - `no-fade-up`: `fade-up`, `animate-in` and `slide-in-from` classes.
   - `no-hover-move`: `hover:translate-*`, `hover:scale-*`, or a transform, scale or translate
     inside a `:hover` rule. The one exception is the lift of a clickable card: `translate` on a
-    `[data-depth-lean]` or `[data-next]` that is itself hovered, at most 4 px upward.
+    `[data-depth-lean]`, `[data-next]` or `[data-how-tab]` that is itself hovered, at most 4 px
+    upward. The list is closed: a new clickable card needs its selector added here and in the lint.
   - `no-dark`: `prefers-color-scheme: dark` and `dark:` variants. The site is light only.
   - `no-hex`: a hex colour in a class name, style, SVG paint attribute or CSS value outside
     `src/styles/tokens.css` (and the favicon `src/app/icon.svg`).
