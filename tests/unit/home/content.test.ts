@@ -298,7 +298,7 @@ describe('the hero, proof row, the sections and the site band', () => {
     });
     expect(HOME_SITE).toEqual({
       title: 'This site is part of the evidence.',
-      text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+      text: 'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
       live: 'See the live test',
       lab: 'Try the Lab',
     });

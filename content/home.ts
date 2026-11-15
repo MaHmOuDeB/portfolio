@@ -336,7 +336,7 @@ export const TOOLS_LABEL = 'Tools I have shipped with';
 /** The site band: the test on this site is part of the evidence. The Work page reads `title` and `text`. */
 export const HOME_SITE = {
   title: 'This site is part of the evidence.',
-  text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+  text: 'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
   live: 'See the live test',
   lab: 'Try the Lab',
 } as const;

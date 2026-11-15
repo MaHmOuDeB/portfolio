@@ -424,7 +424,7 @@ describe('SiteTile: the site band', () => {
     expect(text(one(h2, (el) => has(el, 'data-quiet')))).toBe('part of the evidence.');
     expect(attr(root, 'aria-labelledby')).toBe(attr(h2, 'id'));
     expect(text(one(root, (el) => has(el, 'data-home-site-text')))).toBe(
-      'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+      'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
     );
     const buttons = all(root, (el) => el.tagName === 'a');
     expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
