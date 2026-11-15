@@ -59,7 +59,8 @@ export function LabPlannerIsland(props: LabPlannerClientProps) {
   return <LazyLabPlanner {...props} />;
 }
 
-const SLIDER = 'w-full xs:w-72';
+// From lg each slider is 240 px, so the Lab's three sliders and Reset share one row at 1024 and 1440.
+const SLIDER = 'w-full xs:w-72 lg:w-60';
 
 // The baseline is a proportion in the URL and the views, but its number box takes whole percents,
 // as its label and readout say: typing "30" means 30%. The Slider works in percent and the caller

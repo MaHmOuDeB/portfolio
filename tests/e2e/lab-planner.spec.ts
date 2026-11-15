@@ -764,6 +764,25 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expectUrl('0.29', '1', '500');
   });
 
+  test('from 1024 px the three sliders and Reset share one row', async ({ page }) => {
+    for (const width of [1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/lab');
+      await ready(page, LAB);
+      const row = [baseline(page, LAB), rise(page, LAB), traffic(page, LAB), reset(page, LAB)];
+      const boxes = await Promise.all(row.map(async (c) => (await c.boundingBox())!));
+      const at = `${width} px`;
+      // every control's middle is inside the first slider's band, and each sits right of the one before
+      const top = boxes[0]!.y;
+      const bottom = boxes[0]!.y + boxes[0]!.height;
+      for (const [i, b] of boxes.entries()) {
+        expect(b.y + b.height / 2, `${at}, control ${i}`).toBeGreaterThan(top);
+        expect(b.y + b.height / 2, `${at}, control ${i}`).toBeLessThan(bottom);
+        if (i > 0) expect(b.x, `${at}, control ${i}`).toBeGreaterThan(boxes[i - 1]!.x + boxes[i - 1]!.width);
+      }
+    }
+  });
+
   test('on /lab the sign-up rate box takes whole percents: typing 30 sets 30%, and the URL keeps the proportion', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
