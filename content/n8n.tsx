@@ -174,11 +174,17 @@ export const N8N_LIMITS: readonly [key: string, body: ReactNode][] = [
     </>,
   ],
   [
+    'tested',
+    <>
+      Its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in
+      testing mode its sign-in expires after about a week.
+    </>,
+  ],
+  [
     'needs',
     <>
       It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP
-      account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app
-      is in testing mode its sign-in expires after about a week.
+      account.
     </>,
   ],
 ];
