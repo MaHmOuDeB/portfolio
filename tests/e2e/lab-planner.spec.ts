@@ -740,9 +740,10 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await page.goto(`${HOST}?other.keep=1#note`);
     await ready(page, LAB);
     const expectUrl = async (b: string, r: string, t: string) => {
-      await expect.poll(() => query(page).get(`${LAB}.baseline`)).toBe(b);
-      expect(query(page).get(`${LAB}.risePoints`)).toBe(r);
-      expect(query(page).get(`${LAB}.traffic`)).toBe(t);
+      // the writes are debounced: wait for all three, not only the one that changed first
+      await expect
+        .poll(() => [`${LAB}.baseline`, `${LAB}.risePoints`, `${LAB}.traffic`].map((k) => query(page).get(k)))
+        .toEqual([b, r, t]);
       expect(ownKeys(page, LAB)).toEqual([`${LAB}.baseline`, `${LAB}.risePoints`, `${LAB}.traffic`]);
       expect(ownKeys(page, 'duration')).toEqual([]);
       expect(query(page).get('other.keep')).toBe('1');
