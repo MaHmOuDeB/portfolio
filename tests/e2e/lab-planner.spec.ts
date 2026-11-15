@@ -29,7 +29,8 @@ const STATS_MARKER = 'entryViewsPerDay must be a finite number above 0';
 const figure = (page: Page, id = ID) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id = ID) => page.locator('[data-island]', { has: figure(page, id) });
 const baseline = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: 'Baseline conversion' });
-const rise = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: 'Rise to detect' });
+// The Lab names the rise in plain words; the Retention page keeps its own term.
+const rise = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: id === ID ? 'Smallest rise worth detecting' : 'Rise to detect' });
 const traffic = (page: Page, id = DURATION) => figure(page, id).getByRole('slider', { name: /^Total (visitors|customers) per day$/ });
 const unit = (page: Page, name: 'Points' | 'Percent of baseline', id = ID) => figure(page, id).getByRole('radio', { name });
 const reset = (page: Page, id: string) => figure(page, id).getByRole('button', { name: 'Reset' });
@@ -614,7 +615,9 @@ test.describe('Full planner', () => {
 async function assertSizingFallback(page: Page, baselinePercent: string) {
   const f = figure(page);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText('Smaller rises need more visitors per group');
-  await expect(f.locator('figcaption > p').first()).toContainText("Cohen's h");
+  await expect(f.locator('figcaption > p').first()).toContainText('A hypothetical test: the baseline conversion and the rise are numbers to plan with');
+  // the method stays one click deeper, after the Figure
+  await expect(page.locator('[data-lab-exhibit]', { has: f }).locator('[data-method-text]')).toContainText("Cohen's h");
   const fallbackTable = f.locator('[data-figure-fallback] table');
   await expect(fallbackTable).toBeVisible();
   await expect(fallbackTable.locator('tbody tr').first().locator('td[data-num]')).toHaveText(baselinePercent);
