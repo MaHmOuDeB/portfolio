@@ -28,14 +28,12 @@ describe('the /experiment route', () => {
   it('renders the page from one read, with the production host and the build commit', async () => {
     vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', 'site.example');
     vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'abcdef0123456789abcdef0123456789abcdef01');
-    vi.stubEnv('BUILD_META_JSON', 'null');
     read.mockResolvedValue(snapshotFixture('calibration'));
     const html = renderToStaticMarkup(await (await route())());
     expect(read).toHaveBeenCalledTimes(1);
     expect(html).toContain('https://<data value="site.example"');
     expect(html).toContain('This page was built from commit');
-    // No build metadata: the stack line stands alone, and no line promises results to come.
-    expect(html).toContain('id="colophon-stack"');
-    expect(html).not.toContain('id="colophon-results"');
+    expect(html).not.toContain('colophon');
+    expect(html).not.toContain('How this site is built');
   });
 });

@@ -26,10 +26,8 @@ import { TextLink } from '@/components/kit/TextLink';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
 import { MIN_PER_GROUP, type FigureRuntime } from '@/lib/figure/states';
-import type { BuildMeta } from '@/lib/live-page/build-meta-shape';
 import type { LivePageDisplay } from '@/lib/live-page/model';
 import { CONTACT } from '@/lib/site';
-import { Colophon } from './Colophon';
 import { DETECTABLE_METHOD, DetectableFigure } from './DetectableFigure';
 import { FunnelExclusions, FunnelFigure, FunnelMethod } from './FunnelFigure';
 import { ResultsFigure, resultsKind } from './ResultsFigure';
@@ -47,7 +45,6 @@ export const LIVE_SECTIONS = [
   { id: 'health', title: 'Is the test healthy?' },
   { id: 'funnel', title: 'How views are counted' },
   { id: 'check-it-yourself', title: 'Check it yourself' },
-  { id: 'colophon', title: 'How this site is built' },
 ] as const;
 
 type SectionId = (typeof LIVE_SECTIONS)[number]['id'];
@@ -398,13 +395,12 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
 
 type Props = {
   display: LivePageDisplay;
-  meta: BuildMeta | null;
   /** The production host for the download command; null names "the address of this page" instead. */
   host: string | null;
   runtime?: FigureRuntime;
 };
 
-export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode {
+export function LivePage({ display: d, host, runtime }: Props): ReactNode {
   const preregHref = `${REPO}/blob/${d.public.prereg.tag}/docs/experiment/prereg.md`;
   return (
     <article aria-labelledby="live-test-title">
@@ -502,11 +498,6 @@ export function LivePage({ display: d, meta, host, runtime }: Props): ReactNode 
         </p>
       </PageClose>
 
-      <Section id="colophon">
-        <div className="mt-4">
-          <Colophon meta={meta} />
-        </div>
-      </Section>
       <PageCallToAction />
     </article>
   );

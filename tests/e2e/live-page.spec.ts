@@ -23,7 +23,6 @@ const SECTIONS = [
   ['health', /^Is the test healthy\?$/],
   ['funnel', /^How views are counted$/],
   ['check-it-yourself', /^Check it yourself$/],
-  ['colophon', /^How this site is built$/],
 ] as const;
 const ANCHORS = ['where-it-stands', 'decision', 'split-check', 'detectable'] as const;
 
@@ -111,9 +110,7 @@ test.describe('the Live test page', () => {
     // The method rows are native details: closed, they open without JavaScript.
     await page.locator('details[data-method] > summary', { hasText: 'Pre-registration record' }).click();
     await expect(page.locator('#plan-prereg')).toBeVisible();
-    // This build has no test and audit results, so the colophon is its stack line alone.
-    await expect(page.locator('#colophon-stack')).toHaveText(/^Built with Next\.js /);
-    await expect(page.locator('#colophon-results')).toHaveCount(0);
+    await expect(page.locator('#colophon')).toHaveCount(0);
     await context.close();
   });
 

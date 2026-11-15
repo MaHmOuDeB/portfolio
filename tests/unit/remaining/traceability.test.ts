@@ -164,7 +164,6 @@ const SERVER_ONLY = [
   'src/lib/home/narrative-fixtures.ts',
   'src/lib/live-page/model.ts',
   'src/lib/live-page/fixtures.ts',
-  'src/lib/live-page/build-meta-file.ts',
 ];
 
 function sourceFiles(dir: string): string[] {

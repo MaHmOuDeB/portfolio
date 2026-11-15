@@ -77,7 +77,7 @@ describe('the results table before the first look', () => {
     expect(d.series).toEqual([]);
     expect(d.counts.a > d.counts.b).toBe(true);
     expect([shown(d.counts.a), shown(d.counts.b)]).toEqual(['30', '20']);
-    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime="default" />));
+    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} host="site.example" runtime="default" />));
     expect(r.tables[0]!.rows.map((row) => row.map((c) => c.text))).toEqual([
       ['A', '30'],
       ['B', '20'],
@@ -89,7 +89,7 @@ describe('the results table before the first look', () => {
     for (const runtime of RUNTIMES) {
       it(`${name}, ${runtime}: Group and Analysed views, group A then group B as printed counts, the note and the source marker`, () => {
         const d = displayOf(s);
-        const r = resultsTables(renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime={runtime} />));
+        const r = resultsTables(renderToStaticMarkup(<LivePage display={d} host="site.example" runtime={runtime} />));
         expect(r.tables.length, 'a table is there').toBeGreaterThan(0);
         for (const t of r.tables) {
           expect(t.heads).toEqual(['Group', 'Analysed views']);
@@ -110,7 +110,7 @@ describe('the results table once a look exists', () => {
   it('keeps the Figure title as its caption', () => {
     const d = displayOf(narrativeFixture('ship-b-confirmed'));
     expect(d.series.length).toBeGreaterThan(0);
-    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime="default" />));
+    const r = resultsTables(renderToStaticMarkup(<LivePage display={d} host="site.example" runtime="default" />));
     expect(r.captions.length).toBeGreaterThan(0);
     for (const c of r.captions) expect(c[0]).not.toBe(CAPTION);
     for (const c of r.captions) expect(c[0]).toMatch(/interval/i);
