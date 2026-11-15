@@ -24,7 +24,7 @@ type Id = keyof typeof TITLE;
 const SRM_PRESET_RESULT = 'Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.';
 const SRM_EVEN_RESULT = 'Not flagged: a fair coin leaves a gap this big or bigger at least 1 time in 1,000.';
 // The power preset is 17%: the test clears the bar 17 times in 100.
-const CURSE_PRESET_RESULT = 'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% point the wrong way.';
+const CURSE_PRESET_RESULT = 'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% of them point the wrong way.';
 const CURSE_X_LABEL = 'How often the test clears the bar';
 
 const figure = (page: Page, id: Id) => page.locator(`figure[data-figure="${id}"]`);
@@ -295,7 +295,7 @@ test.describe('Exaggeration Figure', () => {
       expect(dot!.overlapsTick, String(width)).toBe(false);
       expect(await readout(page)).toEqual({ wrongSign: '4.5%', exaggeration: '3.7' });
       expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['10%', '0.65', '4.5%', '3.7', 'Yes']]);
-      await expect(result(page, 'curse')).toHaveText('At this setting, results that clear the bar average 3.7 times the real effect. Of those, 4.5% point the wrong way.');
+      await expect(result(page, 'curse')).toHaveText('At this setting, results that clear the bar average 3.7 times the real effect. Of those, 4.5% of them point the wrong way.');
     }
   });
 
@@ -360,7 +360,7 @@ test.describe('Exaggeration Figure', () => {
     await expect(range(page, 'curse-power')).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(range(page, 'curse-power')).toHaveValue('18');
-    await expect(live(page, 'curse')).toHaveText('At this setting, results that clear the bar average 2.4 times the real effect. Of those, 0.8% point the wrong way.');
+    await expect(live(page, 'curse')).toHaveText('At this setting, results that clear the bar average 2.4 times the real effect. Of those, 0.8% of them point the wrong way.');
     await expect(live(page, 'curse')).toHaveAttribute('data-derived', 'simulated');
     const before = await readout(page);
     const row = (await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes');

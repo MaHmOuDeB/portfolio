@@ -182,7 +182,7 @@ export function CurseResultLine({ result }: { result: CurseResult }) {
   return (
     <>
       At this setting, results that clear the bar average {num(formatExaggeration(result.exaggeration))} times the real
-      effect. Of those, <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> point the wrong way.
+      effect. Of those, <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> of them point the wrong way.
     </>
   );
 }

@@ -228,7 +228,7 @@ export const LAB_SECTIONS = [
     question: 'Did we stop too early?',
     line: 'Check daily and stop at the first win, and luck can pick your winner.',
     label: 'Peeking',
-    trap: 'Roll a dice until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
+    trap: 'Roll a die until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
     figure: 'peeking',
   },
   {

@@ -403,7 +403,7 @@ describe('the exaggeration readout and table', () => {
 
   it('says the preset result in one plain sentence, with no statistics words', () => {
     expect(curseResultText({ power: 0.17 })).toBe(
-      'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% point the wrong way.',
+      'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% of them point the wrong way.',
     );
     expect(curseResultText({ power: 0.17 })).not.toMatch(/standard error|ratio|power|threshold|estimate/i);
   });

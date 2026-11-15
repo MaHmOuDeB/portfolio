@@ -274,7 +274,7 @@ export const CURSE_UNBOUNDED = 'At this setting the calculation has no finite an
 export function curseResultText(v: CurseValues, deps?: CurseDeps): string {
   const r = curseModel(v, deps);
   if (r.kind === 'unbounded') return CURSE_UNBOUNDED;
-  return `At this setting, results that clear the bar average ${formatExaggeration(r.exaggeration)} times the real effect. Of those, ${formatWrongSign(r.typeS)} point the wrong way.`;
+  return `At this setting, results that clear the bar average ${formatExaggeration(r.exaggeration)} times the real effect. Of those, ${formatWrongSign(r.typeS)} of them point the wrong way.`;
 }
 
 /** The reference powers the table always lists, from one end of the slider to the other. */

@@ -178,7 +178,7 @@ describe('the Lab page', () => {
     'split-check':
       'Each visitor is put in group A or B by a fair coin toss. A fair coin lands near half each, but rarely exactly half. A much bigger gap means something broke, say a page that fails on some phones. Then the groups differ in who is in them, not just in the page.',
     'peeking-at-results':
-      'Roll a dice until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
+      'Roll a die until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
     exaggeration:
       'A cheap bathroom scale wobbles a little each day. Write down only the days it shows a big loss. Your notes will say you lost more than you really did. A small test is that scale: only its luckiest readings clear the bar.',
   };
@@ -328,7 +328,7 @@ describe('the Lab page', () => {
     expect(by.curse!.wide).toBe(
       'What I do about it A forecast built on a win like this would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.',
     );
-    expect(text(figure('curse'))).toContain(`At this setting, results that clear the bar average ${factor} times the real effect. Of those, 0.9% point the wrong way.`);
+    expect(text(figure('curse'))).toContain(`At this setting, results that clear the bar average ${factor} times the real effect. Of those, 0.9% of them point the wrong way.`);
   });
 
   it('links another setting under each exhibit, each a real key of its Figure with a value other than the preset', () => {
@@ -491,7 +491,7 @@ describe('the peeking page', () => {
     expect(text(PEEKING)).toContain('One example from the Lab: what happens when a test is checked every day and stopped at the first win.');
     // the same exhibit as on the Lab: lead-in, takeaway and method row
     expect(exhibits(PEEKING)).toEqual(exhibits(LAB).filter((e) => e.figure === 'peeking'));
-    expect(text(section(PEEKING, 'peeking-at-results'))).toMatch(/^Did we stop too early\? The trap Roll a dice [^]*? Try it Both pages /);
+    expect(text(section(PEEKING, 'peeking-at-results'))).toMatch(/^Did we stop too early\? The trap Roll a die [^]*? Try it Both pages /);
     expect(figures(PEEKING).map((f) => f.id)).toEqual(['peeking']);
     expect(figures(PEEKING)[0]!.html).toBe(figures(LAB).find((f) => f.id === 'peeking')!.html);
     const back = /<a ([^>]*)>All the examples in the Lab<\/a>/.exec(PEEKING);
