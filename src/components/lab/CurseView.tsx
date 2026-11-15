@@ -1,14 +1,14 @@
-// The exaggeration Figure, drawn from its two inputs: a hypothetical true effect and the standard
-// error of its estimate, in the same arbitrary units, at a fixed two-sided significance level.
-// Shared and hook-free: the server draws the preset with it (the static HTML, also the no-JS view)
-// and the island draws the reader's setting with the same markup.
+// The exaggeration Figure (the winner's curse), drawn from one input: how often a test clears the
+// bar, its power, at a fixed two-sided significance level. Shared and hook-free: the server draws the
+// preset with it (the static HTML, also the no-JS view) and the island draws the reader's setting
+// with the same markup.
 //
-// - The readout gives power, the wrong-sign rate among significant estimates and the exaggeration
-//   among them, from retrodesign; the table row of the current ratio uses the same words.
-// - The chart is the analytic exaggeration over every reachable ratio of effect to standard error, on
-//   a log10 x-axis, with the current ratio's own datum as an orange dot with a bg ring. A zero
-//   effect has no dot and is never put through the logarithm; a non-finite result is words only.
-// - Every number is computed from the reader's values and marked 'simulated'.
+// - The readout gives the exaggeration among results that clear the bar and the wrong-sign rate
+//   among them, from retrodesign at the ratio of effect to standard error the power implies; the
+//   table row of the current power uses the same words.
+// - The chart is the exaggeration at every power the slider reaches, on linear axes, with the
+//   current power's own datum as an orange dot with a bg ring. A non-finite result is words only.
+// - Every number is computed from the reader's value and marked 'simulated'.
 import type { ReactNode } from 'react';
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
 import { derivedAttr } from '@/components/kit/Derived';
@@ -22,59 +22,63 @@ import {
   CURSE_ID,
   CURSE_LABELS,
   CURSE_PRESETS,
+  CURSE_SCHEMA,
   CURSE_TITLE,
   CURSE_UNBOUNDED,
   CURSE_X_TICKS,
-  CURSE_ZERO,
   DIAGNOSTICS_REFS,
   DOT_RADIUS,
   DOT_RING,
-  RATIO_MAX,
-  RATIO_MIN,
   curseAxis,
   curseY,
   exaggerationTick,
   curseCurve,
   curseModel,
-  curseRatio,
   curseTable,
   formatExaggeration,
   formatPower,
   formatWrongSign,
   normalizeCurse,
-  ratioTick,
-  unitsText,
+  powerTick,
   type CurseDeps,
   type CurseResult,
-  type CurseValues,
   type CurvePoint,
+  type CurseValues,
 } from '@/lib/lab/diagnostics';
 
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
 
 export const CURSE_LEAD_IN =
-  'Picture a real but small effect, measured by a test too small to see it reliably. The line shows how much the tests that still win overstate it.';
+  'Picture a change with a real but small effect. Make the test bigger or smaller, and watch how much its wins overstate the effect.';
+
+/** A number of the takeaway or the method row, marked as the Figure marks its own. */
+const num = (text: string) => (
+  <span data-num="" {...SIMULATED}>
+    {text}
+  </span>
+);
 
 /**
  * The sentence below the Figure, at the starting setting: the same power and exaggeration the Figure
- * prints at its preset, from the same model and formatters.
+ * prints at its preset, from the same model and formatters. Its second sentence holds while the
+ * preset's power is under one half (a unit test pins it).
  */
 export function CurseTakeaway({ deps }: { deps?: CurseDeps }) {
   const preset = curseModel(CURSE_PRESETS.default, deps);
-  if (preset.kind !== 'result') return <>A surprising win from a small test deserves a second run before a rollout.</>;
+  const close = 'So I treat a surprising win from a small test as a lead. I run it again before anyone plans on that number.';
+  if (preset.kind !== 'result') return <>{close}</>;
   return (
     <>
-      At the starting setting the test notices the effect only <span {...SIMULATED}>{formatPower(preset.power)}</span> of
-      the time, and when it does it reports about{' '}
-      <span data-num="" {...SIMULATED}>
-        {formatExaggeration(preset.exaggeration)}
-      </span>{' '}
-      times the truth. A surprising win from a small test deserves a second run before a rollout.
+      At the start, the test clears the bar only <span {...SIMULATED}>{formatPower(CURSE_PRESETS.default.power)}</span> of the
+      time. To win at all, it needs a lucky reading well above the truth. On average its wins report{' '}
+      {num(formatExaggeration(preset.exaggeration))} times the real effect. A forecast built on that number is likely to
+      overpromise. {close}
     </>
   );
 }
 
-export const CURSE_X_LABEL = 'True effect ÷ standard error (log scale)';
+export const CURSE_X_LABEL = CURSE_LABELS.power;
+export const CURSE_Y_LABEL = 'Times the real effect';
 
 /**
  * Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests.
@@ -85,9 +89,9 @@ function CurseSeamFailure(): never {
 }
 
 function chartName(result: CurseResult): string {
-  const base = 'Exaggeration among significant estimates against the ratio of true effect to standard error, both on log scales: large for small ratios and close to none for large ones';
-  if (result.kind === 'zero-effect') return `${base}, with no setting marked, because the true effect is zero`;
-  if (result.kind === 'unbounded') return `${base}, with no setting marked, because this setting has no finite value`;
+  const base =
+    'How many times the real effect the results that clear the bar report, against how often the test clears the bar: large for a test that rarely clears it and close to the real effect for one that nearly always does';
+  if (result.kind === 'unbounded') return `${base}, with no setting marked, because this setting has no finite answer`;
   return `${base}, with your setting marked`;
 }
 
@@ -98,9 +102,9 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
       id={`${CURSE_ID}-chart`}
       ariaLabel={chartName(result)}
       x={{
-        domain: [Math.log10(RATIO_MIN), Math.log10(RATIO_MAX)],
-        ticks: { narrow: CURSE_X_TICKS, wide: CURSE_X_TICKS },
-        format: ratioTick,
+        domain: [CURSE_SCHEMA.power.min, CURSE_SCHEMA.power.max],
+        ticks: CURSE_X_TICKS,
+        format: powerTick,
         label: CURSE_X_LABEL,
         refs: DIAGNOSTICS_REFS,
       }}
@@ -108,7 +112,7 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
         domain,
         ticks,
         format: exaggerationTick,
-        label: 'Exaggeration (times the true effect, log scale)',
+        label: CURSE_Y_LABEL,
         refs: DIAGNOSTICS_REFS,
       }}
       height={CURSE_HEIGHT}
@@ -117,7 +121,7 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
           <polyline
             data-mark=""
             data-curse-line=""
-            points={points.map((p) => `${ctx.xFrac(p.x) * MARK_UNITS},${ctx.yPx(curseY(p.exaggeration))}`).join(' ')}
+            points={points.map((p) => `${ctx.xFrac(p.power) * MARK_UNITS},${ctx.yPx(curseY(p.exaggeration))}`).join(' ')}
             fill="none"
             stroke="var(--color-series-1)"
             strokeWidth={2}
@@ -130,9 +134,10 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
           <circle
             data-mark=""
             data-curse-dot=""
+            data-power={selected.power}
             data-ratio={selected.ratio}
             data-exaggeration={selected.exaggeration}
-            cx={pct(ctx.xFrac(selected.x))}
+            cx={pct(ctx.xFrac(selected.power))}
             cy={ctx.yPx(curseY(selected.exaggeration))}
             r={DOT_RADIUS}
             fill="var(--color-series-2)"
@@ -146,7 +151,7 @@ export function CurseChart({ result, points, selected }: { result: CurseResult; 
   );
 }
 
-/** A readout value, marked as a number only when it is one ("17%", not "below 0.1%"). */
+/** A readout value, marked as a number only when it is one ("0.9%", not "below 0.1%"). */
 function Value({ name, text }: { name: string; text: string }) {
   const numeric = /^[\d.,%]+$/.test(text);
   return (
@@ -157,9 +162,9 @@ function Value({ name, text }: { name: string; text: string }) {
 }
 
 /**
- * Power, the wrong-sign rate and exaggeration, large. The same three items in every branch, words in
- * place of numbers for a zero effect and an unbounded result, so the readout keeps its height when a
- * shared URL swaps the preset preview for one of those branches.
+ * The exaggeration and the wrong-sign rate, large: the point of the check first. The same two items
+ * in every branch, words in place of numbers for an unbounded result, so the readout keeps its height
+ * when a shared URL swaps the preset preview for that branch.
  */
 export function CurseReadout({ result }: { result: CurseResult }) {
   const item = (label: string, value: ReactNode) => (
@@ -168,43 +173,30 @@ export function CurseReadout({ result }: { result: CurseResult }) {
       <dd className="mt-1 text-xl font-semibold">{value}</dd>
     </div>
   );
-  const values: [ReactNode, ReactNode, ReactNode] =
+  const values: [ReactNode, ReactNode] =
     result.kind === 'result'
       ? [
-          <Value key="p" name="power" text={formatPower(result.power)} />,
-          <Value key="s" name="wrong-sign" text={formatWrongSign(result.typeS)} />,
           <>
             <Value name="exaggeration" text={formatExaggeration(result.exaggeration)} /> times
           </>,
+          <Value key="s" name="wrong-sign" text={formatWrongSign(result.typeS)} />,
         ]
-      : result.kind === 'zero-effect'
-        ? // with no true effect there is no true sign for an estimate to get wrong, and no effect to exaggerate
-          ['not shown', 'no true sign', 'not defined']
-        : ['not shown', 'not shown', 'no finite value'];
+      : ['no finite value', 'not shown'];
   return (
-    <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-3">
-      {item(CURSE_LABELS.power, values[0])}
+    <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-2">
+      {item(CURSE_LABELS.exaggeration, values[0])}
       {item(CURSE_LABELS.wrongSign, values[1])}
-      {item(CURSE_LABELS.exaggeration, values[2])}
     </dl>
   );
 }
 
 /** The result line, the same words as curseResultText with each number marked. */
-export function CurseResultLine({ values, result }: { values: CurseValues; result: CurseResult }) {
-  if (result.kind === 'zero-effect') return <>{CURSE_ZERO}</>;
+export function CurseResultLine({ result }: { result: CurseResult }) {
   if (result.kind === 'unbounded') return <>{CURSE_UNBOUNDED}</>;
-  const n = (s: string) => (
-    <span data-num="" {...SIMULATED}>
-      {s}
-    </span>
-  );
   return (
     <>
-      At a true effect of {n(unitsText(values.trueEffect))} and a standard error of {n(unitsText(values.se))}, a ratio of{' '}
-      {n(formatNumber(curseRatio(values)))}, power is <span {...SIMULATED}>{formatPower(result.power)}</span>. Of the estimates
-      that pass the threshold, <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> have the wrong sign, and on average
-      their size is {n(formatExaggeration(result.exaggeration))} times the true effect.
+      At this size, results that clear the bar are on average {num(formatExaggeration(result.exaggeration))} times the real
+      effect, and <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> of them point the wrong way.
     </>
   );
 }
@@ -230,6 +222,7 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
   const v = normalizeCurse(values);
   const result = curseModel(v, deps);
   const curve = curseCurve(v, deps);
+  const ratio = result.kind === 'result' ? result.ratio : null;
   // The dot is the model's own datum: drawn only when the model has a finite result.
   const selected = result.kind === 'result' ? curve.selected : null;
   const takeaway = <CurseTakeaway deps={deps} />;
@@ -243,13 +236,8 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<CurseResultLine values={v} result={result} />}
-      caption={
-        <>
-          An exact calculation from Gelman and Carlin’s retrodesign formulas on hypothetical values you set; no random
-          draws are involved.
-        </>
-      }
+      result={<CurseResultLine result={result} />}
+      caption={<>An exact calculation on made-up values, with no random draws.</>}
     >
       <CurseReadout result={result} />
       <CurseChart result={result} points={curve.points} selected={selected} />
@@ -258,21 +246,35 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
   );
   return (
     <Exhibit
-      summary="The method behind the exaggeration chart"
+      summary="How the overstatement is calculated"
       leadIn={CURSE_LEAD_IN}
       takeaway={takeaway}
       method={
-        <p data-method-text="">
-          A study estimates a true effect, and its estimate is normally distributed around that effect with the standard
-          error you set, both in the same arbitrary units; the test is two-sided at a significance level of{' '}
-          <span {...SIMULATED}>{formatNumber(CURSE_ALPHA)}</span>. Power is the chance that the estimate passes that
-          threshold. The other two numbers describe only the estimates that pass the threshold: how many have the wrong
-          sign, and how large they are on average against the true effect. Reporting only those is the selection that
-          creates the exaggeration. The line shows the exaggeration at every ratio of true effect to standard error from{' '}
-          <span {...SIMULATED}>{formatNumber(RATIO_MIN)}</span> to <span {...SIMULATED}>{formatNumber(RATIO_MAX)}</span>{' '}
-          on a logarithmic axis, and the dot is your setting. The calculation assumes independent observations and a
-          known standard error, and it guarantees no business outcome.
-        </p>
+        <>
+          <p data-method-terms="">
+            <strong className="font-semibold">Winner&apos;s curse (type M error)</strong>: a result that clears the bar
+            overstates the effect on average when the test is too small to see it reliably; Gelman and Carlin call the
+            overstatement the exaggeration ratio, or type M (magnitude) error.
+          </p>
+          <p data-method-text="">
+            A study estimates a true effect, and its estimate is normally distributed around that effect with a known
+            standard error, both in the same arbitrary units; the test is two-sided at a significance level of{' '}
+            <span {...SIMULATED}>{formatNumber(CURSE_ALPHA)}</span>. Power is the chance that the estimate clears that
+            bar, and it fixes the ratio of the true effect to its standard error
+            {ratio !== null ? (
+              <>
+                : your setting is a ratio of {num(formatNumber(ratio, 2, { fixed: true }))}
+              </>
+            ) : null}
+            . The other two numbers describe only the estimates that clear the bar: how many have the wrong sign, and how
+            large they are on average against the true effect. Reporting only those is the selection that creates the
+            exaggeration. The line shows the exaggeration at every power from{' '}
+            <span {...SIMULATED}>{formatPower(CURSE_SCHEMA.power.min)}</span> to{' '}
+            <span {...SIMULATED}>{formatPower(CURSE_SCHEMA.power.max)}</span>, and the dot is your setting. These are Gelman
+            and Carlin&apos;s retrodesign formulas; they assume independent observations and a known standard error, and
+            they guarantee no business outcome.
+          </p>
+        </>
       }
     >
       {figure}

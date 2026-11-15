@@ -1,11 +1,12 @@
-// The split-check Figure, drawn from its three inputs: hypothetical visitor counts for groups A and B
-// and the share of visitors group A was meant to get. Shared and hook-free: the server draws the
+// The split-check Figure, drawn from its two inputs: hypothetical visitor counts for groups A and B,
+// each meant to get half the visitors. Shared and hook-free: the server draws the
 // preset with it (the static HTML, also the no-JS view) and the island draws the reader's setting
 // with the same markup.
 //
-// - Paired bars per group: observed visitors filled, expected visitors outlined, on one count axis
-//   from zero. Two series, told apart by fill and outline as well as by the legend's words.
-// - The result line states the chi-square statistic, the p-value and the flag as a word. A flagged
+// - Paired bars per group: the visitors who arrived filled, half of all visitors outlined, on one
+//   count axis from zero. Two series, told apart by fill and outline as well as by the legend's words.
+// - The result line states the flag as a word and the p-value in plain words, as odds of a fair
+//   split; the chi-square statistic and the p-value itself are in the method row, where a flagged
 //   p-value prints as below the threshold, never rounded up to it. With no visitors at all there is
 //   no test and no inference: the line says so.
 // - Every number is computed from the reader's values and marked 'simulated'.
@@ -18,21 +19,21 @@ import { pct } from '@/lib/figure/scales';
 import { Exhibit, PhonePoint } from './Exhibit';
 import {
   DIAGNOSTICS_REFS,
-  SRM_CLEAR_NOTE,
   SRM_EMPTY,
-  SRM_FLAGGED_NOTE,
   SRM_ID,
+  SRM_ODDS,
   SRM_PRESETS,
   SRM_SMALL_EXPECTED,
+  SRM_SMALL_NOTE,
   SRM_THRESHOLD,
   SRM_TITLE,
   chi2Text,
   normalizeSrm,
   pValueText,
-  smallExpectedNote,
   srmAxis,
   srmExpected,
   srmModel,
+  srmResultText,
   srmSmallExpected,
   srmTable,
   type SrmDeps,
@@ -54,14 +55,14 @@ export function SrmLeadIn() {
   const { nA, nB } = SRM_PRESETS.default;
   return (
     <>
-      At the starting numbers, group A got {startCount(nA)} visitors and group B {startCount(nB)}, and each should have
-      had half. It looks close. Is it?
+      Each group should get half the visitors. Here group A got {startCount(nA)} and group B {startCount(nB)}. That looks
+      close. Is it? Move the counts and watch the verdict.
     </>
   );
 }
 
 export const SRM_TAKEAWAY =
-  'At the starting numbers it is not. Chance alone would almost never leave a gap this large, so the result is not read until the fault in the assignment or the logging is found.';
+  'It is not close enough. A fair split would almost never leave a gap this big. So I read no result until I find what broke the assignment or the counting. Otherwise a winner may only reflect who ended up in each group.';
 
 const GROUPS = ['A', 'B'] as const;
 /** Each bar's width and the gap between a group's two bars, in groups (one group is one unit). */
@@ -80,7 +81,7 @@ function SrmSeamFailure(): never {
 }
 
 function chartName(r: SrmResult): string {
-  const base = 'Observed and expected visitors in group A and group B, as paired bars';
+  const base = 'The visitors who arrived and half of all visitors, in group A and group B, as paired bars';
   if (r.kind === 'empty') return `${base}: no visitors yet, so nothing is tested`;
   return `${base}: the split is ${r.flagged ? 'flagged for a closer look' : 'not flagged'}`;
 }
@@ -179,55 +180,48 @@ function Legend() {
     <ul data-srm-legend="" className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
       <li className="flex items-center gap-2">
         {swatch(true)}
-        Observed visitors (filled)
+        Visitors who arrived (filled)
       </li>
       <li className="flex items-center gap-2">
         {swatch(false)}
-        Expected visitors at the expected share (outlined)
+        Half of all visitors, the planned share (outlined)
       </li>
     </ul>
   );
 }
 
-const withoutStop = (sentence: string) => sentence.replace(/\.$/, '');
+/** The result line as plain text: the announcement, and what the view prints. */
+export const srmPlainText = srmResultText;
+
+/** A number of the result line or the method row, marked as the Figure marks its own. */
+const num = (text: string, mark?: string) => (
+  <span {...(mark ? { [mark]: '' } : {})} data-num="" {...SIMULATED}>
+    {text}
+  </span>
+);
 
 /**
- * The result line as plain text, the verdict first and the statistic after it in brackets: the
- * announcement, and what the view prints.
+ * The result line: the flag as a word, then what it means as odds of a fair split; a rough-check
+ * warning with few visitors; nothing to check without visitors.
  */
-export function srmPlainText(v: SrmValues, deps?: SrmDeps): string {
-  const r = srmModel(v, deps);
-  if (r.kind === 'empty') return SRM_EMPTY;
-  const parts = [
-    `${r.flagged ? 'Flagged' : 'Not flagged'}. ${withoutStop(r.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square ${chi2Text(r.chi2)}, one degree of freedom, p-value ${pValueText(r)}).`,
-  ];
-  if (srmSmallExpected(v)) parts.push(smallExpectedNote());
-  return parts.join(' ');
-}
-
-/** The result line: the flag as a word and what it means, then the statistic and the p-value; nothing to test without visitors. */
 export function SrmResultLine({ values, result }: { values: SrmValues; result: SrmResult }) {
   if (result.kind === 'empty') return <>{SRM_EMPTY}</>;
+  const odds = (
+    <>
+      {num('1')} time in {num(formatNumber(SRM_ODDS, 0))}
+    </>
+  );
   return (
     <>
       <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
         {result.flagged ? 'Flagged' : 'Not flagged'}
       </span>
-      . {withoutStop(result.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square{' '}
-      <span data-srm-chi2="" data-num="" {...SIMULATED}>
-        {chi2Text(result.chi2)}
-      </span>
-      , one degree of freedom, p-value{' '}
-      <span data-srm-p="" {...SIMULATED}>
-        {pValueText(result)}
-      </span>
-      ).
+      :{' '}
+      {result.flagged ? <>a fair split leaves a gap at least this big less than {odds}.</> : <>a fair split leaves a gap this big or bigger at least {odds}.</>}
       {srmSmallExpected(values) ? (
         <>
           {' '}
-          <span data-srm-small="" {...SIMULATED}>
-            {smallExpectedNote()}
-          </span>
+          <span data-srm-small="">{SRM_SMALL_NOTE}</span>
         </>
       ) : null}
     </>
@@ -265,7 +259,7 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
       announcement={announcement}
       preview={preview}
       result={<SrmResultLine values={v} result={result} />}
-      caption={<>Hypothetical visitor counts for the two groups of a test, and the share of visitors group A was meant to get.</>}
+      caption={<>Made-up visitor counts. Each group was meant to get half.</>}
     >
       <SrmChart values={v} result={result} />
       <Legend />
@@ -274,7 +268,7 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
   );
   return (
     <Exhibit
-      summary="The method behind the split check"
+      summary="How the split check works"
       leadIn={<SrmLeadIn />}
       takeaway={SRM_TAKEAWAY}
       method={
@@ -282,7 +276,8 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
           <p data-method-terms="">
             <strong className="font-semibold">Split check (sample ratio mismatch)</strong>: a test of whether each group
             received the share of visitors the design gave it; if it fails, the assignment or the counting is at fault
-            and no result should be read.
+            and no result should be read. The Lab fixes the planned share at half; the check works against any planned
+            share.
           </p>
           <p data-method-text="">
             The check is a chi-square test with one degree of freedom on the counts against that share. It flags the
@@ -293,6 +288,16 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
             p-value is rough. It assumes each visitor is counted once and assigned independently with the same chance
             (a binomial model), and it guarantees no business outcome. These p-values are simulated diagnostics on
             numbers you set, not results from this site’s live test.
+            {result.kind === 'result' ? (
+              <>
+                {' '}
+                For your setting: chi-square {num(chi2Text(result.chi2), 'data-srm-chi2')}, one degree of freedom, p-value{' '}
+                <span data-srm-p="" {...SIMULATED}>
+                  {pValueText(result)}
+                </span>
+                .
+              </>
+            ) : null}
           </p>
         </>
       }

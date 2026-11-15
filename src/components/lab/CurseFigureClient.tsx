@@ -5,7 +5,7 @@
 // - CurseFigureClient places the island: EagerOrIntent shows the server's preset Figure and loads
 //   the island on intent, or right after hydration when the URL holds this Figure's keys.
 // - CurseIsland is the lazy island.
-// - CurseControls is the control row (the true effect, the standard error, Reset), shared by the
+// - CurseControls is the control row (how often the test clears the bar, Reset), shared by the
 //   island and the preview. InertCurseControls is the preview's copy, with handlers that do nothing.
 //
 // `faultAfterChange` is a test seam: the island's chart throws on the first render after a change, so
@@ -15,7 +15,7 @@ import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
-import { CURSE_ID, CURSE_LABELS, CURSE_SCHEMA, DIAGNOSTICS_REFS, unitsText, type CurseValues } from '@/lib/lab/diagnostics-values';
+import { CURSE_ID, CURSE_LABELS, CURSE_SCHEMA, DIAGNOSTICS_REFS, powerTimeText, type CurseValues } from '@/lib/lab/diagnostics-values';
 import type { CurseInteractiveProps } from './CurseInteractive';
 
 const LazyCurse = lazy(() => import('./CurseInteractive'));
@@ -33,20 +33,6 @@ export type CurseControlsProps = {
 };
 
 export function CurseControls({ values, onChange, onCommit, onReset }: CurseControlsProps) {
-  const slider = (key: keyof CurseValues, label: string) => (
-    <div className="w-full xs:w-64">
-      <Slider
-        id={`${CURSE_ID}-${key}`}
-        label={label}
-        {...CURSE_SCHEMA[key]}
-        value={values[key]}
-        onChange={(v) => onChange(key, v)}
-        onCommit={(v) => onCommit(key, v)}
-        valueText={(v) => `${unitsText(v)} units`}
-        refs={DIAGNOSTICS_REFS}
-      />
-    </div>
-  );
   return (
     <div
       role="group"
@@ -54,8 +40,19 @@ export function CurseControls({ values, onChange, onCommit, onReset }: CurseCont
       data-curse-controls=""
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
-      {slider('trueEffect', CURSE_LABELS.trueEffect)}
-      {slider('se', CURSE_LABELS.se)}
+      <div className="w-full xs:w-96">
+        <Slider
+          id={`${CURSE_ID}-power`}
+          label={CURSE_LABELS.power}
+          {...CURSE_SCHEMA.power}
+          value={values.power}
+          onChange={(v) => onChange('power', v)}
+          onCommit={(v) => onCommit('power', v)}
+          valueText={powerTimeText}
+          readout={powerTimeText}
+          refs={DIAGNOSTICS_REFS}
+        />
+      </div>
       <ResetButton onReset={onReset} />
     </div>
   );

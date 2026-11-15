@@ -1,10 +1,10 @@
 // The Lab's two diagnostics: the split check (`srm`, a chi-square sample-ratio-mismatch test on
-// visitor counts the reader sets) and exaggeration (`curse`, Gelman and Carlin's retrodesign for a
-// true effect and a standard error the reader sets). Both models wrap the statistics library's own
-// srmTest and retrodesign unchanged; these tests hold them to it, pin the empty and zero-effect
-// branches (no call into the statistics), the non-finite branch (words, never "Infinity" or null),
-// the log-scale curve over the whole reachable ratio range and the agreement of its selected point,
-// readout and table, and the server preset as rendered HTML.
+// visitor counts the reader sets, against a planned share of half) and exaggeration (`curse`, Gelman
+// and Carlin's retrodesign at the ratio of effect to standard error that gives the power the reader
+// sets). Both models wrap the statistics library's own srmTest and retrodesign unchanged; these tests
+// hold them to it, pin the empty branch (no call into the statistics), the non-finite branch (words,
+// never "Infinity" or null), the linear curve over every power the slider reaches and the agreement
+// of its selected point, readout and table, and the server preset as rendered HTML.
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import fc from 'fast-check';
@@ -26,20 +26,22 @@ import {
   CURSE_ID,
   CURSE_PRESETS,
   CURSE_SCHEMA,
+  CURSE_PRESET_LINK,
   CURSE_TITLE,
-  CURVE_SAMPLES,
   DIAGNOSTICS_REFS,
+  SRM_TITLE,
   DOT_CLEARANCE_PX,
-  RATIO_MAX,
-  RATIO_MIN,
   SRM_ID,
   SRM_EVEN_HREF,
   SRM_PRESETS,
   SRM_SCHEMA,
+  SRM_SHARE,
   SRM_SMALL_EXPECTED,
   SRM_THRESHOLD,
   curseAxis,
+  cursePowers,
   curseY,
+  exaggerationTick,
   curseCurve,
   curseModel,
   curseResultText,
@@ -49,15 +51,18 @@ import {
   formatWrongSign,
   normalizeCurse,
   normalizeSrm,
+  ratioForPower,
   srmAxis,
   srmExpected,
   srmModel,
   srmResultText,
+  srmStatText,
   srmTable,
   type CurseDeps,
   type CurseValues,
   type SrmValues,
 } from '@/lib/lab/diagnostics';
+import { PLANNER_POWER } from '@/lib/lab/planner-values';
 import { retrodesign, srmTest } from '@/lib/stats';
 
 // ---------------------------------------------------------------------------------------------
@@ -81,6 +86,13 @@ const srmView = (values: SrmValues) =>
 const curseView = (values: CurseValues, deps?: CurseDeps) =>
   renderToStaticMarkup(createElement(CurseFigureView, { values, deps, controls: createElement(InertCurseControls, { values }) }));
 
+/** The prose of the method row: its summary and its paragraphs, folded under the Figure. */
+const method = (html: string) =>
+  [...html.matchAll(/<(summary|p)(?=[\s>])[^>]*>([\s\S]*?)<\/\1>/g)]
+    .filter((m) => m[0].includes('data-method') || (m[1] === 'summary' && /^How /.test(text(m[2]!))))
+    .map((m) => prose(m[2]!))
+    .join(' ');
+
 /** A retrodesign stand-in that returns Infinity for exaggeration, as an extreme ratio can. */
 const infiniteRetro: CurseDeps = { retrodesign: () => ({ power: 0.05, typeS: 0.5, exaggeration: Number.POSITIVE_INFINITY }) };
 
@@ -89,13 +101,10 @@ const srmFromUrl = (query: string) => normalizeSrm(readFigureParams(new URLSearc
 const curseFromUrl = (query: string) =>
   normalizeCurse(readFigureParams(new URLSearchParams(query), CURSE_ID, CURSE_SCHEMA, CURSE_PRESETS).values);
 
-/** Every value on a schema's grid, as the controls can reach it. */
-const grid = (spec: { min: number; max: number; step: number }) =>
-  Array.from({ length: Math.round((spec.max - spec.min) / spec.step) + 1 }, (_, i) => Number((spec.min + i * spec.step).toPrecision(15)));
-const EFFECTS = grid(CURSE_SCHEMA.trueEffect);
 /** Every property here runs from this seed, so a run is repeatable. */
 const PROPERTY_SEED = 20261113;
-const SES = grid(CURSE_SCHEMA.se);
+/** Every power the slider reaches. */
+const POWERS = cursePowers();
 
 // ---------------------------------------------------------------------------------------------
 // The split check.
@@ -103,39 +112,37 @@ const SES = grid(CURSE_SCHEMA.se);
 describe('srmModel', () => {
   it('is empty for no visitors at all, without calling the statistics', () => {
     const spy = vi.fn(srmTest);
-    expect(srmModel({ nA: 0, nB: 0, shareA: 0.5 }, { srmTest: spy })).toEqual({ kind: 'empty' });
+    expect(srmModel({ nA: 0, nB: 0 }, { srmTest: spy })).toEqual({ kind: 'empty' });
     expect(spy).not.toHaveBeenCalled();
   });
 
   it('flags one empty group against an even split', () => {
-    const r = srmModel({ nA: 0, nB: 100, shareA: 0.5 });
+    const r = srmModel({ nA: 0, nB: 100 });
     expect(r).toEqual({ kind: 'result', ...srmTest(0, 100, 0.5) });
     expect(r.kind === 'result' && r.flagged).toBe(true);
   });
 
   it('gives p = 1 and no flag for an exact even split', () => {
-    expect(srmModel({ nA: 100, nB: 100, shareA: 0.5 })).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
+    expect(srmModel({ nA: 100, nB: 100 })).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
   });
 
   it('flags 120 against 60', () => {
-    const r = srmModel({ nA: 120, nB: 60, shareA: 0.5 });
+    const r = srmModel({ nA: 120, nB: 60 });
     expect(r).toEqual({ kind: 'result', ...srmTest(120, 60, 0.5) });
     expect(r.kind === 'result' && r.chi2).toBe(20);
     expect(r.kind === 'result' && r.flagged).toBe(true);
   });
 
-  it('passes the counts and the share to srmTest unchanged, and returns its numbers', () => {
+  it('passes the counts and the planned share of half to srmTest unchanged, and returns its numbers', () => {
+    expect(SRM_SHARE).toBe(0.5);
+    const spy = vi.fn(srmTest);
+    srmModel({ nA: 7, nB: 3 }, { srmTest: spy });
+    expect(spy).toHaveBeenCalledWith(7, 3, 0.5);
     fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 10_000 }),
-        fc.integer({ min: 0, max: 10_000 }),
-        fc.integer({ min: 1, max: 99 }),
-        (nA, nB, percent) => {
-          fc.pre(nA + nB > 0);
-          const shareA = percent / 100;
-          expect(srmModel({ nA, nB, shareA })).toEqual({ kind: 'result', ...srmTest(nA, nB, shareA) });
-        },
-      ),
+      fc.property(fc.integer({ min: 0, max: 10_000 }), fc.integer({ min: 0, max: 10_000 }), (nA, nB) => {
+        fc.pre(nA + nB > 0);
+        expect(srmModel({ nA, nB })).toEqual({ kind: 'result', ...srmTest(nA, nB, 0.5) });
+      }),
       { seed: PROPERTY_SEED },
     );
   });
@@ -159,9 +166,9 @@ describe('srmModel', () => {
     expect(after!.p).toBeLessThan(SRM_THRESHOLD);
     expect(after!.p).toBeGreaterThan(0.0005);
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 10_000 }), fc.integer({ min: 0, max: 10_000 }), fc.integer({ min: 1, max: 99 }), (nA, nB, pc) => {
+      fc.property(fc.integer({ min: 0, max: 10_000 }), fc.integer({ min: 0, max: 10_000 }), (nA, nB) => {
         fc.pre(nA + nB > 0);
-        const r = srmModel({ nA, nB, shareA: pc / 100 });
+        const r = srmModel({ nA, nB });
         expect(r.kind === 'result' && r.flagged).toBe(r.kind === 'result' && r.p < SRM_THRESHOLD);
       }),
       { seed: PROPERTY_SEED },
@@ -170,15 +177,15 @@ describe('srmModel', () => {
 });
 
 describe('the split check around the model', () => {
-  it('expects the counts srmTest expects: the total times each share', () => {
-    expect(srmExpected({ nA: 120, nB: 60, shareA: 0.5 })).toEqual({ a: 90, b: 90 });
-    expect(srmExpected({ nA: 0, nB: 0, shareA: 0.3 })).toEqual({ a: 0, b: 0 });
-    expect(srmExpected({ nA: 30, nB: 70, shareA: 0.2 })).toEqual({ a: 100 * 0.2, b: 100 * (1 - 0.2) });
+  it('expects the counts srmTest expects: half the total in each group', () => {
+    expect(srmExpected({ nA: 120, nB: 60 })).toEqual({ a: 90, b: 90 });
+    expect(srmExpected({ nA: 0, nB: 0 })).toEqual({ a: 0, b: 0 });
+    expect(srmExpected({ nA: 30, nB: 71 })).toEqual({ a: 50.5, b: 50.5 });
   });
 
-  it('tables the observed and expected visitors of each group, with the expected share', () => {
-    const t = srmTable({ nA: 120, nB: 60, shareA: 0.5 });
-    expect(t.columns).toEqual(['Group', 'Visitors', 'Expected share', 'Expected visitors']);
+  it('tables the observed and expected visitors of each group, with the planned share', () => {
+    const t = srmTable({ nA: 120, nB: 60 });
+    expect(t.columns).toEqual(['Group', 'Visitors', 'Planned share', 'Expected visitors']);
     expect(t.rows).toEqual([
       ['Group A', 120, 0.5, 90],
       ['Group B', 60, 0.5, 90],
@@ -188,44 +195,49 @@ describe('the split check around the model', () => {
     expect(t.note ?? '').not.toMatch(/\d/);
   });
 
-  it('says there is nothing to test with no visitors, and gives no p-value', () => {
-    const s = srmResultText({ nA: 0, nB: 0, shareA: 0.5 });
-    expect(s).toBe('No visitors in either group yet, so there is nothing to test and no p-value.');
-    expect(s).not.toMatch(/\d/);
+  it('says there is nothing to check with no visitors, and gives no p-value', () => {
+    const s = srmResultText({ nA: 0, nB: 0 });
+    expect(s).toBe('No visitors yet, so there is nothing to check.');
+    expect(s).not.toMatch(/\d|p-value/);
   });
 
-  it('prints a flagged p-value as below the threshold, never rounded up to it', () => {
-    expect(srmResultText({ nA: 120, nB: 60, shareA: 0.5 })).toBe(
-      'Chi-square 20 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
-    );
-    expect(srmResultText({ nA: 100, nB: 100, shareA: 0.5 })).toBe(
-      'Chi-square 0 with one degree of freedom, p-value 1: not flagged. This split is consistent with the expected share at this threshold.',
-    );
+  it('says the verdict in plain words, as odds of a fair split, the exact complement on each side', () => {
+    expect(srmResultText({ nA: 120, nB: 60 })).toBe('Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.');
+    expect(srmResultText({ nA: 100, nB: 100 })).toBe('Not flagged: a fair split leaves a gap this big or bigger at least 1 time in 1,000.');
+    // the odds are the threshold's, never typed
+    expect(1 / SRM_THRESHOLD).toBe(1000);
+    // no statistics words in the line a reader sees first: they are in the method row
+    for (const s of [srmResultText({ nA: 120, nB: 60 }), srmResultText({ nA: 100, nB: 100 })]) expect(s).not.toMatch(/chi-square|p-value|degree/);
+  });
+
+  it('prints a flagged p-value as below the threshold in the method row, never rounded up to it', () => {
+    expect(srmStatText({ ...srmTest(120, 60, 0.5) })).toBe('chi-square 20, one degree of freedom, p-value below 0.001');
+    expect(srmStatText({ ...srmTest(100, 100, 0.5) })).toBe('chi-square 0, one degree of freedom, p-value 1');
     // no split whose p is just under the threshold prints a p-value of 0.001
     for (let a = 500; a <= 1000; a++) {
       const r = srmTest(a, 1000 - a, 0.5);
-      const s = srmResultText({ nA: a, nB: 1000 - a, shareA: 0.5 });
-      expect(s.includes('p-value below 0.001')).toBe(r.flagged);
+      expect(srmStatText(r).includes('p-value below 0.001')).toBe(r.flagged);
+      expect(srmResultText({ nA: a, nB: 1000 - a }).startsWith(r.flagged ? 'Flagged:' : 'Not flagged:')).toBe(true);
     }
   });
 
   it('warns when an expected count is under the rule of thumb, and only then', () => {
     expect(SRM_SMALL_EXPECTED).toBe(5);
-    const small = srmResultText({ nA: 3, nB: 1, shareA: 0.5 });
-    expect(small).toContain('An expected count is below 5, so the chi-square approximation is rough here.');
-    expect(srmResultText({ nA: 100, nB: 100, shareA: 0.5 })).not.toContain('below 5');
-    // a share of 0.04 of 100 visitors expects 4 in group A
-    expect(srmResultText({ nA: 4, nB: 96, shareA: 0.04 })).toContain('below 5');
-    expect(srmResultText({ nA: 5, nB: 95, shareA: 0.05 })).not.toContain('below 5');
+    const small = srmResultText({ nA: 3, nB: 1 });
+    expect(small).toContain('With so few visitors, this check is only rough.');
+    expect(srmResultText({ nA: 100, nB: 100 })).not.toContain('only rough');
+    // half of 9 visitors is 4.5, under the rule of thumb; half of 10 is 5, at it
+    expect(srmResultText({ nA: 5, nB: 4 })).toContain('only rough');
+    expect(srmResultText({ nA: 5, nB: 5 })).not.toContain('only rough');
   });
 
   it('scales its count axis to hold every bar, with whole-number ticks', () => {
     for (const v of [
-      { nA: 0, nB: 0, shareA: 0.5 },
-      { nA: 1, nB: 0, shareA: 0.01 },
-      { nA: 120, nB: 60, shareA: 0.5 },
-      { nA: 10_000, nB: 0, shareA: 0.01 },
-      { nA: 0, nB: 10_000, shareA: 0.99 },
+      { nA: 0, nB: 0 },
+      { nA: 1, nB: 0 },
+      { nA: 120, nB: 60 },
+      { nA: 10_000, nB: 0 },
+      { nA: 0, nB: 10_000 },
     ]) {
       const { top, ticks } = srmAxis(v);
       const e = srmExpected(v);
@@ -240,9 +252,9 @@ describe('the split check around the model', () => {
 
   it('keeps a scale on phones: the narrow ticks always hold zero and the top, for every reachable tallest bar', () => {
     // a top of 25 has only 0 and 25 as whole ticks; every other narrow tick alone would leave just 0
-    expect(srmAxis({ nA: 22, nB: 3, shareA: 0.5 }).ticks.narrow).toEqual([0, 25]);
+    expect(srmAxis({ nA: 22, nB: 3 }).ticks.narrow).toEqual([0, 25]);
     for (let m = 0; m <= 10_000; m++) {
-      const { top, ticks } = srmAxis({ nA: m, nB: 0, shareA: 0.5 });
+      const { top, ticks } = srmAxis({ nA: m, nB: 0 });
       expect(ticks.narrow.length, String(m)).toBeGreaterThanOrEqual(2);
       expect(ticks.narrow[0]).toBe(0);
       expect(ticks.narrow.at(-1), String(m)).toBe(top);
@@ -253,13 +265,20 @@ describe('the split check around the model', () => {
   });
 
   it('reads a hostile URL as the preset or a clamped value on the grid', () => {
-    expect(srmFromUrl('srm.nA=__proto__&srm.nB=&srm.shareA=NaN&srm.preset=constructor')).toEqual(SRM_PRESETS.default);
-    expect(srmFromUrl('srm.nA=-5&srm.nB=1e9&srm.shareA=2')).toEqual({ nA: 0, nB: 10_000, shareA: 0.99 });
-    expect(srmFromUrl('srm.nA=12.6&srm.shareA=0.333')).toEqual({ nA: 13, nB: 4830, shareA: 0.33 });
-    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4, shareA: 0 })).toEqual({ nA: 5170, nB: 0, shareA: 0.01 });
+    expect(srmFromUrl('srm.nA=__proto__&srm.nB=&srm.preset=constructor')).toEqual(SRM_PRESETS.default);
+    expect(srmFromUrl('srm.nA=-5&srm.nB=1e9')).toEqual({ nA: 0, nB: 10_000 });
+    expect(srmFromUrl('srm.nA=12.6')).toEqual({ nA: 13, nB: 4830 });
+    expect(normalizeSrm({ nA: Number.NaN, nB: 0.4 })).toEqual({ nA: 5170, nB: 0 });
     // the even preset by name, and an unknown one gives the default
-    expect(srmFromUrl('srm.preset=even')).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(srmFromUrl('srm.preset=even')).toEqual({ nA: 5000, nB: 5000 });
     expect(srmFromUrl('srm.preset=odd')).toEqual(SRM_PRESETS.default);
+  });
+
+  it('ignores an old link that set the planned share: the share stays half and nothing throws', () => {
+    expect(Object.keys(SRM_SCHEMA)).toEqual(['nA', 'nB']);
+    expect(srmFromUrl('srm.shareA=0.9')).toEqual(SRM_PRESETS.default);
+    expect(srmFromUrl('srm.nA=120&srm.nB=60&srm.shareA=0.67')).toEqual({ nA: 120, nB: 60 });
+    expect(srmModel(srmFromUrl('srm.nA=120&srm.nB=60&srm.shareA=0.67'))).toEqual({ kind: 'result', ...srmTest(120, 60, 0.5) });
   });
 });
 
@@ -267,184 +286,103 @@ describe('the split check around the model', () => {
 // Exaggeration.
 
 describe('curseModel', () => {
-  it('has a zero-effect branch that never calls retrodesign', () => {
-    const spy = vi.fn(retrodesign);
-    expect(curseModel({ trueEffect: 0, se: 1 }, { retrodesign: spy })).toEqual({ kind: 'zero-effect' });
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('equals retrodesign at effect 1 and standard error 1, at the fixed significance level', () => {
+  it('equals retrodesign at the preset, at the ratio its power implies and the fixed significance level', () => {
     expect(CURSE_ALPHA).toBe(0.05);
-    expect(curseModel({ trueEffect: 1, se: 1 })).toEqual({ kind: 'result', ...retrodesign({ trueEffect: 1, se: 1, alpha: 0.05 }) });
-    expect(curseModel({ trueEffect: 1, se: 1 })).toEqual({ kind: 'result', ...retrodesign({ trueEffect: 1, se: 1 }) });
+    const ratio = ratioForPower(0.17);
+    expect(curseModel({ power: 0.17 })).toEqual({ kind: 'result', ratio, ...retrodesign({ trueEffect: ratio, se: 1, alpha: 0.05 }) });
   });
 
-  it('equals retrodesign at every setting the controls can reach', () => {
-    for (const trueEffect of EFFECTS.filter((e) => e > 0)) {
-      for (const se of SES) {
-        expect(curseModel({ trueEffect, se })).toEqual({ kind: 'result', ...retrodesign({ trueEffect, se, alpha: 0.05 }) });
-      }
+  it('equals retrodesign at every power the slider reaches, and its power is the one set', () => {
+    expect(POWERS).toHaveLength(90);
+    expect(POWERS[0]).toBe(0.1);
+    expect(POWERS.at(-1)).toBe(0.99);
+    for (const power of POWERS) {
+      const r = curseModel({ power });
+      const ratio = ratioForPower(power);
+      expect(r).toEqual({ kind: 'result', ratio, ...retrodesign({ trueEffect: ratio, se: 1, alpha: 0.05 }) });
+      expect(r.kind === 'result' && r.power).toBeCloseTo(power, 9);
     }
   });
 
-  it('exaggerates more as the effect shrinks against its standard error', () => {
-    const at = (trueEffect: number, se: number) => {
-      const r = curseModel({ trueEffect, se });
+  it('exaggerates strictly more as power falls', () => {
+    const at = (power: number) => {
+      const r = curseModel({ power });
       if (r.kind !== 'result') throw new Error('expected a result');
       return r.exaggeration;
     };
-    // a smaller ratio never exaggerates less, and up to a ratio of 5 it exaggerates strictly more
-    // The ratios are compared exactly, in whole tenths (both grids step by 0.1): 0.3 / 0.4 and
-    // 0.9 / 1.2 are the same ratio, though in floating point the first is the smaller one, and
-    // their exaggerations differ only in the last bit.
-    const tenths = (v: number) => Math.round(v * 10);
-    const settings = EFFECTS.filter((e) => e > 0).flatMap((e) => SES.map((s) => ({ e, s, ratio: e / s })));
-    const smaller = (x: (typeof settings)[number], y: (typeof settings)[number]) => tenths(x.e) * tenths(y.s) < tenths(y.e) * tenths(x.s);
-    const tie = [settings.find((v) => v.e === 0.3 && v.s === 0.4)!, settings.find((v) => v.e === 0.9 && v.s === 1.2)!] as const;
-    expect(smaller(tie[0], tie[1]) || smaller(tie[1], tie[0])).toBe(false);
-    fc.assert(
-      fc.property(fc.constantFrom(...settings), fc.constantFrom(...settings), (x, y) => {
-        fc.pre(smaller(x, y));
-        expect(at(x.e, x.s)).toBeGreaterThanOrEqual(at(y.e, y.s));
-        if (y.ratio <= 5) expect(at(x.e, x.s)).toBeGreaterThan(at(y.e, y.s));
-      }),
-      { seed: PROPERTY_SEED, examples: [[tie[0], tie[1]]] },
-    );
-    // the same effect with a growing standard error
-    const bySe = SES.map((se) => at(1, se));
-    for (let i = 1; i < bySe.length; i++) expect(bySe[i]).toBeGreaterThan(bySe[i - 1]!);
+    for (let i = 1; i < POWERS.length; i++) expect(at(POWERS[i - 1]!)).toBeGreaterThan(at(POWERS[i]!));
   });
 
   it('turns any non-finite retrodesign result into the unbounded branch, before anything is formatted', () => {
-    expect(curseModel({ trueEffect: 1, se: 1 }, infiniteRetro)).toEqual({ kind: 'unbounded' });
+    expect(curseModel({ power: 0.17 }, infiniteRetro)).toEqual({ kind: 'unbounded' });
     for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       for (const key of ['power', 'typeS', 'exaggeration'] as const) {
         const deps: CurseDeps = { retrodesign: () => ({ power: 0.5, typeS: 0.1, exaggeration: 2, [key]: bad }) };
-        expect(curseModel({ trueEffect: 1, se: 1 }, deps)).toEqual({ kind: 'unbounded' });
+        expect(curseModel({ power: 0.17 }, deps)).toEqual({ kind: 'unbounded' });
       }
     }
   });
 });
 
 describe('the exaggeration curve', () => {
-  it('runs over the whole reachable ratio range: both ends exactly, 200 log-spaced samples between, sorted and unique', () => {
-    expect(RATIO_MIN).toBe(0.02);
-    expect(RATIO_MAX).toBe(50);
-    expect(CURVE_SAMPLES).toBe(200);
-    // the reachable ends: the smallest effect over the largest error, and the reverse
-    expect(CURSE_SCHEMA.trueEffect.step / CURSE_SCHEMA.se.max).toBe(RATIO_MIN);
-    expect(CURSE_SCHEMA.trueEffect.max / CURSE_SCHEMA.se.min).toBe(RATIO_MAX);
-    const { points, selected } = curseCurve({ trueEffect: 0, se: 1 });
-    expect(selected).toBeNull();
-    expect(points).toHaveLength(CURVE_SAMPLES + 2);
-    expect(points[0]!.ratio).toBe(RATIO_MIN);
-    expect(points.at(-1)!.ratio).toBe(RATIO_MAX);
+  it('runs over every power the slider reaches, sorted and unique, and selects the setting', () => {
+    const { points, selected } = curseCurve({ power: 0.42 });
+    expect(points.map((p) => p.power)).toEqual(POWERS);
     for (let i = 1; i < points.length; i++) expect(points[i]!.ratio).toBeGreaterThan(points[i - 1]!.ratio);
-    // the interior samples are evenly spaced in log10
-    const step = (Math.log10(RATIO_MAX) - Math.log10(RATIO_MIN)) / (CURVE_SAMPLES + 1);
-    for (let i = 1; i < points.length; i++) expect(points[i]!.x - points[i - 1]!.x).toBeCloseTo(step, 12);
+    expect(selected).toEqual(points.find((p) => p.power === 0.42));
+    const model = curseModel({ power: 0.42 });
+    expect(model.kind === 'result' && model.exaggeration).toBe(selected!.exaggeration);
   });
 
-  it('maps every x through log10 and evaluates retrodesign at the ratio over a standard error of 1', () => {
-    for (const p of curseCurve({ trueEffect: 1, se: 1 }).points) {
-      expect(p.x).toBe(Math.log10(p.ratio));
+  it('evaluates retrodesign at the ratio each power implies, over a standard error of 1', () => {
+    for (const p of curseCurve({ power: 0.17 }).points) {
+      expect(p.ratio).toBe(ratioForPower(p.power));
       expect(p.exaggeration).toBe(retrodesign({ trueEffect: p.ratio, se: 1, alpha: 0.05 }).exaggeration);
     }
   });
 
-  it('adds the exact current ratio once, and selects that datum', () => {
-    const v = { trueEffect: 0.3, se: 0.7 };
-    const { points, selected } = curseCurve(v);
-    expect(points).toHaveLength(CURVE_SAMPLES + 3);
-    expect(points.filter((p) => p.ratio === 0.3 / 0.7)).toHaveLength(1);
-    expect(selected).toEqual(points.find((p) => p.ratio === 0.3 / 0.7));
-    const model = curseModel(v);
-    expect(model.kind === 'result' && model.exaggeration).toBe(selected!.exaggeration);
-    // a ratio already on the curve (an end) is not added twice
-    expect(curseCurve({ trueEffect: 5, se: 0.1 }).points).toHaveLength(CURVE_SAMPLES + 2);
-  });
-
-  it('keeps the zero-effect branch off the log axis: no selected dot, and no log of zero', () => {
-    const log10 = vi.spyOn(Math, 'log10');
-    try {
-      const { points, selected } = curseCurve({ trueEffect: 0, se: 2.5 });
-      expect(selected).toBeNull();
-      expect(log10.mock.calls.every(([v]) => v > 0)).toBe(true);
-      expect(points.every((p) => p.ratio > 0 && Number.isFinite(p.x))).toBe(true);
-    } finally {
-      log10.mockRestore();
-    }
-  });
-
   it('drops a non-finite sample and selects nothing for an unbounded setting', () => {
-    const { points, selected } = curseCurve({ trueEffect: 1, se: 1 }, infiniteRetro);
+    const { points, selected } = curseCurve({ power: 0.17 }, infiniteRetro);
     expect(points).toEqual([]);
     expect(selected).toBeNull();
-    // the axis still holds its floor, one times the true effect (log10 0), with room above it
+    // the axis still holds its floor, one times the real effect, with room above it
     const { top, domain, ticks } = curseAxis(points, null);
     expect(top).toBeGreaterThan(1);
-    expect(domain).toEqual([0, Math.log10(top)]);
-    expect(ticks.wide[0]).toBe(0);
+    expect(domain).toEqual([0, top - 1]);
+    expect(ticks.wide[0]).toBe(1);
   });
 
-  it('at effect 0.1 and standard error 5: ratio 0.02, exaggeration about 116.8962012, inside the axis with room for the ring', () => {
-    const v = { trueEffect: 0.1, se: 5 };
-    expect(v.trueEffect / v.se).toBe(0.02);
-    const model = curseModel(v);
+  it('fits on a linear axis from one to four times the real effect: about 3.7 at the lowest power, with room for the ring', () => {
+    const { points, selected } = curseCurve({ power: 0.1 });
+    const model = curseModel({ power: 0.1 });
     if (model.kind !== 'result') throw new Error('expected a result');
-    expect(model.exaggeration).toBeCloseTo(116.8962012, 7);
-    expect(model).toEqual({ kind: 'result', ...retrodesign({ trueEffect: 0.1, se: 5, alpha: 0.05 }) });
-    const { points, selected } = curseCurve(v);
-    expect(selected).not.toBeNull();
-    expect(selected!.ratio).toBe(0.02);
+    expect(model.exaggeration).toBeCloseTo(3.71, 2);
     expect(selected!.exaggeration).toBe(model.exaggeration);
-    expect(points).toContainEqual(selected);
-    const { top } = curseAxis(points, selected);
-    expect(top).toBeGreaterThan(model.exaggeration);
-    // the dot and its ring sit wholly below the top of the log plot, in both layouts
+    const { top, domain, ticks } = curseAxis(points, selected);
+    expect(top).toBe(4);
+    expect(domain).toEqual([0, 3]);
+    // ticks in curseY's units: one times the effect is the zero line, then 2, 3 and 4
+    expect(ticks.wide.map((t) => exaggerationTick(t))).toEqual(['2', '3', '4']);
+    expect(ticks.narrow.map((t) => exaggerationTick(t))).toEqual(['2', '4']);
+    expect(exaggerationTick(0)).toBe('1');
     for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
-      expect(((Math.log10(top) - curseY(model.exaggeration)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
+      expect(((domain[1] - curseY(model.exaggeration)) / domain[1]) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
     }
   });
 
-  it('lifts the preset dot clear of the floor: on the log axis about 2.5x sits a sixth of the way up, not at the bottom', () => {
+  it('lifts the preset dot clear of the floor: about 2.5 times sits half way up', () => {
     const { points, selected } = curseCurve(CURSE_PRESETS.default);
     const { domain } = curseAxis(points, selected);
     const share = curseY(selected!.exaggeration) / domain[1];
-    expect(share).toBeGreaterThan(0.12);
+    expect(share).toBeGreaterThan(0.4);
     expect(share * CURSE_HEIGHT.narrow).toBeGreaterThan(25);
   });
 
-  it('at effect 5 and standard error 0.1: ratio 50, the upper end, selected and inside the axis', () => {
-    const v = { trueEffect: 5, se: 0.1 };
-    expect(v.trueEffect / v.se).toBe(50);
-    const model = curseModel(v);
+  it('keeps a well-sized test near the floor: at the planner power a win overstates by about 1.1 times', () => {
+    const model = curseModel({ power: PLANNER_POWER });
     if (model.kind !== 'result') throw new Error('expected a result');
-    const { points, selected } = curseCurve(v);
-    expect(selected).toEqual(points.at(-1));
-    expect(selected!.x).toBe(Math.log10(50));
-    expect(selected!.exaggeration).toBe(model.exaggeration);
-    expect(model.exaggeration).toBeGreaterThanOrEqual(1);
-    expect(curseAxis(points, selected).top).toBeGreaterThan(model.exaggeration);
-  });
-
-  it('holds zero, every finite sample and the selected value on every setting the controls reach', () => {
-    for (const trueEffect of [0, 0.1, 0.5, 1, 5]) {
-      for (const se of [0.1, 1, 5]) {
-        const { points, selected } = curseCurve({ trueEffect, se });
-        const { top, domain, ticks } = curseAxis(points, selected);
-        const max = Math.max(...points.map((p) => p.exaggeration));
-        expect(top).toBeGreaterThan(max);
-        for (const h of [CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide]) {
-          expect(((Math.log10(top) - curseY(max)) / Math.log10(top)) * h).toBeGreaterThanOrEqual(DOT_CLEARANCE_PX);
-        }
-        // ticks are log10 of 1, 2, 5, 10, 20, 50, ... up to the top: the floor first, every tick inside the domain
-        expect(ticks.wide[0]).toBe(0);
-        expect(ticks.wide.at(-1)).toBeLessThanOrEqual(domain[1]);
-        for (const t of ticks.wide) expect([1, 2, 5]).toContain(Number((10 ** t / 10 ** Math.floor(t + 1e-9)).toPrecision(6)));
-        expect(ticks.narrow.length).toBeGreaterThanOrEqual(2);
-      }
-    }
+    expect(formatExaggeration(model.exaggeration)).toBe('1.1');
+    expect(model.exaggeration).toBeCloseTo(1.125, 3);
   });
 });
 
@@ -463,64 +401,64 @@ describe('the exaggeration readout and table', () => {
     expect(formatExaggeration(1)).toBe('1.0');
   });
 
-  it('says the preset result in one sentence', () => {
-    expect(curseResultText({ trueEffect: 1, se: 1 })).toBe(
-      'At a true effect of 1.0 and a standard error of 1.0, a ratio of 1, power is 17%. Of the estimates that pass the threshold, 0.9% have the wrong sign, and on average their size is 2.5 times the true effect.',
+  it('says the preset result in one plain sentence, with no statistics words', () => {
+    expect(curseResultText({ power: 0.17 })).toBe(
+      'At this size, results that clear the bar are on average 2.5 times the real effect, and 0.9% of them point the wrong way.',
     );
+    expect(curseResultText({ power: 0.17 })).not.toMatch(/standard error|ratio|power|threshold|estimate/i);
   });
 
-  it('names the undefined quantity at zero effect, and the unbounded one, in words', () => {
-    const zero = curseResultText({ trueEffect: 0, se: 1 });
-    expect(zero).toContain('Exaggeration is undefined when the true effect is zero.');
-    expect(zero).toContain('zero, not undefined');
-    expect(zero).toContain('logarithmic');
-    expect(zero).not.toMatch(/ratio (is )?undefined/i);
-    const unbounded = curseResultText({ trueEffect: 1, se: 1 }, infiniteRetro);
-    expect(unbounded).toContain('Exaggeration is unbounded at this setting');
-    for (const s of [zero, unbounded]) expect(s).not.toMatch(/Infinity|NaN|null|\d/);
+  it('names the unbounded result in words, never Infinity, NaN, null or a digit', () => {
+    const unbounded = curseResultText({ power: 0.17 }, infiniteRetro);
+    expect(unbounded).toBe('At this setting the calculation has no finite answer, so no number is shown.');
+    expect(unbounded).not.toMatch(/Infinity|NaN|null|\d/);
   });
 
-  it('tables plain ratios with their results, the current setting marked, in the readout’s own words', () => {
-    const t = curseTable({ trueEffect: 0.1, se: 5 });
+  it('tables the reference powers with their ratio and results, the current setting marked, in the readout’s own words', () => {
+    const t = curseTable({ power: 0.17 });
     expect(t.columns).toEqual([
-      'True effect ÷ standard error',
-      'Power',
-      'Wrong sign among significant estimates',
-      'Exaggeration among significant estimates',
+      'How often the test clears the bar (power)',
+      'Ratio of effect to noise',
+      'Results that clear the bar in the wrong direction',
+      'Overstatement among results that clear the bar',
       'Your setting',
     ]);
     expect(t.refs).toEqual(DIAGNOSTICS_REFS);
+    expect(t.note ?? '').not.toMatch(/\d/);
     const mine = t.rows.filter((r) => r[4] === 'Yes');
-    expect(mine).toEqual([[0.02, '5%', '47.7%', '116.9', 'Yes']]);
-    // plain ratios, ascending, both ends included
-    const ratios = t.rows.map((r) => r[0] as number);
-    expect(ratios[0]).toBe(RATIO_MIN);
-    expect(ratios.at(-1)).toBe(RATIO_MAX);
-    for (let i = 1; i < ratios.length; i++) expect(ratios[i]).toBeGreaterThan(ratios[i - 1]!);
-    // a setting off the reference ratios adds its own row
-    const off = curseTable({ trueEffect: 0.3, se: 0.7 });
-    expect(off.rows).toHaveLength(t.rows.length + 1);
-    expect(off.rows.filter((r) => r[4] === 'Yes').map((r) => r[0])).toEqual([0.3 / 0.7]);
-    // 0.3 / 1.5 is 0.19999999999999998, not the reference 0.2: the exact ratio takes that row's
-    // place, so no two rows print "0.2"
-    const noisy = curseTable({ trueEffect: 0.3, se: 1.5 });
-    expect(0.3 / 1.5).not.toBe(0.2);
-    expect(noisy.rows).toHaveLength(t.rows.length);
-    expect(noisy.rows.map((r) => r[0])).not.toContain(0.2);
-    expect(noisy.rows.filter((r) => r[4] === 'Yes').map((r) => r[0])).toEqual([0.3 / 1.5]);
-    // zero effect marks no row; an unbounded one says so in words
-    expect(curseTable({ trueEffect: 0, se: 1 }).rows.some((r) => r[4] === 'Yes')).toBe(false);
-    const bad = curseTable({ trueEffect: 1, se: 1 }, infiniteRetro);
+    expect(mine).toEqual([[0.17, ratioForPower(0.17), '0.9%', '2.5', 'Yes']]);
+    // powers ascending, both slider ends included
+    const powers = t.rows.map((r) => r[0] as number);
+    expect(powers[0]).toBe(0.1);
+    expect(powers.at(-1)).toBe(0.99);
+    for (let i = 1; i < powers.length; i++) expect(powers[i]).toBeGreaterThan(powers[i - 1]!);
+    // a setting on a reference power adds no row
+    expect(curseTable({ power: 0.8 }).rows).toHaveLength(t.rows.length - 1);
+    expect(curseTable({ power: 0.8 }).rows.filter((r) => r[4] === 'Yes').map((r) => r[0])).toEqual([0.8]);
+    // an unbounded one says so in words
+    const bad = curseTable({ power: 0.17 }, infiniteRetro);
     expect(JSON.stringify(bad.rows)).not.toMatch(/Infinity|NaN|null/);
     expect(bad.rows.every((r) => r[3] === 'no finite value')).toBe(true);
   });
 
   it('reads a hostile URL as the preset or a clamped value on the grid', () => {
-    expect(curseFromUrl('curse.trueEffect=Infinity&curse.se=0')).toEqual({ trueEffect: 5, se: 0.1 });
-    expect(curseFromUrl('curse.trueEffect=&curse.se=abc&curse.preset=__proto__')).toEqual(CURSE_PRESETS.default);
-    expect(curseFromUrl('curse.trueEffect=-1&curse.se=99')).toEqual({ trueEffect: 0, se: 5 });
-    expect(curseFromUrl('curse.trueEffect=0.149&curse.se=0.26')).toEqual({ trueEffect: 0.1, se: 0.3 });
-    expect(normalizeCurse({ trueEffect: Number.NaN, se: Number.NaN })).toEqual(CURSE_PRESETS.default);
+    expect(curseFromUrl('curse.power=Infinity')).toEqual({ power: 0.99 });
+    expect(curseFromUrl('curse.power=&curse.preset=__proto__')).toEqual(CURSE_PRESETS.default);
+    expect(curseFromUrl('curse.power=-1')).toEqual({ power: 0.1 });
+    expect(curseFromUrl('curse.power=0.456')).toEqual({ power: 0.46 });
+    expect(normalizeCurse({ power: Number.NaN })).toEqual(CURSE_PRESETS.default);
+  });
+
+  it('ignores an old link that set the effect and the noise: it falls back to the preset and never throws', () => {
+    expect(Object.keys(CURSE_SCHEMA)).toEqual(['power']);
+    expect(curseFromUrl('curse.trueEffect=3')).toEqual(CURSE_PRESETS.default);
+    expect(curseFromUrl('curse.trueEffect=0.1&curse.se=5')).toEqual(CURSE_PRESETS.default);
+    expect(() => curseResultText(curseFromUrl('curse.trueEffect=0&curse.se=0'))).not.toThrow();
+  });
+
+  it('links to a test sized as the planner sizes one: the planner power, set as a full page load', () => {
+    expect(CURSE_PRESET_LINK).toEqual({ href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check 1' });
+    expect(curseFromUrl(CURSE_PRESET_LINK.href.slice(1, CURSE_PRESET_LINK.href.indexOf('#')))).toEqual({ power: PLANNER_POWER });
   });
 });
 
@@ -538,9 +476,9 @@ function curseParts(html: string) {
   const rows = [...table.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((c) => decode(c[1]!)));
   return {
     dots,
-    dotRatio: dots[0] ? Number(attr(dots[0], 'data-ratio')) : null,
+    dotPower: dots[0] ? Number(attr(dots[0], 'data-power')) : null,
     dotValue: dots[0] ? Number(attr(dots[0], 'data-exaggeration')) : null,
-    readout: { power: readout('power'), wrongSign: readout('wrong-sign'), exaggeration: readout('exaggeration') },
+    readout: { exaggeration: readout('exaggeration'), wrongSign: readout('wrong-sign') },
     mine: rows.filter((r) => r.at(-1) === 'Yes'),
     yTicks: [...wide.matchAll(/<text[^>]*data-tick="y"[^>]*>(?:<tspan[^>]*>)?([^<]*)/g)].map((m) => m[1]),
     xTicks: [...wide.matchAll(/<text[^>]*data-tick="x"[^>]*>([^<]*)/g)].map((m) => m[1]),
@@ -551,26 +489,30 @@ describe('the split Figure as the server draws it', () => {
   const SERVER = renderToStaticMarkup(createElement(SrmFigure));
 
   it('states the relationship, badges it Simulated and draws the preset: a real case, 5,170 to 4,830 against an even split, flagged', () => {
-    expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>A split far from the expected share is flagged for a closer look</h3>`));
+    expect(SRM_TITLE).toBe('The bigger the gap, the rarer it is by chance');
+    expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>${SRM_TITLE}</h3>`));
     expect(text(SERVER)).toContain('Simulated');
-    expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830, shareA: 0.5 });
-    // the verdict first, the statistic after it in brackets; the announcement says the same words
+    expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830 });
+    // the verdict first, in plain words; the announcement says the same words
     expect(result(SERVER)).toBe(srmPlainText(SRM_PRESETS.default));
-    expect(result(SERVER)).toBe(
-      'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.56, one degree of freedom, p-value below 0.001).',
-    );
-    expect(srmPlainText({ nA: 5000, nB: 5000, shareA: 0.5 })).toBe(
-      'Not flagged. This split is consistent with the expected share at this threshold (chi-square 0, one degree of freedom, p-value 1).',
-    );
-    expect(srmPlainText({ nA: 0, nB: 0, shareA: 0.5 })).toBe(srmResultText({ nA: 0, nB: 0, shareA: 0.5 }));
+    expect(result(SERVER)).toBe('Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.');
+    expect(srmPlainText({ nA: 5000, nB: 5000 })).toBe('Not flagged: a fair split leaves a gap this big or bigger at least 1 time in 1,000.');
+    expect(srmPlainText({ nA: 0, nB: 0 })).toBe(srmResultText({ nA: 0, nB: 0 }));
+  });
+
+  it('has two count sliders and Reset, and no planned-share control', () => {
+    expect(SERVER).toContain(`id="${SRM_ID}-nA"`);
+    expect(SERVER).toContain(`id="${SRM_ID}-nB"`);
+    expect(SERVER).not.toContain(`id="${SRM_ID}-shareA"`);
+    expect(text(SERVER)).not.toMatch(/Expected share/);
   });
 
   it('keeps the even split one link away: the even preset is the same total, not flagged', () => {
-    expect(SRM_PRESETS.even).toEqual({ nA: 5000, nB: 5000, shareA: 0.5 });
+    expect(SRM_PRESETS.even).toEqual({ nA: 5000, nB: 5000 });
     expect(srmModel(SRM_PRESETS.even!)).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
     expect(SRM_EVEN_HREF).toBe('/lab?srm.preset=even#split-check');
     const link = renderToStaticMarkup(createElement(SrmEvenLink));
-    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*"><span>See the same check on an even split<\/span><\/a><\/p>$/);
+    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*"><span>See an even split pass<\/span><\/a><\/p>$/);
   });
 
   it('explains the threshold, the warning, the approximation and that these are not live results', () => {
@@ -584,6 +526,26 @@ describe('the split Figure as the server draws it', () => {
     expect(t).toContain('not results from this site’s live test');
     expect(t).toContain('independently');
     expect(t).toContain('guarantees no business outcome');
+    expect(t).toContain('The Lab fixes the planned share at half; the check works against any planned share.');
+  });
+
+  it('moves the live statistic into the method row, for the setting on screen', () => {
+    expect(method(SERVER)).toContain('For your setting: chi-square 11.56, one degree of freedom, p-value below 0.001.');
+    expect(method(srmView({ nA: 5000, nB: 5000 }))).toContain('For your setting: chi-square 0, one degree of freedom, p-value 1.');
+    expect(method(srmView({ nA: 0, nB: 0 }))).not.toContain('For your setting');
+    expect(result(SERVER)).not.toMatch(/chi-square|p-value/);
+  });
+
+  it('has a short caption, a legend in plain words and a takeaway that ends in my decision', () => {
+    const t = prose(SERVER);
+    expect(t).toContain('Made-up visitor counts. Each group was meant to get half.');
+    expect(t).toContain('Visitors who arrived (filled)');
+    expect(t).toContain('Half of all visitors, the planned share (outlined)');
+    expect(t).toContain('Each group should get half the visitors. Here group A got 5,170 and group B 4,830. That looks close. Is it? Move the counts and watch the verdict.');
+    expect(t).toContain(
+      'It is not close enough. A fair split would almost never leave a gap this big. So I read no result until I find what broke the assignment or the counting. Otherwise a winner may only reflect who ended up in each group.',
+    );
+    expect(t).toContain('How the split check works');
   });
 
   it('draws observed and expected bars for both groups, as two series', () => {
@@ -599,11 +561,12 @@ describe('the split Figure as the server draws it', () => {
 
   it('names a flagged chart no more strongly than its copy: flagged for a closer look, not a verdict', () => {
     const names = (html: string) => [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
-    const flagged = names(srmView({ nA: 120, nB: 60, shareA: 0.5 }));
+    const flagged = names(srmView({ nA: 120, nB: 60 }));
     expect(flagged.length).toBeGreaterThan(0);
     for (const n of flagged) {
       expect(n).toContain('the split is flagged for a closer look');
-      expect(n).not.toMatch(/mismatch|proof|caused/i);
+      expect(n).toContain('The visitors who arrived and half of all visitors');
+      expect(n).not.toMatch(/mismatch|proof|caused|observed|expected/i);
     }
     for (const n of names(srmView(SRM_PRESETS.even!))) expect(n).toContain('the split is not flagged');
   });
@@ -622,54 +585,73 @@ describe('the split Figure as the server draws it', () => {
   });
 
   it('with no visitors draws no inference: the empty sentence, no p-value, no chi-square', () => {
-    const html = srmView({ nA: 0, nB: 0, shareA: 0.5 });
-    expect(result(html)).toBe('No visitors in either group yet, so there is nothing to test and no p-value.');
-    expect(result(html)).not.toMatch(/chi-square|flagged/i);
+    const html = srmView({ nA: 0, nB: 0 });
+    expect(result(html)).toBe('No visitors yet, so there is nothing to check.');
+    expect(result(html)).not.toMatch(/chi-square|flagged|p-value/i);
     expect(audit(html)).toEqual([]);
   });
 
   it('flags one empty group, and says so in words', () => {
-    const html = srmView({ nA: 0, nB: 100, shareA: 0.5 });
-    expect(result(html)).toMatch(/^Flagged\. /);
-    expect(result(html)).toContain('p-value below 0.001).');
+    const html = srmView({ nA: 0, nB: 100 });
+    expect(result(html)).toMatch(/^Flagged: /);
+    expect(method(html)).toContain('p-value below 0.001.');
     expect(audit(html)).toEqual([]);
+  });
+
+  it('warns with few visitors in the result line, in plain words', () => {
+    const html = srmView({ nA: 3, nB: 1 });
+    expect(result(html)).toContain('With so few visitors, this check is only rough.');
+    expect(result(html)).toBe(srmPlainText({ nA: 3, nB: 1 }));
   });
 });
 
 describe('the exaggeration Figure as the server draws it', () => {
   const SERVER = renderToStaticMarkup(createElement(CurseFigure));
 
-  it('has its title, a Simulated badge and the preset at effect 1 and standard error 1', () => {
-    expect(CURSE_TITLE).toBe('Low power exaggerates the effects that pass the threshold');
+  it('has its title, a Simulated badge and the preset at a power of 17%', () => {
+    expect(CURSE_TITLE).toBe('The smaller the test, the more its wins overstate the effect');
     expect(SERVER).toMatch(new RegExp(`<h3 id="${CURSE_ID}-title"[^>]*>${CURSE_TITLE}</h3>`));
     expect(text(SERVER)).toContain('Simulated');
     expect(result(SERVER)).toBe(curseResultText(CURSE_PRESETS.default));
   });
 
+  it('has one power slider and Reset: no effect or noise slider', () => {
+    expect(SERVER).toContain(`id="${CURSE_ID}-power"`);
+    expect(SERVER).not.toContain(`id="${CURSE_ID}-trueEffect"`);
+    expect(SERVER).not.toContain(`id="${CURSE_ID}-se"`);
+    expect(text(SERVER)).toContain('How often the test clears the bar (power)');
+    expect(SERVER).toContain('aria-valuetext="17% of the time"');
+  });
+
   it('says what is assumed and what is not claimed: analytic, normal, independent, arbitrary units, selection', () => {
     const t = prose(SERVER);
-    expect(t).toContain('An exact calculation from Gelman and Carlin’s retrodesign formulas on hypothetical values you set; no random draws are involved.');
+    expect(t).toContain('An exact calculation on made-up values, with no random draws.');
     // the Simulated badge marks hypothetical values: the caption must not deny it
     expect(t).not.toMatch(/not a simulation/i);
     expect(t).toContain('normally distributed');
     expect(t).toContain('independent observations');
     expect(t).toContain('arbitrary units');
-    expect(t).toContain('only the estimates that pass the threshold');
-    expect(t).toContain('guarantees no business outcome');
+    expect(t).toContain('only the estimates that clear the bar');
+    expect(t).toContain('guarantee no business outcome');
+    expect(t).toContain('Gelman and Carlin');
+    expect(t).toContain('type M');
     expect(t).not.toMatch(/seed/i);
   });
 
-  it('labels a log x-axis with plain ratios and a log y-axis from one times the true effect', () => {
+  it('moves the ratio into the method row, for the setting on screen', () => {
+    expect(method(SERVER)).toContain('your setting is a ratio of 1.00.');
+    expect(method(curseView({ power: 0.8 }))).toContain(`your setting is a ratio of ${ratioForPower(0.8).toFixed(2)}.`);
+    expect(method(SERVER)).toContain('How the overstatement is calculated');
+  });
+
+  it('labels a linear power axis in percent and a linear axis from one times the real effect', () => {
     const parts = curseParts(SERVER);
-    expect(parts.xTicks).toEqual(['0.1', '1', '10']);
-    expect(parts.yTicks[0]).toBeDefined();
-    // the zero line of the log axis is 1x: no exaggeration; the ticks are plain multiples
-    expect(parts.yTicks).toContain('1');
-    expect(parts.yTicks).not.toContain('0');
-    expect(parts.yTicks).toEqual(expect.arrayContaining(['2', '5', '10', '100']));
-    expect(SERVER).toContain('>Exaggeration (times the true effect, log scale)</text>');
-    expect(SERVER).toContain('>True effect ÷ standard error (log scale)</text>');
-    expect(SERVER).not.toContain('divided by');
+    expect(parts.xTicks).toEqual(['10%', '30%', '50%', '70%', '90%']);
+    // the zero line is 1x: no exaggeration; the ticks are plain multiples
+    expect([...parts.yTicks].sort()).toEqual(['1', '2', '3', '4']);
+    expect(SERVER).toContain('>Times the real effect</text>');
+    expect(SERVER).toContain('>How often the test clears the bar (power)</text>');
+    expect(SERVER).not.toMatch(/log scale|÷/);
   });
 
   it('agrees with itself at the preset: dot, readout and table row', () => {
@@ -677,82 +659,80 @@ describe('the exaggeration Figure as the server draws it', () => {
     const model = curseModel(CURSE_PRESETS.default);
     if (model.kind !== 'result') throw new Error('expected a result');
     expect(parts.dots).toHaveLength(1);
-    expect(parts.dotRatio).toBe(1);
+    expect(parts.dotPower).toBe(0.17);
     expect(parts.dotValue).toBe(model.exaggeration);
-    expect(parts.readout).toEqual({ power: '17%', wrongSign: '0.9%', exaggeration: '2.5' });
-    expect(parts.mine).toEqual([['1', '17%', '0.9%', '2.5', 'Yes']]);
+    expect(parts.readout).toEqual({ exaggeration: '2.5', wrongSign: '0.9%' });
+    expect(parts.mine).toEqual([['17%', '1.00', '0.9%', '2.5', 'Yes']]);
   });
 
-  it('agrees with itself at the boundary, effect 0.1 and standard error 5', () => {
-    const parts = curseParts(curseView({ trueEffect: 0.1, se: 5 }));
-    const model = curseModel({ trueEffect: 0.1, se: 5 });
-    if (model.kind !== 'result') throw new Error('expected a result');
-    expect(parts.dotRatio).toBe(0.02);
-    expect(parts.dotValue).toBe(model.exaggeration);
-    expect(parts.readout).toEqual({ power: '5%', wrongSign: '47.7%', exaggeration: '116.9' });
-    expect(parts.mine).toEqual([['0.02', '5%', '47.7%', '116.9', 'Yes']]);
+  it('agrees with itself at both ends of the slider', () => {
+    for (const [power, readout] of [
+      [0.1, { exaggeration: '3.7', wrongSign: formatWrongSign((curseModel({ power: 0.1 }) as { typeS: number }).typeS) }],
+      [0.99, { exaggeration: '1.0', wrongSign: 'below 0.1%' }],
+    ] as const) {
+      const parts = curseParts(curseView({ power }));
+      const model = curseModel({ power });
+      if (model.kind !== 'result') throw new Error('expected a result');
+      expect(parts.dotPower).toBe(power);
+      expect(parts.dotValue).toBe(model.exaggeration);
+      expect(parts.readout).toEqual(readout);
+      expect(parts.mine).toHaveLength(1);
+    }
   });
 
-  it('keeps the readout’s three items in every branch, so its height does not change after hydration', () => {
+  it('keeps the readout’s two items in every branch, the overstatement first, so its height does not change after hydration', () => {
     const items = (html: string) => {
       const dl = html.match(/<dl[^>]*data-curse-readout=""[^>]*>([\s\S]*?)<\/dl>/)?.[1] ?? '';
       return [...dl.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/g)].map((m) => [m[1], text(m[2]!)]);
     };
-    const labels = ['Chance of detecting it (power)', 'Wins that point the wrong way', 'How much a win overstates it'];
-    expect(items(curseView(CURSE_PRESETS.default)).map((i) => i[0])).toEqual(labels);
-    expect(items(curseView({ trueEffect: 0, se: 1 }))).toEqual([
-      [labels[0], 'not shown'],
-      [labels[1], 'no true sign'],
-      [labels[2], 'not defined'],
+    const labels = ['Results that clear the bar overstate the effect by', 'Results that clear the bar in the wrong direction'];
+    expect(items(curseView(CURSE_PRESETS.default))).toEqual([
+      [labels[0], '2.5 times'],
+      [labels[1], '0.9%'],
     ]);
-    expect(items(curseView({ trueEffect: 1, se: 1 }, infiniteRetro))).toEqual([
-      [labels[0], 'not shown'],
+    expect(items(curseView({ power: 0.17 }, infiniteRetro))).toEqual([
+      [labels[0], 'no finite value'],
       [labels[1], 'not shown'],
-      [labels[2], 'no finite value'],
     ]);
   });
 
-  it('never prints a bare undefined, null or NaN as a value, in any branch (the required sentence keeps its word in prose)', () => {
+  it('never prints a bare undefined, null or NaN as a value, in any branch', () => {
     // an element or text whose whole content is one of these words reads as a leaked JavaScript value
     const bare = (html: string) =>
-      [...html.matchAll(/>\s*(undefined|null|NaN)\s*</g)].map((m) => m[1]).concat([...text(html).matchAll(/\b(null|NaN)\b/g)].map((m) => m[1]));
+      [...html.matchAll(/>\s*(undefined|null|NaN)\s*</g)].map((m) => m[1]).concat([...text(html).matchAll(/\b(null|NaN|undefined)\b/g)].map((m) => m[1]));
     for (const html of [
       renderToStaticMarkup(createElement(CurseFigure)),
-      curseView({ trueEffect: 0, se: 1 }),
-      curseView({ trueEffect: 1, se: 1 }, infiniteRetro),
-      curseView({ trueEffect: 0.1, se: 5 }),
+      curseView({ power: 0.17 }, infiniteRetro),
+      curseView({ power: 0.1 }),
       renderToStaticMarkup(createElement(SrmFigure)),
-      srmView({ nA: 0, nB: 0, shareA: 0.5 }),
+      srmView({ nA: 0, nB: 0 }),
     ]) {
       expect(bare(html)).toEqual([]);
     }
-    // the word survives only inside sentences: the result line and the table note
-    expect(prose(curseView({ trueEffect: 0, se: 1 }))).toContain('Exaggeration is undefined when the true effect is zero.');
-  });
-
-  it('at zero effect: the undefined sentence, no dot, no log evaluation of zero, no number in its words', () => {
-    const html = curseView({ trueEffect: 0, se: 1 });
-    const parts = curseParts(html);
-    expect(parts.dots).toEqual([]);
-    expect(result(html)).toContain('Exaggeration is undefined when the true effect is zero.');
-    expect(parts.mine).toEqual([]);
-    expect(audit(html)).toEqual([]);
   });
 
   it('an injected non-finite result renders the unbounded words, never Infinity, NaN or null', () => {
-    const html = curseView({ trueEffect: 1, se: 1 }, infiniteRetro);
-    expect(result(html)).toContain('Exaggeration is unbounded at this setting');
+    const html = curseView({ power: 0.17 }, infiniteRetro);
+    expect(result(html)).toBe('At this setting the calculation has no finite answer, so no number is shown.');
     expect(curseParts(html).dots).toEqual([]);
     expect(html).not.toMatch(/Infinity|NaN|\bnull\b/);
     expect(audit(html)).toEqual([]);
   });
 
   it('has no stray number and no digit in a chart name, at the preset and both ends', () => {
-    for (const html of [SERVER, curseView({ trueEffect: 0.1, se: 5 }), curseView({ trueEffect: 5, se: 0.1 })]) {
+    for (const html of [SERVER, curseView({ power: 0.1 }), curseView({ power: 0.99 })]) {
       expect(audit(html)).toEqual([]);
       for (const m of html.matchAll(/aria-label="([^"]*)"/g)) expect(m[1]).not.toMatch(/\d/);
       expect(html).not.toMatch(/Infinity|NaN/);
     }
+  });
+
+  it('says the point and my decision under the Figure, from the preset model', () => {
+    const t = prose(SERVER);
+    expect(t).toContain('Picture a change with a real but small effect. Make the test bigger or smaller, and watch how much its wins overstate the effect.');
+    expect(t).toContain(
+      'At the start, the test clears the bar only 17% of the time. To win at all, it needs a lucky reading well above the truth. On average its wins report 2.5 times the real effect. A forecast built on that number is likely to overpromise. So I treat a surprising win from a small test as a lead. I run it again before anyone plans on that number.',
+    );
   });
 
   it('hands the island no data: the client part gets only its preview and the test seam', () => {
@@ -812,7 +792,9 @@ describe('the diagnostics code the page loads at once', () => {
 });
 
 describe('the exaggeration chart name', () => {
-  it('says both axes are on log scales', () => {
-    expect(renderToStaticMarkup(createElement(CurseFigure))).toContain('both on log scales: large for small ratios and close to none for large ones');
+  it('says what the line shows in words, on linear axes', () => {
+    const html = renderToStaticMarkup(createElement(CurseFigure));
+    expect(html).toContain('large for a test that rarely clears it and close to the real effect for one that nearly always does, with your setting marked');
+    expect(html).not.toContain('log scale');
   });
 });
