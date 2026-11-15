@@ -1,6 +1,7 @@
 // The previous and the next project as two quiet cards in one row (stacked on a phone), inside a
 // navigation landmark. Each card is a link: a small kicker ("Previous", "Next") and the project's
-// name. A lone next card keeps the second column. Nothing moves; hover changes the border.
+// name. A lone next card keeps the second column. As a clickable card it turns its border ink and
+// underlines the name on hover, focus and press, and rises 4 px where motion is allowed.
 import type { ReactNode } from 'react';
 import { FrameLink } from './FrameLink';
 

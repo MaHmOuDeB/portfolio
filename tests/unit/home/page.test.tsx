@@ -383,13 +383,13 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     expect(h).not.toMatch(/data-home-tiles|data-home-ribbon|data-home-decision|Your call\.|I test what works/);
   });
 
-  it.each(MODELS)('%s: every vignette is decorative, says "Illustration" and prints no digit', (_, m) => {
+  it.each(MODELS)('%s: every vignette is decorative, untagged and prints no digit', (_, m) => {
     const vigs = all(doc(page(m)), has('data-vignette'));
     // Three in "How I test", three experiment cards, four automation cards, one in the site band.
     expect(vigs).toHaveLength(11);
     for (const v of vigs) {
       expect(attr(v, 'aria-hidden')).toBe('true');
-      expect(text(v)).toMatch(/^Illustration/);
+      expect(text(v)).not.toMatch(/Illustration/);
       expect(text(v)).not.toMatch(/\d/);
     }
   });

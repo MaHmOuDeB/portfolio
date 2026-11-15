@@ -88,13 +88,14 @@ function head(root: T.ParentNode) {
 /** The kind of sketch inside a vignette. */
 const sketchOf = (v: El) => attr(one(v, (el) => has(el, 'data-sketch')), 'data-sketch');
 
-/** Every vignette: decorative, labelled "Illustration" in sight, and free of digits. */
+/** Every vignette: decorative, untagged, and free of digits. */
 function expectVignettes(root: T.ParentNode, count: number) {
   const vigs = all(root, (el) => has(el, 'data-vignette'));
   expect(vigs).toHaveLength(count);
   for (const v of vigs) {
     expect(attr(v, 'aria-hidden')).toBe('true');
-    expect(text(one(v, (el) => has(el, 'data-vignette-label')))).toBe('Illustration');
+    expect(all(v, (el) => has(el, 'data-vignette-label'))).toEqual([]);
+    expect(text(v)).not.toMatch(/Illustration/);
     expect(text(v), text(v)).not.toMatch(/\d/);
     expect(text(v)).not.toMatch(/revenue|listening|churn|ILTV|conversion|lift/i);
     expect(all(v, (el) => el.tagName === 'a' || has(el, 'tabindex'))).toEqual([]);

@@ -1,7 +1,7 @@
 // The site's vignettes, one per project and one per "How I test" panel: small schematic sketches at
 // the bottom of a card (Home and the Work index draw the same sketch for the same project), in a panel
-// or beside the site band, each inside the frame's Vignette (decorative, aria-hidden, with the
-// visible word "Illustration"). A sketch never prints a digit, a real figure or an Audible metric
+// or beside the site band, each inside the frame's Vignette (decorative, aria-hidden,
+// unlabelled). A sketch never prints a digit, a real figure or an Audible metric
 // name; positions and shades live in style values only. The Pulse sketch names three events of the
 // Pulse export, typed against its event names. Server-safe.
 import type { CSSProperties, ReactNode } from 'react';

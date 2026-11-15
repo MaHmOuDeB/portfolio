@@ -49,7 +49,8 @@ describe('the band: the stack that unfolds', () => {
 
   it('rests, everywhere else on a wide screen, in the isometric pose and leans to the pointer', () => {
     // A shallower tilt and a larger scale than the first pose, so the sheet text reads while stacked.
-    expect(css).toMatch(/\[data-depth-rig\]\s*\{[^}]*transform:\s*translate\(-75px, 122px\) rotateX\(52deg\) rotateZ\(-34deg\) scale\(1\.1\)/);
+    // Sized so the stacked pose, edges included, clears the caption by the site's figure gap (24 px).
+    expect(css).toMatch(/\[data-depth-rig\]\s*\{[^}]*transform:\s*translate\(-75px, 126px\) rotateX\(52deg\) rotateZ\(-34deg\) scale\(0\.97\)/);
     expect(css).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*rotateX\(calc\(var\(--my, 0\) \* -4deg\)\) rotateY\(calc\(var\(--mx, 0\) \* 6deg\)\)/);
     expect(block('@keyframes depth-rig')).toMatch(/to\s*\{\s*transform:\s*none/);
   });
@@ -63,6 +64,18 @@ describe('the band: the stack that unfolds', () => {
     expect(block('@keyframes depth-slab')).toMatch(/to\s*\{\s*translate:\s*none/);
     expect(pin).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*animation:\s*depth-slab[^}]*animation-timeline:\s*--depth-band/);
     expect(block('@media (prefers-reduced-motion: reduce), print')).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*animation:\s*none[^}]*translate:\s*none/);
+  });
+
+  it('keeps the caption one figure gap (24 px) under the stage at every width', () => {
+    expect(css).toMatch(/\[data-depth-caption\]\s*\{[^}]*padding-top:\s*calc\(var\(--spacing\) \* 6\)/);
+    // One value everywhere: no narrower override.
+    expect(block('@media (width < 64rem)')).not.toMatch(/\[data-depth-caption\]/);
+    // The stage gives back the 18 px the caption gained, so the pinned band keeps its height.
+    expect(css).toMatch(/\[data-depth-stack\]\s*\{[^}]*height:\s*522px/);
+  });
+
+  it('hugs the flat row with reduced motion or in print on a wide screen, so the caption sits under it', () => {
+    expect(block('@media (prefers-reduced-motion: reduce), print')).toMatch(/@media \(width >= 64rem\)\s*\{\s*\[data-depth-stack\]\s*\{[^}]*height:\s*calc\(210px \* var\(--k\)\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)/);
   });
 
   it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {
