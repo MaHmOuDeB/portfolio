@@ -50,7 +50,7 @@
   --color-track: color-mix(in srgb, var(--color-ink) 5%, transparent); /* a plain tag's fill, a sketch's track */
   --color-tag-tint: color-mix(in srgb, var(--color-series-1) 10%, transparent); /* a tinted tag's fill */
   --color-on-ink: color-mix(in srgb, var(--color-bg) 70%, transparent); /* body text and links on ink (8.27) */
-  --color-on-ink-muted: color-mix(in srgb, var(--color-bg) 52%, transparent); /* quiet text on ink: the colophon, a quiet clause (5.17) */
+  --color-on-ink-muted: color-mix(in srgb, var(--color-bg) 52%, transparent); /* quiet text on ink: a quiet clause, small meta lines (5.17) */
   --color-glint: color-mix(in srgb, var(--color-surface) 70%, transparent); /* the lean card's light: lighter, never bluer, so muted text keeps its contrast */
   --color-rule-quiet: color-mix(in srgb, var(--color-muted) 28%, transparent); /* row rules on a tile */
   --color-rule-on-ink: color-mix(in srgb, var(--color-bg) 20%, transparent); /* the hairline on ink: row rules on the ink tile, the footer's rules */

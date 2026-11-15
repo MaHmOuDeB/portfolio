@@ -1,5 +1,5 @@
 // The ink footer: the wordmark, the site's line in two tones, three link columns (Site, Contact,
-// Legal) in one nav named "Footer" and the one colophon line. The column titles are plain text that
+// Legal) in one nav named "Footer". The column titles are plain text that
 // labels its list, not headings, so the page outline never gains a second "Contact". Visible labels only; the contact form and LinkedIn are the
 // contact routes, and there is no e-mail address. Every link is a 44 px target both ways, however short its label.
 import Link from 'next/link';
@@ -81,7 +81,6 @@ export function Footer() {
             );
           })}
         </nav>
-        <p className="border-t border-rule-on-ink pt-6 text-sm text-on-ink-muted col-span-2 md:col-span-4">Built with Claude Code as pair-programmer.</p>
       </div>
     </footer>
   );
