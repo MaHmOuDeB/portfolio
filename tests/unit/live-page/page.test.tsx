@@ -3,8 +3,7 @@
 // heading levels, the method rows, the carried planning copy and its refs,
 // the baseline caption, the closure wording, the small-count rule in every place a count can land
 // (text, accessible names, tables, the no-JS view, the error fallback and the props a client
-// boundary receives), the pre-registration and build lines, the colophon with and without the
-// embedded build metadata, and the source rules (no runtime file read, no typed tag).
+// boundary receives), the pre-registration and build lines, and the source rules (no runtime file read, no typed tag).
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -22,9 +21,7 @@ import type { ExperimentSnapshot } from '@/lib/experiment/snapshot';
 import { FIXTURE_AB, FIXTURE_CALIBRATION, buildFixture, snapshotFixture, type FixtureRow } from '@/lib/home/fixtures';
 import type { HomeMode } from '@/lib/home/model';
 import { NARRATIVE_FIXTURES, narrativeFixture } from '@/lib/home/narrative-fixtures';
-import { readBuildMeta } from '@/lib/live-page/build-meta-file';
 import { LIVE_PAGE_FIXTURES } from '@/lib/live-page/fixtures';
-import { LIGHTHOUSE_LABEL, type BuildMeta } from '@/lib/live-page/build-meta-shape';
 import { toLivePageDisplay, toLivePageModel, type LivePageDisplay } from '@/lib/live-page/model';
 import { CONTACT } from '@/lib/site';
 import { AB_NOW, SHIP_B, mark, read, seed } from './reader';
@@ -52,8 +49,8 @@ const configOf = (s: ExperimentSnapshot): ExperimentConfig => (s.configPhase ===
 const displayOf = (s: ExperimentSnapshot, config: ExperimentConfig = configOf(s), commit: string | null = null) =>
   toLivePageDisplay(toLivePageModel(s, { commit }, config));
 type Runtime = 'default' | 'no-js' | 'error';
-const page = (d: LivePageDisplay, o: { meta?: BuildMeta | null; host?: string | null; runtime?: Runtime } = {}) =>
-  renderToStaticMarkup(<LivePage display={d} meta={o.meta ?? null} host={o.host === undefined ? 'site.example' : o.host} runtime={o.runtime} />);
+const page = (d: LivePageDisplay, o: { host?: string | null; runtime?: Runtime } = {}) =>
+  renderToStaticMarkup(<LivePage display={d} host={o.host === undefined ? 'site.example' : o.host} runtime={o.runtime} />);
 
 function elements(node: T.ParentNode, out: T.Element[] = []): T.Element[] {
   for (const child of node.childNodes) {
@@ -121,24 +118,24 @@ afterEach(() => {
 });
 
 describe('the page order', () => {
-  it('runs the status, the result with the decision, the plan, the health checks, the counting, the data, the close, the colophon', () => {
-    expect(LIVE_SECTIONS.map((s) => s.id)).toEqual(['results', 'plan', 'health', 'funnel', 'check-it-yourself', 'colophon']);
+  it('runs the status, the result with the decision, the plan, the health checks, the counting, the data, the close', () => {
+    expect(LIVE_SECTIONS.map((s) => s.id)).toEqual(['results', 'plan', 'health', 'funnel', 'check-it-yourself']);
     const h = page(displayOf(snapshotFixture('ab')));
     const sections = all(h).filter((el) => el.tagName === 'section');
     expect(sections.map((el) => attr(el, 'id') ?? attr(el, 'aria-labelledby'))).toEqual([
-      'status', 'results', 'plan', 'health', 'funnel', 'check-it-yourself', 'what-this-shows', 'colophon', 'page-cta-title',
+      'status', 'results', 'plan', 'health', 'funnel', 'check-it-yourself', 'what-this-shows', 'page-cta-title',
     ]);
     const h2 = all(h).filter((el) => el.tagName === 'h2').map((el) => text(el).replace(/\s+/g, ' '));
     expect(h2).toEqual([
       'Where the test stands', 'Result so far', 'The plan, fixed before the start', 'Is the test healthy?', 'How views are counted',
-      'Check it yourself', 'What this shows about how I work', 'How this site is built', 'Find out what I can do for your team.',
+      'Check it yourself', 'What this shows about how I work', 'Find out what I can do for your team.',
     ]);
     expect(all(h).filter((el) => el.tagName === 'h1').map((el) => text(el))).toEqual(['A real A/B test on this site, run in the open.']);
   });
 
   it('keeps the anchors of the parts that moved into a section', () => {
     const h = page(displayOf(snapshotFixture('ab')));
-    for (const id of ['where-it-stands', 'results', 'decision', 'decision-line', 'plan', 'health', 'split-check', 'detectable', 'funnel', 'check-it-yourself', 'colophon']) {
+    for (const id of ['where-it-stands', 'results', 'decision', 'decision-line', 'plan', 'health', 'split-check', 'detectable', 'funnel', 'check-it-yourself']) {
       expect(byId(h, id), id).toBeDefined();
     }
     // The decision and the end sit in the result; the split check and the detectable lift in the health section.
@@ -870,70 +867,6 @@ describe('the pre-registration and build lines', () => {
   it('no file of the page types the version or the tag', () => {
     const files = [...readdirSync(join(ROOT, 'src/components/live-page')).map((f) => join(ROOT, 'src/components/live-page', f)), join(ROOT, 'src/app/experiment/page.tsx')];
     for (const f of files) expect(readFileSync(f, 'utf8'), relative(ROOT, f)).not.toMatch(/['"`]v1|prereg-v1/);
-  });
-});
-
-const META: BuildMeta = {
-  commit: '0123456789abcdef0123456789abcdef01234567',
-  builtAt: '2026-11-12T08:00:00.000Z',
-  unitTests: { passed: 4409, total: 4409, skipped: 40 },
-  e2eTests: { passed: 312, total: 312, skipped: 3, flaky: 2 },
-  axeViolations: 0,
-  lighthouse: { performance: 98, accessibility: 100, bestPractices: 100, seo: 100 },
-  lighthouseLabel: LIGHTHOUSE_LABEL,
-};
-
-describe('the colophon', () => {
-  it('without build metadata: no results line at all (a line with no value is hidden), and the stack line', () => {
-    const h = page(displayOf(snapshotFixture('ab')), { meta: null });
-    expect(byId(h, 'colophon-results')).toBeUndefined();
-    expect(sectionText(h, 'colophon')).not.toMatch(/Not recorded|are added when|Unit tests|Lighthouse/);
-    expect(text(byId(h, 'colophon-title')!)).toBe('How this site is built');
-    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
-    expect(text(byId(h, 'colophon-stack')!).replace(/\s+/g, ' ')).toBe(
-      `Built with Next.js ${pkg.dependencies.next}, React ${pkg.dependencies.react}, Tailwind CSS ${pkg.devDependencies.tailwindcss} and TypeScript ${pkg.devDependencies.typescript}.`,
-    );
-  });
-
-  it('with build metadata: its values, the lab label and its commit', () => {
-    const h = page(displayOf(snapshotFixture('ab')), { meta: META });
-    expect(text(byId(h, 'colophon-results')!).replace(/\s+/g, ' ')).toBe(
-      'Unit tests: 4,409 of 4,409 that ran passed; 40 skipped. Browser tests: 312 of 312 that ran passed, 2 of them after a retry; 3 skipped. ' +
-        'Accessibility checks (axe): 0 violations. ' +
-        'Lighthouse, CI lab run on the home page, group A (mobile, throttled in the browser): performance 98, accessibility 100, best practices 100, SEO 100. ' +
-        'These results are for commit 0123456.',
-    );
-    expect(audit(h)).toEqual([]);
-  });
-
-  it('a green run reads as green: no skip or retry clause when there is none, and a failure is counted as one', () => {
-    const clean = { ...META, unitTests: { passed: 12, total: 12, skipped: 0 }, e2eTests: { passed: 4, total: 4, skipped: 0, flaky: 0 } };
-    expect(text(byId(page(displayOf(snapshotFixture('ab')), { meta: clean }), 'colophon-results')!).replace(/\s+/g, ' ')).toMatch(
-      /^Unit tests: 12 of 12 that ran passed\. Browser tests: 4 of 4 that ran passed\. Accessibility/,
-    );
-    const failed = { ...clean, unitTests: { passed: 11, total: 12, skipped: 0 } };
-    expect(text(byId(page(displayOf(snapshotFixture('ab')), { meta: failed }), 'colophon-results')!)).toContain('Unit tests: 11 of 12 that ran passed.');
-  });
-});
-
-describe('readBuildMeta (the build-time embedded metadata)', () => {
-  it('is null when nothing was embedded', () => {
-    vi.stubEnv('BUILD_META_JSON', 'null');
-    expect(readBuildMeta()).toBeNull();
-    vi.stubEnv('BUILD_META_JSON', '');
-    expect(readBuildMeta()).toBeNull();
-  });
-
-  it('parses the embedded value', () => {
-    vi.stubEnv('BUILD_META_JSON', JSON.stringify(META));
-    expect(readBuildMeta()).toEqual(META);
-  });
-
-  it('throws on a value that is not build metadata', () => {
-    vi.stubEnv('BUILD_META_JSON', '{"commit":"x"}');
-    expect(() => readBuildMeta()).toThrow();
-    vi.stubEnv('BUILD_META_JSON', '{not json');
-    expect(() => readBuildMeta()).toThrow();
   });
 });
 

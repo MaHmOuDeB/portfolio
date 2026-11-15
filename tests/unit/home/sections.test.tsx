@@ -406,7 +406,7 @@ describe('ToolsBand', () => {
   const band = one(d, (el) => has(el, 'data-home-shipped'));
   const groups = all(band, (el) => has(el, 'data-tools-group'));
 
-  it('is a ruled band labelled by its left-aligned line "Methods and tools", with no ribbon', () => {
+  it('is a ruled band labelled by its centred chip "Methods and tools", with no ribbon', () => {
     expect(band.tagName).toBe('section');
     expect(has(band, 'data-rule')).toBe(true);
     expect(has(band, 'data-depth-ribbon')).toBe(false);
@@ -415,8 +415,8 @@ describe('ToolsBand', () => {
     expect(label.tagName).toBe('p');
     expect(text(label)).toBe('Methods and tools');
     expect(attr(band, 'aria-labelledby')).toBe(attr(label, 'id'));
-    expect(classes(label)).not.toContain('text-center');
-    expect(classes(label)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-figure']));
+    expect(classes(label)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-figure', 'text-center']));
+    expect(all(label, (el) => has(el, 'data-chip')).map((c) => text(c))).toEqual(['Methods and tools']);
   });
 
   it('holds two groups, side by side from lg and one column below', () => {
@@ -461,7 +461,9 @@ describe('ToolsBand', () => {
   });
 
   it('is Home\'s own list, not About\'s, and adds no link, control or heading', () => {
-    const chips = all(band, (el) => has(el, 'data-chip')).map((c) => text(c));
+    // The tool chips only: the band's own name is a chip too, in its label.
+    const groupsEl = one(band, (el) => has(el, 'data-tools-groups'));
+    const chips = all(groupsEl, (el) => has(el, 'data-chip')).map((c) => text(c));
     expect(chips).toHaveLength(10);
     expect(chips).not.toEqual(SHIPPED_TOOLS.map((t) => t.tool));
     expect(all(band, (el) => ['a', 'button', 'input', 'select', 'textarea'].includes(el.tagName))).toEqual([]);
