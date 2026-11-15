@@ -43,6 +43,13 @@ function composition(page: Page) {
   }));
 }
 
+/** Opens the closed method row with this summary by clicking it, as a visitor would. */
+async function openMethodRow(page: Page, summary: string) {
+  const row = page.locator('details[data-method]', { has: page.locator(':scope > summary', { hasText: new RegExp(`^${summary}$`) }) });
+  await row.locator(':scope > summary').click();
+  await expect(row).toHaveAttribute('open', '');
+}
+
 test.describe('the Retention page', () => {
   test('outline: one h1, the sections in template order, landmarks once each, no skipped heading level', async ({ page }) => {
     const response = await page.goto(ROUTE);
@@ -284,6 +291,8 @@ test.describe('the Retention page', () => {
     const page = await context.newPage();
     await page.goto(ROUTE);
     for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    // the segments Figure and the SQL sit in closed method rows: open them as a visitor would (native, no JavaScript)
+    for (const name of ['Customer segments', 'The reversal rule in SQL']) await openMethodRow(page, name);
     for (const id of FIGURES) {
       const f = page.locator(`figure[data-figure="${id}"]`);
       await expect(f.locator('[data-nojs-only] table')).toBeVisible();
@@ -307,6 +316,8 @@ test.describe('the Retention page', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(ROUTE);
     await waitForIslands(page);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await openMethodRow(page, 'The reversal rule in SQL');
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     const sql = page.getByRole('region', { name: 'The reversal rule in SQL' });
     await expect(sql).toHaveAttribute('tabindex', '0');
