@@ -93,7 +93,7 @@ test.describe('/demo', () => {
     const html = await response.text();
     expect(html).toMatch(/<meta name="robots" content="noindex, follow"\/>/);
     await page.goto(DEMO);
-    await expect(page).toHaveTitle('Interview links');
+    await expect(page).toHaveTitle('Interview links | Mahmoud El Bergui');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interview links');
     const hrefs = await main(page).getByRole('link').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
     expect(hrefs).toEqual(HREFS);
