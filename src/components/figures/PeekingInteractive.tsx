@@ -1,7 +1,7 @@
 'use client';
 
 // The peeking Figure's island, loaded by EagerOrIntent (PeekingFigureClient imports it lazily). It
-// reads and writes its URL state (`?peeking.looks=30&peeking.mode=once&peeking.fix=obf`), looks the
+// reads and writes its URL state (`?peeking.looks=30&peeking.fix=obf`), checks daily, looks the
 // result up in the precomputed table synchronously in render (no simulation, no worker, no pending
 // state), and draws chart, result line, caption and table from that one view. It announces the
 // result on a committed change only: a slider release or key release, a typed value, a choice, Reset.
@@ -13,7 +13,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
-import { computePeek, type PeekView } from '@/lib/lab/peeking';
+import { computePeek, type PeekValues, type PeekView } from '@/lib/lab/peeking';
 import { PEEK_PRESETS, PEEK_SCHEMA, type PeekParams } from '@/lib/lab/peeking-values';
 import { PeekingControls } from './PeekingFigureClient';
 import { PeekingFigureView, peekAnnouncement } from './PeekingView';
@@ -46,17 +46,20 @@ function focusedPreviewControl(id: string): Handoff | null {
   return null;
 }
 
-const same = (a: PeekParams, b: PeekParams) => a.looks === b.looks && a.mode === b.mode && a.fix === b.fix;
+const same = (a: PeekParams, b: PeekParams) => a.looks === b.looks && a.fix === b.fix;
+
+/** The Figure checks daily: the model's values for the control values. */
+const daily = (v: PeekParams): PeekValues => ({ looks: v.looks, mode: 'daily', fix: v.fix });
 
 export default function PeekingInteractive({ id, initial, faultAfterChange }: PeekingInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(id, PEEK_SCHEMA, PEEK_PRESETS);
-  const view = useMemo(() => (same(values, initial.values) ? initial : computePeek(values)), [values, initial]);
+  const view = useMemo(() => (same(values, initial.values) ? initial : computePeek(daily(values))), [values, initial]);
   // The latest values, for handlers made in an earlier render: a slider's release handler is the
   // one from the render where the drag began.
-  const latest = useRef<PeekParams>(view.values);
+  const latest = useRef<PeekParams>({ looks: view.values.looks, fix: view.values.fix });
   // Back or Forward can bring new values without a handler here; follow them after the render.
   useEffect(() => {
-    latest.current = view.values;
+    latest.current = { looks: view.values.looks, fix: view.values.fix };
   }, [view.values]);
 
   // The loader hands focus from the preview to the island by element id, and the radios and Reset
@@ -93,7 +96,7 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
   const [changed, setChanged] = useState(false);
   const commit = (next: PeekParams) => {
     setChanged(true);
-    setAnnouncement(peekAnnouncement(computePeek(next)));
+    setAnnouncement(peekAnnouncement(computePeek(daily(next))));
   };
 
   return (
@@ -113,11 +116,6 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
             set('looks', looks);
           }}
           onLooksCommit={(looks) => commit({ ...latest.current, looks })}
-          onMode={(mode) => {
-            latest.current = { ...latest.current, mode };
-            set('mode', mode);
-            commit(latest.current);
-          }}
           onFix={(fix) => {
             latest.current = { ...latest.current, fix };
             set('fix', fix);
@@ -128,7 +126,7 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
               reset();
               const restored = PEEK_PRESETS[preset]!;
               latest.current = restored;
-              setAnnouncement(peekAnnouncement(computePeek(restored)));
+              setAnnouncement(peekAnnouncement(computePeek(daily(restored))));
             })
           }
         />

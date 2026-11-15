@@ -1,4 +1,4 @@
-// The peeking Figure ("More looks, more false winners") as a page places it. The server looks the
+// The peeking Figure ("More checks, more false winners") as a page places it. The server looks the
 // preset up (daily, 20 looks, no fix) and draws it with its table: the static HTML, also what a
 // visitor without JavaScript keeps, with the open table. The island loads on intent, or at once for
 // a URL with this Figure's keys (`?peeking.preset=interview` among them), and receives the preset's
@@ -12,12 +12,12 @@ import { InertPeekingControls, PeekingFigureClient } from './PeekingFigureClient
 import { PeekingFigureView } from './PeekingView';
 
 export function PeekingFigure({ id = PEEK_ID, faultAfterChange }: { id?: string; faultAfterChange?: true }) {
-  const initial = computePeek(PEEK_PRESETS.default);
+  const initial = computePeek({ ...PEEK_PRESETS.default, mode: 'daily' });
   return (
     <PeekingFigureClient
       id={id}
       initial={initial}
-      preview={<PeekingFigureView id={id} view={initial} controls={<InertPeekingControls id={id} values={initial.values} />} />}
+      preview={<PeekingFigureView id={id} view={initial} controls={<InertPeekingControls id={id} values={{ looks: initial.values.looks, fix: initial.values.fix }} />} />}
       faultAfterChange={faultAfterChange}
     />
   );
