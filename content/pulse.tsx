@@ -1,11 +1,12 @@
-// The Pulse case study's prose: the intro, the summary, the problem, the data, the method, the
-// context of the event table, the dashboard's introduction, the findings, how I checked this, the
-// limits and the links. Each export is a server section without its own heading, so the page decides
-// the outline and the anchors (src/components/pulse/PulsePage.tsx).
+// The Pulse case study's prose: the intro with its plain opening, the glance card, the dashboard's
+// lead-in, introduction and takeaway, the event table's lead-in, the data, the method, how I checked
+// this, the limits, the links and the close. Each export is a server part without its own heading, so
+// the page decides the outline and the anchors (src/components/pulse/PulsePage.tsx).
 //
 // Every figure is a <Fact> from the Pulse export, or names its source; the rest is plain words. Pulse
 // was designed and built with no real users, so the page reports no outcome: the questions in its
-// taxonomy are what the events were designed to answer.
+// taxonomy are what the events were designed to answer. The page says so once in the glance card's
+// scope and once under Limits.
 import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import type { GlanceParts } from '@/components/depth/GlanceBlock';
@@ -29,99 +30,97 @@ export function PulseTitle(): ReactNode {
   );
 }
 
-/** The line under the page title. */
+/** The line under the page title, then the plain-words opening with the one term it needs. */
 export function PulseIntro(): ReactNode {
   return (
-    <p>
-      Pulse is an analytics instrumentation demo that I designed and built: a small dashboard whose real point is its event
-      taxonomy. It has no real users.
-    </p>
+    <>
+      <p>A small dashboard I designed and built to show one thing: a tracking plan in which every event answers a product question.</p>
+      <p data-plain-opening="" className="mt-4 text-base text-ink">
+        Most products record every click first and ask what the clicks mean later. Pulse works the other way round:{' '}
+        <Events /> tracked actions, each chosen because it answers a question a product team would ask. It shows a tracking
+        plan, not results. An event is one recorded user action, with a name.
+      </p>
+    </>
   );
 }
 
-/** The 20-second top of the page, under the title and its line. */
+/** The twenty-second card: two pull figures, one sentence, then the facts and the scope. */
 export const PULSE_GLANCE: GlanceParts = {
+  points: [
+    { id: 'events', figure: <Events />, label: 'events, each tied to one product question' },
+    {
+      id: 'user-properties',
+      figure: <Fact id="pulse.identity.user_properties" />,
+      label: 'user properties, so events can be split by user',
+    },
+  ],
   outcome: (
     <>
-      Designed and built a <Events />-event tracking plan in Amplitude, each event tied to a product question; no real
-      users, no outcome.
+      Each event exists to answer one product question: the original sends them to Amplitude, and the copy on this page
+      sends them to a list in your browser.
     </>
   ),
   role: 'Personal project, designed and built.',
-  methods: 'Event taxonomy, user identification, segmentation properties.',
+  methods: 'A named list of events, user identification, properties for segments.',
   tools: 'React, TypeScript, Vite, Tailwind, Recharts, Amplitude, Vercel.',
   when: 'Sep 2026.',
+  scope: 'A demo. No real users, so the questions are still open.',
 };
 
-/** The summary box: question, my role, method, result, what I would recommend, next step. */
-export function PulseSummary(): ReactNode {
-  const items: readonly [label: string, body: ReactNode][] = [
-    ['Question', <>Which events should a product dashboard track, so that each one answers a product question?</>],
-    ['My role', <>A personal project: I designed and built the dashboard, its event taxonomy and its tracking in Amplitude.</>],
-    [
-      'Method',
-      <>
-        I tied each tracked event to a product question, rather than leaving the tracking to autocapture alone, and
-        identified the demo user with a user ID and <Fact id="pulse.identity.user_properties" /> user properties, so events can be
-        segmented by user.
-      </>,
-    ],
-    [
-      'Result',
-      <>
-        A working demo and a tracking plan, with no outcome to report: Pulse has no real users, so none of its questions has
-        been answered.
-      </>,
-    ],
-    [
-      'What I would recommend',
-      <>
-        Name a short list of events, each with the question it should answer, and keep autocapture and Session Replay
-        underneath it rather than in its place.
-      </>,
-    ],
-    [
-      'Next step',
-      <>Below: the events and their questions, then a copy of the dashboard on this page that lists each event as you use it.</>,
-    ],
-  ];
+/** The dashboard's lead-in, above its Figure. */
+export function PulseDashboardLeadIn(): ReactNode {
+  return <>Use the dashboard. Each action you take appears in the list below it as the event a product team would receive.</>;
+}
+
+/** The dashboard's takeaway, below its Figure. */
+export function PulseDashboardTakeaway(): ReactNode {
+  return <>A short list of named events answers the product questions; automatic capture stays underneath as a safety net.</>;
+}
+
+/** How the dashboard copy works, in the row under its takeaway. */
+export function PulseDashboardIntro(): ReactNode {
   return (
-    <dl>
-      {items.map(([label, body]) => (
-        <div key={label} className={ITEM}>
-          <dt className="font-semibold">{label}</dt>
-          <dd className="mt-1">{body}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <p className={ITEM}>
+        This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It
+        does not load Amplitude. Each action with an event in the table below sends that event, with the same name and
+        properties as in the table, to a list below the charts.
+      </p>
+      <p className={ITEM}>
+        The list is kept in this page&apos;s memory only: nothing is sent anywhere, and it is gone when you leave the page or
+        press Reset. It is a simulation, not part of this site&apos;s own experiment.
+      </p>
+    </>
   );
 }
 
-/** Why a deliberate taxonomy. */
-export function PulseProblem(): ReactNode {
-  return (
-    <p>
-      Autocapture records what users click, but not which product question a click should answer. Pulse puts a deliberate
-      taxonomy first: <Events /> named events, each tied to a specific product question. The dashboard around them is the
-      vehicle.
-    </p>
-  );
+/** The lead-in of the event table: its questions are design hypotheses, not results. */
+export function PulseTaxonomyLeadIn(): ReactNode {
+  return <>Read each question as a design hypothesis: what the event was meant to help answer, not a finding.</>;
 }
+
+/** The event table's caption. */
+export const TAXONOMY_CAPTION = "The tracked events, as the project's code and README state them";
 
 /** What Pulse runs on, and where this page's event table comes from. */
 export function PulseData(): ReactNode {
   return (
     <p>
-      Pulse has no backend and no real users: its dashboard numbers are generated in the browser. The events on this page,
-      with their triggers, properties and questions, come from an export of its code and README, pinned by commit.
+      Pulse has no backend: its dashboard numbers are generated in the browser. The events on this page, with their
+      triggers, properties and questions, come from an export of its code and README, pinned by commit.
     </p>
   );
 }
 
-/** The stack, the named events and the user identity, and what runs underneath. */
+/** Why a deliberate list of events, the stack, the named events and the user identity, and what runs underneath. */
 export function PulseMethod(): ReactNode {
   return (
     <>
+      <p className={ITEM}>
+        Autocapture records what users click, but not which product question a click should answer. Pulse puts a deliberate
+        taxonomy first: <Events /> named events, each tied to a specific product question. The dashboard around them is the
+        vehicle.
+      </p>
       <p className={ITEM}>
         I built Pulse with React, TypeScript, Vite, Tailwind CSS and Recharts, and tracked it with Amplitude&apos;s unified
         SDK.
@@ -133,51 +132,6 @@ export function PulseMethod(): ReactNode {
       </p>
       <p className={ITEM}>Autocapture and Session Replay run underneath the named events.</p>
     </>
-  );
-}
-
-/** The context of the event table: its questions are design hypotheses. In the table's own section. */
-export function PulseTaxonomyContext(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
-        Each question below is a design hypothesis: what the event was meant to help answer once real users arrived. Pulse
-        never had real users, so none of these questions has been answered.
-      </p>
-      <p className={ITEM}>
-        Some questions read like findings, such as saving a view predicting a return. They are hypotheses to test, not
-        results.
-      </p>
-    </>
-  );
-}
-
-/** The event table's caption. */
-export const TAXONOMY_CAPTION = "The tracked events, as the project's code and README state them";
-
-/** The dashboard copy's introduction, before its Figure. */
-export function PulseDashboardIntro(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
-        This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It
-        does not load Amplitude. Each action with an event in the table above sends that event, with the same name and
-        properties as in the table, to a list below the charts.
-      </p>
-      <p className={ITEM}>
-        The list is kept in this page&apos;s memory only: nothing is sent anywhere, and it is gone when you leave the page or
-        press Reset. It is a simulation, not part of this site&apos;s own experiment.
-      </p>
-    </>
-  );
-}
-
-export function PulseFindings(): ReactNode {
-  return (
-    <p>
-      There are no outcome findings, because Pulse has no real users. What it shows is the plan: each of the <Events />{' '}
-      events is tied to the product question it was designed to answer.
-    </p>
   );
 }
 
@@ -226,12 +180,14 @@ export function PulseLimits(): ReactNode {
 
 const PULSE = lock.sources.pulse;
 const REPO = `https://github.com/${PULSE.repo}`;
+/** The repository at its pinned commit: the first Sources link and the button under the head. */
+export const PULSE_REPO_URL = `${REPO}/tree/${PULSE.commit}`;
 
 /** The repository at its pinned commit, the export this page reads, another case study and LinkedIn. */
 export function PulseSources(): ReactNode {
   const links: readonly [href: string, body: ReactNode, external: boolean][] = [
     [
-      `${REPO}/tree/${PULSE.commit}`,
+      PULSE_REPO_URL,
       <>
         Pulse, at commit <code {...derivedAttr(['source:pulse'])}>{PULSE.commit.slice(0, 7)}</code>
       </>,
@@ -251,5 +207,15 @@ export function PulseSources(): ReactNode {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** The close: what the page showed about how I work. */
+export function PulseClose(): ReactNode {
+  return (
+    <p className="max-w-text">
+      I plan tracking from the questions backwards: each of the <Events /> events was named for a question a product team
+      would ask, and the dashboard is only there to carry them.
+    </p>
   );
 }

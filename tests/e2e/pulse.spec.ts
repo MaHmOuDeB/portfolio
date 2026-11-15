@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
+import { PLAIN_QUESTIONS } from '../../src/components/pulse/plain-questions.ts';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { expectNoA11yViolations, test } from './fixtures';
 
@@ -100,11 +101,13 @@ test.describe('Pulse case study', () => {
     await expect(live(page)).toHaveText('');
     await expect(badge(page)).toBeVisible();
     await expect(figure(page).getByText("Local demo prompt version: demo-v1. It is this copy's own value, not the original's.")).toBeVisible();
-    // The taxonomy table after hydration: the export's rows, word for word, with no category column.
+    // The taxonomy table after hydration: the export's rows, with no category column, and the README's
+    // dashed questions in the page's plain punctuation (the page's own map, which throws on a missing cell).
     const cells = await page.locator('section#taxonomy table tbody tr').evaluateAll((trs) =>
       trs.map((tr) => [...tr.querySelectorAll('td, th')].map((c) => c.textContent ?? '')),
     );
-    expect(cells).toEqual(SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), e.question]));
+    expect(cells).toEqual(SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), PLAIN_QUESTIONS[e.question] ?? e.question]));
+    expect(cells.flat().join(' ')).not.toMatch(/[\u2013\u2014]/);
     expect(auditHtml(await page.content(), ctx)).toEqual([]);
     expect(errors).toEqual([]);
   });
