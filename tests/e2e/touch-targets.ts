@@ -13,7 +13,8 @@ const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, tex
  * while a group has fewer than 50 views.
  */
 export type InlineEntry = { name: string; while?: { selector: string; text: RegExp } };
-export const HOME_INLINE: readonly InlineEntry[] = [{ name: 'Why so many?' }];
+// The hero's proof sentence ends in "See the work"; the proof row's adoption figure carries "Why so many?".
+export const HOME_INLINE: readonly InlineEntry[] = [{ name: 'See the work' }, { name: 'Why so many?' }];
 // The contact page names LinkedIn in its intro and the privacy notice in the note under Send message.
 const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'LinkedIn' }, { name: 'privacy notice' }];
 export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
