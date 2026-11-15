@@ -1448,10 +1448,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     text-wrap: pretty;
   }
 
-  [data-section-head][data-align="center"] p {
-    text-wrap: balance;
-  }
-
   @media (width >= 40rem) {
     [data-hero-tail] {
       white-space: nowrap;
