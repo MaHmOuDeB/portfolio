@@ -12,17 +12,20 @@ import { expectNoA11yViolations, test } from './fixtures';
 // receives (the HTML with its serialized React payload) holds no exact count from 1 to 4.
 
 const ROUTE = '/experiment';
+const H1 = 'A real A/B test on this site, run in the open.';
+// The ruled sections with an id, in page order, each with its h2. The result's h2 is "Result so far"
+// until a decision is recorded, then "Result". The close and the call to action are sections without
+// an id; the split check, the detectable lift and the decision are anchors inside their sections.
 const SECTIONS = [
-  ['where-it-stands', 'Where the test stands'],
-  ['plan', 'The plan'],
-  ['funnel', 'From beacons to analysed views'],
-  ['split-check', 'The split check'],
-  ['detectable', 'What this many views can detect'],
-  ['results', 'Results'],
-  ['decision', 'Decision and end'],
-  ['check-it-yourself', 'Check it yourself'],
-  ['colophon', 'Colophon'],
+  ['status', /^Where the test stands$/],
+  ['results', /^Result( so far)?$/],
+  ['plan', /^The plan, fixed before the start$/],
+  ['health', /^Is the test healthy\?$/],
+  ['funnel', /^How views are counted$/],
+  ['check-it-yourself', /^Check it yourself$/],
+  ['colophon', /^How this site is built$/],
 ] as const;
+const ANCHORS = ['where-it-stands', 'decision', 'split-check', 'detectable'] as const;
 
 test.describe('the Live test page', () => {
   test('is in the prerender manifest at 300 s', () => {
@@ -36,11 +39,19 @@ test.describe('the Live test page', () => {
     const requests: string[] = [];
     page.on('request', (r) => requests.push(new URL(r.url()).pathname));
     await page.goto(ROUTE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Live test');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     const sections = await page.evaluate(() =>
-      [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
+      [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim() ?? ''] as [string, string]),
     );
-    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    expect(sections.map(([id]) => id)).toEqual(SECTIONS.map(([id]) => id));
+    sections.forEach(([id, title], i) => expect(title, id).toMatch(SECTIONS[i]![1]));
+    for (const id of ANCHORS) await expect(page.locator(`#${id}`), id).toHaveCount(1);
+    // The first screen: the status card with its three steps (at most one current), then four key points.
+    await expect(page.locator('[data-live-track] > li')).toHaveText([/^Calibration/, /^A\/B test/, /^Decision/]);
+    expect(await page.locator('[data-live-track] > li[aria-current="step"]').count()).toBeLessThanOrEqual(1);
+    await expect(page.locator('[data-key-points] [data-key-title]')).toHaveText(['What is tested', 'Where it stands', /^What I expect(ed)?$/, 'Why run it then']);
+    await expect(page.getByRole('navigation', { name: 'On this page' }).getByRole('link')).toHaveCount(5);
+    await expect(page.getByRole('heading', { level: 2, name: 'What this shows about how I work' })).toBeVisible();
     await page.waitForTimeout(3_000);
     expect(requests.filter((p) => p === '/api/e')).toEqual([]);
     expect(requests.filter((p) => p.endsWith('data.json'))).toEqual([]);
@@ -82,9 +93,14 @@ test.describe('the Live test page', () => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(ROUTE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Live test');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     await expect(page.locator('table:has(#live-funnel-table-caption)')).toBeVisible();
-    await expect(page.locator('#colophon-results')).toHaveText('Test and audit results are added when the site is deployed.');
+    // The method rows are native details: closed, they open without JavaScript.
+    await page.locator('details[data-method] > summary', { hasText: 'Pre-registration record' }).click();
+    await expect(page.locator('#plan-prereg')).toBeVisible();
+    // This build has no test and audit results, so the colophon is its stack line alone.
+    await expect(page.locator('#colophon-stack')).toHaveText(/^Built with Next\.js /);
+    await expect(page.locator('#colophon-results')).toHaveCount(0);
     await context.close();
   });
 
