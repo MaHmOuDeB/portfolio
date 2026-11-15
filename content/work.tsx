@@ -1,84 +1,128 @@
-// The Work page's directory as data: three groups of route descriptors, in the order the page lists
-// them. Each item is a site path, a title and a short description; a number in a description is a
-// <Fact>, never typed. The page composition is not here: it reads WORK_GROUPS and decides the layout.
+// The Work page's directory as data: two groups of four route descriptors, in the order the page
+// lists them. Each item is a site path, a provenance chip, a title, one "Shows:" sentence and one
+// plain line; a number in a line is a <Fact>, never typed. The page composition is not here: it
+// reads WORK_GROUPS and decides the layout.
 //
-// Each description says what I did first and the limit once, in words the item's own page already
-// states. The MarketingWS, n8n and Weather lines are their pages' intros word for word. Paths shared
-// with the Home page come from its link list.
+// The chip says where the work comes from and carries its limit (a demo, a personal project, a
+// rebuild on public data), so the line under it does not say the limit again. A limit the chip does
+// not carry stays in the line: Docproof has no users yet, the MarketingWS demo depends on Groq's free
+// tier, and the Audible results are confidential. Paths shared with the Home page come from its link
+// list; the Audible card opens the top of its page, where the adoption figure has its context link.
 import type { ReactNode } from 'react';
 import { Fact } from '@/components/kit/Fact';
-import { HOME_SITE, HOME_TRACKS } from './home.ts';
+import { HOME_SITE } from './home.ts';
 import { HOME_LINKS } from './home-destinations.ts';
 
-export type WorkItem = { href: string; title: string; description: ReactNode };
-/** A group's lede is the Home track's sentence for the same group; the data-pipelines group has none. */
-export type WorkGroup = { id: string; label: string; lede?: string; items: readonly WorkItem[] };
+/** Where a project comes from, as the card's chip. */
+export type WorkChip =
+  | 'Work experience'
+  | 'Public data, rebuilt 2026'
+  | 'Demo, no real users'
+  | 'Open source'
+  | 'Personal project'
+  | "Master's thesis, rebuilt 2026";
+
+export type WorkItem = {
+  href: string;
+  chip: WorkChip;
+  title: string;
+  /** What the project shows about how I work: one sentence, printed after "Shows:". */
+  shows: string;
+  /** One plain line on what the project is. */
+  description: ReactNode;
+};
+/** `kind` names what the group holds, for its chip: the heading already names the subject. */
+export type WorkGroup = { id: string; label: string; kind: string; items: readonly WorkItem[] };
 
 export const WORK_GROUPS: readonly WorkGroup[] = [
   {
     id: 'experimentation',
     label: 'Experiments and analytics',
-    lede: HOME_TRACKS.experiments.lede,
+    kind: 'Case studies',
     items: [
       {
-        // The description speaks of adoption, so it opens the section that gives the context.
-        href: HOME_LINKS.whySoMany,
+        href: '/work/audible',
+        chip: 'Work experience',
         title: 'Experimentation at Audible (Amazon)',
+        shows: 'I plan a test, say plainly what it shows and write a recommendation teams act on.',
         description:
-          'How I plan and analyse experiments, and why so many of my recommendations were adopted. The tests are confidential, so the page shows none of their results.',
+          'Nearly two years of A/B tests on the Audible website and app. The results are confidential, so the page shows the method.',
       },
       {
         href: HOME_LINKS.retention,
+        chip: 'Public data, rebuilt 2026',
         title: 'Customer retention and reactivation analysis',
+        shows: 'I clean the data before I trust a number, and I do not mistake a prediction for proof.',
         description:
-          'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size. Nobody was contacted and no test was run.',
+          'Two years of orders from a UK online gift retailer: a cleaning error, who orders again, and the test I would run next.',
       },
       {
         href: HOME_LINKS.pulse,
-        title: 'Pulse: analytics instrumentation demo',
-        description: 'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
+        chip: 'Demo, no real users',
+        title: 'Pulse: a tracking plan for product analytics',
+        shows: 'I decide what to track from the product question, not from what is easy to capture.',
+        description: (
+          <>
+            A demo dashboard I designed and built, with <Fact id="pulse.events.count" /> named events.
+          </>
+        ),
+      },
+      {
+        // A tested SQL pipeline on a public dataset: it gets data into a state an analyst can trust.
+        href: '/work/weather',
+        chip: 'Public data, rebuilt 2026',
+        title: 'Weather: a SQL pipeline that stops on bad data',
+        shows: 'My pipelines refuse to load bad data quietly.',
+        description:
+          'A tested SQL pipeline on weather observations: a star schema, data-quality checks and a quarantine for sensor errors.',
       },
     ],
   },
   {
     id: 'automation',
     label: 'Automation and agents',
-    lede: HOME_TRACKS.automation.lede,
+    kind: 'Build notes',
     items: [
       {
-        href: HOME_LINKS.docproof,
-        title: 'Docproof',
-        description:
-          'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
+        // The tool I built at Audible has no page of its own: the card opens its section there.
+        href: HOME_LINKS.automation,
+        chip: 'Work experience',
+        title: 'Test-account automation',
+        shows: 'I turn repeated manual steps into tools a whole team can use.',
+        description: (
+          <>
+            Tampermonkey with a step recorder. It cut test-account setup at Audible from about{' '}
+            <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" />{' '}
+            minutes and was adopted team-wide.
+          </>
+        ),
       },
       {
-        href: '/work/n8n',
-        title: 'n8n Workflow Library',
+        href: HOME_LINKS.docproof,
+        chip: 'Open source',
+        title: "Docproof: agents that check each other's work",
+        shows: 'I build AI tools in which code, not the model, has the last word on facts.',
+        description:
+          'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Tested in CI, no users yet.',
+      },
+      {
+        href: HOME_LINKS.n8n,
+        chip: 'Personal project',
+        title: 'E-invoice intake and error alerts in n8n',
+        shows: 'I can automate a back-office process and prove it works with tests.',
         description: (
           <>
             Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with{' '}
-            <Fact id="profile.n8n.automated_tests" /> automated tests. A portfolio project with no production use.
+            <Fact id="profile.n8n.automated_tests" /> automated tests.
           </>
         ),
       },
       {
         href: HOME_LINKS.marketingws,
-        title: 'MarketingWS',
-        description:
-          "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
-      },
-    ],
-  },
-  {
-    // A tested SQL pipeline on a public dataset: a data pipeline, not an automation or an agent.
-    id: 'pipelines',
-    label: 'Data pipelines',
-    items: [
-      {
-        href: '/work/weather',
-        title: 'Weather data quality',
-        description:
-          'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
+        chip: "Master's thesis, rebuilt 2026",
+        title: 'MarketingWS: marketing copy from one brief, with a fact check',
+        shows: 'I took a generative AI idea from thesis to a live web app with checks.',
+        description: "A generative AI web service for content marketing. The live demo depends on Groq's free tier.",
       },
     ],
   },
