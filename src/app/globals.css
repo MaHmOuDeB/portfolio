@@ -1496,7 +1496,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     position: relative;
     display: grid;
-    height: 540px;
+    height: 522px;
 
     /* One column the stage's own width: the rig is laid out at 1040 px and scaled, so it may be wider
        than the column before its scale and must stay centred on it. */
@@ -1525,7 +1525,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     width: 1040px;
     height: 210px;
     transform-style: preserve-3d;
-    transform: translate(-75px, 122px) rotateX(52deg) rotateZ(-34deg) scale(1.1);
+    transform: translate(-75px, 126px) rotateX(52deg) rotateZ(-34deg) scale(0.97);
   }
 
   [data-depth-sheet] {
@@ -1765,7 +1765,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-caption] {
     position: relative;
     margin: 0;
-    padding-top: calc(var(--spacing) * 1.5);
+    padding-top: calc(var(--spacing) * 6);
     color: var(--color-muted);
     font-size: var(--text-xs);
     line-height: 1.5;
@@ -1825,10 +1825,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-depth-link] {
       display: none;
-    }
-
-    [data-depth-caption] {
-      padding-top: calc(var(--spacing) * 4);
     }
   }
 
@@ -3013,6 +3009,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   [data-depth-sheet],
   [data-depth-tilt] {
     transform: none;
+  }
+
+  /* The row is flat and still here, so the stage is the row's own height and the caption sits one
+     figure gap under it, not under the stacked pose's empty stage. */
+  @media (width >= 64rem) {
+    [data-depth-stack] {
+      height: calc(210px * var(--k));
+
+      /* The track is the stage's height, not the unscaled row's, so the scaled row centres in it. */
+      grid-template-rows: minmax(0, 1fr);
+    }
   }
 
   [data-depth-sheet]::after {
