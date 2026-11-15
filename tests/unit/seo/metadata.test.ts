@@ -513,7 +513,14 @@ describe('sharingTemplate', () => {
 
   it("a case card states its landing page's finding in 60 characters or fewer, never the experiment's copy", async () => {
     const cases = OG_CARDS.filter((card) => card.variant === 'case');
-    expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'pulse', 'retention']);
+    expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'experiment', 'lab', 'pulse', 'retention']);
+    // The Lab and the Live test: the line each page leads with, and the page's description under it.
+    expect(ogCard('lab').title).toBe('Four ways an A/B test can mislead, and the check for each.');
+    expect(ogCard('lab').sub).toBe(seoEntry('/lab').description);
+    expect(seoEntry('/lab').image).toBe('/og/lab.png');
+    expect(ogCard('experiment').title).toBe('A real A/B test on this site, run in the open.');
+    expect(ogCard('experiment').sub).toBe(seoEntry('/experiment').description);
+    expect(seoEntry('/experiment').image).toBe('/og/experiment.png');
     // Audible: the page's own h1, its figure from the facts.
     const { AUDIBLE_TITLE } = await import('@/components/audible/AudiblePage');
     expect(ogCard('audible').title).toBe(`${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`);
