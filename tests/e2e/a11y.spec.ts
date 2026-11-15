@@ -111,8 +111,10 @@ for (const route of routes) {
               }
               return `body > ${path.join(' > ')}`;
             };
-            // Visually hidden radios draw their keyboard ring on their label (segmented controls, Home tabs).
-            const ring = el.closest<HTMLElement>('label[data-segment]') ?? (el.matches('input[type="radio"]') ? (el.closest<HTMLElement>('label') ?? el) : el);
+            // Visually hidden radios draw their keyboard ring on their label (segmented controls, Home tabs);
+            // an in-page link draws it on the chip inside its 44 px target.
+            const chip = el.matches('[data-section-nav] a') ? el.querySelector<HTMLElement>(':scope > span') : null;
+            const ring = chip ?? el.closest<HTMLElement>('label[data-segment]') ?? (el.matches('input[type="radio"]') ? (el.closest<HTMLElement>('label') ?? el) : el);
             const s = getComputedStyle(ring);
             const r = ring.getBoundingClientRect();
             const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0 && s.outlineColor !== 'rgba(0, 0, 0, 0)';

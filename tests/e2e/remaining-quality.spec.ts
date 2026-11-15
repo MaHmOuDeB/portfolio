@@ -283,7 +283,9 @@ async function focusRings(page: Page): Promise<unknown[]> {
     const result = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
       if (!el || el === document.body) return null;
-      const ring = el.closest<HTMLElement>('label[data-segment]') ?? el;
+      // An in-page link draws its ring on the chip inside its 44 px target.
+      const chip = el.matches('[data-section-nav] a') ? el.querySelector<HTMLElement>(':scope > span') : null;
+      const ring = chip ?? el.closest<HTMLElement>('label[data-segment]') ?? el;
       const s = getComputedStyle(ring);
       const r = ring.getBoundingClientRect();
       const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0;
