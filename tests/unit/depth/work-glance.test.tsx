@@ -49,7 +49,7 @@ const PAGES: readonly { name: string; render: () => string; title: string; glanc
         '{profile.audible.experiments} A/B tests across web and mobile',
         // The adoption figure always carries the link to its context (the 20+ of 25+ section).
         '{profile.audible.recommendations_adopted} recommendations adopted Why so many?',
-        'about {profile.audible.setup_minutes_after} min to set up a test account, down from about {profile.audible.setup_minutes_before}, with a tool I built',
+        'about {profile.audible.setup_minutes_after} minutes to set up a test account, down from about {profile.audible.setup_minutes_before}, with a tool I built',
       ],
       outcome:
         'Each test needed a plan before it started and a recommendation when it ended: roll the change out permanently, or not.',

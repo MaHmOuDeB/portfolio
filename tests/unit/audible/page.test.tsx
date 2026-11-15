@@ -217,7 +217,7 @@ describe('the glance card', () => {
     expect(points.map((p) => text(p.replace(/<\/?data[^>]*>/g, '')))).toEqual([
       '25+ A/B tests across web and mobile',
       '20+ recommendations adopted Why so many?',
-      'about 3 min to set up a test account, down from about 20, with a tool I built',
+      'about 3 minutes to set up a test account, down from about 20, with a tool I built',
     ]);
     expect(points.map((p) => [...p.matchAll(/data-fact="([^"]+)"/g)].map((m) => m[1]))).toEqual([
       ['profile.audible.experiments'],
@@ -225,7 +225,7 @@ describe('the glance card', () => {
       ['profile.audible.setup_minutes_after', 'profile.audible.setup_minutes_before'],
     ]);
     // the words around the last figure are the smaller unit, as in the Home proof band
-    expect(points[2]).toMatch(/<span data-proof-unit="">about <\/span><data [^>]*>3<\/data><span data-proof-unit=""> min<\/span>/);
+    expect(points[2]).toMatch(/<span data-proof-unit="">about <\/span><data [^>]*>3<\/data><span data-proof-unit=""> minutes<\/span>/);
   });
 
   it('gives the adoption figure its context link, small and under the label, as a full touch target', () => {

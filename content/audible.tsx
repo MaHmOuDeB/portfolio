@@ -64,7 +64,7 @@ export const AUDIBLE_GLANCE: GlanceParts = {
         <>
           <Unit>about </Unit>
           <Fact id="profile.audible.setup_minutes_after" />
-          <Unit> min</Unit>
+          <Unit> minutes</Unit>
         </>
       ),
       label: (
