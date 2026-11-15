@@ -125,7 +125,7 @@ describe('the exaggeration Figure: the power box takes whole percents', () => {
 
   it('shows the preset as 17, from 10 to 99 in steps of 1, and names its unit', () => {
     expect({ value: box.value, min: box.min, max: box.max, step: box.step }).toEqual({ value: 17, min: 10, max: 99, step: 1 });
-    expect(box.numberLabel).toBe('How often the test clears the bar (power), percent');
+    expect(box.numberLabel).toBe('How often the test clears the bar, percent');
     expect(box.readout?.(17)).toBe('17% of the time');
     expect(box.valueText(17)).toBe('17% of the time');
   });

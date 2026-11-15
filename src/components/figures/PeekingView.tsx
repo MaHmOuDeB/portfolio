@@ -8,7 +8,7 @@
 //   orange dot with a background ring, and the planned 5% as a dotted line. One day puts its point
 //   at x = 1 on a [0, 1] axis. Marks have no transition.
 // - The result line, in plain words: the share of tests that found a false winner and how it stands
-//   against the planned 5% (with no fix the check-once comparison; with a fix the word holds at every
+//   against the 5% a single check allows (with no fix the check-once comparison; with a fix the word holds at every
 //   number of days: O'Brien-Fleming "close to or under", the confidence sequence "well under"). Then
 //   the price of the fix, as planning arithmetic: never measured power or a sample. The Monte Carlo
 //   range and the check-once simulated rate are in the method row.
@@ -76,17 +76,17 @@ function resultSegments(view: PeekView): Seg[] {
   const { values, selected, cost } = view;
   const alpha = share(selected.alpha);
   if (values.mode === 'once') {
-    return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, ', ...found(view), `, ${relation(view)} the planned `, alpha, '.'];
+    return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, ', ...found(view), `, ${relation(view)} the `, alpha, ' a single check allows.'];
   }
   if (values.fix === 'cs') {
     return [
       'With the always-valid check, ',
       ...found(view),
-      '. Here it is well under the planned ',
+      '. That is well under the ',
       alpha,
-      '; how far under depends on the setting.',
+      ' a single check allows. How far under depends on the setting.',
       ...(cost?.kind === 'width'
-        ? [" The price: at the planned size, its margin of error is about ", share(cost.ratio - 1), " wider than a single check's."]
+        ? [' The price: at the last check, its margin of error is about ', share(cost.ratio - 1), " wider than one check's."]
         : []),
     ];
   }
@@ -94,9 +94,9 @@ function resultSegments(view: PeekView): Seg[] {
     return [
       'With a single check, ',
       ...found(view),
-      `, ${relation(view)} the planned `,
+      `, ${relation(view)} the `,
       alpha,
-      '.',
+      ' a single check allows.',
       ...(values.fix === 'obf' ? [' With one check there is nothing to correct.'] : []),
     ];
   }
@@ -104,12 +104,10 @@ function resultSegments(view: PeekView): Seg[] {
     return [
       'With stricter early checks, ',
       ...found(view),
-      ', close to or under the planned ',
+      ', close to or under the ',
       alpha,
-      '.',
-      ...(cost?.kind === 'boundary'
-        ? [' The price: at the last check, the bar for a winner is about ', share(cost.ratio - 1), ' higher than for one check at the end.']
-        : []),
+      ' a single check allows.',
+      ...(cost?.kind === 'boundary' ? [' The price: at the last check, the bar is about ', share(cost.ratio - 1), ' higher than for one check.'] : []),
     ];
   }
   return ['Checked daily for ', count(selected.looks), ` ${daysWord(selected.looks)}, `, ...found(view), '. Checked once at the end, about ', alpha, ' would.'];
@@ -189,7 +187,7 @@ function legend(view: PeekView): Seg[] {
 
 /** The caption under the chart: what is simulated. The rest of the method is in the method row. */
 function captionSegments(view: PeekView): Seg[] {
-  return ['Simulated tests of two identical versions, both converting at ', share(view.selected.p), '.'];
+  return ['Simulated tests of two identical pages, each with a ', share(view.selected.p), ' sign-up rate.'];
 }
 
 /** The method row's text for the setting on screen: the schedule, the criterion, the marks, the runs. */
@@ -239,36 +237,27 @@ function methodSegments(view: PeekView): Seg[] {
   ];
 }
 
-/** The preset's view, looked up once: the takeaway and the lead-in quote the starting setting. */
+/** The preset's view, looked up once: the lead-in and the terms quote the starting setting. */
 let startView: PeekView | undefined;
 const start = () => (startView ??= computePeek({ ...PEEK_PRESETS.default, mode: 'daily' }));
 
-/** The sentence above the Figure. */
+/** The sentence above the Figure: the one control to move and what to watch. */
 export function PeekLeadIn() {
   return (
     <>
-      Both versions here are identical, so any winner is a false winner. The line shows how many of{' '}
-      <Segments segs={[count(start().selected.runs)]} /> simulated tests found one, day by day.
+      Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of{' '}
+      <Segments segs={[count(start().selected.runs)]} /> tests find one.
     </>
   );
 }
 
 /**
- * The sentence below the Figure, at the starting setting: one test in twenty is the planned level,
- * and "more than one in five" is the preset's own rate, rounded to the next whole "one in".
+ * The sentence below the Figure: what I do about it, the same at every setting, so it quotes no
+ * number (the result line shows the contrast of one check and daily checks). The live test's plan
+ * uses a confidence sequence, the always-valid check.
  */
-export function PeekTakeaway() {
-  const { selected } = start();
-  return (
-    <>
-      Checked once at the end, about <Segments segs={[count(1), ' test in ', count(Math.round(1 / selected.alpha))]} /> finds a
-      false winner. Checked daily for <Segments segs={[count(selected.looks)]} /> days, more than{' '}
-      <Segments segs={[count(1), ' in ', count(Math.ceil(1 / selected.falsePositiveRate))]} /> does. Each one can become a
-      shipped change that does nothing. So before a test starts I decide how I will read it: once at the end, or with a
-      method built for repeated checks. The price of checking often is that a winner needs stronger evidence.
-    </>
-  );
-}
+export const PEEK_TAKEAWAY =
+  'I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.';
 
 /** The terms the peeking example uses, each in one sentence, at the top of the method row. */
 function PeekTerms() {
@@ -439,7 +428,7 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
           <line x1={0} x2={24} y1={1} y2={1} stroke="var(--color-muted)" strokeWidth={1} strokeDasharray="2 3" />
         </svg>
         <span>
-          Dotted line: <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />, the rate one check at the end allows
+          Dotted line: <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />, the false winners one check at the end allows
         </span>
       </p>
     </div>
@@ -464,7 +453,7 @@ export type PeekingFigureViewProps = {
 
 export function PeekingFigureView({ id, view, controls, announcement, preview, faultAfterChange, changed }: PeekingFigureViewProps) {
   const { values, selected } = view;
-  const takeaway = <PeekTakeaway />;
+  const takeaway = PEEK_TAKEAWAY;
   const figure = (
     <Figure
       id={id}

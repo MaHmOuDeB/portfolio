@@ -21,7 +21,6 @@ import {
   CURSE_HEIGHT,
   CURSE_ID,
   CURSE_LABELS,
-  CURSE_PRESETS,
   CURSE_SCHEMA,
   CURSE_TITLE,
   CURSE_UNBOUNDED,
@@ -48,10 +47,9 @@ import {
 
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
 
-export const CURSE_LEAD_IN =
-  'Picture a change with a real but small effect. Make the test bigger or smaller, and watch how much its wins overstate the effect.';
+export const CURSE_LEAD_IN = 'Drag the slider right, toward a bigger test. Watch the wins shrink toward the real effect.';
 
-/** A number of the takeaway or the method row, marked as the Figure marks its own. */
+/** A number of the result line or the method row, marked as the Figure marks its own. */
 const num = (text: string) => (
   <span data-num="" {...SIMULATED}>
     {text}
@@ -59,23 +57,11 @@ const num = (text: string) => (
 );
 
 /**
- * The sentence below the Figure, at the starting setting: the same power and exaggeration the Figure
- * prints at its preset, from the same model and formatters. Its second sentence holds while the
- * preset's power is under one half (a unit test pins it).
+ * The sentence below the Figure: what I do about it, the same at every setting, so it quotes no
+ * number. The result line above it carries the setting's numbers.
  */
-export function CurseTakeaway({ deps }: { deps?: CurseDeps }) {
-  const preset = curseModel(CURSE_PRESETS.default, deps);
-  const close = 'So I treat a surprising win from a small test as a lead. I run it again before anyone plans on that number.';
-  if (preset.kind !== 'result') return <>{close}</>;
-  return (
-    <>
-      At the start, the test clears the bar only <span {...SIMULATED}>{formatPower(CURSE_PRESETS.default.power)}</span> of the
-      time. To win at all, it needs a lucky reading well above the truth. On average its wins report{' '}
-      {num(formatExaggeration(preset.exaggeration))} times the real effect. A forecast built on that number is likely to
-      overpromise. {close}
-    </>
-  );
-}
+export const CURSE_TAKEAWAY =
+  'A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
 
 export const CURSE_X_LABEL = CURSE_LABELS.power;
 export const CURSE_Y_LABEL = 'Times the real effect';
@@ -195,8 +181,8 @@ export function CurseResultLine({ result }: { result: CurseResult }) {
   if (result.kind === 'unbounded') return <>{CURSE_UNBOUNDED}</>;
   return (
     <>
-      At this size, results that clear the bar are on average {num(formatExaggeration(result.exaggeration))} times the real
-      effect, and <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> of them point the wrong way.
+      At this setting, results that clear the bar average {num(formatExaggeration(result.exaggeration))} times the real
+      effect. Of those, <span {...SIMULATED}>{formatWrongSign(result.typeS)}</span> point the wrong way.
     </>
   );
 }
@@ -225,7 +211,7 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
   const ratio = result.kind === 'result' ? result.ratio : null;
   // The dot is the model's own datum: drawn only when the model has a finite result.
   const selected = result.kind === 'result' ? curve.selected : null;
-  const takeaway = <CurseTakeaway deps={deps} />;
+  const takeaway = CURSE_TAKEAWAY;
   const figure = (
     <Figure
       id={CURSE_ID}

@@ -22,7 +22,7 @@ export const DIAGNOSTICS_REFS: readonly DerivedRef[] = ['simulated'];
 // The split check.
 
 export const SRM_ID = 'srm';
-export const SRM_TITLE = 'The bigger the gap, the rarer it is by chance';
+export const SRM_TITLE = 'The bigger the gap, the less often a fair coin makes it';
 
 export const SRM_SCHEMA = {
   nA: { kind: 'number', min: 0, max: 10_000, step: 1 },
@@ -73,11 +73,14 @@ export const CURSE_SCHEMA = {
 
 export type CurseValues = ParamValues<typeof CURSE_SCHEMA>;
 
-/** The control and readout words: plain first, the statistic's name in brackets. */
+/**
+ * The control and readout words, plain only: the statistic's name ("power") is in the table's
+ * header and the method row, not in the main text.
+ */
 export const CURSE_LABELS = {
-  power: 'How often the test clears the bar (power)',
+  power: 'How often the test clears the bar',
   exaggeration: 'Results that clear the bar overstate the effect by',
-  wrongSign: 'Results that clear the bar in the wrong direction',
+  wrongSign: 'Results that clear the bar but point the wrong way',
 } as const;
 
 /** The link under the exhibit: a test sized as the planner sizes one, at the planner's power. */
@@ -85,8 +88,8 @@ export const CURSE_PRESET_LINK = { href: `?curse.power=${PLANNER_POWER}#exaggera
 
 /**
  * The preset: a test that clears the bar 17% of the time, which is a ratio of true effect to standard
- * error of about one. It must stay under one half: the takeaway says a win then needs a reading well
- * above the truth (a unit test pins it).
+ * error of about one. It must stay under one half: card 4 and the trap say a win then needs a lucky
+ * reading well above the truth (a unit test pins it).
  */
 export const CURSE_PRESETS: Presets<typeof CURSE_SCHEMA> = { default: { power: 0.17 } };
 

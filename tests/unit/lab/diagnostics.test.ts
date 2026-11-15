@@ -201,9 +201,9 @@ describe('the split check around the model', () => {
     expect(s).not.toMatch(/\d|p-value/);
   });
 
-  it('says the verdict in plain words, as odds of a fair split, the exact complement on each side', () => {
-    expect(srmResultText({ nA: 120, nB: 60 })).toBe('Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.');
-    expect(srmResultText({ nA: 100, nB: 100 })).toBe('Not flagged: a fair split leaves a gap this big or bigger at least 1 time in 1,000.');
+  it('says the verdict in plain words, as how often a fair coin leaves the gap, the exact complement on each side', () => {
+    expect(srmResultText({ nA: 120, nB: 60 })).toBe('Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.');
+    expect(srmResultText({ nA: 100, nB: 100 })).toBe('Not flagged: a fair coin leaves a gap this big or bigger at least 1 time in 1,000.');
     // the odds are the threshold's, never typed
     expect(1 / SRM_THRESHOLD).toBe(1000);
     // no statistics words in the line a reader sees first: they are in the method row
@@ -403,7 +403,7 @@ describe('the exaggeration readout and table', () => {
 
   it('says the preset result in one plain sentence, with no statistics words', () => {
     expect(curseResultText({ power: 0.17 })).toBe(
-      'At this size, results that clear the bar are on average 2.5 times the real effect, and 0.9% of them point the wrong way.',
+      'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% point the wrong way.',
     );
     expect(curseResultText({ power: 0.17 })).not.toMatch(/standard error|ratio|power|threshold|estimate/i);
   });
@@ -419,7 +419,7 @@ describe('the exaggeration readout and table', () => {
     expect(t.columns).toEqual([
       'How often the test clears the bar (power)',
       'Ratio of effect to noise',
-      'Results that clear the bar in the wrong direction',
+      'Results that clear the bar but point the wrong way',
       'Overstatement among results that clear the bar',
       'Your setting',
     ]);
@@ -489,14 +489,16 @@ describe('the split Figure as the server draws it', () => {
   const SERVER = renderToStaticMarkup(createElement(SrmFigure));
 
   it('states the relationship, badges it Simulated and draws the preset: a real case, 5,170 to 4,830 against an even split, flagged', () => {
-    expect(SRM_TITLE).toBe('The bigger the gap, the rarer it is by chance');
+    expect(SRM_TITLE).toBe('The bigger the gap, the less often a fair coin makes it');
     expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>${SRM_TITLE}</h3>`));
     expect(text(SERVER)).toContain('Simulated');
     expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830 });
     // the verdict first, in plain words; the announcement says the same words
     expect(result(SERVER)).toBe(srmPlainText(SRM_PRESETS.default));
-    expect(result(SERVER)).toBe('Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.');
-    expect(srmPlainText({ nA: 5000, nB: 5000 })).toBe('Not flagged: a fair split leaves a gap this big or bigger at least 1 time in 1,000.');
+    expect(result(SERVER)).toBe('Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.');
+    expect(srmPlainText({ nA: 5000, nB: 5000 })).toBe('Not flagged: a fair coin leaves a gap this big or bigger at least 1 time in 1,000.');
+    // the view's not-flagged line says the same words as the announcement
+    expect(result(srmView({ nA: 5000, nB: 5000 }))).toBe(srmPlainText({ nA: 5000, nB: 5000 }));
     expect(srmPlainText({ nA: 0, nB: 0 })).toBe(srmResultText({ nA: 0, nB: 0 }));
   });
 
@@ -527,6 +529,8 @@ describe('the split Figure as the server draws it', () => {
     expect(t).toContain('independently');
     expect(t).toContain('guarantees no business outcome');
     expect(t).toContain('The Lab fixes the planned share at half; the check works against any planned share.');
+    // the method row opens with how a visitor is assigned
+    expect(method(SERVER)).toMatch(/^How the split check works Each visitor is assigned at random, like a fair coin toss\. Split check \(sample ratio mismatch\):/);
   });
 
   it('moves the live statistic into the method row, for the setting on screen', () => {
@@ -540,10 +544,10 @@ describe('the split Figure as the server draws it', () => {
     const t = prose(SERVER);
     expect(t).toContain('Made-up visitor counts. Each group was meant to get half.');
     expect(t).toContain('Visitors who arrived (filled)');
-    expect(t).toContain('Half of all visitors, the planned share (outlined)');
-    expect(t).toContain('Each group should get half the visitors. Here group A got 5,170 and group B 4,830. That looks close. Is it? Move the counts and watch the verdict.');
+    expect(t).toContain('Half of all visitors, the plan (outlined)');
+    expect(t).toContain('Here group A got 5,170 visitors and group B 4,830. That looks close. Is it? Move group B closer to group A and watch the verdict.');
     expect(t).toContain(
-      'It is not close enough. A fair split would almost never leave a gap this big. So I read no result until I find what broke the assignment or the counting. Otherwise a winner may only reflect who ended up in each group.',
+      'It is not close enough. I make this check before I read any result. When it flags, I find what broke the split before anything else. Otherwise a winner may only reflect who ended up in each group.',
     );
     expect(t).toContain('How the split check works');
   });
@@ -619,7 +623,8 @@ describe('the exaggeration Figure as the server draws it', () => {
     expect(SERVER).toContain(`id="${CURSE_ID}-power"`);
     expect(SERVER).not.toContain(`id="${CURSE_ID}-trueEffect"`);
     expect(SERVER).not.toContain(`id="${CURSE_ID}-se"`);
-    expect(text(SERVER)).toContain('How often the test clears the bar (power)');
+    // the control says it in plain words; "power" is only in the table header and the method row
+    expect(SERVER).toMatch(/<label [^>]*for="curse-power"[^>]*>How often the test clears the bar<\/label>/);
     expect(SERVER).toContain('aria-valuetext="17% of the time"');
   });
 
@@ -650,7 +655,7 @@ describe('the exaggeration Figure as the server draws it', () => {
     // the zero line is 1x: no exaggeration; the ticks are plain multiples
     expect([...parts.yTicks].sort()).toEqual(['1', '2', '3', '4']);
     expect(SERVER).toContain('>Times the real effect</text>');
-    expect(SERVER).toContain('>How often the test clears the bar (power)</text>');
+    expect(SERVER).toContain('>How often the test clears the bar</text>');
     expect(SERVER).not.toMatch(/log scale|÷/);
   });
 
@@ -685,7 +690,7 @@ describe('the exaggeration Figure as the server draws it', () => {
       const dl = html.match(/<dl[^>]*data-curse-readout=""[^>]*>([\s\S]*?)<\/dl>/)?.[1] ?? '';
       return [...dl.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/g)].map((m) => [m[1], text(m[2]!)]);
     };
-    const labels = ['Results that clear the bar overstate the effect by', 'Results that clear the bar in the wrong direction'];
+    const labels = ['Results that clear the bar overstate the effect by', 'Results that clear the bar but point the wrong way'];
     expect(items(curseView(CURSE_PRESETS.default))).toEqual([
       [labels[0], '2.5 times'],
       [labels[1], '0.9%'],
@@ -727,12 +732,15 @@ describe('the exaggeration Figure as the server draws it', () => {
     }
   });
 
-  it('says the point and my decision under the Figure, from the preset model', () => {
+  it('names the one control to move above the Figure, and my decision under it, the same at every setting', () => {
     const t = prose(SERVER);
-    expect(t).toContain('Picture a change with a real but small effect. Make the test bigger or smaller, and watch how much its wins overstate the effect.');
-    expect(t).toContain(
-      'At the start, the test clears the bar only 17% of the time. To win at all, it needs a lucky reading well above the truth. On average its wins report 2.5 times the real effect. A forecast built on that number is likely to overpromise. So I treat a surprising win from a small test as a lead. I run it again before anyone plans on that number.',
-    );
+    expect(t).toContain('Drag the slider right, toward a bigger test. Watch the wins shrink toward the real effect.');
+    const decision =
+      'A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
+    expect(t).toContain(decision);
+    // a constant: no number, and the same under an unbounded result
+    expect(decision).not.toMatch(/\d/);
+    expect(prose(curseView({ power: 0.17 }, infiniteRetro))).toContain(decision);
   });
 
   it('hands the island no data: the client part gets only its preview and the test seam', () => {

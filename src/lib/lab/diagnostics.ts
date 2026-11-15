@@ -9,6 +9,7 @@ import { formatNumber } from '@/lib/figure/format';
 import { retrodesign, srmTest, type RetrodesignInput, type RetrodesignResult } from '@/lib/stats';
 import {
   CURSE_ALPHA,
+  CURSE_LABELS,
   CURSE_SCHEMA,
   DIAGNOSTICS_REFS,
   SRM_SHARE,
@@ -67,12 +68,15 @@ export const SRM_ODDS = Math.round(1 / SRM_THRESHOLD);
 export const SRM_EMPTY = 'No visitors yet, so there is nothing to check.';
 export const SRM_SMALL_NOTE = 'With so few visitors, this check is only rough.';
 
-/** The verdict's sentence after the word, in plain words: the p-value as odds of a fair split. */
+/**
+ * The verdict's sentence after the word, in plain words: the p-value as how often a fair coin leaves
+ * a gap this big or bigger. The two sides are exact complements.
+ */
 export function srmVerdictText(flagged: boolean): string {
   const odds = `1 time in ${formatNumber(SRM_ODDS, 0)}`;
   return flagged
-    ? `a fair split leaves a gap at least this big less than ${odds}.`
-    : `a fair split leaves a gap this big or bigger at least ${odds}.`;
+    ? `a fair coin leaves a gap this big or bigger less than ${odds}.`
+    : `a fair coin leaves a gap this big or bigger at least ${odds}.`;
 }
 
 /** The result line as plain text: the announcement, and what the view prints. */
@@ -270,7 +274,7 @@ export const CURSE_UNBOUNDED = 'At this setting the calculation has no finite an
 export function curseResultText(v: CurseValues, deps?: CurseDeps): string {
   const r = curseModel(v, deps);
   if (r.kind === 'unbounded') return CURSE_UNBOUNDED;
-  return `At this size, results that clear the bar are on average ${formatExaggeration(r.exaggeration)} times the real effect, and ${formatWrongSign(r.typeS)} of them point the wrong way.`;
+  return `At this setting, results that clear the bar average ${formatExaggeration(r.exaggeration)} times the real effect. Of those, ${formatWrongSign(r.typeS)} point the wrong way.`;
 }
 
 /** The reference powers the table always lists, from one end of the slider to the other. */
@@ -289,7 +293,7 @@ export function curseTable(v: CurseValues, deps: CurseDeps = STATS_RETRO): Table
     columns: [
       'How often the test clears the bar (power)',
       'Ratio of effect to noise',
-      'Results that clear the bar in the wrong direction',
+      CURSE_LABELS.wrongSign,
       'Overstatement among results that clear the bar',
       'Your setting',
     ],

@@ -225,7 +225,7 @@ test.describe('Peeking Figure', () => {
     await expect(looks(page)).toHaveValue('50');
     await expect(radio(page, 'Always-valid check')).toBeChecked();
     await expect(result(page)).toHaveText(
-      "With the always-valid check, 1.4% of 1,000 tests found a false winner. Here it is well under the planned 5%; how far under depends on the setting. The price: at the planned size, its margin of error is about 55% wider than a single check's.",
+      "With the always-valid check, 1.4% of 1,000 tests found a false winner. That is well under the 5% a single check allows. How far under depends on the setting. The price: at the last check, its margin of error is about 55% wider than one check's.",
     );
     expectOneTuple(await tuple(page));
     expect(errors).toEqual([]);
@@ -269,7 +269,7 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.looks=-3&${ID}.mode=ONCE`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('1');
-    await expect(result(page)).toHaveText('With a single check, 5.2% of 1,000 tests found a false winner, about the planned 5%.');
+    await expect(result(page)).toHaveText('With a single check, 5.2% of 1,000 tests found a false winner, about the 5% a single check allows.');
     expectOneTuple(await tuple(page));
     expect(errors).toEqual([]);
   });
@@ -278,7 +278,7 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.looks=1&${ID}.fix=obf`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(result(page)).toHaveText(
-      'With a single check, 5.2% of 1,000 tests found a false winner, close to or under the planned 5%. With one check there is nothing to correct.',
+      'With a single check, 5.2% of 1,000 tests found a false winner, close to or under the 5% a single check allows. With one check there is nothing to correct.',
     );
     await expect(result(page)).not.toContainText('higher');
     const xTicks = () => figure(page).locator('svg[data-chart-frame]:visible [data-tick="x"]').allTextContents();
@@ -288,7 +288,7 @@ test.describe('Peeking Figure', () => {
     await page.keyboard.press('End');
     await expect(looks(page)).toHaveValue('50');
     await expect(result(page)).toHaveText(
-      'With stricter early checks, 4.1% of 1,000 tests found a false winner, close to or under the planned 5%. The price: at the last check, the bar for a winner is about 11% higher than for one check at the end.',
+      'With stricter early checks, 4.1% of 1,000 tests found a false winner, close to or under the 5% a single check allows. The price: at the last check, the bar is about 11% higher than for one check.',
     );
     expect((await xTicks()).at(-1)).toBe('50');
     expectOneTuple(await tuple(page));

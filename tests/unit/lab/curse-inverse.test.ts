@@ -35,8 +35,9 @@ describe('ratioForPower, the inverse of retrodesign power', () => {
   });
 
   it('starts at a power under one half, so a win needs a reading well above the truth', () => {
-    // The takeaway says a win needs "a lucky reading well above the truth": true only while the bar
-    // (about 1.96 standard errors) is above the true effect, which holds while power is under 0.5.
+    // Card 4 says such a test wins "only on a lucky reading", and the trap that "only its luckiest
+    // readings clear the bar": true only while the bar (about 1.96 standard errors) is above the true
+    // effect, which holds while power is under 0.5.
     expect(CURSE_PRESETS.default.power).toBe(0.17);
     expect(CURSE_PRESETS.default.power).toBeLessThan(0.5);
     const model = curseModel(CURSE_PRESETS.default);

@@ -3,7 +3,7 @@
 // line, the caption, the announcement and the table are all drawn from it, so they always agree.
 // - Every numeral is marked simulated: the audit finds no stray number in any of the 200 states.
 // - The result line states, in plain words, the rate over the runs and how it stands against the
-//   planned 5%; the method row gives its 95% Monte Carlo range and the same word: with no fix and
+//   5% a single check allows; the method row gives its 95% Monte Carlo range and the same word: with no fix and
 //   looking once read from that range (above, about when the range holds 5%, or below);
 //   O'Brien-Fleming "close to or under", the confidence sequence "well under", true at every look count.
 // - O'Brien-Fleming's price is its last-look bar over one look's, as an approximate whole percent
@@ -171,7 +171,7 @@ describe('the Figure as the server draws it', () => {
     );
     expect(prose(result(html))).not.toMatch(/Monte Carlo/);
     // the sentence under the chart is one sentence; the rest of the method is in the row
-    expect(prose(underChart(html))).toBe(`Simulated tests of two identical versions, both converting at ${pct(preset.selected.p, 0)}.`);
+    expect(prose(underChart(html))).toBe(`Simulated tests of two identical pages, each with a ${pct(preset.selected.p, 0)} sign-up rate.`);
     // A/A, the nominal level and the check-once simulated rate are one click deeper
     const once = computePeek({ ...PEEK_PRESET, mode: 'once' }).selected;
     expect(once.falsePositiveRate).toBe(0.044);
@@ -183,10 +183,13 @@ describe('the Figure as the server draws it', () => {
 
   it('says the point above and below the Figure in plain words, and ends in my decision', () => {
     const t = prose(html);
-    expect(t).toContain('Both versions here are identical, so any winner is a false winner. The line shows how many of 1,000 simulated tests found one, day by day.');
-    expect(t).toContain(
-      'Checked once at the end, about 1 test in 20 finds a false winner. Checked daily for 20 days, more than 1 in 5 does. Each one can become a shipped change that does nothing. So before a test starts I decide how I will read it: once at the end, or with a method built for repeated checks. The price of checking often is that a winner needs stronger evidence.',
-    );
+    // above: the one control to move and what to watch
+    expect(t).toContain('Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of 1,000 tests find one.');
+    // below: the read plan, the same at every setting, so it quotes no number
+    const decision =
+      'I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.';
+    expect(t).toContain(decision);
+    expect(decision).not.toMatch(/\d/);
     expect(t).toContain('How the simulation works');
     expect(t).not.toMatch(/false alarm/);
   });
@@ -225,7 +228,7 @@ describe('every one of the 200 states', () => {
               : `Checked daily for ${L} days, `;
     expect(line.startsWith(`${opening}${pct(selected.falsePositiveRate, 1)} of 1,000 tests found a false winner`), line).toBe(true);
     expect(line.includes(' Checked once at the end, about 5% would.')).toBe(values.mode === 'daily' && values.fix === 'naive' && L > 1);
-    // the planned level is named in every line, and no statistics word is
+    // the level a single check allows is named in every line, and no statistics word is
     expect(line).toMatch(/5%/);
     expect(line).not.toMatch(/nominal|Monte Carlo|O'Brien|confidence sequence|A\/A/);
     // the Monte Carlo range of this tuple's rate is in the method row
@@ -236,7 +239,7 @@ describe('every one of the 200 states', () => {
     expect(peekAnnouncement(view)).toBe(line);
     const key = /<p data-nominal-key=""[^>]*>([\s\S]*?)<\/p>/.exec(html);
     expect(key, 'the dotted-line key').not.toBeNull();
-    expect(prose(key![1]!)).toBe('Dotted line: 5%, the rate one check at the end allows');
+    expect(prose(key![1]!)).toBe('Dotted line: 5%, the false winners one check at the end allows');
     expect(key![1]).toMatch(/<svg aria-hidden="true"[^>]*><line [^>]*stroke-dasharray="2 3"/);
     expect(key![1]).toContain('data-derived="simulated"');
     for (const layout of ['wide', 'narrow'] as const) {
@@ -266,7 +269,7 @@ describe('every one of the 200 states', () => {
     expect(cells.length).toBe(view.table.rows.flat().filter((v) => typeof v === 'number').length);
     // the caption reads its values from the tuple's metadata
     const words = prose(caption(html));
-    expect(words).toContain(`both converting at ${pct(selected.p, 0)}`);
+    expect(words).toContain(`each with a ${pct(selected.p, 0)} sign-up rate`);
     expect(words).toContain(`${formatValue(selected.runs, 'count')} runs from seed ${selected.seed}`);
     expect(words).toContain('Evan Miller, “How Not To Run an A/B Test”');
     if (values.mode === 'once') {
@@ -328,7 +331,7 @@ describe('the copy of each method', () => {
 
   it("O'Brien-Fleming: the last-look bar over one look's as an approximate whole percent, and no extra bar at one look", () => {
     const one = prose(result(at({ looks: 1, mode: 'daily', fix: 'obf' }).html));
-    expect(one).toBe(`With a single check, ${pct(at({ looks: 1, mode: 'daily', fix: 'obf' }).view.selected.falsePositiveRate, 1)} of 1,000 tests found a false winner, close to or under the planned 5%. With one check there is nothing to correct.`);
+    expect(one).toBe(`With a single check, ${pct(at({ looks: 1, mode: 'daily', fix: 'obf' }).view.selected.falsePositiveRate, 1)} of 1,000 tests found a false winner, close to or under the 5% a single check allows. With one check there is nothing to correct.`);
     expect(one).not.toMatch(/every day for 1 day/);
     expect(one).not.toMatch(/higher/);
     expect(one).not.toMatch(/(?<![\d.])0%/);
@@ -337,7 +340,7 @@ describe('the copy of each method', () => {
       expect(view.cost).toEqual({ kind: 'boundary', ratio: expect.any(Number) });
       expect(pct(view.cost!.ratio - 1, 0)).toBe(price);
       expect(prose(result(html))).toContain(
-        `close to or under the planned 5%. The price: at the last check, the bar for a winner is about ${price} higher than for one check at the end.`,
+        `close to or under the 5% a single check allows. The price: at the last check, the bar is about ${price} higher than for one check.`,
       );
     }
   });
@@ -346,10 +349,10 @@ describe('the copy of each method', () => {
     for (const looks of [1, 2, 20, 50]) {
       const line = prose(result(at({ looks, mode: 'daily', fix: 'cs' }).html));
       expect(prose(method(at({ looks, mode: 'daily', fix: 'cs' }).html))).toContain('well under the nominal 5%.');
-      expect(line).toContain('Here it is well under the planned 5%; how far under depends on the setting.');
+      expect(line).toContain('That is well under the 5% a single check allows. How far under depends on the setting.');
       // the validity at 5% is never put in doubt, only how far under it lands
       expect(line).not.toMatch(/not guaranteed|not a guarantee/);
-      expect(line).toContain("The price: at the planned size, its margin of error is about 55% wider than a single check's.");
+      expect(line).toContain("The price: at the last check, its margin of error is about 55% wider than one check's.");
       // never a claim that the price changes with the number of looks, nor a sample or power cost
       expect(line).not.toMatch(/more looks|fewer looks|grows|rises|shrinks|more visitors|power/i);
     }

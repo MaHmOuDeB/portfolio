@@ -14,18 +14,18 @@ import { markSlow } from './slow';
 const HOST = '/kitchen-sink/lab';
 const FAULTS = '/kitchen-sink/lab/diagnostics/faults';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
-const SRM_TITLE = 'The bigger the gap, the rarer it is by chance';
+const SRM_TITLE = 'The bigger the gap, the less often a fair coin makes it';
 const CURSE_TITLE = 'The smaller the test, the more its wins overstate the effect';
 const SEAM = { srm: 'The split chart failed after a change (test seam)', curse: 'The exaggeration chart failed after a change (test seam)' } as const;
 const TITLE = { srm: SRM_TITLE, curse: CURSE_TITLE } as const;
 type Id = keyof typeof TITLE;
 
 // The default preset is a real case: a simulated 5,170 to 4,830 split against an even one, flagged.
-const SRM_PRESET_RESULT = 'Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.';
-const SRM_EVEN_RESULT = 'Not flagged: a fair split leaves a gap this big or bigger at least 1 time in 1,000.';
+const SRM_PRESET_RESULT = 'Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.';
+const SRM_EVEN_RESULT = 'Not flagged: a fair coin leaves a gap this big or bigger at least 1 time in 1,000.';
 // The power preset is 17%: the test clears the bar 17 times in 100.
-const CURSE_PRESET_RESULT = 'At this size, results that clear the bar are on average 2.5 times the real effect, and 0.9% of them point the wrong way.';
-const CURSE_X_LABEL = 'How often the test clears the bar (power)';
+const CURSE_PRESET_RESULT = 'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% point the wrong way.';
+const CURSE_X_LABEL = 'How often the test clears the bar';
 
 const figure = (page: Page, id: Id) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id: Id) => page.locator('[data-island]', { has: figure(page, id) });
@@ -295,7 +295,7 @@ test.describe('Exaggeration Figure', () => {
       expect(dot!.overlapsTick, String(width)).toBe(false);
       expect(await readout(page)).toEqual({ wrongSign: '4.5%', exaggeration: '3.7' });
       expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['10%', '0.65', '4.5%', '3.7', 'Yes']]);
-      await expect(result(page, 'curse')).toHaveText('At this size, results that clear the bar are on average 3.7 times the real effect, and 4.5% of them point the wrong way.');
+      await expect(result(page, 'curse')).toHaveText('At this setting, results that clear the bar average 3.7 times the real effect. Of those, 4.5% point the wrong way.');
     }
   });
 
@@ -329,7 +329,7 @@ test.describe('Exaggeration Figure', () => {
     // two readout items, the overstatement and the wrong-sign share; power is the control, not a readout
     await expect(figure(page, 'curse').locator('[data-curse-readout] dt')).toHaveText([
       'Results that clear the bar overstate the effect by',
-      'Results that clear the bar in the wrong direction',
+      'Results that clear the bar but point the wrong way',
     ]);
     await expect(figure(page, 'curse').locator('[data-curse-power]')).toHaveCount(0);
     await expect(figure(page, 'curse')).not.toContainText(/Infinity|NaN|null/);
@@ -360,7 +360,7 @@ test.describe('Exaggeration Figure', () => {
     await expect(range(page, 'curse-power')).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(range(page, 'curse-power')).toHaveValue('18');
-    await expect(live(page, 'curse')).toHaveText('At this size, results that clear the bar are on average 2.4 times the real effect, and 0.8% of them point the wrong way.');
+    await expect(live(page, 'curse')).toHaveText('At this setting, results that clear the bar average 2.4 times the real effect. Of those, 0.8% point the wrong way.');
     await expect(live(page, 'curse')).toHaveAttribute('data-derived', 'simulated');
     const before = await readout(page);
     const row = (await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes');
@@ -377,7 +377,7 @@ test.describe('Exaggeration Figure', () => {
   test('the power box takes whole percents: typing 50 sets 50%, and the URL keeps the proportion', async ({ page }) => {
     await page.goto(HOST);
     await ready(page, 'curse');
-    const box = figure(page, 'curse').getByRole('spinbutton', { name: 'How often the test clears the bar (power), percent' });
+    const box = figure(page, 'curse').getByRole('spinbutton', { name: 'How often the test clears the bar, percent' });
     await expect(box).toHaveValue('17');
     await box.fill('50');
     await box.press('Enter');

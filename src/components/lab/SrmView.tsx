@@ -5,8 +5,8 @@
 //
 // - Paired bars per group: the visitors who arrived filled, half of all visitors outlined, on one
 //   count axis from zero. Two series, told apart by fill and outline as well as by the legend's words.
-// - The result line states the flag as a word and the p-value in plain words, as odds of a fair
-//   split; the chi-square statistic and the p-value itself are in the method row, where a flagged
+// - The result line states the flag as a word and the p-value in plain words, as how often a fair
+//   coin leaves a gap this big or bigger; the chi-square statistic and the p-value itself are in the method row, where a flagged
 //   p-value prints as below the threshold, never rounded up to it. With no visitors at all there is
 //   no test and no inference: the line says so.
 // - Every number is computed from the reader's values and marked 'simulated'.
@@ -50,19 +50,19 @@ const startCount = (n: number) => (
   </span>
 );
 
-/** The sentence above the Figure: the starting numbers, as the Figure draws them at its preset. */
+/** The sentence above the Figure: the starting numbers, as the Figure draws them at its preset, and the one control to move. */
 export function SrmLeadIn() {
   const { nA, nB } = SRM_PRESETS.default;
   return (
     <>
-      Each group should get half the visitors. Here group A got {startCount(nA)} and group B {startCount(nB)}. That looks
-      close. Is it? Move the counts and watch the verdict.
+      Here group A got {startCount(nA)} visitors and group B {startCount(nB)}. That looks close. Is it? Move group B closer
+      to group A and watch the verdict.
     </>
   );
 }
 
 export const SRM_TAKEAWAY =
-  'It is not close enough. A fair split would almost never leave a gap this big. So I read no result until I find what broke the assignment or the counting. Otherwise a winner may only reflect who ended up in each group.';
+  'It is not close enough. I make this check before I read any result. When it flags, I find what broke the split before anything else. Otherwise a winner may only reflect who ended up in each group.';
 
 const GROUPS = ['A', 'B'] as const;
 /** Each bar's width and the gap between a group's two bars, in groups (one group is one unit). */
@@ -184,7 +184,7 @@ function Legend() {
       </li>
       <li className="flex items-center gap-2">
         {swatch(false)}
-        Half of all visitors, the planned share (outlined)
+        Half of all visitors, the plan (outlined)
       </li>
     </ul>
   );
@@ -201,7 +201,7 @@ const num = (text: string, mark?: string) => (
 );
 
 /**
- * The result line: the flag as a word, then what it means as odds of a fair split; a rough-check
+ * The result line: the flag as a word, then how often a fair coin leaves a gap this big; a rough-check
  * warning with few visitors; nothing to check without visitors.
  */
 export function SrmResultLine({ values, result }: { values: SrmValues; result: SrmResult }) {
@@ -217,7 +217,7 @@ export function SrmResultLine({ values, result }: { values: SrmValues; result: S
         {result.flagged ? 'Flagged' : 'Not flagged'}
       </span>
       :{' '}
-      {result.flagged ? <>a fair split leaves a gap at least this big less than {odds}.</> : <>a fair split leaves a gap this big or bigger at least {odds}.</>}
+      a fair coin leaves a gap this big or bigger {result.flagged ? 'less than' : 'at least'} {odds}.
       {srmSmallExpected(values) ? (
         <>
           {' '}
@@ -274,6 +274,7 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
       method={
         <>
           <p data-method-terms="">
+            Each visitor is assigned at random, like a fair coin toss.{' '}
             <strong className="font-semibold">Split check (sample ratio mismatch)</strong>: a test of whether each group
             received the share of visitors the design gave it; if it fails, the assignment or the counting is at fault
             and no result should be read. The Lab fixes the planned share at half; the check works against any planned
