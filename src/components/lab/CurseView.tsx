@@ -61,7 +61,7 @@ const num = (text: string) => (
  * number. The result line above it carries the setting's numbers.
  */
 export const CURSE_TAKEAWAY =
-  'A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
+  'A forecast built on a win like this would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
 
 export const CURSE_X_LABEL = CURSE_LABELS.power;
 export const CURSE_Y_LABEL = 'Times the real effect';

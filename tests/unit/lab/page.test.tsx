@@ -326,7 +326,7 @@ describe('the Lab page', () => {
     const factor = text(/<span data-curse-exaggeration=""[^>]*>([^<]*)<\/span>/.exec(figure('curse'))![1]!);
     expect(factor).toBe('2.5');
     expect(by.curse!.wide).toBe(
-      'What I do about it A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.',
+      'What I do about it A forecast built on a win like this would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.',
     );
     expect(text(figure('curse'))).toContain(`At this setting, results that clear the bar average ${factor} times the real effect. Of those, 0.9% point the wrong way.`);
   });

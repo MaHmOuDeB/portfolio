@@ -736,7 +736,7 @@ describe('the exaggeration Figure as the server draws it', () => {
     const t = prose(SERVER);
     expect(t).toContain('Drag the slider right, toward a bigger test. Watch the wins shrink toward the real effect.');
     const decision =
-      'A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
+      'A forecast built on a win like this would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.';
     expect(t).toContain(decision);
     // a constant: no number, and the same under an unbounded result
     expect(decision).not.toMatch(/\d/);

@@ -19,7 +19,7 @@ import {
   type LabPlanValues,
   type PlannerNoun,
 } from './full-planner-values';
-import { PLANNER_ALPHA, PLANNER_POWER, planModel } from './planner';
+import { PLANNER_POWER, planModel } from './planner';
 
 export * from './full-planner-values';
 
@@ -107,9 +107,8 @@ export function durationTable(nPerArm: number, traffic: number, noun: PlannerNou
 // ---------------------------------------------------------------------------------------------
 // The Lab's merged planner: the same model, one Figure, the words a non-specialist reads.
 
-/** Power and the false-winner risk in plain words: "8 tests out of 10" and "1 in 20". */
+/** Power in plain words: "8 tests out of 10". */
 export const PLANNER_POWER_TESTS = { hits: Math.round(PLANNER_POWER * 10), of: 10 } as const;
-export const PLANNER_ALPHA_ODDS = Math.round(1 / PLANNER_ALPHA);
 
 /** Visitors per group, the target and the whole weeks the test needs at the traffic set. */
 export function labPlanModel(v: LabPlanValues): { nPerArm: number; target: number; weeks: number } {

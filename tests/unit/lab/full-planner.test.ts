@@ -25,7 +25,6 @@ import {
   FULL_PLAN_SCHEMA,
   LAB_PLAN_PRESETS,
   LAB_PLAN_SCHEMA,
-  PLANNER_ALPHA_ODDS,
   PLANNER_POWER_TESTS,
   durationModel,
   durationSentence,
@@ -47,7 +46,7 @@ import {
   type FullPlanValues,
   type LabPlanValues,
 } from '@/lib/lab/full-planner';
-import { PLANNER_ALPHA, PLANNER_POWER, normalizePlanner, planModel } from '@/lib/lab/planner';
+import { PLANNER_POWER, normalizePlanner, planModel } from '@/lib/lab/planner';
 import { PLANNER_COPY } from '../../../content/lab';
 import { SAMPLE_SIZE_FORMULA, durationWeeks, sampleSizePerArm } from '@/lib/stats';
 import { snapToStep } from '@/lib/figure/snap';
@@ -340,11 +339,9 @@ describe('the Lab’s one planner Figure: model, URL state and words', () => {
     expect(has('winback.baseline=0.3&planner-x.traffic=3&traffic=5')).toBe(false);
   });
 
-  it('puts power and the false-winner risk in plain words, from the planner’s own constants', () => {
+  it('puts power in plain words, from the planner’s own constant', () => {
     expect(PLANNER_POWER_TESTS).toEqual({ hits: Math.round(PLANNER_POWER * 10), of: 10 });
     expect(PLANNER_POWER_TESTS.hits / PLANNER_POWER_TESTS.of).toBe(PLANNER_POWER);
-    expect(PLANNER_ALPHA_ODDS).toBe(20);
-    expect(1 / PLANNER_ALPHA_ODDS).toBe(PLANNER_ALPHA);
   });
 
   it('the result line, the announcement and the table say what was computed, in the Lab’s words', () => {
