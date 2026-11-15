@@ -187,8 +187,8 @@ test.describe('/demo', () => {
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === PEEKING[1]);
     const figure = page.locator('figure[data-figure="peeking"]');
     await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready');
-    await expect(figure.getByRole('slider', { name: 'Looks' })).toHaveValue('20');
-    await expect(figure.getByRole('radio', { name: 'Peek daily' })).toBeChecked();
+    await expect(figure.getByRole('slider', { name: 'Daily checks' })).toHaveValue('20');
+    await expect(figure.getByRole('radio', { name: 'Check every day' })).toBeChecked();
     await expect(figure.getByRole('radio', { name: 'None' })).toBeChecked();
   });
 
@@ -200,7 +200,7 @@ test.describe('/demo', () => {
     const duration = page.locator('figure[data-figure="duration"]');
     await expect(page.locator('[data-island]', { has: planner })).toHaveAttribute('data-island', 'ready');
     await expect(planner.getByRole('slider', { name: 'Baseline conversion' })).toHaveValue('0.05');
-    await expect(planner.getByRole('slider', { name: 'Rise to detect' })).toHaveValue('1');
+    await expect(planner.getByRole('slider', { name: 'Smallest rise worth detecting' })).toHaveValue('1');
     await expect(planner.getByRole('radio', { name: 'Points' })).toBeChecked();
     await expect(duration.getByRole('slider', { name: 'Total visitors per day' })).toHaveValue('1000');
     await expect(page.locator('#sample-size-title')).toBeInViewport();

@@ -98,7 +98,7 @@ test.describe('the Lab routes', () => {
   test('outline: one h1 that says what the page is for, the four checks as cards in order, a section and h2 each, no skipped level', async ({ page }) => {
     const response = await page.goto(LAB);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('Lab | Mahmoud El Bergui');
+    await expect(page).toHaveTitle('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     await expect(page.locator('main')).toContainText('These are the four checks I make before I believe a result.');

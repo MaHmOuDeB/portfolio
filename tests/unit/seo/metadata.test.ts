@@ -520,7 +520,7 @@ describe('sharingTemplate', () => {
     expect(ogCard('audible').title).toBe(AUDIBLE_TITLE);
     expect(ogCard('audible').sub).toBe('From the plan to the recommendation.');
     expect(ogCard('audible').factIds).toEqual(['profile.audible.experiments']);
-    // Retention: the page's finding (content/retention.tsx RetentionFindings, "returned-order value grew about
+    // Retention: the page's finding (the "How the reversal rule works" row on the Retention page, "returned-order value grew about
     // <clean>, not <raw>"), both figures from the facts.
     expect(ogCard('retention').title).toBe(
       `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,

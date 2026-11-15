@@ -136,7 +136,7 @@ function expectOneTuple(t: Tuple) {
     expect(last[1]).toBe('One look at the end');
   } else {
     expect(t.chart).toMatchObject({ selectedLooks: L, selectedNPerLook: 100 });
-    expect(t.result.text).toContain(`by look ${L} `);
+    expect(t.result.text).toContain(`Checked every day for ${L} ${L === 1 ? 'day' : 'days'}`);
     expect(t.table).toHaveLength(L);
   }
 }
@@ -403,7 +403,7 @@ test.describe('Peeking Figure', () => {
     await expect(live(page)).toHaveText('');
     await page.keyboard.down('ArrowRight');
     await expect(looks(page)).toHaveValue('21');
-    await expect(result(page)).toContainText('by look 21 ');
+    await expect(result(page)).toContainText('Checked every day for 21 days, ');
     await expect(live(page)).toHaveText('');
     await page.keyboard.up('ArrowRight');
     const line = (await result(page).textContent())!.replace(/\s+/g, ' ').trim();

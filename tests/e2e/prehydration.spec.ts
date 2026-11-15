@@ -152,8 +152,8 @@ test.describe('an entry made before hydration, in place (kitchen sink controls)'
 test.describe('an entry made before hydration, in a preview the island replaces (/lab/peeking)', () => {
   const figure = (page: Page) => page.locator('figure[data-figure="peeking"]');
   const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
-  const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Looks' });
-  const exact = (page: Page) => figure(page).getByRole('spinbutton', { name: 'Looks, exact value' });
+  const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Daily checks' });
+  const exact = (page: Page) => figure(page).getByRole('spinbutton', { name: 'Daily checks, exact value' });
   const live = (page: Page) => figure(page).locator('[data-figure-announcement]');
   const segment = (page: Page, name: string) => figure(page).locator('label[data-segment]', { hasText: name });
   const query = (page: Page) => new URL(page.url()).searchParams;
@@ -184,7 +184,7 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     await expect(exact(page)).toHaveValue('50');
     await expect(looks(page)).toHaveValue('50');
     await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
-    await expect(live(page)).toContainText('by look 50');
+    await expect(live(page)).toContainText('Checked every day for 50 days');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 
@@ -199,7 +199,7 @@ test.describe('an entry made before hydration, in a preview the island replaces 
     await page.keyboard.press(tabKey(browserName));
     await expect(exact(page)).toHaveValue('50');
     await expect(looks(page)).toHaveAttribute('aria-valuetext', '50 looks, 5,000 visitors per group by the last');
-    await expect(live(page)).toContainText('by look 50');
+    await expect(live(page)).toContainText('Checked every day for 50 days');
     await expect.poll(() => query(page).get('peeking.looks')).toBe('50');
   });
 
