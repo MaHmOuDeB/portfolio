@@ -47,7 +47,12 @@ const text = (markup: string) => decode(markup.replace(/<[^>]+>/g, ' ')).replace
 /** Text with the spaces the tag stripping adds around punctuation removed again. */
 const prose = (markup: string) => text(markup).replace(/ ([.,:;)])/g, '$1').replace(/\( /g, '(');
 const result = (html: string) => html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
-const caption = (html: string) => html.match(/<figcaption[^>]*><p[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
+/** The sentence under the chart: what is simulated. */
+const underChart = (html: string) => html.match(/<figcaption[^>]*><p[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
+/** The method row's text for the setting drawn: the rate's range, the schedule, the criterion, the marks, the runs. */
+const method = (html: string) => html.match(/<p data-method-text="" data-peek-method="">([\s\S]*?)<\/p>/)?.[1] ?? '';
+/** What was one caption: the sentence under the chart, then the method row's text. */
+const caption = (html: string) => `${underChart(html)} ${method(html)}`;
 const attr = (tag: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1];
 const audit = (html: string) =>
   auditHtml(`<!doctype html><html><head><title>t</title></head><body>${html}</body></html>`, {
@@ -148,9 +153,17 @@ describe('the Figure as the server draws it', () => {
   it('draws the interview preset: daily, 20 looks, no fix, 22.1% of the runs', () => {
     const preset = computePeek(PEEK_PRESET);
     expect(preset.selected.falsePositiveRate).toBe(0.221);
+    // plain first: how it was checked, what happened, and what one reading at the end would give
     expect(prose(result(html))).toBe(
-      `Under these simulation assumptions, 22.1% of 1,000 runs found a false winner by look 20 (95% Monte Carlo range ${pct(preset.mc.lower, 1)} to ${pct(preset.mc.upper, 1)}): above the nominal 5%.`,
+      'Checked every day for 20 days, 22.1% of 1,000 tests of two identical versions declared a winner. Read once at the end, about 5% would.',
     );
+    // the Monte Carlo range of that rate is one click deeper, in the method row
+    expect(prose(method(html))).toContain(
+      `Under these simulation assumptions the rate is 22.1% (95% Monte Carlo range ${pct(preset.mc.lower, 1)} to ${pct(preset.mc.upper, 1)}): above the nominal 5%.`,
+    );
+    expect(prose(result(html))).not.toMatch(/Monte Carlo/);
+    // the sentence under the chart is one sentence; the rest of the method is in the row
+    expect(prose(underChart(html))).toBe(`Simulated A/A tests: both groups convert at ${pct(preset.selected.p, 0)}, so every winner is a false one.`);
     expect(html).toMatch(/<input type="radio"[^>]*name="peeking-mode"[^>]*checked=""[^>]*value="daily"/);
     expect(html).toMatch(/<input type="radio"[^>]*name="peeking-fix"[^>]*checked=""[^>]*value="naive"/);
   });
@@ -175,10 +188,18 @@ describe('every one of the 200 states', () => {
     // no stray number, and every printed number is simulated
     expect(audit(html)).toEqual([]);
     for (const tag of html.match(/<data [^>]*>/g) ?? []) expect(attr(tag, 'data-derived')).toBe('simulated');
-    // the result line holds the selected rate, the runs and the Monte Carlo range of this tuple
+    // the result line holds how the tests were checked, the selected rate and the runs of this tuple
     const line = prose(result(html));
-    expect(line.startsWith(`Under these simulation assumptions, ${pct(selected.falsePositiveRate, 1)} of 1,000 runs found a false winner `)).toBe(true);
-    expect(line).toContain(`(95% Monte Carlo range ${pct(view.mc.lower, 1)} to ${pct(view.mc.upper, 1)}): `);
+    const opening =
+      values.mode === 'once'
+        ? `Checked once at the end, after ${formatValue(selected.nPerLook, 'count')} visitors per group, `
+        : `Checked every day for ${L} ${L === 1 ? 'day' : 'days'}${values.fix === 'obf' ? ' with stricter early looks' : values.fix === 'cs' ? ' with an always-valid interval' : ''}, `;
+    expect(line.startsWith(`${opening}${pct(selected.falsePositiveRate, 1)} of 1,000 tests of two identical versions declared a winner.`)).toBe(true);
+    expect(line.includes(' Read once at the end, about 5% would.')).toBe(values.mode === 'daily');
+    // the Monte Carlo range of this tuple's rate is in the method row
+    expect(prose(method(html))).toContain(
+      `the rate is ${pct(selected.falsePositiveRate, 1)} (95% Monte Carlo range ${pct(view.mc.lower, 1)} to ${pct(view.mc.upper, 1)}): `,
+    );
     // the announcement is the result line in words
     expect(peekAnnouncement(view)).toBe(line);
     const key = /<p data-nominal-key=""[^>]*>([\s\S]*?)<\/p>/.exec(html);
@@ -247,7 +268,7 @@ describe('the copy of each method', () => {
 
   it('says how the rate stands against the nominal 5%: from the range with no fix or once, per method with a fix', () => {
     for (const { view, html } of DRAWN) {
-      const line = prose(result(html));
+      const line = prose(method(html));
       const { mode, fix } = view.values;
       const expected = mode === 'daily' && fix === 'obf' ? 'close to or under' : mode === 'daily' && fix === 'cs' ? 'well under' : relation(view);
       expect(line, label(view.values)).toContain(`): ${expected} the nominal 5%.`);
@@ -265,8 +286,8 @@ describe('the copy of each method', () => {
     // O'Brien-Fleming below 5% at 4, 16 and 17 looks and highest at 28 (6.1%), all "close to or under"
     for (const looks of [4, 16, 17]) expect(relation(at({ looks, mode: 'daily', fix: 'obf' }).view)).toBe('below');
     expect(at({ looks: 28, mode: 'daily', fix: 'obf' }).view.selected.falsePositiveRate).toBe(0.061);
-    for (const looks of [4, 16, 17, 28]) expect(prose(result(at({ looks, mode: 'daily', fix: 'obf' }).html))).toContain('): close to or under the nominal 5%.');
-    for (const looks of [1, 34]) expect(prose(result(at({ looks, mode: 'daily', fix: 'cs' }).html))).toContain('): well under the nominal 5%.');
+    for (const looks of [4, 16, 17, 28]) expect(prose(method(at({ looks, mode: 'daily', fix: 'obf' }).html))).toContain('): close to or under the nominal 5%.');
+    for (const looks of [1, 34]) expect(prose(method(at({ looks, mode: 'daily', fix: 'cs' }).html))).toContain('): well under the nominal 5%.');
   });
 
   it("O'Brien-Fleming: the last-look bar over one look's as an approximate whole percent, and no extra bar at one look", () => {
@@ -287,7 +308,7 @@ describe('the copy of each method', () => {
   it('the confidence sequence: conservative here, not a guarantee, and its width at the same planning sample', () => {
     for (const looks of [1, 2, 20, 50]) {
       const line = prose(result(at({ looks, mode: 'daily', fix: 'cs' }).html));
-      expect(line).toContain('well under the nominal 5%.');
+      expect(prose(method(at({ looks, mode: 'daily', fix: 'cs' }).html))).toContain('well under the nominal 5%.');
       expect(line).toContain('It is conservative here; that is not a guarantee for every population.');
       expect(line).toContain("At the planned sample, the confidence sequence's interval is about 55% wider than a single fixed test's.");
       // never a claim that the price changes with the number of looks, nor a sample or power cost
@@ -394,7 +415,17 @@ describe('the controls', () => {
     const group = daily.match(/<div role="group" aria-labelledby="peeking-title"[^>]*>[\s\S]*$/)?.[0] ?? '';
     expect(group).not.toBe('');
     const words = text(group);
-    for (const w of ['Looks', 'Schedule', 'Peek daily', 'Look once', 'Fix', 'None', "O'Brien-Fleming", 'Confidence sequence', 'Reset']) {
+    for (const w of [
+      'Daily checks',
+      'Schedule',
+      'Check every day',
+      'Check once at the end',
+      'Correction',
+      'None',
+      "Stricter early looks (O'Brien-Fleming)",
+      'Always-valid interval (confidence sequence)',
+      'Reset',
+    ]) {
       expect(words).toContain(w);
     }
     expect(daily.match(/type="range"/g)).toHaveLength(1);

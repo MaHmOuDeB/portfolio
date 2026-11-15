@@ -315,7 +315,7 @@ function render(context: 'hypothetical' | 'retention') {
       id,
       context,
       values,
-      controls: createElement(InertSizingControls, { id, values }),
+      controls: createElement(InertSizingControls, { id, context, values }),
     }),
   );
   const duration = renderToStaticMarkup(
@@ -358,8 +358,13 @@ describe('the server-rendered preset views', () => {
   it('names the controls the brief names, and the inner groups by each Figure title', () => {
     const { sizing, duration } = render('hypothetical');
     expect(sizing).toContain('>Baseline conversion<');
-    expect(sizing).toContain('>Rise to detect<');
+    // the Lab says the rise in plain words, and what the baseline is under its value
+    expect(sizing).toContain('>Smallest rise worth detecting<');
+    expect(sizing).toContain('>29%, the share of visitors who convert today<');
     expect(sizing).toContain('>Rise to detect, in<');
+    // the Retention page keeps the terms its own text uses
+    expect(render('retention').sizing).toContain('>Rise to detect<');
+    expect(render('retention').sizing).not.toContain('who convert today');
     expect(sizing).not.toContain('MDE');
     expect(sizing).toContain('>Reset<');
     expect(duration).toContain('>Total visitors per day<');
