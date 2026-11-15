@@ -273,8 +273,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  /* A "How I test" tab on hover, focus and press: the same Highlight border. */
-  [data-how-tab]:has(:focus-visible),
+  /* A "How I test" tab on hover, focus and press: the same Highlight border. Focus is :focus-within,
+     not :has(:focus-visible): WebKit drops :focus-visible when an arrow key moves to the next radio. */
+  [data-how-tab]:focus-within,
   [data-how-tab]:active {
     border-color: Highlight;
   }
@@ -2268,7 +2269,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* A "How I test" tab (a label around its radio) is clickable, so it takes the same states: on hover
-     where hover exists, on keyboard focus of its radio and on press, the border turns ink, and on
+     where hover exists, on focus of its radio (:focus-within, since WebKit drops :focus-visible when an
+     arrow key moves to the next radio) and on press, the border turns ink, and on
      hover, where motion is allowed, the tab rises 4 px (focus never moves it). The selected tab keeps its own look, a surface fill and an
      ink bar at its left (HowITest), so a hovered tab never reads as the selected one. The border and
      the transition live here, not in utilities, because a utility would beat these rules. */
@@ -2287,7 +2289,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  [data-how-tab]:has(:focus-visible),
+  [data-how-tab]:focus-within,
   [data-how-tab]:active {
     border-color: var(--color-ink);
   }

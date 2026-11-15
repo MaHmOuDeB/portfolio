@@ -36,8 +36,11 @@ export function HowITest() {
             <label
               key={tab.id}
               data-how-tab=""
-              className="group relative block cursor-pointer rounded-xl border px-5.5 py-4.5 text-muted has-[:checked]:bg-surface has-[:checked]:text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid"
+              className="group relative block cursor-pointer rounded-xl border px-5.5 py-4.5 text-muted has-[:checked]:bg-surface has-[:checked]:text-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent focus-within:outline-solid"
             >
+              {/* The ring and the ink border follow :focus-within, not :focus-visible: WebKit drops
+                  :focus-visible when an arrow key moves to the next radio, which would leave Safari keyboard
+                  users without a ring. A mouse click that focuses the radio shows the ring too. */}
               {/* The radio is a 1 px box at the label's top, so focus would scroll only that box into view and
                   leave the label's ring below the fold; the bottom scroll margin covers the label's height. */}
               <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only scroll-mb-36" />
