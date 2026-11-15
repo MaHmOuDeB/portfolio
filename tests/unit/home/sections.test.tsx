@@ -107,7 +107,7 @@ describe('HowITest: the tabs widget', () => {
     expect(section.tagName).toBe('section');
     expect(has(section, 'data-rule')).toBe(true);
     const h = head(section);
-    expect(h).toMatchObject({ chip: 'How I test', title: 'Know what a test really says.', quiet: 'really says.', sub: 'Three habits behind every result I report.' });
+    expect(h).toMatchObject({ chip: 'How I test', title: 'Know what a test really says.', quiet: 'really says.', sub: 'Three steps before I recommend a change.' });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
 
@@ -152,14 +152,14 @@ describe('HowITest: the tabs widget', () => {
     }));
     expect(tabs).toEqual([
       { title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-      { title: 'Read', line: 'I read the result against the primary metric and its guardrails.' },
+      { title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
       { title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
     ]);
   });
 
   it('has one decorative preview panel per tab, shown by its checked radio in CSS, the first by default', () => {
     const panels = all(section, (el) => has(el, 'data-how-panel'));
-    expect(panels.map((p) => attr(p, 'data-how-panel'))).toEqual(['plan', 'read', 'recommend']);
+    expect(panels.map((p) => attr(p, 'data-how-panel'))).toEqual(['plan', 'analyse', 'recommend']);
     for (const p of panels) {
       expect(attr(p, 'aria-hidden')).toBe('true');
       expect(classes(p)).toContain('hidden');
@@ -173,6 +173,10 @@ describe('HowITest: the tabs widget', () => {
       expect(classes(wrap)).toContain(`[&:has(#${id}:checked)_[data-how-panel=${panel}]]:block`);
     }
     expectVignettes(section, 3);
+    // The panel is as tall as its sketch, never stretched to the tabs' height (no half-empty panel).
+    const frame = one(section, (el) => has(el, 'data-depth-drift'));
+    expect(classes(frame)).toContain('self-start');
+    expect(classes(frame).filter((c) => c.startsWith('min-h-'))).toEqual([]);
   });
 
   it('passes the truth audit', () => {

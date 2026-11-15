@@ -296,7 +296,7 @@ describe('the hero, proof row, the sections and the site band', () => {
   it('keep the old "I test." and "I automate." lines word for word, in the tabs and the row under the cards', () => {
     expect(HOME_HOW.tabs.map((t) => [t.title, t.line])).toEqual([
       ['Plan', 'I plan the sample size and the run time before a test starts.'],
-      ['Read', 'I read the result against the primary metric and its guardrails.'],
+      ['Analyse', 'I read the result against the primary metric and its guardrails.'],
       ['Recommend', 'I write the recommendation: ship it, or do not.'],
     ]);
     expect(HOME_AUTOMATE_LINES).toEqual([

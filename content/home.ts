@@ -277,11 +277,11 @@ export const HOME_HOW = {
     chip: 'How I test',
     title: 'Know what a test',
     quiet: 'really says.',
-    sub: 'Three habits behind every result I report.',
+    sub: 'Three steps before I recommend a change.',
   },
   tabs: [
     { id: 'plan', title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-    { id: 'read', title: 'Read', line: 'I read the result against the primary metric and its guardrails.' },
+    { id: 'analyse', title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
     { id: 'recommend', title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
   ],
 } as const satisfies { head: SectionCopy; tabs: readonly { id: string; title: string; line: string }[] };
