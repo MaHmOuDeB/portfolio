@@ -11,6 +11,8 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { Icon } from '@/components/kit/Icon';
 
 const noSubscription = () => () => {};
+/** How long a press released on a Menu link waits for its click before it ends. */
+const LINK_CLICK_GRACE_MS = 1000;
 
 export function MenuDisclosure({ children }: { children: ReactNode }) {
   const details = useRef<HTMLDetailsElement>(null);
@@ -28,20 +30,43 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    let settle: number | undefined;
+    const closeUnlessFocusedWithin = () => {
+      const el = details.current;
+      if (el && !el.contains(el.ownerDocument.activeElement)) el.open = false;
+    };
     const release = (event: PointerEvent) => {
       if (linkPress.current !== event.pointerId) return;
-      linkPress.current = null;
       const el = details.current;
       const outside = !(event.target instanceof Node) || !el?.contains(event.target);
-      if (el && (outside || event.type === 'pointercancel') && !el.contains(el.ownerDocument.activeElement)) {
-        el.open = false;
+      if (outside || event.type === 'pointercancel') {
+        linkPress.current = null;
+        closeUnlessFocusedWithin();
+        return;
       }
+      // Released on the link. On a touch screen WebKit (iOS Safari) fires the compatibility mousedown,
+      // which blurs the summary, and then the click only after pointerup, so the press must outlast
+      // pointerup or the blur closes the Menu and the click lands on the page underneath. The click
+      // ends the press; if none comes, the press ends a moment later as a release elsewhere would.
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => {
+        if (linkPress.current !== event.pointerId) return;
+        linkPress.current = null;
+        closeUnlessFocusedWithin();
+      }, LINK_CLICK_GRACE_MS);
+    };
+    const clicked = () => {
+      window.clearTimeout(settle);
+      linkPress.current = null;
     };
     window.addEventListener('pointerup', release, true);
     window.addEventListener('pointercancel', release, true);
+    window.addEventListener('click', clicked, true);
     return () => {
+      window.clearTimeout(settle);
       window.removeEventListener('pointerup', release, true);
       window.removeEventListener('pointercancel', release, true);
+      window.removeEventListener('click', clicked, true);
     };
   }, []);
 
