@@ -3,27 +3,28 @@ import type { Locator, Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
 // The peeking Figure on the dev host /kitchen-sink/lab/peeking, mounted as the Lab's deep link
-// mounts it: "More looks, more false winners", a lookup of seeded A/A simulations (1,000 runs, seed
-// 42, both groups at 35%, 100 visitors per group per daily look). Controls: Looks 1 to 50 (preset
-// 20), Schedule (Check every day or Check once at the end), Correction (None, Stricter early looks, Always valid) and
-// Reset. The server draws the preset (daily, 20 looks, no fix: 22.1%); the island loads on intent,
-// or at once when the URL holds `peeking.` keys. /kitchen-sink/lab/peeking/faults sets the test seam,
+// mounts it: "More checks, more false winners", a lookup of seeded A/A simulations (1,000 runs, seed
+// 42, both groups at 35%, 100 visitors per group per daily check). Controls: Days checked 1 to 50
+// (preset 20), Fix (No fix, Stricter early checks, Always-valid check) and Reset. The Figure always
+// checks daily: there is no schedule control, and an old `peeking.mode` link checks daily too. The
+// server draws the preset (20 days, no fix: 22.1%); the island loads on intent, or at once when the
+// URL holds `peeking.` keys. /kitchen-sink/lab/peeking/faults sets the test seam,
 // so the chart throws on the first render after a committed change.
 
 const HOST = '/kitchen-sink/lab/peeking';
 const FAULTS = '/kitchen-sink/lab/peeking/faults';
 const ID = 'peeking';
-const TITLE = 'More looks, more false winners';
+const TITLE = 'More checks, more false winners';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
 const SEAM_FAILURE = 'The peeking chart failed after a change (test seam)';
-const PRESET_LINE = /^Checked every day for 20 days, 22\.1% of 1,000 tests of two identical versions declared a winner\. Read once at the end, about 5% would\.$/;
+const PRESET_LINE = /^Checked daily for 20 days, 22\.1% of 1,000 tests found a false winner\. Checked once at the end, about 5% would\.$/;
 const TABLE_KEY = 'daily/naive/20';
 // Engine markers that survive minification: a validation string literal and sfc32's seed constant.
 const SEED_CONSTANTS = ['nPerLook must be', '2654435769', '0x9e3779b9'];
 
 const figure = (page: Page) => page.locator(`figure[data-figure="${ID}"]`);
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
-const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Daily checks' });
+const looks = (page: Page) => figure(page).getByRole('slider', { name: 'Days checked' });
 const radio = (page: Page, name: string) => figure(page).getByRole('radio', { name, exact: true });
 const label = (page: Page, name: string) => figure(page).locator('label[data-segment]', { hasText: name });
 const result = (page: Page) => figure(page).locator('[data-figure-result]');
@@ -109,7 +110,8 @@ async function tuple(page: Page): Promise<Tuple> {
       result: { looks: n(line, 'data-looks'), mode: line.dataset.mode!, fix: line.dataset.fix!, rate: n(line, 'data-rate'), text: root.querySelector('[data-figure-result]')!.textContent!.replace(/\s+/g, ' ').trim() },
       table,
       slider: Number(root.querySelector<HTMLInputElement>('input[type="range"]')!.value),
-      mode: checked('peeking-mode'),
+      // the Figure always checks daily: there is no schedule control
+      mode: 'daily',
       fix: checked('peeking-fix'),
     };
   });
@@ -124,21 +126,16 @@ function expectOneTuple(t: Tuple) {
   expect(t.chart.ghostLooks).toBe(L);
   expect(t.chart.ghostNPerLook).toBe(100);
   const rate = `${(Math.round(t.dot.value * 1000) / 10).toFixed(1)}%`;
-  expect(t.result.text.includes(`${rate} of 1,000 tests of two identical versions declared a winner.`)).toBe(true);
+  expect(t.result.text.includes(`${rate} of 1,000 tests found a false winner`)).toBe(true);
   const last = t.table.at(-1)!;
   expect(Number(last[0])).toBe(L);
   // the table prints one decimal at most; the chart's value is the same share
   expect(Number(last.at(-1))).toBeCloseTo(t.dot.value * 100, 6);
-  if (t.mode === 'once') {
-    expect(t.chart).toMatchObject({ selectedLooks: 1, selectedNPerLook: 100 * L });
-    expect(t.result.text).toContain(`Checked once at the end, after ${(100 * L).toLocaleString('en-GB')} visitors per group`);
-    expect(t.table).toHaveLength(L + 1);
-    expect(last[1]).toBe('One look at the end');
-  } else {
-    expect(t.chart).toMatchObject({ selectedLooks: L, selectedNPerLook: 100 });
-    expect(t.result.text).toContain(`Checked every day for ${L} ${L === 1 ? 'day' : 'days'}`);
-    expect(t.table).toHaveLength(L);
-  }
+  expect(t.chart).toMatchObject({ mode: 'daily', selectedLooks: L, selectedNPerLook: 100 });
+  expect(t.table).toHaveLength(L);
+  const lead =
+    L === 1 ? 'With a single check, ' : t.fix === 'obf' ? 'With stricter early checks, ' : t.fix === 'cs' ? 'With the always-valid check, ' : `Checked daily for ${L} days, `;
+  expect(t.result.text.startsWith(`${lead}${rate} of 1,000 tests`), t.result.text).toBe(true);
 }
 
 /** Every numeral the Figure shows in text sits under a simulated marker. */
@@ -205,7 +202,7 @@ test.describe('Peeking Figure', () => {
     await expect(island(page)).toHaveAttribute('data-island', 'idle');
     phase = 'intent';
     await ready(page);
-    await expect(radio(page, 'Check every day')).toBeChecked();
+    await expect(radio(page, 'No fix')).toBeChecked();
     const bodies = await Promise.all(scripts.map(async (s) => ({ phase: s.phase, body: await s.body })));
     const early = bodies.filter((b) => b.phase !== 'intent');
     const late = bodies.filter((b) => b.phase === 'intent');
@@ -226,10 +223,10 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.looks=50&${ID}.fix=cs`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('50');
-    await expect(radio(page, 'Always valid (confidence sequence)')).toBeChecked();
-    await expect(result(page)).toContainText('Checked every day for 50 days');
-    await expect(result(page)).toContainText('Read once at the end, about 5% would. It is conservative here; that is not a guarantee for every population.');
-    await expect(result(page)).toContainText("At the planned sample, the confidence sequence's interval is about 55% wider than a single fixed test's.");
+    await expect(radio(page, 'Always-valid check')).toBeChecked();
+    await expect(result(page)).toHaveText(
+      "With the always-valid check, 1.4% of 1,000 tests found a false winner. That is well under the 5% a single check allows. How far under depends on the setting. The price: at the last check, its margin of error is about 55% wider than one check's.",
+    );
     expectOneTuple(await tuple(page));
     expect(errors).toEqual([]);
   });
@@ -239,8 +236,7 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.preset=interview&planner.baseline=0.4#peeking`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('20');
-    await expect(radio(page, 'Check every day')).toBeChecked();
-    await expect(radio(page, 'None')).toBeChecked();
+    await expect(radio(page, 'No fix')).toBeChecked();
     await expect(result(page)).toHaveText(PRESET_LINE);
     await looks(page).focus();
     await page.keyboard.press('ArrowRight');
@@ -268,21 +264,22 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.looks=999&${ID}.mode=__proto__&${ID}.fix=toString&${ID}.preset=constructor`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('50');
-    await expect(radio(page, 'Check every day')).toBeChecked();
-    await expect(radio(page, 'None')).toBeChecked();
+    await expect(radio(page, 'No fix')).toBeChecked();
     expectOneTuple(await tuple(page));
     await page.goto(`${HOST}?${ID}.looks=-3&${ID}.mode=ONCE`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('1');
-    await expect(radio(page, 'Check every day')).toBeChecked();
+    await expect(result(page)).toHaveText('With a single check, 5.2% of 1,000 tests found a false winner, about the 5% a single check allows.');
+    expectOneTuple(await tuple(page));
     expect(errors).toEqual([]);
   });
 
-  test('the boundaries: one look is the fixed design on a nondegenerate axis, fifty is the last', async ({ page }) => {
+  test('the boundaries: one day is a single check on a nondegenerate axis, fifty is the last', async ({ page }) => {
     await page.goto(`${HOST}?${ID}.looks=1&${ID}.fix=obf`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await expect(result(page)).toContainText('Checked every day for 1 day with stricter early looks,');
-    await expect(result(page)).toContainText('With one look there is no extra bar: this is the fixed design.');
+    await expect(result(page)).toHaveText(
+      'With a single check, 5.2% of 1,000 tests found a false winner, close to or under the 5% a single check allows. With one check there is nothing to correct.',
+    );
     await expect(result(page)).not.toContainText('higher');
     const xTicks = () => figure(page).locator('svg[data-chart-frame]:visible [data-tick="x"]').allTextContents();
     expect(await xTicks()).toEqual(['1']);
@@ -290,8 +287,9 @@ test.describe('Peeking Figure', () => {
     await looks(page).focus();
     await page.keyboard.press('End');
     await expect(looks(page)).toHaveValue('50');
-    await expect(result(page)).toContainText('Checked every day for 50 days');
-    await expect(result(page)).toContainText('At the last look the bar for a winner is about 11% higher than for one look at the end; early looks need stronger evidence.');
+    await expect(result(page)).toHaveText(
+      'With stricter early checks, 4.1% of 1,000 tests found a false winner, close to or under the 5% a single check allows. The price: at the last check, the bar is about 11% higher than for one check.',
+    );
     expect((await xTicks()).at(-1)).toBe('50');
     expectOneTuple(await tuple(page));
     await page.keyboard.press('ArrowRight');
@@ -301,51 +299,48 @@ test.describe('Peeking Figure', () => {
     expectOneTuple(await tuple(page));
   });
 
-  test('looking once keeps the looks, disables the fix with its reason, keeps the total sample and the fix for later', async ({ page }) => {
-    await page.goto(`${HOST}?${ID}.fix=obf`);
+  test('no schedule control: an old check-once link checks daily, and the check-once rate is in the method row', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto(`${HOST}?${ID}.mode=once&${ID}.looks=50`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await label(page, 'Check once at the end').click();
-    await expect(radio(page, 'Check once at the end')).toBeChecked();
-    // the native fieldset is disabled, and with it every one of its radios
-    const fix = figure(page).getByRole('group', { name: 'Correction' });
-    await expect(fix).toHaveAttribute('disabled', '');
-    for (const name of ['None', "Stricter early looks (O'Brien-Fleming)", 'Always valid (confidence sequence)']) await expect(radio(page, name)).toBeDisabled();
-    await expect(figure(page).getByText('One check at the end needs no correction.')).toBeVisible();
-    // the reason describes the disabled group, so a screen reader that meets the group reads it
-    await expect(fix).toHaveAccessibleDescription('One check at the end needs no correction.');
-    await expect(looks(page)).toBeEnabled();
-    await expect(radio(page, "Stricter early looks (O'Brien-Fleming)")).toBeChecked();
-    await expect(result(page)).toContainText('Checked once at the end, after 2,000 visitors per group');
-    await expect(result(page)).not.toContainText('higher');
-    await expect.poll(() => query(page).get(`${ID}.fix`)).toBe('obf');
-    await expect.poll(() => query(page).get(`${ID}.mode`)).toBe('once');
+    // one slider and one radio group, the fix, then Reset: no Schedule group and no check-once radio
+    const controls = figure(page).locator('[data-peek-controls]');
+    await expect(controls.getByRole('slider')).toHaveCount(1);
+    await expect(controls.locator('fieldset')).toHaveCount(1);
+    await expect(figure(page).locator('fieldset legend')).toHaveText(['Fix']);
+    expect(await figure(page).getByRole('radio').evaluateAll((rs) => rs.map((r) => (r as HTMLInputElement).labels?.[0]?.textContent?.trim()))).toEqual([
+      'No fix',
+      'Stricter early checks',
+      'Always-valid check',
+    ]);
+    await expect(figure(page).getByRole('group', { name: 'Schedule' })).toHaveCount(0);
+    await expect(figure(page).getByRole('radio', { name: 'Check once at the end' })).toHaveCount(0);
+    await expect(figure(page).getByRole('radio', { name: 'Check every day' })).toHaveCount(0);
+    await expect(controls.getByRole('button')).toHaveText(['Reset']);
+    await expect(result(page)).toHaveText('Checked daily for 50 days, 31.8% of 1,000 tests found a false winner. Checked once at the end, about 5% would.');
+    await expect(caption(page)).toContainText('Each day checked adds 100 visitors per group.');
+    await expect(caption(page)).toContainText('Checked once at the end, after the same 5,000 visitors per group, the simulated rate is 5.0%.');
     expectOneTuple(await tuple(page));
-    await label(page, 'Check every day').click();
-    await expect(fix).not.toHaveAttribute('disabled');
-    await expect(radio(page, 'None')).toBeEnabled();
-    await expect(radio(page, "Stricter early looks (O'Brien-Fleming)")).toBeChecked();
-    await expect(result(page)).toContainText('Read once at the end, about 5% would. At the last look the bar for a winner is about');
-    await expect(figure(page).getByText('One check at the end needs no correction.')).toBeHidden();
-    // the hidden reason no longer describes the enabled group
-    await expect(fix).toHaveAccessibleDescription('');
+    expect(errors).toEqual([]);
   });
 
-  test('once at 20 and at 50 looks: chart, result, table and caption agree, with 2,000 and 5,000 per group', async ({ page }) => {
-    for (const [L, n] of [[20, '2,000'], [50, '5,000']] as const) {
-      await page.goto(`${HOST}?${ID}.mode=once&${ID}.looks=${L}`);
+  test('with a fix at 20 and at 50 days: the pale line is the same daily checks with no fix, and chart, result, table and caption agree', async ({ page }) => {
+    for (const [L, fix] of [[20, 'obf'], [50, 'cs']] as const) {
+      await page.goto(`${HOST}?${ID}.fix=${fix}&${ID}.looks=${L}`);
       await expect(island(page)).toHaveAttribute('data-island', 'ready');
       const t = await tuple(page);
       expectOneTuple(t);
-      // the selected schedule: one look after the daily schedule's total
-      expect(t.chart).toMatchObject({ selectedLooks: 1, selectedNPerLook: 100 * L });
+      expect(t.fix).toBe(fix);
       // the comparison schedule, the daily ghost, by its own metadata
       expect(t.chart).toMatchObject({ ghostLooks: L, ghostNPerLook: 100 });
-      await expect(caption(page)).toContainText(`Looking once means one check after ${n} visitors per group.`);
-      await expect(caption(page)).toContainText(`The pale line is the comparison schedule: ${L} daily looks of 100 visitors per group with no fix.`);
-      await expect(result(page)).toContainText(`Checked once at the end, after ${n} visitors per group`);
+      await expect(caption(page)).toContainText(
+        `The pale line is the same ${L} daily checks of 100 visitors per group with no fix; the dark line uses the fix, and the ringed dot is its last day.`,
+      );
       const ghost = figure(page).locator('svg[data-chart-frame]:visible path[data-series="ghost"]');
       expect((await ghost.getAttribute('data-values'))!.split(' ')).toHaveLength(L);
-      await expect(figure(page).locator('svg[data-chart-frame]:visible path[data-series="selected"]')).toHaveCount(0);
+      const selected = figure(page).locator('svg[data-chart-frame]:visible path[data-series="selected"]');
+      expect((await selected.getAttribute('data-values'))!.split(' ')).toHaveLength(L);
+      expect(t.table[0]).toHaveLength(3);
       expect(await unmarkedNumerals(figure(page))).toEqual([]);
     }
   });
@@ -372,17 +367,17 @@ test.describe('Peeking Figure', () => {
     });
     await looks(page).focus();
     for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight', { delay: 0 });
-    await label(page, "Stricter early looks (O'Brien-Fleming)").click();
-    await label(page, 'Check once at the end').click();
-    await label(page, 'Check every day').click();
-    await label(page, 'Always valid (confidence sequence)').click();
+    await label(page, 'Stricter early checks').click();
+    await label(page, 'Always-valid check').click();
     await looks(page).focus();
     for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowLeft', { delay: 0 });
-    await label(page, 'Check once at the end').click();
+    await label(page, 'No fix').click();
+    await label(page, 'Always-valid check').click();
     await expect(looks(page)).toHaveValue('15');
+    await expect(radio(page, 'Always-valid check')).toBeChecked();
     const t = await tuple(page);
     expectOneTuple(t);
-    expect(t).toMatchObject({ mode: 'once', fix: 'cs' });
+    expect(t).toMatchObject({ mode: 'daily', fix: 'cs' });
     const stats = await page.evaluate(() => {
       const w = window as unknown as { mismatches: string[]; checks: number };
       return { mismatches: w.mismatches, checks: w.checks };
@@ -403,7 +398,7 @@ test.describe('Peeking Figure', () => {
     await expect(live(page)).toHaveText('');
     await page.keyboard.down('ArrowRight');
     await expect(looks(page)).toHaveValue('21');
-    await expect(result(page)).toContainText('Checked every day for 21 days, ');
+    await expect(result(page)).toContainText('Checked daily for 21 days, ');
     await expect(live(page)).toHaveText('');
     await page.keyboard.up('ArrowRight');
     const line = (await result(page).textContent())!.replace(/\s+/g, ' ').trim();
@@ -411,11 +406,12 @@ test.describe('Peeking Figure', () => {
     await expect(live(page)).toHaveAttribute('data-derived', 'simulated');
     await expect.poll(() => query(page).get(`${ID}.looks`)).toBe('21');
     // a choice is a commit: it is announced at once
-    await radio(page, 'Check every day').focus();
+    await radio(page, 'No fix').focus();
     await page.keyboard.press('ArrowRight');
-    await expect(radio(page, 'Check once at the end')).toBeChecked();
-    await expect(radio(page, 'Check once at the end')).toBeFocused();
-    await expect(live(page)).toContainText('Checked once at the end, after 2,100 visitors per group');
+    await expect(radio(page, 'Stricter early checks')).toBeChecked();
+    await expect(radio(page, 'Stricter early checks')).toBeFocused();
+    await expect(live(page)).toContainText('With stricter early checks, ');
+    await expect(live(page)).toHaveText((await result(page).textContent())!.replace(/\s+/g, ' ').trim());
     await expectNoStale25(page);
   });
 
@@ -474,9 +470,9 @@ test.describe('Peeking Figure', () => {
     expect(transitions.every((d) => d.split(',').every((part) => part.trim() === '0s'))).toBe(true);
     await page.mouse.up();
     await expect(figure(page)).not.toHaveAttribute('data-dragging');
-    await expect(live(page)).toHaveText(/^Checked every day for \d+ days?( with [a-z -]+)?, [\d.]+% of 1,000 tests of two identical versions declared a winner\./);
-    await label(page, 'Always valid (confidence sequence)').click();
-    await label(page, 'Check once at the end').click();
+    await expect(live(page)).toHaveText(/^Checked daily for \d+ days, [\d.]+% of 1,000 tests found a false winner\. Checked once at the end, about 5% would\.$/);
+    await label(page, 'Always-valid check').click();
+    await label(page, 'Stricter early checks').click();
     await page.waitForTimeout(600);
     const stats = await page.evaluate(() => {
       const w = window as unknown as { announcedDuringDrag: string[]; animationsDuringDrag: number; workers: number };
@@ -494,8 +490,7 @@ test.describe('Peeking Figure', () => {
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await figure(page).getByRole('button', { name: 'Reset' }).click();
     await expect(looks(page)).toHaveValue('20');
-    await expect(radio(page, 'Check every day')).toBeChecked();
-    await expect(radio(page, 'None')).toBeChecked();
+    await expect(radio(page, 'No fix')).toBeChecked();
     await expect(result(page)).toHaveText(PRESET_LINE);
     await expect(live(page)).toHaveText(PRESET_LINE);
     const url = new URL(page.url());
@@ -521,7 +516,7 @@ test.describe('Peeking Figure', () => {
         };
         requestAnimationFrame(tick);
       });
-      const target = control === 'radio' ? radio(page, 'None') : control === 'slider' ? looks(page) : figure(page).getByRole('button', { name: 'Reset' });
+      const target = control === 'radio' ? radio(page, 'No fix') : control === 'slider' ? looks(page) : figure(page).getByRole('button', { name: 'Reset' });
       await target.focus();
       await expect(island(page)).toHaveAttribute('data-island', 'ready');
       await expect(target).toBeFocused();
@@ -540,7 +535,7 @@ test.describe('Peeking Figure', () => {
     await page.waitForLoadState('load');
     await page.waitForTimeout(500);
     block = true;
-    await radio(page, 'None').focus();
+    await radio(page, 'No fix').focus();
     await expect(page.locator('[data-island="failed"]', { has: figure(page) })).toHaveCount(1);
     await expect(figure(page).locator('[data-nojs-only] [role="region"]')).toBeFocused();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
@@ -552,12 +547,12 @@ test.describe('Peeking Figure', () => {
   test('a failed eager island brings back the preset, not the shared view, and takes no focus', async ({ page, request }) => {
     await withoutIdle(page);
     watchErrors(page, CHUNK_ERRORS);
-    const html = await (await request.get(`${HOST}?${ID}.looks=50&${ID}.mode=once`)).text();
+    const html = await (await request.get(`${HOST}?${ID}.looks=50&${ID}.fix=cs`)).text();
     const named = new Set([...html.matchAll(/\/_next\/static\/[^"'\s]+\.js/g)].map((m) => m[0]));
     await page.route('**/_next/static/**/*.js', (route) =>
       named.has(new URL(route.request().url()).pathname) ? route.continue() : route.abort(),
     );
-    await page.goto(`${HOST}?${ID}.looks=50&${ID}.mode=once`);
+    await page.goto(`${HOST}?${ID}.looks=50&${ID}.fix=cs`);
     await expect(page.locator('[data-island="failed"]', { has: figure(page) })).toHaveCount(1);
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     await expect(result(page)).toHaveText(PRESET_LINE);
@@ -565,27 +560,27 @@ test.describe('Peeking Figure', () => {
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
   });
 
-  test('a chart that throws after switching to once at 50 looks by keyboard: the sentence takes focus, the current table shows', async ({ page }) => {
+  test('a chart that throws after choosing stricter early checks at 50 days by keyboard: the sentence takes focus, the current table shows', async ({ page }) => {
     const errors = watchErrors(page, [SEAM_FAILURE]);
     await page.goto(`${FAULTS}?${ID}.looks=50`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await radio(page, 'Check every day').focus();
+    await radio(page, 'No fix').focus();
     await page.keyboard.press('ArrowRight');
     const status = figure(page).getByRole('status');
     await expect(status).toHaveText(SENTENCE);
     await expect(status).toBeFocused();
-    await assertOnce50Fallback(page);
+    await assertObf50Fallback(page);
     expect(errors).toEqual([]);
   });
 
-  test('a chart that throws after switching to once at 50 looks by pointer: focus is the sentence or where it was, never a hidden control', async ({ page }) => {
+  test('a chart that throws after choosing stricter early checks at 50 days by pointer: focus is the sentence or where it was, never a hidden control', async ({ page }) => {
     const errors = watchErrors(page, [SEAM_FAILURE]);
     await page.goto(`${FAULTS}?${ID}.looks=50`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     // Start with nothing focused, as the kit's own pointer test does.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
-    await label(page, 'Check once at the end').click();
+    await label(page, 'Stricter early checks').click();
     const status = figure(page).getByRole('status');
     await expect(status).toHaveText(SENTENCE);
     // Engines differ in what a click on a radio's label focuses: the radio (Chromium), which the
@@ -606,11 +601,11 @@ test.describe('Peeking Figure', () => {
     }, ID);
     expect(focus.body || focus.status || focus.clickTarget, focus.what).toBe(true);
     expect(focus.hidden).toBe(false);
-    await assertOnce50Fallback(page);
+    await assertObf50Fallback(page);
     expect(errors).toEqual([]);
   });
 
-  test('layout @matrix: no sideways scroll at this width or at 320 px, 44 px targets, the reason line keeps its room', async ({ page }) => {
+  test('layout @matrix: no sideways scroll at this width or at 320 px, 44 px targets, a fix change keeps the result line in place', async ({ page }) => {
     await page.goto(`${HOST}?${ID}.fix=obf`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     for (const width of [page.viewportSize()!.width, 320]) {
@@ -622,43 +617,43 @@ test.describe('Peeking Figure', () => {
       expect(small, `${width} px`).toEqual([]);
       const top = () => result(page).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
       const before = await top();
-      await label(page, 'Check once at the end').click();
-      await expect(figure(page).getByText('One check at the end needs no correction.')).toBeVisible();
+      await label(page, 'Always-valid check').click();
+      await expect(radio(page, 'Always-valid check')).toBeChecked();
       const after = await top();
-      // showing the reason moves nothing below the control row: the result line starts where it did
+      // a fix change moves nothing above the result line: it starts where it did
       expect(after).toBeCloseTo(before, 0);
-      await label(page, 'Check every day').click();
+      await label(page, 'Stricter early checks').click();
     }
   });
 
-  test('axe finds no violations in the preview, the loaded island and the once view', async ({ page }) => {
+  test('axe finds no violations in the preview, the loaded island and a fix view', async ({ page }) => {
     await withoutIdle(page);
     await page.goto(HOST);
     await expectNoA11yViolations(page);
     await ready(page);
     await expectNoA11yViolations(page);
-    await label(page, 'Check once at the end').click();
-    await expect(radio(page, 'Check once at the end')).toBeChecked();
+    await label(page, 'Always-valid check').click();
+    await expect(radio(page, 'Always-valid check')).toBeChecked();
     await settled(page);
     await expectNoA11yViolations(page);
   });
 });
 
-/** The kit's fallback after a change to once at 50 looks: caption, sentence and the once/50 table only. */
-async function assertOnce50Fallback(page: Page) {
+/** The kit's fallback after choosing stricter early checks at 50 days: caption, sentence and that table only. */
+async function assertObf50Fallback(page: Page) {
   const f = figure(page);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText(TITLE);
   await expect(caption(page)).toContainText('Idea credited to Evan Miller');
-  // the caption is the current view's, once at 50 looks, never the preset's
-  await expect(caption(page)).toContainText('Looking once means one check after 5,000 visitors per group.');
-  await expect(caption(page)).toContainText('The pale line is the comparison schedule: 50 daily looks');
-  await expect(caption(page)).not.toContainText('Each scheduled look adds');
+  // the method row is the current view's, stricter early checks at 50 days, never the preset's
+  await expect(caption(page)).toContainText('Under these simulation assumptions the rate is 4.1%');
+  await expect(caption(page)).toContainText('The pale line is the same 50 daily checks of 100 visitors per group with no fix');
+  await expect(caption(page)).not.toContainText('22.1%');
   const fallbackTable = f.locator('[data-figure-fallback] table');
   await expect(fallbackTable).toBeVisible();
   const rows = fallbackTable.locator('tbody tr');
-  await expect(rows).toHaveCount(51);
-  await expect(rows.last()).toHaveText(/^\s*50\s*One look at the end\s*5\.0\s*$/);
-  await expect(fallbackTable.locator('th')).toHaveText(['Look', 'Schedule', 'False winners so far (%)']);
+  await expect(rows).toHaveCount(50);
+  await expect(rows.last()).toHaveText(/^\s*50\s*31\.8\s*4\.1\s*$/);
+  await expect(fallbackTable.locator('th')).toHaveText(['Day', 'False winners so far, no fix (%)', 'False winners so far, stricter early checks (%)']);
   await expect(f.locator('[data-figure-preview]')).toHaveCount(0);
   await expect(f.locator('svg[data-chart-frame]:visible')).toHaveCount(0);
   await expect(f.getByRole('group', { name: 'Controls' })).toBeHidden();

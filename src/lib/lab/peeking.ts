@@ -116,7 +116,7 @@ const percent = (share: number) => Math.round(share * M.runs) / (M.runs / 100);
  */
 const ONE_DECIMAL = { fixed: 1 } as const;
 
-const FIX_NAME: Record<Fix, string> = { naive: 'no fix', obf: "O'Brien-Fleming", cs: 'confidence sequence' };
+const FIX_NAME: Record<Fix, string> = { naive: 'no fix', obf: 'stricter early checks', cs: 'always-valid check' };
 
 function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableData {
   const ghost = naive.cumulativeByLook.map(percent);
@@ -136,19 +136,19 @@ function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableD
   }
   if (v.fix === 'naive') {
     return {
-      columns: ['Look', 'False winners so far, no fix (%)'],
+      columns: ['Day', 'False winners so far, no fix (%)'],
       rows: ghost.map((g, i) => [i + 1, g]),
       formats: ['count', ONE_DECIMAL],
-      note: 'Shares of the simulated runs flagged as a winner at or before each look.',
+      note: 'Shares of the simulated runs flagged as a winner on or before each day, checked once a day.',
       refs: PEEK_REFS,
     };
   }
   const chosen = selected.cumulativeByLook.map(percent);
   return {
-    columns: ['Look', 'False winners so far, no fix (%)', `False winners so far, ${FIX_NAME[v.fix]} (%)`],
+    columns: ['Day', 'False winners so far, no fix (%)', `False winners so far, ${FIX_NAME[v.fix]} (%)`],
     rows: ghost.map((g, i) => [i + 1, g, chosen[i]!]),
     formats: ['count', ONE_DECIMAL, ONE_DECIMAL],
-    note: 'Shares of the simulated runs flagged as a winner at or before each look.',
+    note: 'Shares of the simulated runs flagged as a winner on or before each day, checked once a day.',
     refs: PEEK_REFS,
   };
 }

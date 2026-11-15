@@ -5,29 +5,27 @@ import { expectNoA11yViolations, test, waitForIslands } from './fixtures';
 import { markSlow } from './slow';
 
 // The Lab's two diagnostics on the dev host /kitchen-sink/lab, which mounts the Lab page as /lab does
-// (their sections are #split-check and #exaggeration): the split check (`srm`,
-// preset 100 against 100 at an even split) and exaggeration (`curse`, preset effect 1 and standard
-// error 1). The server draws each preset; each island loads on intent, or at once when the URL holds
+// (their sections are #split-check and #exaggeration): the split check (`srm`, preset 5,170
+// against 4,830, each group meant to get half) and exaggeration (`curse`, one control: power, preset
+// 17%). The server draws each preset; each island loads on intent, or at once when the URL holds
 // its own keys. /kitchen-sink/lab/diagnostics/faults sets the test seam, so each chart throws on the
 // first render after its own control changes.
 
 const HOST = '/kitchen-sink/lab';
 const FAULTS = '/kitchen-sink/lab/diagnostics/faults';
 const SENTENCE = 'This chart could not load. The numbers are in the table below.';
-const SRM_TITLE = 'A split far from the expected share is flagged for a closer look';
-const CURSE_TITLE = 'Low power exaggerates the effects that pass the threshold';
+const SRM_TITLE = 'The bigger the gap, the less often a fair coin makes it';
+const CURSE_TITLE = 'The smaller the test, the more its wins overstate the effect';
 const SEAM = { srm: 'The split chart failed after a change (test seam)', curse: 'The exaggeration chart failed after a change (test seam)' } as const;
 const TITLE = { srm: SRM_TITLE, curse: CURSE_TITLE } as const;
 type Id = keyof typeof TITLE;
 
 // The default preset is a real case: a simulated 5,170 to 4,830 split against an even one, flagged.
-const SRM_PRESET_RESULT =
-  'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.56, one degree of freedom, p-value below 0.001).';
-const SRM_EVEN_RESULT = 'Not flagged. This split is consistent with the expected share at this threshold (chi-square 0, one degree of freedom, p-value 1).';
-const CURSE_PRESET_RESULT =
-  'At a true effect of 1.0 and a standard error of 1.0, a ratio of 1, power is 17%. Of the estimates that pass the threshold, 0.9% have the wrong sign, and on average their size is 2.5 times the true effect.';
-const ZERO = 'Exaggeration is undefined when the true effect is zero.';
-const CURSE_X_LABEL = 'True effect ÷ standard error (log scale)';
+const SRM_PRESET_RESULT = 'Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.';
+const SRM_EVEN_RESULT = 'Not flagged: a fair coin leaves a gap this big or bigger at least 1 time in 1,000.';
+// The power preset is 17%: the test clears the bar 17 times in 100.
+const CURSE_PRESET_RESULT = 'At this setting, results that clear the bar average 2.5 times the real effect. Of those, 0.9% of them point the wrong way.';
+const CURSE_X_LABEL = 'How often the test clears the bar';
 
 const figure = (page: Page, id: Id) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id: Id) => page.locator('[data-island]', { has: figure(page, id) });
@@ -86,7 +84,7 @@ async function focusAndLoad(page: Page, id: Id, control: string) {
 
 /**
  * Elements of either hydrated Figure whose whole text is "undefined", "null" or "NaN", and any "null"
- * or "NaN" word at all. The required zero-effect sentence keeps "undefined" inside prose.
+ * or "NaN" word at all.
  */
 async function bareValues(page: Page) {
   return page.evaluate(() =>
@@ -101,7 +99,7 @@ async function bareValues(page: Page) {
 
 async function readout(page: Page) {
   const get = (k: string) => figure(page, 'curse').locator(`[data-curse-${k}]`).first().textContent();
-  return { power: await get('power'), wrongSign: await get('wrong-sign'), exaggeration: await get('exaggeration') };
+  return { wrongSign: await get('wrong-sign'), exaggeration: await get('exaggeration') };
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -152,7 +150,10 @@ test.describe('Split check Figure', () => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?srm.nA=0&srm.nB=100`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toContainText('(chi-square 100, one degree of freedom, p-value below 0.001).');
+    await expect(result(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
+    // the statistics live in the method row, under the plain-words result
+    await expect(page.locator('[data-srm-chi2]')).toHaveText('100');
+    await expect(page.locator('[data-srm-p]')).toHaveText('below 0.001');
     await expect(figure(page, 'srm').locator('[data-srm-status]')).toHaveText('Flagged');
     await expect(figure(page, 'srm').locator('svg[data-chart-frame]:visible')).toHaveAttribute('aria-label', /the split is flagged for a closer look$/);
     expect(await tableRows(page, 'srm')).toEqual([
@@ -167,8 +168,8 @@ test.describe('Split check Figure', () => {
   test('zero counts: no inference, no p-value and no chi-square', async ({ page }) => {
     await page.goto(`${HOST}?srm.nA=0&srm.nB=0`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toHaveText('No visitors in either group yet, so there is nothing to test and no p-value.');
-    await expect(figure(page, 'srm').locator('[data-srm-p], [data-srm-chi2]')).toHaveCount(0);
+    await expect(result(page, 'srm')).toHaveText('No visitors yet, so there is nothing to check.');
+    await expect(page.locator('[data-srm-p], [data-srm-chi2]')).toHaveCount(0);
     expect(await tableRows(page, 'srm')).toEqual([
       ['Group A', '0', '50%', '0'],
       ['Group B', '0', '50%', '0'],
@@ -185,13 +186,14 @@ test.describe('Split check Figure', () => {
   test('120 against 60 is flagged; a tiny split warns about the approximation', async ({ page }) => {
     await page.goto(`${HOST}?srm.nA=120&srm.nB=60`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toContainText('(chi-square 20, one degree of freedom, p-value below 0.001).');
+    await expect(result(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
+    await expect(page.locator('[data-srm-chi2]')).toHaveText('20');
     await page.goto(`${HOST}?srm.nA=3&srm.nB=1`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toContainText('An expected count is below 5, so the chi-square approximation is rough here.');
+    await expect(result(page, 'srm')).toHaveText(`${SRM_EVEN_RESULT} With so few visitors, this check is only rough.`);
   });
 
-  test('a hostile shared URL shows the preset or clamped values, with no error', async ({ page }) => {
+  test('a hostile or old shared URL shows the preset or clamped values, with no error and no share control', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?srm.nA=__proto__&srm.nB=&srm.shareA=NaN&srm.preset=constructor`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
@@ -200,14 +202,17 @@ test.describe('Split check Figure', () => {
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await expect(range(page, 'srm-nA')).toHaveValue('0');
     await expect(range(page, 'srm-nB')).toHaveValue('10000');
-    await expect(range(page, 'srm-shareA')).toHaveValue('0.99');
-    await expect(result(page, 'srm')).toContainText('Flagged.');
+    // the planned share is fixed at half: the old key is ignored and there is no control for it
+    await expect(page.locator('#srm-shareA')).toHaveCount(0);
+    await expect(figure(page, 'srm').getByRole('slider')).toHaveCount(2);
+    await expect(figure(page, 'srm').getByRole('group', { name: 'Controls' }).getByRole('button')).toHaveText(['Reset']);
+    await expect(result(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
     expect(errors).toEqual([]);
   });
 
   test('the even split is one link away: the even preset, not flagged, and Reset keeps it', async ({ page }) => {
     await page.goto('/lab#split-check');
-    const link = page.getByRole('link', { name: 'See the same check on an even split' });
+    const link = page.getByRole('link', { name: 'See an even split pass' });
     await expect(link).toBeVisible();
     await link.click();
     await expect(page).toHaveURL(/\/lab\?srm\.preset=even#split-check$/);
@@ -219,30 +224,29 @@ test.describe('Split check Figure', () => {
 
   test('keyboard: an arrow key changes a count, announces on release and writes only its own keys', async ({ page }) => {
     await withoutIdle(page);
-    await page.goto(`${HOST}?curse.se=2#split-check`);
+    await page.goto(`${HOST}?curse.power=0.5#split-check`);
     await focusAndLoad(page, 'srm', 'srm-nA');
     await expect(range(page, 'srm-nA')).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(range(page, 'srm-nA')).toHaveValue('5171');
-    await expect(live(page, 'srm')).toHaveText(
-      'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.63, one degree of freedom, p-value below 0.001).',
-    );
+    await expect(live(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
+    await expect(page.locator('[data-srm-chi2]')).toHaveText('11.63');
     await expect(live(page, 'srm')).toHaveAttribute('data-derived', 'simulated');
     await expect.poll(() => new URL(page.url()).searchParams.get('srm.nA')).toBe('5171');
     const url = new URL(page.url());
-    expect(url.searchParams.get('curse.se')).toBe('2');
+    expect(url.searchParams.get('curse.power')).toBe('0.5');
     expect(url.hash).toBe('#split-check');
   });
 
   test('Reset restores the preset, clears only its own keys and keeps the other Figure’s key and the hash', async ({ page }) => {
-    await page.goto(`${HOST}?srm.nA=120&srm.nB=60&curse.se=2#split-check`);
+    await page.goto(`${HOST}?srm.nA=120&srm.nB=60&curse.power=0.5#split-check`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await reset(page, 'srm').click();
     await expect(result(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
     await expect(live(page, 'srm')).toHaveText(SRM_PRESET_RESULT);
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith('srm.'))).toEqual([]);
-    expect(url.searchParams.get('curse.se')).toBe('2');
+    expect(url.searchParams.get('curse.power')).toBe('0.5');
     expect(url.hash).toBe('#split-check');
   });
 
@@ -258,10 +262,10 @@ test.describe('Split check Figure', () => {
 });
 
 test.describe('Exaggeration Figure', () => {
-  test('without JavaScript: the preset, its dot, the open table and "Controls need JavaScript."', async ({ browser }) => {
+  test('without JavaScript: the preset, its dot, the open table and "Controls need JavaScript.", whatever the query', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
-    await page.goto(`${HOST}?curse.trueEffect=0`);
+    await page.goto(`${HOST}?curse.power=0.9`);
     await expect(figure(page, 'curse').getByRole('heading', { level: 3 })).toHaveText(CURSE_TITLE);
     await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
     await expect(figure(page, 'curse').getByText('Simulated', { exact: true })).toBeVisible();
@@ -269,38 +273,38 @@ test.describe('Exaggeration Figure', () => {
     const mine = await figure(page, 'curse')
       .locator('[data-nojs-only] table tbody tr')
       .evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent)).filter((r) => r.at(-1) === 'Yes'));
-    expect(mine).toEqual([['1', '17%', '0.9%', '2.5', 'Yes']]);
+    expect(mine).toEqual([['17%', '1.00', '0.9%', '2.5', 'Yes']]);
     await expect(figure(page, 'curse').locator('svg[data-chart-frame]:visible [data-curse-dot]')).toHaveCount(1);
     await context.close();
   });
 
-  test('effect 0.1 and standard error 5: the ratio 0.02 dot sits in the plot with its ring whole, and readout, dot and table agree', async ({ page }) => {
+  test('power 10%: the dot sits on the left edge of the plot with its ring whole, and readout, dot and table agree', async ({ page }) => {
     for (const width of [320, 375, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`${HOST}?curse.trueEffect=0.1&curse.se=5`);
+      await page.goto(`${HOST}?curse.power=0.1`);
       await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
       const dot = await dotGeometry(page);
       expect(dot, String(width)).not.toBeNull();
-      expect(dot!.ratio).toBe(0.02);
-      expect(dot!.value).toBeCloseTo(116.8962012, 6);
+      expect(dot!.power).toBe(0.1);
+      expect(dot!.value).toBeCloseTo(3.7, 1);
       expect(dot!.centreInPlot, String(width)).toBe(true);
       expect(dot!.atLeftEdge, String(width)).toBe(true);
       expect(dot!.ringBelowPlotTop, String(width)).toBe(true);
       expect(dot!.inFigure, String(width)).toBe(true);
       expect(dot!.clippedBy, String(width)).toEqual([]);
       expect(dot!.overlapsTick, String(width)).toBe(false);
-      expect(await readout(page)).toEqual({ power: '5%', wrongSign: '47.7%', exaggeration: '116.9' });
-      expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['0.02', '5%', '47.7%', '116.9', 'Yes']]);
-      await expect(result(page, 'curse')).toContainText('a ratio of 0.02, power is 5%');
+      expect(await readout(page)).toEqual({ wrongSign: '4.5%', exaggeration: '3.7' });
+      expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['10%', '0.65', '4.5%', '3.7', 'Yes']]);
+      await expect(result(page, 'curse')).toHaveText('At this setting, results that clear the bar average 3.7 times the real effect. Of those, 4.5% of them point the wrong way.');
     }
   });
 
-  test('effect 5 and standard error 0.1: the ratio 50 dot at the upper end, inside its frame', async ({ page }) => {
-    await page.goto(`${HOST}?curse.trueEffect=5&curse.se=0.1`);
+  test('power 99%: the dot at the upper end, inside its frame', async ({ page }) => {
+    await page.goto(`${HOST}?curse.power=0.99`);
     await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
     const dot = await dotGeometry(page);
-    expect(dot!.ratio).toBe(50);
-    // the fixed domain ends at 50, so the dot is centred on the plot's right edge: its ring reaches past
+    expect(dot!.power).toBe(0.99);
+    // the domain ends at 99%, so the dot is centred on the plot's right edge: its ring reaches past
     // the frame into the page gutter, still drawn whole and on screen
     expect(dot!.centreInPlot).toBe(true);
     expect(dot!.atRightEdge).toBe(true);
@@ -308,78 +312,78 @@ test.describe('Exaggeration Figure', () => {
     expect(dot!.inViewport).toBe(true);
     await noHorizontalScroll(page);
     expect(dot!.ring).toEqual({ stroke: expect.not.stringMatching(/^none$/), width: '4px', order: expect.stringContaining('stroke') });
-    expect(await readout(page)).toEqual({ power: 'over 99%', wrongSign: 'below 0.1%', exaggeration: '1.0' });
-    expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['50', 'over 99%', 'below 0.1%', '1.0', 'Yes']]);
+    expect(await readout(page)).toEqual({ wrongSign: 'below 0.1%', exaggeration: '1.0' });
+    expect((await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes')).toEqual([['99%', '4.29', 'below 0.1%', '1.0', 'Yes']]);
   });
 
-  test('zero effect: the undefined sentence, no dot, no row marked, the log axis still drawn', async ({ page }) => {
+  test('one control: the old effect and error keys fall back to the preset, with no control for them and no error', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?curse.trueEffect=0&curse.se=2`);
-    await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'curse')).toContainText(ZERO);
-    await expect(result(page, 'curse')).toContainText('zero, not undefined');
-    await expect(figure(page, 'curse').locator('[data-curse-dot]')).toHaveCount(0);
-    expect((await tableRows(page, 'curse')).some((r) => r.at(-1) === 'Yes')).toBe(false);
-    await expect(figure(page, 'curse').locator('svg[data-chart-frame]:visible [data-tick="x"]')).toHaveText(['0.1', '1', '10']);
+    await ready(page, 'curse');
+    await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
+    await expect(range(page, 'curse-power')).toHaveValue('17');
+    await expect(page.locator('#curse-trueEffect, #curse-se')).toHaveCount(0);
+    await expect(figure(page, 'curse').getByRole('slider')).toHaveCount(1);
+    await expect(figure(page, 'curse').getByRole('group', { name: 'Controls' }).getByRole('button')).toHaveText(['Reset']);
+    await expect(figure(page, 'curse').locator('[data-curse-readout]')).toHaveAttribute('data-curse-branch', 'result');
+    // two readout items, the overstatement and the wrong-sign share; power is the control, not a readout
+    await expect(figure(page, 'curse').locator('[data-curse-readout] dt')).toHaveText([
+      'Results that clear the bar overstate the effect by',
+      'Results that clear the bar but point the wrong way',
+    ]);
+    await expect(figure(page, 'curse').locator('[data-curse-power]')).toHaveCount(0);
     await expect(figure(page, 'curse')).not.toContainText(/Infinity|NaN|null/);
-    // the readout says why there is no value, never a bare word that looks like a leaked JavaScript value
-    await expect(figure(page, 'curse').locator('[data-curse-readout] dd')).toHaveText(['not shown', 'no true sign', 'not defined']);
     expect(await bareValues(page)).toEqual([]);
     expect(errors).toEqual([]);
   });
 
-  test('the readout keeps its height from the preset preview to an eager zero-effect island', async ({ page }) => {
-    for (const width of [375, 1024]) {
-      await page.setViewportSize({ width, height: 900 });
-      await withoutIdle(page);
-      await page.goto(HOST);
-      await expect(island(page, 'curse')).toHaveAttribute('data-island', 'idle');
-      const height = () => figure(page, 'curse').locator('[data-curse-readout]').evaluate((el) => el.getBoundingClientRect().height);
-      // the first layout of a cold page can report zero for a moment: wait for a settled height
-      await expect.poll(height).toBeGreaterThan(0);
-      const preset = await height();
-      await page.goto(`${HOST}?curse.trueEffect=0`);
-      await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-      await expect(result(page, 'curse')).toContainText(ZERO);
-      await expect(figure(page, 'curse').locator('[data-curse-readout]')).toHaveAttribute('data-curse-branch', 'zero-effect');
-      await expect.poll(height).toBeGreaterThan(0);
-      const zero = await height();
-      expect(Math.abs(zero - preset), String(width)).toBeLessThanOrEqual(1);
-    }
-  });
-
   test('a hostile shared URL shows the preset or clamped values, with no error', async ({ page }) => {
     const errors = watchErrors(page);
-    await page.goto(`${HOST}?curse.trueEffect=&curse.se=abc&curse.preset=__proto__`);
+    await page.goto(`${HOST}?curse.power=&curse.preset=__proto__`);
     await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
     await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
-    await page.goto(`${HOST}?curse.trueEffect=Infinity&curse.se=-3`);
+    await page.goto(`${HOST}?curse.power=Infinity`);
     await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
-    await expect(range(page, 'curse-trueEffect')).toHaveValue('5');
-    await expect(range(page, 'curse-se')).toHaveValue('0.1');
-    expect((await dotGeometry(page))!.ratio).toBe(50);
+    await expect(range(page, 'curse-power')).toHaveValue('99');
+    expect((await dotGeometry(page))!.power).toBe(0.99);
+    await page.goto(`${HOST}?curse.power=-3`);
+    await expect(island(page, 'curse')).toHaveAttribute('data-island', 'ready');
+    await expect(range(page, 'curse-power')).toHaveValue('10');
+    expect((await dotGeometry(page))!.power).toBe(0.1);
     expect(errors).toEqual([]);
   });
 
-  test('keyboard: changing the error announces the new result on release; Reset restores the preset and only its own keys', async ({ page }) => {
+  test('keyboard: changing the power announces the new result on release; Reset restores the preset and only its own keys', async ({ page }) => {
     await withoutIdle(page);
     await page.goto(`${HOST}?srm.nA=7#exaggeration`);
-    await focusAndLoad(page, 'curse', 'curse-se');
-    await expect(range(page, 'curse-se')).toBeFocused();
+    await focusAndLoad(page, 'curse', 'curse-power');
+    await expect(range(page, 'curse-power')).toBeFocused();
     await page.keyboard.press('ArrowRight');
-    await expect(range(page, 'curse-se')).toHaveValue('1.1');
-    await expect(live(page, 'curse')).toContainText('At a true effect of 1.0 and a standard error of 1.1');
+    await expect(range(page, 'curse-power')).toHaveValue('18');
+    await expect(live(page, 'curse')).toHaveText('At this setting, results that clear the bar average 2.4 times the real effect. Of those, 0.8% of them point the wrong way.');
     await expect(live(page, 'curse')).toHaveAttribute('data-derived', 'simulated');
     const before = await readout(page);
     const row = (await tableRows(page, 'curse')).filter((r) => r.at(-1) === 'Yes');
-    expect(row).toEqual([[expect.any(String), before.power, before.wrongSign, before.exaggeration, 'Yes']]);
-    await expect.poll(() => new URL(page.url()).searchParams.get('curse.se')).toBe('1.1');
+    expect(row).toEqual([['18%', '1.04', before.wrongSign, before.exaggeration, 'Yes']]);
+    await expect.poll(() => new URL(page.url()).searchParams.get('curse.power')).toBe('0.18');
     await reset(page, 'curse').click();
     await expect(result(page, 'curse')).toHaveText(CURSE_PRESET_RESULT);
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith('curse.'))).toEqual([]);
     expect(url.searchParams.get('srm.nA')).toBe('7');
     expect(url.hash).toBe('#exaggeration');
+  });
+
+  test('the power box takes whole percents: typing 50 sets 50%, and the URL keeps the proportion', async ({ page }) => {
+    await page.goto(HOST);
+    await ready(page, 'curse');
+    const box = figure(page, 'curse').getByRole('spinbutton', { name: 'How often the test clears the bar, percent' });
+    await expect(box).toHaveValue('17');
+    await box.fill('50');
+    await box.press('Enter');
+    await expect(range(page, 'curse-power')).toHaveValue('50');
+    await expect(figure(page, 'curse').locator('[data-slider-readout]')).toHaveText('50% of the time');
+    await expect.poll(() => new URL(page.url()).searchParams.get('curse.power')).toBe('0.5');
   });
 
   test('focus on the preview Reset moves to the island Reset when the island loads', async ({ page }) => {
@@ -394,9 +398,9 @@ test.describe('Exaggeration Figure', () => {
   test('no motion: a change moves the dot without any animation or transition on a mark', async ({ page }) => {
     await page.goto(HOST);
     await ready(page, 'curse');
-    await range(page, 'curse-se').focus();
+    await range(page, 'curse-power').focus();
     await page.keyboard.press('End');
-    await expect(range(page, 'curse-se')).toHaveValue('5');
+    await expect(range(page, 'curse-power')).toHaveValue('99');
     const motion = await page.evaluate(() => {
       const marks = [...document.querySelectorAll('figure[data-figure] [data-mark]')];
       return {
@@ -410,7 +414,7 @@ test.describe('Exaggeration Figure', () => {
 });
 
 for (const id of ['srm', 'curse'] as const) {
-  const control = id === 'srm' ? 'srm-nA' : 'curse-se';
+  const control = id === 'srm' ? 'srm-nA' : 'curse-power';
   test.describe(`${id === 'srm' ? 'Split check' : 'Exaggeration'} failures`, () => {
     test('a failed island on intent brings back the no-JS preset, and focus goes to the open table', async ({ page }) => {
       await withoutIdle(page);
@@ -518,9 +522,13 @@ test.describe('Both diagnostics together', () => {
     });
   }
 
-  // On the log axis the ticks 0.1, 1 and 10 sit inside the domain, not on its ends: each label is
-  // centred on its tick, so it reads the value it labels, and stays inside the chart frame.
-  for (const width of [320, 1440]) {
+  // The power axis is linear from 10% to 99%. Each x tick label is centred on its tick, so it reads
+  // the value it labels, except a label on an end of the domain (10%), which the kit anchors at its
+  // tick on the side away from that edge; every label stays inside the chart frame.
+  for (const [width, labels] of [
+    [320, ['10%', '50%', '90%']],
+    [1440, ['10%', '30%', '50%', '70%', '90%']],
+  ] as const) {
     test(`the exaggeration x tick labels centre on their ticks and stay inside the frame at ${width} px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(HOST);
@@ -533,14 +541,16 @@ test.describe('Both diagnostics together', () => {
         const plot = box.width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
         return [...frame.querySelectorAll<SVGTextElement>('[data-tick="x"]')].map((t) => {
           const r = t.getBoundingClientRect();
+          const at = left + (Number.parseFloat(t.getAttribute('x')!) / 100) * plot;
+          const anchor = getComputedStyle(t).textAnchor;
           return {
             text: t.textContent,
-            off: (r.left + r.right) / 2 - (left + (Number.parseFloat(t.getAttribute('x')!) / 100) * plot),
+            off: anchor === 'start' ? r.left - at : anchor === 'end' ? r.right - at : (r.left + r.right) / 2 - at,
             inside: r.left >= box.left - 0.5 && r.right <= box.right + 0.5,
           };
         });
       });
-      expect(ticks.map((t) => t.text)).toEqual(['0.1', '1', '10']);
+      expect(ticks.map((t) => t.text)).toEqual(labels);
       for (const t of ticks) {
         expect(Math.abs(t.off), `${t.text} is ${t.off.toFixed(1)} px off its tick`).toBeLessThanOrEqual(2);
         expect(t.inside, `${t.text} inside the frame`).toBe(true);
@@ -565,7 +575,7 @@ test.describe('Both diagnostics together', () => {
   test('no number escapes its source marker, shown or hidden, and every chart name is digit-free', async ({ page }) => {
     // Three page loads with both islands each: WebKit in the container needs more than 30 s.
     markSlow('three page loads with both islands each: WebKit in the container needs more than 30 s');
-    for (const query of ['', '?srm.nA=3&srm.nB=1&curse.trueEffect=0.1&curse.se=5', '?srm.nA=0&srm.nB=0&curse.trueEffect=0']) {
+    for (const query of ['', '?srm.nA=3&srm.nB=1&curse.power=0.1', '?srm.nA=0&srm.nB=0&curse.power=0.99']) {
       await page.goto(`${HOST}${query}`);
       for (const id of ['srm', 'curse'] as const) {
         await ready(page, id);
@@ -647,7 +657,7 @@ async function newContext(browser: Browser, viewport: { width: number; height: n
 async function assertCurrentFallback(page: Page, id: Id, o: { pointer?: boolean } = {}) {
   const f = figure(page, id);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText(TITLE[id]);
-  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'Hypothetical visitor counts for the two groups of a test' : 'no random draws are involved');
+  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'Made-up visitor counts. Each group was meant to get half.' : 'An exact calculation on made-up values, with no random draws.');
   const rows = await f.locator('[data-figure-fallback] table tbody tr').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent!.trim())));
   if (id === 'srm') {
     // group A's count moved off the preset 5,170
@@ -655,11 +665,11 @@ async function assertCurrentFallback(page: Page, id: Id, o: { pointer?: boolean 
     expect(rows[0]![1]).not.toBe('5,170');
     if (!o.pointer) expect(rows[0]).toEqual(['Group A', '5,171', '50%', '5,000.5']);
   } else {
-    // the marked row is the new ratio, not the preset's 1
+    // the marked row is the new power, not the preset's 17%
     const mine = rows.filter((r) => r.at(-1) === 'Yes');
     expect(mine).toHaveLength(1);
-    expect(mine[0]![0]).not.toBe('1');
-    if (!o.pointer) expect(mine[0]![0]).toBe('0.909');
+    expect(mine[0]![0]).not.toBe('17%');
+    if (!o.pointer) expect(mine[0]).toEqual(['18%', '1.04', '0.8%', '2.4', 'Yes']);
   }
   await expect(f.locator('[data-figure-preview]')).toHaveCount(0);
   await expect(f.locator('svg[data-chart-frame]')).toHaveCount(0);

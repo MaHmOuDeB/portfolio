@@ -18,7 +18,7 @@ const FORCED = [
   ['b', "Group B's home page", '/?variant=b'],
 ] as const;
 const PEEKING = ['Peeking at results', '/lab/peeking?peeking.preset=interview'] as const;
-const PLANNER = ['Sample size for a small rise', '/lab?planner.baseline=0.05&planner.risePoints=1&duration.traffic=1000#sample-size'] as const;
+const PLANNER = ['Sample size for a small rise', '/lab?planner.baseline=0.05&planner.risePoints=1&planner.traffic=1000#sample-size'] as const;
 const LAB = ['All the examples in the Lab', '/lab'] as const;
 const HREFS = [...FORCED.map(([, , href]) => href), PEEKING[1], PLANNER[1], LAB[1]];
 // The entry, then every event a counted view could add to the store.
@@ -187,9 +187,10 @@ test.describe('/demo', () => {
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}` === PEEKING[1]);
     const figure = page.locator('figure[data-figure="peeking"]');
     await expect(page.locator('[data-island]', { has: figure })).toHaveAttribute('data-island', 'ready');
-    await expect(figure.getByRole('slider', { name: 'Daily checks' })).toHaveValue('20');
-    await expect(figure.getByRole('radio', { name: 'Check every day' })).toBeChecked();
-    await expect(figure.getByRole('radio', { name: 'None' })).toBeChecked();
+    await expect(figure.getByRole('slider', { name: 'Days checked' })).toHaveValue('20');
+    // the schedule is always daily: there is no schedule toggle to check
+    await expect(figure.getByRole('radio', { name: 'Check every day' })).toHaveCount(0);
+    await expect(figure.getByRole('radio', { name: 'No fix' })).toBeChecked();
   });
 
   test('the planner link opens the planner section with its baseline, rise and traffic after hydration', async ({ page }) => {
@@ -197,12 +198,13 @@ test.describe('/demo', () => {
     await main(page).getByRole('link', { name: PLANNER[0], exact: true }).click();
     await expect(page).toHaveURL((url) => `${url.pathname}${url.search}${url.hash}` === PLANNER[1]);
     const planner = page.locator('figure[data-figure="planner"]');
-    const duration = page.locator('figure[data-figure="duration"]');
     await expect(page.locator('[data-island]', { has: planner })).toHaveAttribute('data-island', 'ready');
-    await expect(planner.getByRole('slider', { name: 'Baseline conversion' })).toHaveValue('0.05');
-    await expect(planner.getByRole('slider', { name: 'Smallest rise worth detecting' })).toHaveValue('1');
-    await expect(planner.getByRole('radio', { name: 'Points' })).toBeChecked();
-    await expect(duration.getByRole('slider', { name: 'Total visitors per day' })).toHaveValue('1000');
+    await expect(planner.getByRole('slider', { name: 'Sign-up rate today', exact: true })).toHaveValue('5');
+    await expect(planner.getByRole('slider', { name: 'Smallest rise worth acting on', exact: true })).toHaveValue('1');
+    await expect(planner.getByRole('slider', { name: 'Visitors per day', exact: true })).toHaveValue('1000');
+    // one planner Figure on the Lab, with no unit toggle
+    await expect(page.locator('figure[data-figure="duration"]')).toHaveCount(0);
+    await expect(planner.getByRole('radio')).toHaveCount(0);
     await expect(page.locator('#sample-size-title')).toBeInViewport();
   });
 

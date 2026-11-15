@@ -2,16 +2,16 @@
 // all read the same tuple, so they can never disagree. Shared and hook-free: the server draws the
 // preset with it (the static HTML, also the no-JS view) and the island draws the visitor's view.
 //
-// - The chart: the share of simulated A/A runs flagged so far at each look (y from 0 to 40%, or to
-//   the next tenth above the highest plotted share), the chosen schedule in series-1, the daily
-//   schedule with no fix as a pale ghost when it differs from the chosen one, the selected rate at
-//   the last look (or the one look) as an orange dot with a background ring, and the nominal 5% as a
-//   dotted line. One look puts its point at x = 1 on a [0, 1] axis. Marks have no transition.
-// - The result line: the rate over the runs with its 95% Monte Carlo range (a Wilson interval),
-//   and how it stands against the nominal 5%. With no fix, and when looking once, that word is read
-//   from the range (above, about or below); with a fix it holds at every look count
-//   (O'Brien-Fleming "close to or under", the confidence sequence "well under"). Then the price of
-//   the fix, as planning arithmetic: never measured power or a sample, and never tied to the looks.
+// - The chart: the share of simulated A/A runs flagged so far on each day checked (y from 0 to 40%,
+//   or to the next tenth above the highest plotted share), the chosen fix in series-1, the daily
+//   checks with no fix as a pale ghost when a fix is chosen, the selected rate on the last day as an
+//   orange dot with a background ring, and the planned 5% as a dotted line. One day puts its point
+//   at x = 1 on a [0, 1] axis. Marks have no transition.
+// - The result line, in plain words: the share of tests that found a false winner and how it stands
+//   against the 5% a single check allows (with no fix the check-once comparison; with a fix the word holds at every
+//   number of days: O'Brien-Fleming "close to or under", the confidence sequence "well under"). Then
+//   the price of the fix, as planning arithmetic: never measured power or a sample. The Monte Carlo
+//   range and the check-once simulated rate are in the method row.
 // - Every number is a <Derived> with the simulated ref; the caption's values come from the
 //   reconstructed metadata of the selected schedule and of the daily ghost. The chart's accessible
 //   name is words only; its numbers are in the table and the result line.
@@ -52,9 +52,9 @@ function Segments({ segs }: { segs: readonly Seg[] }) {
   );
 }
 
-const looksWord = (n: number) => (n === 1 ? 'look' : 'looks');
+const looksWord = (n: number) => (n === 1 ? 'check' : 'checks');
 
-/** How the rate stands against the nominal level, as the result line says it. */
+/** How the rate stands against the planned level, as the result line says it. */
 function relation(view: PeekView): string {
   const { mode, fix } = view.values;
   if (mode === 'daily' && fix === 'obf') return 'close to or under';
@@ -65,46 +65,52 @@ function relation(view: PeekView): string {
 
 const daysWord = (n: number) => (n === 1 ? 'day' : 'days');
 
-/** How the tests were checked, in plain words: the opening of the result line. */
-function checked(view: PeekView): Seg[] {
-  const { values, selected } = view;
-  if (values.mode === 'once') return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, '];
-  const how = values.fix === 'obf' ? ' with stricter early looks' : values.fix === 'cs' ? ' with an always-valid interval' : '';
-  return ['Checked every day for ', count(selected.looks), ` ${daysWord(selected.looks)}${how}, `];
-}
+/** "found a false winner": the same words in every branch. */
+const found = (view: PeekView): Seg[] => [share(view.selected.falsePositiveRate, 1), ' of ', count(view.selected.runs), ' tests found a false winner'];
 
 /**
- * The result line and the announcement, as one list of words and numbers: the plain verdict first.
- * The Monte Carlo range of the rate is in the method row.
+ * The result line and the announcement, as one list of words and numbers: the plain verdict first,
+ * then the price of a fix. The Monte Carlo range of the rate is in the method row.
  */
 function resultSegments(view: PeekView): Seg[] {
   const { values, selected, cost } = view;
-  const segs: Seg[] = [
-    ...checked(view),
-    share(selected.falsePositiveRate, 1),
-    ' of ',
-    count(selected.runs),
-    ' tests of two identical versions declared a winner.',
-    ...(values.mode === 'once' ? [] : [' Read once at the end, about ', share(selected.alpha), ' would.']),
-  ];
-  if (cost?.kind === 'boundary') {
-    segs.push(
-      ...(values.looks === 1
-        ? [' With one look there is no extra bar: this is the fixed design.']
-        : [
-            ' At the last look the bar for a winner is about ',
-            share(cost.ratio - 1),
-            ' higher than for one look at the end; early looks need stronger evidence.',
-          ]),
-    );
-  } else if (cost?.kind === 'width') {
-    segs.push(
-      " It is conservative here; that is not a guarantee for every population. At the planned sample, the confidence sequence's interval is about ",
-      share(cost.ratio - 1),
-      " wider than a single fixed test's.",
-    );
+  const alpha = share(selected.alpha);
+  if (values.mode === 'once') {
+    return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, ', ...found(view), `, ${relation(view)} the `, alpha, ' a single check allows.'];
   }
-  return segs;
+  if (values.fix === 'cs') {
+    return [
+      'With the always-valid check, ',
+      ...found(view),
+      '. That is well under the ',
+      alpha,
+      ' a single check allows. How far under depends on the setting.',
+      ...(cost?.kind === 'width'
+        ? [' The price: at the last check, its margin of error is about ', share(cost.ratio - 1), " wider than one check's."]
+        : []),
+    ];
+  }
+  if (values.looks === 1) {
+    return [
+      'With a single check, ',
+      ...found(view),
+      `, ${relation(view)} the `,
+      alpha,
+      ' a single check allows.',
+      ...(values.fix === 'obf' ? [' With one check there is nothing to correct.'] : []),
+    ];
+  }
+  if (values.fix === 'obf') {
+    return [
+      'With stricter early checks, ',
+      ...found(view),
+      ', close to or under the ',
+      alpha,
+      ' a single check allows.',
+      ...(cost?.kind === 'boundary' ? [' The price: at the last check, the bar is about ', share(cost.ratio - 1), ' higher than for one check.'] : []),
+    ];
+  }
+  return ['Checked daily for ', count(selected.looks), ` ${daysWord(selected.looks)}, `, ...found(view), '. Checked once at the end, about ', alpha, ' would.'];
 }
 
 /** The announcement: the result line in words, on a committed change only. */
@@ -116,11 +122,11 @@ function criterion(view: PeekView): Seg[] {
   const { mode, fix } = view.values;
   const alpha = view.selected.alpha;
   if (mode === 'once') {
-    return ['A run counts as a false winner if its p-value (pooled z-test, two-sided) at that one look falls below ', decimal(alpha), '. '];
+    return ['A run counts as a false winner if its p-value (pooled z-test, two-sided) at that one check falls below ', decimal(alpha), '. '];
   }
   if (fix === 'obf') {
     return [
-      "A run counts as a false winner the first time the size of its z statistic reaches the O'Brien-Fleming bar for that look, set for an overall two-sided level of ",
+      "A run counts as a false winner the first time the size of its z statistic reaches the O'Brien-Fleming bar for that check, set for an overall two-sided level of ",
       decimal(alpha),
       '. ',
     ];
@@ -145,9 +151,9 @@ function legend(view: PeekView): Seg[] {
       return [
         'The comparison schedule is ',
         count(naive.looks),
-        ' daily look of ',
+        ' daily check of ',
         count(naive.nPerLook),
-        ' visitors per group with no fix. With one look the comparison schedule gives the same share, so its pale dot sits under the ringed dot. ',
+        ' visitors per group with no fix. With one check the comparison schedule gives the same share, so its pale dot sits under the ringed dot. ',
       ];
     }
     return [
@@ -155,19 +161,19 @@ function legend(view: PeekView): Seg[] {
       count(naive.looks),
       ` daily ${looksWord(naive.looks)} of `,
       count(naive.nPerLook),
-      ' visitors per group with no fix. The ringed dot is the one look at the end. ',
+      ' visitors per group with no fix. The ringed dot is the one check at the end. ',
     ];
   }
   if (values.fix === 'naive') {
-    return [one ? 'The ringed dot is the share of runs flagged at the one look. ' : 'The line is the share of runs flagged so far at each look, and the ringed dot is the last look. '];
+    return [one ? 'The ringed dot is the share of runs flagged at the one check. ' : 'The line is the share of runs flagged so far on each day, and the ringed dot is the last day. '];
   }
   if (hidden) {
     return [
       'The comparison is the same ',
       count(naive.looks),
-      ' daily look of ',
+      ' daily check of ',
       count(naive.nPerLook),
-      ' visitors per group with no fix; with one look the fix changes nothing, so the pale dot sits under the ringed dot. ',
+      ' visitors per group with no fix; with one check the fix changes nothing, so the pale dot sits under the ringed dot. ',
     ];
   }
   return [
@@ -175,19 +181,22 @@ function legend(view: PeekView): Seg[] {
     count(naive.looks),
     ` daily ${looksWord(naive.looks)} of `,
     count(naive.nPerLook),
-    ` visitors per group with no fix; ${one ? 'the ringed dot uses the fix. ' : 'the dark line uses the fix, and the ringed dot is its last look. '}`,
+    ` visitors per group with no fix; ${one ? 'the ringed dot uses the fix. ' : 'the dark line uses the fix, and the ringed dot is its last day. '}`,
   ];
 }
 
 /** The caption under the chart: what is simulated. The rest of the method is in the method row. */
 function captionSegments(view: PeekView): Seg[] {
-  return ['Simulated A/A tests: both groups convert at ', share(view.selected.p), ', so every winner is a false one.'];
+  return ['Simulated tests of two identical pages, each with a ', share(view.selected.p), ' sign-up rate.'];
 }
 
 /** The method row's text for the setting on screen: the schedule, the criterion, the marks, the runs. */
 function methodSegments(view: PeekView): Seg[] {
   const { values, selected, mc } = view;
+  // The check-once comparison the control row no longer offers: one check after the same visitors.
+  const once = values.mode === 'once' ? null : computePeek({ ...values, mode: 'once' }).selected;
   return [
+    'These are A/A tests: both groups see the same version, so every winner is a false one. ',
     'Under these simulation assumptions the rate is ',
     share(selected.falsePositiveRate, 1),
     ' (',
@@ -201,7 +210,16 @@ function methodSegments(view: PeekView): Seg[] {
     '. ',
     ...(values.mode === 'once'
       ? ['Looking once means one check after ', count(selected.nPerLook), ' visitors per group. ']
-      : ['Each scheduled look adds ', count(selected.nPerLook), ' visitors per group. ']),
+      : ['Each day checked adds ', count(selected.nPerLook), ' visitors per group. ']),
+    ...(once
+      ? [
+          'Checked once at the end, after the same ',
+          count(once.nPerLook),
+          ' visitors per group, the simulated rate is ',
+          share(once.falsePositiveRate, 1),
+          '. ',
+        ]
+      : []),
     ...criterion(view),
     ...legend(view),
     'The dotted line marks the nominal ',
@@ -213,41 +231,33 @@ function methodSegments(view: PeekView): Seg[] {
     '; the ',
     share(MC_LEVEL),
     ' Monte Carlo range is a Wilson interval over the runs: where the rate would settle with far more runs. ',
-    'Each setting is its own simulation, so nearby look counts can differ by a few points. ',
-    ...(view.cost ? ["The price of a fix is arithmetic at the last look's sample, not a measured loss of power. "] : []),
+    'Each setting is its own simulation, so nearby numbers of days can differ by a few points. ',
+    ...(view.cost ? ["The price of a fix is arithmetic at the last check's sample, not a measured loss of power. "] : []),
     'Idea credited to Evan Miller, “How Not To Run an A/B Test”.',
   ];
 }
 
-/** The preset's view, looked up once: the takeaway and the lead-in quote the starting setting. */
+/** The preset's view, looked up once: the lead-in and the terms quote the starting setting. */
 let startView: PeekView | undefined;
-const start = () => (startView ??= computePeek(PEEK_PRESETS.default));
+const start = () => (startView ??= computePeek({ ...PEEK_PRESETS.default, mode: 'daily' }));
 
-/** The sentence above the Figure. */
+/** The sentence above the Figure: the one control to move and what to watch. */
 export function PeekLeadIn() {
   return (
     <>
-      Both versions here are identical, so every winner is a false alarm. The line counts how many of{' '}
-      <Segments segs={[count(start().selected.runs)]} /> simulated tests have raised one by each daily check.
+      Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of{' '}
+      <Segments segs={[count(start().selected.runs)]} /> tests find one.
     </>
   );
 }
 
 /**
- * The sentence below the Figure, at the starting setting: one test in twenty is the nominal level,
- * and "more than one in five" is the preset's own rate, rounded to the next whole "one in".
+ * The sentence below the Figure: what I do about it, the same at every setting, so it quotes no
+ * number (the result line shows the contrast of one check and daily checks). The live test's plan
+ * uses a confidence sequence, the always-valid check.
  */
-export function PeekTakeaway() {
-  const { selected } = start();
-  return (
-    <>
-      Read once at the end, about <Segments segs={[count(1), ' test in ', count(Math.round(1 / selected.alpha))]} /> raises a
-      false alarm. At the starting setting, checked on each of <Segments segs={[count(selected.looks)]} /> days, more than{' '}
-      <Segments segs={[count(1), ' in ', count(Math.ceil(1 / selected.falsePositiveRate))]} /> does. Choose a correction to
-      see what it costs to look early and still keep false alarms rare.
-    </>
-  );
-}
+export const PEEK_TAKEAWAY =
+  'I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.';
 
 /** The terms the peeking example uses, each in one sentence, at the top of the method row. */
 function PeekTerms() {
@@ -258,10 +268,11 @@ function PeekTerms() {
       {term('Peeking')}: checking a running test again and again and stopping the first time it looks significant, which
       gives chance many tries to produce a false winner. {term('False winner (false positive)')}: a difference the test
       flags although the two versions are in truth the same; a test read once is set to allow this about{' '}
-      <Segments segs={[count(1), ' time in ', count(Math.round(1 / alpha))]} />. {term("O'Brien-Fleming")}: a planned
-      schedule of looks in which early looks need much stronger evidence, so the false-winner rate over all looks stays
-      at the planned level. {term('Confidence sequence')}: an interval that stays valid however often it is looked at, at
-      the price of being wider than a one-look interval.
+      <Segments segs={[count(1), ' time in ', count(Math.round(1 / alpha))]} />, the nominal level.{' '}
+      {term("Stricter early checks (O'Brien-Fleming)")}: a planned schedule of checks in which early checks need much
+      stronger evidence, so the false-winner rate over all checks stays at the planned level.{' '}
+      {term('Always-valid check (confidence sequence)')}: an interval that stays valid however often it is looked at, at
+      the price of being wider than a one-check interval.
     </>
   );
 }
@@ -276,16 +287,16 @@ function lookTicks(looks: number, count: number): number[] {
 
 function chartName(view: PeekView): string {
   const { looks, mode, fix } = view.values;
-  if (mode === 'once') return 'False winners when looking once at the end, beside daily looks with no fix';
+  if (mode === 'once') return 'False winners when checking once at the end, beside daily checks with no fix';
   if (fix === 'naive') {
     return looks === 1
-      ? 'False winners at a single look with no fix'
-      : 'False winners so far by look when peeking daily with no fix: the share climbs from the first look to the last';
+      ? 'False winners at a single check with no fix'
+      : 'False winners so far by day when checking daily with no fix: the share climbs from the first day to the last';
   }
-  const method = fix === 'obf' ? "O'Brien-Fleming bounds" : 'a confidence sequence';
+  const method = fix === 'obf' ? 'stricter early checks' : 'the always-valid check';
   return looks === 1
-    ? `False winners at a single look with ${method}, beside the same look with no fix`
-    : `False winners so far by look with ${method}, beside the same daily looks with no fix`;
+    ? `False winners at a single check with ${method}, beside the same check with no fix`
+    : `False winners so far by day with ${method}, beside the same daily checks with no fix`;
 }
 
 /**
@@ -332,7 +343,7 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
           domain: x,
           ticks: { wide: lookTicks(L, 6), narrow: lookTicks(L, 3) },
           format: (v) => formatNumber(v, 0),
-          label: 'Look',
+          label: 'Day',
           refs: PEEK_REFS,
         }}
         y={{
@@ -417,7 +428,7 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
           <line x1={0} x2={24} y1={1} y2={1} stroke="var(--color-muted)" strokeWidth={1} strokeDasharray="2 3" />
         </svg>
         <span>
-          Dotted line: nominal <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />
+          Dotted line: <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />, the false winners one check at the end allows
         </span>
       </p>
     </div>
@@ -442,7 +453,7 @@ export type PeekingFigureViewProps = {
 
 export function PeekingFigureView({ id, view, controls, announcement, preview, faultAfterChange, changed }: PeekingFigureViewProps) {
   const { values, selected } = view;
-  const takeaway = <PeekTakeaway />;
+  const takeaway = PEEK_TAKEAWAY;
   const figure = (
     <Figure
       id={id}
@@ -466,7 +477,7 @@ export function PeekingFigureView({ id, view, controls, announcement, preview, f
   );
   return (
     <Exhibit
-      summary="The method behind the peeking chart"
+      summary="How the simulation works"
       leadIn={<PeekLeadIn />}
       takeaway={takeaway}
       method={

@@ -9,13 +9,13 @@ import { formatNumber } from '@/lib/figure/format';
 import { retrodesign, srmTest, type RetrodesignInput, type RetrodesignResult } from '@/lib/stats';
 import {
   CURSE_ALPHA,
-  CURVE_SAMPLES,
+  CURSE_LABELS,
+  CURSE_SCHEMA,
   DIAGNOSTICS_REFS,
-  RATIO_MAX,
-  RATIO_MIN,
+  SRM_SHARE,
   SRM_SMALL_EXPECTED,
   SRM_THRESHOLD,
-  unitsText,
+  normalizeCurse,
   type CurseValues,
   type SrmValues,
 } from './diagnostics-values';
@@ -29,20 +29,20 @@ export type SrmResult = { kind: 'empty' } | { kind: 'result'; chi2: number; p: n
 export type SrmDeps = { srmTest: typeof srmTest };
 
 /**
- * The chi-square split check on the counts and the expected share of group A. With no visitors at
+ * The chi-square split check on the counts against the planned share of half. With no visitors at
  * all there is nothing to test (srmTest rejects an empty total), so the model says so without
  * calling it; one empty group is a real result. The flag is srmTest's own (p below SRM_THRESHOLD).
  */
-export function srmModel({ nA, nB, shareA }: SrmValues, deps: SrmDeps = { srmTest }): SrmResult {
+export function srmModel({ nA, nB }: SrmValues, deps: SrmDeps = { srmTest }): SrmResult {
   if (nA + nB === 0) return { kind: 'empty' };
-  const { chi2, p, flagged } = deps.srmTest(nA, nB, shareA);
+  const { chi2, p, flagged } = deps.srmTest(nA, nB, SRM_SHARE);
   return { kind: 'result', chi2, p, flagged };
 }
 
-/** The visitors each group should have at the expected share, as srmTest computes them. */
-export function srmExpected({ nA, nB, shareA }: SrmValues): { a: number; b: number } {
+/** The visitors each group should have at the planned share, as srmTest computes them. */
+export function srmExpected({ nA, nB }: SrmValues): { a: number; b: number } {
   const total = nA + nB;
-  return { a: total * shareA, b: total * (1 - shareA) };
+  return { a: total * SRM_SHARE, b: total * (1 - SRM_SHARE) };
 }
 
 /** Whether an expected count is under the rule of thumb for the chi-square approximation. */
@@ -62,36 +62,48 @@ export function pValueText(r: { p: number; flagged: boolean }): string {
   return r.flagged ? `below ${formatNumber(SRM_THRESHOLD)}` : formatNumber(r.p);
 }
 
-export const SRM_EMPTY = 'No visitors in either group yet, so there is nothing to test and no p-value.';
-export const SRM_FLAGGED_NOTE =
-  'A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.';
-export const SRM_CLEAR_NOTE = 'This split is consistent with the expected share at this threshold.';
-export const smallExpectedNote = () =>
-  `An expected count is below ${formatNumber(SRM_SMALL_EXPECTED)}, so the chi-square approximation is rough here.`;
+/** The threshold as odds, "1 time in 1,000": the number of tests per false alarm. */
+export const SRM_ODDS = Math.round(1 / SRM_THRESHOLD);
+
+export const SRM_EMPTY = 'No visitors yet, so there is nothing to check.';
+export const SRM_SMALL_NOTE = 'With so few visitors, this check is only rough.';
+
+/**
+ * The verdict's sentence after the word, in plain words: the p-value as how often a fair coin leaves
+ * a gap this big or bigger. The two sides are exact complements.
+ */
+export function srmVerdictText(flagged: boolean): string {
+  const odds = `1 time in ${formatNumber(SRM_ODDS, 0)}`;
+  return flagged
+    ? `a fair coin leaves a gap this big or bigger less than ${odds}.`
+    : `a fair coin leaves a gap this big or bigger at least ${odds}.`;
+}
 
 /** The result line as plain text: the announcement, and what the view prints. */
 export function srmResultText(v: SrmValues, deps?: SrmDeps): string {
   const r = srmModel(v, deps);
   if (r.kind === 'empty') return SRM_EMPTY;
-  const parts = [
-    `Chi-square ${chi2Text(r.chi2)} with one degree of freedom, p-value ${pValueText(r)}: ${r.flagged ? 'flagged' : 'not flagged'}.`,
-    r.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE,
-  ];
-  if (srmSmallExpected(v)) parts.push(smallExpectedNote());
+  const parts = [`${r.flagged ? 'Flagged' : 'Not flagged'}: ${srmVerdictText(r.flagged)}`];
+  if (srmSmallExpected(v)) parts.push(SRM_SMALL_NOTE);
   return parts.join(' ');
 }
 
-/** The table fallback: observed and expected visitors per group, and the expected share. */
+/** The statistic for the method row: "chi-square 11.56, one degree of freedom, p-value below 0.001". */
+export function srmStatText(r: { chi2: number; p: number; flagged: boolean }): string {
+  return `chi-square ${chi2Text(r.chi2)}, one degree of freedom, p-value ${pValueText(r)}`;
+}
+
+/** The table fallback: observed and expected visitors per group, and the planned share. */
 export function srmTable(v: SrmValues): TableData {
   const e = srmExpected(v);
   return {
-    columns: ['Group', 'Visitors', 'Expected share', 'Expected visitors'],
+    columns: ['Group', 'Visitors', 'Planned share', 'Expected visitors'],
     rows: [
-      ['Group A', v.nA, v.shareA, e.a],
-      ['Group B', v.nB, 1 - v.shareA, e.b],
+      ['Group A', v.nA, SRM_SHARE, e.a],
+      ['Group B', v.nB, 1 - SRM_SHARE, e.b],
     ],
     formats: ['number', 'count', 'share', 'number'],
-    note: 'Hypothetical counts you set. The expected visitors are the total times the expected share.',
+    note: 'Made-up counts you set. The expected visitors are half of all visitors.',
     refs: DIAGNOSTICS_REFS,
   };
 }
@@ -123,60 +135,76 @@ export function srmAxis(v: SrmValues): { top: number; ticks: { wide: number[]; n
 // ---------------------------------------------------------------------------------------------
 // Exaggeration.
 
-export type CurseResult =
-  | { kind: 'zero-effect' }
-  | { kind: 'result'; power: number; typeS: number; exaggeration: number }
-  | { kind: 'unbounded' };
+export type CurseResult = { kind: 'result'; power: number; ratio: number; typeS: number; exaggeration: number } | { kind: 'unbounded' };
 export type CurseDeps = { retrodesign: (o: RetrodesignInput) => RetrodesignResult };
 
 const STATS_RETRO: CurseDeps = { retrodesign };
 const finite = (r: RetrodesignResult) => Number.isFinite(r.power) && Number.isFinite(r.typeS) && Number.isFinite(r.exaggeration);
 
+/** The bisection's upper end: at a ratio of 10 the test clears the bar essentially always. */
+const RATIO_HI = 10;
+/** Bisection stops when the bracket is narrower than this (power then agrees to about 1e-14). */
+const RATIO_TOLERANCE = 1e-14;
+const inverse = new Map<number, number>();
+
 /**
- * Power, the wrong-sign rate among significant estimates and the exaggeration among them, from
- * retrodesign at the fixed significance level. A zero true effect is its own branch, without a call
- * (retrodesign rejects it: exaggeration is a ratio to the true effect). Any non-finite result is the
- * unbounded branch, before anything is formatted or serialized.
+ * The ratio of true effect to standard error at which a two-sided test at CURSE_ALPHA clears the bar
+ * with the given power: the inverse of retrodesign's power, found by bisection. Power is
+ * Phi(r - z) + Phi(-r - z), which rises strictly from alpha as r grows above zero, so there is one
+ * ratio per power. The power is normalized first (clamped to the slider's range and put on its grid,
+ * NaN gives the preset), so it never throws. Always the statistics' own retrodesign.
  */
-export function curseModel({ trueEffect, se }: CurseValues, deps: CurseDeps = STATS_RETRO): CurseResult {
-  if (trueEffect === 0) return { kind: 'zero-effect' };
-  const r = deps.retrodesign({ trueEffect, se, alpha: CURSE_ALPHA });
-  if (!finite(r)) return { kind: 'unbounded' };
-  return { kind: 'result', power: r.power, typeS: r.typeS, exaggeration: r.exaggeration };
-}
-
-/** The ratio of the true effect to its standard error: 0 for no effect, never undefined. */
-export const curseRatio = (v: CurseValues) => v.trueEffect / v.se;
-
-export type CurvePoint = { ratio: number; x: number; exaggeration: number };
-
-/** The curve's ratios: both ends exactly and CURVE_SAMPLES log-spaced ratios strictly between. */
-function curveRatios(): number[] {
-  const lo = Math.log10(RATIO_MIN);
-  const hi = Math.log10(RATIO_MAX);
-  const inner = Array.from({ length: CURVE_SAMPLES }, (_, i) => 10 ** (lo + ((hi - lo) * (i + 1)) / (CURVE_SAMPLES + 1)));
-  return [RATIO_MIN, ...inner, RATIO_MAX];
+export function ratioForPower(power: number): number {
+  const target = normalizeCurse({ power }).power;
+  const known = inverse.get(target);
+  if (known !== undefined) return known;
+  const powerAt = (ratio: number) => retrodesign({ trueEffect: ratio, se: 1, alpha: CURSE_ALPHA }).power;
+  let lo = 0;
+  let hi = RATIO_HI;
+  while (hi - lo > RATIO_TOLERANCE) {
+    const mid = (lo + hi) / 2;
+    if (mid === lo || mid === hi) break;
+    if (powerAt(mid) < target) lo = mid;
+    else hi = mid;
+  }
+  const ratio = (lo + hi) / 2;
+  inverse.set(target, ratio);
+  return ratio;
 }
 
 /**
- * The analytic exaggeration across the reachable ratios, retrodesign at each ratio over a standard
- * error of 1 (the same as the setting itself: retrodesign works on the ratio), plus the exact current
- * ratio when it is positive. Sorted and unique; x is log10 of the ratio. A sample with a non-finite
- * result is dropped. `selected` is the current ratio's own datum, or null for a zero effect (which
- * is never put through the logarithm) or an unbounded result.
+ * The ratio for the power set, and at that ratio the wrong-sign rate among results that clear the
+ * bar and the exaggeration among them, from retrodesign at the fixed significance level. Any
+ * non-finite result is the unbounded branch, before anything is formatted or serialized.
+ */
+export function curseModel(v: CurseValues, deps: CurseDeps = STATS_RETRO): CurseResult {
+  const ratio = ratioForPower(normalizeCurse(v).power);
+  const r = deps.retrodesign({ trueEffect: ratio, se: 1, alpha: CURSE_ALPHA });
+  if (!finite(r)) return { kind: 'unbounded' };
+  return { kind: 'result', power: r.power, ratio, typeS: r.typeS, exaggeration: r.exaggeration };
+}
+
+export type CurvePoint = { power: number; ratio: number; exaggeration: number };
+
+/** Every power the slider reaches, from its lowest to its highest step. */
+export function cursePowers(): number[] {
+  const { min, max, step } = CURSE_SCHEMA.power;
+  return Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => normalizeCurse({ power: min + i * step }).power);
+}
+
+/**
+ * The exaggeration at every power the slider reaches, on linear axes. A sample with a non-finite
+ * result is dropped. `selected` is the setting's own datum, or null for an unbounded result.
  */
 export function curseCurve(v: CurseValues, deps: CurseDeps = STATS_RETRO): { points: CurvePoint[]; selected: CurvePoint | null } {
-  const current = curseRatio(v);
-  const ratios = curveRatios();
-  if (current > 0 && !ratios.includes(current)) ratios.push(current);
-  ratios.sort((a, b) => a - b);
+  const current = normalizeCurse(v).power;
   const points: CurvePoint[] = [];
-  for (const ratio of ratios) {
+  for (const power of cursePowers()) {
+    const ratio = ratioForPower(power);
     const r = deps.retrodesign({ trueEffect: ratio, se: 1, alpha: CURSE_ALPHA });
-    if (finite(r)) points.push({ ratio, x: Math.log10(ratio), exaggeration: r.exaggeration });
+    if (finite(r)) points.push({ power, ratio, exaggeration: r.exaggeration });
   }
-  const selected = current > 0 ? (points.find((p) => p.ratio === current) ?? null) : null;
-  return { points, selected };
+  return { points, selected: points.find((p) => p.power === current) ?? null };
 }
 
 /** The plot heights of the exaggeration chart, in px. */
@@ -186,53 +214,41 @@ export const DOT_RADIUS = 4;
 export const DOT_RING = 2;
 /** The room kept between the top of the plot and the highest value: the dot, its ring and a gap. */
 export const DOT_CLEARANCE_PX = DOT_RADIUS + DOT_RING + 2;
-/** The log axis's tick values, in plain multiples: 1, 2 and 5 in each decade. */
-const CURSE_MULTIPLES = [1, 2, 5] as const;
-
-/** A value's height on the exaggeration axis: log10 of the exaggeration, never below 1 (no exaggeration). */
-export const curseY = (exaggeration: number): number => Math.log10(Math.max(1, exaggeration));
-
-/** The y tick text: a log10 tick printed back as its plain multiple ("1", "2", "50"). */
-export const exaggerationTick = (v: number): string => formatNumber(Math.round(10 ** v), 0);
 
 /**
- * The exaggeration axis, on a log scale so a small exaggeration (the preset's about 2.5 times) sits
- * clear of the floor while the curve's largest values still fit. The floor is 1 times the true effect
- * (log10 0, the zero line: no exaggeration). The top is the first value of 2, 5, 10, 20, 50, ... above
- * every sampled value and the selected one at which the highest value sits at least DOT_CLEARANCE_PX
- * below the top in the shorter layout. `domain` and `ticks` are in log10; `top` is the plain multiple.
- * Ticks at 1, 2 and 5 in each decade wide, and at the powers of ten narrow (with the highest wide tick
- * when the axis spans less than a decade).
+ * A value's height on the exaggeration axis: the exaggeration minus one, never below zero, so the
+ * frame's zero line is one times the real effect (no exaggeration).
+ */
+export const curseY = (exaggeration: number): number => Math.max(1, exaggeration) - 1;
+
+/** The y tick text: a tick printed back as its plain multiple ("1", "2", "4"). */
+export const exaggerationTick = (v: number): string => formatNumber(v + 1, 0);
+
+/**
+ * The linear exaggeration axis: from one times the real effect (the zero line) to the first whole
+ * multiple above every sampled value and the selected one at which the highest value sits at least
+ * DOT_CLEARANCE_PX below the top in the shorter layout. `domain` and `ticks` are in curseY's units;
+ * `top` is the plain multiple. Every whole multiple is a tick wide; narrow keeps the top and every
+ * other one below it.
  */
 export function curseAxis(
   points: readonly CurvePoint[],
   selected: CurvePoint | null,
 ): { top: number; domain: [number, number]; ticks: { wide: number[]; narrow: number[] } } {
   const values = [...points.map((p) => p.exaggeration), ...(selected ? [selected.exaggeration] : [])];
-  const max = Math.max(1, ...values.filter((v) => Number.isFinite(v)));
+  const max = curseY(Math.max(1, ...values.filter((v) => Number.isFinite(v))));
   const shorter = Math.min(CURSE_HEIGHT.narrow, CURSE_HEIGHT.wide);
-  const room = (top: number) => ((Math.log10(top) - curseY(max)) / Math.log10(top)) * shorter;
-  const candidates = (decade: number) => CURSE_MULTIPLES.map((m) => m * 10 ** decade);
   let top = 2;
-  for (let decade = 0; ; decade++) {
-    const found = candidates(decade).find((t) => t > 1 && t > max && room(t) >= DOT_CLEARANCE_PX);
-    if (found !== undefined) {
-      top = found;
-      break;
-    }
-  }
-  const plain: number[] = [];
-  for (let decade = 0; 10 ** decade <= top; decade++) for (const t of candidates(decade)) if (t <= top) plain.push(t);
-  const wide = plain.map((t) => Math.log10(t));
-  const tens = plain.filter((t) => Number.isInteger(Math.log10(t)));
-  const narrow = (tens.length >= 2 ? tens : [1, plain.at(-1)!]).map((t) => Math.log10(t));
-  return { top, domain: [0, Math.log10(top)], ticks: { wide, narrow } };
+  while (top - 1 <= max || ((top - 1 - max) / (top - 1)) * shorter < DOT_CLEARANCE_PX) top++;
+  const wide = Array.from({ length: top - 1 }, (_, i) => i + 1);
+  const narrow = wide.filter((_, i) => (wide.length - 1 - i) % 2 === 0);
+  return { top, domain: [0, top - 1], ticks: { wide, narrow } };
 }
 
-/** The x-axis ticks: ratios of 0.1, 1 and 10, as their log10. */
-export const CURSE_X_TICKS = [-1, 0, 1];
-/** A log10 tick printed back as its plain ratio ("0.1", "1", "10"). */
-export const ratioTick = (x: number) => formatNumber(Number((10 ** x).toPrecision(12)));
+/** The x-axis ticks: powers of 10%, 30%, 50%, 70% and 90% wide, three of them narrow. */
+export const CURSE_X_TICKS = { wide: [0.1, 0.3, 0.5, 0.7, 0.9], narrow: [0.1, 0.5, 0.9] };
+/** A power tick as a whole percent ("10%"). */
+export const powerTick = (power: number) => `${formatNumber(power * 100, 0)}%`;
 
 /** Below this wrong-sign rate the readout says "below 0.1%" rather than a rounded zero. */
 const WRONG_SIGN_FLOOR = 0.001;
@@ -252,49 +268,43 @@ const oneDecimal = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, ma
 /** The exaggeration factor with one decimal: "2.5", "1.0". It is at least 1. */
 export const formatExaggeration = (e: number) => oneDecimal.format(e);
 
-export const CURSE_ZERO =
-  'Exaggeration is undefined when the true effect is zero. The ratio of true effect to standard error is then zero, not undefined, but zero has no place on the logarithmic x-axis, so the chart marks no setting.';
-export const CURSE_UNBOUNDED = 'Exaggeration is unbounded at this setting: the calculation gives no finite value, so no number is shown.';
+export const CURSE_UNBOUNDED = 'At this setting the calculation has no finite answer, so no number is shown.';
 
 /** The result line as plain text: the announcement, and what the view prints. */
 export function curseResultText(v: CurseValues, deps?: CurseDeps): string {
   const r = curseModel(v, deps);
-  if (r.kind === 'zero-effect') return CURSE_ZERO;
   if (r.kind === 'unbounded') return CURSE_UNBOUNDED;
-  return `At a true effect of ${unitsText(v.trueEffect)} and a standard error of ${unitsText(v.se)}, a ratio of ${formatNumber(curseRatio(v))}, power is ${formatPower(r.power)}. Of the estimates that pass the threshold, ${formatWrongSign(r.typeS)} have the wrong sign, and on average their size is ${formatExaggeration(r.exaggeration)} times the true effect.`;
+  return `At this setting, results that clear the bar average ${formatExaggeration(r.exaggeration)} times the real effect. Of those, ${formatWrongSign(r.typeS)} of them point the wrong way.`;
 }
 
-/** The reference ratios the table always lists, from one end of the range to the other. */
-const TABLE_RATIOS = [RATIO_MIN, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, RATIO_MAX];
+/** The reference powers the table always lists, from one end of the slider to the other. */
+const TABLE_POWERS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99];
 const NO_VALUE = 'no finite value';
 
 /**
- * The table fallback: the reference ratios and the current one (marked), each with the readout's own
- * words for power, the wrong-sign rate and exaggeration, so a row and the readout always agree. A
- * zero effect has no row (it is not on the curve); a non-finite result is written in words.
+ * The table fallback: the reference powers and the current one (marked), each with the ratio it
+ * implies and the readout's own words for the wrong-sign rate and exaggeration, so a row and the
+ * readout always agree. A non-finite result is written in words.
  */
 export function curseTable(v: CurseValues, deps: CurseDeps = STATS_RETRO): TableData {
-  const current = curseRatio(v);
-  // The current ratio is used exactly. A reference ratio it equals up to float noise (0.6 / 0.3 is
-  // not exactly 2) gives way to it, so no two rows print the same ratio.
-  const near = (r: number) => Math.abs(r - current) <= 1e-9 * current;
-  const ratios = current > 0 ? [...TABLE_RATIOS.filter((r) => !near(r)), current].sort((a, b) => a - b) : TABLE_RATIOS;
+  const current = normalizeCurse(v).power;
+  const powers = [...new Set([...TABLE_POWERS, current])].sort((a, b) => a - b);
   return {
     columns: [
-      'True effect ÷ standard error',
-      'Power',
-      'Wrong sign among significant estimates',
-      'Exaggeration among significant estimates',
+      'How often the test clears the bar (power)',
+      'Ratio of effect to noise',
+      CURSE_LABELS.wrongSign,
+      'Overstatement among results that clear the bar',
       'Your setting',
     ],
-    rows: ratios.map((ratio) => {
+    rows: powers.map((power) => {
+      const ratio = ratioForPower(power);
       const r = deps.retrodesign({ trueEffect: ratio, se: 1, alpha: CURSE_ALPHA });
-      const mine = ratio === current ? 'Yes' : '';
-      return finite(r)
-        ? [ratio, formatPower(r.power), formatWrongSign(r.typeS), formatExaggeration(r.exaggeration), mine]
-        : [ratio, NO_VALUE, NO_VALUE, NO_VALUE, mine];
+      const mine = power === current ? 'Yes' : '';
+      return finite(r) ? [power, ratio, formatWrongSign(r.typeS), formatExaggeration(r.exaggeration), mine] : [power, ratio, NO_VALUE, NO_VALUE, mine];
     }),
-    note: 'An analytic calculation at a two-sided significance level, on a true effect and a standard error in the same arbitrary units. A zero true effect has no row: its exaggeration is undefined.',
+    formats: ['share', { fixed: 2 }, 'number', 'number', 'number'],
+    note: 'An exact calculation at a two-sided significance level. Each power fixes the ratio of the true effect to its standard error, in the same arbitrary units.',
     refs: DIAGNOSTICS_REFS,
   };
 }
