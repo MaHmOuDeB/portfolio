@@ -89,7 +89,7 @@ const STORY = [
   'I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and worked with 3 teams over my time there, one after another.',
   'I also built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.',
   "I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I have rebuilt my Master's projects on public data and built tools of my own.",
-  'Along the way I have built internal AI tools that a wider team adopted, and written SQL segmentation queries for consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act (DMA).',
+  'In an earlier role I built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act (DMA).',
 ];
 
 const FOCUS =

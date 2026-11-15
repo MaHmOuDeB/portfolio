@@ -36,7 +36,7 @@ export const ABOUT_STORY: readonly ReactNode[] = [
     have rebuilt my Master&apos;s projects on public data and built tools of my own.
   </>,
   <>
-    Along the way I have built internal AI tools that a wider team adopted, and written SQL segmentation queries for
+    In an earlier role I built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for
     consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act
     (DMA).
   </>,
