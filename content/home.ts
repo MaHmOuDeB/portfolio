@@ -66,7 +66,7 @@ export function bandWords(): string[] {
 
 /**
  * The band under the hero: the words on its three sheets and the visible caption under it, which
- * says the band is an illustration. No digits anywhere in it.
+ * says what the band shows: how I work, from the test to the recommendation. No digits anywhere in it.
  */
 export const HOME_BAND = {
   test: {
@@ -94,7 +94,7 @@ export const HOME_BAND = {
     why: 'Or do not. Either way it is written down, with the reasons.',
     toast: 'checks passed',
   },
-  caption: 'An illustration: a test, the agents that check the work, and the recommendation.',
+  caption: 'How I work: a test, the agents that check the work, and the recommendation.',
 } as const;
 
 /** The anchor of the first track, which the hero's primary button scrolls to. */

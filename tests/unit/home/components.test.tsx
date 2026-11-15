@@ -303,11 +303,11 @@ describe('Hero', () => {
     ]);
   });
 
-  it('says under the band, visibly and outside the hidden stack, that it is an illustration', () => {
+  it('says under the band, visibly and outside the hidden stack, what it shows: how I work', () => {
     const caption = one(band, (el) => has(el, 'data-depth-caption'));
     expect(caption.tagName).toBe('p');
-    expect(text(caption)).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
-    expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(text(caption)).toBe('How I work: a test, the agents that check the work, and the recommendation.');
+    expect(shownText(band).trim()).toBe('How I work: a test, the agents that check the work, and the recommendation.');
   });
 
   it('has no digits in the band and prints figures only in the proof line, as Facts', () => {

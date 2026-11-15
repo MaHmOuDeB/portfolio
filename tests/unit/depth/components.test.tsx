@@ -19,7 +19,7 @@ describe('StackBand', () => {
     expect(html.match(/data-depth-sheet="/g)).toHaveLength(3);
     expect(html.match(/data-depth-link="/g)).toHaveLength(2);
     expect(html.match(/data-depth-arrive=""/g)).toHaveLength(3);
-    expect(html).toMatch(/<\/div><\/div><\/div><p data-depth-caption="">An illustration: a test, the agents that check the work, and the recommendation\.<\/p><\/div><\/div>$/);
+    expect(html).toMatch(/<\/div><\/div><\/div><p data-depth-caption="">How I work: a test, the agents that check the work, and the recommendation\.<\/p><\/div><\/div>$/);
   });
   it('has no digits, no SVG and no control', () => {
     expect(text(html)).not.toMatch(/\d/);

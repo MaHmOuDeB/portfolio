@@ -300,7 +300,7 @@ describe('the hero, proof row, the sections and the site band', () => {
       'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
-    expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(HOME_BAND.caption).toBe('How I work: a test, the agents that check the work, and the recommendation.');
     // the experiments track has no lede: nothing printed it, and its words were out of date
     expect(HOME_TRACKS.experiments).toEqual({ title: 'Experiments and analytics' });
     expect(HOME_TRACKS.automation).toEqual({
