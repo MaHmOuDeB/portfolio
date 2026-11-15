@@ -413,7 +413,7 @@ test.describe('Home cards: which cards are clickable', () => {
     await page.context().close();
   });
 
-  test('a "How I test" tab lifts 4 px and turns its border ink on hover and on keyboard focus, and the selected tab still reads as selected', async ({ browser }, info) => {
+  test('a "How I test" tab lifts 4 px on hover, turns its border ink on hover and on keyboard focus (without moving), and the selected tab still reads as selected', async ({ browser }, info) => {
     test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'hover needs a desktop pointer');
     const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
     const colourInk = await ink(page);
@@ -440,13 +440,13 @@ test.describe('Home cards: which cards are clickable', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect.poll(() => second.evaluate(tabLook)).toEqual({ border: colourInk, translate: '0px -4px', fill: rest.fill, bar: 'none' });
 
-    // Keyboard focus: the arrow key selects and focuses the next radio, and its tab takes the same states with the focus ring.
+    // Keyboard focus: the arrow key selects and focuses the next radio; its tab turns ink with the focus ring but does not move.
     await page.mouse.move(1, 1);
     await expect.poll(() => second.evaluate((el) => getComputedStyle(el).translate)).toBe('none');
     await page.locator('#how-plan').focus();
     await page.keyboard.press('ArrowDown');
     await expect(page.locator('#how-analyse')).toBeFocused();
-    await expect.poll(() => second.evaluate(tabLook)).toEqual({ border: colourInk, translate: '0px -4px', fill: selected.fill, bar: 'block' });
+    await expect.poll(() => second.evaluate(tabLook)).toEqual({ border: colourInk, translate: 'none', fill: selected.fill, bar: 'block' });
     expect(await second.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
     await page.context().close();
   });

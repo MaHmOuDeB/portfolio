@@ -104,16 +104,16 @@ describe('a clickable card on hover, focus and press', () => {
     expect(flat(css)).toMatch(/\[data-next-label\] \{[^}]*text-decoration-thickness: 1px; text-underline-offset: 0\.18em;/);
   });
 
-  it('rises 4 px by translate only, on hover where hover exists and motion is allowed, and on keyboard focus where motion is allowed', () => {
+  it('rises 4 px by translate only, on hover where hover exists and motion is allowed, never on keyboard focus', () => {
     const lift = 'translate: 0 calc(var(--spacing) * -1);';
     expect(blocks('@media (hover: hover) and (prefers-reduced-motion: no-preference)')).toContain(
       `[data-depth-lean]:hover, [data-next]:hover { ${lift} }`,
     );
-    expect(blocks('@media (prefers-reduced-motion: no-preference)')).toContain(
-      `[data-depth-lean]:focus-visible, [data-next]:focus-visible { ${lift} }`,
-    );
+    // Focus never moves the card: a tall focused card at the top of a small viewport would push its
+    // ring off screen (WebKit at 320x180).
+    expect(flat(css)).not.toMatch(/\[data-(?:depth-lean|next)\]:focus-visible[^{]*\{[^}]*translate/);
     // Nowhere else does a card move on hover, focus or press, and never by scale or transform.
-    const rest = flat(without('@media (prefers-reduced-motion: no-preference)', without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
+    const rest = flat(without('@media (hover: hover) and (prefers-reduced-motion: no-preference)'));
     expect(rest).not.toMatch(/\[data-(?:depth-lean|next)\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
   });
 
@@ -145,8 +145,8 @@ describe('a clickable card on hover, focus and press', () => {
 });
 
 // The "How I test" tabs are clickable too, so they say so the way a card does: the border turns ink
-// on hover (only where hover exists), on keyboard focus of the radio and on press, and the tab rises
-// 4 px where motion is allowed. The selected tab keeps its own look (a surface fill and an ink bar).
+// on hover (only where hover exists), on keyboard focus of the radio and on press, and on hover the
+// tab rises 4 px where motion is allowed (focus never moves it). The selected tab keeps its own look (a surface fill and an ink bar).
 describe('a "How I test" tab on hover, focus and press', () => {
   const lift = 'translate: 0 calc(var(--spacing) * -1);';
   const focus = '[data-how-tab]:is(:has(:focus-visible), :active)';
@@ -170,10 +170,9 @@ describe('a "How I test" tab on hover, focus and press', () => {
     expect(rest).not.toMatch(/\[data-how-tab\]:(?:is\([^)]*)?hover/);
   });
 
-  it('rises 4 px by translate only, on hover and on keyboard focus, where motion is allowed', () => {
+  it('rises 4 px by translate only, on hover where motion is allowed, never on keyboard focus', () => {
     expect(blocks('@media (hover: hover) and (prefers-reduced-motion: no-preference)')).toContain(`[data-how-tab]:hover { ${lift} }`);
-    expect(blocks('@media (prefers-reduced-motion: no-preference)')).toContain(`[data-how-tab]:has(:focus-visible) { ${lift} }`);
-    const rest = flat(without('@media (prefers-reduced-motion: no-preference)', without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
+    const rest = flat(without('@media (hover: hover) and (prefers-reduced-motion: no-preference)'));
     expect(rest).not.toMatch(/\[data-how-tab\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
   });
 

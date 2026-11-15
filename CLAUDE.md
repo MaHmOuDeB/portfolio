@@ -396,8 +396,8 @@ page, give it the primitives catalogue above and the golden page.
   - Lean and magnet run only under a fine pointer. No transition while a slider is dragged.
   - Hover movement is banned except the 4 px lift of a clickable card, a closed list: a lean card
     (`[data-depth-lean]`), a previous/next card (`[data-next]`) and a Home "How I test" tab
-    (`[data-how-tab]`). It lifts on hover where hover exists, and on keyboard focus, with motion
-    allowed, by `translate` only. Its border (and a lean card's plus) turns ink on hover, focus and
+    (`[data-how-tab]`). It lifts on hover where hover exists, with motion allowed, by `translate`
+    only; keyboard focus never moves it. Its border (and a lean card's plus) turns ink on hover, focus and
     press; the selected tab keeps its fill and ink bar. Buttons, segmented controls, sliders, chips,
     details rows and inline links keep their own hover; nothing else moves on hover.
   - Only transform, opacity and clip-path animate, never layout. The h1 never animates.

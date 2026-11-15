@@ -2212,7 +2212,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   /* A clickable card (a lean card, a previous or next card) on hover, focus and press: the border
      turns ink and the plus fills ink with a white glyph (a Next card's label underlines instead),
-     and where motion is allowed the card rises 4 px. Hover applies only where hover exists, so a tap
+     and on hover, where motion is allowed, the card rises 4 px. Hover applies only where hover exists, so a tap
      never leaves a card looking hovered; there the plus is ink at rest and a press shows the colour.
      The rise is the individual translate, so it adds to the pointer lean's transform; a card still
      inside its scroll-linked rise (which animates translate) lifts once that entrance is over, and
@@ -2256,13 +2256,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    [data-depth-lean]:focus-visible,
-    [data-next]:focus-visible {
-      translate: 0 calc(var(--spacing) * -1);
-    }
-  }
-
+  /* The rise is for the pointer only. Keyboard focus keeps the ink border, the plus and the focus
+     ring, but does not move the card: a tall card focused at the top of a small viewport would push
+     its ring off the screen (WebKit at 320x180). */
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     [data-depth-lean]:hover,
     [data-next]:hover {
@@ -2271,8 +2267,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* A "How I test" tab (a label around its radio) is clickable, so it takes the same states: on hover
-     where hover exists, on keyboard focus of its radio and on press, the border turns ink, and where
-     motion is allowed the tab rises 4 px. The selected tab keeps its own look, a surface fill and an
+     where hover exists, on keyboard focus of its radio and on press, the border turns ink, and on
+     hover, where motion is allowed, the tab rises 4 px (focus never moves it). The selected tab keeps its own look, a surface fill and an
      ink bar at its left (HowITest), so a hovered tab never reads as the selected one. The border and
      the transition live here, not in utilities, because a utility would beat these rules. */
   [data-how-tab] {
@@ -2292,12 +2288,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   [data-how-tab]:is(:has(:focus-visible), :active) {
     border-color: var(--color-ink);
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    [data-how-tab]:has(:focus-visible) {
-      translate: 0 calc(var(--spacing) * -1);
-    }
   }
 
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
