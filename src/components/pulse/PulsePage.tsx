@@ -1,178 +1,166 @@
-// The Pulse case study. It copies the golden page's composition (src/components/retention/
-// RetentionPage.tsx): the title and its intro, a summary box, the section links, then one <section>
-// per part with its own h2: problem, data, method, the events and their questions, the dashboard with
-// its Figure, findings, how I checked this, limits, and sources and links. The prose comes from
-// content/pulse.tsx.
+// The Pulse case study, in the reading model of the work pages: the head with its plain opening and the
+// repository button, the glance card (two pull figures, one sentence, the facts and the scope), the
+// in-page links, the on-page dashboard first (lead-in, its Figure in a sheet, takeaway, and how the copy
+// works one click deeper), the event table, how I built and checked it as rows under one heading, the
+// limits and the sources (visible), the close, and the previous and next case studies. The prose comes
+// from content/pulse.tsx.
 //
-// Layout: prose sits in the readable column (max-w-text); the event table and the Figure run to the
-// figure width. Sections are spaced, not boxed: no card grid and no motion. The event table sits in
-// the same section as the sentences that call its questions design hypotheses; it is page-owned
-// (TextTable), because its cells are sentences that wrap. It has no provenance
-// badge: the export is the project's own source code, not public data, and the badge is for charts.
+// The event table is page-owned (TextTable), because its cells are sentences that wrap. It has no
+// provenance badge: the export is the project's own source code, not public data, and the badge is for
+// charts. Four of its question cells carry a dash in the README; the page says the same in plain
+// punctuation, and names that in the table's note.
 import type { ReactNode } from 'react';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
-import { TextLink } from '@/components/kit/TextLink';
+import { FigureSheet, LeadIn, MethodDetails, NextRow, PageClose, SECTION_H2, SectionNav, Takeaway } from '@/components/frame';
+import type { TableData } from '@/components/kit/DataTable';
 import { taxonomyTable } from '@/lib/pulse/tables';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
 import {
-  PulseChecks,
-  PulseDashboardIntro,
-  PulseData,
-  PulseFindings,
   PULSE_GLANCE,
+  PULSE_REPO_URL,
+  PulseChecks,
+  PulseClose,
+  PulseDashboardIntro,
+  PulseDashboardLeadIn,
+  PulseDashboardTakeaway,
+  PulseData,
   PulseIntro,
   PulseLimits,
   PulseMethod,
-  PulseProblem,
   PulseSources,
-  PulseSummary,
-  PulseTaxonomyContext,
+  PulseTaxonomyLeadIn,
   PulseTitle,
   TAXONOMY_CAPTION,
 } from '../../../content/pulse';
 import { PulseFigure } from './PulseFigure';
+import { PLAIN_QUESTIONS } from './plain-questions';
 import { TextTable } from '../tables/TextTable';
 
 /** The page title: the event count as a Fact, then the claim it heads. */
 export const PULSE_TITLE: ReactNode = <PulseTitle />;
 /** The metadata title (no figure in it): the project's name and what it is. */
-export const PULSE_METADATA_TITLE = 'Pulse: analytics instrumentation demo';
+export const PULSE_METADATA_TITLE = 'Pulse: a tracking plan for product analytics';
 
-/** The sections in page order: anchor id, heading and the short label of its section link. */
+/** The visible sections in page order: anchor id, heading and the short label of its in-page link. */
 export const PULSE_SECTIONS = [
-  { id: 'summary', title: 'Summary', link: null },
-  { id: 'problem', title: 'The problem', link: 'Problem' },
-  { id: 'data', title: 'The data', link: 'Data' },
-  { id: 'method', title: 'Method', link: 'Method' },
-  { id: 'taxonomy', title: 'The events and the questions behind them', link: 'Events' },
   { id: 'dashboard', title: 'The dashboard, on this page', link: 'Dashboard' },
-  { id: 'findings', title: 'Findings', link: 'Findings' },
-  { id: 'how-i-checked-this', title: 'How I checked this', link: 'How I checked this' },
+  { id: 'taxonomy', title: 'The events and the questions behind them', link: 'Events' },
+  { id: 'how-i-checked-this', title: 'How I built and checked it', link: 'How I checked this' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
   { id: 'sources', title: 'Sources and links', link: 'Sources' },
 ] as const;
 
 type SectionId = (typeof PULSE_SECTIONS)[number]['id'];
 
+/** The taxonomy table with the dashed question cells in plain punctuation. Throws if a cell it expects is gone. */
+export function plainTaxonomyTable(table: TableData): TableData {
+  const seen = new Set<string>();
+  const rows = table.rows.map((row) =>
+    row.map((cell) => {
+      if (typeof cell === 'string' && cell in PLAIN_QUESTIONS) {
+        seen.add(cell);
+        return PLAIN_QUESTIONS[cell]!;
+      }
+      return cell;
+    }),
+  );
+  for (const cell of Object.keys(PLAIN_QUESTIONS)) {
+    if (!seen.has(cell)) throw new Error(`pulse: the export no longer has the cell "${cell}"`);
+  }
+  return {
+    ...table,
+    rows,
+    note: "Names and properties as the source code states them; triggers and questions as the project's README states them, in plain punctuation.",
+  };
+}
+
 const TEXT = 'max-w-text';
-const EVIDENCE = 'mt-8';
 
 function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = PULSE_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`pulse: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
+      <h2 id={`${id}-title`} className={`${TEXT} ${SECTION_H2}`} data-depth-rise="heading">
         {entry.title}
       </h2>
-      <div className="mt-4">{children}</div>
+      {children}
     </section>
-  );
-}
-
-/** Prose in the readable column. */
-function Prose({ children }: { children: ReactNode }) {
-  return <div className={TEXT}>{children}</div>;
-}
-
-/** The links to each section after the summary, as one wrapping row of 44 px targets. */
-function SectionLinks() {
-  return (
-    <nav aria-label="On this page" className={`${TEXT} mt-8`}>
-      <ul className="flex flex-wrap gap-x-4">
-        {PULSE_SECTIONS.flatMap((s) =>
-          s.link === null ? [] : [
-            <li key={s.id}>
-              <TextLink href={`#${s.id}`} standalone>
-                {s.link}
-              </TextLink>
-            </li>,
-          ],
-        )}
-      </ul>
-    </nav>
   );
 }
 
 export function PulsePage(): ReactNode {
   return (
     <article aria-labelledby="pulse-page-title">
-      <CaseHead id="pulse-page-title" chip="Case study" title={PULSE_TITLE} intro={<PulseIntro />} />
+      <CaseHead
+        id="pulse-page-title"
+        chip="Case study"
+        title={PULSE_TITLE}
+        intro={<PulseIntro />}
+        actions={[{ href: PULSE_REPO_URL, label: 'See the code on GitHub', icon: 'github', external: true }]}
+      />
 
       <GlanceBlock {...PULSE_GLANCE} />
 
-      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
-          Summary
-        </h2>
-        <div className="mt-4">
-          <PulseSummary />
-        </div>
-      </section>
+      <SectionNav items={PULSE_SECTIONS.map((s) => ({ href: `#${s.id}`, label: s.link }))} />
 
-      <SectionLinks />
-
-      <Section id="problem">
-        <Prose>
-          <PulseProblem />
-        </Prose>
-      </Section>
-
-      <Section id="data">
-        <Prose>
-          <PulseData />
-        </Prose>
-      </Section>
-
-      <Section id="method">
-        <Prose>
-          <PulseMethod />
-        </Prose>
+      <Section id="dashboard">
+        <LeadIn>
+          <PulseDashboardLeadIn />
+        </LeadIn>
+        <FigureSheet>
+          <PulseFigure />
+        </FigureSheet>
+        <Takeaway>
+          <PulseDashboardTakeaway />
+        </Takeaway>
+        <MethodDetails summary="How this copy of the dashboard works">
+          <PulseDashboardIntro />
+        </MethodDetails>
       </Section>
 
       <Section id="taxonomy">
-        <Prose>
-          <PulseTaxonomyContext />
-        </Prose>
-        <div className={`${EVIDENCE} max-w-figure`}>
-          <TextTable id="pulse-events" caption={TAXONOMY_CAPTION} table={taxonomyTable(pulseTaxonomy())} />
-        </div>
-      </Section>
-
-      <Section id="dashboard">
-        <Prose>
-          <PulseDashboardIntro />
-        </Prose>
-        <div className={EVIDENCE}>
-          <PulseFigure />
-        </div>
-      </Section>
-
-      <Section id="findings">
-        <Prose>
-          <PulseFindings />
-        </Prose>
+        <LeadIn>
+          <PulseTaxonomyLeadIn />
+        </LeadIn>
+        <FigureSheet>
+          <TextTable id="pulse-events" caption={TAXONOMY_CAPTION} table={plainTaxonomyTable(taxonomyTable(pulseTaxonomy()))} />
+        </FigureSheet>
       </Section>
 
       <Section id="how-i-checked-this">
-        <Prose>
-          <PulseChecks />
-        </Prose>
+        <div className="mt-6">
+          <MethodDetails summary="The data">
+            <PulseData />
+          </MethodDetails>
+          <MethodDetails summary="Method">
+            <PulseMethod />
+          </MethodDetails>
+          <MethodDetails summary="How I checked this">
+            <PulseChecks />
+          </MethodDetails>
+        </div>
       </Section>
 
       <Section id="limits">
-        <Prose>
+        <div className={`${TEXT} mt-4`}>
           <PulseLimits />
-        </Prose>
+        </div>
       </Section>
 
       <Section id="sources">
-        <Prose>
+        <div className={`${TEXT} mt-4`}>
           <PulseSources />
-        </Prose>
+        </div>
       </Section>
+
+      <PageClose links={[{ href: '/lab', label: 'See the Lab' }]}>
+        <PulseClose />
+      </PageClose>
+      <NextRow prev={{ href: '/work/retention', label: 'Retention' }} next={{ href: '/work/docproof', label: 'Docproof' }} />
+      <div className="pb-12 md:pb-16" />
       <PageCallToAction />
     </article>
   );

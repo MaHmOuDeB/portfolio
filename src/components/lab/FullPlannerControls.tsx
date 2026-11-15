@@ -26,6 +26,7 @@ import {
   FULL_PLAN_SCHEMA,
   FULL_PLANNER_REFS,
   PLANNER_NOUN,
+  SIZING_LABELS,
   percentText,
   pointsText,
   relativePercent,
@@ -56,6 +57,8 @@ const MODE_OPTIONS: readonly { value: MdeMode; label: string }[] = [
 
 export type SizingControlsProps = {
   id: string;
+  /** Sets the controls' words; the Lab's by default. */
+  context?: PlannerContext;
   /** Normalized values. */
   values: FullPlanValues;
   onBaseline: (baseline: number) => void;
@@ -67,32 +70,33 @@ export type SizingControlsProps = {
   onReset: () => void;
 };
 
-export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRise, onRiseCommit, onMode, onReset }: SizingControlsProps) {
+export function SizingControls({ id, context = 'hypothetical', values, onBaseline, onBaselineCommit, onRise, onRiseCommit, onMode, onReset }: SizingControlsProps) {
   const { baseline } = values;
   const relative = values.mode === 'relative';
   // The slider's value and range in the shown unit; the rise is reported back in whole points.
   const bounds = relative ? relativeSliderBounds(baseline) : { min: FULL_PLAN_SCHEMA.risePoints.min, max: riseMax(baseline), step: FULL_PLAN_SCHEMA.risePoints.step };
   const shown = relative ? relativePercent(baseline, values.risePoints) : values.risePoints;
   const toPoints = (v: number) => (relative ? risePointsFromRelative(baseline, v) : v);
+  const words = SIZING_LABELS[context];
   return (
     <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
         <Slider
           id={`${id}-baseline`}
-          label="Baseline conversion"
+          label={words.baseline}
           {...FULL_PLAN_SCHEMA.baseline}
           value={baseline}
           onChange={onBaseline}
           onCommit={onBaselineCommit}
           valueText={(v) => `${percentText(v)} baseline conversion`}
-          readout={percentText}
+          readout={words.baselineHint ? (v) => `${percentText(v)}, the ${words.baselineHint}` : percentText}
           refs={FULL_PLANNER_REFS}
         />
       </div>
       <div className={SLIDER}>
         <Slider
           id={`${id}-rise`}
-          label="Rise to detect"
+          label={words.rise}
           // The schema allows up to 30 points; the slider stops where the target would pass 99%.
           {...bounds}
           value={shown}
@@ -106,7 +110,7 @@ export function SizingControls({ id, values, onBaseline, onBaselineCommit, onRis
           // In percent the value is a whole point's share of the baseline (17.2413...): the number
           // input shows it to one decimal, as the readout does. Points are whole numbers already.
           numberText={relative ? (v) => formatNumber(v, 1) : undefined}
-          numberLabel={relative ? 'Rise to detect, percent of the baseline' : 'Rise to detect, points'}
+          numberLabel={relative ? `${words.rise}, percent of the baseline` : `${words.rise}, points`}
           refs={FULL_PLANNER_REFS}
         />
       </div>
@@ -156,10 +160,11 @@ export function DurationControls({ id, context, label, traffic, onTraffic, onTra
 
 const noop = () => {};
 
-export function InertSizingControls({ id, values }: { id: string; values: FullPlanValues }) {
+export function InertSizingControls({ id, context, values }: { id: string; context?: PlannerContext; values: FullPlanValues }) {
   return (
     <SizingControls
       id={id}
+      context={context}
       values={values}
       onBaseline={noop}
       onBaselineCommit={noop}

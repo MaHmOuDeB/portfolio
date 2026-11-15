@@ -17,16 +17,9 @@ function column(heading: string): [string, string][] {
 }
 
 describe('Footer', () => {
-  it('prints the colophon line exactly, once, as plain text', () => {
-    expect(MARKUP.split('Built with Claude Code as pair-programmer.').length - 1).toBe(1);
-    expect(MARKUP).toMatch(/<p [^>]*>Built with Claude Code as pair-programmer\.<\/p>/);
-  });
-
-  it('sets the line in the small text style, in the quiet tone on ink, with no link, number or motion', () => {
-    const p = /<p ([^>]*)>Built with Claude Code as pair-programmer\.<\/p>/.exec(MARKUP)![1]!;
-    expect(p).toContain('text-sm');
-    expect(p).toContain('text-on-ink-muted');
-    expect(p).not.toMatch(/animate|transition|shadow|uppercase/);
+  it('has no colophon line: the footer says nothing about how the site was built', () => {
+    expect(MARKUP).not.toMatch(/pair.?programmer/i);
+    expect(MARKUP).not.toMatch(/Built with/);
   });
 
   it('is an ink band, marked as ink so focus rings turn light', () => {

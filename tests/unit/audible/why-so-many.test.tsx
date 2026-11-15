@@ -1,7 +1,7 @@
-// The Audible page gives its adoption figure the "Why so many?" link twice in running text: in the
-// glance outcome and in the summary's result. The link never breaks across two lines, so it is the same
-// line-height target at every width (a link split over two lines has a box of 44 px or more and would
-// leave the touch-target check's inline list one short on a phone or tablet).
+// The Audible page gives its adoption figure the "Why so many?" link once near the top: in the glance
+// card, on a line of its own under the figure's label. A link that stands alone is not in running
+// text, so it is a full 44 px touch target, and the page needs no exemption for a small inline link.
+// The in-page links have their own "Why so many?" chip, also a 44 px target.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AudiblePage } from '@/components/audible/AudiblePage';
@@ -9,14 +9,19 @@ import { AudiblePage } from '@/components/audible/AudiblePage';
 const html = renderToStaticMarkup(<AudiblePage />);
 
 describe('the "Why so many?" links on /work/audible', () => {
-  // the section links row has a standalone "Why so many?" link too (a 44 px target): not in a sentence
-  const inline = [...html.matchAll(/(<[^<]*)<a ([^>]*)>Why so many\?<\/a>/g)].filter(([, , attrs]) => attrs!.includes('href="#why-so-many"') && !attrs!.includes('data-touch-target'));
+  const links = [...html.matchAll(/<a ([^>]*)>(?:<span>)?Why so many\?(?:<\/span>)?<\/a>/g)].map((m) => m[1]!);
 
-  it('appear twice in running text', () => {
-    expect(inline).toHaveLength(2);
+  it('are two: the glance card and the in-page links, both to the section that gives the context', () => {
+    expect(links).toHaveLength(2);
+    for (const attrs of links) expect(attrs).toContain('href="#why-so-many"');
+    expect(html).toContain('<section id="why-so-many"');
   });
 
-  it('each sits in a span that keeps it on one line', () => {
-    for (const [, before] of inline) expect(before).toMatch(/^<span class="whitespace-nowrap">$/);
+  it('are each a full touch target: none is a small link inside a sentence', () => {
+    for (const attrs of links) expect(attrs).toContain('data-touch-target=""');
+  });
+
+  it('puts the glance card link on its own small line under the label', () => {
+    expect(html).toMatch(/recommendations adopted <span class="block text-sm"><a [^>]*href="#why-so-many"/);
   });
 });

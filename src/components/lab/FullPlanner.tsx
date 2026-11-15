@@ -34,7 +34,7 @@ export function FullPlanner({ id = FULL_PLANNER_ID, durationId = DURATION_ID, co
       ids={[id, durationId]}
       preview={
         <div data-full-planner="" className={PAIR_CLASS}>
-          <SizingFigureView id={id} context={context} values={values} controls={<InertSizingControls id={id} values={values} />} />
+          <SizingFigureView id={id} context={context} values={values} controls={<InertSizingControls id={id} context={context} values={values} />} />
           <DurationFigureView
             id={durationId}
             context={context}

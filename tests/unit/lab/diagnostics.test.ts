@@ -18,7 +18,7 @@ import { InertCurseControls } from '@/components/lab/CurseFigureClient';
 import { CurseFigureView } from '@/components/lab/CurseView';
 import { SrmEvenLink, SrmFigure } from '@/components/lab/SrmFigure';
 import { InertSrmControls } from '@/components/lab/SrmFigureClient';
-import { SrmFigureView } from '@/components/lab/SrmView';
+import { SrmFigureView, srmPlainText } from '@/components/lab/SrmView';
 import { readFigureParams } from '@/lib/figure/url-state';
 import {
   CURSE_ALPHA,
@@ -554,10 +554,15 @@ describe('the split Figure as the server draws it', () => {
     expect(SERVER).toMatch(new RegExp(`<h3 id="${SRM_ID}-title"[^>]*>A split far from the expected share is flagged for a closer look</h3>`));
     expect(text(SERVER)).toContain('Simulated');
     expect(SRM_PRESETS.default).toEqual({ nA: 5170, nB: 4830, shareA: 0.5 });
-    expect(result(SERVER)).toBe(srmResultText(SRM_PRESETS.default));
+    // the verdict first, the statistic after it in brackets; the announcement says the same words
+    expect(result(SERVER)).toBe(srmPlainText(SRM_PRESETS.default));
     expect(result(SERVER)).toBe(
-      'Chi-square 11.56 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
+      'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.56, one degree of freedom, p-value below 0.001).',
     );
+    expect(srmPlainText({ nA: 5000, nB: 5000, shareA: 0.5 })).toBe(
+      'Not flagged. This split is consistent with the expected share at this threshold (chi-square 0, one degree of freedom, p-value 1).',
+    );
+    expect(srmPlainText({ nA: 0, nB: 0, shareA: 0.5 })).toBe(srmResultText({ nA: 0, nB: 0, shareA: 0.5 }));
   });
 
   it('keeps the even split one link away: the even preset is the same total, not flagged', () => {
@@ -565,7 +570,7 @@ describe('the split Figure as the server draws it', () => {
     expect(srmModel(SRM_PRESETS.even!)).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
     expect(SRM_EVEN_HREF).toBe('/lab?srm.preset=even#split-check');
     const link = renderToStaticMarkup(createElement(SrmEvenLink));
-    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*">See the same check on an even split<\/a><\/p>$/);
+    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*"><span>See the same check on an even split<\/span><\/a><\/p>$/);
   });
 
   it('explains the threshold, the warning, the approximation and that these are not live results', () => {
@@ -625,7 +630,8 @@ describe('the split Figure as the server draws it', () => {
 
   it('flags one empty group, and says so in words', () => {
     const html = srmView({ nA: 0, nB: 100, shareA: 0.5 });
-    expect(result(html)).toContain('p-value below 0.001: flagged.');
+    expect(result(html)).toMatch(/^Flagged\. /);
+    expect(result(html)).toContain('p-value below 0.001).');
     expect(audit(html)).toEqual([]);
   });
 });
@@ -692,7 +698,7 @@ describe('the exaggeration Figure as the server draws it', () => {
       const dl = html.match(/<dl[^>]*data-curse-readout=""[^>]*>([\s\S]*?)<\/dl>/)?.[1] ?? '';
       return [...dl.matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/g)].map((m) => [m[1], text(m[2]!)]);
     };
-    const labels = ['Power', 'Wrong sign, among significant estimates', 'Exaggeration, among significant estimates'];
+    const labels = ['Chance of detecting it (power)', 'Wins that point the wrong way', 'How much a win overstates it'];
     expect(items(curseView(CURSE_PRESETS.default)).map((i) => i[0])).toEqual(labels);
     expect(items(curseView({ trueEffect: 0, se: 1 }))).toEqual([
       [labels[0], 'not shown'],

@@ -374,14 +374,14 @@ test.describe('footer', () => {
     }
   });
 
-  test('the colophon line is the same plain line on every page, including a 404', async ({ page }) => {
+  test('the footer is on every page, including a 404, and carries no colophon line', async ({ page }) => {
     // Every route but the last is a real page now, so each must answer 200 (not the 404 page).
     for (const route of ['/', '/work', '/lab', '/experiment', '/about', '/cv', '/contact', '/privacy', '/no-such-page']) {
       const response = await page.goto(route);
       expect(response?.status(), route).toBe(route === '/no-such-page' ? 404 : 200);
-      const line = page.getByRole('contentinfo').getByText('Built with Claude Code as pair-programmer.', { exact: true });
-      await expect(line, route).toHaveCount(1);
-      await expect(line, route).toHaveText('Built with Claude Code as pair-programmer.');
+      const footer = page.getByRole('contentinfo');
+      await expect(footer, route).toHaveCount(1);
+      await expect(footer.getByText(/pair.?programmer/i), route).toHaveCount(0);
     }
   });
 });

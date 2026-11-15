@@ -108,7 +108,7 @@ const shortMonth = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 
 /**
  * The growth comparison's window, read from the rows: the full months of the last year with data
  * (the partial last month left out), against the same months a year earlier, such as
- * "Jan–Nov 2011 versus Jan–Nov 2010". Throws when a month of either window is missing or partial.
+ * "Jan to Nov 2011 versus Jan to Nov 2010". Throws when a month of either window is missing or partial.
  */
 export function comparisonPeriod(rows: readonly RetailMonth[]): string {
   const lastFull = rows.findLast((r) => !r.partial);
@@ -122,6 +122,6 @@ export function comparisonPeriod(rows: readonly RetailMonth[]): string {
     }
   }
   const name = (m: number) => shortMonth.format(Date.UTC(2000, m - 1, 1));
-  const span = endMonth === 1 ? name(1) : `${name(1)}–${name(endMonth)}`;
+  const span = endMonth === 1 ? name(1) : `${name(1)} to ${name(endMonth)}`;
   return `${span} ${year} versus ${span} ${year - 1}`;
 }

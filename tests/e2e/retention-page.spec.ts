@@ -13,24 +13,19 @@ import { auditLive } from './truth-live';
 
 const ROUTE = '/work/retention';
 const HOST = '/kitchen-sink/retention';
-const TITLE = 'Customer retention and reactivation analysis';
+const TITLE = 'Retention analysis: who orders again, and how to test a win-back offer | Mahmoud El Bergui';
+const H1 = 'Who orders again, and how to test a win-back offer.';
 const SECTIONS = [
-  ['summary', 'Summary'],
-  ['problem', 'The problem'],
-  ['data', 'The data'],
-  ['method', 'Method'],
-  ['returns-cleaning', 'Cleaning: reversed orders and returns'],
-  ['cohort-retention', 'Cohorts: who orders again, month by month'],
-  ['customer-segments', 'Customer segments'],
+  ['returns-cleaning', 'A double count made returns look like they grew'],
+  ['cohort-retention', 'Who orders again, month by month'],
   ['repeat-order-model', 'A model of who orders again'],
   ['win-back-sizing', 'Sizing a win-back test'],
-  ['findings', 'Findings'],
-  ['how-i-checked-this', 'How I checked this'],
+  ['how-i-checked-this', 'How I did it and checked it'],
   ['limits', 'Limits'],
   ['sources', 'Sources and links'],
 ] as const;
-const LINKS = ['Problem', 'Data', 'Method', 'Cleaning', 'Cohorts', 'Segments', 'Model', 'Win-back sizing', 'Findings', 'How I checked this', 'Limits', 'Sources'];
-const FIGURES = ['returns', 'cohorts', 'rfm', 'models', 'winback', 'winback-duration'];
+const LINKS = ['Returns', 'Cohorts', 'Model', 'Win-back sizing', 'How I checked this', 'Limits', 'Sources'];
+const FIGURES = ['returns', 'cohorts', 'models', 'winback', 'winback-duration', 'rfm'];
 // The Figures that load an island: returns, cohorts and the win-back planner pair.
 const ISLANDS = 3;
 
@@ -48,15 +43,24 @@ function composition(page: Page) {
   }));
 }
 
+/** Opens the closed method row with this summary by clicking it, as a visitor would. */
+async function openMethodRow(page: Page, summary: string) {
+  const row = page.locator('details[data-method]', { has: page.locator(':scope > summary', { hasText: new RegExp(`^${summary}$`) }) });
+  await row.locator(':scope > summary').click();
+  await expect(row).toHaveAttribute('open', '');
+}
+
 test.describe('the Retention page', () => {
   test('outline: one h1, the sections in template order, landmarks once each, no skipped heading level', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle(TITLE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     const { sections, headings } = await composition(page);
+    // The close is a ruled section of its own, after the visible sections.
     expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    await expect(page.getByRole('region', { name: 'What this shows about how I work', exact: true })).toHaveCount(1);
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
@@ -69,10 +73,11 @@ test.describe('the Retention page', () => {
     expect((await composition(page)).figures).toEqual([
       ['returns-cleaning', 'returns'],
       ['cohort-retention', 'cohorts'],
-      ['customer-segments', 'rfm'],
       ['repeat-order-model', 'models'],
       ['win-back-sizing', 'winback'],
       ['win-back-sizing', 'winback-duration'],
+      // the segments Figure sits in its details row under How I did it and checked it
+      ['how-i-checked-this', 'rfm'],
     ]);
   });
 
@@ -89,10 +94,10 @@ test.describe('the Retention page', () => {
     await page.goto(ROUTE);
     await expect(sectionLinks(page)).toHaveText(LINKS);
     const hrefs = await sectionLinks(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-    expect(hrefs).toEqual(SECTIONS.slice(1).map(([id]) => `#${id}`));
+    expect(hrefs).toEqual(SECTIONS.map(([id]) => `#${id}`));
     for (const href of hrefs) await expect(page.locator(href!)).toHaveCount(1);
 
-    await sectionLinks(page).filter({ hasText: 'Cleaning' }).click();
+    await sectionLinks(page).filter({ hasText: 'Returns' }).click();
     await expect(page).toHaveURL(/#returns-cleaning$/);
     const heading = page.locator('#returns-cleaning-title');
     await expect(heading).toBeInViewport();
@@ -230,8 +235,10 @@ test.describe('the Retention page', () => {
     // nothing of the live test, in the text or an accessible name
     expect(visible).not.toMatch(/paused|A\/A|calibration run/i);
     expect(names).not.toMatch(/paused|A\/A|calibration run/i);
-    expect(visible).toContain('public dataset, rebuilt in 2026');
-    expect(visible).toContain('I sized a possible holdout test; nobody was contacted and no test was run.');
+    expect(visible).toContain('Public dataset, rebuilt in 2026');
+    expect(visible).toContain('nobody was contacted and no test was run.');
+    // the sizing sentence is in its details row (closed by default): in the page, one click deeper
+    await expect(page.locator('#win-back-sizing details[data-method]')).toContainText('I sized a possible holdout test.');
     // the planner beside it is a hypothetical uplift, simulated, on the observed reactivation baseline
     for (const id of ['winback', 'winback-duration']) {
       await expect(page.locator(`figure[data-figure="${id}"] [data-figure-result]`)).toContainText('Hypothetical uplift');
@@ -284,6 +291,8 @@ test.describe('the Retention page', () => {
     const page = await context.newPage();
     await page.goto(ROUTE);
     for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
+    // the segments Figure and the SQL sit in closed method rows: open them as a visitor would (native, no JavaScript)
+    for (const name of ['Customer segments', 'The reversal rule in SQL']) await openMethodRow(page, name);
     for (const id of FIGURES) {
       const f = page.locator(`figure[data-figure="${id}"]`);
       await expect(f.locator('[data-nojs-only] table')).toBeVisible();
@@ -296,6 +305,8 @@ test.describe('the Retention page', () => {
 
   test('print: every section heading, the SQL and the sizing tables print, and nothing overflows the page', async ({ page }) => {
     await page.goto(ROUTE);
+    // WebKit prints a closed details row closed: open the rows the print must show first, in every engine.
+    for (const name of ['Customer segments', 'The reversal rule in SQL']) await openMethodRow(page, name);
     await page.emulateMedia({ media: 'print' });
     for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
     for (const id of ['holdout-sizes', 'lapsed-targeting']) await expect(page.locator(`[aria-labelledby="${id}-caption"] table`)).toBeVisible();
@@ -307,6 +318,8 @@ test.describe('the Retention page', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(ROUTE);
     await waitForIslands(page);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await openMethodRow(page, 'The reversal rule in SQL');
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     const sql = page.getByRole('region', { name: 'The reversal rule in SQL' });
     await expect(sql).toHaveAttribute('tabindex', '0');

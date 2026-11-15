@@ -11,10 +11,13 @@ const TITLE_ID = 'how-title';
 const NAME = 'how-tab';
 const radioId = (id: string) => `how-${id}`;
 
+/** Each tab's sketch (the shared sketches keep their own names). */
+const SKETCH = { plan: 'plan', analyse: 'read', recommend: 'recommend' } as const;
+
 /** The wrapper's classes: each checked radio shows its own panel (Tailwind writes the `:has` rules). */
 const SHOW = [
   '[&:has(#how-plan:checked)_[data-how-panel=plan]]:block',
-  '[&:has(#how-read:checked)_[data-how-panel=read]]:block',
+  '[&:has(#how-analyse:checked)_[data-how-panel=analyse]]:block',
   '[&:has(#how-recommend:checked)_[data-how-panel=recommend]]:block',
 ].join(' ');
 
@@ -44,11 +47,11 @@ export function HowITest() {
         </div>
         {/* The panel drifts in from the bottom right; on a fine pointer its rows shift a little, each
             by more than the one above, as layers. The tabs stay still: they are controls. */}
-        <div data-depth-drift="br" data-depth-follow="" className="relative min-h-60 rounded-xl border border-hairline bg-surface">
+        <div data-depth-drift="br" data-depth-follow="" className="relative self-start rounded-xl border border-hairline bg-surface">
           {tabs.map((tab) => {
-            const Sketch = HOW_SKETCHES[tab.id];
+            const Sketch = HOW_SKETCHES[SKETCH[tab.id]];
             return (
-              <div key={tab.id} data-how-panel={tab.id} aria-hidden="true" className="hidden h-full [&>[data-vignette]]:h-full [&>[data-vignette]]:min-h-60 [&>[data-vignette]]:rounded-xl [&>[data-vignette]]:border-t-0">
+              <div key={tab.id} data-how-panel={tab.id} aria-hidden="true" className="hidden [&>[data-vignette]]:rounded-xl [&>[data-vignette]]:border-t-0">
                 <Sketch />
               </div>
             );

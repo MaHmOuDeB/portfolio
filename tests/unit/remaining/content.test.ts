@@ -31,13 +31,14 @@ const ROUTES = {
 
 /** The Work directory, in the order the page lists it. */
 const WORK_ORDER = [
-  ROUTES.whySoMany,
+  ROUTES.audible,
   ROUTES.retention,
   ROUTES.pulse,
+  ROUTES.weather,
+  ROUTES.automation,
   ROUTES.docproof,
   ROUTES.n8n,
   ROUTES.marketingws,
-  ROUTES.weather,
 ];
 
 const items = WORK_GROUPS.flatMap((g) => g.items);
@@ -56,10 +57,10 @@ const itemAt = (href: string) => {
   if (!found) throw new Error(`no Work item for ${href}`);
   return found;
 };
-/** The visible text of an item: its title and its description with the markup removed. */
+/** The visible text of an item: its chip, its title, its "Shows:" line and its description with the markup removed. */
 const textOf = (href: string) => {
   const item = itemAt(href);
-  return `${item.title} ${visible(html(item.description))}`;
+  return `${item.chip} ${item.title} Shows: ${item.shows} ${visible(html(item.description))}`;
 };
 const factIdsIn = (node: ReactNode) => [...html(node).matchAll(/data-fact="([^"]+)"/g)].map((m) => m[1]);
 
@@ -68,7 +69,8 @@ const factIdsIn = (node: ReactNode) => [...html(node).matchAll(/data-fact="([^"]
  * product name n8n stays as it is: the audit's allow-list covers the digit of that exact name only.
  */
 const directoryHtml = () => {
-  const itemHtml = (i: (typeof items)[number]) => `<h3>${html(i.title)}</h3><p>${html(i.description)}</p>`;
+  const itemHtml = (i: (typeof items)[number]) =>
+    `<p>${html(i.chip)}</p><h3>${html(i.title)}</h3><p>Shows: ${html(i.shows)}</p><p>${html(i.description)}</p>`;
   const body = WORK_GROUPS.map((g) => `<h2>${html(g.label)}</h2>${g.items.map(itemHtml).join('')}`).join('');
   return `<!doctype html><html><head><title>Work</title></head><body><main>${body}</main></body></html>`;
 };
@@ -80,34 +82,49 @@ const auditContext = {
 };
 
 describe('Work directory', () => {
-  it('has three groups: experiments and analytics, automation and agents, then data pipelines', () => {
-    expect(WORK_GROUPS.map((g) => g.label)).toEqual(['Experiments and analytics', 'Automation and agents', 'Data pipelines']);
-    expect(WORK_GROUPS.map((g) => g.items.length)).toEqual([3, 3, 1]);
+  it('has two groups of four: experiments and analytics, then automation and agents', () => {
+    expect(WORK_GROUPS.map((g) => g.label)).toEqual(['Experiments and analytics', 'Automation and agents']);
+    expect(WORK_GROUPS.map((g) => g.items.length)).toEqual([4, 4]);
   });
 
-  it('lists Audible, Retention and Pulse, then Docproof, n8n and MarketingWS, then Weather', () => {
+  it('lists Audible, Retention, Pulse and Weather, then the test-account tool, Docproof, n8n and MarketingWS', () => {
     expect(items.map((i) => i.href)).toEqual(WORK_ORDER);
     expect(items.map((i) => i.title)).toEqual([
       'Experimentation at Audible (Amazon)',
       'Customer retention and reactivation analysis',
-      'Pulse: analytics instrumentation demo',
-      'Docproof',
-      'n8n Workflow Library',
-      'MarketingWS',
-      'Weather data quality',
+      'Pulse: a tracking plan for product analytics',
+      'Weather: a SQL pipeline that stops on bad data',
+      'Test-account automation',
+      "Docproof: agents that check each other's work",
+      'E-invoice intake and error alerts in n8n',
+      'MarketingWS: marketing copy from one brief, with a fact check',
+    ]);
+  });
+
+  it('gives each item the provenance chip that carries its limit', () => {
+    expect(items.map((i) => i.chip)).toEqual([
+      'Work experience',
+      'Public data, rebuilt 2026',
+      'Demo, no real users',
+      'Public data, rebuilt 2026',
+      'Work experience',
+      'Open source',
+      'Personal project',
+      "Master's thesis, rebuilt 2026",
     ]);
   });
 
   // The exact wording, so a change to any line is always a deliberate change here.
   it('prints exactly these descriptions, as a visitor reads them', () => {
     expect(items.map((i) => visible(html(i.description)))).toEqual([
-      'How I plan and analyse experiments, and why so many of my recommendations were adopted. The tests are confidential, so the page shows none of their results.',
-      'Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size. Nobody was contacted and no test was run.',
-      'A demo dashboard with a deliberate event taxonomy. Designed and built; no real users.',
-      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
-      'Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests. A portfolio project with no production use.',
-      "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app. The live demo depends on Groq's free tier.",
-      'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
+      'Nearly two years of A/B tests on the Audible website and app. The results are confidential, so the page shows the method.',
+      'Two years of orders from a UK online gift retailer: a cleaning error, who orders again, and the test I would run next.',
+      'A demo dashboard I designed and built, with 7 named events.',
+      'A tested SQL pipeline on weather observations: a star schema, data-quality checks and a quarantine for sensor errors.',
+      'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
+      'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Tested in CI, no users yet.',
+      'Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with 270+ automated tests.',
+      "A generative AI web service for content marketing. The live demo depends on Groq's free tier.",
     ]);
   });
 
@@ -178,13 +195,24 @@ describe('the facts the Work directory and the remaining pages read', () => {
       ]);
   });
 
-  it('links the item about adopted recommendations to the section that explains them', () => {
+  it('names adoption only for the tool, linked to its section, and never prints the adopted-recommendations figure without its context', () => {
+    // The directory no longer carries the 20+ of 25+ figure; if it ever does, the item must link to
+    // the section that explains it.
     const adoption = items.filter((i) => /\badopt/i.test(textOf(i.href)));
-    expect(adoption.map((i) => i.href)).toEqual([ROUTES.whySoMany]);
+    expect(adoption.map((i) => i.href)).toEqual([ROUTES.automation]);
+    for (const item of items) {
+      if (factIdsIn(item.description).includes('profile.audible.recommendations_adopted')) expect(item.href).toBe(ROUTES.whySoMany);
+      if (/recommendations? (were|was) adopted/i.test(textOf(item.href))) expect(item.href).toBe(ROUTES.whySoMany);
+    }
   });
 
-  it('prints one figure, the n8n test count, through its fact, and no number the truth audit would report', () => {
-    expect(items.flatMap((i) => factIdsIn(i.description))).toEqual(['profile.n8n.automated_tests']);
+  it('prints its figures through their facts, and no number the truth audit would report', () => {
+    expect(items.flatMap((i) => factIdsIn(i.description))).toEqual([
+      'pulse.events.count',
+      'profile.audible.setup_minutes_before',
+      'profile.audible.setup_minutes_after',
+      'profile.n8n.automated_tests',
+    ]);
     expect(auditHtml(directoryHtml(), auditContext)).toEqual([]);
   });
 });
@@ -199,30 +227,25 @@ describe('what each Work line says', () => {
     expect(lintSource(readFileSync(join(repo, 'content/work.tsx'), 'utf8'), 'content/work.tsx')).toEqual([]);
   });
 
-  it('says the Audible line plans, analyses and reports adopted recommendations', () => {
-    const text = textOf(ROUTES.whySoMany);
-    expect(text).toContain('plan and analyse');
-    expect(text).toContain('recommendations were adopted');
+  it('says the Audible line plans tests and keeps the results confidential', () => {
+    const text = textOf(ROUTES.audible);
+    expect(text).toContain('I plan a test');
+    expect(text).toContain('The results are confidential');
   });
 
-  it('calls the rebuilt analyses public datasets, rebuilt in 2026', () => {
-    for (const href of [ROUTES.retention, ROUTES.weather]) {
-      const text = textOf(href);
-      expect(text, href).toContain('public dataset');
-      expect(text, href).toContain('rebuilt in 2026');
-    }
+  it('calls the rebuilt analyses public data, rebuilt in 2026', () => {
+    for (const href of [ROUTES.retention, ROUTES.weather]) expect(itemAt(href).chip, href).toBe('Public data, rebuilt 2026');
   });
 
   it('says Pulse was designed and built with no real users', () => {
     const text = textOf(ROUTES.pulse);
-    expect(text).toContain('Designed and built');
+    expect(text).toContain('designed and built');
     expect(text).toContain('no real users');
   });
 
   it('says MarketingWS is the thesis rebuilt in 2026, and that its live demo depends on the Groq free tier', () => {
     const text = textOf(ROUTES.marketingws);
-    expect(text).toContain("My Master's thesis");
-    expect(text).toContain('rebuilt in 2026');
+    expect(text).toContain("Master's thesis, rebuilt 2026");
     expect(text).toContain("The live demo depends on Groq's free tier");
   });
 
@@ -233,10 +256,13 @@ describe('what each Work line says', () => {
     expect(text).toContain('no users yet');
   });
 
-  it('says n8n is document and process automation, a portfolio project with no production use', () => {
+  it('says n8n is document and process automation, a personal project', () => {
+    // The card's chip says "Personal project"; the limit "no production use" moved to the n8n page's
+    // glance Scope (pinned in tests/unit/depth/work-glance.test.tsx).
     const text = textOf(ROUTES.n8n);
     expect(text).toContain('Document and process automation');
-    expect(text).toContain('A portfolio project with no production use');
+    expect(itemAt(ROUTES.n8n).chip).toBe('Personal project');
+    expect(text).not.toMatch(/\b(deployed|used by|client)\b/i);
   });
 });
 

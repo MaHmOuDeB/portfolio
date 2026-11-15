@@ -1,4 +1,6 @@
-// The Live test page (/experiment) as a whole: its order, the carried planning copy and its refs,
+// The Live test page (/experiment) as a whole: its first screen in every state (the head, the plain
+// opening, the status card with its three-step track, the key points), its order and anchors, the
+// heading levels, the method rows, the carried planning copy and its refs,
 // the baseline caption, the closure wording, the small-count rule in every place a count can land
 // (text, accessible names, tables, the no-JS view, the error fallback and the props a client
 // boundary receives), the pre-registration and build lines, the colophon with and without the
@@ -12,6 +14,7 @@ import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { detectableX } from '@/components/live-page/DetectableFigure';
 import { LIVE_SECTIONS, LivePage } from '@/components/live-page/LivePage';
+import { STEPS, currentStep, stateWords } from '@/components/live-page/StatusCard';
 import { EXPERIMENT, type ExperimentConfig } from '@/experiment.config';
 import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { preregHash } from '@/lib/experiment/prereg-hash';
@@ -118,12 +121,297 @@ afterEach(() => {
 });
 
 describe('the page order', () => {
-  it('runs plan and build commit, funnel, split check, detectable effect, results, decision and end, data and script, colophon', () => {
-    expect(LIVE_SECTIONS.map((s) => s.id)).toEqual(['plan', 'funnel', 'split-check', 'detectable', 'results', 'decision', 'check-it-yourself', 'colophon']);
+  it('runs the status, the result with the decision, the plan, the health checks, the counting, the data, the close, the colophon', () => {
+    expect(LIVE_SECTIONS.map((s) => s.id)).toEqual(['results', 'plan', 'health', 'funnel', 'check-it-yourself', 'colophon']);
     const h = page(displayOf(snapshotFixture('ab')));
-    const order = all(h).filter((el) => el.tagName === 'section').map((el) => attr(el, 'id'));
-    expect(order).toEqual(['where-it-stands', ...LIVE_SECTIONS.map((s) => s.id)]);
-    expect(all(h).filter((el) => el.tagName === 'h1').map(text)).toEqual(['Live test']);
+    const sections = all(h).filter((el) => el.tagName === 'section');
+    expect(sections.map((el) => attr(el, 'id') ?? attr(el, 'aria-labelledby'))).toEqual([
+      'status', 'results', 'plan', 'health', 'funnel', 'check-it-yourself', 'what-this-shows', 'colophon', 'page-cta-title',
+    ]);
+    const h2 = all(h).filter((el) => el.tagName === 'h2').map((el) => text(el).replace(/\s+/g, ' '));
+    expect(h2).toEqual([
+      'Where the test stands', 'Result so far', 'The plan, fixed before the start', 'Is the test healthy?', 'How views are counted',
+      'Check it yourself', 'What this shows about how I work', 'How this site is built', 'Find out what I can do for your team.',
+    ]);
+    expect(all(h).filter((el) => el.tagName === 'h1').map((el) => text(el))).toEqual(['A real A/B test on this site, run in the open.']);
+  });
+
+  it('keeps the anchors of the parts that moved into a section', () => {
+    const h = page(displayOf(snapshotFixture('ab')));
+    for (const id of ['where-it-stands', 'results', 'decision', 'decision-line', 'plan', 'health', 'split-check', 'detectable', 'funnel', 'check-it-yourself', 'colophon']) {
+      expect(byId(h, id), id).toBeDefined();
+    }
+    // The decision and the end sit in the result; the split check and the detectable lift in the health section.
+    expect(elements(byId(h, 'results')!).some((el) => attr(el, 'id') === 'decision')).toBe(true);
+    for (const id of ['split-check', 'detectable']) expect(elements(byId(h, 'health')!).some((el) => attr(el, 'id') === id), id).toBe(true);
+  });
+
+  it('the in-page links point at visible section headings, never into a closed row', () => {
+    const h = page(displayOf(snapshotFixture('ab')));
+    const nav = all(h).find((el) => attr(el, 'data-section-nav') !== undefined)!;
+    const links = elements(nav).filter((el) => el.tagName === 'a').map((a) => [attr(a, 'href'), text(a)]);
+    expect(links).toEqual([
+      ['#results', 'Result so far'],
+      ['#plan', 'The plan'],
+      ['#health', 'Is the test healthy?'],
+      ['#funnel', 'How views are counted'],
+      ['#check-it-yourself', 'Check it yourself'],
+    ]);
+    const inDetails = new Set(all(h).filter((el) => el.tagName === 'details').flatMap((el) => elements(el).map((c) => attr(c, 'id'))));
+    for (const [href] of links) expect(inDetails.has(href!.slice(1)), href).toBe(false);
+  });
+
+  it.each(LIVE_PAGE_FIXTURES.map((f) => [f.id, f.display] as const))('%s: one h1, and no heading skips a level', (_id, display) => {
+    const levels = all(page(display())).filter((el) => /^h[1-6]$/.test(el.tagName)).map((el) => Number(el.tagName[1]));
+    expect(levels.filter((l) => l === 1)).toHaveLength(1);
+    expect(levels[0]).toBe(1);
+    levels.forEach((l, i) => {
+      if (i > 0) expect(l - levels[i - 1]!, `heading ${i}`).toBeLessThanOrEqual(1);
+    });
+  });
+
+  it('the result is "so far" until a decision is recorded', () => {
+    const title = (h: string) => text(byId(h, 'results-title')!);
+    expect(title(page(displayOf(snapshotFixture('calibration'))))).toBe('Result so far');
+    expect(title(page(displayOf(snapshotFixture('held'))))).toBe('Result so far');
+    for (const mode of ['ship-b', 'stop-for-harm', 'inconclusive'] as const) expect(title(page(displayOf(snapshotFixture(mode)))), mode).toBe('Result');
+  });
+});
+
+describe('the first screen', () => {
+  const firstScreen = (h: string) => {
+    const els = all(h);
+    const nav = els.findIndex((el) => attr(el, 'data-section-nav') !== undefined);
+    return els.slice(0, nav);
+  };
+
+  it('opens with the chip, the two-tone h1 and the plain opening, with no method word', () => {
+    const h = page(displayOf(snapshotFixture('calibration')));
+    const head = all(h).find((el) => attr(el, 'data-case-head') !== undefined)!;
+    expect(text(elements(head).find((el) => attr(el, 'data-chip') !== undefined)!)).toBe('Live test');
+    const h1 = elements(head).find((el) => el.tagName === 'h1')!;
+    expect(text(elements(h1).find((el) => attr(el, 'data-quiet') !== undefined)!)).toBe('run in the open.');
+    const opening = text(elements(head).find((el) => el.tagName === 'p')!).replace(/\s+/g, ' ');
+    expect(opening).toBe(
+      'The test is about the three featured cards on the home page. In group A their headlines name the topic; in group B they state the finding. ' +
+        'The question is whether the finding headlines get more clicks. I published the plan before any data came in, and this page shows every step, ' +
+        'including a result that may well be: not enough data to say.',
+    );
+    expect(opening).not.toMatch(/beacon|guardrail|SRM|confidence|interval|calibrat|entry view|hash/i);
+  });
+
+  it('the opening repeats the pre-registration: three featured cards, topic against finding', () => {
+    const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8').replace(/\s+/g, ' ');
+    expect(prereg).toContain('the headline of the three featured cards on the home page');
+    expect(prereg).toContain('Group A names the topic.');
+    expect(prereg).toContain('Group B states the finding.');
+    expect(prereg).toContain('committed before data collection');
+  });
+
+  it('then the status card, then four key points, then the in-page links', () => {
+    const h = page(displayOf(snapshotFixture('calibration')));
+    const marks = all(h).flatMap((el) =>
+      attr(el, 'data-case-head') !== undefined ? ['head'] : attr(el, 'data-live-status') !== undefined ? ['status'] : attr(el, 'data-key-points') !== undefined ? ['points'] : attr(el, 'data-section-nav') !== undefined ? ['nav'] : el.tagName === 'section' && attr(el, 'id') === 'results' ? ['results'] : [],
+    );
+    expect(marks).toEqual(['head', 'status', 'points', 'nav', 'results']);
+    const titles = all(h).filter((el) => attr(el, 'data-key-title') !== undefined).map((el) => text(el));
+    expect(titles).toEqual(['What is tested', 'Where it stands', 'What I expect', 'Why run it then']);
+  });
+
+  it.each(LIVE_PAGE_FIXTURES.map((f) => [f.id, f.display] as const))('%s: the track has three steps, at most one current, marked by more than colour', (_id, display) => {
+    const d = display();
+    const h = page(d);
+    const track = all(h).find((el) => attr(el, 'data-live-track') !== undefined)!;
+    const steps = elements(track).filter((el) => el.tagName === 'li');
+    expect(steps.map((li) => attr(li, 'data-step'))).toEqual(STEPS.map((s) => s.id));
+    const current = steps.filter((li) => attr(li, 'aria-current') === 'step');
+    const at = currentStep(d);
+    expect(current.map((li) => attr(li, 'data-step'))).toEqual(at === null ? [] : [at]);
+    for (const li of current) {
+      // A word in a chip and a heavier name, not only a colour.
+      const chip = elements(li).find((el) => attr(el, 'data-chip') !== undefined)!;
+      expect(text(chip)).toMatch(/^(Now|Paused|Stopped|Closed|Reached)$/);
+      // "Now" only while nothing has stopped the test for good; "Closed" only for a confirmed stop.
+      if (text(chip) === 'Closed') expect(d.closedConfirmed).toBe(true);
+      if (['held', 'aa-failed', 'settings-unreadable', 'paused'].includes(d.mode) || d.outcome !== null) expect(text(chip)).not.toBe('Now');
+      expect(elements(li).some((el) => /\bfont-semibold\b/.test(attr(el, 'class') ?? ''))).toBe(true);
+    }
+    // A step before the current one is done, and says so in a word; a step is never done when none is current.
+    const states = steps.map((li) => attr(li, 'data-step-state'));
+    const i = states.indexOf('current');
+    expect(states).toEqual(STEPS.map((_s, k) => (i === -1 ? 'upcoming' : k < i ? 'done' : k === i ? 'current' : 'upcoming')));
+    steps.forEach((li, k) => expect(/Done/.test(text(li)), `step ${k}`).toBe(states[k] === 'done'));
+    // No decision reached unless one is recorded; no step marked when the page has no data to say so.
+    if (d.outcome === null) expect(at).not.toBe('decision');
+    if (d.public.source === 'unavailable' && d.outcome === null) expect(at).toBeNull();
+  });
+
+  it.each(LIVE_PAGE_FIXTURES.map((f) => [f.id, f.display] as const))('%s: every status cell has a label and a value, and none promises what the state does not hold', (_id, display) => {
+    const d = display();
+    const h = page(d);
+    const card = all(h).find((el) => attr(el, 'data-live-status') !== undefined)!;
+    const cells = elements(card).filter((el) => attr(el, 'data-status-cell') !== undefined);
+    expect(cells.length).toBeGreaterThanOrEqual(1);
+    expect(attr(elements(card).find((el) => attr(el, 'data-status-cells') !== undefined)!, 'data-count')).toBe(String(cells.length));
+    for (const cell of cells) {
+      const dt = elements(cell).filter((el) => el.tagName === 'dt');
+      const dd = elements(cell).filter((el) => el.tagName === 'dd');
+      expect(dt).toHaveLength(1);
+      expect(text(dt[0]!).trim().length).toBeGreaterThan(0);
+      expect(dd.length).toBeGreaterThanOrEqual(1);
+      for (const v of dd) expect(text(v).trim().length, attr(cell, 'data-status-cell')).toBeGreaterThan(0);
+    }
+    const kinds = cells.map((c) => attr(c, 'data-status-cell'));
+    expect(kinds[0]).toBe('state');
+    expect(text(elements(card).find((el) => attr(el, 'data-status-words') !== undefined)!)).toBe(stateWords(d));
+    // The state's own sentences are in the card, once on the page.
+    expect(all(h).filter((el) => attr(el, 'data-live-state') !== undefined)).toHaveLength(1);
+    expect(elements(card).some((el) => attr(el, 'data-live-state') === d.mode)).toBe(true);
+    // Progress only while the test is collecting or running on data the page has.
+    const collecting = ['before-data', 'calibration', 'ab'].includes(d.mode) && !d.countingClosed && d.outcome === null && d.public.source !== 'unavailable';
+    expect(kinds.includes('progress')).toBe(collecting);
+    // A date only where the page has one: the decision's day, or the planned or earliest end.
+    const date = cells.find((c) => attr(c, 'data-status-cell') === 'date');
+    if (date) {
+      expect(elements(date).filter((el) => el.tagName === 'time')).toHaveLength(1);
+      expect(text(elements(date).find((el) => el.tagName === 'dt')!)).toBe(d.outcome !== null ? 'Decided on' : d.plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end');
+    }
+    if (d.public.source === 'unavailable') expect(kinds).toEqual(['state']);
+    // "A decision can end the test sooner" only while the test is collecting.
+    if (!collecting) expect(text(card)).not.toContain('A decision can end the test sooner.');
+    // Every number in the card is marked with where it comes from.
+    for (const el of elements(card).filter((e) => e.tagName === 'data' || e.tagName === 'time')) expect(attr(el, 'data-derived')).toBeTruthy();
+    expect(audit(h)).toEqual([]);
+  });
+
+  it('a collecting calibration: progress toward the first estimate, the earliest end, and a comparison that has not started', () => {
+    const d = displayOf(cal(0, 0));
+    const h = page(d);
+    const card = all(h).find((el) => attr(el, 'data-live-status') !== undefined)!;
+    const cell = (kind: string) => text(elements(card).find((el) => attr(el, 'data-status-cell') === kind)!).replace(/\s+/g, ' ');
+    expect(cell('state')).toContain('StatusCalibrating');
+    expect(cell('progress')).toBe('Progress0 of 50views in the smaller group. Estimates appear at 50 views per group.');
+    expect(cell('date')).toMatch(/^Earliest end\d{2}\.\d{2}A decision can end the test sooner\.$/);
+    const points = all(h).filter((el) => attr(el, 'data-key-body') !== undefined).map((el) => text(el).replace(/\s+/g, ' '));
+    expect(points[0]).toBe(
+      'The three featured cards on the home page. Group A: headlines that name the topic. Group B: headlines that state the finding. Nothing else differs. ' +
+        'The comparison starts after the calibration; during it both groups see group A’s headlines.',
+    );
+    expect(points[1]).toBe(
+      'Calibrating. Calibration is a dry run: both groups see the same headlines, so the counting and the split can be checked before the real comparison starts.',
+    );
+    expect(points[2]).toBe(
+      'Probably no clear answer. At the planned 225 views per group, only a lift of about 15 percentage points would be found 8 times in 10, and I said so before the test started.',
+    );
+    expect(points[3]).toBe(
+      'Because how a test is planned, checked and reported matters more than whether it wins. The results here can be recomputed from the published data.',
+    );
+    // The small-count rule holds in the card too.
+    const tiny = page(displayOf(cal(1, 4)));
+    expect(text(all(tiny).find((el) => attr(el, 'data-status-cell') === 'progress')!)).toContain('<5 of 50');
+  });
+
+  it('the first screen never says the two groups see different headlines while the configuration is in the calibration', () => {
+    for (const f of LIVE_PAGE_FIXTURES) {
+      const d = f.display();
+      const said = firstScreen(page(d)).filter((el) => el.tagName === 'p' || el.tagName === 'dd' || el.tagName === 'li').map((el) => text(el)).join(' ');
+      if (d.configPhase === 'calibration' && d.outcome === null) {
+        expect(said, f.id).toContain('The comparison starts after the calibration');
+        expect(said, f.id).not.toMatch(/groups see different headlines|half of the visits/i);
+      } else {
+        expect(said, f.id).not.toContain('The comparison starts after the calibration');
+      }
+      // The dry-run gloss only while a calibration is collecting; "expect" turns to "expected" once decided.
+      expect(/Calibration is a dry run/.test(said), f.id).toBe(d.configPhase === 'calibration' && ['before-data', 'calibration'].includes(d.mode) && !d.countingClosed);
+      expect(/What I expected/.test(firstScreen(page(d)).map((el) => (attr(el, 'data-key-title') !== undefined ? text(el) : '')).join(' ')), f.id).toBe(d.outcome !== null);
+    }
+  });
+
+  it('the calibration gloss and the plan card repeat the pre-registration', () => {
+    const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8').replace(/\s+/g, ' ');
+    expect(prereg).toContain('Both groups see group A.');
+    expect(prereg).toContain('About 15 percentage points at 225 views per group.');
+    expect(prereg).toContain('first decision is final');
+    expect(prereg).toContain('its interval and verdict change once a day');
+    expect(prereg).toContain('never "no effect"');
+  });
+});
+
+describe('the result so far', () => {
+  const inResults = (h: string, name: string) => elements(byId(h, 'results')!).filter((el) => attr(el, name) !== undefined);
+  const lead = (h: string) => inResults(h, 'data-lead-in').map((el) => text(el).replace(/\s+/g, ' '));
+  const takeaway = (h: string) => inResults(h, 'data-takeaway').map((el) => text(el).replace(/\s+/g, ' '));
+
+  it('collecting: the hollow mark is named, the threshold is the takeaway, and no decision yet', () => {
+    const h = page(displayOf(cal(10, 12)));
+    expect(lead(h)).toEqual(['What to look atThe hollow mark stands in for the bar: the range of differences between the groups that the data are compatible with.']);
+    expect(takeaway(h)).toEqual(['What it meansNo estimate is drawn until each group has 50 views. That threshold was fixed before the start.']);
+    expect(text(byId(h, 'decision-line')!)).toBe('No decision yet.');
+    const sheet = inResults(h, 'data-figure-sheet')[0]!;
+    expect(elements(sheet).some((el) => el.tagName === 'figure')).toBe(true);
+  });
+
+  it('a calibration with an interval says the bar should include zero, never that B is ahead', () => {
+    const h = page(displayOf(narrativeFixture('calibration-ready')));
+    expect(lead(h).join(' ')).toContain('In the calibration both groups see the same page, so the bar should include zero.');
+    expect(lead(h).join(' ')).not.toMatch(/B is ahead/);
+    expect(takeaway(h)).toEqual([]);
+  });
+
+  it('an A/B with an interval reads the bar against zero; "yet" only while the test is open', () => {
+    expect(lead(page(displayOf(snapshotFixture('ab')))).join(' ')).toContain('Wholly on the side marked B higher, B is ahead; across zero, there is no clear answer yet.');
+    const decided = lead(page(displayOf(snapshotFixture('inconclusive')))).join(' ');
+    if (decided !== '') expect(decided).not.toMatch(/\byet\b/);
+  });
+
+  it.each(LIVE_PAGE_FIXTURES.map((f) => [f.id, f.display] as const))('%s: no lead-in or sheet around a sentence, and "yet" only where a decision can still come', (_id, display) => {
+    const d = display();
+    const h = page(d);
+    const hasFigure = elements(byId(h, 'results')!).some((el) => el.tagName === 'figure');
+    expect(lead(h).length, 'lead-in').toBe(hasFigure ? 1 : 0);
+    expect(elements(byId(h, 'results')!).some((el) => attr(el, 'data-figure-sheet') !== undefined)).toBe(hasFigure);
+    const line = text(byId(h, 'decision-line')!);
+    if (d.outcome !== null) expect(line).toMatch(/^Decision: /);
+    else if (['not-started', 'before-data', 'calibration', 'ab', 'paused'].includes(d.mode) && !(d.countingClosed && d.closedConfirmed)) expect(line).toBe('No decision yet.');
+    else expect(line).toBe('No decision is shown.');
+    // The hollow mark is promised only where the Figure draws no interval.
+    if (lead(h).join(' ').includes('hollow mark')) expect(d.series).toHaveLength(0);
+  });
+});
+
+describe('the method, one click deeper', () => {
+  const rows = (h: string) =>
+    all(h)
+      .filter((el) => el.tagName === 'details' && attr(el, 'data-method') !== undefined)
+      .map((el) => ({ summary: text(elements(el).find((c) => c.tagName === 'summary')!).trim(), body: text(elements(el).find((c) => attr(c, 'data-method-body') !== undefined)!).replace(/\s+/g, ' '), open: attr(el, 'open') !== undefined }));
+
+  it('has the five rows, all closed, in page order', () => {
+    const r = rows(page(displayOf(withExclusions(cal(60, 60)))));
+    expect(r.map((x) => x.summary)).toEqual([
+      'Pre-registration record', 'How the line is computed', 'The method, for the curious', 'Why views were not counted', 'How the script treats small counts',
+    ]);
+    expect(r.every((x) => !x.open)).toBe(true);
+    expect(r[1]!.body).toBe('It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.');
+    expect(r[2]!.body).toMatch(/^The beacon on the home page \(a small signal the page sends when it loads\) sends events, and the server decides which of them count\./);
+    expect(r[3]!.body).toContain('Entries turned away, by reason');
+    expect(r[3]!.body).toContain('Preview deployments: 0.');
+    expect(r[4]!.body).toMatch(/^The script uses the Python standard library only/);
+  });
+
+  it('the figures sit on sheets, each with its badge and its table', () => {
+    const h = page(displayOf(cal(60, 60)), { runtime: 'no-js' });
+    const sheets = all(h).filter((el) => attr(el, 'data-figure-sheet') !== undefined);
+    expect(sheets).toHaveLength(3);
+    for (const sheet of sheets) {
+      expect(elements(sheet).filter((el) => el.tagName === 'figure')).toHaveLength(1);
+      expect(elements(sheet).some((el) => el.tagName === 'table')).toBe(true);
+      expect(text(sheet)).toMatch(/Simulated|Live from this site/);
+    }
+    // The four counting stages are one list of joined cells: a row from md, a column on a phone.
+    const funnel = all(h).find((el) => attr(el, 'data-funnel') !== undefined)!;
+    expect(elements(funnel).filter((el) => el.tagName === 'li')).toHaveLength(4);
+    expect(attr(funnel, 'class')).toMatch(/\bmd:grid-cols-4\b/);
+    expect(attr(funnel, 'class')).toMatch(/\bdivide-y\b.*\bmd:divide-x\b/);
   });
 });
 
@@ -135,10 +423,27 @@ describe('the carried planning copy', () => {
     expect(elements(plan).filter((el) => el.tagName === 'p').map((p) => text(p).replace(/\s+/g, ' ')).join(' ')).toBe(
       'I planned the test at 225 views per group. At that size, the smallest lift it would find 8 times in 10 is about 15 percentage points. ' +
         'Even a 5-point lift would be found about 1 time in 20. Inconclusive is the likely, honest outcome. ' +
-        'The quick-exit guardrail asks for evidence that B does not hurt. For two identical groups, the planning calculation says ship B needs about 390 to 470 entry views per group. ' +
-        'That is a planning figure for identical groups, not a threshold every run must reach. ' +
-        'Here, n counts views, not people: one person can count more than once, and in both groups.',
+        'There is also a guardrail, a second measure that must not get worse: quick exits. A quick exit is a view whose visitor leaves within 5 seconds without interacting. ' +
+        'To ship B, the data must rule out a rise in quick exits of 10 percentage points or more. ' +
+        'To show that, even two identical groups would need about 390 to 470 entry views (fresh arrivals on the home page) each. ' +
+        'That is a planning figure, not a target. ' +
+        'The test counts views, not people: one person can count more than once, and in both groups.',
     );
+  });
+
+  it('the guardrail gloss repeats the pre-registration: 5 seconds, +10 points, 390 to 470 entry views for identical groups', () => {
+    const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8').replace(/\s+/g, ' ');
+    expect(prereg).toContain('Quick exit: the visitor leaves within 5 seconds without interacting. Denominator: entry views. Margin: +10 percentage points.');
+    expect(prereg).toContain('the quick-exit interval\'s upper bound is below +10 percentage points');
+    expect(prereg).toContain('ship B needs about 390 to 470 entry views per group even when the two groups are identical');
+    expect(prereg).toContain('n counts views, not people; one person can count more than once and in both groups');
+  });
+
+  it('explains "pre-registered" once, where the plan starts', () => {
+    const t = sectionText(h, 'plan');
+    const gloss = 'Pre-registered means the design, the numbers I plan with and the decision rule were fixed and published before any visitor was counted, so they cannot be changed quietly after seeing results.';
+    expect(t).toContain(`The plan, fixed before the start ${gloss}`.replace('start ', 'start'));
+    expect(everything(h).split('Pre-registered means')).toHaveLength(2);
   });
 
   it('starts no sentence with a lowercase letter', () => {
@@ -155,6 +460,8 @@ describe('the carried planning copy', () => {
       ['5', '5', 'build'],
       ['1', '1', 'build'],
       ['20', '20', 'build'],
+      ['5', '5', 'build'],
+      ['10', '10', 'build'],
       ['390', '390', 'build'],
       ['470', '470', 'build'],
     ]);
@@ -216,7 +523,7 @@ describe('pinned copy: funnel, split check, effect, decision and data', () => {
     const h = page(displayOf(snapshotFixture('ab')));
     const t = sectionText(h, 'split-check');
     expect(t).toContain(
-      'The split check (sample ratio mismatch, SRM) asks whether the two groups got the share of views chance would give them. If it fails, the split is further from even than chance would plausibly give, so something may have moved views between the groups, and no result is shown. Because it is checked at every completed day, the chance of a false flag over the whole run is about 1% to 3%.',
+      'The split check asks whether the two groups got the share of views chance would give them (sample ratio mismatch, SRM). If it fails, the split is further from even than chance would plausibly give, so something may have moved views between the groups, and no result is shown. Because it is checked at every completed day, the chance of a false flag over the whole run is about 1% to 3%.',
     );
     expect(t).not.toContain('something other than chance moved');
     const prereg = readFileSync(join(ROOT, 'docs/experiment/prereg.md'), 'utf8').replace(/\s+/g, ' ');
@@ -538,10 +845,26 @@ describe('the pre-registration and build lines', () => {
     expect(text(tail)).toBe(preregHash().slice(-8));
   });
 
-  it('says "Not recorded" when the build commit is null, never "unknown"', () => {
+  it('shows no build line when the build commit is null: never "Not recorded", never "unknown"', () => {
     const h = page(displayOf(snapshotFixture('calibration')));
-    expect(text(byId(h, 'plan-build')!).replace(/\s+/g, ' ')).toBe('Build commit: Not recorded.');
-    expect(everything(h)).not.toMatch(/unknown/i);
+    expect(byId(h, 'plan-build')).toBeUndefined();
+    expect(everything(h)).not.toMatch(/unknown|Not recorded|Build commit/i);
+  });
+
+  it('shows the hash\'s first 12 characters in a code chip, and keeps the full value in the record row', () => {
+    const h = page(displayOf(snapshotFixture('calibration')));
+    const line = byId(h, 'plan-prereg-short')!;
+    expect(text(line).replace(/\s+/g, ' ')).toBe(`Pre-registration ${EXPERIMENT.prereg.version}, design hash ${preregHash().slice(0, 12)}.`);
+    const chip = elements(line).find((el) => el.tagName === 'code')!;
+    const data = elements(chip).find((el) => el.tagName === 'data')!;
+    expect(attr(data, 'value')).toBe(preregHash());
+    expect(attr(data, 'data-derived')).toBe('build');
+    expect(attr(chip, 'class') ?? '').toMatch(/\bwhitespace-nowrap\b/);
+    // The full value, the tag and the build commit are in the "Pre-registration record" row.
+    const record = all(h).find((el) => el.tagName === 'details' && elements(el).some((c) => attr(c, 'id') === 'plan-prereg'))!;
+    expect(text(elements(record).find((el) => el.tagName === 'summary')!).trim()).toBe('Pre-registration record');
+    expect(text(record)).toContain(preregHash());
+    expect(all(h).filter((el) => el.tagName === 'details' && elements(el).some((c) => attr(c, 'id') === 'plan-prereg-short'))).toHaveLength(0);
   });
 
   it('no file of the page types the version or the tag', () => {
@@ -561,12 +884,11 @@ const META: BuildMeta = {
 };
 
 describe('the colophon', () => {
-  it('without build metadata: the deploy-time sentence, no digit, never 0, and the stack line', () => {
+  it('without build metadata: no results line at all (a line with no value is hidden), and the stack line', () => {
     const h = page(displayOf(snapshotFixture('ab')), { meta: null });
-    const results = byId(h, 'colophon-results')!;
-    expect(text(results)).toBe('Test and audit results are added when the site is deployed.');
-    expect(attr(results, 'data-derived')).toBe('build');
-    expect(text(results)).not.toMatch(/\d|Not recorded/);
+    expect(byId(h, 'colophon-results')).toBeUndefined();
+    expect(sectionText(h, 'colophon')).not.toMatch(/Not recorded|are added when|Unit tests|Lighthouse/);
+    expect(text(byId(h, 'colophon-title')!)).toBe('How this site is built');
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
     expect(text(byId(h, 'colophon-stack')!).replace(/\s+/g, ' ')).toBe(
       `Built with Next.js ${pkg.dependencies.next}, React ${pkg.dependencies.react}, Tailwind CSS ${pkg.devDependencies.tailwindcss} and TypeScript ${pkg.devDependencies.typescript}.`,

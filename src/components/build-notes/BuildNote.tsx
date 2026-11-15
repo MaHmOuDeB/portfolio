@@ -1,17 +1,19 @@
-// The frame of a build note, the short page about a tool I built. It copies the Retention page's
-// outline (src/components/retention/RetentionPage.tsx) and adapts the analysis template to a build:
-// the title with its intro (block content, usually one paragraph) and, when a note has one, a line on
-// my role, then the section links and one <section id> per part: the problem, the architecture (with
-// its diagram), how I checked it, the outcome, the limits and the sources and links. A note may leave
-// a section out, never rename one; the links name only the sections it has. Build notes have no
-// Summary section. Each section is labelled by its own h2; prose sits in the readable column and
-// evidence runs to the figure width. Every diagram draws its steps with DiagramStep and joins them with
-// DiagramConnector. No motion and no card grid. Server-safe, no hooks.
+// The frame of a build note, the short page about a tool I built, in the inner pages' reading model:
+// the chip, a two-tone h1 (the name, then a quiet clause), a plain opening, the actions (the code, a
+// demo) and the glance card with its pull figures and its Scope cell; then the in-page chips and one
+// <section id> per part. The note may lead with the section that holds its best exhibit (`lead`);
+// the others follow in the shared order: the problem, the architecture (with its diagram), how I
+// checked this, the outcome, the limits and the sources and links. A note may leave a section out,
+// never rename one; the chips name only the sections it has. Each section is labelled by its own h2
+// at the inner section size; prose sits in the readable column and evidence runs to the figure width.
+// The page ends with what it shows about how I work, previous and next in the build notes' order,
+// and the ink call to action. Every diagram draws its steps with DiagramStep and joins them with
+// DiagramConnector. No motion. Server-safe, no hooks.
 import type { ReactNode } from 'react';
 import { GlanceBlock, type GlanceParts } from '@/components/depth/GlanceBlock';
-import { TextLink } from '@/components/kit/TextLink';
+import { NextRow, PageClose, SECTION_H2, SectionNav, type NextRowLink, type PageCloseLink } from '@/components/frame';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
-import { CaseHead } from '@/components/work/CaseHead';
+import { CaseHead, type CaseAction } from '@/components/work/CaseHead';
 
 /** The build-note sections in page order: anchor id, heading, link label. */
 export const BUILD_NOTE_SECTIONS = [
@@ -74,54 +76,90 @@ export function Paragraphs({ items }: { items: readonly [key: string, body: Reac
 /** Whether a body has something to draw: null, undefined, true, false and '' draw nothing in React. */
 const drawn = (body: ReactNode): boolean => body !== null && body !== undefined && typeof body !== 'boolean' && body !== '';
 
+/** The build notes in reading order, after Pulse; the last one leads on to the live test. */
+export const BUILD_NOTE_ORDER = {
+  docproof: { prev: { href: '/work/pulse', label: 'Pulse' }, next: { href: '/work/n8n', label: 'n8n e-invoice intake' } },
+  n8n: { prev: { href: '/work/docproof', label: 'Docproof' }, next: { href: '/work/marketingws', label: 'MarketingWS' } },
+  marketingws: { prev: { href: '/work/n8n', label: 'n8n e-invoice intake' }, next: { href: '/work/weather', label: 'Weather pipeline' } },
+  weather: { prev: { href: '/work/marketingws', label: 'MarketingWS' }, next: { href: '/experiment', label: 'The live test' } },
+} as const satisfies Record<string, { prev: NextRowLink; next: NextRowLink }>;
+
+export type BuildNoteClose = {
+  /** One or two short paragraphs on what the note shows about how I work. */
+  body: ReactNode;
+  links: readonly PageCloseLink[];
+};
+
 export function BuildNote({
   slug,
   title,
+  quiet,
   intro,
   role,
+  actions,
   glance,
+  lead,
   sections,
+  close,
 }: {
-  /** The base of the h1 id (`<slug>-title`). */
+  /** The base of the h1 id (`<slug>-title`) and the note's place in the reading order. */
   slug: string;
   title: string;
-  /** The block under the title, usually one paragraph; the frame adds no paragraph of its own. */
+  /** The quiet second clause of the h1. */
+  quiet?: ReactNode;
+  /** The plain opening under the title, usually one paragraph; the frame adds no paragraph of its own. */
   intro: ReactNode;
   /** One short paragraph under the intro: what the project is and what I did. */
   role?: ReactNode;
-  /** The 20-second top block, drawn under the title, the intro and the role line. */
+  /** The buttons that close the head: the code, a demo. */
+  actions?: readonly CaseAction[];
+  /** The 20-second top block, drawn under the head. */
   glance?: GlanceParts;
+  /** The section that holds the best exhibit, drawn first; the rest keep the shared order. */
+  lead?: BodyId;
   /** The body of each section the note has; a section left out (or empty) is neither drawn nor linked. */
   sections: Readonly<Partial<Record<BodyId, ReactNode>>>;
+  /** What the note shows about how I work, before previous and next. */
+  close?: BuildNoteClose;
 }): ReactNode {
-  const present = BUILD_NOTE_SECTIONS.filter((s) => drawn(sections[s.id]));
+  const ordered = lead
+    ? [...BUILD_NOTE_SECTIONS.filter((s) => s.id === lead), ...BUILD_NOTE_SECTIONS.filter((s) => s.id !== lead)]
+    : [...BUILD_NOTE_SECTIONS];
+  const present = ordered.filter((s) => drawn(sections[s.id]));
+  const order = (BUILD_NOTE_ORDER as Record<string, { prev: NextRowLink; next: NextRowLink } | undefined>)[slug];
   return (
     <article aria-labelledby={`${slug}-title`}>
-      <CaseHead id={`${slug}-title`} chip="Build note" title={title} intro={intro} role={drawn(role) ? role : undefined} />
+      <CaseHead
+        id={`${slug}-title`}
+        chip="Build note"
+        title={title}
+        quiet={quiet}
+        intro={intro}
+        role={drawn(role) ? role : undefined}
+        actions={actions}
+      />
 
       {glance ? <GlanceBlock {...glance} /> : null}
 
-      <nav aria-label="On this page" className={`${TEXT} mt-8`}>
-        <ul className="flex flex-wrap gap-x-4">
-          {present.map((s) => (
-            <li key={s.id}>
-              <TextLink href={`#${s.id}`} standalone>
-                {s.link}
-              </TextLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <SectionNav items={present.map((s) => ({ href: `#${s.id}`, label: s.link }))} />
 
       {present.map((s) => (
         <section key={s.id} id={s.id} aria-labelledby={`${s.id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-          <h2 id={`${s.id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
+          <h2 id={`${s.id}-title`} className={`${TEXT} ${SECTION_H2}`} data-depth-rise="heading">
             {s.title}
           </h2>
-          <div className="mt-4">{sections[s.id]}</div>
+          <div className="mt-6">{sections[s.id]}</div>
         </section>
       ))}
-      <PageCallToAction />
+      {close ? (
+        <PageClose id={`${slug}-shows`} links={close.links}>
+          {close.body}
+        </PageClose>
+      ) : null}
+      {order ? <NextRow prev={order.prev} next={order.next} /> : null}
+      <div className="mt-12 md:mt-16">
+        <PageCallToAction />
+      </div>
     </article>
   );
 }

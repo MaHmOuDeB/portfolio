@@ -24,8 +24,20 @@ const SECTIONS = [
 const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources'];
 
 const NOTES = [
-  { route: '/work/weather', title: 'Weather data quality', figure: 'weather-pipeline', table: 'check-levels' },
-  { route: '/work/n8n', title: 'n8n Workflow Library', figure: 'n8n-flow', table: null },
+  {
+    route: '/work/weather',
+    title: 'Weather data quality',
+    h1: 'A SQL pipeline that stops on bad data, and keeps the doubtful rows visible.',
+    figure: 'weather-pipeline',
+    table: 'check-levels',
+  },
+  {
+    route: '/work/n8n',
+    title: 'E-invoice intake and error alerts in n8n',
+    h1: /^E-invoice intake and error alerts in n8n with 270\+ automated tests\.$/,
+    figure: 'n8n-flow',
+    table: null,
+  },
 ] as const;
 
 /** Every request URL the page makes from its first byte. */
@@ -53,8 +65,8 @@ for (const note of NOTES) {
     test('outline: one h1, the build-note sections in order, no skipped heading level', async ({ page }) => {
       const response = await page.goto(note.route);
       expect(response?.status()).toBe(200);
-      await expect(page).toHaveTitle(note.title);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(note.title);
+      await expect(page).toHaveTitle(`${note.title} | Mahmoud El Bergui`);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(note.h1);
       for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
       for (const [id, title] of SECTIONS) {
         await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
@@ -162,9 +174,10 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
   }
   await page.goto('/work/weather');
   const external = await page.locator('main a[href^="http"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(external).toEqual([
-    'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
+  // the repository is linked from the head, the sources and the close, always at the same fixed commit
+  expect([...new Set(external)].sort()).toEqual([
     'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+    'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
   ]);
   for (const a of await page.locator('main a[href^="http"]').all()) await expect(a).toHaveAttribute('rel', 'noopener');
 });
@@ -177,8 +190,10 @@ test.describe('MarketingWS build note', () => {
   test('outline: one h1, the six sections in order, the diagram in the architecture section', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('MarketingWS');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('MarketingWS');
+    await expect(page).toHaveTitle('MarketingWS | Mahmoud El Bergui');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'MarketingWS: marketing copy from one brief, with a check for invented figures.',
+    );
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     const sections = await page.evaluate(() =>
       [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
@@ -283,16 +298,19 @@ test.describe('MarketingWS build note', () => {
 
 test.describe('the Docproof build note', () => {
   const ROUTE = '/work/docproof';
-  const TITLE = 'Docproof: a multi-agent document pipeline';
+  const TITLE = 'Docproof: agents write, checks decide';
+  const REPO = 'https://github.com/MaHmOuDeB/docproof';
+  // The recorded run is the best exhibit, so its section leads; the rest keep the shared order.
+  const ORDER = [SECTIONS[2], SECTIONS[0], SECTIONS[1], ...SECTIONS.slice(3)];
 
   test('outline: one h1, the sections in template order, the diagram in the architecture section', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle(TITLE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page).toHaveTitle(`${TITLE} | Mahmoud El Bergui`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Docproof: agents write, checks decide.');
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     const { sections, headings, figures, links } = await composition(page);
-    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    expect(sections).toEqual(ORDER.map(([id, title]) => [id, title]));
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
@@ -300,7 +318,7 @@ test.describe('the Docproof build note', () => {
     expect(levels[0]).toBe(2);
     expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
     expect(figures).toEqual([['architecture', 'docproof-architecture']]);
-    expect(links).toEqual([...SECTIONS.map(([id]) => `#${id}`), '/work', '/contact', '/cv']);
+    expect(links).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/pulse', '/work/n8n', '/contact', '/cv']);
   });
 
   test('the recorded run: inputs, command and output as labelled regions a keyboard reaches', async ({ page }) => {
@@ -318,7 +336,7 @@ test.describe('the Docproof build note', () => {
 
   test('section links: in page order, and one lands its heading in view', async ({ page }) => {
     await page.goto(ROUTE);
-    await expect(sectionLinks(page)).toHaveText(LINKS);
+    await expect(sectionLinks(page)).toHaveText([LINKS[2]!, LINKS[0]!, LINKS[1]!, ...LINKS.slice(3)]);
     await sectionLinks(page).filter({ hasText: 'Limits' }).click();
     await expect(page).toHaveURL(/#limits$/);
     await expect(page.locator('#limits-title')).toBeInViewport();
@@ -340,7 +358,7 @@ test.describe('the Docproof build note', () => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(ROUTE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Docproof: agents write, checks decide.');
     await expect(page.getByRole('region', { name: 'The command and its output' })).toContainText('VERIFY FAILED');
     await context.close();
   });
@@ -416,4 +434,40 @@ test.describe('the screenshot frame', () => {
     await expect(frame(page)).toHaveAttribute('role', 'region');
     await context.close();
   });
+});
+
+// The seven work pages are one sequence: each page's Next card opens the page whose Previous card
+// leads back to it, and the last one hands over to the live test.
+const SEQUENCE = [
+  ['/work/audible', 'Audible'],
+  ['/work/retention', 'Retention'],
+  ['/work/pulse', 'Pulse'],
+  ['/work/docproof', 'Docproof'],
+  ['/work/n8n', 'n8n e-invoice intake'],
+  ['/work/marketingws', 'MarketingWS'],
+  ['/work/weather', 'Weather pipeline'],
+  ['/experiment', 'The live test'],
+] as const;
+
+test('previous and next: the work pages lead through the sequence and back', async ({ page }) => {
+  for (let i = 0; i < SEQUENCE.length - 1; i++) {
+    const [route] = SEQUENCE[i]!;
+    const [nextRoute, nextLabel] = SEQUENCE[i + 1]!;
+    await page.goto(route);
+    const row = page.getByRole('navigation', { name: 'More work' });
+    const next = row.locator('[data-next="next"]');
+    await expect(next, route).toHaveAttribute('href', nextRoute);
+    await expect(next.locator('[data-next-label]'), route).toHaveText(nextLabel);
+    if (i === 0) await expect(row.locator('[data-next="prev"]'), route).toHaveCount(0);
+    else {
+      const [prevRoute, prevLabel] = SEQUENCE[i - 1]!;
+      await expect(row.locator('[data-next="prev"]'), route).toHaveAttribute('href', prevRoute);
+      await expect(row.locator('[data-next="prev"] [data-next-label]'), route).toHaveText(prevLabel);
+    }
+  }
+  // following a card by click opens the page it names
+  await page.goto('/work/pulse');
+  await page.getByRole('navigation', { name: 'More work' }).locator('[data-next="next"]').click();
+  await expect(page).toHaveURL(/\/work\/docproof$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 });

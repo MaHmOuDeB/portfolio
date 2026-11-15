@@ -32,3 +32,10 @@ export function SectionHead({ id, chip, title, quiet, sub, align = 'center' }: S
     </div>
   );
 }
+
+/**
+ * The class list of an inner page's section h2: 28 px, then 32 px from md, so a section headline sits
+ * one clear step above a 24 px Figure title and one below the page headline. The heading weight and
+ * tracking come from globals.css, which keys on the class name. Add width and spacing classes beside it.
+ */
+export const SECTION_H2 = 'text-h2-xs md:text-h2-sm';

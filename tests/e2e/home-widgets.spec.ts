@@ -18,7 +18,7 @@ test.describe('Home widgets', () => {
     await tabs.nth(0).focus();
     await page.keyboard.press('ArrowDown');
     await expect(tabs.nth(1)).toBeChecked();
-    expect(await visiblePanels()).toEqual(['read']);
+    expect(await visiblePanels()).toEqual(['analyse']);
     await page.keyboard.press('ArrowDown');
     await expect(tabs.nth(2)).toBeChecked();
     expect(await visiblePanels()).toEqual(['recommend']);

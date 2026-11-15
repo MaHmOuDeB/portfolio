@@ -15,28 +15,38 @@ import { auditLive } from './truth-live';
 const LAB = '/lab';
 const PEEKING = '/lab/peeking';
 const INTERVIEW = '/lab/peeking?peeking.preset=interview';
+// The sections in page order, the order of a test's life: each is named by its question.
 const SECTIONS = [
-  ['sample-size', 'Sample size and duration'],
-  ['peeking-at-results', 'Peeking at results'],
-  ['split-check', 'Split check'],
-  ['exaggeration', 'Exaggeration'],
-  ['limits', 'Limits'],
+  ['sample-size', 'Is the test big enough?'],
+  ['split-check', 'Did each group get its share?'],
+  ['peeking-at-results', 'Did we stop too early?'],
+  ['exaggeration', 'Is the win as big as it looks?'],
+  ['limits', 'What these examples cannot show'],
 ] as const;
+const H1 = 'Four ways an A/B test can mislead, and the check for each.';
+const PEEKING_H1 = 'Peeking at results, why checking early finds false winners.';
 const FIGURES = [
   ['sample-size', 'planner'],
   ['sample-size', 'duration'],
-  ['peeking-at-results', 'peeking'],
   ['split-check', 'srm'],
+  ['peeking-at-results', 'peeking'],
   ['exaggeration', 'curse'],
 ] as const;
-// What each example is for, in list order (content/lab.tsx).
+// Each card's one line, in card order (content/lab.tsx).
 const PURPOSES = [
-  'How many visitors each group needs to detect a given rise, and how many weeks that takes at a given traffic.',
-  'What checking a running test every day does to its false positives, and what each fix costs.',
-  'Whether the groups got the share of visitors they were meant to get, or whether the assignment and the logging need a closer look.',
-  'Why an effect that passes the threshold in a test with little power looks bigger than it is.',
+  'Too few visitors and a real improvement goes unseen. The size is worked out before the test starts.',
+  'If one group gets more visitors than planned, the set-up is broken and the result cannot be trusted.',
+  'Checking every day and stopping at the first win turns chance into winners.',
+  'Small tests that win tend to overstate the win.',
 ];
-const PEEK_PRESET_LINE = /^Under these simulation assumptions, 22\.1% of 1,000 runs found a false winner by look 20 /;
+// Each card link's name: when the check comes, with its place in the list, then the question.
+const CARDS = [
+  '1 Before the test Is the test big enough?',
+  '2 While it runs Did each group get its share?',
+  '3 When reading it Did we stop too early?',
+  '4 After a win Is the win as big as it looks?',
+];
+const PEEK_PRESET_LINE = /^Checked every day for 20 days, 22\.1% of 1,000 tests of two identical versions declared a winner\. /;
 const CHUNK_ERRORS = ['chunk', 'Chunk', 'Failed to fetch', 'dynamically imported module', 'Importing a module script failed'];
 
 const figure = (page: Page, id: string) => page.locator(`figure[data-figure="${id}"]`);
@@ -85,17 +95,18 @@ test.describe('the Lab routes', () => {
     }
   });
 
-  test('outline: one h1 Lab, the examples linked in order with what each is for, a section and h2 each, no skipped level', async ({ page }) => {
+  test('outline: one h1 that says what the page is for, the four checks as cards in order, a section and h2 each, no skipped level', async ({ page }) => {
     const response = await page.goto(LAB);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('Lab');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lab');
+    await expect(page).toHaveTitle('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
-    await expect(page.locator('main')).toContainText('I use these examples to show what a test can and cannot tell me.');
+    await expect(page.locator('main')).toContainText('These are the four checks I make before I believe a result.');
     const nav = page.getByRole('navigation', { name: 'On this page' });
-    await expect(nav.getByRole('link')).toHaveText(SECTIONS.slice(0, 4).map(([, title]) => title));
+    for (const [i, name] of CARDS.entries()) await expect(nav.getByRole('link').nth(i)).toHaveAccessibleName(name);
+    await expect(nav.getByRole('link')).toHaveCount(CARDS.length);
     // each link is followed by its own sentence on what the example is for
-    await expect(nav.locator('li > p')).toHaveText(PURPOSES);
+    await expect(nav.locator('li a > p')).toHaveText(PURPOSES);
     for (const [id, title] of SECTIONS) await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     const layout = await page.evaluate(() => ({
       figures: [...document.querySelectorAll('main figure[data-figure]')].map((f) => [f.closest('section[id]')?.id, f.getAttribute('data-figure')]),
@@ -108,7 +119,7 @@ test.describe('the Lab routes', () => {
 
   test('a section link lands its heading below the header, and /lab#peeking lands the peeking Figure', async ({ page }) => {
     await page.goto(LAB);
-    await page.getByRole('navigation', { name: 'On this page' }).getByRole('link', { name: 'Split check' }).click();
+    await page.getByRole('navigation', { name: 'On this page' }).locator('a[href="#split-check"]').click();
     await expect(page).toHaveURL(/#split-check$/);
     await expect(page.locator('#split-check-title')).toBeInViewport();
     const covered = await page.locator('#split-check-title').evaluate((h) => {
@@ -121,6 +132,29 @@ test.describe('the Lab routes', () => {
     await page.goto(`${LAB}#peeking`);
     await waitForIslands(page);
     await expect(figure(page, 'peeking').getByRole('heading', { level: 3 })).toBeInViewport();
+  });
+
+  test('each method row names its Figure, opens and closes by keyboard, and shows its method only when open', async ({ page }) => {
+    await page.goto(LAB);
+    const rows = page.locator('details[data-method]');
+    await expect(rows.locator('summary')).toHaveText([
+      'The method behind the sample size',
+      'The method behind the run time',
+      'The method behind the split check',
+      'The method behind the peeking chart',
+      'The method behind the exaggeration chart',
+    ]);
+    const row = rows.first();
+    const body = row.locator('[data-method-body]');
+    await expect(body).toBeHidden();
+    await row.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(row).toHaveAttribute('open', '');
+    await expect(body).toBeVisible();
+    await expect(body).toContainText("Cohen's h");
+    await page.keyboard.press('Space');
+    await expect(row).not.toHaveAttribute('open', '');
+    await expect(body).toBeHidden();
   });
 
   test('every Figure is badged Simulated, its open table is in the served HTML, and no id repeats', async ({ page, request }) => {
@@ -147,21 +181,21 @@ test.describe('the Lab routes', () => {
     }
   });
 
-  test('the peeking page: the same Figure under the heading Lab, a link back, and the interview link loads its island at once', async ({ page }) => {
+  test('the peeking page: the same Figure under its own headline, a link back, and the interview link loads its island at once', async ({ page }) => {
     await withoutIdle(page);
     const errors = watchErrors(page);
     await page.goto(INTERVIEW);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lab');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(PEEKING_H1);
     await expect(page.locator('main figure[data-figure]')).toHaveCount(1);
     await expect(island(page, 'peeking')).toHaveAttribute('data-island', 'ready');
     // the interview preset is the default view: daily, 20 looks, no fix
     await expect(result(page, 'peeking')).toHaveText(PEEK_PRESET_LINE);
-    await expect(figure(page, 'peeking').getByRole('slider', { name: 'Looks' })).toHaveValue('20');
-    await expect(figure(page, 'peeking').getByRole('radio', { name: 'Peek daily' })).toBeChecked();
+    await expect(figure(page, 'peeking').getByRole('slider', { name: 'Daily checks' })).toHaveValue('20');
+    await expect(figure(page, 'peeking').getByRole('radio', { name: 'Check every day' })).toBeChecked();
     await expect(figure(page, 'peeking').getByRole('radio', { name: 'None' })).toBeChecked();
     await page.getByRole('link', { name: 'All the examples in the Lab' }).click();
     await expect(page).toHaveURL(/\/lab$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lab');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     expect(errors).toEqual([]);
   });
 
@@ -230,10 +264,10 @@ test.describe('the Lab routes', () => {
     await nudge(page, 'duration');
     await auditLive(page, LAB, 'planner in percent');
     // peeking: once, then daily with each fix
-    await figure(page, 'peeking').locator('label', { hasText: 'Look once' }).click();
+    await figure(page, 'peeking').locator('label', { hasText: 'Check once at the end' }).click();
     await auditLive(page, LAB, 'peeking once');
-    await figure(page, 'peeking').locator('label', { hasText: 'Peek daily' }).click();
-    for (const fix of ["O'Brien-Fleming", 'Confidence sequence']) {
+    await figure(page, 'peeking').locator('label', { hasText: 'Check every day' }).click();
+    for (const fix of ['Stricter early looks', 'Always valid']) {
       await figure(page, 'peeking').locator('label', { hasText: fix }).click();
       await nudge(page, 'peeking', 'End');
       await auditLive(page, LAB, `peeking ${fix} at 50 looks`);

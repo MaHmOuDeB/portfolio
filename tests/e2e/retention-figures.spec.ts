@@ -9,6 +9,12 @@ import { expectNoA11yViolations, test } from './fixtures';
 // /kitchen-sink/retention/faults sets the test seam, so the cohort chart throws on the first render
 // after a cohort change.
 
+
+/** Opens every method row of the page: the segments Figure sits in one, closed by default. */
+async function openMethodRows(page: Page) {
+  await page.locator('main details[data-method]').evaluateAll((rows) => rows.forEach((d) => ((d as HTMLDetailsElement).open = true)));
+}
+
 const HOST = '/kitchen-sink/retention';
 const FAULTS = '/kitchen-sink/retention/faults';
 const ID = 'cohorts';
@@ -360,6 +366,7 @@ test.describe('Cohort, RFM and model Figures together', () => {
       const context = await newContext(browser, viewport, scale);
       const page = await context.newPage();
       await page.goto(HOST);
+      await openMethodRows(page);
       await ready(page);
       await noHorizontalScroll(page);
       // The returns chart too: its last month label stays inside only because the frame anchors it at its tick.
@@ -381,6 +388,7 @@ test.describe('Cohort, RFM and model Figures together', () => {
     for (const [width, height] of [[600, 900], [1024, 900], [1440, 900], [1024, 576]] as const) {
       await page.setViewportSize({ width, height });
       await page.goto(HOST);
+      await openMethodRows(page);
       // The cohort island swaps in on intent or idle time; measure once it has, not mid-swap.
       await ready(page);
       for (const id of [ID, 'rfm', 'models', 'returns']) await chartTextFits(page, id);
@@ -422,6 +430,7 @@ test.describe('Cohort, RFM and model Figures together', () => {
   test('forced colours: values, the selected outline and the two RFM series stay distinct, and axe finds nothing', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
     await page.goto(HOST);
+    await openMethodRows(page);
     await ready(page);
     await page.emulateMedia({ forcedColors: 'active' });
     const heat = await heatmap(page).evaluate((root) => {

@@ -1,24 +1,24 @@
 {
-  "inputHash": "10d873c8552dae1f1f5424cc89f3081abe43052e282fc4001ad7c210d940c71b",
+  "inputHash": "f7ffd4a0fa5242e071ba37d369611c398239ee18271846aa96423801d6f4449d",
   "renderer": "chromium 153.0.8010.12",
   "images": {
     "site.png": {
-      "sha256": "1ce8a19939f65441cf76fed15eb903a0625eafa9bcd956a630fcb47bd9e77843",
+      "sha256": "1f9be974bcb53cfaec614d614675792a6aa7111223fde6a8ef80feede9168a52",
       "width": 1200,
       "height": 630
     },
     "audible.png": {
-      "sha256": "dcbab2dfae24fa324a907ef53fc99ff6136c53f40df2e2a997175f00b25454c6",
+      "sha256": "528377c18dde84a46f21a5e3460266ea896710a24236138bd0f7d282896c2444",
       "width": 1200,
       "height": 630
     },
     "retention.png": {
-      "sha256": "96bc911da3c321b68779b46ec8aca08152073a17586b6f615eec88762df458dd",
+      "sha256": "330bbbcd8a5377647f39d0cf79ffee672a6cfc746493f850afa7285cf572ea0a",
       "width": 1200,
       "height": 630
     },
     "pulse.png": {
-      "sha256": "b641844d38bc44991aaf0cd485153bdc533c3bb38549bfc0b5f3ce673d5122cb",
+      "sha256": "c2f4dd8508c289151f951edffe48b3e3a98f3c1381260ff1c720333da9305178",
       "width": 1200,
       "height": 630
     }

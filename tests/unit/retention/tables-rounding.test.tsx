@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { RetentionChecks, RetentionLimits, RetentionMethod, RetentionSources, RetentionSummary } from '../../../content/retention';
+import { RetentionChecks, RetentionIntro, RetentionLimits, RetentionMethod, RetentionSources } from '../../../content/retention';
 import type { TableData } from '@/components/kit/DataTable';
 import { FACTS, formatValue, getFact, type FactId } from '@/lib/facts';
 import { RETAIL, RETENTION, sourceRepo } from '@/lib/retention/data';
@@ -70,7 +70,7 @@ const EXPORT_VALUES: Record<string, Set<string>> = {
   'source:retention': leafValues(RETENTION),
 };
 
-const SECTIONS: readonly (() => ReactNode)[] = [RetentionSummary, RetentionMethod, RetentionChecks, RetentionLimits, RetentionSources];
+const SECTIONS: readonly (() => ReactNode)[] = [RetentionIntro, RetentionMethod, RetentionChecks, RetentionLimits, RetentionSources];
 const html = SECTIONS.map((S) => renderToStaticMarkup(<S />)).join('\n');
 type DerivedNode = { tag: string; value: string | undefined; refs: string[]; text: string };
 

@@ -9,11 +9,15 @@ export const HOME_LINKS = {
   whySoMany: '/work/audible#why-so-many',
   /** The Audible page section on the test-account automation tool. */
   automation: '/work/audible#automation',
+  /** The Audible page itself, from the FAQ. */
+  audible: '/work/audible',
   retention: '/work/retention',
   pulse: '/work/pulse',
   docproof: '/work/docproof',
   n8n: '/work/n8n',
   marketingws: '/work/marketingws',
+  /** The Work index, from the hero's proof line. */
+  work: '/work',
   lab: '/lab',
   experiment: '/experiment',
   cv: '/cv',

@@ -127,7 +127,8 @@ any such heading, so a `font-semibold` left on one does not win. Code blocks onl
 | `text-readout` | 64 px | 1, -0.03 em, 600 | the hero readout; always with its unit ("visitors per group") |
 | `text-display-lg` | 64 px | 1.02, -0.022 em | the Home headline from 768 px |
 | `text-h2` | 40 px | 1.06, -0.022 em | a section headline, a page headline (`SectionHead`, `PageHead`) |
-| `text-h2-sm` | 32 px | 1.08, -0.022 em | the same under 768 px |
+| `text-h2-sm` | 32 px | 1.08, -0.022 em | the same under 768 px; an inner page's section headline from 768 px |
+| `text-h2-xs` | 28 px | 1.12, -0.022 em | an inner page's section headline under 768 px (`SECTION_H2` is `text-h2-xs md:text-h2-sm`): one step above a 24 px Figure title, one below the page headline |
 | `text-display-sm` | 36 px | 1.06, -0.022 em | the Home headline under 480 px, a page headline under 768 px |
 | `text-display` | 48 px | 1.04, -0.022 em | the Home headline from 480 to 768 px, a page headline from 768 px |
 

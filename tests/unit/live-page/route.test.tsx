@@ -34,6 +34,8 @@ describe('the /experiment route', () => {
     expect(read).toHaveBeenCalledTimes(1);
     expect(html).toContain('https://<data value="site.example"');
     expect(html).toContain('This page was built from commit');
-    expect(html).toContain('Test and audit results are added when the site is deployed.');
+    // No build metadata: the stack line stands alone, and no line promises results to come.
+    expect(html).toContain('id="colophon-stack"');
+    expect(html).not.toContain('id="colophon-results"');
   });
 });

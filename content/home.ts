@@ -31,13 +31,21 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
 export const HOME_HERO = {
   chip: 'Open to roles in Germany',
   sub: {
-    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with ',
+    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the ',
     chips: ['Agents', 'Workflows'],
     join: ' and ',
-    end: '.',
+    end: ' that take the manual work out.',
   },
   cv: 'Read my CV',
   contact: 'Write to me',
+  /** One muted proof line under the buttons (figures are Facts), then a quiet link to the work. */
+  proof: [
+    { fact: 'profile.audible.experiments' },
+    ' A/B tests at Audible. A tool my team adopted. ',
+    { fact: 'profile.n8n.automated_tests' },
+    ' automated tests in public code.',
+  ] as readonly HeadlinePart[],
+  work: 'See the work',
 } as const;
 
 /** The hero's sub line as one string, the two chips' words in place. */
@@ -124,7 +132,7 @@ export const HOME_PROOF: readonly ProofItem[] = [
     caption: [
       'to set up a test account, down from about ',
       { fact: 'profile.audible.setup_minutes_before' },
-      ', with a tool I built. Used across ',
+      ', with a tool I built. Adopted team-wide, across ',
       { fact: 'profile.audible.markets' },
       ' markets.',
     ],
@@ -152,11 +160,10 @@ export const HOME_EXPERIENCE = {
 /** The text of the "Why so many?" link in the proof row. */
 export const WHY_SO_MANY = 'Why so many?';
 
-/** The two tracks' headings and ledes. */
+/** The two tracks' headings, and the automation track's lede (its head's sub). */
 export const HOME_TRACKS = {
   experiments: {
     title: 'Experiments and analytics',
-    lede: 'How I plan a test, read it honestly and write the recommendation.',
   },
   automation: {
     title: 'Automation and agents',
@@ -200,17 +207,27 @@ export const HOME_CASES: readonly {
   },
 ];
 
-/** The "Automation and agents" cards in display order. */
+/**
+ * The "Automation and agents" cards in display order: the project's name as a small label, and a
+ * title that says what it does (a verb and its object; a figure in it is a fact part).
+ */
 export const HOME_AUTOMATION: readonly {
   id: string;
-  title: string;
+  label: string;
+  title: readonly HeadlinePart[];
   href: string;
   description: readonly HeadlinePart[];
   meta: readonly HeadlinePart[];
 }[] = [
   {
     id: 'automation',
-    title: 'Test-account automation',
+    label: 'Test-account automation',
+    title: [
+      'Set up a test account in about ',
+      { fact: 'profile.audible.setup_minutes_after' },
+      ' minutes, not ',
+      { fact: 'profile.audible.setup_minutes_before' },
+    ],
     href: HOME_LINKS.automation,
     description: [
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about ',
@@ -223,7 +240,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'docproof',
-    title: 'Docproof',
+    label: 'Docproof',
+    title: ['Let agents write, and let checks decide'],
     href: HOME_LINKS.docproof,
     description: [
       'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
@@ -232,7 +250,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'n8n',
-    title: 'n8n workflow library',
+    label: 'n8n workflow library',
+    title: ['Check every e-invoice before a person has to'],
     href: HOME_LINKS.n8n,
     description: [
       'E-invoice intake and error alerts as reusable workflows, with ',
@@ -243,7 +262,8 @@ export const HOME_AUTOMATION: readonly {
   },
   {
     id: 'marketingws',
-    title: 'MarketingWS',
+    label: 'MarketingWS',
+    title: ['Draft marketing copy, with a check for invented figures'],
     href: HOME_LINKS.marketingws,
     description: ["Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier."],
     meta: ['Python, FastAPI, Groq'],
@@ -269,21 +289,21 @@ export const HOME_HOW = {
     chip: 'How I test',
     title: 'Know what a test',
     quiet: 'really says.',
-    sub: 'Three habits behind every result I report.',
+    sub: 'Three steps before I recommend a change.',
   },
   tabs: [
     { id: 'plan', title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-    { id: 'read', title: 'Read', line: 'I read the result against the primary metric and its guardrails.' },
+    { id: 'analyse', title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
     { id: 'recommend', title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
   ],
 } as const satisfies { head: SectionCopy; tabs: readonly { id: string; title: string; line: string }[] };
 
-/** The heads of the two tracks (the ledes stay in HOME_TRACKS, which the Work page reads too). */
+/** The heads of the two tracks (the automation lede stays in HOME_TRACKS). */
 export const HOME_EXPERIMENTS_HEAD = {
   chip: 'Experiments and analytics',
   title: 'Open the work',
   quiet: 'and see how it was done.',
-  sub: 'Case studies with their sources and their limits.',
+  sub: 'Each case study shows the method, the sources and what it cannot tell you.',
 } as const satisfies SectionCopy;
 
 export const HOME_AUTOMATION_HEAD = {
@@ -295,7 +315,7 @@ export const HOME_AUTOMATION_HEAD = {
 
 /** The three "I automate." lines, in the ruled row under the automation cards. */
 export const HOME_AUTOMATE_LINES = [
-  'I turn repeated manual steps into tools a whole team can use.',
+  'At Audible I built a browser tool and AI tools that the team adopted.',
   'I build agents that work in steps and check each other.',
   'I put automated tests around my workflows and agent pipelines, so they stay right.',
 ] as const;
@@ -315,7 +335,7 @@ export const TOOLS_LABEL = 'Tools I have shipped with';
 /** The site band: the test on this site is part of the evidence. The Work page reads `title` and `text`. */
 export const HOME_SITE = {
   title: 'This site is part of the evidence.',
-  text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+  text: 'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
   live: 'See the live test',
   lab: 'Try the Lab',
 } as const;
@@ -327,8 +347,20 @@ export const HOME_SITE_HEAD = {
   quiet: 'part of the evidence.',
 } as const satisfies SectionCopy;
 
+/**
+ * A part of a FAQ answer: text, a fact, a link (a site path, or a repository the site already links,
+ * marked external) or a month (yyyy-mm, printed in a <time> the way the About timeline prints it).
+ */
+export type FaqPart = HeadlinePart | { text: string; href: string; external?: true } | { month: `${number}-${number}` };
+
+/** The public repositories the FAQ links (the same addresses as the Docproof and n8n pages). */
+export const FAQ_REPOS = {
+  docproof: 'https://github.com/MaHmOuDeB/docproof',
+  n8n: 'https://github.com/MaHmOuDeB/n8n-workflow-library',
+} as const;
+
 /** The Home FAQ. Answers are parts, so each figure is printed from the facts data. */
-export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; answer: readonly HeadlinePart[] }[] } = {
+export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; answer: readonly FaqPart[] }[] } = {
   head: { chip: 'FAQ', title: 'Questions hiring teams ask', sub: 'Short answers; the pages behind them have the detail.' },
   items: [
     {
@@ -348,22 +380,44 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
       ],
     },
     {
-      question: 'Can I see the Audible results?',
+      // Mercor only in the words the About page and the CV use: a contract role, training data for AI models.
+      question: 'What have you done since Audible?',
       answer: [
-        'No. Revenue, conversion and lift figures are confidential, so this site shows none of them. The Audible page explains how I worked, and the Lab shows the statistics on simulated data.',
+        'I finished my MSc in Data Science in ',
+        { month: '2025-11' },
+        ". Since then I have rebuilt my Master's projects on public data and built Docproof, the n8n workflow library and this site. Since ",
+        { month: '2026-10' },
+        ' I also work on contract at Mercor, building training data for AI models.',
       ],
     },
     {
+      question: 'Can I see the Audible results?',
+      answer: [
+        'Not the figures: revenue, conversion and lift numbers are confidential. You can see how I worked on ',
+        { text: 'the Audible page', href: HOME_LINKS.audible },
+        ', the statistics on simulated data in ',
+        { text: 'the Lab', href: HOME_LINKS.lab },
+        ', and a real test with public data on ',
+        { text: 'the Live test page', href: HOME_LINKS.experiment },
+        '.',
+      ],
+    },
+    {
+      // The two Audible tools and the Bedrock evaluation are separate sentences: nothing says the tools ran on it.
       question: 'How do you work with AI?',
       answer: [
-        'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has ',
-        { fact: 'profile.n8n.automated_tests' },
-        ' automated tests.',
+        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
       ],
     },
     {
       question: 'Is the code public?',
-      answer: ['Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
+      answer: [
+        'Yes. ',
+        { text: 'Docproof', href: FAQ_REPOS.docproof, external: true },
+        ' and ',
+        { text: 'the n8n workflow library', href: FAQ_REPOS.n8n, external: true },
+        ' are on GitHub under the MIT licence, and so is the code of this site.',
+      ],
     },
     {
       question: 'Which languages do you speak?',

@@ -12,6 +12,7 @@ import { DepthSection } from './depth';
 import { FactsSection } from './facts';
 import { FiguresSection } from './figures';
 import { FormFieldsSection } from './form-fields';
+import { FrameSection } from './frame';
 import { Specimen } from './Specimen';
 import { StaticSection } from './static';
 import { StepNavSection } from './stepnav';
@@ -190,5 +191,10 @@ export const SECTIONS: readonly SinkSection[] = [
     id: 'depth',
     title: 'Depth components',
     render: () => <DepthSection />,
+  },
+  {
+    id: 'frame',
+    title: 'Frame parts',
+    render: () => <FrameSection />,
   },
 ];

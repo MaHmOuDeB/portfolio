@@ -60,26 +60,35 @@ const SECTION_TEXT: Record<(typeof ORDER)[number][0], string> = {
   problem:
     "The problem Marketing copy starts from a brief: the campaign, the channel, the tone and the audience. A language model can draft from it, but it can also add figures and promises the brief never gave it. I built MarketingWS for my Master's thesis in 2025 and rebuilt it in 2026. The rebuild drafts social posts, emails and ads from a brief, revises the current draft with the marketer's feedback instead of starting again, and turns figures and promises it cannot support into placeholders.",
   architecture:
-    "Architecture The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting. Every draft is checked against the brief Brief Campaign type, platform, tone, audience and language. Draft A first draft, a revision of the current draft with feedback, or copy variants from different angles. Check Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features. Translate On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders. Output The copy, which the marketer can send back with new feedback. One request, step by step. Translation starts from the current draft rather than writing a new one. The brief: a campaign type, a platform, a tone, a language and a few lines on the offer. The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one. Full-size picture of the first draft",
+    "Architecture The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting. What to look at Look for the placeholder in the draft: the brief gave no figure, so the tool left a gap instead of making one up. Screenshot The brief: a campaign type, a platform, a tone, a language and a few lines on the offer. The first draft it returned. Where the brief has no figure, the draft leaves a placeholder instead of inventing one. Full-size picture of the first draft What it means Where the brief gives no figure, the copy shows a gap for a person to fill, not a number nobody approved. Every draft is checked against the brief Brief Campaign type, platform, tone, audience and language. Draft A first draft, a revision of the current draft with feedback, or copy variants from different angles. Check Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features. Translate On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders. Output The copy, which the marketer can send back with new feedback. One request, step by step. Translation starts from the current draft rather than writing a new one.",
   'how-i-checked-this':
     'How I checked this Offline tests cover the service and its API with the model replaced by stand-ins, so they run in GitHub Actions without an API key. A separate behavioural evaluation calls the real model: each refinement must change the draft as asked, translations must keep placeholders and hashtags, and the copy variants must differ. It costs model calls, so it is not part of CI.',
   outcome:
     'Outcome The rebuild has been live since September 2026. The thesis version is kept in the repository under its own tag. Professional marketers evaluated the thesis version in two rounds. That evaluation does not cover what the rebuild added: revising the current draft, translating it, the copy variants and the check.',
   limits:
-    "Limits The live demo depends on Groq's free tier, so I cannot promise it answers when you try it. The check in code looks for figures and promises; softer claims can slip through the model review. I have no evaluation of the rebuild's translations by native readers, so I make no claim about their quality.",
+    "Limits The check in code looks for figures and promises; softer claims can slip through the model review. I have no evaluation of the rebuild's translations by native readers, so I make no claim about their quality.",
   sources:
     "Sources and links The MarketingWS repository, at the commit this page describes The thesis version, under the tag thesis-2025 The live demo, on another site The live demo depends on Groq's free tier. Run locally without an API key, the app starts in an offline demo mode; the repository's README explains how.",
 };
 
 describe('the outline', () => {
-  it('has one h1, the name, and the line under it', () => {
+  it('has one two-tone h1, the plain opening and the button to the code', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="marketingws-title"[^>]*>MarketingWS<\/h1>/);
+    const h1 = /<h1 id="marketingws-title"[^>]*>([\s\S]*?)<\/h1>/.exec(PAGE)![1]!;
+    // a check that flags what it cannot support, never a promise of no invented figures
+    expect(text(h1)).toBe('MarketingWS: marketing copy from one brief, with a check for invented figures.');
     expect(MARKETINGWS_TITLE).toBe('MarketingWS');
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
-    expect(text(intro)).toBe(
-      "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app.",
+    const head = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
+    expect(text(head.slice(0, head.indexOf('data-case-actions')).replace(/<div $/, ''))).toBe(
+      "A language model can write marketing copy in seconds, and it can also invent a discount nobody approved. MarketingWS, my Master's thesis rebuilt in 2026 as a live web app, drafts copy from a brief and turns figures and promises the brief does not support into visible placeholders.",
     );
+    expect(text(head.slice(head.indexOf('data-case-actions')).replace(/^[^>]*>/, ''))).toBe('See the code on GitHub');
+  });
+
+  it('says the Groq caveat once, beside the demo link, and keeps the thesis figures out', () => {
+    expect(PAGE_TEXT.match(/Groq's free tier/g)).toHaveLength(1);
+    expect(PAGE_TEXT).not.toMatch(/SUS|preferred it/);
+    expect(PAGE_TEXT).not.toContain('without invented figures');
   });
 
   it('has the six build-note sections in order, each named by its own h2', () => {
@@ -92,7 +101,8 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(MARKETINGWS_SECTIONS.map((s) => s.id)).toEqual(ORDER.map(([id]) => id));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length);
+    // the sections, then the close
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length + 1);
   });
 
   it('has short section links whose targets exist, under a named navigation', () => {
@@ -111,7 +121,8 @@ describe('the outline', () => {
 
   it('keeps prose in the readable column, and the page itself has no motion', () => {
     for (const [id] of ORDER) expect(section(PAGE, id), id).toMatch(/class="[^"]*max-w-text/);
-    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '');
+    // the only transition is the buttons' colour change on hover; the one grid is the screenshot pair
+    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '').replace(/transition-colors/g, '').replace(/<div data-shot-pair=""[^>]*>/, '');
     expect(own).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(own).not.toMatch(/grid-cols-/);
   });
@@ -127,20 +138,24 @@ describe('the copy', () => {
     const words = text(PAGE.replace(/<section aria-label="At a glance"[\s\S]*?<\/section>/g, ' ').replace(/<figure data-note-shot[\s\S]*?<\/figure>/g, ' '))
       .split(' ').filter((w) => /\w/.test(w)).length;
     expect(words).toBeGreaterThanOrEqual(340);
-    expect(words).toBeLessThanOrEqual(480);
+    // the reading model adds a lead-in, a takeaway, the close and previous and next
+    expect(words).toBeLessThanOrEqual(600);
   });
 
   it('lists at least two limits', () => {
     expect([...section(PAGE, 'limits').matchAll(/<li[\s>]/g)].length).toBeGreaterThanOrEqual(2);
   });
 
-  it('opens with the same words as its line in the Work directory', () => {
+  it('is the Work directory item the Home card links to', () => {
     const item = WORK_GROUPS.flatMap((g) => g.items).find((i) => i.href === HOME_LINKS.marketingws);
     expect(item?.href).toBe(ROUTE);
-    expect(item?.title).toBe(MARKETINGWS_TITLE);
-    const description = text(renderToStaticMarkup(<>{item!.description}</>));
-    const intro = text(PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"')));
-    expect(description).toBe(`${intro} ${GROQ_NOTE}`);
+  });
+
+  it('closes on what it shows about how I work', () => {
+    const close = PAGE.slice(PAGE.indexOf('<section data-page-close'));
+    expect(text(close.slice(0, close.indexOf('</section>')))).toBe(
+      'What this shows about how I work I took a generative AI idea from thesis to a live web app with checks. See the code on GitHub',
+    );
   });
 });
 
@@ -168,13 +183,16 @@ describe('the architecture diagram', () => {
 describe('links and loading', () => {
   const links = [...PAGE.matchAll(/<a ([^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({ attrs: m[1]!, body: text(m[2]!) }));
   const href = (attrs: string) => /href="([^"]*)"/.exec(attrs)?.[1] ?? '';
-  const external = links.filter((l) => !href(l.attrs).startsWith('#') && !href(l.attrs).startsWith('/images/notes/'));
+  const external = links.filter((l) => /^https?:/.test(href(l.attrs)));
 
   it('links the repository and the thesis version at full commit ids, and the live demo', () => {
+    const code = [`${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, 'See the code on GitHub'];
     expect(external.map((l) => [href(l.attrs), l.body])).toEqual([
+      code,
       [`${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, 'The MarketingWS repository, at the commit this page describes'],
       [`${MARKETINGWS_REPO}/tree/${MARKETINGWS_THESIS_COMMIT}`, 'The thesis version, under the tag thesis-2025'],
       [MARKETINGWS_DEMO, 'The live demo, on another site'],
+      code,
     ]);
     // Full commit ids. The thesis link uses the commit the annotated tag points to: GitHub answers a tag
     // object's id under /tree/ with a 404.
@@ -208,7 +226,8 @@ describe('truth and design', () => {
   });
 
   it('prints no number: its only digits are years', () => {
-    expect(PAGE_TEXT.replace(/\b20(25|26)\b/g, '')).not.toMatch(/\d/);
+    // (the previous note's name, n8n, holds a digit but is no number)
+    expect(PAGE_TEXT.replace(/\b20(25|26)\b/g, '').replace(/\bn8n\b/g, '')).not.toMatch(/\d/);
   });
 
   it('passes the source design lint', () => {
@@ -228,7 +247,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('MarketingWS');
+    expect(mod.metadata.title).toBe('MarketingWS | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app: how it works, how I checked it and its limits.",
     );

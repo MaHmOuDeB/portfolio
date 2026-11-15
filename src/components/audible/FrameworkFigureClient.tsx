@@ -30,11 +30,14 @@ export function FrameworkIsland(props: FrameworkInteractiveProps) {
 
 type Bound = 'primaryLower' | 'primaryUpper' | 'guardrailUpper';
 
-/** Each slider: its URL key (the element id's suffix), the value it moves and its label. */
-const SLIDERS: readonly { key: keyof typeof FRAMEWORK_SCHEMA; bound: Bound; label: string }[] = [
-  { key: 'lower', bound: 'primaryLower', label: 'Session completion, lower end' },
-  { key: 'upper', bound: 'primaryUpper', label: 'Session completion, upper end' },
-  { key: 'guardrail', bound: 'guardrailUpper', label: 'Help requests, upper end' },
+/**
+ * Each slider: its URL key (the element id's suffix), the value it moves, its label, and the hint
+ * under it that says in plain words what that end of a range stands for.
+ */
+const SLIDERS: readonly { key: keyof typeof FRAMEWORK_SCHEMA; bound: Bound; label: string; hint: string }[] = [
+  { key: 'lower', bound: 'primaryLower', label: 'Session completion, lower end', hint: 'lowest plausible change' },
+  { key: 'upper', bound: 'primaryUpper', label: 'Session completion, upper end', hint: 'highest plausible change' },
+  { key: 'guardrail', bound: 'guardrailUpper', label: 'Help requests, upper end', hint: 'highest plausible change' },
 ];
 
 const points = (v: number) => formatSignedPoints(v, 1);
@@ -55,7 +58,7 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
       data-framework-controls=""
       className={CONTROL_ROW}
     >
-      {SLIDERS.map(({ key, bound, label }) => {
+      {SLIDERS.map(({ key, bound, label, hint }) => {
         const spec = FRAMEWORK_SCHEMA[key];
         return (
           <div key={key} className="w-full xs:w-72">
@@ -69,7 +72,7 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
               onChange={(v) => onBound(bound, v)}
               onCommit={(v) => onCommit(bound, v)}
               valueText={(v) => `${points(v)} percentage points`}
-              readout={(v) => `${points(v)} points`}
+              readout={(v) => `${points(v)} points, ${hint}`}
               numberText={(v) => v.toFixed(1)}
               refs={['simulated']}
             />

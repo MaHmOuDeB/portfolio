@@ -247,10 +247,20 @@ describe('Hero', () => {
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
     const sub = one(hero, (el) => has(el, 'data-hero-sub'));
     expect(text(sub)).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
     );
     expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['Agents', 'Workflows']);
+    // The second chip and the last words stay together: one tail that does not wrap from sm up.
+    const tail = one(sub, (el) => has(el, 'data-hero-tail'));
+    expect(text(tail)).toBe('Workflows that take the manual work out.');
     expect(html).not.toContain('I test what works');
+  });
+
+  it('ends in one muted proof line under the buttons, its figures Facts, and a quiet link to the work', () => {
+    const proof = one(hero, (el) => has(el, 'data-hero-proof'));
+    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated tests in public code. See the work');
+    expect(all(proof, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual(['profile.audible.experiments', 'profile.n8n.automated_tests']);
+    expect(html.indexOf('data-hero-proof')).toBeGreaterThan(html.indexOf('data-hero-actions'));
   });
 
   it('never animates the h1 (the largest contentful paint)', () => {
@@ -263,8 +273,8 @@ describe('Hero', () => {
 
   it('links Read my CV (secondary) to the CV page and Write to me (primary, the magnet) to Contact', () => {
     const links = all(hero, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF]);
+    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me', 'See the work']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF, '/work']);
     expect(classes(links[0]!)).toEqual(expect.arrayContaining(['bg-surface']));
     expect(classes(links[1]!)).toEqual(expect.arrayContaining(['bg-ink']));
     expect(text(one(d, (el) => has(el, 'data-depth-magnet')))).toBe('Write to me');
@@ -300,9 +310,11 @@ describe('Hero', () => {
     expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
   });
 
-  it('has no digits in the band and prints no figure', () => {
+  it('has no digits in the band and prints figures only in the proof line, as Facts', () => {
     expect(text(band)).not.toMatch(/\d/);
-    expect(all(d, (el) => has(el, 'data-fact'))).toEqual([]);
+    expect(all(band, (el) => has(el, 'data-fact'))).toEqual([]);
+    const proof = one(d, (el) => has(el, 'data-hero-proof'));
+    expect(all(d, (el) => has(el, 'data-fact'))).toEqual(all(proof, (el) => has(el, 'data-fact')));
     expect(audit(html)).toEqual([]);
   });
 });
@@ -324,7 +336,7 @@ describe('ProofRow', () => {
     expect(captions).toEqual([
       'A/B tests I contributed to at Audible, across web and mobile.',
       'of my recommendations adopted. Why so many?',
-      'to set up a test account, down from about 20, with a tool I built. Used across 11 markets.',
+      'to set up a test account, down from about 20, with a tool I built. Adopted team-wide, across 11 markets.',
       'automated tests behind my workflow library for e-invoice intake.',
     ]);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([

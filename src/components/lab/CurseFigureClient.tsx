@@ -15,7 +15,7 @@ import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
-import { CURSE_ID, CURSE_SCHEMA, DIAGNOSTICS_REFS, unitsText, type CurseValues } from '@/lib/lab/diagnostics-values';
+import { CURSE_ID, CURSE_LABELS, CURSE_SCHEMA, DIAGNOSTICS_REFS, unitsText, type CurseValues } from '@/lib/lab/diagnostics-values';
 import type { CurseInteractiveProps } from './CurseInteractive';
 
 const LazyCurse = lazy(() => import('./CurseInteractive'));
@@ -54,8 +54,8 @@ export function CurseControls({ values, onChange, onCommit, onReset }: CurseCont
       data-curse-controls=""
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
-      {slider('trueEffect', 'True effect')}
-      {slider('se', 'Standard error')}
+      {slider('trueEffect', CURSE_LABELS.trueEffect)}
+      {slider('se', CURSE_LABELS.se)}
       <ResetButton onReset={onReset} />
     </div>
   );

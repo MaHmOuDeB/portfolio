@@ -1,15 +1,18 @@
 // The CV as a page: the same claims as the web CV PDF, in the CV's order (summary, experience,
 // skills, education, languages, projects), readable on screen and printable. Static: the text comes
 // from content/about.tsx. Each claim carries data-cv-claim, so the tests can hold it against the
-// PDF. When the build found a checked PDF (src/lib/cv-pdf.ts), one primary button at the top offers
-// it with its size; otherwise there is none. The contact route is LinkedIn. When printed, the site
-// header, footer and buttons drop away (globals.css and print:hidden) and entries do not split
-// across pages.
+// PDF. Under the name an action row: the PDF's download as the primary button when the build found a
+// checked PDF (src/lib/cv-pdf.ts), "Print this page" (primary when there is no PDF) and "Write to me".
+// From md the dates sit in a left column beside their roles, and Skills and Languages use the same
+// grid. The page ends on the ink call to action. When printed, the site header, footer, buttons and
+// call to action drop away (globals.css and print:hidden) and entries do not split across pages.
 import type { ReactNode } from 'react';
 import { Chip } from '@/components/frame';
+import { ButtonLink } from '@/components/kit/ButtonLink';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
-import { CONTACT, SITE } from '@/lib/site';
+import { CONTACT, CONTACT_HREF, SITE } from '@/lib/site';
 import {
   CV_EDUCATION,
   CV_EXPERIENCE,
@@ -22,6 +25,10 @@ import {
 } from '../../../content/about';
 import { CvDownload } from './CvDownload';
 import { Months } from './Months';
+import { PrintButton } from './PrintButton';
+
+/** The left column of an entry's dates, and of the Skills and Languages terms, from md. */
+const GRID = 'md:grid md:grid-cols-[11rem_1fr] md:gap-x-8';
 
 /** The sections in page order. */
 export const CV_SECTIONS = [
@@ -72,28 +79,28 @@ function Claims({ claims }: { claims: readonly CvClaim[] }) {
 /** A job or a degree: title, where, the months, then its bullets and plain lines. */
 function DatedEntry({ entry }: { entry: CvEntry }) {
   return (
-    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 first:mt-0">
-      <div data-cv-entry-head="" className="break-inside-avoid break-after-avoid">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+    <article aria-labelledby={`cv-${entry.id}`} className={`mt-6 first:mt-0 ${GRID}`}>
+      {entry.range ? (
+        <p data-cv-dates="" className="break-after-avoid text-sm text-muted md:pt-0.5">
+          <Months range={entry.range} />
+        </p>
+      ) : null}
+      <div className="md:col-start-2">
+        <div data-cv-entry-head="" className="break-inside-avoid break-after-avoid">
           <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
             {entry.title}
           </h3>
-          {entry.range ? (
-            <p data-cv-dates="" className="text-sm text-muted">
-              <Months range={entry.range} />
-            </p>
-          ) : null}
+          <p data-cv-where="" className="text-muted">
+            {entry.where}
+          </p>
         </div>
-        <p data-cv-where="" className="text-muted">
-          {entry.where}
-        </p>
+        <Claims claims={entry.claims} />
+        {entry.lines?.map((line) => (
+          <p key={line} data-cv-line="" className="mt-1 max-w-text break-inside-avoid">
+            {line}
+          </p>
+        ))}
       </div>
-      <Claims claims={entry.claims} />
-      {entry.lines?.map((line) => (
-        <p key={line} data-cv-line="" className="mt-1 max-w-text break-inside-avoid">
-          {line}
-        </p>
-      ))}
     </article>
   );
 }
@@ -101,7 +108,7 @@ function DatedEntry({ entry }: { entry: CvEntry }) {
 /** A project: title (linked when the site has a page for it), what kind, bullets, technologies. */
 function ProjectEntry({ entry }: { entry: CvEntry }) {
   return (
-    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 first:mt-0">
+    <article aria-labelledby={`cv-${entry.id}`} className="mt-6 first:mt-0 md:ml-[calc(11rem+2rem)]">
       <div data-cv-entry-head="" className="break-inside-avoid break-after-avoid">
         <h3 id={`cv-${entry.id}`} className="text-base font-semibold">
           {entry.href ? (
@@ -133,7 +140,7 @@ function ProjectEntry({ entry }: { entry: CvEntry }) {
 
 function Terms({ items }: { items: readonly (readonly [term: string, description: string])[] }) {
   return (
-    <dl className="grid gap-x-6 gap-y-2 md:grid-cols-[12rem_1fr]">
+    <dl className="grid gap-x-8 gap-y-2 md:grid-cols-[11rem_1fr]">
       {items.map(([term, description]) => (
         <div key={term} className="contents">
           <dt className="font-semibold">{term}</dt>
@@ -147,7 +154,7 @@ function Terms({ items }: { items: readonly (readonly [term: string, description
 export function CvPage(): ReactNode {
   const pdf = cvPdf();
   return (
-    <article aria-labelledby="cv-title" className="pb-12 md:pb-16 print:pb-0">
+    <article aria-labelledby="cv-title">
       <header data-cv-header="" className="pb-12 pt-12 md:pt-16 print:py-0">
         <div className="print:hidden">
           <Chip>CV</Chip>
@@ -173,15 +180,17 @@ export function CvPage(): ReactNode {
             </TextLink>
           </li>
         </ul>
-        {pdf ? (
-          <div className="mt-4">
-            <CvDownload pdf={pdf} variant="primary" />
-          </div>
-        ) : null}
+        <div data-cv-actions="" className="mt-6 flex flex-wrap gap-2.5 print:hidden">
+          {pdf ? <CvDownload pdf={pdf} variant="primary" /> : null}
+          <PrintButton variant={pdf ? 'secondary' : 'primary'} />
+          <ButtonLink href={CONTACT_HREF} variant="secondary">
+            Write to me
+          </ButtonLink>
+        </div>
       </header>
 
       <Section id="summary">
-        <div className="max-w-text space-y-2">
+        <div className="max-w-text space-y-2 md:ml-[calc(11rem+2rem)]">
           {CV_SUMMARY.map((c) => (
             <p key={c.id} data-cv-claim={c.id}>
               {c.body}
@@ -215,6 +224,8 @@ export function CvPage(): ReactNode {
           <ProjectEntry key={e.id} entry={e} />
         ))}
       </Section>
+
+      <PageCallToAction />
     </article>
   );
 }

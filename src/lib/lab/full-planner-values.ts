@@ -27,6 +27,19 @@ export type PlannerContext = 'hypothetical' | 'retention';
 export type PlannerNoun = 'visitors' | 'customers';
 export const PLANNER_NOUN: Record<PlannerContext, PlannerNoun> = { hypothetical: 'visitors', retention: 'customers' };
 
+/**
+ * The sizing controls' words per context. The Lab says them in plain words; the Retention page keeps
+ * the terms its own text uses.
+ */
+export const SIZING_LABELS: Record<PlannerContext, { baseline: string; baselineHint: string; rise: string }> = {
+  hypothetical: { baseline: 'Baseline conversion', baselineHint: 'share of visitors who convert today', rise: 'Smallest rise worth detecting' },
+  retention: { baseline: 'Baseline conversion', baselineHint: '', rise: 'Rise to detect' },
+};
+
+/** The link under the Lab's planner: a smaller rise, as a full page load so the island reads it. */
+export const PLANNER_PRESET_RISE = 2;
+export const PLANNER_PRESET_HREF = `?planner.risePoints=${PLANNER_PRESET_RISE}#sample-size`;
+
 export const FULL_PLAN_SCHEMA = {
   baseline: { kind: 'number', min: 0.01, max: 0.98, step: 0.01 },
   risePoints: { kind: 'number', min: 1, max: 30, step: 1 },

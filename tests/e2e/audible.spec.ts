@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The Audible method page at /work/audible, and its ship-rule Figure on a made-up product. The server
+// The Audible case study at /work/audible, and its ship-rule Figure on a made-up product. The server
 // draws the preset (main metric +1.0 to +4.0 points, guardrail at most +1.0: ship); the island loads
 // on intent, or at once when the URL holds `framework.` keys. /kitchen-sink/audible/faults sets the
 // test seam, so the chart throws on the first render after a committed change.
@@ -17,10 +17,9 @@ const SHIP = 'Ship: the main metric rose, guardrail intact.';
 const MAY_SHIP = 'May ship: neutral on the main metric, guardrail intact.';
 const HOLD = "Hold: the guardrail's upper end is past its limit.";
 const STOP = 'Stop: the main metric fell.';
-const AUTOMATION_CAPTION = 'Illustrative reconstruction using approximate reported timings; not measured telemetry.';
 
 const figure = (page: Page) => page.locator(`figure[data-figure="${ID}"]`);
-const automation = (page: Page) => page.locator('figure[data-figure="setup-time"]');
+const automation = (page: Page) => page.locator('section#automation');
 const island = (page: Page) => page.locator('[data-island]', { has: figure(page) });
 const result = (page: Page) => figure(page).locator('[data-figure-result]');
 const live = (page: Page) => figure(page).locator('[data-figure-announcement]');
@@ -55,28 +54,82 @@ async function ready(page: Page) {
 }
 
 test.describe('Audible method page', () => {
-  test('without JavaScript: both Figures keep the Simulated badge, the caption and the open table, whatever the query', async ({ browser }) => {
+  test('without JavaScript: the Figure keeps the Simulated badge, the caption and the open table, whatever the query, and the two timings are there', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(`${PAGE}?${ID}.lower=-5&${ID}.upper=-1`);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Most tests pitted personalisation against plain baselines');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('25+ A/B tests at Audible (Amazon), from the plan to the recommendation.');
     await expect(figure(page).getByRole('heading', { level: 3 })).toHaveText(TITLE);
     await expect(result(page)).toContainText(SHIP);
     await expect(badge(page)).toBeVisible();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
     await expect(figure(page).locator('[data-nojs-only] table')).toContainText('Session completion, lower end');
     await expect(figure(page).getByRole('group', { name: 'Controls' })).toBeHidden();
-    await expect(automation(page).getByText('Simulated', { exact: true })).toBeVisible();
-    await expect(automation(page)).toContainText(AUTOMATION_CAPTION);
-    await expect(automation(page).locator('[data-nojs-only] table')).toContainText('Before the tool');
+    // The setup timings are two large figures, my own and approximate: no chart, and no Simulated badge on them.
+    const timings = automation(page).getByRole('group', { name: 'Test-account setup time, by hand and with the tool' });
+    await expect(timings).toContainText('about 20 min');
+    await expect(timings).toContainText('by hand');
+    await expect(timings).toContainText('about 3 min');
+    await expect(timings).toContainText('with the tool');
+    await expect(timings).toContainText('My own timings, approximate.');
+    await expect(timings).toContainText('Adopted team-wide, across 11 markets.');
+    await expect(automation(page).getByText('Simulated', { exact: true })).toHaveCount(0);
+    await expect(automation(page).locator('figure, svg')).toHaveCount(0);
+    // The method's rows open without JavaScript: they are native details.
+    const row = page.locator('section#method details', { hasText: 'The teams and their metrics' });
+    await expect(row.getByText('Onsite & App Experience', { exact: false }).first()).toBeHidden();
+    await row.locator('summary').click();
+    await expect(row.getByText('Onsite & App Experience', { exact: false }).first()).toBeVisible();
     await context.close();
   });
 
   test('the anchors other pages link to exist and scroll into view', async ({ page }) => {
-    for (const hash of ['why-so-many', 'automation']) {
+    for (const hash of ['why-so-many', 'automation', 'ship-rule', 'limits']) {
       await page.goto(`${PAGE}#${hash}`);
       await expect(page.locator(`section#${hash}`)).toBeInViewport();
     }
+    // "How I checked this" is a row of the method now: its anchor is the row's summary, which is in view.
+    await page.goto(`${PAGE}#how-i-checked-this`);
+    await expect(page.locator('#how-i-checked-this')).toBeInViewport();
+    await expect(page.locator('section#method summary', { hasText: 'How I checked this' })).toBeVisible();
+  });
+
+  test('the reading order: opening, glance figures, in-page links to visible headings, the close and the next project', async ({ page }) => {
+    await page.goto(PAGE);
+    const main = page.getByRole('main');
+    await expect(main.locator('[data-case-head]')).toContainText('I contributed to the A/B tests, did the sample-size planning and the significance testing myself');
+    await expect(main.locator('[data-case-actions] a')).toHaveText(['Ask me about this work']);
+    await expect(main.locator('[data-case-actions] a')).toHaveAttribute('href', '/contact');
+    await expect(main.locator('[data-glance-point]')).toHaveCount(3);
+    await expect(main.locator('[data-glance-point]').nth(1).getByRole('link', { name: 'Why so many?' })).toHaveAttribute('href', '#why-so-many');
+    const nav = main.getByRole('navigation', { name: 'On this page' });
+    await expect(nav.getByRole('link')).toHaveText(['When to ship', 'Why so many?', 'Automation', 'AI tools', 'Method', 'Limits', 'Sources']);
+    for (const href of await nav.getByRole('link').evaluateAll((as) => as.map((a) => a.getAttribute('href')!))) {
+      await expect(main.locator(`section${href} > h2`)).toBeVisible();
+    }
+    await expect(main.getByRole('heading', { level: 2 })).toHaveText([
+      'When to ship: try the rule yourself',
+      'Why so many were adopted',
+      'Test-account automation',
+      'AI tools for the team',
+      'Method',
+      'Limits',
+      'Sources and links',
+      'What this shows about how I work',
+      'Find out what I can do for your team.',
+    ]);
+    await expect(main.locator('section#ai-tools')).toContainText('I evaluated Amazon Bedrock for team-efficiency use cases.');
+    await expect(main.locator('section#ai-tools')).toContainText('I have no usage or time-saving figures for them.');
+    const next = main.getByRole('navigation', { name: 'More work' }).getByRole('link');
+    await expect(next).toHaveCount(1);
+    await expect(next).toHaveAttribute('href', '/work/retention');
+    await expect(next).toContainText('Retention');
+    // The slider hints say in plain words what each end stands for.
+    await expect(figure(page).locator('[data-slider-readout]')).toHaveText([
+      '+1.0 points, lowest plausible change',
+      '+4.0 points, highest plausible change',
+      '+1.0 points, highest plausible change',
+    ]);
   });
 
   test('hydrated: the island loads on intent and keeps the Simulated badge', async ({ page }) => {

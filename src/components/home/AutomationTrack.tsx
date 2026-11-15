@@ -1,5 +1,5 @@
 // The second track, "Automation and agents": the section head, four lean cards to the pages that tell
-// each story, each ending in its sketch and drifting in from its outer corner, then one ruled row with the three "I automate." lines as a
+// each story (the project's name as a small label above a title that says what it does), each ending in its sketch and drifting in from its outer corner, then one ruled row with the three "I automate." lines as a
 // compact list without a title, under a hairline that draws in as it enters. Server-safe.
 import { HOME_AUTOMATE_LINES, HOME_AUTOMATION, HOME_AUTOMATION_HEAD } from '../../../content/home.ts';
 import { LeanCard } from '@/components/depth/LeanCard';
@@ -25,7 +25,14 @@ export function AutomationTrack() {
                 href={c.href}
                 prefetch={prefetchFor(c.href)}
                 data-home-card={c.id}
-                title={c.title}
+                title={
+                  <>
+                    <span data-card-label="">{c.label}</span>
+                    <span data-card-title="">
+                      <Parts parts={c.title} />
+                    </span>
+                  </>
+                }
                 meta={<Parts parts={c.meta} />}
                 size="md"
                 vignette={Sketch ? <Sketch /> : undefined}
@@ -38,9 +45,9 @@ export function AutomationTrack() {
       </div>
       <div data-home-automate="" className="mt-2.5">
         <span data-depth-draw="" aria-hidden="true" className="block h-px bg-hairline" />
-        <ul role="list" data-depth-trace="row" className="grid grid-cols-1 md:grid-cols-3">
+        <ul role="list" data-depth-trace="row" className="grid grid-cols-1 md:grid-cols-[minmax(0,calc(100%/3_-_0.5rem))_minmax(0,1fr)_minmax(0,calc(100%/3_-_0.5rem))]">
           {HOME_AUTOMATE_LINES.map((line) => (
-            <li key={line} className="border-hairline py-5 text-sm text-muted md:px-6 md:first:pl-0 md:[&+li]:border-l max-md:[&+li]:border-t">
+            <li key={line} className="border-hairline py-5 text-sm text-muted md:px-6 md:first:pl-0 md:last:pr-0 md:[&+li]:border-l max-md:[&+li]:border-t">
               {line}
             </li>
           ))}

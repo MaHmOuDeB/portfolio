@@ -1,69 +1,70 @@
-// The Retention case study, the reference page every later page copies. It follows the analysis
-// template: a summary, then problem, data, method, one section per analysis step with its Figure,
-// findings, how I checked this, limits and links. The prose comes from content/retention.tsx, the
-// Figures from this folder, and each section is a <section> with its own h2, so the outline and the
-// anchors are the same everywhere the page is mounted (the route and its dev host).
+// The Retention case study, the reference page every later page copies, in the reading model of the work
+// pages: the head with its plain opening and the repository button, the glance card (three pull figures,
+// one sentence, the facts and the scope), the in-page links, four findings (each a lead-in, its Figure in
+// a sheet, a takeaway and the method one click deeper), how I did it and checked it as rows under one
+// heading (the data, the method, the customer segments with their Figure, the reversal rule in SQL and
+// the checks), the limits and the sources (visible), the close, and the previous and next case studies.
+// The prose comes from content/retention.tsx, the Figures from this folder.
 //
-// Layout: prose sits in the readable column (max-w-text); Figures and tables run to the figure
-// width (max-w-figure), so evidence is wider than text. Sections are spaced, not boxed: no card
-// grid and no motion. The win-back section is a sizing only: the sourced sizing and its table, then
-// the planner placed through `planner` (a hypothetical uplift on the observed baseline, with its own
-// Simulated badge), a link to the Lab and nothing else. RetentionCaseStudy is the page
-// as it ships, with the win-back planner; the route and its dev host both mount it.
+// The win-back finding is a sizing only: the sourced sizing table, then the planner placed through
+// `planner` (a hypothetical uplift on the observed baseline, with its own Simulated badge), a link to
+// the Lab and the targeting table. RetentionCaseStudy is the page as it ships, with the win-back
+// planner; the route and its dev host both mount it.
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
 import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
-import { TextLink } from '@/components/kit/TextLink';
+import { FigureSheet, LeadIn, MethodDetails, NextRow, PageClose, SECTION_H2, SectionNav, Takeaway } from '@/components/frame';
 import { FullPlanner } from '@/components/lab/FullPlanner';
-import { COHORTS, RETENTION, figureProvenance } from '@/lib/retention/data';
+import { COHORTS, RETENTION, figureProvenance, sourceRepo } from '@/lib/retention/data';
 import { holdoutTable, targetingTable } from '@/lib/retention/tables';
 import {
+  CohortLeadIn,
+  CohortTakeaway,
   HOLDOUT_TITLE,
+  ModelLeadIn,
+  ModelTakeaway,
+  RETENTION_GLANCE,
   RetentionChecks,
   RetentionCleaning,
-  RetentionCleaningStats,
+  RetentionClose,
   RetentionCohorts,
   RetentionData,
-  RetentionFindings,
-  RETENTION_GLANCE,
   RetentionIntro,
   RetentionLabLink,
   RetentionLimits,
   RetentionMethodSteps,
   RetentionModel,
-  RetentionProblem,
   RetentionSegments,
   RetentionSources,
   RetentionSqlExcerpt,
-  RetentionSummary,
   RetentionTargeting,
   RetentionWinBack,
   RetentionWinBackReach,
+  ReturnsLeadIn,
+  ReturnsTakeaway,
   TARGETING_TITLE,
+  WinBackLeadIn,
+  WinBackTakeaway,
 } from '../../../content/retention';
 import { CohortFigure } from './CohortFigure';
 import { ModelFigure } from './ModelFigure';
 import { ReturnsFigure } from './ReturnsFigure';
 import { RfmFigure } from './RfmFigure';
 
-export const RETENTION_TITLE = 'Customer retention and reactivation analysis';
+/** The h1, in two tones: what the page is for, then the quiet clause. */
+export const RETENTION_TITLE = 'Who orders again,';
+export const RETENTION_QUIET = 'and how to test a win-back offer.';
 
-/** The sections in page order: anchor id, heading and the short label of its section link. */
+/** The visible sections in page order: anchor id, heading and the short label of its in-page link. */
 export const RETENTION_SECTIONS = [
-  { id: 'summary', title: 'Summary', link: null },
-  { id: 'problem', title: 'The problem', link: 'Problem' },
-  { id: 'data', title: 'The data', link: 'Data' },
-  { id: 'method', title: 'Method', link: 'Method' },
-  { id: 'returns-cleaning', title: 'Cleaning: reversed orders and returns', link: 'Cleaning' },
-  { id: 'cohort-retention', title: 'Cohorts: who orders again, month by month', link: 'Cohorts' },
-  { id: 'customer-segments', title: 'Customer segments', link: 'Segments' },
+  { id: 'returns-cleaning', title: 'A double count made returns look like they grew', link: 'Returns' },
+  { id: 'cohort-retention', title: 'Who orders again, month by month', link: 'Cohorts' },
   { id: 'repeat-order-model', title: 'A model of who orders again', link: 'Model' },
   { id: 'win-back-sizing', title: 'Sizing a win-back test', link: 'Win-back sizing' },
-  { id: 'findings', title: 'Findings', link: 'Findings' },
-  { id: 'how-i-checked-this', title: 'How I checked this', link: 'How I checked this' },
+  { id: 'how-i-checked-this', title: 'How I did it and checked it', link: 'How I checked this' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
   { id: 'sources', title: 'Sources and links', link: 'Sources' },
 ] as const;
@@ -71,34 +72,28 @@ export const RETENTION_SECTIONS = [
 type SectionId = (typeof RETENTION_SECTIONS)[number]['id'];
 
 const TEXT = 'max-w-text';
-const EVIDENCE = 'mt-8';
 
 function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   const entry = RETENTION_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`retention: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`} data-depth-rise="heading">
+      <h2 id={`${id}-title`} className={`${TEXT} ${SECTION_H2}`} data-depth-rise="heading">
         {entry.title}
       </h2>
-      <div className="mt-4">{children}</div>
+      {children}
     </section>
   );
 }
 
-/** Prose in the readable column. */
-function Prose({ children }: { children: ReactNode }) {
-  return <div className={TEXT}>{children}</div>;
-}
-
-/** A sourced table with its own heading and badge: evidence without a chart. */
+/** A sourced table with its own heading and badge, at the sheet's full width. */
 function SourcedTable({ id, title, table }: { id: string; title: string; table: ReturnType<typeof targetingTable> }) {
   return (
-    <div className={`${EVIDENCE} max-w-figure`}>
+    <div data-sourced-table="">
       <h3 id={`${id}-heading`} className={`${TEXT} text-xl font-semibold`}>
         {title}
       </h3>
-      <div className="mt-3">
+      <div className="mt-3 w-full [&_table]:w-full">
         <DataTable id={id} caption={title} table={table} mode="open" />
       </div>
       <div className="mt-2">
@@ -108,107 +103,82 @@ function SourcedTable({ id, title, table }: { id: string; title: string; table: 
   );
 }
 
-/** The links to each section after the summary, as one wrapping row of 44 px targets. */
-function SectionLinks() {
-  return (
-    <nav aria-label="On this page" className={`${TEXT} mt-8`}>
-      <ul className="flex flex-wrap gap-x-4">
-        {RETENTION_SECTIONS.flatMap((s) =>
-          s.link === null ? [] : [
-            <li key={s.id}>
-              <TextLink href={`#${s.id}`} standalone>
-                {s.link}
-              </TextLink>
-            </li>,
-          ],
-        )}
-      </ul>
-    </nav>
-  );
-}
-
 export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactNode {
   return (
     <article aria-labelledby="retention-title">
-      <CaseHead id="retention-title" chip="Case study" title={RETENTION_TITLE} intro={<RetentionIntro />} />
+      <CaseHead
+        id="retention-title"
+        chip="Case study"
+        title={RETENTION_TITLE}
+        quiet={RETENTION_QUIET}
+        intro={<RetentionIntro />}
+        actions={[{ href: sourceRepo('retention').tree, label: 'See the code on GitHub', icon: 'github', external: true }]}
+      />
 
       <GlanceBlock {...RETENTION_GLANCE} />
 
-      <section id="summary" aria-labelledby="summary-title" className={`${TEXT} mt-8 border-y border-hairline py-6`}>
-        <h2 id="summary-title" className="text-xl font-semibold" data-depth-rise="heading">
-          Summary
-        </h2>
-        <div className="mt-4">
-          <RetentionSummary />
-        </div>
-      </section>
-
-      <SectionLinks />
-
-      <Section id="problem">
-        <Prose>
-          <RetentionProblem />
-        </Prose>
-      </Section>
-
-      <Section id="data">
-        <Prose>
-          <RetentionData />
-        </Prose>
-      </Section>
-
-      <Section id="method">
-        <Prose>
-          <RetentionMethodSteps />
-        </Prose>
-      </Section>
+      <SectionNav items={RETENTION_SECTIONS.map((s) => ({ href: `#${s.id}`, label: s.link }))} />
 
       <Section id="returns-cleaning">
-        <div className={TEXT}>
-          <RetentionCleaningStats />
-        </div>
-        <div className={`${TEXT} mt-8`}>
-          <RetentionCleaning />
-        </div>
-        <div className={EVIDENCE}>
+        <LeadIn>
+          <ReturnsLeadIn />
+        </LeadIn>
+        <FigureSheet>
           <ReturnsFigure />
-        </div>
+        </FigureSheet>
+        <Takeaway>
+          <ReturnsTakeaway />
+        </Takeaway>
+        <MethodDetails summary="How the reversal rule works">
+          <RetentionCleaning />
+        </MethodDetails>
       </Section>
 
       <Section id="cohort-retention">
-        <Prose>
-          <RetentionCohorts />
-        </Prose>
-        <div className={EVIDENCE}>
+        <LeadIn>
+          <CohortLeadIn />
+        </LeadIn>
+        <FigureSheet>
           <CohortFigure rows={COHORTS} />
-        </div>
-      </Section>
-
-      <Section id="customer-segments">
-        <Prose>
-          <RetentionSegments />
-        </Prose>
-        <div className={EVIDENCE}>
-          <RfmFigure rows={RETENTION.tables.rfm_segments} />
-        </div>
+        </FigureSheet>
+        <Takeaway>
+          <CohortTakeaway />
+        </Takeaway>
+        <MethodDetails summary="How the cohorts are built">
+          <RetentionCohorts />
+        </MethodDetails>
       </Section>
 
       <Section id="repeat-order-model">
-        <Prose>
-          <RetentionModel />
-        </Prose>
-        <div className={EVIDENCE}>
+        <LeadIn>
+          <ModelLeadIn />
+        </LeadIn>
+        <FigureSheet>
           <ModelFigure />
-        </div>
+        </FigureSheet>
+        <Takeaway>
+          <ModelTakeaway />
+        </Takeaway>
+        <MethodDetails summary="How the model is trained and scored">
+          <RetentionModel />
+        </MethodDetails>
       </Section>
 
       <Section id="win-back-sizing">
-        <Prose>
+        <LeadIn>
+          <WinBackLeadIn />
+        </LeadIn>
+        <FigureSheet>
+          <SourcedTable id="holdout-sizes" title={HOLDOUT_TITLE} table={holdoutTable()} />
+        </FigureSheet>
+        <Takeaway>
+          <WinBackTakeaway />
+        </Takeaway>
+        <MethodDetails summary="How the test is sized">
           <RetentionWinBack />
           <RetentionWinBackReach />
-        </Prose>
-        <SourcedTable id="holdout-sizes" title={HOLDOUT_TITLE} table={holdoutTable()} />
-        {planner ? <div className={EVIDENCE}>{planner}</div> : null}
+        </MethodDetails>
+        {planner ? <FigureSheet>{planner}</FigureSheet> : null}
         <ul className={`${TEXT} mt-4`}>
           <li>
             <RetentionLabLink />
@@ -217,33 +187,51 @@ export function RetentionPage({ planner }: { planner?: ReactNode } = {}): ReactN
         <div className={`${TEXT} mt-8`}>
           <RetentionTargeting />
         </div>
-        <SourcedTable id="lapsed-targeting" title={TARGETING_TITLE} table={targetingTable()} />
-      </Section>
-
-      <Section id="findings">
-        <Prose>
-          <RetentionFindings />
-        </Prose>
+        <FigureSheet>
+          <SourcedTable id="lapsed-targeting" title={TARGETING_TITLE} table={targetingTable()} />
+        </FigureSheet>
       </Section>
 
       <Section id="how-i-checked-this">
-        <RetentionSqlExcerpt />
-        <div className={`${TEXT} mt-8`}>
-          <RetentionChecks />
+        <div className="mt-6">
+          <MethodDetails summary="The data">
+            <RetentionData />
+          </MethodDetails>
+          <MethodDetails summary="Method">
+            <RetentionMethodSteps />
+          </MethodDetails>
+          <MethodDetails summary="Customer segments">
+            <RetentionSegments />
+            <div className="mt-6">
+              <RfmFigure rows={RETENTION.tables.rfm_segments} />
+            </div>
+          </MethodDetails>
+          <MethodDetails summary="The reversal rule in SQL">
+            <RetentionSqlExcerpt />
+          </MethodDetails>
+          <MethodDetails summary="How I checked this">
+            <RetentionChecks />
+          </MethodDetails>
         </div>
       </Section>
 
       <Section id="limits">
-        <Prose>
+        <div className={`${TEXT} mt-4`}>
           <RetentionLimits />
-        </Prose>
+        </div>
       </Section>
 
       <Section id="sources">
-        <Prose>
+        <div className={`${TEXT} mt-4`}>
           <RetentionSources />
-        </Prose>
+        </div>
       </Section>
+
+      <PageClose links={[{ href: '/lab#sample-size', label: 'Try other baselines in the Lab' }]}>
+        <RetentionClose />
+      </PageClose>
+      <NextRow prev={{ href: '/work/audible', label: 'Audible' }} next={{ href: '/work/pulse', label: 'Pulse' }} />
+      <div className="pb-12 md:pb-16" />
       <PageCallToAction />
     </article>
   );

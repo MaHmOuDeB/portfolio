@@ -23,6 +23,7 @@ import {
   HOME_AUTOMATE_LINES,
   HOME_QUESTIONS,
   HOME_FAQ,
+  type FaqPart,
   TOOLS_LABEL,
   headlineText,
   type HeadlinePart,
@@ -37,6 +38,12 @@ const repo = join(import.meta.dirname, '../../..');
 const codePoints = (s: string) => [...s].length;
 const factIds = (parts: readonly HeadlinePart[]): FactId[] =>
   parts.flatMap((p) => (typeof p === 'string' ? [] : [p.fact]));
+/** A FAQ answer's fact ids, its plain text parts, and its words (link text as shown, a month as yyyy-mm). */
+const faqFacts = (parts: readonly FaqPart[]): FactId[] => parts.flatMap((p) => (typeof p !== 'string' && 'fact' in p ? [p.fact] : []));
+const faqStrings = (parts: readonly FaqPart[]): string[] =>
+  parts.flatMap((p) => (typeof p === 'string' ? [p] : 'text' in p ? [p.text] : []));
+const faqText = (parts: readonly FaqPart[]): string =>
+  parts.map((p) => (typeof p === 'string' ? p : 'fact' in p ? headlineText([p]) : 'text' in p ? p.text : p.month)).join('');
 const caseOf = (study: Study) => {
   const found = HOME_CASES.find((c) => c.study === study);
   if (!found) throw new Error(`no case for ${study}`);
@@ -214,6 +221,17 @@ describe('the automation cards', () => {
     }
   });
 
+  it('name the project in a small label, and say what each does as a verb and its object', () => {
+    expect(HOME_AUTOMATION.map((t) => t.label)).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(HOME_AUTOMATION.map((t) => headlineText(t.title))).toEqual([
+      'Set up a test account in about 3 minutes, not 20',
+      'Let agents write, and let checks decide',
+      'Check every e-invoice before a person has to',
+      'Draft marketing copy, with a check for invented figures',
+    ]);
+    expect(factIds(byId.automation.title)).toEqual(['profile.audible.setup_minutes_after', 'profile.audible.setup_minutes_before']);
+  });
+
   it('say the approved lines, with the figures printed from facts', () => {
     expect(headlineText(byId.automation.description)).toBe(
       'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
@@ -253,7 +271,9 @@ describe('the automation cards', () => {
       for (const id of factIds(t.meta)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
       const meta = stringParts(t.meta).join('');
       expect(meta.replace(/n8n/g, ''), meta).not.toMatch(/\d/);
-      expect(t.title.length).toBeGreaterThan(0);
+      expect(t.label.length).toBeGreaterThan(0);
+      for (const id of factIds(t.title)) expect(Object.hasOwn(FACTS, id), id).toBe(true);
+      for (const s of stringParts(t.title)) expect(s, s).not.toMatch(/\d/);
     }
   });
 });
@@ -271,21 +291,19 @@ describe('the hero, proof row, the sections and the site band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.chip).toBe('Open to roles in Germany');
     expect(heroSubText()).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with Agents and Workflows.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
     expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
-    expect(HOME_TRACKS.experiments).toEqual({
-      title: 'Experiments and analytics',
-      lede: 'How I plan a test, read it honestly and write the recommendation.',
-    });
+    // the experiments track has no lede: nothing printed it, and its words were out of date
+    expect(HOME_TRACKS.experiments).toEqual({ title: 'Experiments and analytics' });
     expect(HOME_TRACKS.automation).toEqual({
       title: 'Automation and agents',
       lede: 'Tools I built so that people, including me, stop doing the same thing by hand.',
     });
     expect(HOME_SITE).toEqual({
       title: 'This site is part of the evidence.',
-      text: 'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+      text: 'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
       live: 'See the live test',
       lab: 'Try the Lab',
     });
@@ -296,11 +314,11 @@ describe('the hero, proof row, the sections and the site band', () => {
   it('keep the old "I test." and "I automate." lines word for word, in the tabs and the row under the cards', () => {
     expect(HOME_HOW.tabs.map((t) => [t.title, t.line])).toEqual([
       ['Plan', 'I plan the sample size and the run time before a test starts.'],
-      ['Read', 'I read the result against the primary metric and its guardrails.'],
+      ['Analyse', 'I read the result against the primary metric and its guardrails.'],
       ['Recommend', 'I write the recommendation: ship it, or do not.'],
     ]);
     expect(HOME_AUTOMATE_LINES).toEqual([
-      'I turn repeated manual steps into tools a whole team can use.',
+      'At Audible I built a browser tool and AI tools that the team adopted.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
@@ -309,11 +327,12 @@ describe('the hero, proof row, the sections and the site band', () => {
   });
 
   it('give the FAQ figures as facts that exist, never typed', () => {
-    const ids = HOME_FAQ.items.flatMap((i) => factIds(i.answer));
-    expect(ids).toEqual(['profile.audible.experiments', 'profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after', 'profile.n8n.automated_tests']);
+    const ids = HOME_FAQ.items.flatMap((i) => faqFacts(i.answer));
+    expect(ids).toEqual(['profile.audible.experiments', 'profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after']);
     for (const id of ids) expect(Object.hasOwn(FACTS, id), id).toBe(true);
     // CEFR levels and the name n8n are names, not figures (the truth audit allows them).
-    for (const i of HOME_FAQ.items) for (const s of stringParts(i.answer)) expect(s.replace(/\b[ABC][12]\b|\bn8n\b/g, ''), s).not.toMatch(/\d/);
+    // A month is its own part (printed in a <time>), never digits in the prose.
+    for (const i of HOME_FAQ.items) for (const s of faqStrings(i.answer)) expect(s.replace(/\b[ABC][12]\b|\bn8n\b/g, ''), s).not.toMatch(/\d/);
   });
 
   it('prints each proof figure from a fact, the numbers never typed', () => {
@@ -344,12 +363,12 @@ describe('all Home copy', () => {
       ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
       ...HOME_CASES.map((c) => headlineText(c.description)),
       ...HOME_CASES.map((c) => c.meta),
-      ...HOME_AUTOMATION.flatMap((t) => [t.title, headlineText(t.description), headlineText(t.meta)]),
+      ...HOME_AUTOMATION.flatMap((t) => [t.label, headlineText(t.title), headlineText(t.description), headlineText(t.meta)]),
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
-      ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
+      HOME_TRACKS.experiments.title, HOME_TRACKS.automation.title, HOME_TRACKS.automation.lede,
       HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
       ...sectionCopy(),
-      ...HOME_FAQ.items.flatMap((i) => [i.question, headlineText(i.answer)]),
+      ...HOME_FAQ.items.flatMap((i) => [i.question, faqText(i.answer)]),
     ];
     for (const text of all) {
       expect(text, text).not.toMatch(BANNED_CHARS);
@@ -359,15 +378,17 @@ describe('all Home copy', () => {
 });
 
 describe('HOME_DESTINATIONS', () => {
-  it('lists each site path once: the reserved work slugs, the lab, the live test and the CV page', () => {
+  it('lists each site path once: the reserved work slugs, the Work index, the lab, the live test and the CV page', () => {
     expect(HOME_DESTINATIONS).toEqual([
       '/work/audible#why-so-many',
       '/work/audible#automation',
+      '/work/audible',
       '/work/retention',
       '/work/pulse',
       '/work/docproof',
       '/work/n8n',
       '/work/marketingws',
+      '/work',
       '/lab',
       '/experiment',
       '/cv',

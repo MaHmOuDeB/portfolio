@@ -68,7 +68,8 @@ describe('the band: the stack that unfolds', () => {
   it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {
     const narrow = block('@media (width < 64rem)');
     expect(narrow).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
-    expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*static[^}]*transform:\s*none/);
+    // Positioned, not static: each sheet's face is an absolute ::before and must resolve against its own sheet.
+    expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*relative[^}]*transform:\s*none/);
     expect(narrow).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*none/);
     expect(narrow).toMatch(/\[data-depth-link\]\s*\{[^}]*display:\s*none/);
     expect(narrow).not.toMatch(/sticky|animation-timeline/);
@@ -152,7 +153,8 @@ describe('the proof figures', () => {
 
   it('are four cells ruled by hairlines, never the old grey line', () => {
     expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
-    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+    // Four equal columns: the outer two lose one padding each, so their tracks are that much narrower.
+    expect(css).toMatch(/\[data-home-proof\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, calc\(25% - var\(--spacing\) \* 3\)\) repeat\(2, minmax\(0, 1fr\)\) minmax\(0, calc\(25% - var\(--spacing\) \* 3\)\)/);
     expect(css).toMatch(/\[data-proof\]\s*\{[^}]*border-left:\s*1px solid var\(--color-hairline\)/);
     expect(css).not.toContain('var(--color-line)');
   });
@@ -169,6 +171,12 @@ describe('the ribbon', () => {
     expect(moving).toMatch(/\[data-depth-ribbon\] > ul\s*\{[^}]*flex-wrap:\s*nowrap/);
     expect(css).not.toContain('@media screen and (prefers-reduced-motion: no-preference) {\n    @layer components {\n      [data-depth-ribbon] > ul');
     expect(css).toMatch(/\[data-depth-ribbon\] ul\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it('wraps the still question rows two chips to a line, so no chip is left alone, and lifts the cap where they slide', () => {
+    expect(css).toMatch(/\[data-home-questions\] \[data-depth-ribbon\] > ul\s*\{[^}]*max-width:\s*46rem/);
+    const moving = block('@media screen and (width >= 40rem) and (prefers-reduced-motion: no-preference)');
+    expect(moving).toMatch(/\[data-home-questions\] \[data-depth-ribbon\] > ul\s*\{[^}]*max-width:\s*none/);
   });
 
   it('never lets one item be wider than its row: a long question wraps its own text instead of being clipped', () => {

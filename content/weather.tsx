@@ -21,21 +21,42 @@ const RebuildYear = () => (
   </time>
 );
 
-/** The line under the title: the Work page's description, word for word. */
+/** The h1, in two tones; the document title stays WEATHER_TITLE (content/seo.ts). */
+export const WEATHER_H1 = 'A SQL pipeline that stops on bad data,';
+export const WEATHER_QUIET = 'and keeps the doubtful rows visible.';
+
+/** The plain opening under the title. Every number is a Fact. */
 export function WeatherIntro(): ReactNode {
   return (
     <p>
-      A tested SQL pipeline on a public dataset of weather observations, rebuilt in <RebuildYear />: a star schema,
-      data-quality checks and a quarantine for sensor errors.
+      One reading in this public weather dataset reports wind at <Fact id="weather.quarantine.max_wind_kmh" />. Keep it
+      and every wind average is off; delete it and nobody knows it was there. I built a pipeline that sets such readings
+      aside with their reason and refuses to publish the data unless <Fact id="weather.checks.error_count" /> checks
+      pass.
     </p>
   );
 }
 
-/** The 20-second top of the page, under the title and its line. */
+/** What to look at in the pipeline diagram, and what it means. */
+export const WEATHER_PIPELINE_LEAD_IN = 'Follow a reading from the file to the warehouse, or to the quarantine.';
+export function WeatherPipelineTakeaway(): ReactNode {
+  return (
+    <>
+      Bad readings are neither trusted nor thrown away: <Fact id="weather.quarantine.rows" /> sit in quarantine.
+    </>
+  );
+}
+
+export const WEATHER_CLOSE = 'My pipelines refuse to load bad data quietly.';
+
+/** The 20-second top of the page: two pull figures, one sentence and the facts. */
 export const WEATHER_GLANCE: GlanceParts = {
-  outcome:
-    'Built a tested SQL pipeline that quarantines impossible sensor readings and loads the rest into a star schema; all error-level checks pass.',
-  role: 'Personal project rebuilt from MSc project; built pipeline, schema, checks, tests.',
+  points: [
+    { id: 'checks', figure: <Fact id="weather.checks.count" />, label: 'data-quality checks' },
+    { id: 'quarantine', figure: <Fact id="weather.quarantine.rows" />, label: 'impossible readings held in quarantine' },
+  ],
+  outcome: 'The warehouse is written only when every error-level check passes, and impossible readings wait in quarantine with their reason.',
+  role: 'I built the pipeline, the schema, the checks and the tests.',
   methods: (
     <>
       Star schema, <Fact id="weather.checks.count" /> checks, quarantine.
@@ -43,25 +64,18 @@ export const WEATHER_GLANCE: GlanceParts = {
   ),
   tools: 'DuckDB SQL, Python, pytest.',
   when: 'Rebuilt in 2026.',
-};
-
-/** The line on my role under the intro. */
-export function WeatherRole(): ReactNode {
-  return (
+  scope: (
     <>
-      A personal project, rebuilt in <RebuildYear /> from my Master&apos;s project. I built the pipeline, the schema,
-      the checks and the tests.
+      A personal project on a public dataset, rebuilt in <RebuildYear /> from my Master&apos;s project.
     </>
-  );
-}
+  ),
+};
 
 export const WEATHER_PROBLEM: readonly [key: string, body: ReactNode][] = [
   [
     'data',
     <>
-      The data is one wide file from Kaggle, the {WEATHER_DATASET.name}. A few of its readings cannot be true: one
-      reports wind at <Fact id="weather.quarantine.max_wind_kmh" />. Kept, it distorts any summary of wind; deleted
-      quietly, it leaves no trace.
+      The data is one wide file from Kaggle, the {WEATHER_DATASET.name}. A few of its readings cannot be true.
     </>,
   ],
   [

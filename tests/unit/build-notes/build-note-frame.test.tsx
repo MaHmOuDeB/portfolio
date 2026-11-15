@@ -86,10 +86,59 @@ describe('the frame', () => {
   });
 });
 
-describe.each(Object.entries(PAGES))('the %s note', (_, html) => {
-  it('renders through the frame: all six shared sections, linked in order', () => {
-    expect(outline(html).map(([id]) => id)).toEqual(BUILD_NOTE_SECTIONS.map((s) => s.id));
-    expect(sectionLinks(html).map(([href]) => href)).toEqual(BUILD_NOTE_SECTIONS.map((s) => `#${s.id}`));
+/** The section each note leads with, its best exhibit; the others keep the shared order. */
+const LEAD: Record<keyof typeof PAGES, string | null> = { weather: null, n8n: null, marketingws: null, docproof: 'how-i-checked-this' };
+const orderOf = (name: keyof typeof PAGES) => {
+  const ids = BUILD_NOTE_SECTIONS.map((s) => s.id as string);
+  const lead = LEAD[name];
+  return lead ? [lead, ...ids.filter((id) => id !== lead)] : ids;
+};
+
+describe('the frame, in the reading model', () => {
+  it('leads with the section a note names and keeps the shared order for the rest', () => {
+    const html = renderToStaticMarkup(
+      <BuildNote slug="t" title="T" intro={<p>I.</p>} lead="limits" sections={{ problem: 'P', limits: 'L', sources: 'S' }} />,
+    );
+    expect(outline(html).map(([id]) => id)).toEqual(['limits', 'problem', 'sources']);
+    expect(sectionLinks(html).map(([href]) => href)).toEqual(['#limits', '#problem', '#sources']);
+  });
+
+  it('draws the quiet clause, the actions, the close and previous and next', () => {
+    const html = renderToStaticMarkup(
+      <BuildNote
+        slug="weather"
+        title="A name,"
+        quiet="and a clause."
+        intro={<p>I.</p>}
+        actions={[{ href: 'https://example.com', label: 'See the code', external: true }]}
+        sections={{ limits: 'L' }}
+        close={{ body: <p>How I work.</p>, links: [{ href: '/lab', label: 'The Lab' }] }}
+      />,
+    );
+    expect(html).toContain('and a clause.');
+    expect(html).toContain('data-case-actions');
+    expect(html).toMatch(/<h2 id="weather-shows"[^>]*>What this shows about how I work<\/h2>/);
+    expect(html).toMatch(/href="\/work\/marketingws"[\s\S]*href="\/experiment"/);
+    expect(html.indexOf('data-page-close')).toBeLessThan(html.indexOf('data-next-row'));
+    // section headings at the inner section size
+    expect(html).toMatch(/<h2 id="limits-title" class="max-w-text text-h2-xs md:text-h2-sm"/);
+  });
+
+  it('chains the four notes: Pulse, Docproof, n8n, MarketingWS, Weather, then the live test', () => {
+    const hrefs = (slug: string) =>
+      [...renderToStaticMarkup(<BuildNote slug={slug} title="T" intro={<p>I.</p>} sections={{ limits: 'L' }} />).matchAll(/<a data-next="(prev|next)"[^>]*href="([^"]+)"/g)].map((m) => m[2]);
+    expect(hrefs('docproof')).toEqual(['/work/pulse', '/work/n8n']);
+    expect(hrefs('n8n')).toEqual(['/work/docproof', '/work/marketingws']);
+    expect(hrefs('marketingws')).toEqual(['/work/n8n', '/work/weather']);
+    expect(hrefs('weather')).toEqual(['/work/marketingws', '/experiment']);
+  });
+});
+
+describe.each(Object.keys(PAGES) as (keyof typeof PAGES)[])('the %s note', (name) => {
+  const html = PAGES[name];
+  it('renders through the frame: all six shared sections, its lead first, linked in order', () => {
+    expect(outline(html).map(([id]) => id)).toEqual(orderOf(name));
+    expect(sectionLinks(html).map(([href]) => href)).toEqual(orderOf(name).map((id) => `#${id}`));
   });
 
   it('never nests a paragraph in a paragraph', () => {
@@ -97,7 +146,9 @@ describe.each(Object.entries(PAGES))('the %s note', (_, html) => {
   });
 
   it('draws every diagram step in the one step style', () => {
-    const figure = html.slice(html.indexOf('<figure'), html.indexOf('</figure>'));
+    // the diagram Figure, not a screenshot figure that may come before it
+    const start = html.search(/<figure [^>]*data-figure="/);
+    const figure = html.slice(start, html.indexOf('</figure>', start));
     const boxes = [...figure.matchAll(/<div class="([^"]*rounded-md[^"]*)"/g)].map((m) => m[1]!);
     expect(boxes.length).toBeGreaterThan(3);
     // One style; a branch node may add only its narrow-layout indent.

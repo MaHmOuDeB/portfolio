@@ -9,7 +9,17 @@ import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
 
-export const N8N_TITLE = 'n8n Workflow Library';
+/** The h1 and the document title (content/seo.ts); the h1 adds its quiet clause. */
+export const N8N_TITLE = 'E-invoice intake and error alerts in n8n';
+
+/** The quiet second clause of the h1: the test count, a profile fact. */
+export function N8nQuiet(): ReactNode {
+  return (
+    <>
+      with <Fact id="profile.n8n.automated_tests" /> automated tests.
+    </>
+  );
+}
 
 /** The public repository and the commit this page describes (its default branch head, 2026-10-16). */
 export const N8N_REPO = {
@@ -17,48 +27,40 @@ export const N8N_REPO = {
   commit: '626a254fdccb2ee558dca1f371fdcaa3a4523d8c',
 } as const;
 
-/** The line under the title: the Work page's description, word for word. */
+/** The plain opening under the title: the one paragraph that says what this is. */
 export function N8nIntro(): ReactNode {
   return (
     <p>
-      Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts, with{' '}
-      <Fact id="profile.n8n.automated_tests" /> automated tests. A portfolio project with no production use.
+      Since January 2025 German companies must be able to receive electronic invoices. I built automations that read
+      each invoice, check its sums and bank details, approve the routine ones and send anything unusual to a person.
     </p>
   );
 }
 
-/** The 20-second top of the page, under the title and its line. */
+/** The button under the opening: the repository at the commit this page describes. */
+export const N8N_ACTIONS = [
+  { href: `${N8N_REPO.base}/tree/${N8N_REPO.commit}`, label: 'See the code on GitHub', icon: 'github', external: true },
+] as const;
+
+/** The 20-second top of the page: the test count, one sentence and the facts. */
 export const N8N_GLANCE: GlanceParts = {
-  outcome: (
-    <>
-      Built e-invoice intake and error alerts in n8n, installed with one command and covered by{' '}
-      <Fact id="profile.n8n.automated_tests" /> automated tests; no production use.
-    </>
-  ),
-  role: 'Set requirements and design decisions, Claude Code as pair programmer.',
+  points: [{ id: 'tests', figure: <Fact id="profile.n8n.automated_tests" />, label: 'automated tests' }],
+  outcome: 'Document and process automation in n8n that installs with one command, restored and checked after a full wipe of its data.',
+  role: 'I set the requirements and made the design decisions.',
   methods:
     'Structural/arithmetic/master-data checks, duplicate and changed-bank-detail flags, restore test, clean-install test.',
   tools: 'n8n, Node.js, REST/webhooks, Gmail API, Docker, PostgreSQL, Caddy, GitHub Actions.',
   when: '2026.',
+  scope:
+    'Personal project, 2026, with Claude Code as pair programmer. No client and no production use; every invoice was a generated sample.',
 };
-
-/** The line on my role under the intro. */
-export function N8nRole(): ReactNode {
-  return (
-    <>
-      A personal project, built in 2026: three automations for a self-hosted n8n in a public, MIT-licensed repository,
-      with no real customer, no production use and no real invoices. I set the requirements and made the design
-      decisions; Claude Code was my pair programmer.
-    </>
-  );
-}
 
 export const N8N_PROBLEM: readonly [key: string, body: ReactNode][] = [
   [
     'einvoice',
     <>
-      Since January 2025, German companies must be able to receive structured e-invoices. Someone has to read and check
-      the XML and catch risky cases, such as changed bank details.
+      Each structured e-invoice arrives as XML. Someone has to read and check it and catch risky cases, such as changed
+      bank details.
     </>,
   ],
   [
@@ -117,6 +119,9 @@ export const N8N_FLOW: readonly { id: 'intake' | 'alerts'; label: string; steps:
 ];
 
 export const N8N_FLOW_TITLE = 'Every invoice is checked and archived, and anything unusual goes to a person';
+export const N8N_FLOW_LEAD_IN = 'Follow one invoice from the moment it arrives to its outcome.';
+export const N8N_FLOW_TAKEAWAY =
+  'Only invoices that match what is already known pass on their own; everything else waits for a person.';
 export const N8N_FLOW_CAPTION =
   'The e-invoice intake and the error alerts, step by step. Mail from the Gmail intake enters the same steps as an upload.';
 
@@ -149,7 +154,7 @@ export const N8N_OUTCOME: readonly [key: string, body: ReactNode][] = [
     <>
       It ships with an installer that has checks, a dry run and safe re-runs; a Docker Compose stack with PostgreSQL,
       HTTPS through Caddy and a pinned n8n version; and backup, restore and health-check scripts. A restore after
-      losing all data volumes was verified. There is no adoption to report.
+      losing all data volumes was verified.
     </>,
   ],
 ];
@@ -158,7 +163,8 @@ export const N8N_LIMITS: readonly [key: string, body: ReactNode][] = [
   [
     'validation',
     <>
-      No production or client validation: the stack ran with Docker on my own computer, not a hosted server, and every invoice it has seen was a generated sample.
+      No client and no production use; every invoice was a generated sample. The stack ran with Docker on my own
+      computer, not a hosted server.
     </>,
   ],
   [
@@ -168,14 +174,22 @@ export const N8N_LIMITS: readonly [key: string, body: ReactNode][] = [
     </>,
   ],
   [
+    'tested',
+    <>
+      Its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in
+      testing mode its sign-in expires after about a week.
+    </>,
+  ],
+  [
     'needs',
     <>
       It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP
-      account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app
-      is in testing mode its sign-in expires after about a week.
+      account.
     </>,
   ],
 ];
+
+export const N8N_CLOSE = 'I can automate a back-office process and prove it works with tests.';
 
 /** The repository, its list of what has been tested and its licence, all at the pinned commit. */
 export function N8nSources(): ReactNode {

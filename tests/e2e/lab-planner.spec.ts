@@ -29,7 +29,8 @@ const STATS_MARKER = 'entryViewsPerDay must be a finite number above 0';
 const figure = (page: Page, id = ID) => page.locator(`figure[data-figure="${id}"]`);
 const island = (page: Page, id = ID) => page.locator('[data-island]', { has: figure(page, id) });
 const baseline = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: 'Baseline conversion' });
-const rise = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: 'Rise to detect' });
+// The Lab names the rise in plain words; the Retention page keeps its own term.
+const rise = (page: Page, id = ID) => figure(page, id).getByRole('slider', { name: id === ID ? 'Smallest rise worth detecting' : 'Rise to detect' });
 const traffic = (page: Page, id = DURATION) => figure(page, id).getByRole('slider', { name: /^Total (visitors|customers) per day$/ });
 const unit = (page: Page, name: 'Points' | 'Percent of baseline', id = ID) => figure(page, id).getByRole('radio', { name });
 const reset = (page: Page, id: string) => figure(page, id).getByRole('button', { name: 'Reset' });
@@ -206,7 +207,7 @@ test.describe('Full planner', () => {
     expect(query(page).get(`${ID}.baseline`)).toBe('0.3');
     expect(query(page).get(`${ID}.risePoints`)).toBe('4');
     // a typed percent goes to the nearest whole point: 20% of 30% is 6 points
-    await typeExact(page, 'Rise to detect, percent of the baseline', '20');
+    await typeExact(page, 'Smallest rise worth detecting, percent of the baseline', '20');
     await expect(result(page)).toContainText('To detect a rise of 20% of the baseline, from 30% to 36%.');
     await expect.poll(() => query(page).get(`${ID}.risePoints`)).toBe('6');
     await figure(page).locator('label', { hasText: 'Points' }).click();
@@ -390,7 +391,7 @@ test.describe('Full planner', () => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?${ID}.mode=relative`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    const exact = figure(page).getByRole('spinbutton', { name: 'Rise to detect, percent of the baseline' });
+    const exact = figure(page).getByRole('spinbutton', { name: 'Smallest rise worth detecting, percent of the baseline' });
     // 5 points of 29% is 17.2413...%: the input shows it to one decimal, as the readout does
     await expect(exact).toHaveValue('17.2');
     await expect(exact).toHaveAttribute('aria-invalid', 'false');
@@ -486,6 +487,8 @@ test.describe('Full planner', () => {
     // Start with nothing focused, as the kit's own pointer test does.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+    // On a phone the lead and labels push the slider below the fold: bring it into view before reading its box.
+    await baseline(page).scrollIntoViewIfNeeded();
     const box = (await baseline(page).boundingBox())!;
     await page.mouse.click(box.x + box.width * 0.8, box.y + box.height / 2);
     const status = figure(page).getByRole('status');
@@ -614,7 +617,9 @@ test.describe('Full planner', () => {
 async function assertSizingFallback(page: Page, baselinePercent: string) {
   const f = figure(page);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText('Smaller rises need more visitors per group');
-  await expect(f.locator('figcaption > p').first()).toContainText("Cohen's h");
+  await expect(f.locator('figcaption > p').first()).toContainText('A hypothetical test: the baseline conversion and the rise are numbers to plan with');
+  // the method stays one click deeper, after the Figure
+  await expect(page.locator('[data-lab-exhibit]', { has: f }).locator('[data-method-text]')).toContainText("Cohen's h");
   const fallbackTable = f.locator('[data-figure-fallback] table');
   await expect(fallbackTable).toBeVisible();
   await expect(fallbackTable.locator('tbody tr').first().locator('td[data-num]')).toHaveText(baselinePercent);

@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, HOME_CASES } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { LANGUAGES, SHIPPED_TOOLS } from '../../../content/about';
+import { LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
+import { DOCPROOF_REPO } from '../../../content/docproof';
+import { N8N_REPO } from '../../../content/n8n';
 import { aboutPhoto } from '../../../content/about-photo';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { PULSE_EVENT_NAMES } from '@/lib/pulse/names';
@@ -62,6 +64,7 @@ function text(node: T.ParentNode): string {
   return s;
 }
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
+const row0 = (root: El, q: string) => all(root, (el) => el.tagName === 'details').find((r) => text(r).includes(q))!;
 const classes = (el: El) => (attr(el, 'class') ?? '').split(/\s+/).filter(Boolean);
 const doc = (html: string) => parse(`<!doctype html><html><body>${html}</body></html>`);
 const render = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
@@ -107,7 +110,7 @@ describe('HowITest: the tabs widget', () => {
     expect(section.tagName).toBe('section');
     expect(has(section, 'data-rule')).toBe(true);
     const h = head(section);
-    expect(h).toMatchObject({ chip: 'How I test', title: 'Know what a test really says.', quiet: 'really says.', sub: 'Three habits behind every result I report.' });
+    expect(h).toMatchObject({ chip: 'How I test', title: 'Know what a test really says.', quiet: 'really says.', sub: 'Three steps before I recommend a change.' });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
 
@@ -152,14 +155,14 @@ describe('HowITest: the tabs widget', () => {
     }));
     expect(tabs).toEqual([
       { title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-      { title: 'Read', line: 'I read the result against the primary metric and its guardrails.' },
+      { title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
       { title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
     ]);
   });
 
   it('has one decorative preview panel per tab, shown by its checked radio in CSS, the first by default', () => {
     const panels = all(section, (el) => has(el, 'data-how-panel'));
-    expect(panels.map((p) => attr(p, 'data-how-panel'))).toEqual(['plan', 'read', 'recommend']);
+    expect(panels.map((p) => attr(p, 'data-how-panel'))).toEqual(['plan', 'analyse', 'recommend']);
     for (const p of panels) {
       expect(attr(p, 'aria-hidden')).toBe('true');
       expect(classes(p)).toContain('hidden');
@@ -173,6 +176,10 @@ describe('HowITest: the tabs widget', () => {
       expect(classes(wrap)).toContain(`[&:has(#${id}:checked)_[data-how-panel=${panel}]]:block`);
     }
     expectVignettes(section, 3);
+    // The panel is as tall as its sketch, never stretched to the tabs' height (no half-empty panel).
+    const frame = one(section, (el) => has(el, 'data-depth-drift'));
+    expect(classes(frame)).toContain('self-start');
+    expect(classes(frame).filter((c) => c.startsWith('min-h-'))).toEqual([]);
   });
 
   it('passes the truth audit', () => {
@@ -196,14 +203,14 @@ describe('ExperimentsTrack: the bento of the three experiment cards', () => {
       chip: 'Experiments and analytics',
       title: 'Open the work and see how it was done.',
       quiet: 'and see how it was done.',
-      sub: 'Case studies with their sources and their limits.',
+      sub: 'Each case study shows the method, the sources and what it cannot tell you.',
     });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
 
   it('puts the phase line under the sub, before the cards, and holds no note (the live bar has it)', () => {
     const html = track('a', 'calibration');
-    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('Case studies with their sources'));
+    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('Each case study shows the method'));
     expect(html.indexOf('data-home-card-line')).toBeLessThan(html.indexOf('data-experiment="cards"'));
     expect(text(one(doc(html), (el) => has(el, 'data-home-card-line')))).toBe(
       'These three headlines are what the test will compare. For now everyone sees the same ones.',
@@ -281,9 +288,19 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
   it('keeps the four cards, their links, titles and Facts', () => {
     const links = all(section, (el) => el.tagName === 'a');
     expect(links.map((a) => attr(a, 'href'))).toEqual(['/work/audible#automation', '/work/docproof', '/work/n8n', '/work/marketingws']);
-    expect(links.map((a) => text(one(a, (el) => el.tagName === 'h3')))).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    // The project name is a small label inside the h3, so the link's name carries both.
+    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-label'))))).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-title'))))).toEqual([
+      'Set up a test account in about 3 minutes, not 20',
+      'Let agents write, and let checks decide',
+      'Check every e-invoice before a person has to',
+      'Draft marketing copy, with a check for invented figures',
+    ]);
+    for (const a of links) expect(all(one(a, (el) => el.tagName === 'h3'), (el) => has(el, 'data-card-label'))).toHaveLength(1);
     for (const a of links) expect(has(a, 'data-experiment-click')).toBe(false);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
+      'profile.audible.setup_minutes_after',
+      'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
       'profile.audible.markets',
@@ -312,8 +329,11 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     expect(all(row, (el) => /^h\d$/.test(el.tagName))).toEqual([]);
     const ul = one(row, (el) => el.tagName === 'ul');
     expect(attr(ul, 'role')).toBe('list');
+    // Three equal cells: the outer two have one padding, so their tracks are a third of it narrower.
+    expect(classes(ul)).toContain('md:grid-cols-[minmax(0,calc(100%/3_-_0.5rem))_minmax(0,1fr)_minmax(0,calc(100%/3_-_0.5rem))]');
+    for (const li of all(ul, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['md:px-6', 'md:first:pl-0', 'md:last:pr-0']));
     expect(all(ul, (el) => el.tagName === 'li').map((li) => text(li))).toEqual([
-      'I turn repeated manual steps into tools a whole team can use.',
+      'At Audible I built a browser tool and AI tools that the team adopted.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
@@ -407,7 +427,7 @@ describe('SiteTile: the site band', () => {
     expect(text(one(h2, (el) => has(el, 'data-quiet')))).toBe('part of the evidence.');
     expect(attr(root, 'aria-labelledby')).toBe(attr(h2, 'id'));
     expect(text(one(root, (el) => has(el, 'data-home-site-text')))).toBe(
-      'It runs its own pre-registered A/B test on the three experiment cards above. I built it with coding agents, and every change passes its automated checks before it ships.',
+      'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
     );
     const buttons = all(root, (el) => el.tagName === 'a');
     expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
@@ -436,9 +456,9 @@ describe('HomeFaq', () => {
     expect(head(root)).toMatchObject({ chip: 'FAQ', title: 'Questions hiring teams ask', quiet: null, sub: 'Short answers; the pages behind them have the detail.' });
   });
 
-  it('has seven native rows, the first open, with the answers word for word', () => {
+  it('has eight native rows, the first open, with the answers word for word', () => {
     const rows = all(root, (el) => el.tagName === 'details');
-    expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false]);
+    expect(rows.map((r) => has(r, 'open'))).toEqual([true, false, false, false, false, false, false, false]);
     const qa = rows.map((r) => [squash(text(one(r, (el) => el.tagName === 'summary'))), squash(text(one(r, (el) => has(el, 'data-faq-answer'))))]);
     expect(qa).toEqual([
       ['What roles are you looking for?', 'Roles in AI automation, experimentation and product analytics in Germany. I am based in Berlin.'],
@@ -447,18 +467,48 @@ describe('HomeFaq', () => {
         'I was a working student for nearly two years, mainly in growth experimentation with some marketing analytics. I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes.',
       ],
       [
+        'What have you done since Audible?',
+        "I finished my MSc in Data Science in Nov 2025. Since then I have rebuilt my Master's projects on public data and built Docproof, the n8n workflow library and this site. Since Oct 2026 I also work on contract at Mercor, building training data for AI models.",
+      ],
+      [
         'Can I see the Audible results?',
-        'No. Revenue, conversion and lift figures are confidential, so this site shows none of them. The Audible page explains how I worked, and the Lab shows the statistics on simulated data.',
+        'Not the figures: revenue, conversion and lift numbers are confidential. You can see how I worked on the Audible page, the statistics on simulated data in the Lab, and a real test with public data on the Live test page.',
       ],
       [
         'How do you work with AI?',
-        'I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. My n8n workflow library has 270+ automated tests.',
+        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
       ],
       ['Is the code public?', 'Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
       ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2), German (B1) and Spanish (A2).'],
       // The contact form passes each message on to my inbox (the privacy notice says so), so the last sentence stays.
       ['How do I reach you?', 'Through the contact form or on LinkedIn. I answer myself.'],
     ]);
+  });
+
+  it('links the pages and the repositories its answers name', () => {
+    const row = (q: string) => all(root, (el) => el.tagName === 'details').find((r) => text(r).includes(q))!;
+    const links = (q: string) => all(row(q), (el) => el.tagName === 'a').map((a) => [squash(text(a)), attr(a, 'href')]);
+    expect(links('Can I see the Audible results?')).toEqual([
+      ['the Audible page', '/work/audible'],
+      ['the Lab', '/lab'],
+      ['the Live test page', '/experiment'],
+    ]);
+    expect(links('Is the code public?')).toEqual([
+      ['Docproof', DOCPROOF_REPO],
+      ['the n8n workflow library', N8N_REPO.base],
+    ]);
+  });
+
+  it('prints the months of the new row the way the About timeline prints them, from its own entries', () => {
+    const times = all(row0(root, 'What have you done since Audible?'), (el) => el.tagName === 'time');
+    const msc = TIMELINE.find((t) => t.role === 'MSc Data Science')!;
+    const mercor = TIMELINE.find((t) => t.where.startsWith('Mercor'))!;
+    expect(times.map((t) => attr(t, 'datetime'))).toEqual([msc.range.to, mercor.range.from]);
+    expect(times.map((t) => text(t))).toEqual(['Nov 2025', 'Oct 2026']);
+  });
+
+  it('aligns its head like the other Home heads: centred, the sub under the h2', () => {
+    expect(attr(one(root, (el) => has(el, 'data-section-head')), 'data-align')).toBe('center');
   });
 
   it("answers the languages question from the About page's own list, so the two never disagree", () => {
@@ -472,7 +522,6 @@ describe('HomeFaq', () => {
       'profile.audible.experiments',
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_minutes_after',
-      'profile.n8n.automated_tests',
     ]);
     expect(audit(html)).toEqual([]);
   });

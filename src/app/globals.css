@@ -530,7 +530,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     position: absolute;
     top: 4px;
     right: var(--card-pad, 12px);
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     line-height: 1.3;
     color: var(--color-muted);
   }
@@ -649,6 +649,391 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     border: solid var(--color-surface);
     border-width: 0 1.5px 1.5px 0;
     rotate: 45deg;
+  }
+
+  /*
+   * The reading model of the inner pages (components/frame): key points, the sentences around an
+   * exhibit, the method row, the figure sheet, the in-page links, the page's close and the previous
+   * and next row. Prose and frames: nothing here moves. The only transitions are a border colour
+   * answering the pointer or the keyboard.
+   */
+
+  /* Key points: statement cards. One column on a phone, two from sm, as many as there are from lg. */
+  [data-key-points] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(var(--spacing) * 3);
+    margin: calc(var(--spacing) * 8) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  [data-key-point] {
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    overflow-wrap: anywhere;
+  }
+
+  [data-key-kicker] {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    font-weight: var(--font-weight-medium);
+  }
+
+  [data-key-title] {
+    margin-top: calc(var(--spacing) * 1.5);
+    font-size: var(--text-lg);
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+    font-weight: var(--font-weight-semibold);
+  }
+
+  [data-key-body] {
+    margin-top: calc(var(--spacing) * 2);
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  /* With no title the body is the statement: body size, in ink. */
+  [data-key-body][data-lead] {
+    color: var(--color-ink);
+    font-size: var(--text-base);
+    line-height: 1.45;
+  }
+
+  [data-key-point] > :first-child {
+    margin-top: 0;
+  }
+
+  @media (width >= 40rem) and (width < 64rem) {
+    [data-key-points] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Three cards in two columns: the last one takes the whole row, so none is left alone. */
+    [data-key-point]:last-child:nth-child(odd) {
+      grid-column: span 2;
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-key-points] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    [data-key-points][data-count="2"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-key-points][data-count="4"] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* The sentence above an exhibit (what to look at) and the one below it (what it means), in the
+     readable column. The takeaway is the point of the exhibit: larger, medium weight, and its label
+     in ink behind a filled dot, so it does not rest on colour. No rule at the left: that is the
+     Callout's look, which is for limits. */
+  [data-lead-in],
+  [data-takeaway] {
+    max-width: var(--container-text);
+    margin-top: calc(var(--spacing) * 6);
+  }
+
+  [data-exhibit-label] {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    font-weight: var(--font-weight-medium);
+  }
+
+  [data-exhibit-text] {
+    margin-top: calc(var(--spacing) * 1);
+    font-size: var(--text-base);
+    line-height: 1.6;
+  }
+
+  [data-takeaway] [data-exhibit-label] {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    color: var(--color-ink);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  [data-takeaway] [data-exhibit-label]::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-ink);
+  }
+
+  [data-takeaway] [data-exhibit-text] {
+    font-size: var(--text-lg);
+    line-height: 1.4;
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* The figure sheet: the white card around a figure, a table, a diagram or a screenshot. Under
+     640 px it runs edge to edge over the frame's rails (it takes back the column's padding and the
+     rail's 1 px, so use it directly in the column), and a chart keeps the column's full width. From
+     640 px it is a hairline card. It never clips: a focus ring inside it stays whole. */
+  [data-figure-sheet] {
+    margin-top: calc(var(--spacing) * 6);
+    margin-inline: calc((var(--frame-pad, 0px) + 1px) * -1);
+    padding: calc(var(--spacing) * 4);
+    border-block: 1px solid var(--color-hairline);
+    background: var(--color-surface);
+  }
+
+  @media (width >= 40rem) {
+    [data-figure-sheet] {
+      margin-inline: 0;
+      border: 1px solid var(--color-hairline);
+      border-radius: var(--radius-xl);
+    }
+  }
+
+  @media (width >= 48rem) {
+    [data-figure-sheet] {
+      padding: calc(var(--spacing) * 8);
+    }
+
+    /* A sideways-scrolling screenshot keeps its full width in a 1024 px screen (screen share), so its
+       frame is no tab stop there, whose focus ring would be taller than that short screen. */
+    [data-figure-sheet]:has([data-shot-frame]) {
+      padding-inline: calc(var(--spacing) * 4);
+    }
+  }
+
+  /* What the sheet holds ("Screenshot"), small at the top right, where a sketch says "Illustration". */
+  [data-figure-sheet-label] {
+    margin: 0 0 calc(var(--spacing) * 2);
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.3;
+    text-align: right;
+  }
+
+  /* An exhibit's own rhythm: the lead-in close above its sheet, the takeaway close below it. */
+  [data-lead-in] + [data-figure-sheet] {
+    margin-top: calc(var(--spacing) * 4);
+  }
+
+  [data-figure-sheet] + [data-takeaway] {
+    margin-top: calc(var(--spacing) * 5);
+  }
+
+  /* The method row: a native details row in the readable column, a hairline above and below. The
+     chevron turns when the row is open, at once. Rows that follow each other share a rule. */
+  [data-method] {
+    max-width: var(--container-text);
+    margin-top: calc(var(--spacing) * 6);
+    border-block: 1px solid var(--color-hairline);
+  }
+
+  [data-method] + [data-method] {
+    margin-top: 0;
+    border-top: 0;
+  }
+
+  [data-method-chevron] {
+    display: inline-flex;
+    flex: none;
+    color: var(--color-muted);
+  }
+
+  [data-method][open] [data-method-chevron] {
+    rotate: 180deg;
+  }
+
+  [data-method-body] {
+    padding-block: calc(var(--spacing) * 1) calc(var(--spacing) * 5);
+  }
+
+  [data-method-body] > * + * {
+    margin-top: calc(var(--spacing) * 4);
+  }
+
+  /* The in-page links: a row of chips that wraps. The link is the 44 px target, the chip inside it
+     is smaller, so rows sit 12 px apart with no gap between targets. No underline; the chip's border
+     answers hover and focus, and the focus ring is drawn on the chip. */
+  [data-section-nav] {
+    margin-top: calc(var(--spacing) * 6);
+  }
+
+  [data-section-nav] ul {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: calc(var(--spacing) * 2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  [data-section-nav] li {
+    max-width: 100%;
+  }
+
+  [data-section-nav] a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--size-target);
+    min-width: var(--size-target);
+    max-width: 100%;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  [data-section-nav] a > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(var(--spacing) * 8);
+    min-width: var(--size-target);
+    padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-chip);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    line-height: 1.3;
+    font-weight: var(--font-weight-medium);
+    overflow-wrap: anywhere;
+    transition: border-color var(--duration-fast) var(--ease-standard);
+  }
+
+  [data-section-nav] a:is(:hover, :focus-visible) > span {
+    border-color: var(--color-ink);
+  }
+
+  [data-section-nav] a:focus-visible {
+    outline: none;
+  }
+
+  [data-section-nav] a:focus-visible > span {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* The page's close: the section h2, a short body in the readable column, then the onward links. */
+  [data-page-close] h2 {
+    max-width: 22em;
+    text-wrap: balance;
+  }
+
+  [data-page-close-body] {
+    max-width: var(--container-text);
+    margin-top: calc(var(--spacing) * 4);
+    font-size: var(--text-base);
+  }
+
+  [data-page-close-body] > * + * {
+    margin-top: calc(var(--spacing) * 4);
+  }
+
+  [data-page-close-links] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2.5);
+    margin-top: calc(var(--spacing) * 6);
+  }
+
+  /* Previous and next: two quiet cards, stacked on a phone, side by side from sm. A lone next card
+     keeps the second column. Hover and focus change the border only. */
+  [data-next-row] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(var(--spacing) * 3);
+    margin-top: calc(var(--spacing) * 12);
+  }
+
+  [data-next] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: calc(var(--spacing) * 1);
+    min-height: var(--size-target);
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: border-color var(--duration-fast) var(--ease-standard);
+  }
+
+  [data-next]:hover,
+  [data-next]:focus-visible {
+    border-color: var(--color-ink);
+  }
+
+  [data-next-kicker] {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  [data-next-label] {
+    font-size: var(--text-lg);
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+    font-weight: var(--font-weight-semibold);
+  }
+
+  @media (width >= 40rem) {
+    [data-next-row] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-next="next"] {
+      grid-column: 2;
+      align-items: flex-end;
+      text-align: right;
+    }
+  }
+
+  @media (width >= 48rem) {
+    [data-next-row] {
+      margin-top: calc(var(--spacing) * 16);
+    }
+  }
+}
+
+/*
+ * Print, for the reading parts. A method row shows its content whether it is open or not (the closed
+ * content is only hidden by content-visibility on ::details-content, which print sets back), and its
+ * chevron goes. The in-page links and the previous and next row are navigation: a printed page drops
+ * them. Unlayered, so no utility undoes it.
+ */
+@media print {
+  [data-method]::details-content {
+    content-visibility: visible;
+  }
+
+  [data-method-chevron] {
+    display: none;
+  }
+
+  [data-section-nav],
+  [data-next-row] {
+    display: none;
+  }
+}
+
+/* The focus ring follows the control's shape. An outline takes its element's radius, so a button or a
+   card already has a rounded ring; a link, a button or a summary with no radius of its own (a
+   navigation link, a text link, a details row) would get a square one, so it takes the small radius
+   while it has focus. In base and with :where(), so any radius a control sets itself wins. */
+@layer base {
+  :where(a, button, summary, [tabindex]):focus-visible {
+    border-radius: var(--radius-sm);
   }
 }
 
@@ -1031,13 +1416,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @layer components {
   /* 1. The hero, centred: chip, two-tone h1, the sub with two inline chips, two buttons. */
   [data-hero] {
-    padding: calc(var(--spacing) * 14) 0 calc(var(--spacing) * 12);
+    padding: calc(var(--spacing) * 12) 0 calc(var(--spacing) * 10);
     text-align: center;
   }
 
+  /* The proof line costs its own height back from the padding, so the band starts where it did. */
   @media (width >= 48rem) {
     [data-hero] {
-      padding: calc(var(--spacing) * 18) 0 calc(var(--spacing) * 14);
+      padding: calc(var(--spacing) * 13) 0 calc(var(--spacing) * 9);
     }
   }
 
@@ -1056,12 +1442,27 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.55;
   }
 
+  @media (width >= 40rem) {
+    [data-hero-tail] {
+      white-space: nowrap;
+    }
+  }
+
   [data-hero-actions] {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: calc(var(--spacing) * 2.5);
-    margin-top: calc(var(--spacing) * 7.5);
+    margin-top: calc(var(--spacing) * 7);
+  }
+
+  [data-hero-proof] {
+    max-width: 56em;
+    margin: calc(var(--spacing) * 5) auto 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    text-wrap: balance;
   }
 
   /* 2. The band: a framed stage under the hero, from rail to rail, with a faint dot grid that fades
@@ -1403,8 +1804,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       transform: none;
     }
 
+    /* Positioned, never static: each sheet's face is its ::before (absolute, inset -1px), and a static
+       sheet would hand all three faces to the rig, where the ink one covers the column. Its row
+       offsets (left, top) are for the wide rig only. */
     [data-depth-sheet] {
-      position: static;
+      position: relative;
+      inset: auto;
       width: min(320px, 100%);
       transform: none;
     }
@@ -1510,9 +1915,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
+  /* Four equal columns of text: the first and last cells have one padding (at the rails), the middle
+     two have two, so the outer tracks are one padding narrower. */
   @media (width >= 64rem) {
     [data-home-proof] {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: minmax(0, calc(25% - var(--spacing) * 3)) repeat(2, minmax(0, 1fr)) minmax(0, calc(25% - var(--spacing) * 3));
     }
   }
 
@@ -1543,6 +1950,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       padding-left: 0;
       border-left: 0;
     }
+
+    [data-proof]:nth-child(even) {
+      padding-right: 0;
+    }
   }
 
   @media (width >= 64rem) {
@@ -1555,9 +1966,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       border-left: 1px solid var(--color-hairline);
     }
 
+    [data-proof]:nth-child(even) {
+      padding-right: calc(var(--spacing) * 6);
+    }
+
     [data-proof]:first-child {
       padding-left: 0;
       border-left: 0;
+    }
+
+    [data-proof]:last-child {
+      padding-right: 0;
     }
   }
 
@@ -1594,7 +2013,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* 6. Lean: a card follows a fine pointer (--rx, --ry as angles, --gx, --gy as percentages, set
      by Lean) and springs back. The sheen sits under the content. The card is one flat plane: its
      clip keeps the sketch inside it, and a clip flattens 3D anyway, so its text is drawn once on
-     the face and never stands off it in depth. */
+     the face and never stands off it in depth. Lean writes up to 3.5 and 4.5 degrees; the card
+     turns by a fraction of that, about 0.6 degrees at a corner, because its title and text went
+     soft at more. That it is a link is said by colour: on hover and on focus the border darkens
+     and the plus button turns ink. Nothing moves on hover. */
   [data-depth-lean] {
     --card-pad: calc(var(--spacing) * 5.5);
 
@@ -1604,6 +2026,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     overflow: clip;
     padding: var(--card-pad);
     text-decoration: none;
+    transition: border-color var(--duration-fast) var(--ease-standard);
   }
 
   /* A card with a vignette ends in it: no bottom padding, the sketch bleeds off the bottom edge. */
@@ -1613,8 +2036,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
   @media (hover: hover) and (pointer: fine) {
     [data-depth-lean] {
-      transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
-      transition: transform var(--duration-lean) var(--ease-standard);
+      transform: rotateX(calc(var(--rx, 0deg) * 0.17)) rotateY(calc(var(--ry, 0deg) * 0.13));
+      transition:
+        transform var(--duration-lean) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
     }
 
     [data-depth-lean]::before {
@@ -1693,6 +2118,21 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     font-weight: 600;
   }
 
+  /* A card's small label above its title: the project's name. */
+  [data-card-label] {
+    display: block;
+    margin-bottom: calc(var(--spacing) * 1.5);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-weight: 500;
+    color: var(--color-muted);
+  }
+
+  [data-card-title] {
+    display: block;
+  }
+
   [data-depth-lean] p {
     margin: calc(var(--spacing) * 2) 0 0;
     font-size: var(--text-sm);
@@ -1727,6 +2167,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
     font-size: 0.9375rem;
     line-height: 1;
+    transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  }
+
+  /* The card as a link: on hover and on focus the border darkens and the plus button turns ink. */
+  [data-depth-lean]:is(:hover, :focus-visible) {
+    border-color: var(--color-hairline-strong);
+  }
+
+  [data-depth-lean]:is(:hover, :focus-visible) [data-depth-go] {
+    border-color: var(--color-ink);
+    color: var(--color-ink);
   }
 
   /* The ribbon: tools as quiet pills. The wrapper clips the sideways slide and fades both edges
@@ -1753,6 +2204,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* The Home question rows, when still, wrap two chips to a line (a pair fits, three never do), so
+     no chip is left alone on a line. Where they slide, the cap is lifted. */
+  [data-home-questions] [data-depth-ribbon] > ul {
+    max-width: 46rem;
   }
 
   /* No item is ever wider than its row: a long one wraps its own text instead of being clipped. */
@@ -1843,10 +2300,81 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* At a glance: the outcome as one readable paragraph (text-xl, text-2xl from md, about 60
-     characters wide, normal weight), then four facts side by side (stacked under 640 px) between
-     two hairlines that draw in as they arrive. */
+     characters wide, normal weight), then the facts side by side (stacked under 640 px) between
+     two hairlines that draw in as they arrive. With pull figures the card opens on them (up to
+     three ruled cells, each a large figure over one short label) and the outcome is one sentence at
+     text-lg under them. The figures are in the first screen and are never faded or moved. */
   [data-glance] {
     padding: calc(var(--spacing) * 8) 0 0;
+  }
+
+  [data-glance-points] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  [data-glance-point] {
+    min-width: 0;
+    padding-block: calc(var(--spacing) * 4);
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  [data-glance-point]:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  /* The figure: large, in the heading weight. Its digits are tabular because a figure is a Fact or
+     a Derived (a data element); a word around it (about, min) is a smaller unit, as in the proof band. */
+  [data-glance-figure] {
+    margin: 0;
+    font-size: var(--text-2xl);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-weight: var(--font-weight-heading);
+    overflow-wrap: anywhere;
+  }
+
+  [data-glance-label] {
+    margin: calc(var(--spacing) * 2) 0 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
+
+  @media (width >= 40rem) {
+    [data-glance-points] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    [data-glance-points][data-count="2"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-glance-points][data-count="1"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    [data-glance-point] {
+      padding-block: 0;
+      padding-inline: calc(var(--spacing) * 6);
+      border-top: 0;
+      border-left: 1px solid var(--color-hairline);
+    }
+
+    [data-glance-point]:first-child {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+
+  @media (width >= 48rem) {
+    [data-glance-figure] {
+      font-size: var(--text-3xl);
+    }
   }
 
   [data-glance-outcome] {
@@ -1862,6 +2390,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       font-size: var(--text-2xl);
       line-height: 1.35;
     }
+  }
+
+  /* Under pull figures the outcome is one sentence at text-lg, at every width. */
+  [data-glance-points] + [data-glance-outcome] {
+    max-width: var(--container-text);
+    margin-top: calc(var(--spacing) * 6);
+    font-size: var(--text-lg);
+    line-height: 1.4;
   }
 
   [data-glance-rule] {
@@ -1882,6 +2418,26 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   @media (width >= 40rem) {
     [data-glance-facts] {
       grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    /* Five facts: two columns with "When" (one short line) across the top, then five from lg, where
+       "When" takes a narrower column. */
+    [data-glance-facts][data-count="5"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-glance-facts][data-count="5"] > div:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (width >= 64rem) {
+    [data-glance-facts][data-count="5"] {
+      grid-template-columns: minmax(0, 0.6fr) repeat(4, minmax(0, 1fr));
+    }
+
+    [data-glance-facts][data-count="5"] > div:first-child {
+      grid-column: auto;
     }
   }
 
@@ -2045,6 +2601,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       [data-depth-ribbon] > ul {
         flex-wrap: nowrap;
         width: max-content;
+      }
+
+      [data-home-questions] [data-depth-ribbon] > ul {
+        max-width: none;
       }
     }
   }
@@ -2276,7 +2836,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /* Hinge on load: the case study's "at a glance" card is in the first screen, so it lifts once when
-   the page loads, by transform only (its outcome may be the largest paint), and its four facts settle
+   the page loads, by transform only (its outcome may be the largest paint), and its facts settle
    in turn after it. From lg, with motion allowed. */
 @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
   @layer components {
@@ -2301,6 +2861,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
       animation-delay: 540ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(5) {
+      animation-delay: 600ms;
     }
 
     [data-depth-hinge="load"]:focus-within,

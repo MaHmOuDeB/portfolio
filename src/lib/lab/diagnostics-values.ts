@@ -68,6 +68,18 @@ export const CURSE_SCHEMA = {
 
 export type CurseValues = ParamValues<typeof CURSE_SCHEMA>;
 
+/** The control and readout words: plain first, the statistic's name in brackets. */
+export const CURSE_LABELS = {
+  trueEffect: 'Real effect',
+  se: 'Noise (standard error)',
+  power: 'Chance of detecting it (power)',
+  wrongSign: 'Wins that point the wrong way',
+  exaggeration: 'How much a win overstates it',
+} as const;
+
+/** The link under the exhibit: a setting the test detects most of the time. */
+export const CURSE_PRESET_LINK = { href: '?curse.trueEffect=3#exaggeration', label: 'See a test with enough power' } as const;
+
 export const CURSE_PRESETS: Presets<typeof CURSE_SCHEMA> = { default: { trueEffect: 1, se: 1 } };
 
 /** The fixed two-sided significance level. */

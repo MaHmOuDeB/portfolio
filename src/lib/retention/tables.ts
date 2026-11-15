@@ -92,7 +92,7 @@ export function rfmTable(): TableData {
       finite(s.revenue_share, `${s.segment} spend share`, true),
     ]),
     formats: ['number', 'count', 'share', 'share'],
-    note: "Customers at the September cutoff of the analysis; spend is everything they bought up to it. Champions' share of spend is high partly by construction.",
+    note: "Customers at the September cutoff of the analysis; spend is everything they bought up to it.",
     refs: ['source:retention', 'retention.rfm.champions_customer_share', 'retention.rfm.champions_revenue_share'],
   };
 }
@@ -124,7 +124,7 @@ export function targetingTable(): TableData {
       finite(r.returners_random, 'expected from random selection'),
     ]),
     formats: ['share', 'count', 'count', 'number'],
-    note: 'Lapsed customers with the highest model scores, selected on paper only: nobody was contacted. These are observed orders, not the effect of an offer.',
+    note: 'Lapsed customers with the highest model scores, selected on paper only. These are observed orders, not the effect of an offer.',
     refs: ['source:retention', 'retention.winback.top20_customers'],
   };
 }
@@ -140,7 +140,7 @@ export function holdoutTable(): TableData {
       finite(h.customers_per_arm, `${h.group} customers per group`),
     ]),
     formats: ['number', 'share', 'count', 'count'],
-    note: 'A sample-size calculation only: nobody was contacted and no test was run. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
+    note: 'A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
     refs: ['source:retention', 'retention.winback.n_per_arm', 'retention.winback.baseline_rate', 'retention.winback.uplift_pp'],
   };
 }

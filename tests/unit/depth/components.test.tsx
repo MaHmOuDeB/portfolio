@@ -173,15 +173,75 @@ describe('GlanceBlock', () => {
     // It lifts once on load (the hinge), so it no longer rises with the scroll.
     expect(html).toMatch(/<section aria-label="At a glance" data-glance="" class="[^"]*rounded-xl border border-hairline bg-surface[^"]*" data-depth-hinge="load">/);
     expect(html).toContain('<p data-glance-outcome="">The outcome.</p>');
-    expect([...html.matchAll(/<dt>([^<]*)<\/dt>/g)].map((m) => m[1])).toEqual(['Role', 'Methods', 'Tools', 'When']);
-    expect([...html.matchAll(/<dd>([^<]*)<\/dd>/g)].map((m) => m[1])).toEqual(['R', 'M', 'T', 'W']);
+    // "When" is first: it is one short line, and the reader places the work in time before the rest.
+    expect([...html.matchAll(/<dt>([^<]*)<\/dt>/g)].map((m) => m[1])).toEqual(['When', 'Role', 'Methods', 'Tools']);
+    expect([...html.matchAll(/<dd>([^<]*)<\/dd>/g)].map((m) => m[1])).toEqual(['W', 'R', 'M', 'T']);
     expect(text(html)).not.toMatch(/\d/);
+  });
+  it('is unchanged without points and scope: the outcome first, four facts, no list of figures', () => {
+    expect(html).toMatch(/data-depth-hinge="load"><p data-glance-outcome="">/);
+    expect(html).not.toContain('data-glance-points');
+    expect(html).toContain('<dl data-glance-facts="" data-count="4">');
   });
   it('draws two hidden hairlines, one above and one below the facts', () => {
     const rule = '<span data-glance-rule="" data-depth-draw="" aria-hidden="true"></span>';
     expect(html.split(rule)).toHaveLength(3);
     expect(html.indexOf(rule)).toBeLessThan(html.indexOf('<dl'));
     expect(html.lastIndexOf(rule)).toBeGreaterThan(html.indexOf('</dl>'));
+  });
+});
+
+describe('GlanceBlock with pull figures and a scope', () => {
+  const html = renderToStaticMarkup(
+    <GlanceBlock
+      points={[
+        { id: 'a', figure: <data value="1">one</data>, label: 'first label' },
+        { id: 'b', figure: <data value="2">two</data>, label: 'second label' },
+        { id: 'c', figure: <data value="3">three</data>, label: 'third label' },
+      ]}
+      outcome="One sentence."
+      role="R"
+      methods="M"
+      tools="T"
+      when="W"
+      scope="S"
+    />,
+  );
+  it('puts up to three figures first, each large with one short label, as a labelled list', () => {
+    expect(html).toMatch(/data-depth-hinge="load"><ul role="list" data-glance-points="" data-count="3" aria-label="Key figures">/);
+    const cells = [...html.matchAll(/<li data-glance-point=""><p data-glance-figure="">([\s\S]*?)<\/p><p data-glance-label="">([^<]*)<\/p><\/li>/g)];
+    expect(cells.map((m) => m[2])).toEqual(['first label', 'second label', 'third label']);
+    expect(cells[0]![1]).toBe('<data value="1">one</data>');
+    const four = renderToStaticMarkup(
+      <GlanceBlock points={[1, 2, 3, 4].map((n) => ({ id: `p${n}`, figure: 'f', label: 'l' }))} outcome="o" role="r" methods="m" tools="t" when="w" />,
+    );
+    expect(four.match(/data-glance-figure/g)).toHaveLength(3);
+  });
+  it('sets the outcome as one sentence under the figures, then the facts with the scope last', () => {
+    expect(html.indexOf('</ul>')).toBeLessThan(html.indexOf('<p data-glance-outcome="">One sentence.</p>'));
+    expect(html.indexOf('data-glance-outcome')).toBeLessThan(html.indexOf('<dl'));
+    expect(html).toContain('<dl data-glance-facts="" data-count="5">');
+    expect([...html.matchAll(/<dt>([^<]*)<\/dt>/g)].map((m) => m[1])).toEqual(['When', 'Role', 'Methods', 'Tools', 'Scope']);
+    expect([...html.matchAll(/<dd>([^<]*)<\/dd>/g)].map((m) => m[1])).toEqual(['W', 'R', 'M', 'T', 'S']);
+  });
+  it('is the same card with the same once-on-load hinge, and adds no heading', () => {
+    expect(html).toMatch(/^<section aria-label="At a glance" data-glance="" class="[^"]*rounded-xl border border-hairline bg-surface[^"]*" data-depth-hinge="load">/);
+    expect(html).not.toMatch(/<h[1-6]/);
+    expect(html.split('<span data-glance-rule="" data-depth-draw="" aria-hidden="true"></span>')).toHaveLength(3);
+  });
+  it('draws no empty list of figures', () => {
+    expect(renderToStaticMarkup(<GlanceBlock points={[]} outcome="o" role="r" methods="m" tools="t" when="w" />)).not.toContain('data-glance-points');
+  });
+
+  const css = readFileSync(join(__dirname, '..', '..', '..', 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  it('sets the sentence under the figures at text-lg and the figures large, and never fades the figures', () => {
+    expect(css).toMatch(/\[data-glance-points\] \+ \[data-glance-outcome\]\s*\{[^}]*font-size:\s*var\(--text-lg\)/);
+    expect(css).toMatch(/\[data-glance-figure\]\s*\{[^}]*font-size:\s*var\(--text-2xl\)/);
+    for (const m of css.matchAll(/\[data-glance-(?:points|point|figure|label)\][^{]*\{([^}]*)\}/g)) expect(m[1]).not.toMatch(/opacity|animation|transition/);
+  });
+  it('settles a fifth fact in turn after the fourth, and stills it with the others', () => {
+    expect(css).toMatch(/\[data-depth-hinge="load"\] \[data-glance-facts\] > div:nth-child\(5\)\s*\{[^}]*animation-delay:\s*600ms/);
+    expect(css).toMatch(/\[data-depth-hinge\] \[data-glance-facts\] > div,/);
   });
 });
 

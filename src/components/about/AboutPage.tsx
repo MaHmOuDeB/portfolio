@@ -1,18 +1,21 @@
-// The About page: the photograph beside the story from lg up (stacked below), then the timeline (Audible as a working
-// student), the tools I have shipped with, the languages and the CV. Static: the prose comes from
-// content/about.tsx and the photo's description from content/about-photo.ts. Sections are spaced, not
-// boxed, like the Retention page, and each is a <section> named by its h2.
+// The About page: the head (the page's chip beside the "Open to roles" chip, the h1 and a "Read my CV"
+// button), then the photograph beside the story from lg up (on a phone the photo comes first, under the
+// headline), the timeline (Audible as a working student), the tools and where I used them, and the
+// languages. It ends on the ink call to action, which says what roles I am open to, with "Write to me".
+// Static: the prose comes from content/about.tsx and the photo's description from content/about-photo.ts.
+// Sections are spaced, not boxed, like the Retention page, and each is a <section> named by its h2.
 //
 // The photo renders at 480 px wide and 960 px for dense screens (next.config.ts limits the
 // optimiser to those widths), loads lazily and is never cropped further than its 4:5 file.
 import Image from 'next/image';
-import { Fragment, type ReactNode } from 'react';
-import { PageHead } from '@/components/frame';
+import type { ReactNode } from 'react';
+import { Chip, Quiet, SECTION_H2 } from '@/components/frame';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
 import { cvPdf } from '@/lib/cv-pdf';
-import { CV_LINK } from '@/lib/site';
-import { ABOUT_FOCUS, ABOUT_LOOKING, ABOUT_STORY, LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
+import { CONTACT, CV_LINK } from '@/lib/site';
+import { ABOUT_FOCUS, ABOUT_STORY, LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
 import { aboutPhoto } from '../../../content/about-photo';
 import { CvDownload } from './CvDownload';
 import { TimelineRow } from './TimelineRow';
@@ -22,9 +25,8 @@ export const ABOUT_TITLE = 'About';
 /** The sections in page order. */
 export const ABOUT_SECTIONS = [
   { id: 'timeline', title: 'Timeline' },
-  { id: 'tools', title: 'Tools I have shipped with' },
+  { id: 'tools', title: 'Tools, and where I used them' },
   { id: 'languages', title: 'Languages' },
-  { id: 'cv', title: 'CV' },
 ] as const;
 
 type SectionId = (typeof ABOUT_SECTIONS)[number]['id'];
@@ -37,21 +39,11 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
   if (!entry) throw new Error(`about: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-      <h2 id={`${id}-title`} data-depth-rise="heading" className="max-w-text text-xl font-semibold">
+      <h2 id={`${id}-title`} data-depth-rise="heading" className={`max-w-text ${SECTION_H2}`}>
         {entry.title}
       </h2>
       <div className="mt-6">{children}</div>
     </section>
-  );
-}
-
-/** A white hairline card with a small title and a muted line: a language or the CV. */
-function SmallCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div data-about-card="" className="rounded-xl border border-hairline bg-surface p-5">
-      <p className="text-base font-semibold">{title}</p>
-      <div className="mt-1 text-muted">{children}</div>
-    </div>
   );
 }
 
@@ -70,32 +62,40 @@ export function AboutPage(): ReactNode {
   const pdf = cvPdf();
   return (
     <article aria-labelledby="about-title">
-      <PageHead id="about-title" chip="About" title="Experimentation and growth analyst" quiet="in Berlin, Germany." />
+      <div data-page-head="">
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip>About</Chip>
+          <Chip dot="ok">Open to roles</Chip>
+        </div>
+        <h1 id="about-title" className="max-w-[22em] text-h2-sm md:text-h2">
+          Experimentation and AI automation analyst <Quiet>in Berlin, Germany.</Quiet>
+        </h1>
+        <div data-about-actions="" className="mt-6 flex flex-wrap gap-2.5 print:hidden">
+          <ButtonLink href={CV_LINK.href} variant="primary">
+            Read my CV
+          </ButtonLink>
+          {pdf ? <CvDownload pdf={pdf} variant="secondary" /> : null}
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-8 pb-12 lg:grid-cols-12 lg:items-start lg:gap-12 md:pb-16">
         <div className="lg:col-span-7">
           <div data-about-story="" className="max-w-text space-y-4 text-lg">
+            <p data-about-focus="">{ABOUT_FOCUS}</p>
             {STORY_PARAGRAPHS.map(([from, to]) => (
-              <Fragment key={from}>
-                <p>
-                  {ABOUT_STORY.slice(from, to).map((sentence, j) => (
-                    <span key={from + j} data-sentence="">
-                      {from + j > 0 ? ' ' : null}
-                      {sentence}
-                    </span>
-                  ))}
-                </p>
-                {from === 0 ? (
-                  <>
-                    <p data-about-focus="">{ABOUT_FOCUS}</p>
-                    <p data-about-looking="">{ABOUT_LOOKING}</p>
-                  </>
-                ) : null}
-              </Fragment>
+              <p key={from}>
+                {ABOUT_STORY.slice(from, to).map((sentence, j) => (
+                  <span key={from + j} data-sentence="">
+                    {j > 0 ? ' ' : null}
+                    {sentence}
+                  </span>
+                ))}
+              </p>
             ))}
           </div>
         </div>
-        {/* The portrait's column drifts in once from the top left (the photo keeps its own parallax). */}
-        <div data-depth-drift="tl" className="lg:col-span-5">
+        {/* The portrait's column drifts in once from the top left (the photo keeps its own parallax). On a
+            phone it comes first, under the headline, at a modest size. */}
+        <div data-depth-drift="tl" className="order-first lg:order-last lg:col-span-5">
           <Image
             src={aboutPhoto.src}
             alt={aboutPhoto.alt}
@@ -103,8 +103,20 @@ export function AboutPage(): ReactNode {
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
             data-depth-parallax=""
-            className="h-auto w-full max-w-120 lg:max-w-none rounded-xl border border-hairline print:max-w-48"
+            className="h-auto w-full max-w-56 rounded-xl border border-hairline sm:max-w-72 lg:max-w-none print:max-w-48"
           />
+          <ul role="list" data-about-profiles="" className="mt-3 flex flex-wrap gap-x-6 print:hidden">
+            <li>
+              <TextLink href={CONTACT.linkedin} standalone external icon="linkedin">
+                LinkedIn
+              </TextLink>
+            </li>
+            <li>
+              <TextLink href={CONTACT.github} standalone external icon="github">
+                GitHub
+              </TextLink>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -120,11 +132,11 @@ export function AboutPage(): ReactNode {
       </Section>
 
       <Section id="tools">
-        <ul role="list" data-about-tools="" className="flex flex-wrap gap-2.5">
+        <ul role="list" data-about-tools="" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {SHIPPED_TOOLS.map((t) => (
-            <li key={t.tool} className="rounded-md border border-hairline-strong bg-surface px-3.5 py-2.5 text-sm">
-              <span className="font-semibold">{t.tool}</span>
-              <span className="block text-muted">{t.where}</span>
+            <li key={t.tool} className="h-full rounded-xl border border-hairline bg-surface p-4">
+              <span className="block text-base font-semibold">{t.tool}</span>
+              <span className="mt-1 block text-sm text-muted">{t.where}</span>
             </li>
           ))}
         </ul>
@@ -145,17 +157,6 @@ export function AboutPage(): ReactNode {
             </div>
           ))}
         </dl>
-      </Section>
-
-      <Section id="cv">
-        <SmallCard title="My CV as a page you can read or print.">
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-            <TextLink href={CV_LINK.href} standalone>
-              Read my CV
-            </TextLink>
-            {pdf ? <CvDownload pdf={pdf} variant="secondary" /> : null}
-          </div>
-        </SmallCard>
       </Section>
 
       <PageCallToAction />

@@ -1,161 +1,109 @@
-// The Audible method page's prose: the intro, the summary, the problem, the data, the method, the
-// ship rule's introduction, why so many recommendations were adopted, the automation tool, the
-// findings, how I checked this, the limits and the links. Each export is a server section without its
-// own heading, so the page decides the outline and the anchors (src/components/audible/AudiblePage.tsx).
+// The Audible case study's prose: the opening, the glance card, the ship rule's introduction with
+// the sentences around its Figure, why so many recommendations were adopted, the tool I built and
+// its two timings, the AI tools, the method (the part a reader sees at once, and the three rows one
+// click deeper), the limits, the links and the close. Each export is a server part without its own
+// heading, so the page decides the outline and the anchors (src/components/audible/AudiblePage.tsx).
 //
 // Every figure is a <Fact> from the profile facts; the rest is plain words. The tests behind these
 // figures are confidential, so the page shows no result of any of them: the interactive example uses
-// a made-up product with made-up metric names.
+// a made-up product with made-up metric names. Each limit is said once near the top or beside its
+// exhibit and once under Limits.
 import type { ReactNode } from 'react';
 import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
+import { Stat } from '@/components/kit/Stat';
 import { TextLink } from '@/components/kit/TextLink';
 import { CONTACT } from '@/lib/site';
 import { HOME_LINKS } from './home-destinations.ts';
 
 const ITEM = 'mt-4 first:mt-0';
 
-/**
- * The "Why so many?" link beside a short adoption figure, to the section that gives its context. It
- * never breaks across two lines: it moves to the next line whole, so it is the same small inline
- * target at every width.
- */
-const WhySoMany = () => (
-  <span className="whitespace-nowrap">
-    <TextLink href="#why-so-many">Why so many?</TextLink>
-  </span>
-);
-
-/** The line under the page title. */
+/** The opening under the page title: what I did, in plain words, and who decided. */
 export function AudibleIntro(): ReactNode {
   return (
     <p>
-      Experimentation at Audible (Amazon), where I was a working student for nearly two years: how I plan and analyse
-      experiments, and why so many of my recommendations were adopted.
+      For nearly two years as a working student at Audible I helped teams decide which changes to the website and app
+      should stay. I contributed to the A/B tests, did the sample-size planning and the significance testing myself,
+      and wrote a recommendation from each analysis; my manager made the decision.
     </p>
   );
 }
 
-/** The 20-second top of the page, under the title and its line. */
+/** A word around a pull figure ("about", "min"), set smaller than the figure, as in the Home proof band. */
+const Unit = ({ children }: { children: string }) => <span data-proof-unit="">{children}</span>;
+
+/**
+ * The 20-second top of the page: three pull figures, one sentence on what the work was, then the
+ * facts. The adoption figure carries the link to its context, small, on its own line under the label
+ * (a full touch target, since it stands alone). The test count and the markets never share a line.
+ */
 export const AUDIBLE_GLANCE: GlanceParts = {
-  outcome: (
-    <>
-      Recommended rollouts from <Fact id="profile.audible.experiments" /> A/B tests,{' '}
-      <Fact id="profile.audible.recommendations_adopted" /> adopted, and cut test-account setup from about{' '}
-      <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" />{' '}
-      minutes; recommendations were mine, ship decisions were my manager&apos;s. <WhySoMany />
-    </>
-  ),
-  role: 'Working student, mainly growth experimentation; contributed to tests, set up and analysed them.',
+  points: [
+    {
+      id: 'tests',
+      figure: <Fact id="profile.audible.experiments" />,
+      label: 'A/B tests across web and mobile',
+    },
+    {
+      id: 'adopted',
+      figure: <Fact id="profile.audible.recommendations_adopted" />,
+      label: (
+        <>
+          recommendations adopted{' '}
+          <span className="block text-sm">
+            <TextLink href="#why-so-many" standalone>
+              Why so many?
+            </TextLink>
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'setup',
+      figure: (
+        <>
+          <Unit>about </Unit>
+          <Fact id="profile.audible.setup_minutes_after" />
+          <Unit> minutes</Unit>
+        </>
+      ),
+      label: (
+        <>
+          to set up a test account, down from about <Fact id="profile.audible.setup_minutes_before" />, with a tool I
+          built
+        </>
+      ),
+    },
+  ],
+  outcome:
+    'Each test needed a plan before it started and a recommendation when it ended: roll the change out permanently, or not.',
+  when: 'Aug 2023 to Apr 2025.',
+  role: 'Working student. I recommended; my manager decided.',
   methods:
     'Primary, secondary and guardrail metrics per team, sample-size and duration planning, significance testing, SQL segmentation.',
   tools: "Amazon's internal experimentation platforms, SQL, Excel, Tableau as a data source, Tampermonkey with a step recorder.",
-  when: 'Aug 2023 to Apr 2025.',
+  scope: 'Method and role. The results are confidential.',
 };
 
-/** The summary box: question, my role, method, result, decision, next step. */
-export function AudibleSummary(): ReactNode {
-  const items: readonly [label: string, body: ReactNode][] = [
-    ['Question', <>Which changes to the Audible website and app should be rolled out permanently?</>],
-    [
-      'My role',
-      <>
-        A working student in marketing analytics and growth experimentation, mainly growth experimentation. I
-        contributed to <Fact id="profile.audible.experiments" /> A/B tests across web and mobile, from the hypothesis to
-        a recommendation, and worked with <Fact id="profile.audible.teams" /> teams over my time there, one after
-        another.
-      </>,
-    ],
-    [
-      'Method',
-      <>
-        Each test was read against its team&apos;s metrics, with a primary metric and guardrails. I did the sample-size
-        and duration planning before a test started and the significance testing when it ended.
-      </>,
-    ],
-    [
-      'Result',
-      <>
-        Of my recommendations from those tests, <Fact id="profile.audible.recommendations_adopted" /> were adopted, which
-        means rolled out permanently. <WhySoMany />
-      </>,
-    ],
-    ['Decision', <>I made each recommendation from the analysis; my manager signed off.</>],
-    [
-      'Next step',
-      <>
-        Below: the ship rule on a made-up product, why so many recommendations were adopted, and the tool I built for
-        test-account setup.
-      </>,
-    ],
-  ];
-  return (
-    <dl>
-      {items.map(([label, body]) => (
-        <div key={label} className={ITEM}>
-          <dt className="font-semibold">{label}</dt>
-          <dd className="mt-1">{body}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** What the tests were for. */
-export function AudibleProblem(): ReactNode {
-  return (
-    <p>
-      Teams at Audible tested changes to the website and the app before rolling them out to members. Each test needed a
-      plan before it started and a recommendation when it ended: roll the change out permanently, or not.
-    </p>
-  );
-}
-
-/** Where the tests ran, and why no result of theirs is on this page. */
-export function AudibleData(): ReactNode {
-  return (
-    <p>
-      The tests ran on Amazon&apos;s internal experimentation platforms, in the Audible app and on the website. Their
-      results are not public, so the example on this page uses a made-up product.
-    </p>
-  );
-}
-
-/** The teams, the planning and analysis, the teams' metric frameworks and the recommendation. */
-export function AudibleMethod(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
-        Over my time there I worked with <Fact id="profile.audible.teams" /> teams, one after another as the teams were
-        reorganised: Onsite &amp; App Experience, Early Engagement and Emerging Member Experience.
-      </p>
-      <p className={ITEM}>
-        Before a test started, I planned its sample size and how long it had to run. When it ended, I did the
-        significance testing and read the result against the metrics of the team that ran it.
-      </p>
-      <p className={ITEM}>
-        The metric frameworks were the teams&apos; own. In Onsite &amp; App Experience, revenue was the primary metric and
-        listening minutes the secondary one; in Early Engagement it was the other way round. Both used churn and
-        incremental long-term value (ILTV) as guardrails: metrics that must not get worse.
-      </p>
-      <p className={ITEM}>From the analysis I made a recommendation, and my manager signed off on the decision.</p>
-    </>
-  );
-}
-
-/** The ship rule's introduction, before its Figure. */
+/** The ship rule's introduction, before its Figure: the made-up product, and what a guardrail is. */
 export function AudibleShipRule(): ReactNode {
   return (
     <>
       <p className={ITEM}>
         Chapter Club is a reading-club product I made up for this example. Its main metric is session completion, and its
-        guardrail is help requests, where a rise is bad. You set the ends of each interval yourself: nothing is
-        estimated from observations.
+        guardrail is help requests, where a rise is bad. A guardrail is a metric that must not get worse for a change to
+        ship, even when the main metric improves.
       </p>
       <p className={ITEM}>This illustrates the general approach; teams also allowed neutral results with guardrails intact.</p>
     </>
   );
 }
+
+/** The sentence above the ship-rule Figure (what to look at) and the one below it (what it means). */
+export const AUDIBLE_SHIP_LEAD_IN =
+  'A change ships when the main number goes up and the safety number does not get worse. Move the ends of the two ranges and watch the call change.';
+export const AUDIBLE_SHIP_TAKEAWAY =
+  'The call follows from where the ranges fall, by a rule fixed in advance, not from how anyone feels about the change.';
 
 /** The context of the adoption figure: the three reasons it is high. */
 export function AudibleWhySoMany(): ReactNode {
@@ -175,7 +123,7 @@ export function AudibleWhySoMany(): ReactNode {
       <p>
         Of my recommendations from <Fact id="profile.audible.experiments" /> tests,{' '}
         <Fact id="profile.audible.recommendations_adopted" /> were adopted, which means rolled out permanently. That is
-        not a win rate, and three things made it high.
+        not a win rate. Three things explain it.
       </p>
       <ul className="mt-4 list-disc pl-6">
         {reasons.map(([title, body]) => (
@@ -188,44 +136,116 @@ export function AudibleWhySoMany(): ReactNode {
   );
 }
 
-/** The test-account automation tool: what it cut, and how the team adopted it. */
+/** The test-account automation tool: what it was and what it cut. */
 export function AudibleAutomation(): ReactNode {
   return (
+    <p>
+      Setting up a test account by hand took about <Fact id="profile.audible.setup_minutes_before" /> minutes. I noticed
+      the bottleneck myself and built a tool for it: Tampermonkey with a step recorder. It cut the setup to about{' '}
+      <Fact id="profile.audible.setup_minutes_after" /> minutes, about <Fact id="profile.audible.setup_time_cut" /> less.
+    </p>
+  );
+}
+
+/**
+ * The two timings as two large figures, side by side from sm. They are my own approximate timings, so
+ * the source lines say that, and where the tool was adopted; nothing here is drawn from data.
+ */
+export function AudibleSetupStats(): ReactNode {
+  return (
+    <div role="group" aria-label="Test-account setup time, by hand and with the tool" className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
+      <Stat
+        value={
+          <>
+            <Unit>about </Unit>
+            <Fact id="profile.audible.setup_minutes_before" />
+            <Unit> min</Unit>
+          </>
+        }
+        label="by hand"
+        source="My own timings, approximate."
+      />
+      <Stat
+        value={
+          <>
+            <Unit>about </Unit>
+            <Fact id="profile.audible.setup_minutes_after" />
+            <Unit> min</Unit>
+          </>
+        }
+        label="with the tool"
+        source={
+          <>
+            Adopted team-wide, across <Fact id="profile.audible.markets" /> markets.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+/** How the team came to use the tool. */
+export function AudibleAdoption(): ReactNode {
+  return (
+    <p>
+      To help the team adopt it, I wrote a guide to installing and using it, held a Q&amp;A meeting with stakeholders, and
+      recorded a video showing how to use it. I have no usage count for it.
+    </p>
+  );
+}
+
+/**
+ * The AI tools for the team. Two separate statements in two paragraphs: the evaluation, and the tools
+ * I built. Nothing here says where the tools ran, and there is no figure for them.
+ */
+export function AudibleAiTools(): ReactNode {
+  return (
     <>
+      <p className={ITEM}>I evaluated Amazon Bedrock for team-efficiency use cases.</p>
       <p className={ITEM}>
-        Setting up a test account by hand took about <Fact id="profile.audible.setup_minutes_before" /> minutes. I noticed
-        the bottleneck myself and built a tool for it: Tampermonkey with a step recorder. It cut the setup to about{' '}
-        <Fact id="profile.audible.setup_minutes_after" /> minutes, about <Fact id="profile.audible.setup_time_cut" /> less,
-        across <Fact id="profile.audible.markets" /> markets.
-      </p>
-      <p className={ITEM}>
-        To help the team adopt it, I wrote a guide to installing and using it, held a Q&amp;A meeting with stakeholders, and
-        recorded a video showing how to use it. It was adopted team-wide. I did not track its usage, so there is
-        no count of users.
+        I also built internal AI tools that the wider team adopted. One reviews past A/B tests and their results and
+        suggests new test ideas. The other generates the standard content of the Jira ticket for a test launch: the
+        hypothesis, the metrics and the standard fields. I have no usage or time-saving figures for them.
       </p>
     </>
   );
 }
 
-/** What the work shows, without any result of a test. */
-export function AudibleFindings(): ReactNode {
+/** The method a reader sees at once: my own planning and testing, and the consent-aware SQL work. */
+export function AudibleMethod(): ReactNode {
   return (
-    <ul className="list-disc pl-6">
-      <li className="mt-2 first:mt-0">
-        Adoption says more about how tests were chosen and when a change could ship than about a win rate: most were
-        strong bets against plain baselines, the ideas were vetted before they were tested, and a neutral result could
-        ship with guardrails intact.
-      </li>
-      <li className="mt-2 first:mt-0">
-        The tool I owned outright changed the team&apos;s own workflow, not a product: test-account setup went from about{' '}
-        <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" />{' '}
-        minutes, and it was adopted team-wide.
-      </li>
-    </ul>
+    <>
+      <p className={ITEM}>
+        Before a test started, I planned its sample size and how long it had to run. When it ended, I did the
+        significance testing and read the result against the metrics of the team that ran it.
+      </p>
+      <p className={ITEM}>
+        I also contributed to CRM-driven personalisation for opted-in and opted-out members on the Home and Discovery
+        pages, and wrote the SQL segmentation queries within the consent rules of the Digital Markets Act (DMA).
+      </p>
+    </>
   );
 }
 
-/** How the work and this page were checked. */
+/** One click deeper: the teams, the teams' metric frameworks and the recommendation. */
+export function AudibleTeams(): ReactNode {
+  return (
+    <>
+      <p>
+        Over my time there I worked with <Fact id="profile.audible.teams" /> teams, one after another as the teams were
+        reorganised: Onsite &amp; App Experience, Early Engagement and Emerging Member Experience.
+      </p>
+      <p>
+        The metric frameworks were the teams&apos; own. In Onsite &amp; App Experience, revenue was the primary metric and
+        listening minutes the secondary one; in Early Engagement it was the other way round. Both used churn and
+        incremental long-term value (ILTV) as guardrails: metrics that must not get worse.
+      </p>
+      <p>From the analysis I made a recommendation, and my manager signed off on the decision.</p>
+    </>
+  );
+}
+
+/** One click deeper: how the work and this page were checked. */
 export function AudibleChecks(): ReactNode {
   return (
     <ul className="list-disc pl-6">
@@ -241,6 +261,16 @@ export function AudibleChecks(): ReactNode {
   );
 }
 
+/** One click deeper: where the tests ran, and why no result of theirs is on this page. */
+export function AudibleData(): ReactNode {
+  return (
+    <p>
+      The tests ran on Amazon&apos;s internal experimentation platforms, in the Audible app and on the website. Their
+      results are not public, so the example on this page uses a made-up product.
+    </p>
+  );
+}
+
 /** What this page cannot show. */
 export function AudibleLimits(): ReactNode {
   const limits: readonly [key: string, body: string][] = [
@@ -253,10 +283,7 @@ export function AudibleLimits(): ReactNode {
       'simplified',
       'The ship rule on this page is simplified. You type the interval bounds in; nothing is estimated from observations, and a neutral result here needs no product reason.',
     ],
-    [
-      'approximate',
-      'The automation timings are approximate, as I reported them, and the before and after chart is a reconstruction from them, not measured data.',
-    ],
+    ['approximate', 'The automation timings are approximate, as I reported them.'],
   ];
   return (
     <ul className="list-disc pl-6">
@@ -284,5 +311,15 @@ export function AudibleLinks(): ReactNode {
         </TextLink>
       </li>
     </ul>
+  );
+}
+
+/** The close: what the page shows about how I work. */
+export function AudibleClose(): ReactNode {
+  return (
+    <p>
+      I plan before I test, separate my recommendation from the decision, and say plainly why a high adoption count is
+      not a win rate.
+    </p>
   );
 }

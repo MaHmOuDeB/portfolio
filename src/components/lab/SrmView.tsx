@@ -15,12 +15,14 @@ import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
 import { pct } from '@/lib/figure/scales';
+import { Exhibit, PhonePoint } from './Exhibit';
 import {
   DIAGNOSTICS_REFS,
   SRM_CLEAR_NOTE,
   SRM_EMPTY,
   SRM_FLAGGED_NOTE,
   SRM_ID,
+  SRM_PRESETS,
   SRM_SMALL_EXPECTED,
   SRM_THRESHOLD,
   SRM_TITLE,
@@ -39,6 +41,28 @@ import {
 } from '@/lib/lab/diagnostics';
 
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
+
+/** A visitor count of the starting numbers, marked as the Figure marks its own. */
+const startCount = (n: number) => (
+  <span data-num="" {...SIMULATED}>
+    {formatNumber(n, 0)}
+  </span>
+);
+
+/** The sentence above the Figure: the starting numbers, as the Figure draws them at its preset. */
+export function SrmLeadIn() {
+  const { nA, nB } = SRM_PRESETS.default;
+  return (
+    <>
+      At the starting numbers, group A got {startCount(nA)} visitors and group B {startCount(nB)}, and each should have
+      had half. It looks close. Is it?
+    </>
+  );
+}
+
+export const SRM_TAKEAWAY =
+  'At the starting numbers it is not. Chance alone would almost never leave a gap this large, so the result is not read until the fault in the assignment or the logging is found.';
+
 const GROUPS = ['A', 'B'] as const;
 /** Each bar's width and the gap between a group's two bars, in groups (one group is one unit). */
 const BAR = 0.28;
@@ -165,24 +189,39 @@ function Legend() {
   );
 }
 
-/** The result line: the statistic, the p-value and the flag in words; nothing to test without visitors. */
+const withoutStop = (sentence: string) => sentence.replace(/\.$/, '');
+
+/**
+ * The result line as plain text, the verdict first and the statistic after it in brackets: the
+ * announcement, and what the view prints.
+ */
+export function srmPlainText(v: SrmValues, deps?: SrmDeps): string {
+  const r = srmModel(v, deps);
+  if (r.kind === 'empty') return SRM_EMPTY;
+  const parts = [
+    `${r.flagged ? 'Flagged' : 'Not flagged'}. ${withoutStop(r.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square ${chi2Text(r.chi2)}, one degree of freedom, p-value ${pValueText(r)}).`,
+  ];
+  if (srmSmallExpected(v)) parts.push(smallExpectedNote());
+  return parts.join(' ');
+}
+
+/** The result line: the flag as a word and what it means, then the statistic and the p-value; nothing to test without visitors. */
 export function SrmResultLine({ values, result }: { values: SrmValues; result: SrmResult }) {
   if (result.kind === 'empty') return <>{SRM_EMPTY}</>;
   return (
     <>
-      Chi-square{' '}
+      <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
+        {result.flagged ? 'Flagged' : 'Not flagged'}
+      </span>
+      . {withoutStop(result.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE)} (chi-square{' '}
       <span data-srm-chi2="" data-num="" {...SIMULATED}>
         {chi2Text(result.chi2)}
-      </span>{' '}
-      with one degree of freedom, p-value{' '}
+      </span>
+      , one degree of freedom, p-value{' '}
       <span data-srm-p="" {...SIMULATED}>
         {pValueText(result)}
       </span>
-      :{' '}
-      <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
-        {result.flagged ? 'flagged' : 'not flagged'}
-      </span>
-      . {result.flagged ? SRM_FLAGGED_NOTE : SRM_CLEAR_NOTE}
+      ).
       {srmSmallExpected(values) ? (
         <>
           {' '}
@@ -215,33 +254,50 @@ export type SrmFigureViewProps = {
 export function SrmFigureView({ values, controls, announcement, preview, faultAfterChange, changed, deps }: SrmFigureViewProps) {
   const v = normalizeSrm(values);
   const result = srmModel(v, deps);
-  return (
+  const figure = (
     <Figure
       id={SRM_ID}
       title={SRM_TITLE}
       provenance="simulated"
       table={srmTable(v)}
+      lead={<PhonePoint>{SRM_TAKEAWAY}</PhonePoint>}
       controls={controls}
       announcement={announcement}
       preview={preview}
       result={<SrmResultLine values={v} result={result} />}
-      caption={
-        <>
-          Hypothetical visitor counts for the two groups of a test, and the share of visitors group A was meant to get.
-          The check is a chi-square test with one degree of freedom on the counts against that share. It flags the split
-          when the p-value is below <span {...SIMULATED}>{formatNumber(SRM_THRESHOLD)}</span>, a strict threshold, so
-          that a check run on every test rarely raises a false alarm. A flag is a warning to investigate the assignment
-          and the logging, not proof of what caused it. The test is an approximation: with fewer than{' '}
-          <span {...SIMULATED}>{formatNumber(SRM_SMALL_EXPECTED)}</span> expected visitors in a group its p-value is
-          rough. It assumes each visitor is counted once and assigned independently with the same chance (a binomial
-          model), and it guarantees no business outcome. These p-values are simulated diagnostics on numbers you set,
-          not results from this site’s live test.
-        </>
-      }
+      caption={<>Hypothetical visitor counts for the two groups of a test, and the share of visitors group A was meant to get.</>}
     >
       <SrmChart values={v} result={result} />
       <Legend />
       {faultAfterChange && changed ? <SrmSeamFailure /> : null}
     </Figure>
+  );
+  return (
+    <Exhibit
+      summary="The method behind the split check"
+      leadIn={<SrmLeadIn />}
+      takeaway={SRM_TAKEAWAY}
+      method={
+        <>
+          <p data-method-terms="">
+            <strong className="font-semibold">Split check (sample ratio mismatch)</strong>: a test of whether each group
+            received the share of visitors the design gave it; if it fails, the assignment or the counting is at fault
+            and no result should be read.
+          </p>
+          <p data-method-text="">
+            The check is a chi-square test with one degree of freedom on the counts against that share. It flags the
+            split when the p-value is below <span {...SIMULATED}>{formatNumber(SRM_THRESHOLD)}</span>, a strict
+            threshold, so that a check run on every test rarely raises a false alarm. A flag is a warning to
+            investigate the assignment and the logging, not proof of what caused it. The test is an approximation: with
+            fewer than <span {...SIMULATED}>{formatNumber(SRM_SMALL_EXPECTED)}</span> expected visitors in a group its
+            p-value is rough. It assumes each visitor is counted once and assigned independently with the same chance
+            (a binomial model), and it guarantees no business outcome. These p-values are simulated diagnostics on
+            numbers you set, not results from this site’s live test.
+          </p>
+        </>
+      }
+    >
+      {figure}
+    </Exhibit>
   );
 }

@@ -15,10 +15,13 @@ import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
 import { pct } from '@/lib/figure/scales';
+import { Exhibit, PhonePoint } from './Exhibit';
 import {
   CURSE_ALPHA,
   CURSE_HEIGHT,
   CURSE_ID,
+  CURSE_LABELS,
+  CURSE_PRESETS,
   CURSE_TITLE,
   CURSE_UNBOUNDED,
   CURSE_X_TICKS,
@@ -48,6 +51,29 @@ import {
 } from '@/lib/lab/diagnostics';
 
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
+
+export const CURSE_LEAD_IN =
+  'Picture a real but small effect, measured by a test too small to see it reliably. The line shows how much the tests that still win overstate it.';
+
+/**
+ * The sentence below the Figure, at the starting setting: the same power and exaggeration the Figure
+ * prints at its preset, from the same model and formatters.
+ */
+export function CurseTakeaway({ deps }: { deps?: CurseDeps }) {
+  const preset = curseModel(CURSE_PRESETS.default, deps);
+  if (preset.kind !== 'result') return <>A surprising win from a small test deserves a second run before a rollout.</>;
+  return (
+    <>
+      At the starting setting the test notices the effect only <span {...SIMULATED}>{formatPower(preset.power)}</span> of
+      the time, and when it does it reports about{' '}
+      <span data-num="" {...SIMULATED}>
+        {formatExaggeration(preset.exaggeration)}
+      </span>{' '}
+      times the truth. A surprising win from a small test deserves a second run before a rollout.
+    </>
+  );
+}
+
 export const CURSE_X_LABEL = 'True effect ÷ standard error (log scale)';
 
 /**
@@ -157,9 +183,9 @@ export function CurseReadout({ result }: { result: CurseResult }) {
         : ['not shown', 'not shown', 'no finite value'];
   return (
     <dl data-curse-readout="" data-curse-branch={result.kind} className="mb-4 grid gap-4 xs:grid-cols-3">
-      {item('Power', values[0])}
-      {item('Wrong sign, among significant estimates', values[1])}
-      {item('Exaggeration, among significant estimates', values[2])}
+      {item(CURSE_LABELS.power, values[0])}
+      {item(CURSE_LABELS.wrongSign, values[1])}
+      {item(CURSE_LABELS.exaggeration, values[2])}
     </dl>
   );
 }
@@ -206,12 +232,14 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
   const curve = curseCurve(v, deps);
   // The dot is the model's own datum: drawn only when the model has a finite result.
   const selected = result.kind === 'result' ? curve.selected : null;
-  return (
+  const takeaway = <CurseTakeaway deps={deps} />;
+  const figure = (
     <Figure
       id={CURSE_ID}
       title={CURSE_TITLE}
       provenance="simulated"
       table={curseTable(v, deps)}
+      lead={<PhonePoint>{takeaway}</PhonePoint>}
       controls={controls}
       announcement={announcement}
       preview={preview}
@@ -219,15 +247,7 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
       caption={
         <>
           An exact calculation from Gelman and Carlin’s retrodesign formulas on hypothetical values you set; no random
-          draws are involved. A study estimates a true effect, and its estimate is normally distributed around that effect with the standard error you set, both in the same
-          arbitrary units; the test is two-sided at a significance level of{' '}
-          <span {...SIMULATED}>{formatNumber(CURSE_ALPHA)}</span>. Power is the chance that the estimate passes that
-          threshold. The other two numbers describe only the estimates that pass the threshold: how many have the wrong
-          sign, and how large they are on average against the true effect. Reporting only those is the selection that
-          creates the exaggeration. The line shows the exaggeration at every ratio of true effect to standard error from{' '}
-          <span {...SIMULATED}>{formatNumber(RATIO_MIN)}</span> to <span {...SIMULATED}>{formatNumber(RATIO_MAX)}</span>{' '}
-          on a logarithmic axis, and the dot is your setting. The calculation assumes independent observations and a
-          known standard error, and it guarantees no business outcome.
+          draws are involved.
         </>
       }
     >
@@ -235,5 +255,27 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
       <CurseChart result={result} points={curve.points} selected={selected} />
       {faultAfterChange && changed ? <CurseSeamFailure /> : null}
     </Figure>
+  );
+  return (
+    <Exhibit
+      summary="The method behind the exaggeration chart"
+      leadIn={CURSE_LEAD_IN}
+      takeaway={takeaway}
+      method={
+        <p data-method-text="">
+          A study estimates a true effect, and its estimate is normally distributed around that effect with the standard
+          error you set, both in the same arbitrary units; the test is two-sided at a significance level of{' '}
+          <span {...SIMULATED}>{formatNumber(CURSE_ALPHA)}</span>. Power is the chance that the estimate passes that
+          threshold. The other two numbers describe only the estimates that pass the threshold: how many have the wrong
+          sign, and how large they are on average against the true effect. Reporting only those is the selection that
+          creates the exaggeration. The line shows the exaggeration at every ratio of true effect to standard error from{' '}
+          <span {...SIMULATED}>{formatNumber(RATIO_MIN)}</span> to <span {...SIMULATED}>{formatNumber(RATIO_MAX)}</span>{' '}
+          on a logarithmic axis, and the dot is your setting. The calculation assumes independent observations and a
+          known standard error, and it guarantees no business outcome.
+        </p>
+      }
+    >
+      {figure}
+    </Exhibit>
   );
 }

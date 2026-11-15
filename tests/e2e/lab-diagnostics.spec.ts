@@ -22,8 +22,8 @@ type Id = keyof typeof TITLE;
 
 // The default preset is a real case: a simulated 5,170 to 4,830 split against an even one, flagged.
 const SRM_PRESET_RESULT =
-  'Chi-square 11.56 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.';
-const SRM_EVEN_RESULT = 'Chi-square 0 with one degree of freedom, p-value 1: not flagged. This split is consistent with the expected share at this threshold.';
+  'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.56, one degree of freedom, p-value below 0.001).';
+const SRM_EVEN_RESULT = 'Not flagged. This split is consistent with the expected share at this threshold (chi-square 0, one degree of freedom, p-value 1).';
 const CURSE_PRESET_RESULT =
   'At a true effect of 1.0 and a standard error of 1.0, a ratio of 1, power is 17%. Of the estimates that pass the threshold, 0.9% have the wrong sign, and on average their size is 2.5 times the true effect.';
 const ZERO = 'Exaggeration is undefined when the true effect is zero.';
@@ -152,8 +152,8 @@ test.describe('Split check Figure', () => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?srm.nA=0&srm.nB=100`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toContainText('Chi-square 100 with one degree of freedom, p-value below 0.001: flagged.');
-    await expect(figure(page, 'srm').locator('[data-srm-status]')).toHaveText('flagged');
+    await expect(result(page, 'srm')).toContainText('(chi-square 100, one degree of freedom, p-value below 0.001).');
+    await expect(figure(page, 'srm').locator('[data-srm-status]')).toHaveText('Flagged');
     await expect(figure(page, 'srm').locator('svg[data-chart-frame]:visible')).toHaveAttribute('aria-label', /the split is flagged for a closer look$/);
     expect(await tableRows(page, 'srm')).toEqual([
       ['Group A', '0', '50%', '50'],
@@ -185,7 +185,7 @@ test.describe('Split check Figure', () => {
   test('120 against 60 is flagged; a tiny split warns about the approximation', async ({ page }) => {
     await page.goto(`${HOST}?srm.nA=120&srm.nB=60`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
-    await expect(result(page, 'srm')).toContainText('Chi-square 20 with one degree of freedom, p-value below 0.001: flagged.');
+    await expect(result(page, 'srm')).toContainText('(chi-square 20, one degree of freedom, p-value below 0.001).');
     await page.goto(`${HOST}?srm.nA=3&srm.nB=1`);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'ready');
     await expect(result(page, 'srm')).toContainText('An expected count is below 5, so the chi-square approximation is rough here.');
@@ -201,7 +201,7 @@ test.describe('Split check Figure', () => {
     await expect(range(page, 'srm-nA')).toHaveValue('0');
     await expect(range(page, 'srm-nB')).toHaveValue('10000');
     await expect(range(page, 'srm-shareA')).toHaveValue('0.99');
-    await expect(result(page, 'srm')).toContainText('flagged');
+    await expect(result(page, 'srm')).toContainText('Flagged.');
     expect(errors).toEqual([]);
   });
 
@@ -225,7 +225,7 @@ test.describe('Split check Figure', () => {
     await page.keyboard.press('ArrowRight');
     await expect(range(page, 'srm-nA')).toHaveValue('5171');
     await expect(live(page, 'srm')).toHaveText(
-      'Chi-square 11.63 with one degree of freedom, p-value below 0.001: flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result.',
+      'Flagged. A split this far from the expected share would be unlikely if visitors were assigned as planned, so check the assignment and the logging before reading any result (chi-square 11.63, one degree of freedom, p-value below 0.001).',
     );
     await expect(live(page, 'srm')).toHaveAttribute('data-derived', 'simulated');
     await expect.poll(() => new URL(page.url()).searchParams.get('srm.nA')).toBe('5171');
@@ -647,7 +647,7 @@ async function newContext(browser: Browser, viewport: { width: number; height: n
 async function assertCurrentFallback(page: Page, id: Id, o: { pointer?: boolean } = {}) {
   const f = figure(page, id);
   await expect(f.getByRole('heading', { level: 3 })).toHaveText(TITLE[id]);
-  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'a warning to investigate' : 'no random draws are involved');
+  await expect(f.locator('figcaption > p').first()).toContainText(id === 'srm' ? 'Hypothetical visitor counts for the two groups of a test' : 'no random draws are involved');
   const rows = await f.locator('[data-figure-fallback] table tbody tr').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent!.trim())));
   if (id === 'srm') {
     // group A's count moved off the preset 5,170

@@ -17,6 +17,10 @@ import type { PublishedCount } from '@/lib/home/counts';
 import type { LivePagePublic } from '@/lib/live-page/model';
 import { BUILD, provenanceOf } from './Values';
 
+/** How the line is computed: the caption's second sentence, which the page puts in its method row. */
+export const DETECTABLE_METHOD =
+  'It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.';
+
 const HEIGHT = { narrow: 180, wide: 240 } as const;
 const TICKS = { narrow: 4, wide: 6 } as const;
 
@@ -87,7 +91,6 @@ export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, 
     <>
       The smallest lift this many views per group would detect {power} times in {ten}, assuming{' '}
       {phase === 'ab' ? <>the planning click rate from the calibration, {rate}</> : <>the planning click rate of {rate}</>}, at one look.
-      It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.
     </>
   );
   const atNow = atCurrent !== null ? <Derived value={atCurrent} unit="pp" decimals={1} refs={both} /> : null;

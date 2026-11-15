@@ -20,7 +20,7 @@ const siteImage = { url: new URL("/og/site.png", origin).href, alt: ogAlt(ogCard
 export const metadata: Metadata = {
   metadataBase: origin,
   title: SITE.name,
-  description: "Experimentation and growth analyst in Berlin.",
+  description: "Experimentation and AI automation analyst in Berlin.",
   openGraph: {
     type: "website",
     siteName: SITE.name,

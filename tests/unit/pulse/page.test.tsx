@@ -108,20 +108,24 @@ const TAXONOMY = pulseTaxonomy();
 const PRESET: DashboardView = { channel: 'all', range: '30d' };
 
 const ORDER = [
-  ['summary', 'Summary'],
-  ['problem', 'The problem'],
-  ['data', 'The data'],
-  ['method', 'Method'],
-  ['taxonomy', 'The events and the questions behind them'],
   ['dashboard', 'The dashboard, on this page'],
-  ['findings', 'Findings'],
-  ['how-i-checked-this', 'How I checked this'],
+  ['taxonomy', 'The events and the questions behind them'],
+  ['how-i-checked-this', 'How I built and checked it'],
   ['limits', 'Limits'],
   ['sources', 'Sources and links'],
 ] as const;
 
 /** Words that would claim an outcome, an observed behaviour or a result of real use. */
 const OUTCOME = /\d+(\.\d+)?\s*%|conversion rate|retention rate|\blift\b|uplift|increased|improved|users (came|come) back|our users|customers/i;
+/** The markup of every native details row, keyed by its summary text. */
+const detailsRows = (markup: string) =>
+  Object.fromEntries(
+    [...markup.matchAll(/<details data-method=""[^>]*>([\s\S]*?)<\/details>/g)].map((m) => [
+      text(/<summary[^>]*>([\s\S]*?)<\/summary>/.exec(m[1]!)![1]!),
+      m[1]!.slice(m[1]!.indexOf('</summary>')),
+    ]),
+  );
+const between = (markup: string, from: string, to: string) => markup.slice(markup.indexOf(from), markup.indexOf(to, markup.indexOf(from)));
 
 describe('the outline', () => {
   it('has one h1: the event count as a Fact, each designed to answer a product question', () => {
@@ -131,14 +135,33 @@ describe('the outline', () => {
     expect(text(renderToStaticMarkup(<>{PULSE_TITLE}</>))).toBe('7 events, each designed to answer a product question');
   });
 
-  it('says what the page is under the title: designed and built, no real users', () => {
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
-    expect(text(intro)).toBe(
-      'Pulse is an analytics instrumentation demo that I designed and built: a small dashboard whose real point is its event taxonomy. It has no real users.',
-    );
+  it('opens with the sub, then the plain-words opening that defines an event, then the repository button', () => {
+    const head = between(PAGE, '</h1>', '<section aria-label="At a glance"');
+    const paragraphs = blocks(head).map(text);
+    expect(paragraphs).toEqual([
+      'A small dashboard I designed and built to show one thing: a tracking plan in which every event answers a product question.',
+      'Most products record every click first and ask what the clicks mean later. Pulse works the other way round: 7 tracked actions, each chosen because it answers a question a product team would ask. It shows a tracking plan, not results. An event is one recorded user action, with a name.',
+    ]);
+    expect(head).toMatch(/data-plain-opening=""[\s\S]*data-fact="pulse\.events\.count"/);
+    const lock = JSON.parse(readFileSync(join(repo, 'sources.lock.json'), 'utf8')) as { sources: { pulse: { repo: string; commit: string } } };
+    const actions = /<div data-case-actions=""[^>]*>([\s\S]*?)<\/div>/.exec(head)![1]!;
+    const links = [...actions.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
+    expect(links).toEqual([[`https://github.com/${lock.sources.pulse.repo}/tree/${lock.sources.pulse.commit}`, 'See the code on GitHub']]);
   });
 
-  it('puts the sections in the template order, each named by its own h2', () => {
+  it('has the glance card: two pull figures from the export, one sentence, the facts and the scope', () => {
+    const glance = between(PAGE, '<section aria-label="At a glance"', '</section>');
+    const points = /<ul role="list" data-glance-points=""[^>]*>([\s\S]*?)<\/ul>/.exec(glance)![1]!;
+    expect(points).toContain('data-fact="pulse.events.count"');
+    expect(points).toContain('data-fact="pulse.identity.user_properties"');
+    expect(text(points)).toBe('7 events, each tied to one product question 4 user properties, so events can be split by user');
+    expect(text(/<p data-glance-outcome="">([\s\S]*?)<\/p>/.exec(glance)![1]!)).toBe(
+      'Each event exists to answer one product question: the original sends them to Amplitude, and the copy on this page sends them to a list in your browser.',
+    );
+    expect(text(glance)).toContain('Scope A demo. No real users, so the questions are still open.');
+  });
+
+  it('puts the visible sections in the reading order, each named by its own h2, and no Summary block', () => {
     const sections = [...PAGE.matchAll(/<section id="([^"]+)" aria-labelledby="([^"]+)"[^>]*>\s*<h2 id="([^"]+)"[^>]*>([^<]+)<\/h2>/g)].map(
       (m) => [m[1], m[2], m[3], decode(m[4]!)],
     );
@@ -148,25 +171,31 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(PULSE_SECTIONS.map((s) => s.id)).toEqual(ORDER.map(([id]) => id));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length);
+    // The sections, the close, and the call to action's own h2 is outside the page markup under test.
+    const h2s = [...PAGE.matchAll(/<h2 [^>]*>([\s\S]*?)<\/h2>/g)].map((m) => text(m[1]!));
+    expect(h2s).toEqual([...ORDER.map(([, title]) => title), 'What this shows about how I work']);
+    expect(PAGE).not.toContain('id="summary"');
+    expect(text(PAGE)).not.toMatch(/\bSummary\b|Next step/);
   });
 
-  it('has section links whose targets exist, in page order, under a named navigation', () => {
+  it('never skips a heading level', () => {
+    const levels = [...PAGE.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
+    for (let i = 1; i < levels.length; i++) expect(levels[i]! - levels[i - 1]!, `heading ${i}`).toBeLessThanOrEqual(1);
+  });
+
+  it('has in-page links whose targets exist and are visible headings, in page order', () => {
     const nav = /<nav aria-label="On this page"[^>]*>([\s\S]*?)<\/nav>/.exec(PAGE);
     expect(nav).not.toBeNull();
     const links = [...nav![1]!.matchAll(/<a [^>]*href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
-    expect(links.map(([href]) => href)).toEqual(ORDER.slice(1).map(([id]) => id));
-    expect(links.map(([, label]) => label)).toEqual([
-      'Problem',
-      'Data',
-      'Method',
-      'Events',
-      'Dashboard',
-      'Findings',
-      'How I checked this',
-      'Limits',
-      'Sources',
-    ]);
+    expect(links.map(([href]) => href)).toEqual(ORDER.map(([id]) => id));
+    expect(links.map(([, label]) => label)).toEqual(['Dashboard', 'Events', 'How I checked this', 'Limits', 'Sources']);
+    for (const [href] of links) {
+      const at = PAGE.indexOf(`id="${href}"`);
+      expect(at).toBeGreaterThan(0);
+      // No target sits inside a details row.
+      const before = PAGE.slice(0, at);
+      expect(before.split('<details').length, href).toBe(before.split('</details>').length);
+    }
   });
 
   it('keeps every element id unique', () => {
@@ -174,79 +203,73 @@ describe('the outline', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('keeps prose in the readable column, and has no motion and no card grid of its own', () => {
-    expect(section(PAGE, 'summary')).toMatch(/^<section id="summary"[^>]*class="[^"]*max-w-text/);
-    for (const [id] of ORDER.slice(1)) {
-      const s = section(PAGE, id);
-      expect(s.slice(s.indexOf('</h2>') + '</h2>'.length), id).toMatch(/^<div class="mt-4"><div class="max-w-text">/);
-    }
-    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '');
+  it('has no motion and no card grid of its own', () => {
+    // The kit's buttons change colour on hover (transition-colors); nothing on the page moves.
+    const own = PAGE.replace(/<figure [\s\S]*?<\/figure>/g, '').replace(/ transition-colors/g, '');
     expect(own).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(own).not.toMatch(/grid-cols-/);
   });
 
-  it('has one Figure, the dashboard, after the prose that explains it', () => {
+  it('has one Figure, the dashboard, first, in a sheet between its lead-in and its takeaway', () => {
     expect([...PAGE.matchAll(/<figure [^>]*data-figure="/g)]).toHaveLength(1);
     const s = section(PAGE, 'dashboard');
-    expect(s).toContain(`data-figure="${PULSE_ID}"`);
-    expect(s.indexOf('<p')).toBeLessThan(s.indexOf(`data-figure="${PULSE_ID}"`));
-  });
-});
-
-describe('the summary', () => {
-  const summary = section(PAGE, 'summary');
-  const items = [...summary.matchAll(/<dt[^>]*>([^<]+)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g)].map((m) => [m[1], text(m[2]!)]);
-
-  it('answers question, my role, method, result, what I would recommend and next step, in that order', () => {
-    expect(items.map(([label]) => label)).toEqual(['Question', 'My role', 'Method', 'Result', 'What I would recommend', 'Next step']);
-  });
-
-  it('pins every answer', () => {
-    expect(Object.fromEntries(items)).toEqual({
-      Question: 'Which events should a product dashboard track, so that each one answers a product question?',
-      'My role': 'A personal project: I designed and built the dashboard, its event taxonomy and its tracking in Amplitude.',
-      Method:
-        'I tied each tracked event to a product question, rather than leaving the tracking to autocapture alone, and identified the demo user with a user ID and 4 user properties, so events can be segmented by user.',
-      Result: 'A working demo and a tracking plan, with no outcome to report: Pulse has no real users, so none of its questions has been answered.',
-      'What I would recommend':
-        'Name a short list of events, each with the question it should answer, and keep autocapture and Session Replay underneath it rather than in its place.',
-      'Next step': 'Below: the events and their questions, then a copy of the dashboard on this page that lists each event as you use it.',
-    });
-    expect(text(PAGE)).not.toContain('identified the demo user with 4 user properties');
-    // The 4 still comes from the export, as a Fact.
-    expect(/<dt[^>]*>Method<\/dt><dd[^>]*>([\s\S]*?)<\/dd>/.exec(PAGE)![1]).toMatch(/a user ID and <data [^>]*data-fact="pulse\.identity\.user_properties"[^>]*>4<\/data> user properties/);
+    expect(PAGE.indexOf('<section id="dashboard"')).toBeLessThan(PAGE.indexOf('<section id="taxonomy"'));
+    const lead = s.indexOf('data-lead-in');
+    const sheet = s.indexOf('data-figure-sheet');
+    const fig = s.indexOf(`data-figure="${PULSE_ID}"`);
+    const take = s.indexOf('data-takeaway');
+    expect(lead).toBeGreaterThan(0);
+    expect(lead).toBeLessThan(sheet);
+    expect(sheet).toBeLessThan(fig);
+    expect(fig).toBeLessThan(take);
+    expect(text(s)).toContain(
+      'Use the dashboard. Each action you take appears in the list below it as the event a product team would receive.',
+    );
+    expect(text(s)).toContain(
+      'A short list of named events is meant to answer the product questions; automatic capture stays underneath as a safety net.',
+    );
   });
 
-  it('prints its figure as a Fact', () => {
-    expect(summary).toContain('data-fact="pulse.identity.user_properties"');
+  it('ends with the close, then previous Retention and next Docproof', () => {
+    const close = between(PAGE, '<section data-page-close=""', '</section>');
+    expect(close).toContain('id="what-this-shows"');
+    expect(text(blocks(close)[0]!)).toBe(
+      'I plan tracking from the questions backwards: each of the 7 events was named for a question a product team would ask, and the dashboard is only there to carry them.',
+    );
+    const next = /<nav aria-label="More work" data-next-row=""[^>]*>([\s\S]*?)<\/nav>/.exec(PAGE)![1]!;
+    const links = [...next.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
+    expect(links).toEqual([
+      ['/work/retention', 'Previous Retention'],
+      ['/work/docproof', 'Next Docproof'],
+    ]);
+    expect(PAGE.indexOf('data-page-close')).toBeLessThan(PAGE.indexOf('data-next-row'));
   });
 });
 
 describe('Pulse truth', () => {
-  it('pins the problem, the data and the method', () => {
-    expect(blocks(section(PAGE, 'problem')).map(text)).toEqual([
+  const rows = detailsRows(section(PAGE, 'how-i-checked-this'));
+
+  it('puts the data, the method and the checks in details rows under one heading, text unchanged', () => {
+    expect(Object.keys(rows)).toEqual(['The data', 'Method', 'How I checked this']);
+    expect(blocks(rows['The data']!).map(text)).toEqual([
+      'Pulse has no backend: its dashboard numbers are generated in the browser. The events on this page, with their triggers, properties and questions, come from an export of its code and README, pinned by commit.',
+    ]);
+    expect(blocks(rows.Method!).map(text)).toEqual([
       'Autocapture records what users click, but not which product question a click should answer. Pulse puts a deliberate taxonomy first: 7 named events, each tied to a specific product question. The dashboard around them is the vehicle.',
-    ]);
-    expect(blocks(section(PAGE, 'data')).map(text)).toEqual([
-      'Pulse has no backend and no real users: its dashboard numbers are generated in the browser. The events on this page, with their triggers, properties and questions, come from an export of its code and README, pinned by commit.',
-    ]);
-    expect(blocks(section(PAGE, 'method')).map(text)).toEqual([
       "I built Pulse with React, TypeScript, Vite, Tailwind CSS and Recharts, and tracked it with Amplitude's unified SDK.",
       'Each of the 7 events is tracked by name, with its own properties. The demo user is identified with a user ID and 4 user properties: role, plan, company size and signup date. Without this identification every event would be anonymous and could not be segmented by user.',
       'Autocapture and Session Replay run underneath the named events.',
     ]);
-  });
-
-  it('pins the findings, the checks and at least two concrete limits', () => {
-    expect(blocks(section(PAGE, 'findings')).map(text)).toEqual([
-      'There are no outcome findings, because Pulse has no real users. What it shows is the plan: each of the 7 events is tied to the product question it was designed to answer.',
-    ]);
-    expect(blocks(section(PAGE, 'how-i-checked-this')).map(text)).toEqual([
+    expect(rows.Method).toMatch(/a user ID and <data [^>]*data-fact="pulse\.identity\.user_properties"[^>]*>4<\/data> user properties/);
+    expect(blocks(rows['How I checked this']!).map(text)).toEqual([
       'I tested every tracked interaction by hand. TypeScript runs in strict mode with no type errors, secrets stay out of git, and every push to GitHub deploys to Vercel.',
       'On this page, the events come from an export of the project\'s code and README, pinned by commit and by a hash of its content. Tests check that the dashboard copy sends only those events, each with exactly its properties, and that Reset leaves one new Viewed Dashboard.',
     ]);
+  });
+
+  it('pins at least two concrete limits, visible', () => {
     const limits = blocks(section(PAGE, 'limits')).map(text);
-    expect(limits.length).toBeGreaterThanOrEqual(2);
+    expect(section(PAGE, 'limits')).not.toContain('<details');
     expect(limits).toEqual([
       'Pulse has no real users and no production traffic, so its events show what the tracking was designed to capture, not how anyone behaved.',
       'The questions are design hypotheses. Nothing here tests whether an event predicts an outcome, such as a saved view predicting a return.',
@@ -271,6 +294,13 @@ describe('Pulse truth', () => {
     for (const s of old) expect(text(PAGE), s).not.toContain(s);
   });
 
+  it('says "no real users" once in the scope and once under Limits, and nowhere else', () => {
+    const all = text(PAGE).match(/no real users/gi) ?? [];
+    expect(all).toHaveLength(2);
+    expect(text(between(PAGE, '<section aria-label="At a glance"', '</section>'))).toMatch(/No real users/);
+    expect(text(section(PAGE, 'limits'))).toMatch(/no real users/);
+  });
+
   it('links the source at its pinned commit, the export it reads and another case study, and never the e-mail address', () => {
     const lock = JSON.parse(readFileSync(join(repo, 'sources.lock.json'), 'utf8')) as { sources: { pulse: { repo: string; commit: string; path: string } } };
     const { repo: name, commit, path } = lock.sources.pulse;
@@ -286,10 +316,13 @@ describe('Pulse truth', () => {
     expect(PAGE).not.toContain('mailto:');
   });
 
-  it('says "designed and built" and "no real users", and claims no outcome anywhere', () => {
+  it('says "designed and built" and claims no outcome anywhere', () => {
     expect(text(PAGE)).toContain('designed and built');
-    expect(text(PAGE)).toContain('no real users');
     expect(text(PAGE)).not.toMatch(OUTCOME);
+  });
+
+  it('has no em or en dash in its own words', () => {
+    expect(text(PAGE)).not.toMatch(/[–—]/);
   });
 
   it('loads no analytics SDK: no Pulse file imports Amplitude or a tracking API', () => {
@@ -305,44 +338,52 @@ describe('Pulse truth', () => {
   });
 });
 
+/** The export's question, in the page's plain punctuation (the README's dashes become a colon or a comma). */
+const PLAIN: Record<string, string> = {
+  'Activation — did the user reach the core screen this session?': 'Activation: did the user reach the core screen this session?',
+  'Feature engagement — which chart drives deeper investigation?': 'Feature engagement: which chart drives deeper investigation?',
+  'Conversion to an outside-the-product action — a strong intent signal.': 'Conversion to an action outside the product, a strong sign of intent.',
+  'Retention driver — saving a view predicts the user will come back.': 'Retention driver: saving a view predicts the user will come back.',
+};
+const plain = (q: string) => PLAIN[q] ?? q;
+
 describe('the taxonomy section', () => {
   const s = section(PAGE, 'taxonomy');
 
-  it('holds the design-hypothesis context and the exact question table in one section element', () => {
+  it('holds the design-hypothesis lead-in and the question table in one section element', () => {
     const paragraphs = blocks(s.slice(0, s.indexOf('<table'))).map(text);
-    expect(paragraphs).toEqual([
-      'Each question below is a design hypothesis: what the event was meant to help answer once real users arrived. Pulse never had real users, so none of these questions has been answered.',
-      'Some questions read like findings, such as saving a view predicting a return. They are hypotheses to test, not results.',
-    ]);
-    // Both inside the one <section id="taxonomy">: no section closes between them.
+    expect(paragraphs).toContain('Read each question as a design hypothesis: what the event was meant to help answer, not a finding.');
     const start = PAGE.indexOf('<section id="taxonomy"');
     const end = PAGE.indexOf('</section>', start);
-    const context = PAGE.indexOf('Each question below is a design hypothesis', start);
+    const context = PAGE.indexOf('Read each question as a design hypothesis', start);
     const table = PAGE.indexOf('<table', start);
     const predictive = PAGE.indexOf('saving a view predicts the user will come back', start);
     expect(context).toBeGreaterThan(start);
-    expect(table).toBeGreaterThan(start);
+    expect(table).toBeGreaterThan(context);
     expect(predictive).toBeGreaterThan(table);
     for (const at of [context, table, predictive]) expect(at).toBeLessThan(end);
     // The predictive wording appears nowhere outside that section.
     expect(PAGE.replace(s, '')).not.toContain('predicts the user will come back');
   });
 
-  it('tabulates the export word for word: name, trigger, properties and question, with no grouping', () => {
+  it('tabulates the export: name, trigger, properties and question, the dashes in plain punctuation, no grouping', () => {
     expect(taxonomyTable(TAXONOMY)).toEqual({
       columns: ['Event', 'Fires when', 'Properties', 'Question it was designed to answer'],
       rows: SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), e.question]),
       note: 'Names and properties as the source code states them; triggers and questions as the project\'s README states them.',
       refs: ['source:pulse'],
     });
+    // Every dashed cell of the export has its plain wording, and nothing else changes.
+    expect(SOURCE.tables.events.filter((e) => /—/.test(e.question)).map((e) => e.question).sort()).toEqual(Object.keys(PLAIN).sort());
     const rows = [...s.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => [...m[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((c) => decode(c[1]!)));
     expect(rows).toEqual([
       ['Event', 'Fires when', 'Properties', 'Question it was designed to answer'],
-      ...SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), e.question]),
+      ...SOURCE.tables.events.map((e) => [e.name, e.fires_when, e.properties.join(', '), plain(e.question)]),
     ]);
     expect(rows.length - 1).toBe(SOURCE.facts['events.count']!.value);
     for (const [, attrs] of s.matchAll(/<td ([^>]*)>/g)) expect(attrs).toContain('data-derived="source:pulse"');
     expect(s).not.toMatch(/categor/i);
+    expect(text(s)).toContain("triggers and questions as the project's README states them, in plain punctuation.");
     expect(text(/<caption[^>]*>([\s\S]*?)<\/caption>/.exec(s)![1]!)).toBe("The tracked events, as the project's code and README state them");
   });
 
@@ -366,9 +407,11 @@ describe('the dashboard Figure', () => {
   const figure = figureOf(PAGE, PULSE_ID);
   const s = section(PAGE, 'dashboard');
 
-  it('introduces the copy as local and simulated, not part of the site experiment', () => {
-    expect(blocks(s.slice(0, s.indexOf('<figure'))).map(text)).toEqual([
-      'This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It does not load Amplitude. Each action with an event in the table above sends that event, with the same name and properties as in the table, to a list below the charts.',
+  it('says how the copy works, local and simulated, one click deeper', () => {
+    const rows = detailsRows(s);
+    expect(Object.keys(rows)).toEqual(['How this copy of the dashboard works']);
+    expect(blocks(rows['How this copy of the dashboard works']!).map(text)).toEqual([
+      'This is a small copy of the dashboard, rebuilt for this page with its own charts, channels and made-up numbers. It does not load Amplitude. Each action with an event in the table below sends that event, with the same name and properties as in the table, to a list below the charts.',
       "The list is kept in this page's memory only: nothing is sent anywhere, and it is gone when you leave the page or press Reset. It is a simulation, not part of this site's own experiment.",
     ]);
   });
@@ -664,9 +707,8 @@ describe('numbers and the route', () => {
     expect(LIVE_ROUTES).toContain('/work/pulse');
     expect(metadata).toEqual(pageMetadata(seoEntry('/work/pulse'), canonicalOrigin()));
     expect(metadata).toMatchObject({
-      title: 'Pulse: analytics instrumentation demo',
-      description:
-        'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
+      title: 'Pulse: a tracking plan for product analytics | Mahmoud El Bergui',
+      description: 'A tracking plan of 7 events, each tied to one product question, in a demo dashboard I designed and built.',
     });
     expect(withoutCta(renderToStaticMarkup(<PulseRoute />))).toBe(PAGE);
   });

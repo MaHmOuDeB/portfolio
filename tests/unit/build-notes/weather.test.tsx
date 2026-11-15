@@ -33,14 +33,29 @@ const PAGE = withoutCta(renderToStaticMarkup(<WeatherPage />));
 const PAGE_TEXT = text(PAGE);
 
 describe('the outline', () => {
-  it('has one h1, the Work title, and the Work line under it', () => {
+  it('has one two-tone h1, the plain opening with its Facts, and the button to the code', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="weather-title"[^>]*>Weather data quality<\/h1>/);
+    const h1 = /<h1 id="weather-title"[^>]*>([\s\S]*?)<\/h1>/.exec(PAGE)![1]!;
+    expect(text(h1)).toBe('A SQL pipeline that stops on bad data, and keeps the doubtful rows visible.');
     expect(WEATHER_TITLE).toBe('Weather data quality');
-    const work = WORK_GROUPS.flatMap((g) => g.items).find((i) => i.href === ROUTE)!;
-    expect(work.title).toBe(WEATHER_TITLE);
+    expect(WORK_GROUPS.flatMap((g) => g.items).some((i) => i.href === ROUTE)).toBe(true);
     const intro = /<h1[\s\S]*?<\/h1>\s*<div[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)![1]!;
-    expect(text(intro)).toBe(text(renderToStaticMarkup(<>{work.description}</>)));
+    expect(text(intro)).toBe(
+      'One reading in this public weather dataset reports wind at 2,963 km/h. Keep it and every wind average is off; delete it and nobody knows it was there. I built a pipeline that sets such readings aside with their reason and refuses to publish the data unless 14 checks pass.',
+    );
+    // the 14 are the error-level checks, the ones whose failure stops the pipeline
+    expect(intro).toContain('data-fact="weather.checks.error_count"');
+    expect(intro).toContain('data-fact="weather.quarantine.max_wind_kmh"');
+    const actions = PAGE.slice(PAGE.indexOf('data-case-actions'), PAGE.indexOf('<section aria-label="At a glance"'));
+    expect(actions).toContain('href="https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5"');
+  });
+
+  it('opens the glance card on two pull figures, both Facts, and states the scope there', () => {
+    const glance = /<section aria-label="At a glance"[\s\S]*?<\/section>/.exec(PAGE)![0];
+    const points = /<ul[\s\S]*?<\/ul>/.exec(glance)![0];
+    expect(text(points)).toBe('18 data-quality checks 5 impossible readings held in quarantine');
+    expect([...points.matchAll(/data-fact="([^"]+)"/g)].map((m) => m[1])).toEqual(['weather.checks.count', 'weather.quarantine.rows']);
+    expect(text(glance)).toContain("Scope A personal project on a public dataset, rebuilt in 2026 from my Master's project.");
   });
 
   it('follows the build-note template: problem, architecture, checks, outcome, limits, links', () => {
@@ -51,7 +66,8 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(WEATHER_SECTIONS.map((s) => s.id)).toEqual(BUILD_NOTE_SECTIONS.map(([id]) => id));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length);
+    // the sections, then the close
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length + 1);
   });
 
   it('has section links to every section, in page order', () => {
@@ -69,23 +85,31 @@ describe('the outline', () => {
   it('is about 400 words of prose', () => {
     const words = proseWords(PAGE);
     expect(words).toBeGreaterThanOrEqual(330);
-    expect(words).toBeLessThanOrEqual(480);
+    // the reading model adds a lead-in, a takeaway, the close and previous and next
+    expect(words).toBeLessThanOrEqual(560);
   });
 
   it('has no motion and no card grid of its own', () => {
-    expect(PAGE).not.toMatch(/animate-|transition|fade|slide-in/);
+    // the only transition is the buttons' colour change on hover
+    expect(PAGE.replace(/transition-colors/g, '')).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(PAGE).not.toMatch(/grid-cols-[3-9]/);
   });
 });
 
-describe('the line on my role', () => {
-  it('says what I did, right under the intro, and the page has no Summary section', () => {
-    const role = /<p data-note-role=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE)![1]!;
-    expect(text(role)).toBe(
-      "A personal project, rebuilt in 2026 from my Master's project. I built the pipeline, the schema, the checks and the tests.",
+describe('my role and the close', () => {
+  it('says what I did in the glance card, and the page has no Summary section', () => {
+    expect(PAGE).not.toContain('data-note-role');
+    expect(text(/<section aria-label="At a glance"[\s\S]*?<\/section>/.exec(PAGE)![0])).toContain(
+      'Role I built the pipeline, the schema, the checks and the tests.',
     );
-    expect(PAGE.indexOf('data-note-role')).toBeLessThan(PAGE.indexOf('<nav aria-label="On this page"'));
     expect(PAGE).not.toMatch(/id="summary"|>Summary</);
+  });
+
+  it('closes on what it shows about how I work', () => {
+    const close = PAGE.slice(PAGE.indexOf('<section data-page-close'));
+    expect(text(close.slice(0, close.indexOf('</section>')))).toBe(
+      'What this shows about how I work My pipelines refuse to load bad data quietly. See the code on GitHub',
+    );
   });
 });
 
@@ -93,7 +117,7 @@ describe('the copy, word for word', () => {
   it.each([
     [
       'problem',
-      'The problem The data is one wide file from Kaggle, the Global Weather Repository. A few of its readings cannot be true: one reports wind at 2,963 km/h. Kept, it distorts any summary of wind; deleted quietly, it leaves no trace. I wanted a warehouse that is written only when the data passes its error-level checks, and a place where doubtful readings stay visible.',
+      'The problem The data is one wide file from Kaggle, the Global Weather Repository. A few of its readings cannot be true. I wanted a warehouse that is written only when the data passes its error-level checks, and a place where doubtful readings stay visible.',
     ],
     [
       'outcome',
@@ -113,7 +137,13 @@ describe('the copy, word for word', () => {
 
   it('architecture: the three SQL steps, the star schema and the quarantine, then the diagram', () => {
     const s = section(PAGE, 'architecture');
-    const prose = text(s.replace(/<figure [\s\S]*?<\/figure>/, ''));
+    const prose = text(s.replace(/<div data-lead-in[\s\S]*$/, ''));
+    expect(text(s.slice(s.indexOf('<div data-lead-in'), s.indexOf('<div data-figure-sheet')))).toBe(
+      'What to look at Follow a reading from the file to the warehouse, or to the quarantine.',
+    );
+    expect(text(s.slice(s.indexOf('<div data-takeaway')))).toBe(
+      'What it means Bad readings are neither trusted nor thrown away: 5 sit in quarantine.',
+    );
     expect(prose).toBe(
       'Architecture Python loads the file into DuckDB and runs three SQL steps. Staging gives the columns types and plain names, and merges condition spellings that differ only in case or in leading and trailing spaces. The model builds a star schema: places, weather conditions and a fact table of observations. A reading with wind above 150 km/h goes to a quarantine table with its reason, never into the fact table. The checks run last.',
     );
@@ -227,7 +257,7 @@ describe('the checks by level', () => {
 
 describe('truth', () => {
   it('names the work as a public dataset rebuilt in 2026', () => {
-    expect(PAGE_TEXT).toContain('public dataset of weather observations, rebuilt in 2026');
+    expect(PAGE_TEXT).toContain('a public dataset, rebuilt in 2026');
     expect(PAGE_TEXT).toContain('rebuilt in 2026 from my Master');
   });
 
@@ -238,10 +268,10 @@ describe('truth', () => {
 
   it('has exactly two links that leave the page: the dataset, from the export, and the repository at a fixed commit', () => {
     const hrefs = [...PAGE.matchAll(/href="([^"]+)"/g)].map((m) => m[1]!);
-    expect(hrefs.filter((h) => !h.startsWith('#'))).toEqual([
-      WEATHER_DATASET.url,
-      'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
-    ]);
+    const offSite = hrefs.filter((h) => /^https?:/.test(h));
+    // the code button, the sources, the close's button
+    expect(offSite).toEqual(['https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5', WEATHER_DATASET.url, 'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5', 'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5']);
+    expect(new Set(offSite)).toEqual(new Set([WEATHER_DATASET.url, 'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5']));
     expect(WEATHER_DATASET.url).toBe(weather._meta.dataset.url);
   });
 
@@ -254,8 +284,9 @@ describe('truth', () => {
 describe('links', () => {
   it('makes every link a 44 px target and marks the dataset and the repository as other sites', () => {
     const anchors = [...PAGE.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
-    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 2);
-    for (const a of anchors) expect(a, a).toContain('data-touch-target=""');
+    // the code button, the chips, the two sources, the close's button, previous and next
+    expect(anchors.length).toBe(1 + BUILD_NOTE_LINKS.length + 2 + 1 + 2);
+    for (const a of anchors) expect(a, a).toMatch(/data-touch-target="(true)?"/);
     expect(anchors.find((a) => a.includes('kaggle.com'))).toContain('rel="noopener"');
     expect(anchors.find((a) => a.includes('github.com'))).toContain('rel="noopener"');
   });
@@ -283,7 +314,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('Weather data quality');
+    expect(mod.metadata.title).toBe('Weather data quality | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
     );
