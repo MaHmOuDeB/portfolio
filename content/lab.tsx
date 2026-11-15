@@ -189,7 +189,7 @@ export function LabIntro(): ReactNode {
   return (
     <p>
       An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. A
-      wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I run before
+      wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I make before
       I trust a result. Each one below is a small model you can play with. Every number is made up or simulated.
     </p>
   );

@@ -86,7 +86,7 @@ describe('the Lab page', () => {
     expect(LAB_TITLE).toBe('Lab');
     const opening = text(LAB.slice(LAB.indexOf('</h1>'), LAB.indexOf('<nav')));
     expect(opening).toBe(
-      'An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. A wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I run before I trust a result. Each one below is a small model you can play with. Every number is made up or simulated.',
+      'An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. A wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I make before I trust a result. Each one below is a small model you can play with. Every number is made up or simulated.',
     );
     expect(text(LAB)).not.toMatch(/honestly/i);
     // the cards' lines, in plain words (card 2 says a gap matters only beyond what chance allows)
@@ -182,6 +182,20 @@ describe('the Lab page', () => {
     peeking: 'Simulated tests of two identical versions, both converting at 35%.',
     curse: 'An exact calculation on made-up values, with no random draws.',
   };
+
+  // On a phone the point sits between the Figure's title and its controls, so it reads as body text
+  // (the base size, regular weight), not as the wide takeaway's large medium line that buries the
+  // controls. Only the Lab's phone point: every other takeaway keeps its own look.
+  it('sets the phone point as body text, so the controls stay close', () => {
+    const css = readFileSync(join(repo, 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = /\[data-lab-point="phone"\] \[data-exhibit-text\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toMatch(/font-size:\s*var\(--text-base\)/);
+    expect(rule).toMatch(/line-height:\s*1\.6/);
+    expect(rule).toMatch(/font-weight:\s*var\(--font-weight-regular\)/);
+    // it comes after the takeaway's rule of the same specificity, so it wins
+    expect(css.indexOf('[data-lab-point="phone"] [data-exhibit-text]')).toBeGreaterThan(css.indexOf('[data-takeaway] [data-exhibit-text]'));
+    expect(css).toMatch(/\[data-takeaway\] \[data-exhibit-text\]\s*\{[^}]*font-size:\s*var\(--text-lg\)/);
+  });
 
   it('frames every Figure as an exhibit: try this, the Figure on its sheet, what I do about it, the method one click deeper', () => {
     const all = exhibits(LAB);

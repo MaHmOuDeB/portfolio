@@ -100,7 +100,7 @@ test.describe('the Lab routes', () => {
     await expect(page).toHaveTitle('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(H1);
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
-    await expect(page.locator('main')).toContainText('These are the four checks I run before I trust a result.');
+    await expect(page.locator('main')).toContainText('These are the four checks I make before I trust a result.');
     const nav = page.getByRole('navigation', { name: 'On this page' });
     for (const [i, name] of CARDS.entries()) await expect(nav.getByRole('link').nth(i)).toHaveAccessibleName(name);
     await expect(nav.getByRole('link')).toHaveCount(CARDS.length);
