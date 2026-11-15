@@ -376,7 +376,7 @@ describe('route inventory', () => {
       `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
     );
     expect(seoEntry('/work/pulse').description).toBe(
-      `${factText('pulse.events.count')} events in Amplitude, each tied to one product question, in a demo dashboard I designed and built.`,
+      `A tracking plan of ${factText('pulse.events.count')} events, each tied to one product question, in a demo dashboard I designed and built.`,
     );
     expect(seoEntry('/work/n8n').description).toBe(
       `Reads and checks XRechnung and ZUGFeRD invoices, flags duplicates and changed bank details, and alerts on failures. ${factText('profile.n8n.automated_tests')} automated tests. A personal project.`,
@@ -515,7 +515,9 @@ describe('sharingTemplate', () => {
     const cases = OG_CARDS.filter((card) => card.variant === 'case');
     expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'pulse', 'retention']);
     // Audible: the page's own h1, its figure from the facts.
+    const { AUDIBLE_TITLE } = await import('@/components/audible/AudiblePage');
     expect(ogCard('audible').title).toBe(`${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`);
+    expect(ogCard('audible').title).toBe(AUDIBLE_TITLE);
     expect(ogCard('audible').sub).toBe('From the plan to the recommendation.');
     expect(ogCard('audible').factIds).toEqual(['profile.audible.experiments']);
     // Retention: the page's finding (content/retention.tsx RetentionFindings, "returned-order value grew about

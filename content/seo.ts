@@ -52,8 +52,8 @@ export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead.charAt(0).toLower
 const CASE_TITLES = {
   // The Audible page's h1, "25+ A/B tests at Audible (Amazon)", its figure from the facts.
   audible: `${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`,
-  // The Retention page's finding (content/retention.tsx: "returned-order value grew about <clean> in
-  // January to November 2011, not <raw>").
+  // The Retention page's finding (content/retention.tsx, the row on how the reversal rule works:
+  // "returned-order value grew about <clean> ... not <raw>").
   retention: `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,
   // The Pulse finding, for /work/pulse, which lands with its own page.
   pulse: `${factText('pulse.events.count')} events, each designed to answer a product question`,
@@ -109,7 +109,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work/pulse',
     'Pulse: a tracking plan for product analytics',
-    `${factText('pulse.events.count')} events in Amplitude, each tied to one product question, in a demo dashboard I designed and built.`,
+    `A tracking plan of ${factText('pulse.events.count')} events, each tied to one product question, in a demo dashboard I designed and built.`,
     'pulse',
   ),
   entry(
