@@ -3,9 +3,16 @@
 // then the sources and links. The prose comes from content/marketingws.tsx. The page prints no
 // figure, has no interactive part and no motion, and links to other sites only as ordinary links.
 import type { ReactNode } from 'react';
+import { FigureSheet, LeadIn, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
 import {
+  MARKETINGWS_ACTIONS,
+  MARKETINGWS_CLOSE,
+  MARKETINGWS_COMMIT,
   MARKETINGWS_GLANCE,
+  MARKETINGWS_H1,
+  MARKETINGWS_QUIET,
+  MARKETINGWS_REPO,
   MARKETINGWS_STEPS,
   MarketingwsArchitecture,
   MarketingwsChecks,
@@ -14,11 +21,13 @@ import {
   MarketingwsLinks,
   MarketingwsOutcome,
   MarketingwsProblem,
+  SHOTS_LEAD_IN,
+  SHOTS_TAKEAWAY,
   STEPS_CAPTION,
   STEPS_TITLE,
 } from '../../../content/marketingws';
 import { NoteShot } from '../build-notes/NoteShot';
-import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, EVIDENCE, TEXT } from '../build-notes/BuildNote';
+import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, TEXT } from '../build-notes/BuildNote';
 
 export const MARKETINGWS_TITLE = 'MarketingWS';
 
@@ -48,8 +57,10 @@ export function MarketingwsPage(): ReactNode {
   return (
     <BuildNote
       slug="marketingws"
-      title={MARKETINGWS_TITLE}
+      title={MARKETINGWS_H1}
+      quiet={MARKETINGWS_QUIET}
       intro={<MarketingwsIntro />}
+      actions={MARKETINGWS_ACTIONS}
       glance={MARKETINGWS_GLANCE}
       sections={{
         problem: (
@@ -62,11 +73,18 @@ export function MarketingwsPage(): ReactNode {
             <div className={TEXT}>
               <MarketingwsArchitecture />
             </div>
-            <div className={EVIDENCE}>
+            <LeadIn>{SHOTS_LEAD_IN}</LeadIn>
+            <FigureSheet label="Screenshot">
+              {/* Side by side from lg, the brief beside the draft it produced; stacked below. */}
+              <div data-shot-pair="" className="grid items-start gap-6 lg:grid-cols-[1fr_2.2fr] [&>figure]:mt-0">
+                <NoteShot shot="marketingwsBrief" />
+                <NoteShot shot="marketingwsDraft" />
+              </div>
+            </FigureSheet>
+            <Takeaway>{SHOTS_TAKEAWAY}</Takeaway>
+            <FigureSheet>
               <StepsDiagram />
-            </div>
-            <NoteShot shot="marketingwsBrief" />
-            <NoteShot shot="marketingwsDraft" />
+            </FigureSheet>
           </>
         ),
         'how-i-checked-this': (
@@ -89,6 +107,10 @@ export function MarketingwsPage(): ReactNode {
             <MarketingwsLinks />
           </div>
         ),
+      }}
+      close={{
+        body: <p>{MARKETINGWS_CLOSE}</p>,
+        links: [{ href: `${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, label: 'See the code on GitHub', external: true }],
       }}
     />
   );

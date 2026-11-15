@@ -146,7 +146,9 @@ describe.each(Object.keys(PAGES) as (keyof typeof PAGES)[])('the %s note', (name
   });
 
   it('draws every diagram step in the one step style', () => {
-    const figure = html.slice(html.indexOf('<figure'), html.indexOf('</figure>'));
+    // the diagram Figure, not a screenshot figure that may come before it
+    const start = html.search(/<figure [^>]*data-figure="/);
+    const figure = html.slice(start, html.indexOf('</figure>', start));
     const boxes = [...figure.matchAll(/<div class="([^"]*rounded-md[^"]*)"/g)].map((m) => m[1]!);
     expect(boxes.length).toBeGreaterThan(3);
     // One style; a branch node may add only its narrow-layout indent.

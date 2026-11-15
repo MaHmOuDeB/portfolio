@@ -21,19 +21,43 @@ export const GROQ_NOTE = "The live demo depends on Groq's free tier.";
 
 const ITEM = 'mt-4 first:mt-0';
 
-/** The line under the page title. */
+/** The h1, in two tones. The tool flags what it cannot support; it does not guarantee. */
+export const MARKETINGWS_H1 = 'MarketingWS: marketing copy from one brief,';
+export const MARKETINGWS_QUIET = 'with a check for invented figures.';
+
+/** The plain opening under the title. */
 export function MarketingwsIntro(): ReactNode {
-  return <p>My Master&apos;s thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app.</p>;
+  return (
+    <p>
+      A language model can write marketing copy in seconds, and it can also invent a discount nobody approved.
+      MarketingWS, my Master&apos;s thesis rebuilt in 2026 as a live web app, drafts copy from a brief and turns figures
+      and promises the brief does not support into visible placeholders.
+    </p>
+  );
 }
 
-/** The 20-second top of the page, under the title and its line. */
+/** The button under the opening: the repository at the commit this page describes. */
+export const MARKETINGWS_ACTIONS = [
+  { href: `${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, label: 'See the code on GitHub', icon: 'github', external: true },
+] as const;
+
+/** What to look at in the two screenshots, and what they mean. */
+export const SHOTS_LEAD_IN =
+  'Look for the placeholder in the draft: the brief gave no figure, so the tool left a gap instead of making one up.';
+export const SHOTS_TAKEAWAY =
+  'Where the brief gives no figure, the copy shows a gap for a person to fill, not a number nobody approved.';
+
+export const MARKETINGWS_CLOSE = 'I took a generative AI idea from thesis to a live web app with checks.';
+
+/** The 20-second top of the page: one sentence and the facts (MarketingWS has no Facts). */
 export const MARKETINGWS_GLANCE: GlanceParts = {
-  outcome: `Rebuilt my thesis tool as a live web app that drafts from a brief, revises the current draft, and turns unsupported figures and promises into placeholders; the demo depends on Groq's free tier.`,
+  outcome: 'It drafts from a brief, revises the current draft, and turns figures and promises it cannot support into placeholders.',
   role: 'Built independently (thesis 2025, rebuild 2026).',
   methods:
     'Brief-to-draft generation, revise/translate current draft, code plus model fact check, behavioural evals; thesis evaluated with marketers.',
   tools: 'Python, FastAPI, Streamlit, Vercel, Groq, OpenAI, Docker.',
   when: 'Thesis Apr to Nov 2025, rebuild live since Sep 2026.',
+  scope: "Master's thesis (2025), rebuilt in 2026.",
 };
 
 /** What the tool is for. */
@@ -130,7 +154,6 @@ export function MarketingwsOutcome(): ReactNode {
 /** What this tool cannot promise. */
 export function MarketingwsLimits(): ReactNode {
   const limits: readonly [key: string, body: ReactNode][] = [
-    ['free-tier', <>The live demo depends on Groq&apos;s free tier, so I cannot promise it answers when you try it.</>],
     [
       'soft-claims',
       <>The check in code looks for figures and promises; softer claims can slip through the model review.</>,
