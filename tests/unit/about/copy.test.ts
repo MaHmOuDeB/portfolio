@@ -359,7 +359,7 @@ const EXPERIENCE = [
 ];
 const EDUCATION = [
   {
-    heading: ['MSc Data Science', 'University of Europe for Applied Sciences, Berlin', 'Apr 2023 to Nov 2025'],
+    heading: ['MSc Data Science', 'University of Europe for Applied Sciences, Berlin, German grade 1.8', 'Apr 2023 to Nov 2025'],
     lines: ['Relevant coursework: Marketing Analytics, Machine Learning, Data Visualization, Data Engineering, Cloud Computing (AWS), Agile Project Management.'],
   },
   {
@@ -494,6 +494,16 @@ describe('the CV page', () => {
         text(one(p, (el) => has(el, 'data-cv-technologies'))),
       ]),
     ).toEqual(PROJECTS);
+  });
+
+  it('prints the MSc grade from its fact on the MSc line and nowhere else', () => {
+    const d = cv();
+    const grades = all(d, (el) => attr(el, 'data-fact') === 'profile.education.msc_grade');
+    expect(grades).toHaveLength(1);
+    const msc = all(section(d, 'education'), (el) => el.tagName === 'article')[0]!;
+    const where = one(msc, (el) => has(el, 'data-cv-where'));
+    expect(all(where, (el) => attr(el, 'data-fact') === 'profile.education.msc_grade')).toHaveLength(1);
+    expect(text(where)).toBe('University of Europe for Applied Sciences, Berlin, German grade 1.8');
   });
 
   it('shows Audible as a working student and the teams as one after another', () => {

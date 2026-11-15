@@ -107,6 +107,7 @@
           "audible.setup_time_cut",
           "audible.markets",
           "audible.teams",
+          "education.msc_grade",
           "n8n.automated_tests"
         ]
       },
@@ -132,6 +133,9 @@
         "audible.teams": {
           "$ref": "#/$defs/fact"
         },
+        "education.msc_grade": {
+          "$ref": "#/$defs/fact"
+        },
         "n8n.automated_tests": {
           "$ref": "#/$defs/fact"
         }
@@ -144,6 +148,7 @@
         "audible.setup_time_cut",
         "audible.markets",
         "audible.teams",
+        "education.msc_grade",
         "n8n.automated_tests"
       ],
       "additionalProperties": false

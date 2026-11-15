@@ -31,7 +31,7 @@ describe('collectFacts', () => {
     expect(ids.every((id) => id.startsWith('profile.') || id.startsWith('retention.'))).toBe(true);
     expect(ids).toContain('profile.audible.experiments');
     expect(ids).toContain('retention.cohorts.retention_month1');
-    expect(ids.length).toBe(8 + 2);
+    expect(ids.length).toBe(9 + 2);
   });
 
   it('copies the definition and tags the source', () => {
@@ -67,7 +67,7 @@ describe('collectFacts', () => {
 });
 
 describe('data/facts/profile.json', () => {
-  it('holds the eight approved figures with their display strings', () => {
+  it('holds the nine approved figures with their display strings', () => {
     const json = JSON.parse(readFileSync(new URL('../../../data/facts/profile.json', import.meta.url), 'utf8'));
     const facts = collectFacts([{ source: 'profile', json }]);
     const shown = Object.fromEntries(facts.map((f) => [f.id, formatFact(f)]));
@@ -79,6 +79,7 @@ describe('data/facts/profile.json', () => {
       'profile.audible.setup_minutes_before': '20',
       'profile.audible.setup_time_cut': '85%',
       'profile.audible.teams': '3',
+      'profile.education.msc_grade': '1.8',
       'profile.n8n.automated_tests': '270+',
     });
   });

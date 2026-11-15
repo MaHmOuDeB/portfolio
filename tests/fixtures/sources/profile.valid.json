@@ -55,6 +55,13 @@
    "label": "Teams worked with over his time there, one after another after re-orgs",
    "from": "profile"
   },
+  "education.msc_grade": {
+   "value": 1.8,
+   "unit": "decimal",
+   "decimals": 1,
+   "label": "MSc grade on the German scale",
+   "from": "profile"
+  },
   "n8n.automated_tests": {
    "value": 270,
    "unit": "count",
