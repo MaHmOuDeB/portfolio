@@ -14,6 +14,8 @@ export const HOME_LINKS = {
   docproof: '/work/docproof',
   n8n: '/work/n8n',
   marketingws: '/work/marketingws',
+  /** The Work index, from the hero's proof line. */
+  work: '/work',
   lab: '/lab',
   experiment: '/experiment',
   cv: '/cv',

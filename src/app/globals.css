@@ -1410,13 +1410,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 @layer components {
   /* 1. The hero, centred: chip, two-tone h1, the sub with two inline chips, two buttons. */
   [data-hero] {
-    padding: calc(var(--spacing) * 14) 0 calc(var(--spacing) * 12);
+    padding: calc(var(--spacing) * 12) 0 calc(var(--spacing) * 10);
     text-align: center;
   }
 
+  /* The proof line costs its own height back from the padding, so the band starts where it did. */
   @media (width >= 48rem) {
     [data-hero] {
-      padding: calc(var(--spacing) * 18) 0 calc(var(--spacing) * 14);
+      padding: calc(var(--spacing) * 13) 0 calc(var(--spacing) * 9);
     }
   }
 
@@ -1446,7 +1447,16 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     flex-wrap: wrap;
     justify-content: center;
     gap: calc(var(--spacing) * 2.5);
-    margin-top: calc(var(--spacing) * 7.5);
+    margin-top: calc(var(--spacing) * 7);
+  }
+
+  [data-hero-proof] {
+    max-width: 56em;
+    margin: calc(var(--spacing) * 5) auto 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    text-wrap: balance;
   }
 
   /* 2. The band: a framed stage under the hero, from rail to rail, with a faint dot grid that fades

@@ -256,6 +256,13 @@ describe('Hero', () => {
     expect(html).not.toContain('I test what works');
   });
 
+  it('ends in one muted proof line under the buttons, its figures Facts, and a quiet link to the work', () => {
+    const proof = one(hero, (el) => has(el, 'data-hero-proof'));
+    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated tests in public code. See the work');
+    expect(all(proof, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual(['profile.audible.experiments', 'profile.n8n.automated_tests']);
+    expect(html.indexOf('data-hero-proof')).toBeGreaterThan(html.indexOf('data-hero-actions'));
+  });
+
   it('never animates the h1 (the largest contentful paint)', () => {
     const h1 = one(d, (el) => el.tagName === 'h1');
     expect(h1.attrs.map((a) => a.name).filter((n) => n.startsWith('data-depth') || n === 'style')).toEqual([]);
@@ -266,8 +273,8 @@ describe('Hero', () => {
 
   it('links Read my CV (secondary) to the CV page and Write to me (primary, the magnet) to Contact', () => {
     const links = all(hero, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF]);
+    expect(links.map((a) => text(a))).toEqual(['Read my CV', 'Write to me', 'See the work']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CV_LINK.href, CONTACT_HREF, '/work']);
     expect(classes(links[0]!)).toEqual(expect.arrayContaining(['bg-surface']));
     expect(classes(links[1]!)).toEqual(expect.arrayContaining(['bg-ink']));
     expect(text(one(d, (el) => has(el, 'data-depth-magnet')))).toBe('Write to me');
@@ -303,9 +310,11 @@ describe('Hero', () => {
     expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
   });
 
-  it('has no digits in the band and prints no figure', () => {
+  it('has no digits in the band and prints figures only in the proof line, as Facts', () => {
     expect(text(band)).not.toMatch(/\d/);
-    expect(all(d, (el) => has(el, 'data-fact'))).toEqual([]);
+    expect(all(band, (el) => has(el, 'data-fact'))).toEqual([]);
+    const proof = one(d, (el) => has(el, 'data-hero-proof'));
+    expect(all(d, (el) => has(el, 'data-fact'))).toEqual(all(proof, (el) => has(el, 'data-fact')));
     expect(audit(html)).toEqual([]);
   });
 });

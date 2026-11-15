@@ -1,14 +1,17 @@
 // The Home hero, centred: the chip, the site's line in two tones as the h1, the sub line with two
-// inline chips, and two buttons (the CV page, quiet; Contact, primary). The h1 has no animation
+// inline chips, two buttons and one muted proof line with a quiet link to the work (the CV page, quiet; Contact, primary). The h1 has no animation
 // attribute (it is the largest contentful paint); the sub line and the buttons settle in order once
 // on load, and the primary button follows a fine pointer a few pixels (the magnet). The band with the
 // stack follows it. The same for every visitor. Server-safe.
 import type { CSSProperties, ReactNode } from 'react';
 import { HOME_HERO } from '../../../content/home.ts';
+import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { StackBand } from '@/components/depth/StackBand';
 import { Chip } from '@/components/frame/Chip';
 import { Quiet } from '@/components/frame/Quiet';
 import { ButtonLink } from '@/components/kit/ButtonLink';
+import { TextLink } from '@/components/kit/TextLink';
+import { Parts } from './Parts';
 import { CONTACT_HREF, CV_LINK, HEADLINE } from '@/lib/site';
 
 const order = (d: number): CSSProperties => ({ '--d': d }) as CSSProperties;
@@ -58,6 +61,10 @@ export function Hero() {
             </ButtonLink>
           </Step>
         </div>
+        {/* Proof under the buttons: small and muted, so it never outweighs the h1. */}
+        <p data-hero-proof="">
+          <Parts parts={HOME_HERO.proof} /> <TextLink href={HOME_LINKS.work}>{HOME_HERO.work}</TextLink>
+        </p>
       </section>
       <StackBand />
     </>

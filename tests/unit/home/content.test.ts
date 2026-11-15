@@ -359,7 +359,7 @@ describe('all Home copy', () => {
 });
 
 describe('HOME_DESTINATIONS', () => {
-  it('lists each site path once: the reserved work slugs, the lab, the live test and the CV page', () => {
+  it('lists each site path once: the reserved work slugs, the Work index, the lab, the live test and the CV page', () => {
     expect(HOME_DESTINATIONS).toEqual([
       '/work/audible#why-so-many',
       '/work/audible#automation',
@@ -368,6 +368,7 @@ describe('HOME_DESTINATIONS', () => {
       '/work/docproof',
       '/work/n8n',
       '/work/marketingws',
+      '/work',
       '/lab',
       '/experiment',
       '/cv',

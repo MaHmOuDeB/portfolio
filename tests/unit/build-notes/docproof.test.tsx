@@ -32,24 +32,38 @@ const section = (markup: string, id: string) => {
 const PAGE = withoutCta(renderToStaticMarkup(<DocproofPage />));
 const ctx = { route: '/work/docproof', factIds: new Set(Object.keys(FACTS)), factDisplays: FACT_DISPLAYS, denylist: [] };
 
+// The recorded run is the best exhibit, so its section leads; the rest keep the shared order.
 const ORDER = [
+  ['how-i-checked-this', 'How I checked this', 'How I checked this'],
   ['problem', 'The problem', 'Problem'],
   ['architecture', 'Architecture', 'Architecture'],
-  ['how-i-checked-this', 'How I checked this', 'How I checked this'],
   ['outcome', 'Outcome', 'Outcome'],
   ['limits', 'Limits', 'Limits'],
   ['sources', 'Sources and links', 'Sources'],
 ] as const;
 
 describe('the outline', () => {
-  it('has one h1, the page title, and the line under it', () => {
-    expect(DOCPROOF_TITLE).toBe('Docproof: a multi-agent document pipeline');
+  it('has one two-tone h1, the plain opening under it and the button to the code', () => {
+    expect(DOCPROOF_TITLE).toBe('Docproof: agents write, checks decide');
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="docproof-title"[^>]*>Docproof: a multi-agent document pipeline<\/h1>/);
-    const intro = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
-    expect(text(intro)).toBe(
-      'Document verification with multi-agent orchestration and automated checks. An open-source project under the MIT licence that I designed and built in 2026, with Claude Code as pair-programmer.',
+    const h1 = /<h1 id="docproof-title"[^>]*>([\s\S]*?)<\/h1>/.exec(PAGE)![1]!;
+    expect(text(h1)).toBe('Docproof: agents write, checks decide.');
+    expect(h1).toContain('checks decide.');
+    const head = PAGE.slice(PAGE.indexOf('</h1>'), PAGE.indexOf('<section aria-label="At a glance"'));
+    const actions = head.slice(head.indexOf('data-case-actions'));
+    expect(text(head.slice(0, head.indexOf('data-case-actions')).replace(/<div $/, ''))).toBe(
+      'AI writing tools sometimes state things their source never said. Docproof is a tool I designed and built against that: AI agents draft and review a document, and ordinary code checks every figure against one approved list of facts, and blocks the claims that list rules out, before anything is released.',
     );
+    expect(actions).toContain('href="https://github.com/MaHmOuDeB/docproof"');
+    expect(text(actions.slice(actions.indexOf('>') + 1))).toBe('See the code on GitHub');
+  });
+
+  it('says "No users yet" once in Scope and once in Limits, and names the pair programmer once', () => {
+    expect(text(PAGE).match(/No users yet/g)).toHaveLength(2);
+    expect(text(section(PAGE, 'limits'))).toContain('No users yet');
+    expect(text(PAGE).match(/pair-programmer|pair programmer/g)).toHaveLength(1);
+    expect(text(PAGE)).not.toContain('not who uses it');
+    expect(text(PAGE)).not.toMatch(/job|CV|résumé|resume/);
   });
 
   it('puts the sections in the build-note order, each named by its own h2', () => {
@@ -62,7 +76,8 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(DOCPROOF_SECTIONS.map((s) => [s.id, s.title, s.link])).toEqual(ORDER.map((row) => [...row]));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length);
+    // the sections, then the close
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(ORDER.length + 1);
   });
 
   it('has section links whose targets exist, in page order, under a named navigation', () => {
@@ -70,19 +85,21 @@ describe('the outline', () => {
     expect(nav).not.toBeNull();
     const links = [...nav![1]!.matchAll(/<a [^>]*href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)]);
     expect(links).toEqual(ORDER.map(([id, , link]) => [id, link]));
-    expect(PAGE.indexOf('<nav aria-label="On this page"')).toBeLessThan(PAGE.indexOf('<section id="problem"'));
+    expect(PAGE.indexOf('<nav aria-label="On this page"')).toBeLessThan(PAGE.indexOf('<section id="how-i-checked-this"'));
   });
 
   it('keeps every element id unique, prose in the readable column, and no motion or card grid', () => {
     const ids = [...PAGE.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(ids).size).toBe(ids.length);
     for (const [id] of ORDER) expect(section(PAGE, id), id).toMatch(/class="[^"]*max-w-text/);
-    expect(PAGE).not.toMatch(/animate-|transition|fade|slide-in/);
+    // No motion: the only transition is the buttons' colour change on hover.
+    expect(PAGE.replace(/transition-colors/g, '')).not.toMatch(/animate-|transition|fade|slide-in/);
   });
 
-  it('links only to its own sections and to the Work page', () => {
+  it('links only to the code, its own sections, the Work page and its neighbours', () => {
     const hrefs = [...PAGE.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]);
-    expect(hrefs).toEqual([...ORDER.map(([id]) => `#${id}`), '/work']);
+    const REPO = 'https://github.com/MaHmOuDeB/docproof';
+    expect(hrefs).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/pulse', '/work/n8n']);
     // every link is a 44 px target
     for (const a of PAGE.match(/<a [^>]*>/g)!) expect(a).toContain('data-touch-target');
   });
@@ -146,31 +163,52 @@ describe('the copy', () => {
     );
   });
 
-  it('says how I checked this, before the recorded run', () => {
+  it('leads with the recorded run: what to look at, the run in its sheet, what it means', () => {
     const s = section(PAGE, 'how-i-checked-this');
-    expect(text(s.slice(0, s.indexOf('<h3'))).replace(/^How I checked this /, '')).toBe(
-      'The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before and after and fails if anything other than its target changed. The rendered pages are still looked at, by the author agent or whoever runs the tools; no check replaces that. Below is one run of the verify check, recorded for this page on a fictional notice from a community garden with two planted errors: a number the fact base does not hold and a known gap.',
+    expect(text(s.slice(0, s.indexOf('<div data-figure-sheet')))).toBe(
+      'How I checked this What to look at A made-up garden notice with two planted errors: it says 4 evenings where the facts say 3, and it mentions a greenhouse the facts rule out.',
+    );
+    expect(s.indexOf('data-figure-sheet')).toBeLessThan(s.indexOf('<h3 id="verify-run-title"'));
+    const after = s.slice(s.indexOf('<div data-takeaway'));
+    expect(text(after.slice(0, after.indexOf('<details')))).toBe(
+      'What it means The check failed the notice and named both lines. No model was asked whether the text was true; code compared it with the facts.',
+    );
+  });
+
+  it('keeps how the tools are tested one click deeper, word for word', () => {
+    const s = section(PAGE, 'how-i-checked-this');
+    const details = s.slice(s.indexOf('<details'), s.indexOf('</details>'));
+    expect(text(details)).toBe(
+      'How the tools themselves are tested The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before and after and fails if anything other than its target changed. The rendered pages are still looked at, by the author agent or whoever runs the tools; no check replaces that.',
+    );
+  });
+
+  it('closes on what it shows about how I work', () => {
+    const close = PAGE.slice(PAGE.indexOf('<section data-page-close'));
+    expect(text(close.slice(0, close.indexOf('</section>')))).toBe(
+      'What this shows about how I work I build AI tools in which code, not the model, has the last word on facts. See the code on GitHub',
     );
   });
 
   it('states the outcome without users or adoption', () => {
     expect(text(section(PAGE, 'outcome')).replace(/^Outcome /, '')).toBe(
-      'A public command-line tool and its Claude Code agent definitions, under the MIT licence, with unit tests and continuous integration. This page describes what it does and how it is checked, not who uses it.',
+      'A public command-line tool and its Claude Code agent definitions, under the MIT licence, with unit tests and continuous integration.',
     );
   });
 
-  it('gives four concrete limits', () => {
+  it('gives five concrete limits', () => {
     const items = [...section(PAGE, 'limits').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => text(m[1]!));
     expect(items).toEqual([
       'The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left to the auditor agent and to the orchestrator.',
       'A passing run shows only that the document agrees with the fact base, not that the fact base is true.',
+      'No users yet; this page shows what it does and how it is checked.',
       'The tools read and write Word files in their own structure; a document made elsewhere works if it follows that structure, and the editing commands expect it.',
       'It was tested with Claude models. Other assistants are supported by design, through a plain-text prompt and a JSON reply, but not tested.',
     ]);
   });
 
-  it('links to the Work page', () => {
-    expect(text(section(PAGE, 'sources')).replace(/^Sources and links /, '')).toBe('All my work');
+  it('links to the repository and to the Work page', () => {
+    expect(text(section(PAGE, 'sources')).replace(/^Sources and links /, '')).toBe('The Docproof repository All my work');
   });
 });
 
@@ -257,16 +295,16 @@ describe('the recorded verify run', () => {
 });
 
 describe('truth', () => {
-  it('passes the truth audit: every numeral is marked, and only the recorded run carries numbers', () => {
+  it('passes the truth audit: every numeral is marked, and only the recorded run (and its lead-in) carries numbers', () => {
     expect(auditHtml(PAGE, ctx)).toEqual([]);
     expect(PAGE).not.toContain('data-fact');
     const derived = [...PAGE.matchAll(/data-derived="([^"]+)"/g)].map((m) => m[1]);
     expect(derived.length).toBeGreaterThan(0);
     expect(new Set(derived)).toEqual(new Set(['build']));
-    // outside the recorded run the page has no numeral but the year: in the intro and in the glance block
-    const s = section(PAGE, 'how-i-checked-this');
-    const rest = PAGE.replace(s.slice(s.indexOf('<h3')), '');
-    expect(text(rest).match(/\d+/g)).toEqual(['2026', '2026']);
+    // outside the recorded run and its lead-in the page has no numeral but the year, in the glance block
+    const rest = PAGE.replace(section(PAGE, 'how-i-checked-this'), '');
+    // (the next note's name, n8n, holds a digit but is no number)
+    expect(text(rest).replace(/\bn8n\b/g, '').match(/\d+/g)).toEqual(['2026', '2026']);
   });
 });
 
@@ -275,7 +313,7 @@ describe('the route', () => {
     expect(withoutCta(renderToStaticMarkup(<DocproofRoute />))).toBe(PAGE);
     expect(metadata.title).toBe(`${DOCPROOF_TITLE} | Mahmoud El Bergui`);
     expect(metadata.description).toBe(
-      'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',
+      'An open-source pipeline in which one agent writes, one audits every claim and one reviews cold, and automated checks decide what reaches the reader.',
     );
   });
 

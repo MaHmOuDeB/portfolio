@@ -304,7 +304,7 @@ test.describe('Home hero', () => {
       await expect(primary).toBeVisible();
       const box = (await primary.boundingBox())!;
       expect(box.y + box.height, 'the primary button is above the fold').toBeLessThanOrEqual(812);
-      await expect(hero.getByRole('link')).toHaveText(['Read my CV', 'Write to me']);
+      await expect(hero.getByRole('link')).toHaveText(['Read my CV', 'Write to me', 'See the work']);
       // The stack band under the hero is decoration only: hidden from assistive technology.
       await expect(page.locator('[data-depth-band] [aria-hidden="true"]').first()).toBeAttached();
       await page.context().close();

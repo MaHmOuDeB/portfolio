@@ -38,6 +38,14 @@ export const HOME_HERO = {
   },
   cv: 'Read my CV',
   contact: 'Write to me',
+  /** One muted proof line under the buttons (figures are Facts), then a quiet link to the work. */
+  proof: [
+    { fact: 'profile.audible.experiments' },
+    ' A/B tests at Audible. A tool my team adopted. ',
+    { fact: 'profile.n8n.automated_tests' },
+    ' automated tests in public code.',
+  ] as readonly HeadlinePart[],
+  work: 'See the work',
 } as const;
 
 /** The hero's sub line as one string, the two chips' words in place. */
