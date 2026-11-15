@@ -4,45 +4,84 @@ import { HOME_LINKS } from '../../content/home-destinations.ts';
 import { HOME_SITE } from '../../content/home.ts';
 import { expectNoA11yViolations, test } from './fixtures';
 
-// The Work directory at /work: every case study and build note in three groups, as lean cards in a ruled list. The page is static and has no island. Every link must land: the page answers 200 and a
-// #fragment names an element on it.
+// The Work directory at /work: every case study and build note in two groups of four, as even cards in a
+// ruled list. Each card is a provenance chip, the title, one bold "Shows:" line and one plain line. The
+// page is static and has no island. Every link must land: the page answers 200 and a #fragment names an
+// element on it.
 
 const ROUTE = '/work';
 const SECTIONS = [
   ['experimentation', 'Experiments and analytics'],
   ['automation', 'Automation and agents'],
-  ['pipelines', 'Data pipelines'],
 ] as const;
 const LINKS = [
-  ['/work/audible#why-so-many', 'Experimentation at Audible (Amazon)'],
+  ['/work/audible', 'Experimentation at Audible (Amazon)'],
   ['/work/retention', 'Customer retention and reactivation analysis'],
-  ['/work/pulse', 'Pulse: analytics instrumentation demo'],
-  ['/work/docproof', 'Docproof'],
-  ['/work/n8n', 'n8n Workflow Library'],
-  ['/work/marketingws', 'MarketingWS'],
-  ['/work/weather', 'Weather data quality'],
+  ['/work/pulse', 'Pulse: a tracking plan for product analytics'],
+  ['/work/weather', 'Weather: a SQL pipeline that stops on bad data'],
+  ['/work/audible#automation', 'Test-account automation'],
+  ['/work/docproof', "Docproof: agents that check each other's work"],
+  ['/work/n8n', 'E-invoice intake and error alerts in n8n'],
+  ['/work/marketingws', 'MarketingWS: marketing copy from one brief, with a fact check'],
+] as const;
+const CHIPS = [
+  'Work experience',
+  'Public data, rebuilt 2026',
+  'Demo, no real users',
+  'Public data, rebuilt 2026',
+  'Work experience',
+  'Open source',
+  'Personal project',
+  "Master's thesis, rebuilt 2026",
 ] as const;
 
 const items = (page: Page) => page.locator('main [data-work-item] h3');
 const cards = (page: Page) => page.locator('main [data-work-item] > a');
 
 test.describe('the Work page', () => {
-  test('outline: one h1, the three groups as named regions, each item a card with an h3, in order', async ({ page }) => {
+  test('outline: one h1, the two groups as named regions, each item a card with an h3, in order', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('Work');
+    await expect(page).toHaveTitle(/^Work\b.* \| Mahmoud El Bergui$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Open the work and see how it was done.');
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
     const headings = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2, main h3')].map((h) => Number(h.tagName[1])));
-    // h1, the three groups with their cards, then the site band and the call to action (an h2 each, no h3 under them)
-    expect(headings).toEqual([1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 3, 2, 2]);
+    // h1, the two groups with their four cards, then the site band and the call to action (an h2 each, no h3 under them)
+    expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 2]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
     expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
-    // the main links are exactly the seven cards, the site band's one link to the live test and the call to action's two
+    // the main links are exactly the eight cards, the site band's one link to the live test and the call to action's two
     await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 3);
+  });
+
+  test('each card shows its provenance chip above the title, then a bold "Shows:" line and a plain line', async ({ page }) => {
+    await page.goto(ROUTE);
+    await expect(page.locator('main [data-work-item] [data-work-chip]')).toHaveText([...CHIPS]);
+    const shows = page.locator('main [data-work-item] [data-work-shows]');
+    await expect(shows).toHaveCount(LINKS.length);
+    for (const line of await shows.allTextContents()) expect(line).toMatch(/^Shows: .+\.$/);
+    // The chip is part of the card's description, and it is drawn first: above the title, never under the "+".
+    const layout = await page.locator('main [data-work-item]').evaluateAll((items) =>
+      items.map((item) => {
+        const box = (selector: string) => item.querySelector(selector)!.getBoundingClientRect();
+        const [chip, title, line, plus] = [box('[data-chip]'), box('h3'), box('[data-work-line]'), box('[data-depth-go]')];
+        const described = item.querySelector('a')!.getAttribute('aria-describedby');
+        return {
+          chipFirst: chip.bottom <= title.top,
+          lineLast: line.top >= title.bottom,
+          clearOfPlus: chip.right <= plus.left || chip.top >= plus.bottom,
+          chipDescribes: document.getElementById(described ?? '')?.contains(item.querySelector('[data-chip]')) ?? false,
+        };
+      }),
+    );
+    for (const card of layout) expect(card).toEqual({ chipFirst: true, lineLast: true, clearOfPlus: true, chipDescribes: true });
+    // The page says what the two kinds are, once, under the headline.
+    await expect(page.locator('main [data-work-kinds]')).toHaveText(
+      'Case studies are analyses with a question and a finding. Build notes are things I built, and how I tested them.',
+    );
   });
 
   test('the tile at the end leads to the live test with one link', async ({ page }) => {
@@ -82,7 +121,7 @@ test.describe('the Work page', () => {
     });
   }
 
-  test('keyboard: Tab reaches the seven cards in page order', async ({ page, browserName }) => {
+  test('keyboard: Tab reaches the eight cards in page order', async ({ page, browserName }) => {
     const key = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
     await page.goto(ROUTE);
     await cards(page).first().focus();
