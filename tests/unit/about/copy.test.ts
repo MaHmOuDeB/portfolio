@@ -342,7 +342,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['pulse-replay', 'Layered autocapture and Session Replay under the explicit taxonomy and deployed through GitHub and Vercel CI/CD.'],
   ['thesis-tool', 'Built a web-based generative AI tool that writes platform-specific marketing content (social, email, PPC, product launches) from a brief, with iterative feedback from marketers.'],
   ['thesis-rebuild', 'Rebuilt in 2026 as a live web app (FastAPI, Vercel) with copy variants and a fact check against invented claims.'],
-  ['docproof-pipeline', 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (Claude, GPT, Gemini).'],
+  ['docproof-pipeline', 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (tested with Claude models; GPT and Gemini by design).'],
   ['docproof-verification', 'Automated claim verification: every figure must trace to the fact base and listed gaps are blocked.'],
   ['docproof-agents', 'Split the work across agents (author, claim auditor, context-free reviewer), backed by unit tests and GitHub Actions CI with headless-Chrome rendering checks.'],
   ['weather-pipeline', 'Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).'],

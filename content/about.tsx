@@ -383,7 +383,7 @@ export const CV_PROJECTS: readonly CvEntry[] = [
     claims: [
       {
         id: 'docproof-pipeline',
-        body: 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (Claude, GPT, Gemini).',
+        body: 'Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (tested with Claude models; GPT and Gemini by design).',
       },
       {
         id: 'docproof-verification',
