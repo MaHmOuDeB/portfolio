@@ -262,7 +262,11 @@ export const CV_EDUCATION: readonly CvEntry[] = [
   {
     id: 'msc',
     title: 'MSc Data Science',
-    where: 'University of Europe for Applied Sciences, Berlin',
+    where: (
+      <>
+        University of Europe for Applied Sciences, Berlin, German grade <Fact id="profile.education.msc_grade" />
+      </>
+    ),
     range: { from: '2023-04', to: '2025-11' },
     claims: [],
     lines: [

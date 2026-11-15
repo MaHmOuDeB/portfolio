@@ -9,10 +9,12 @@
 # base when CI passes them (PR_HEAD_SHA, PR_BASE_SHA), and the SHA-256 of the CV checker, its claim
 # manifest and the PDF, or "absent" for each file that is not in the tree.
 #
-# With no PDF in the tree it passes and says the actual-PDF check did not run. The check of a real
-# PDF is not active yet: it arrives together with the PDF, and then needs the checker and the
-# TRUTH_DENYLIST secret, which the workflow already gives to this step alone. Until then a PDF in
-# the tree fails here, so it can never ship unchecked. This script never reads the deny-list.
+# With no PDF in the tree it passes and says the actual-PDF check did not run. With a PDF it runs
+# the CV checker on it and its metadata file (python3 -I scripts/check-web-cv.py public/cv.pdf
+# --meta public/cv.meta.json), with the claim layout and records the checker reads by default. The
+# checker reads the deny-list from TRUTH_DENYLIST, which the workflow gives to this step alone; this
+# script never reads it. A PDF without the checker, or one the checker fails, fails here, so it can
+# never ship unchecked.
 set -euo pipefail
 
 checker=scripts/check-web-cv.py
@@ -44,7 +46,16 @@ tree="$(git rev-parse 'HEAD^{tree}')"
 } | tee -a "$summary"
 
 if [ -e "$pdf" ]; then
-  echo "::error::${pdf} is in the tree but the actual-PDF check is not active; the PDF must arrive together with that check." >&2
+  if [ ! -f "$checker" ]; then
+    echo "::error::${pdf} is in the tree but ${checker} is not; the PDF must arrive together with its checker." >&2
+    exit 1
+  fi
+  if python3 -I "$checker" "$pdf" --meta public/cv.meta.json; then
+    echo "- Mode: actual-PDF check (${checker}): passed" | tee -a "$summary"
+    exit 0
+  fi
+  echo "- Mode: actual-PDF check (${checker}): failed" | tee -a "$summary"
+  echo "::error::the CV checker failed on ${pdf}; its log lines above name each finding." >&2
   exit 1
 fi
 

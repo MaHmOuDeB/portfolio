@@ -1,23 +1,14 @@
 // The CV page and the CV PDF say the same things. The PDF's claims are read with the web CV checker
 // (its --claims-out, after a passing check); the page's claims are the elements marked
-// data-cv-claim. Each page claim must equal exactly one PDF claim. The only differences allowed are
-// figures the page leaves out because the site has no sourced fact for them; each is listed, with
-// the PDF sentence it comes from and the exact fragments the page drops.
+// data-cv-claim. The PDF may be shorter than the page: it holds a subset of the page's claims, each
+// word for word and once. It never holds a claim the page does not, so a figure the page leaves out
+// never reaches the PDF either.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 export const CHECKER = join(import.meta.dirname, '../../../scripts/check-web-cv.py');
-
-/** A PDF claim the page prints without a figure, or leaves out whole. */
-export type Omission = {
-  id: string;
-  /** The PDF's sentence, figure included. */
-  pdf: string;
-  /** The fragments the page drops, each holding a figure; 'whole claim' when the page has no element for it. */
-  omitted: readonly string[] | 'whole claim';
-};
 
 /** Whitespace collapsed, typographic apostrophes and quotes straightened. */
 export const normalize = (s: string) =>
@@ -27,56 +18,23 @@ export const normalize = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const NUMERAL = /\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|hundred|thousand)\b/i;
-
-/** The page text of an omission: the PDF sentence without its dropped fragments. */
-export function withoutFigures(o: Omission): string | null {
-  if (o.omitted === 'whole claim') return null;
-  let s = normalize(o.pdf);
-  for (const f of o.omitted) {
-    const at = s.indexOf(f);
-    if (at < 0) throw new Error(`cv-parity: "${f}" is not in the PDF text of ${o.id}`);
-    s = s.slice(0, at) + s.slice(at + f.length);
-  }
-  return normalize(s);
-}
-
 /**
- * The problems with a page against a PDF: an empty list when every page claim equals exactly one PDF
- * claim, directly or through its listed omission, and every listed omission is in the PDF once.
+ * The problems with a PDF against a page: an empty list when every PDF claim equals exactly one page
+ * claim and no page claim is printed twice. Page claims the PDF leaves out are not problems.
  */
-export function compareClaims(
-  page: readonly { id: string; text: string }[],
-  pdf: readonly string[],
-  omissions: readonly Omission[],
-): string[] {
+export function compareClaims(page: readonly { id: string; text: string }[], pdf: readonly string[]): string[] {
   const problems: string[] = [];
-  const pdfTexts = pdf.map(normalize);
-  const count = (t: string) => pdfTexts.filter((p) => p === t).length;
-  for (const o of omissions) {
-    // A rate can drop in two pieces ("3+ ... per working day"); at least one of them holds the figure.
-    if (o.omitted !== 'whole claim' && !o.omitted.some((f) => NUMERAL.test(f))) {
-      problems.push(`${o.id}: no omitted fragment holds a figure`);
+  const used = new Map<string, number>();
+  pdf.map(normalize).forEach((t, i) => {
+    const matches = page.filter((c) => normalize(c.text) === t);
+    if (matches.length !== 1) {
+      problems.push(`PDF claim ${i + 1}: matches ${matches.length === 0 ? 'no page claim' : `${matches.length} page claims`}`);
+      return;
     }
-    if (o.omitted === 'whole claim' && !NUMERAL.test(o.pdf)) problems.push(`${o.id}: the omitted claim holds no figure`);
-  }
-  const byId = new Map(omissions.map((o) => [o.id, o]));
-  for (const c of page) {
-    const text = normalize(c.text);
-    const o = byId.get(c.id);
-    if (o) {
-      if (o.omitted === 'whole claim') problems.push(`${c.id}: listed as left out whole, but the page prints it`);
-      else if (withoutFigures(o) !== text) problems.push(`${c.id}: the page text is not the PDF text without its listed figures`);
-      else if (count(normalize(o.pdf)) !== 1) problems.push(`${c.id}: the PDF holds its sentence ${count(normalize(o.pdf))} times`);
-    } else if (count(text) !== 1) {
-      problems.push(`${c.id}: the PDF holds the page text ${count(text)} times`);
-    }
-  }
-  for (const o of omissions) {
-    if (o.omitted === 'whole claim' && count(normalize(o.pdf)) !== 1) {
-      problems.push(`${o.id}: the PDF holds the left-out claim ${count(normalize(o.pdf))} times`);
-    }
-  }
+    const id = matches[0]!.id;
+    used.set(id, (used.get(id) ?? 0) + 1);
+  });
+  for (const [id, n] of used) if (n > 1) problems.push(`${id}: the PDF holds the page text ${n} times`);
   return problems;
 }
 

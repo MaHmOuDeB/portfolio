@@ -1,3 +1,425 @@
 {
- "entries": []
+ "entries": [
+  {
+   "id": "summary-tenure-1",
+   "bindingId": "summary-tenure",
+   "token": "two",
+   "span": {
+    "start": 47,
+    "end": 50
+   },
+   "normalizedClaim": "Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.",
+   "subject": "Summary",
+   "meaning": "tenure: nearly two years at Audible"
+  },
+  {
+   "id": "summary-tenure-2",
+   "bindingId": "summary-tenure",
+   "token": "25+",
+   "span": {
+    "start": 93,
+    "end": 96
+   },
+   "normalizedClaim": "Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.",
+   "subject": "Summary",
+   "meaning": "profile.audible.experiments",
+   "factId": "profile.audible.experiments"
+  },
+  {
+   "id": "summary-tenure-3",
+   "bindingId": "summary-tenure",
+   "token": "3",
+   "span": {
+    "start": 145,
+    "end": 146
+   },
+   "normalizedClaim": "Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.",
+   "subject": "Summary",
+   "meaning": "profile.audible.teams",
+   "factId": "profile.audible.teams"
+  },
+  {
+   "id": "summary-tool-4",
+   "bindingId": "summary-tool",
+   "token": "20",
+   "span": {
+    "start": 66,
+    "end": 68
+   },
+   "normalizedClaim": "Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.",
+   "subject": "Summary",
+   "meaning": "profile.audible.setup_minutes_before",
+   "factId": "profile.audible.setup_minutes_before"
+  },
+  {
+   "id": "summary-tool-5",
+   "bindingId": "summary-tool",
+   "token": "3",
+   "span": {
+    "start": 73,
+    "end": 74
+   },
+   "normalizedClaim": "Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.",
+   "subject": "Summary",
+   "meaning": "profile.audible.setup_minutes_after",
+   "factId": "profile.audible.setup_minutes_after"
+  },
+  {
+   "id": "audible-tests-6",
+   "bindingId": "audible",
+   "claimId": "audible-tests",
+   "token": "25+",
+   "span": {
+    "start": 15,
+    "end": 18
+   },
+   "normalizedClaim": "Contributed to 25+ A/B tests across web and mobile on Amazon's internal platforms, from hypothesis to a recommendation, doing the sample-size planning and significance testing myself.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.experiments",
+   "factId": "profile.audible.experiments"
+  },
+  {
+   "id": "audible-adopted-7",
+   "bindingId": "audible",
+   "claimId": "audible-adopted",
+   "token": "20+",
+   "span": {
+    "start": 0,
+    "end": 3
+   },
+   "normalizedClaim": "20+ of my recommendations were adopted: many tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.recommendations_adopted",
+   "factId": "profile.audible.recommendations_adopted"
+  },
+  {
+   "id": "audible-automation-8",
+   "bindingId": "audible",
+   "claimId": "audible-automation",
+   "token": "20",
+   "span": {
+    "start": 127,
+    "end": 129
+   },
+   "normalizedClaim": "Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.setup_minutes_before",
+   "factId": "profile.audible.setup_minutes_before"
+  },
+  {
+   "id": "audible-automation-9",
+   "bindingId": "audible",
+   "claimId": "audible-automation",
+   "token": "3",
+   "span": {
+    "start": 134,
+    "end": 135
+   },
+   "normalizedClaim": "Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.setup_minutes_after",
+   "factId": "profile.audible.setup_minutes_after"
+  },
+  {
+   "id": "audible-automation-10",
+   "bindingId": "audible",
+   "claimId": "audible-automation",
+   "token": "85%",
+   "span": {
+    "start": 146,
+    "end": 149
+   },
+   "normalizedClaim": "Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.setup_time_cut",
+   "factId": "profile.audible.setup_time_cut"
+  },
+  {
+   "id": "audible-automation-11",
+   "bindingId": "audible",
+   "claimId": "audible-automation",
+   "token": "11",
+   "span": {
+    "start": 158,
+    "end": 160
+   },
+   "normalizedClaim": "Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.markets",
+   "factId": "profile.audible.markets"
+  },
+  {
+   "id": "audible-campaigns-12",
+   "bindingId": "audible",
+   "claimId": "audible-campaigns",
+   "token": "11",
+   "span": {
+    "start": 74,
+    "end": 76
+   },
+   "normalizedClaim": "Set up and updated content campaigns in the CMS across app and website in 11 marketplaces, placing titles chosen with the content curation team; supported French-market content discovery and merchandising.",
+   "subject": "Audible (Amazon)",
+   "meaning": "profile.audible.markets",
+   "factId": "profile.audible.markets"
+  },
+  {
+   "id": "retention-analysis-13",
+   "bindingId": "retention",
+   "claimId": "retention-analysis",
+   "token": "801,134",
+   "span": {
+    "start": 9,
+    "end": 16
+   },
+   "normalizedClaim": "Analysed 801,134 clean order lines (5,850 customers) from a public UK online-retailer dataset: cohort retention, RFM segments and a 90-day repurchase model scored on a later period (AUC 0.79 vs 0.76 for a most-recent-buyer-first rule).",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.data.clean_rows",
+   "factId": "retention.data.clean_rows"
+  },
+  {
+   "id": "retention-analysis-14",
+   "bindingId": "retention",
+   "claimId": "retention-analysis",
+   "token": "5,850",
+   "span": {
+    "start": 36,
+    "end": 41
+   },
+   "normalizedClaim": "Analysed 801,134 clean order lines (5,850 customers) from a public UK online-retailer dataset: cohort retention, RFM segments and a 90-day repurchase model scored on a later period (AUC 0.79 vs 0.76 for a most-recent-buyer-first rule).",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.data.customers",
+   "factId": "retention.data.customers"
+  },
+  {
+   "id": "retention-analysis-15",
+   "bindingId": "retention",
+   "claimId": "retention-analysis",
+   "token": "90",
+   "span": {
+    "start": 132,
+    "end": 134
+   },
+   "normalizedClaim": "Analysed 801,134 clean order lines (5,850 customers) from a public UK online-retailer dataset: cohort retention, RFM segments and a 90-day repurchase model scored on a later period (AUC 0.79 vs 0.76 for a most-recent-buyer-first rule).",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "repurchase window in days (WINDOW_DAYS in the retention source, source:retention)"
+  },
+  {
+   "id": "retention-analysis-16",
+   "bindingId": "retention",
+   "claimId": "retention-analysis",
+   "token": "0.79",
+   "span": {
+    "start": 186,
+    "end": 190
+   },
+   "normalizedClaim": "Analysed 801,134 clean order lines (5,850 customers) from a public UK online-retailer dataset: cohort retention, RFM segments and a 90-day repurchase model scored on a later period (AUC 0.79 vs 0.76 for a most-recent-buyer-first rule).",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.model.gb_auc (0.793) at two decimals"
+  },
+  {
+   "id": "retention-analysis-17",
+   "bindingId": "retention",
+   "claimId": "retention-analysis",
+   "token": "0.76",
+   "span": {
+    "start": 194,
+    "end": 198
+   },
+   "normalizedClaim": "Analysed 801,134 clean order lines (5,850 customers) from a public UK online-retailer dataset: cohort retention, RFM segments and a 90-day repurchase model scored on a later period (AUC 0.79 vs 0.76 for a most-recent-buyer-first rule).",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.model.rule_auc (0.762) at two decimals"
+  },
+  {
+   "id": "retention-segments-18",
+   "bindingId": "retention",
+   "claimId": "retention-segments",
+   "token": "23%",
+   "span": {
+    "start": 64,
+    "end": 67
+   },
+   "normalizedClaim": "Segmented customers by recency, frequency and spend (Champions: 23% of customers, 71% of spend) and sized a holdout test (1,353 customers per group to detect +5 pp) for measuring a win-back offer.",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.rfm.champions_customer_share",
+   "factId": "retention.rfm.champions_customer_share"
+  },
+  {
+   "id": "retention-segments-19",
+   "bindingId": "retention",
+   "claimId": "retention-segments",
+   "token": "71%",
+   "span": {
+    "start": 82,
+    "end": 85
+   },
+   "normalizedClaim": "Segmented customers by recency, frequency and spend (Champions: 23% of customers, 71% of spend) and sized a holdout test (1,353 customers per group to detect +5 pp) for measuring a win-back offer.",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.rfm.champions_revenue_share",
+   "factId": "retention.rfm.champions_revenue_share"
+  },
+  {
+   "id": "retention-segments-20",
+   "bindingId": "retention",
+   "claimId": "retention-segments",
+   "token": "1,353",
+   "span": {
+    "start": 122,
+    "end": 127
+   },
+   "normalizedClaim": "Segmented customers by recency, frequency and spend (Champions: 23% of customers, 71% of spend) and sized a holdout test (1,353 customers per group to detect +5 pp) for measuring a win-back offer.",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.winback.n_per_arm",
+   "factId": "retention.winback.n_per_arm"
+  },
+  {
+   "id": "retention-segments-21",
+   "bindingId": "retention",
+   "claimId": "retention-segments",
+   "token": "5",
+   "span": {
+    "start": 159,
+    "end": 160
+   },
+   "normalizedClaim": "Segmented customers by recency, frequency and spend (Champions: 23% of customers, 71% of spend) and sized a holdout test (1,353 customers per group to detect +5 pp) for measuring a win-back offer.",
+   "subject": "Customer Retention & Reactivation Analysis",
+   "meaning": "retention.winback.uplift_pp",
+   "factId": "retention.winback.uplift_pp"
+  },
+  {
+   "id": "kpi-dashboard-22",
+   "bindingId": "kpi",
+   "claimId": "kpi-dashboard",
+   "token": "29%",
+   "span": {
+    "start": 194,
+    "end": 197
+   },
+   "normalizedClaim": "Built a static KPI dashboard (Chart.js) over SQL-built KPI tables; excluded reversed orders (an order and its cancellation), which had inflated revenue and made returns look like they had grown 29%.",
+   "subject": "Retail KPI Dashboard",
+   "meaning": "retail.returns.yoy_growth_raw",
+   "factId": "retail.returns.yoy_growth_raw"
+  },
+  {
+   "id": "pulse-taxonomy-23",
+   "bindingId": "pulse",
+   "claimId": "pulse-taxonomy",
+   "token": "7",
+   "span": {
+    "start": 75,
+    "end": 76
+   },
+   "normalizedClaim": "Designed and built a dashboard to demonstrate Amplitude instrumentation: a 7-event taxonomy in which each event is designed to answer a product question (activation, engagement, conversion intent, retention), plus user properties for segmentation.",
+   "subject": "Pulse",
+   "meaning": "pulse.events.count",
+   "factId": "pulse.events.count"
+  },
+  {
+   "id": "docproof-pipeline-24",
+   "bindingId": "docproof",
+   "claimId": "docproof-pipeline",
+   "token": "one",
+   "span": {
+    "start": 70,
+    "end": 73
+   },
+   "normalizedClaim": "Built an open-source pipeline (Python CLI + Claude agents) that turns one structured fact base into Word files and designed PDFs; usable with any LLM (tested with Claude models; GPT and Gemini by design).",
+   "subject": "Docproof",
+   "meaning": "a single fact base (the word one, not a count)"
+  },
+  {
+   "id": "weather-pipeline-25",
+   "bindingId": "weather",
+   "claimId": "weather-pipeline",
+   "token": "18",
+   "span": {
+    "start": 29,
+    "end": 31
+   },
+   "normalizedClaim": "Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).",
+   "subject": "Global Weather Data Pipeline",
+   "meaning": "weather.checks.count",
+   "factId": "weather.checks.count"
+  },
+  {
+   "id": "weather-pipeline-26",
+   "bindingId": "weather",
+   "claimId": "weather-pipeline",
+   "token": "0.91",
+   "span": {
+    "start": 187,
+    "end": 191
+   },
+   "normalizedClaim": "Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).",
+   "subject": "Global Weather Data Pipeline",
+   "meaning": "weather.model.xgb_auc",
+   "factId": "weather.model.xgb_auc"
+  },
+  {
+   "id": "weather-pipeline-27",
+   "bindingId": "weather",
+   "claimId": "weather-pipeline",
+   "token": "1",
+   "span": {
+    "start": 194,
+    "end": 195
+   },
+   "normalizedClaim": "Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).",
+   "subject": "Global Weather Data Pipeline",
+   "meaning": "part of the metric name F1, not a figure"
+  },
+  {
+   "id": "weather-pipeline-28",
+   "bindingId": "weather",
+   "claimId": "weather-pipeline",
+   "token": "0.52",
+   "span": {
+    "start": 196,
+    "end": 200
+   },
+   "normalizedClaim": "Built a SQL star schema with 18 automated data-quality checks and benchmarked k-NN, Random Forest and XGBoost for rain classification with location-grouped cross-validation (XGBoost: AUC 0.91, F1 0.52).",
+   "subject": "Global Weather Data Pipeline",
+   "meaning": "weather.model.xgb_f1",
+   "factId": "weather.model.xgb_f1"
+  },
+  {
+   "id": "n8n-intake-29",
+   "bindingId": "n8n",
+   "claimId": "n8n-intake",
+   "token": "8",
+   "span": {
+    "start": 30,
+    "end": 31
+   },
+   "normalizedClaim": "Built an e-invoice intake in n8n (XRechnung, ZUGFeRD: German e-invoice formats) that reads and checks supplier invoices, flags duplicates and changed bank details, archives originals and routes exceptions to a person.",
+   "subject": "n8n Library",
+   "meaning": "part of the product name n8n, not a figure"
+  },
+  {
+   "id": "n8n-tests-30",
+   "bindingId": "n8n",
+   "claimId": "n8n-tests",
+   "token": "270+",
+   "span": {
+    "start": 0,
+    "end": 4
+   },
+   "normalizedClaim": "270+ automated tests (part of the suite runs in GitHub Actions on every push); verified on a clean n8n install.",
+   "subject": "n8n Library",
+   "meaning": "profile.n8n.automated_tests",
+   "factId": "profile.n8n.automated_tests"
+  },
+  {
+   "id": "n8n-tests-31",
+   "bindingId": "n8n",
+   "claimId": "n8n-tests",
+   "token": "8",
+   "span": {
+    "start": 100,
+    "end": 101
+   },
+   "normalizedClaim": "270+ automated tests (part of the suite runs in GitHub Actions on every push); verified on a clean n8n install.",
+   "subject": "n8n Library",
+   "meaning": "part of the product name n8n, not a figure"
+  }
+ ]
 }

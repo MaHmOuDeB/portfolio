@@ -6,9 +6,9 @@ import { join } from 'node:path';
 
 // The CI side of the web CV's PDF checks: the runner gets python3 and pdftotext before the unit
 // tests, proves it can extract text from a small synthetic PDF, and keeps a reserved step for the
-// check of the real PDF. That step runs in checker-only mode until the CV checker and its PDF
-// arrive together with the activation: with no PDF in the tree it passes, a PDF without the
-// activation fails, and every run records what it looked at in the job summary.
+// check of the real PDF. With no PDF in the tree that step passes in checker-only mode; with a PDF
+// it runs the CV checker on it (deny-list from the step's environment) and fails when the checker
+// fails or is missing. Every run records what it looked at in the job summary.
 const ROOT = join(import.meta.dirname, '../..');
 const CI = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
 const PROOF = join(ROOT, 'scripts/pdf-extraction-proof.py');
@@ -118,7 +118,7 @@ describe('the CI workflow', () => {
     expect(CI.slice(0, CI.indexOf('\njobs:\n'))).not.toContain('TRUTH_DENYLIST');
   });
 
-  it('runs no script that is not in the tree (the real checker is not called yet)', () => {
+  it('runs no script that is not in the tree, and calls the checker only through the gate', () => {
     const paths = [...CI.matchAll(/\b((?:scripts|tests)\/[\w./-]+\.(?:py|sh|ts|pdf))\b/g)].map((m) => m[1]!);
     expect(paths).toContain('scripts/cv-pdf-gate.sh');
     for (const path of paths) expect(existsSync(join(ROOT, path)), path).toBe(true);
@@ -181,7 +181,7 @@ describe.runIf(HAVE_TOOLS)('the synthetic PDF extraction proof', () => {
   });
 });
 
-describe('the reserved actual-PDF step (checker-only mode)', () => {
+describe('the actual-PDF step', () => {
   const sha256 = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 
   function repo(files: Record<string, string>): string {
@@ -267,16 +267,58 @@ describe('the reserved actual-PDF step (checker-only mode)', () => {
     }
   });
 
-  it('fails closed when a PDF is in the tree before the check is activated, after recording its hash', () => {
+  // A stand-in checker: records its arguments and whether it got a deny-list, then exits with CODE.
+  const stub = (code: number) =>
+    [
+      'import os, sys',
+      "open('checker-args.txt', 'w').write(' '.join(sys.argv[1:]) + '\\n' + ('denylist' if os.environ.get('TRUTH_DENYLIST') else 'none') + '\\n')",
+      `print('stub checker ran'); sys.exit(${code})`,
+      '',
+    ].join('\n');
+
+  function withPdf(files: Record<string, string>) {
+    const dir = repo(files);
     const pdf = readFileSync(FIXTURE);
-    const dir = repo({});
+    mkdirSync(join(dir, 'public'), { recursive: true });
+    writeFileSync(join(dir, 'public/cv.pdf'), pdf);
+    return { dir, pdf };
+  }
+
+  it('runs the checker on the PDF with its metadata and the deny-list, and passes when it passes', () => {
+    const { dir, pdf } = withPdf({ 'scripts/check-web-cv.py': stub(0) });
     try {
-      mkdirSync(join(dir, 'public'));
-      writeFileSync(join(dir, 'public/cv.pdf'), pdf);
+      const r = gate(dir);
+      expect(r.stderr).toBe('');
+      expect(r.status).toBe(0);
+      expect(readFileSync(join(dir, 'checker-args.txt'), 'utf8')).toBe('public/cv.pdf --meta public/cv.meta.json\ndenylist\n');
+      expect(r.summary).toContain(`- SHA-256 of public/cv.pdf: ${sha256(pdf)}\n`);
+      expect(r.summary).toContain('- Mode: actual-PDF check (scripts/check-web-cv.py): passed\n');
+      expect(r.summary).not.toContain('checker-only');
+      expect(r.stdout).toContain('stub checker ran');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when the checker fails on the PDF, after recording its hash', () => {
+    const { dir, pdf } = withPdf({ 'scripts/check-web-cv.py': stub(1) });
+    try {
       const r = gate(dir);
       expect(r.status).toBe(1);
       expect(r.summary).toContain(`- SHA-256 of public/cv.pdf: ${sha256(pdf)}\n`);
-      expect(r.stderr).toContain('::error::public/cv.pdf is in the tree but the actual-PDF check is not active');
+      expect(r.summary).toContain('- Mode: actual-PDF check (scripts/check-web-cv.py): failed\n');
+      expect(r.stderr).toContain('::error::the CV checker failed on public/cv.pdf');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails closed when a PDF is in the tree without the checker', () => {
+    const { dir } = withPdf({});
+    try {
+      const r = gate(dir);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('::error::public/cv.pdf is in the tree but scripts/check-web-cv.py is not');
       expect(r.summary).not.toContain('checker-only');
     } finally {
       rmSync(dir, { recursive: true, force: true });

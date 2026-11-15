@@ -1,6 +1,290 @@
 {
  "version": 1,
- "links": [],
- "sections": [],
- "summaryBindings": []
+ "links": [
+  "https://www.linkedin.com/in/melbergui",
+  "https://github.com/MaHmOuDeB/customer-retention-rfm",
+  "https://github.com/MaHmOuDeB/retail-kpi-dashboard",
+  "https://mahmoudeb.github.io/retail-kpi-dashboard/",
+  "https://github.com/MaHmOuDeB/amplitude-demo",
+  "https://amplitude-demo-black.vercel.app/",
+  "https://github.com/MaHmOuDeB/MarketingWS",
+  "https://marketing-ws.vercel.app/",
+  "https://github.com/MaHmOuDeB/n8n-workflow-library"
+ ],
+ "sections": [
+  {
+   "sectionId": "summary",
+   "heading": "Summary"
+  },
+  {
+   "sectionId": "experience",
+   "heading": "Professional Experience",
+   "entries": [
+    {
+     "entryId": "mercor",
+     "heading": "AI Data Specialist, Business and Analytics Workflows (Contract) Oct 2026 – Present",
+     "subject": "Mercor",
+     "claims": [
+      {
+       "claimId": "mercor-data",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "mercor-accuracy",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "mercor-standards",
+       "bulletMarker": "•",
+       "page": 1
+      }
+     ]
+    },
+    {
+     "entryId": "audible",
+     "heading": "Marketing Analytics & Growth Experimentation (Working Student) Aug 2023 – Apr 2025",
+     "subject": "Audible (Amazon)",
+     "claims": [
+      {
+       "claimId": "audible-tests",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-adopted",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-metrics",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-crm",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-automation",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-ai-tools",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-reports",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "audible-campaigns",
+       "bulletMarker": "•",
+       "page": 1
+      }
+     ]
+    },
+    {
+     "entryId": "direct-results",
+     "heading": "Fundraiser & Marketing Representative Mar 2023 – Jun 2023",
+     "subject": "Direct Results",
+     "claims": [
+      {
+       "claimId": "direct-results-donors",
+       "bulletMarker": "•",
+       "page": 1
+      },
+      {
+       "claimId": "direct-results-team",
+       "bulletMarker": "•",
+       "page": 1
+      }
+     ]
+    },
+    {
+     "entryId": "geo-engineering",
+     "heading": "Intern, Research Assistant Jun 2021 – Sep 2021",
+     "subject": "Geo Engineering",
+     "claims": [
+      {
+       "claimId": "geo-cnc",
+       "bulletMarker": "•",
+       "page": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "sectionId": "skills",
+   "heading": "Skills"
+  },
+  {
+   "sectionId": "education",
+   "heading": "Education",
+   "entries": [
+    {
+     "entryId": "msc",
+     "heading": "MSc Data Science · University of Europe for Applied Sciences · German grade 1.8 Apr 2023 – Nov 2025",
+     "subject": "MSc Data Science",
+     "claims": []
+    },
+    {
+     "entryId": "bsc",
+     "heading": "BSc Computer Science · Jacobs University Bremen (now Constructor University) Sep 2019 – Nov 2022",
+     "subject": "BSc Computer Science",
+     "claims": []
+    }
+   ]
+  },
+  {
+   "sectionId": "languages",
+   "heading": "Languages"
+  },
+  {
+   "sectionId": "projects",
+   "heading": "Projects",
+   "entries": [
+    {
+     "entryId": "retention",
+     "heading": "Customer Retention & Reactivation Analysis — Public dataset, rebuilt in 2026 · GitHub 2026",
+     "subject": "Customer Retention & Reactivation Analysis",
+     "claims": [
+      {
+       "claimId": "retention-analysis",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "retention-segments",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "kpi",
+     "heading": "Retail KPI Dashboard — Public dataset, rebuilt in 2026 · GitHub · Live demo 2026",
+     "subject": "Retail KPI Dashboard",
+     "claims": [
+      {
+       "claimId": "kpi-dashboard",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "pulse",
+     "heading": "Pulse: Amplitude Analytics Demo — Personal project · GitHub · Live demo 2026",
+     "subject": "Pulse",
+     "claims": [
+      {
+       "claimId": "pulse-taxonomy",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "pulse-replay",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "thesis",
+     "heading": "Generative AI Content Marketing Web Service — Master's thesis · GitHub · Live demo Apr 2025 – Nov 2025",
+     "subject": "Generative AI Content Marketing Web Service (Master's thesis)",
+     "claims": [
+      {
+       "claimId": "thesis-tool",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "thesis-rebuild",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "docproof",
+     "heading": "Docproof: Multi-Agent Document Pipeline — Open-source project 2026",
+     "subject": "Docproof",
+     "claims": [
+      {
+       "claimId": "docproof-pipeline",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "docproof-verification",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "docproof-agents",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "weather",
+     "heading": "Global Weather Data Pipeline — Public dataset, rebuilt in 2026 2026",
+     "subject": "Global Weather Data Pipeline",
+     "claims": [
+      {
+       "claimId": "weather-pipeline",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    },
+    {
+     "entryId": "n8n",
+     "heading": "n8n Library: E-Invoice Intake & Alerts — Personal project · GitHub 2026",
+     "subject": "n8n Library",
+     "claims": [
+      {
+       "claimId": "n8n-intake",
+       "bulletMarker": "•",
+       "page": 2
+      },
+      {
+       "claimId": "n8n-tests",
+       "bulletMarker": "•",
+       "page": 2
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "summaryBindings": [
+  {
+   "bindingId": "summary-tenure",
+   "sectionId": "summary",
+   "normalizedClaim": "Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.",
+   "subject": "Summary"
+  },
+  {
+   "bindingId": "summary-tool",
+   "sectionId": "summary",
+   "normalizedClaim": "Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.",
+   "subject": "Summary"
+  },
+  {
+   "bindingId": "summary-skills",
+   "sectionId": "summary",
+   "normalizedClaim": "MSc in Data Science (2025); I work in SQL and Python and build LLM applications and agentic workflows.",
+   "subject": "Summary"
+  }
+ ]
 }

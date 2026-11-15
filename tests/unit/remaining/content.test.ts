@@ -180,6 +180,7 @@ describe('the facts the Work directory and the remaining pages read', () => {
       'profile.audible.setup_minutes_before',
       'profile.audible.setup_time_cut',
       'profile.audible.teams',
+      'profile.education.msc_grade',
       'profile.n8n.automated_tests',
     ]);
     expect(profile.map((id) => [getFact(id as keyof typeof FACTS).value, getFact(id as keyof typeof FACTS).suffix]))
@@ -191,6 +192,7 @@ describe('the facts the Work directory and the remaining pages read', () => {
         [20, undefined],
         [0.85, undefined],
         [3, undefined],
+        [1.8, undefined],
         [270, '+'],
       ]);
   });
