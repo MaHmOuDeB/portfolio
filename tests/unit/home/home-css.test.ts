@@ -78,7 +78,9 @@ describe('the band: the stack that unfolds', () => {
     expect(block('@media (prefers-reduced-motion: reduce), print')).toMatch(/@media \(width >= 64rem\)\s*\{\s*\[data-depth-stack\]\s*\{[^}]*height:\s*calc\(210px \* var\(--k\)\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)/);
   });
 
-  it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {
+  it('below lg rests in a static vertical column (no pin, no pose, no lean, no links), the end state of the phone fan', () => {
+    // The fan that settles into this column lives in its own gated block (phone-motion-css.test.ts),
+    // so where it does not run (no scroll timelines, reduced motion, print) this column is the layout.
     const narrow = block('@media (width < 64rem)');
     expect(narrow).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
     // Positioned, not static: each sheet's face is an absolute ::before and must resolve against its own sheet.

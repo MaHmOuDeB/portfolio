@@ -73,6 +73,8 @@ function without(head: string, text = css): string {
 }
 
 const INK_GO = 'border-color: var(--color-ink); background-color: var(--color-ink); color: var(--color-surface);';
+/** The touch press: a phone or tablet (below lg, no hover) with motion allowed. */
+const PRESS = '@media (hover: none) and (width < 64rem) and (prefers-reduced-motion: no-preference)';
 
 describe('a clickable card on hover, focus and press', () => {
   it('has no hover rule outside a hover-capable media query: the old always-on rules are gone', () => {
@@ -112,9 +114,12 @@ describe('a clickable card on hover, focus and press', () => {
     // Focus never moves the card: a tall focused card at the top of a small viewport would push its
     // ring off screen (WebKit at 320x180).
     expect(flat(css)).not.toMatch(/\[data-(?:depth-lean|next)\]:focus-visible[^{]*\{[^}]*translate/);
-    // Nowhere else does a card move on hover, focus or press, and never by scale or transform.
-    const rest = flat(without('@media (hover: hover) and (prefers-reduced-motion: no-preference)'));
+    // Nowhere else does a card move on hover, focus or press, and never by transform. The one other
+    // movement is the touch press below lg: a slight sink by scale, on :active only, never on hover or focus.
+    const rest = flat(without(PRESS, without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
     expect(rest).not.toMatch(/\[data-(?:depth-lean|next)\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
+    expect(blocks(PRESS)).toContain('[data-depth-lean]:active, [data-next]:active, [data-how-tab]:active { scale: 0.98; }');
+    expect(blocks(PRESS)).not.toMatch(/:hover|:focus|transform:|rotate:|\[data-(?:depth-lean|next|how-tab)\]:active[^{]*\{[^}]*translate/);
   });
 
   it('transitions the lift next to the lean and the border, and fades the plus fill', () => {
@@ -172,7 +177,8 @@ describe('a "How I test" tab on hover, focus and press', () => {
 
   it('rises 4 px by translate only, on hover where motion is allowed, never on keyboard focus', () => {
     expect(blocks('@media (hover: hover) and (prefers-reduced-motion: no-preference)')).toContain(`[data-how-tab]:hover { ${lift} }`);
-    const rest = flat(without('@media (hover: hover) and (prefers-reduced-motion: no-preference)'));
+    // The touch press below lg is the one other movement: a slight sink by scale, on :active only.
+    const rest = flat(without(PRESS, without('@media (hover: hover) and (prefers-reduced-motion: no-preference)')));
     expect(rest).not.toMatch(/\[data-how-tab\]:[^{]*\{[^}]*(?:translate|scale|transform|rotate)/);
   });
 

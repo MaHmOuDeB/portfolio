@@ -4,7 +4,9 @@
 // motion lives in globals.css, keyed on the data attributes: the sheets arrive once on load; on a
 // wide screen the stack rests in an isometric pose and leans to a fine pointer (Lean writes --mx and
 // --my on [data-depth-stack]); with scroll timelines, a tall enough screen and motion allowed the band
-// pins and the stack unfolds into a row; below lg the sheets are a static column. Server-safe.
+// pins and the stack unfolds into a row; below lg the sheets rest in a static column, which (with
+// scroll timelines and motion allowed) they settle into from a fanned pose as the stack enters, on its
+// own view timeline. Nothing is pinned there. Server-safe.
 import type { CSSProperties } from 'react';
 import { HOME_BAND } from '../../../content/home.ts';
 import { IntervalMark, MiniRow, Tag, Tick } from '@/components/frame/marks';
