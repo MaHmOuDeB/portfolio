@@ -15,15 +15,16 @@ const pointerTargets = 'a[href], button, input:not([type="hidden"]), select, tex
 export type InlineEntry = { name: string; while?: { selector: string; text: RegExp } };
 // The hero's proof sentence ends in "See the work"; the proof row's adoption figure carries "Why so many?".
 export const HOME_INLINE: readonly InlineEntry[] = [{ name: 'See the work' }, { name: 'Why so many?' }];
-// The contact page names LinkedIn in its intro and the privacy notice in the note under Send message.
-const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'LinkedIn' }, { name: 'privacy notice' }];
+// The contact page names the privacy notice in the note under Send message; LinkedIn is a card link
+// beside the form now, not a word in the intro.
+const CONTACT_INLINE: readonly InlineEntry[] = [{ name: 'privacy notice' }];
 export const INLINE_EXEMPT: Record<string, readonly InlineEntry[]> = {
   '/': HOME_INLINE,
   '/?variant=a': HOME_INLINE,
   '/?variant=b': HOME_INLINE,
   '/contact': CONTACT_INLINE,
-  // After sending, the form and its privacy note give way to the sent message; the intro stays.
-  '/contact?sent=1': [{ name: 'LinkedIn' }],
+  // After sending, the form and its privacy note give way to the sent message: nothing inline is left.
+  '/contact?sent=1': [],
 };
 
 /** The names the route may exempt, in page order, in the page's current data state. */
