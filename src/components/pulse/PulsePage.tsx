@@ -159,7 +159,7 @@ export function PulsePage(): ReactNode {
       <PageClose links={[{ href: '/lab', label: 'See the Lab' }]}>
         <PulseClose />
       </PageClose>
-      <NextRow prev={{ href: '/work/retention', label: 'Retention' }} next={{ href: '/work/docproof', label: 'Docproof' }} />
+      <NextRow prev={{ href: '/work/retention', label: 'Retention' }} next={{ href: '/work/weather', label: 'Weather pipeline' }} />
       <div className="pb-12 md:pb-16" />
       <PageCallToAction />
     </article>

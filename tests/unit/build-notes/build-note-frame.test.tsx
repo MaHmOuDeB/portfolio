@@ -118,19 +118,19 @@ describe('the frame, in the reading model', () => {
     expect(html).toContain('and a clause.');
     expect(html).toContain('data-case-actions');
     expect(html).toMatch(/<h2 id="weather-shows"[^>]*>What this shows about how I work<\/h2>/);
-    expect(html).toMatch(/href="\/work\/marketingws"[\s\S]*href="\/experiment"/);
+    expect(html).toMatch(/href="\/work\/pulse"[\s\S]*href="\/work\/docproof"/);
     expect(html.indexOf('data-page-close')).toBeLessThan(html.indexOf('data-next-row'));
     // section headings at the inner section size
     expect(html).toMatch(/<h2 id="limits-title" class="max-w-text text-h2-xs md:text-h2-sm"/);
   });
 
-  it('chains the four notes: Pulse, Docproof, n8n, MarketingWS, Weather, then the live test', () => {
+  it('chains the four notes: Pulse, Weather, Docproof, n8n, MarketingWS, then the live test', () => {
     const hrefs = (slug: string) =>
       [...renderToStaticMarkup(<BuildNote slug={slug} title="T" intro={<p>I.</p>} sections={{ limits: 'L' }} />).matchAll(/<a data-next="(prev|next)"[^>]*href="([^"]+)"/g)].map((m) => m[2]);
-    expect(hrefs('docproof')).toEqual(['/work/pulse', '/work/n8n']);
+    expect(hrefs('weather')).toEqual(['/work/pulse', '/work/docproof']);
+    expect(hrefs('docproof')).toEqual(['/work/weather', '/work/n8n']);
     expect(hrefs('n8n')).toEqual(['/work/docproof', '/work/marketingws']);
-    expect(hrefs('marketingws')).toEqual(['/work/n8n', '/work/weather']);
-    expect(hrefs('weather')).toEqual(['/work/marketingws', '/experiment']);
+    expect(hrefs('marketingws')).toEqual(['/work/n8n', '/experiment']);
   });
 });
 

@@ -76,12 +76,12 @@ export function Paragraphs({ items }: { items: readonly [key: string, body: Reac
 /** Whether a body has something to draw: null, undefined, true, false and '' draw nothing in React. */
 const drawn = (body: ReactNode): boolean => body !== null && body !== undefined && typeof body !== 'boolean' && body !== '';
 
-/** The build notes in reading order, after Pulse; the last one leads on to the live test. */
+/** The build notes in reading order, after Pulse (Weather first); the last one leads on to the live test. */
 export const BUILD_NOTE_ORDER = {
-  docproof: { prev: { href: '/work/pulse', label: 'Pulse' }, next: { href: '/work/n8n', label: 'n8n e-invoice intake' } },
+  weather: { prev: { href: '/work/pulse', label: 'Pulse' }, next: { href: '/work/docproof', label: 'Docproof' } },
+  docproof: { prev: { href: '/work/weather', label: 'Weather pipeline' }, next: { href: '/work/n8n', label: 'n8n e-invoice intake' } },
   n8n: { prev: { href: '/work/docproof', label: 'Docproof' }, next: { href: '/work/marketingws', label: 'MarketingWS' } },
-  marketingws: { prev: { href: '/work/n8n', label: 'n8n e-invoice intake' }, next: { href: '/work/weather', label: 'Weather pipeline' } },
-  weather: { prev: { href: '/work/marketingws', label: 'MarketingWS' }, next: { href: '/experiment', label: 'The live test' } },
+  marketingws: { prev: { href: '/work/n8n', label: 'n8n e-invoice intake' }, next: { href: '/experiment', label: 'The live test' } },
 } as const satisfies Record<string, { prev: NextRowLink; next: NextRowLink }>;
 
 export type BuildNoteClose = {
