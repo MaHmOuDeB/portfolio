@@ -24,8 +24,20 @@ const SECTIONS = [
 const LINKS = ['Problem', 'Architecture', 'How I checked this', 'Outcome', 'Limits', 'Sources'];
 
 const NOTES = [
-  { route: '/work/weather', title: 'Weather data quality', figure: 'weather-pipeline', table: 'check-levels' },
-  { route: '/work/n8n', title: 'n8n Workflow Library', figure: 'n8n-flow', table: null },
+  {
+    route: '/work/weather',
+    title: 'Weather data quality',
+    h1: 'A SQL pipeline that stops on bad data, and keeps the doubtful rows visible.',
+    figure: 'weather-pipeline',
+    table: 'check-levels',
+  },
+  {
+    route: '/work/n8n',
+    title: 'E-invoice intake and error alerts in n8n',
+    h1: /^E-invoice intake and error alerts in n8n with 270\+ automated tests\.$/,
+    figure: 'n8n-flow',
+    table: null,
+  },
 ] as const;
 
 /** Every request URL the page makes from its first byte. */
@@ -53,8 +65,8 @@ for (const note of NOTES) {
     test('outline: one h1, the build-note sections in order, no skipped heading level', async ({ page }) => {
       const response = await page.goto(note.route);
       expect(response?.status()).toBe(200);
-      await expect(page).toHaveTitle(note.title);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(note.title);
+      await expect(page).toHaveTitle(`${note.title} | Mahmoud El Bergui`);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(note.h1);
       for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
       for (const [id, title] of SECTIONS) {
         await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
@@ -177,8 +189,10 @@ test.describe('MarketingWS build note', () => {
   test('outline: one h1, the six sections in order, the diagram in the architecture section', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('MarketingWS');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('MarketingWS');
+    await expect(page).toHaveTitle('MarketingWS | Mahmoud El Bergui');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'MarketingWS: marketing copy from one brief, with a check for invented figures.',
+    );
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     const sections = await page.evaluate(() =>
       [...document.querySelectorAll('main section[id]')].map((s) => [s.id, s.querySelector(':scope > h2')?.textContent?.trim()]),
@@ -283,16 +297,19 @@ test.describe('MarketingWS build note', () => {
 
 test.describe('the Docproof build note', () => {
   const ROUTE = '/work/docproof';
-  const TITLE = 'Docproof: a multi-agent document pipeline';
+  const TITLE = 'Docproof: agents write, checks decide';
+  const REPO = 'https://github.com/MaHmOuDeB/docproof';
+  // The recorded run is the best exhibit, so its section leads; the rest keep the shared order.
+  const ORDER = [SECTIONS[2], SECTIONS[0], SECTIONS[1], ...SECTIONS.slice(3)];
 
   test('outline: one h1, the sections in template order, the diagram in the architecture section', async ({ page }) => {
     const response = await page.goto(ROUTE);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle(TITLE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page).toHaveTitle(`${TITLE} | Mahmoud El Bergui`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Docproof: agents write, checks decide.');
     for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
     const { sections, headings, figures, links } = await composition(page);
-    expect(sections).toEqual(SECTIONS.map(([id, title]) => [id, title]));
+    expect(sections).toEqual(ORDER.map(([id, title]) => [id, title]));
     for (const [id, title] of SECTIONS) {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
@@ -300,7 +317,7 @@ test.describe('the Docproof build note', () => {
     expect(levels[0]).toBe(2);
     expect(levels.every((l, i) => i === 0 || l <= levels[i - 1]! + 1), headings.join(' | ')).toBe(true);
     expect(figures).toEqual([['architecture', 'docproof-architecture']]);
-    expect(links).toEqual([...SECTIONS.map(([id]) => `#${id}`), '/work', '/contact', '/cv']);
+    expect(links).toEqual([REPO, ...ORDER.map(([id]) => `#${id}`), REPO, '/work', REPO, '/work/pulse', '/work/n8n', '/contact', '/cv']);
   });
 
   test('the recorded run: inputs, command and output as labelled regions a keyboard reaches', async ({ page }) => {
@@ -318,7 +335,7 @@ test.describe('the Docproof build note', () => {
 
   test('section links: in page order, and one lands its heading in view', async ({ page }) => {
     await page.goto(ROUTE);
-    await expect(sectionLinks(page)).toHaveText(LINKS);
+    await expect(sectionLinks(page)).toHaveText([LINKS[2]!, LINKS[0]!, LINKS[1]!, ...LINKS.slice(3)]);
     await sectionLinks(page).filter({ hasText: 'Limits' }).click();
     await expect(page).toHaveURL(/#limits$/);
     await expect(page.locator('#limits-title')).toBeInViewport();
@@ -340,7 +357,7 @@ test.describe('the Docproof build note', () => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(ROUTE);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(TITLE);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Docproof: agents write, checks decide.');
     await expect(page.getByRole('region', { name: 'The command and its output' })).toContainText('VERIFY FAILED');
     await context.close();
   });
