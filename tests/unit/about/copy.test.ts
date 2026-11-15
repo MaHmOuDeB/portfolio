@@ -118,10 +118,10 @@ const TOOLS: readonly [tool: string, where: string][] = [
 ];
 
 const LANGUAGES: readonly [language: string, level: string][] = [
-  ['Arabic', 'native'],
   ['English', 'fluent (C2)'],
-  ['French', 'fluent (C2)'],
   ['German', 'B1'],
+  ['French', 'fluent (C2)'],
+  ['Arabic', 'native'],
   ['Spanish', 'A2'],
 ];
 

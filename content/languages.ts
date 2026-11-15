@@ -2,10 +2,10 @@
 // this one list, so they cannot disagree. German is B1. No imports, so scripts run with Node's type
 // stripping can read it.
 export const LANGUAGES: readonly { language: string; level: string }[] = [
-  { language: 'Arabic', level: 'native' },
   { language: 'English', level: 'fluent (C2)' },
-  { language: 'French', level: 'fluent (C2)' },
   { language: 'German', level: 'B1' },
+  { language: 'French', level: 'fluent (C2)' },
+  { language: 'Arabic', level: 'native' },
   { language: 'Spanish', level: 'A2' },
 ];
 

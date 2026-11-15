@@ -547,7 +547,7 @@ describe('HomeFaq', () => {
         'I have built internal AI tools that a wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, the other generates the standard content of the Jira ticket for a test launch. I have also evaluated Amazon Bedrock for team-efficiency use cases. Today I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and automated checks decide what reaches the reader.',
       ],
       ['Is the code public?', 'Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
-      ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2), German (B1) and Spanish (A2).'],
+      ['Which languages do you speak?', 'English (fluent, C2), German (B1), French (fluent, C2), Arabic (native) and Spanish (A2).'],
       // The contact form passes each message on to my inbox (the privacy notice says so), so the last sentence stays.
       ['How do I reach you?', 'Through the contact form or on LinkedIn. I answer myself.'],
     ]);
