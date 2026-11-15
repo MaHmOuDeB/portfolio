@@ -400,7 +400,7 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
   items: [
     {
       question: 'What roles are you looking for?',
-      answer: ['Roles in experimentation, product analytics and AI automation in Germany. I am based in Berlin.'],
+      answer: ['Roles in experimentation, product analytics and AI automation in Germany, at junior to mid level. I am based in Berlin.'],
     },
     {
       question: 'What did you do at Audible?',
