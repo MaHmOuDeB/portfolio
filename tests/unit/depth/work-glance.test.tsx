@@ -169,7 +169,7 @@ describe.each(PAGES)('the glance block on /work/$name', ({ render, title, glance
     expect([...html.matchAll(/data-glance=""/g)]).toHaveLength(1);
     expect(block).not.toBe('');
     const part = (re: RegExp) => text(re.exec(block)?.[1] ?? '');
-    const points = [...block.matchAll(/<li data-glance-point="">([\s\S]*?)<\/li>/g)].map((m) => text(m[1]));
+    const points = [...block.matchAll(/<li data-glance-point="">([\s\S]*?)<\/li>/g)].map((m) => text(m[1] ?? ''));
     expect(points).toEqual(glance.points.map(sentence));
     expect(part(/<p data-glance-outcome="">([\s\S]*?)<\/p>/)).toBe(sentence(glance.outcome));
     expect(part(/<dt>Role<\/dt><dd>([\s\S]*?)<\/dd>/)).toBe(sentence(glance.role));
