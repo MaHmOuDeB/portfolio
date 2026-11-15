@@ -49,7 +49,21 @@ describe('forced colours: text on ink', () => {
       .filter((r) => INK_FILL.test(r.body) && LIGHT.test(r.body))
       .flatMap((r) => r.selectors);
     expect(inked.length).toBeGreaterThan(0);
-    for (const selector of inked) expect(panels, selector).toContain(selector);
+    // A rule may instead name its own system pair for the same selector, kept from the engine with
+    // forced-color-adjust: none (a clickable card's filled plus takes Highlight and HighlightText).
+    const ownPair = (selector: string) =>
+      forcedRules.some(
+        (r) =>
+          r.selectors.includes(selector) &&
+          /forced-color-adjust:\s*none/.test(r.body) &&
+          /background-color:\s*(?:Canvas|Highlight|ButtonFace)\b/.test(r.body) &&
+          /(^|[^-])color:\s*(?:CanvasText|HighlightText|ButtonText)\b/.test(r.body),
+      );
+    for (const selector of inked) if (!ownPair(selector)) expect(panels, selector).toContain(selector);
+    expect(inked.filter(ownPair).sort()).toEqual([
+      '[data-depth-lean]:hover [data-depth-go]',
+      '[data-depth-lean]:is(:focus-visible, :active) [data-depth-go]',
+    ]);
   });
 
   it('text and links inside a panel name CanvasText and LinkText', () => {
