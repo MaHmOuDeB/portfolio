@@ -51,7 +51,7 @@ function homeHtml(s: ExperimentSnapshot, arm: Arm): string {
   return renderToStaticMarkup(<HomeSections model={m} />);
 }
 const displayOf = (s: ExperimentSnapshot): LivePageDisplay => toLivePageDisplay(toLivePageModel(s, { commit: null }, s.configPhase === 'ab' ? FIXTURE_AB : FIXTURE_CALIBRATION));
-const liveHtml = (d: LivePageDisplay, runtime: (typeof RUNTIMES)[number]) => renderToStaticMarkup(<LivePage display={d} meta={null} host="site.example" runtime={runtime} />);
+const liveHtml = (d: LivePageDisplay, runtime: (typeof RUNTIMES)[number]) => renderToStaticMarkup(<LivePage display={d} host="site.example" runtime={runtime} />);
 
 const LABELS = ['aria-label', 'aria-description', 'aria-valuetext', 'title', 'alt'];
 /**
