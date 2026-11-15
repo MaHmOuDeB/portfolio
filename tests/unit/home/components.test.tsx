@@ -247,18 +247,18 @@ describe('Hero', () => {
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
     const sub = one(hero, (el) => has(el, 'data-hero-sub'));
     expect(text(sub)).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
     );
-    expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['Agents', 'Workflows']);
+    expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['agents', 'workflows']);
     // The second chip and the last words stay together: one tail that does not wrap from sm up.
     const tail = one(sub, (el) => has(el, 'data-hero-tail'));
-    expect(text(tail)).toBe('Workflows that take the manual work out.');
+    expect(text(tail)).toBe('workflows that take the manual work out.');
     expect(html).not.toContain('I test what works');
   });
 
   it('ends in one muted proof line under the buttons, its figures Facts, and a quiet link to the work', () => {
     const proof = one(hero, (el) => has(el, 'data-hero-proof'));
-    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated tests in public code. See the work');
+    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated software tests in public code. See the work');
     expect(all(proof, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual(['profile.audible.experiments', 'profile.n8n.automated_tests']);
     expect(html.indexOf('data-hero-proof')).toBeGreaterThan(html.indexOf('data-hero-actions'));
   });
@@ -303,11 +303,11 @@ describe('Hero', () => {
     ]);
   });
 
-  it('says under the band, visibly and outside the hidden stack, that it is an illustration', () => {
+  it('says under the band, visibly and outside the hidden stack, what it shows: how I work', () => {
     const caption = one(band, (el) => has(el, 'data-depth-caption'));
     expect(caption.tagName).toBe('p');
-    expect(text(caption)).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
-    expect(shownText(band).trim()).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(text(caption)).toBe('How I work: a test, the agents that check the work, and the recommendation.');
+    expect(shownText(band).trim()).toBe('How I work: a test, the agents that check the work, and the recommendation.');
   });
 
   it('has no digits in the band and prints figures only in the proof line, as Facts', () => {
@@ -337,7 +337,7 @@ describe('ProofRow', () => {
       'A/B tests I contributed to at Audible, across web and mobile.',
       'of my recommendations adopted. Why so many?',
       'to set up a test account, down from about 20, with a tool I built. Adopted team-wide, across 11 markets.',
-      'automated tests behind my workflow library for e-invoice intake.',
+      'automated software tests behind my workflow library for e-invoice intake.',
     ]);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
       'profile.audible.experiments',

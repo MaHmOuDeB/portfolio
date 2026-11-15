@@ -25,6 +25,7 @@ import {
   HOME_FAQ,
   type FaqPart,
   TOOLS_LABEL,
+  HOME_TOOLS,
   headlineText,
   type HeadlinePart,
   type Study,
@@ -222,7 +223,7 @@ describe('the automation cards', () => {
   });
 
   it('name the project in a small label, and say what each does as a verb and its object', () => {
-    expect(HOME_AUTOMATION.map((t) => t.label)).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(HOME_AUTOMATION.map((t) => t.label)).toEqual(['Audible test-account tool', 'Docproof', 'n8n workflow library', 'MarketingWS']);
     expect(HOME_AUTOMATION.map((t) => headlineText(t.title))).toEqual([
       'Set up a test account in about 3 minutes, not 20',
       'Let agents write, and let checks decide',
@@ -234,25 +235,23 @@ describe('the automation cards', () => {
 
   it('say the approved lines, with the figures printed from facts', () => {
     expect(headlineText(byId.automation.description)).toBe(
-      'Tampermonkey with a step recorder. It cut test-account setup at Audible from about 20 to about 3 minutes and was adopted team-wide.',
+      'Tampermonkey with a step recorder. I spotted the bottleneck myself, built the tool and wrote the guide and video for it. Adopted team-wide.',
     );
     expect(headlineText(byId.docproof.description)).toBe(
       'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     );
     expect(headlineText(byId.n8n.description)).toBe(
-      'E-invoice intake and error alerts as reusable workflows, with 270+ automated tests. A portfolio project, not used by a client.',
+      'Checks incoming e-invoices, flags duplicates and changed bank details, and sends exceptions to a person; 270+ automated tests. A portfolio project, not used by a client.',
     );
     expect(headlineText(byId.marketingws.description)).toBe(
-      "Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier.",
+      "Copy variants from one brief, and a fact check that turns unsupported figures into placeholders. The live demo runs on Groq's free tier.",
     );
-    expect(factIds(byId.automation.description)).toEqual([
-      'profile.audible.setup_minutes_before',
-      'profile.audible.setup_minutes_after',
-    ]);
+    // The minutes stay in the title, so the description carries no figure of its own.
+    expect(factIds(byId.automation.description)).toEqual([]);
     expect(factIds(byId.n8n.description)).toEqual(['profile.n8n.automated_tests']);
     expect(HOME_AUTOMATION.map((t) => headlineText(t.meta))).toEqual([
       'Browser automation, 11 markets',
-      'Multi-agent orchestration, Claude Code',
+      'Multi-agent orchestration, automated verification, Claude Code',
       'n8n, XRechnung, ZUGFeRD',
       'Python, FastAPI, Groq',
     ]);
@@ -278,28 +277,35 @@ describe('the automation cards', () => {
   });
 });
 
-/** Every string of the sections from "How I test" to the site band (heads, tabs, lines, questions). */
+/** Every string of the tools band: each group's name, line, chips and "seen in" line, then the engineering line. */
+const toolsCopy = (): string[] => [
+  ...HOME_TOOLS.groups.flatMap((g) => [g.name, g.line, ...g.items, g.seenIn]),
+  HOME_TOOLS.engineering,
+];
+
+/** Every string of the sections from "How I test" to the site band (heads, tabs, lines, questions, tools). */
 const sectionCopy = (): string[] => [
   ...[HOME_HOW.head, HOME_EXPERIMENTS_HEAD, HOME_AUTOMATION_HEAD, HOME_QUESTIONS.head, HOME_SITE_HEAD, HOME_FAQ.head].flatMap((h) => Object.values(h) as string[]),
   ...HOME_HOW.tabs.flatMap((t) => [t.title, t.line]),
   ...HOME_AUTOMATE_LINES,
   ...HOME_QUESTIONS.rows.flat(),
   TOOLS_LABEL,
+  ...toolsCopy(),
 ];
 
 describe('the hero, proof row, the sections and the site band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.chip).toBe('Open to roles in Germany');
     expect(heroSubText()).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the Agents and Workflows that take the manual work out.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
-    expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
+    expect(HOME_BAND.caption).toBe('How I work: a test, the agents that check the work, and the recommendation.');
     // the experiments track has no lede: nothing printed it, and its words were out of date
     expect(HOME_TRACKS.experiments).toEqual({ title: 'Experiments and analytics' });
     expect(HOME_TRACKS.automation).toEqual({
       title: 'Automation and agents',
-      lede: 'Tools I built so that people, including me, stop doing the same thing by hand.',
+      lede: 'A tool my team at Audible adopted, and public projects where code checks the work before a person relies on it.',
     });
     expect(HOME_SITE).toEqual({
       title: 'This site is part of the evidence.',
@@ -308,22 +314,70 @@ describe('the hero, proof row, the sections and the site band', () => {
       lab: 'Try the Lab',
     });
     expect(HOME_SITE_HEAD).toEqual({ chip: 'Live test', title: 'This site is', quiet: 'part of the evidence.' });
-    expect(TOOLS_LABEL).toBe('Tools I have shipped with');
+    expect(TOOLS_LABEL).toBe('Methods and tools');
   });
 
-  it('keep the old "I test." and "I automate." lines word for word, in the tabs and the row under the cards', () => {
+  it('say the approved "How I test" and "I automate." lines word for word, in the tabs and the row under the cards', () => {
+    expect(HOME_HOW.head).toEqual({
+      chip: 'How I test',
+      title: 'Planned before it starts,',
+      quiet: 'honest about what it shows.',
+      sub: 'Three steps behind every recommendation, including when the result is neutral.',
+    });
     expect(HOME_HOW.tabs.map((t) => [t.title, t.line])).toEqual([
-      ['Plan', 'I plan the sample size and the run time before a test starts.'],
-      ['Analyse', 'I read the result against the primary metric and its guardrails.'],
-      ['Recommend', 'I write the recommendation: ship it, or do not.'],
+      ['Plan', 'I plan the sample size and run time before a test starts, so when to stop is settled in advance.'],
+      ['Analyse', 'I test the primary metric for significance and check that the guardrails held.'],
+      ['Recommend', 'I write the recommendation with its reasons, including when a neutral result is still worth shipping.'],
     ]);
+    expect(HOME_AUTOMATION_HEAD).toEqual({
+      chip: 'Automation and agents',
+      title: 'Take the manual steps out,',
+      quiet: 'and keep the checks in.',
+      sub: 'A tool my team at Audible adopted, and public projects where code checks the work before a person relies on it.',
+    });
     expect(HOME_AUTOMATE_LINES).toEqual([
       'I turn repeated manual steps into tools a whole team can use.',
-      'I build agents that work in steps and check each other.',
-      'I put automated tests around my workflows and agent pipelines, so they stay right.',
+      'I build agents in which code, not the model, has the last word on facts.',
+      'I test my workflows against the ways they fail, not only when everything goes right.',
     ]);
-    // The automation sub is the track's existing lede, which the Work page reads too.
+    // The automation sub is the track's lede.
     expect(HOME_AUTOMATION_HEAD.sub).toBe(HOME_TRACKS.automation.lede);
+  });
+
+  it('give the tools band two groups of methods and tools, each with its line and where it was used, then one engineering line', () => {
+    expect(HOME_TOOLS).toEqual({
+      groups: [
+        {
+          id: 'experiments',
+          name: 'Experimentation and analytics',
+          line: 'What I use to plan a test, read it honestly and write the recommendation.',
+          items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
+          seenIn: 'At Audible and in the retention analysis.',
+        },
+        {
+          id: 'automation',
+          name: 'AI and automation',
+          line: 'What I use to take repeated work off a team, with checks around it.',
+          items: ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
+          seenIn: 'In the test-account tool, Docproof, the n8n library and MarketingWS.',
+        },
+      ],
+      engineering: 'Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.',
+    });
+  });
+
+  it('never tie the AI and automation group to Audible', () => {
+    const ai = HOME_TOOLS.groups.find((g) => g.id === 'automation');
+    expect(ai).toBeDefined();
+    for (const s of [ai!.name, ai!.line, ...ai!.items, ai!.seenIn]) expect(s, s).not.toMatch(/Audible|Amazon/i);
+  });
+
+  it('keep the tools band to the Home list: no Excel, Tableau, Amplitude or the methods and tools that stay on About', () => {
+    for (const s of [TOOLS_LABEL, ...toolsCopy()]) {
+      expect(s, s).not.toMatch(
+        /Excel|Tableau|Amplitude|significance testing|cohort|RFM|event tracking|webhook|REST API|pytest|shipped with|as a data source/i,
+      );
+    }
   });
 
   it('give the FAQ figures as facts that exist, never typed', () => {
@@ -353,24 +407,40 @@ describe('the hero, proof row, the sections and the site band', () => {
       HOME_HERO.chip, heroSubText(), ...bandWords(), HOME_SITE.title, HOME_SITE.text,
       ...sectionCopy(),
     ];
-    for (const s of strings) expect(s, s).not.toMatch(/\d/);
+    // The name n8n is a name, not a figure (the truth audit allows it).
+    for (const s of strings) expect(s.replace(/\bn8n\b/g, ''), s).not.toMatch(/\d/);
   });
 });
 
+/** Every visitor-facing string of the Home content, figures printed. */
+const allHomeCopy = (): string[] => [
+  ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
+  ...HOME_CASES.map((c) => headlineText(c.description)),
+  ...HOME_CASES.map((c) => c.meta),
+  ...HOME_AUTOMATION.flatMap((t) => [t.label, headlineText(t.title), headlineText(t.description), headlineText(t.meta)]),
+  ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
+  HOME_TRACKS.experiments.title, HOME_TRACKS.automation.title, HOME_TRACKS.automation.lede,
+  HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
+  ...sectionCopy(),
+  ...HOME_FAQ.items.flatMap((i) => [i.question, faqText(i.answer)]),
+];
+
 describe('all Home copy', () => {
+  it('names no Excel and no Tableau "as a data source"', () => {
+    const copy = allHomeCopy();
+    expect(copy.length).toBeGreaterThan(50);
+    for (const text of copy) expect(text, text).not.toMatch(/\bExcel\b|as a data source/i);
+  });
+
+  it('names Tampermonkey only as "Tampermonkey with a step recorder"', () => {
+    const copy = allHomeCopy().join('\n');
+    const all = copy.match(/Tampermonkey/g) ?? [];
+    expect(all.length).toBeGreaterThan(0);
+    expect(copy.match(/Tampermonkey with a step recorder/g) ?? []).toHaveLength(all.length);
+  });
+
   it('has no arrow, middle dot, emoji or check mark, and none of the banned words', () => {
-    const all = [
-      ...HEADLINES.flatMap((h) => [headlineText(h.a), headlineText(h.b)]),
-      ...HOME_CASES.map((c) => headlineText(c.description)),
-      ...HOME_CASES.map((c) => c.meta),
-      ...HOME_AUTOMATION.flatMap((t) => [t.label, headlineText(t.title), headlineText(t.description), headlineText(t.meta)]),
-      ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
-      HOME_TRACKS.experiments.title, HOME_TRACKS.automation.title, HOME_TRACKS.automation.lede,
-      HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
-      ...sectionCopy(),
-      ...HOME_FAQ.items.flatMap((i) => [i.question, faqText(i.answer)]),
-    ];
-    for (const text of all) {
+    for (const text of allHomeCopy()) {
       expect(text, text).not.toMatch(BANNED_CHARS);
       expect(text, text).not.toMatch(/AI-powered|passionate|rockstar|\barm\b/i);
     }

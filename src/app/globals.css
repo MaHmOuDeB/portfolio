@@ -273,6 +273,19 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
+  /* A "How I test" tab on hover, focus and press: the same Highlight border. Focus is :focus-within,
+     not :has(:focus-visible): WebKit drops :focus-visible when an arrow key moves to the next radio. */
+  [data-how-tab]:focus-within,
+  [data-how-tab]:active {
+    border-color: Highlight;
+  }
+
+  @media (hover: hover) {
+    [data-how-tab]:hover {
+      border-color: Highlight;
+    }
+  }
+
   /* Text on ink. Chromium forces an ink fill to Canvas but keeps the light text tones (the bg and
      surface tokens), and WebKit keeps both the fill and the text, so neither engine is left to pick:
      every ink surface names a system colour pair for its fill and its text. The panels (the footer,
@@ -436,6 +449,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     margin-top: calc(var(--spacing) * 3.5);
     font-size: 1.0625rem;
     line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  [data-section-head][data-align="center"] p {
+    text-wrap: balance;
   }
 
   [data-page-head] {
@@ -1460,6 +1478,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-muted);
     font-size: 1.0625rem;
     line-height: 1.55;
+    text-wrap: pretty;
   }
 
   @media (width >= 40rem) {
@@ -2245,6 +2264,38 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     [data-depth-lean]:hover,
     [data-next]:hover {
+      translate: 0 calc(var(--spacing) * -1);
+    }
+  }
+
+  /* A "How I test" tab (a label around its radio) is clickable, so it takes the same states: on hover
+     where hover exists, on focus of its radio (:focus-within, since WebKit drops :focus-visible when an
+     arrow key moves to the next radio) and on press, the border turns ink, and on
+     hover, where motion is allowed, the tab rises 4 px (focus never moves it). The selected tab keeps its own look, a surface fill and an
+     ink bar at its left (HowITest), so a hovered tab never reads as the selected one. The border and
+     the transition live here, not in utilities, because a utility would beat these rules. */
+  [data-how-tab] {
+    border-color: var(--color-hairline);
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard),
+      translate var(--duration-base) var(--ease-standard);
+  }
+
+  @media (hover: hover) {
+    [data-how-tab]:hover {
+      border-color: var(--color-ink);
+    }
+  }
+
+  [data-how-tab]:focus-within,
+  [data-how-tab]:active {
+    border-color: var(--color-ink);
+  }
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    [data-how-tab]:hover {
       translate: 0 calc(var(--spacing) * -1);
     }
   }

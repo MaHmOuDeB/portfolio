@@ -1,8 +1,10 @@
 // "How I test": three stacked tabs at the left (a title and one line each) and one preview panel per
 // tab at the right. The tabs are native radio inputs inside their labels, the first checked, so the
 // widget works without JavaScript: the browser moves the selection with the arrow keys, and CSS shows
-// the panel whose radio is checked (`:has(#id:checked)` on the wrapper). Each panel is a decorative
-// sketch; the words a reader needs are in the tabs. The same for every visitor. Server-safe.
+// the panel whose radio is checked (`:has(#id:checked)` on the wrapper). The selected tab is marked by
+// a surface fill and an ink bar at its left; hover and focus give it a clickable card's states. Each
+// panel is a decorative sketch; the words a reader needs are in the tabs. The same for every visitor.
+// Server-safe.
 import { HOME_HOW } from '../../../content/home.ts';
 import { SectionHead } from '@/components/frame';
 import { HOW_SKETCHES } from '@/components/frame/sketches';
@@ -29,11 +31,19 @@ export function HowITest() {
       <div data-how-tabs="" className={`grid grid-cols-1 gap-2.5 lg:grid-cols-2 ${SHOW}`}>
         <div role="radiogroup" aria-labelledby={TITLE_ID} className="grid grid-cols-1 content-start gap-2.5">
           {tabs.map((tab, i) => (
+            // A tab is clickable, so it says so the way a card does (globals.css, [data-how-tab]): on hover,
+            // keyboard focus and press the border turns ink and, where motion is allowed, it rises 4 px.
             <label
               key={tab.id}
-              className="group relative block cursor-pointer rounded-xl border border-hairline px-5.5 py-4.5 text-muted transition-colors duration-(--duration-fast) has-[:checked]:bg-surface has-[:checked]:text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid hover:border-hairline-strong"
+              data-how-tab=""
+              className="group relative block cursor-pointer rounded-xl border px-5.5 py-4.5 text-muted has-[:checked]:bg-surface has-[:checked]:text-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent focus-within:outline-solid"
             >
-              <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only" />
+              {/* The ring and the ink border follow :focus-within, not :focus-visible: WebKit drops
+                  :focus-visible when an arrow key moves to the next radio, which would leave Safari keyboard
+                  users without a ring. A mouse click that focuses the radio shows the ring too. */}
+              {/* The radio is a 1 px box at the label's top, so focus would scroll only that box into view and
+                  leave the label's ring below the fold; the bottom scroll margin covers the label's height. */}
+              <input type="radio" name={NAME} id={radioId(tab.id)} value={tab.id} defaultChecked={i === 0} className="sr-only scroll-mb-36" />
               {/* The selected tab's mark: a shape, not only a fill, so the choice reads at 3:1 and hover never looks the same. */}
               <span data-how-mark="" aria-hidden="true" className="absolute inset-y-4 left-0 hidden w-0.5 rounded-pill bg-ink group-has-[:checked]:block" />
               <span data-how-title="" className="block text-lg font-semibold text-muted group-has-[:checked]:text-ink">
@@ -46,8 +56,9 @@ export function HowITest() {
           ))}
         </div>
         {/* The panel drifts in from the bottom right; on a fine pointer its rows shift a little, each
-            by more than the one above, as layers. The tabs stay still: they are controls. */}
-        <div data-depth-drift="br" data-depth-follow="" className="relative self-start rounded-xl border border-hairline bg-surface">
+            by more than the one above, as layers. The tabs do not follow the pointer: they are controls,
+            and only rise 4 px on hover and focus, as every clickable card does. */}
+        <div data-depth-drift="br" data-depth-follow="" className="relative self-start max-lg:order-first rounded-xl border border-hairline bg-surface">
           {tabs.map((tab) => {
             const Sketch = HOW_SKETCHES[SKETCH[tab.id]];
             return (

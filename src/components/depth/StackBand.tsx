@@ -1,6 +1,6 @@
 // The Home band: a framed stage under the hero with three sheets (a test, the agents that check the
 // work, the recommendation) and two links between them. Decorative, so the stack is hidden from
-// assistive technology; the visible caption under it says it is an illustration. No digits. The
+// assistive technology; the visible caption under it says what it shows (how I work). No digits. The
 // motion lives in globals.css, keyed on the data attributes: the sheets arrive once on load; on a
 // wide screen the stack rests in an isometric pose and leans to a fine pointer (Lean writes --mx and
 // --my on [data-depth-stack]); with scroll timelines, a tall enough screen and motion allowed the band

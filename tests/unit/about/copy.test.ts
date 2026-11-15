@@ -94,7 +94,7 @@ const STORY = [
 
 const FOCUS =
   'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
-const LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
+const LOOKING = 'Open to roles in experimentation, product analytics and AI automation in Germany.';
 
 const TIMELINE = [
   { dates: 'Oct 2026 to present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },

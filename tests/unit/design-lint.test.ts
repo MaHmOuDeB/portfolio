@@ -77,8 +77,8 @@ describe('lintCompiledCss fixtures', () => {
   });
 });
 
-// Hover movement is banned with one exception: a clickable card (a lean card or a previous/next
-// card) may rise by at most 4 px, by the `translate` property alone.
+// Hover movement is banned with one exception: a clickable card (a lean card, a previous/next card or
+// a "How I test" tab, a closed list) may rise by at most 4 px, by the `translate` property alone.
 describe('no-hover-move and the clickable-card lift', () => {
   const hoverMoves = (css: string) => lintCompiledCss(css, 'lift.css').filter((v) => v.rule === 'no-hover-move');
 
@@ -88,6 +88,8 @@ describe('no-hover-move and the clickable-card lift', () => {
     '[data-next]:hover { translate: 0 -4px; }',
     'a[data-next="prev"]:hover { translate: 0px -0.25rem; }',
     '[data-depth-lean]:is(:hover, :focus-visible) { translate: 0 -2px; }',
+    '@media (hover: hover) and (prefers-reduced-motion: no-preference) { [data-how-tab]:hover { translate: 0 calc(var(--spacing) * -1); } }',
+    'label[data-how-tab]:hover { translate: 0 -4px; }',
   ])('allows the lift of a clickable card: %s', (css) => {
     expect(hoverMoves(css)).toEqual([]);
   });
@@ -108,6 +110,11 @@ describe('no-hover-move and the clickable-card lift', () => {
     ['transform on the card', '[data-depth-lean]:hover { transform: translateY(-4px); }'],
     ['scale on the card', '[data-depth-lean]:hover { scale: 1.02; }'],
     ['nested CSS', '[data-depth-lean] { &:hover { translate: 0 -4px; } }'],
+    ['a tab by more than 4 px', '[data-how-tab]:hover { translate: 0 -6px; }'],
+    ['the tabs wrapper, a similar attribute name', '[data-how-tabs]:hover { translate: 0 -4px; }'],
+    ['a part inside a tab', '[data-how-tab]:hover [data-how-title] { translate: 0 -4px; }'],
+    ['a tab inside a hovered ancestor', '[data-how-tabs]:hover [data-how-tab] { translate: 0 -4px; }'],
+    ['a tab title of a similar name', '[data-how-title]:hover { translate: 0 -4px; }'],
   ])('still bans %s', (_, css) => {
     expect(hoverMoves(css)).toHaveLength(1);
   });
