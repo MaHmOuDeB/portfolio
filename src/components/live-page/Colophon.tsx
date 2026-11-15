@@ -1,6 +1,6 @@
 // The Live test page's colophon: the stack (versions from package.json) and the deploy's test and
 // audit results, embedded into the build (readBuildMeta). A build with no metadata file and no deploy
-// signal (local, e2e and the CI build job) says the results are added on deploy, with no number; a
+// signal (local, e2e and the CI build job) shows the stack line only: a line with no value is hidden; a
 // deploy build without them fails before it gets here (the CI build-isolation job writes a synthetic
 // file). Test counts are of the tests that ran; skipped tests and passes after a retry are said apart,
 // so a green run never reads as failures. The Lighthouse scores are a CI lab run, never field data.
@@ -29,11 +29,8 @@ export function Colophon({ meta }: { meta: BuildMeta | null }) {
         Built with Next.js {v(pkg.dependencies.next)}, React {v(pkg.dependencies.react)}, Tailwind CSS {v(pkg.devDependencies.tailwindcss)} and
         TypeScript {v(pkg.devDependencies.typescript)}.
       </p>
-      {meta === null ? (
-        <p id="colophon-results" data-derived="build" className={`${P} mt-3`}>
-          Test and audit results are added when the site is deployed.
-        </p>
-      ) : (
+      {/* No line without results (a local, e2e or CI build): a promise of numbers would read as unfinished. */}
+      {meta === null ? null : (
         <p id="colophon-results" className={`${P} mt-3`}>
           Unit tests: <Count n={meta.unitTests.passed} /> of <Count n={meta.unitTests.total} /> that ran passed
           <Skipped n={meta.unitTests.skipped} />. Browser tests: <Count n={meta.e2eTests.passed} /> of <Count n={meta.e2eTests.total} /> that ran

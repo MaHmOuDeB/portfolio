@@ -4,7 +4,10 @@
 // the published per-group cells. The exclusions are given by reason, as published, with the
 // structural preview row (always 0: a preview never writes). Stages are a list, not a Sankey: no
 // width stands for a total that is not published. A placeholder (no data) shows no count at all.
-// Server-safe.
+// The stages read left to right as one row of joined cells from md, and as a column on a phone.
+// Three parts, so the page can put the method one click deeper: the Figure (FunnelFigure), the
+// paragraph on what a beacon is and who sends none (FunnelMethod), and the entries turned away by
+// reason with their footnote (FunnelExclusions). Server-safe.
 import type { TableData } from '@/components/kit/DataTable';
 import { TextTable } from '../tables/TextTable';
 import { Derived, type DerivedRef } from '@/components/kit/Derived';
@@ -58,42 +61,52 @@ export function FunnelFigure({ data, refs, runtime }: Props) {
       </>
     );
   return (
+    <Figure
+      id="live-funnel"
+      title="Only the last two stages are published"
+      state={runtime === undefined ? undefined : { runtime }}
+      caption="Each stage keeps what the one before it let through. The first two totals are not published, because a total could give away a count that is shown only as less than five."
+      provenance={provenanceOf(refs)}
+      table={table}
+    >
+      <ol data-funnel="" className="grid divide-y divide-hairline-strong rounded-md border border-hairline-strong text-base md:grid-cols-4 md:divide-x md:divide-y-0">
+        {[
+          ['Beacons received', NOT_PUBLISHED],
+          ['After the bot filter', NOT_PUBLISHED],
+          ['Counted entry views', pair(c.a.entry, c.b.entry)],
+          ['Cards in view (analysed views)', pair(c.a.inview, c.b.inview)],
+        ].map(([name, value], i) => (
+          <li key={i} className="p-3 md:p-4">
+            <span className="font-semibold">{name}</span>
+            <br />
+            <span className="text-muted">{value}</span>
+          </li>
+        ))}
+      </ol>
+    </Figure>
+  );
+}
+
+/** What a beacon is, and who sends none: the method behind the stages. */
+export function FunnelMethod() {
+  return (
+    <p className={P}>
+      The beacon on the home page (a small signal the page sends when it loads) sends events, and the server decides which of
+      them count. These are beacons received, not visitors: one person can send many. Nothing comes from bots that never run
+      JavaScript, or from visitors whose browser sends Global Privacy Control or Do Not Track, so they are in no count.
+    </p>
+  );
+}
+
+/** The entries turned away, by reason, with the structural preview row and the footnote. */
+export function FunnelExclusions({ data, refs }: { data: LivePagePublic; refs: readonly DerivedRef[] }) {
+  const placeholder = data.source === 'unavailable';
+  return (
     <div>
-      <p className={P}>
-        The beacon on the home page sends events, and the server decides which of them count. These are beacons received, not
-        visitors: one person can send many. Nothing comes from bots that never run JavaScript, or from visitors whose browser
-        sends Global Privacy Control or Do Not Track, so they are in no count.
-      </p>
-      <div className="mt-8">
-        <Figure
-          id="live-funnel"
-          title="Only the last two stages are published"
-          state={runtime === undefined ? undefined : { runtime }}
-          caption="Each stage keeps what the one before it let through. The first two totals are not published, because a total could give away a count that is shown only as less than five."
-          provenance={provenanceOf(refs)}
-          table={table}
-        >
-          <ol data-funnel="" className="grid gap-3 text-base sm:grid-cols-2">
-            {[
-              ['Beacons received', NOT_PUBLISHED],
-              ['After the bot filter', NOT_PUBLISHED],
-              ['Counted entry views', pair(c.a.entry, c.b.entry)],
-              ['Cards in view (analysed views)', pair(c.a.inview, c.b.inview)],
-            ].map(([name, value], i) => (
-              <li key={i} className="border-l-2 border-line pl-3">
-                <span className="font-semibold">{name}</span>
-                <br />
-                <span className="text-muted">{value}</span>
-              </li>
-            ))}
-          </ol>
-        </Figure>
-      </div>
-      <h3 className="mt-8 max-w-text text-xl font-semibold">Why views were not counted</h3>
       {placeholder ? (
-        <p className={`${P} mt-3`}>No counts are shown: this page has no data.</p>
+        <p className={P}>No counts are shown: this page has no data.</p>
       ) : (
-        <div id="live-exclusions" className="mt-3 max-w-figure">
+        <div id="live-exclusions" className="max-w-figure">
           {/* A text table: the meanings are sentences, so they wrap instead of scrolling sideways. */}
           <TextTable
             id="live-exclusions-table"

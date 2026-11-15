@@ -145,6 +145,15 @@ function HollowAxis({ label }: { label: string }) {
   );
 }
 
+/**
+ * What the results part draws in this state: nothing but a sentence (no data, a failed split check, a
+ * failed calibration), the hollow mark in place of an interval, or an interval.
+ */
+export function resultsKind(d: LivePageDisplay): 'none' | 'hollow' | 'interval' {
+  if (d.public.source === 'unavailable' || d.mode === 'srm-suppressed' || d.mode === 'aa-failed') return 'none';
+  return d.series.length > 0 ? 'interval' : 'hollow';
+}
+
 export function ResultsFigure({ display: d, runtime }: { display: LivePageDisplay; runtime?: FigureRuntime }) {
   const P_BASE = 'max-w-text text-base';
   if (d.public.source === 'unavailable') return <p className={P_BASE}>No results are shown: this page has no data.</p>;
