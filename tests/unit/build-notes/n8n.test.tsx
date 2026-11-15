@@ -31,19 +31,33 @@ const COMMIT = '626a254fdccb2ee558dca1f371fdcaa3a4523d8c';
 const BASE = 'https://github.com/MaHmOuDeB/n8n-workflow-library';
 
 describe('the outline', () => {
-  it('has one h1, the Work title, and the Work line under it', () => {
+  it('has one two-tone h1, one plain opening paragraph and the button to the code', () => {
     expect([...PAGE.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
-    expect(PAGE).toMatch(/<h1 id="n8n-title"[^>]*>n8n Workflow Library<\/h1>/);
-    expect(N8N_TITLE).toBe('n8n Workflow Library');
-    const work = WORK_GROUPS.flatMap((g) => g.items).find((i) => i.href === ROUTE)!;
-    expect(work.title).toBe(N8N_TITLE);
+    expect(N8N_TITLE).toBe('E-invoice intake and error alerts in n8n');
+    const h1 = /<h1 id="n8n-title"[^>]*>([\s\S]*?)<\/h1>/.exec(PAGE)![1]!;
+    expect(text(h1)).toBe('E-invoice intake and error alerts in n8n with 270+ automated tests.');
+    expect(h1).toContain('data-fact="profile.n8n.automated_tests"');
     const intro = /<h1[\s\S]*?<\/h1>\s*<div[^>]*>([\s\S]*?)<\/div>/.exec(PAGE)![1]!;
-    expect(text(intro)).toBe(text(renderToStaticMarkup(<>{work.description}</>)));
+    expect([...intro.matchAll(/<p[\s>]/g)]).toHaveLength(1);
+    expect(text(intro)).toBe(
+      'Since January 2025 German companies must be able to receive electronic invoices. I built automations that read each invoice, check its sums and bank details, approve the routine ones and send anything unusual to a person.',
+    );
+    expect(PAGE).not.toContain('data-note-role');
+    const actions = PAGE.slice(PAGE.indexOf('data-case-actions'), PAGE.indexOf('<section aria-label="At a glance"'));
+    expect(actions).toContain(`href="${BASE}/tree/${COMMIT}"`);
+    expect(text(actions.slice(actions.indexOf('>') + 1))).toBe('See the code on GitHub');
   });
 
-  it('is the second item of the automation group, after Docproof', () => {
-    const group = WORK_GROUPS.find((g) => g.id === 'automation')!;
-    expect(group.items.map((i) => i.href)).toEqual(['/work/docproof', ROUTE, '/work/marketingws']);
+  it('is in the Work directory', () => {
+    expect(WORK_GROUPS.flatMap((g) => g.items).some((i) => i.href === ROUTE)).toBe(true);
+  });
+
+  it('states the limit once in Scope and once in Limits, and names the pair programmer once', () => {
+    expect(PAGE_TEXT.match(/No client and no production use; every invoice was a generated sample\./g)).toHaveLength(2);
+    expect(text(section(PAGE, 'limits'))).toContain('No client and no production use; every invoice was a generated sample.');
+    expect(PAGE_TEXT.match(/production use/g)).toHaveLength(2);
+    expect(PAGE_TEXT.match(/pair programmer/g)).toHaveLength(1);
+    expect(PAGE_TEXT).not.toContain('There is no adoption to report');
   });
 
   it('follows the build-note template: problem, architecture, checks, outcome, limits, links', () => {
@@ -54,7 +68,8 @@ describe('the outline', () => {
       expect(headingId).toBe(`${id}-title`);
     }
     expect(N8N_SECTIONS.map((s) => s.id)).toEqual(BUILD_NOTE_SECTIONS.map(([id]) => id));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length);
+    // the sections, then the close
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(BUILD_NOTE_SECTIONS.length + 1);
   });
 
   it('has section links to every section, in page order', () => {
@@ -71,40 +86,53 @@ describe('the outline', () => {
   it('is about 400 words of prose', () => {
     const words = proseWords(PAGE);
     expect(words).toBeGreaterThanOrEqual(330);
-    expect(words).toBeLessThanOrEqual(480);
+    // the reading model adds a lead-in, a takeaway, the close and previous and next
+    expect(words).toBeLessThanOrEqual(560);
   });
 
   it('has no motion and no card grid of its own', () => {
-    expect(PAGE).not.toMatch(/animate-|transition|fade|slide-in/);
+    // the only transition is the buttons' colour change on hover
+    expect(PAGE.replace(/transition-colors/g, '')).not.toMatch(/animate-|transition|fade|slide-in/);
     expect(PAGE).not.toMatch(/grid-cols-[3-9]/);
   });
 });
 
 describe('the copy, word for word', () => {
-  it('the line on my role, right under the intro; no Summary section', () => {
-    const role = /<p data-note-role=""[^>]*>([\s\S]*?)<\/p>/.exec(PAGE)![1]!;
-    expect(text(role)).toBe(
-      'A personal project, built in 2026: three automations for a self-hosted n8n in a public, MIT-licensed repository, with no real customer, no production use and no real invoices. I set the requirements and made the design decisions; Claude Code was my pair programmer.',
-    );
+  it('has no Summary section, and the glance card holds the test count, one sentence and the Scope', () => {
     expect(PAGE).not.toMatch(/id="summary"|>Summary</);
+    const glance = /<section aria-label="At a glance"[\s\S]*?<\/section>/.exec(PAGE)![0];
+    expect(text(/<ul[\s\S]*?<\/ul>/.exec(glance)![0])).toBe('270+ automated tests');
+    expect(text(/<p data-glance-outcome="">[\s\S]*?<\/p>/.exec(glance)![0])).toBe(
+      'Document and process automation in n8n that installs with one command, restored and checked after a full wipe of its data.',
+    );
+    expect(text(glance)).toContain(
+      'Scope Personal project, 2026, with Claude Code as pair programmer. No client and no production use; every invoice was a generated sample.',
+    );
+  });
+
+  it('closes on what it shows about how I work', () => {
+    const close = PAGE.slice(PAGE.indexOf('<section data-page-close'));
+    expect(text(close.slice(0, close.indexOf('</section>')))).toBe(
+      'What this shows about how I work I can automate a back-office process and prove it works with tests. See the code on GitHub',
+    );
   });
 
   it.each([
     [
       'problem',
-      'The problem Since January 2025, German companies must be able to receive structured e-invoices. Someone has to read and check the XML and catch risky cases, such as changed bank details. A failing workflow is easy to miss. I wanted tested automations for both, installed with one command.',
+      'The problem Each structured e-invoice arrives as XML. Someone has to read and check it and catch risky cases, such as changed bank details. A failing workflow is easy to miss. I wanted tested automations for both, installed with one command.',
     ],
     [
       'how-i-checked-this',
-      'How I checked this 270+ automated tests cover the workflows, the installer, the invoice logic, end-to-end uploads, the mail intake and the alerts. The final run installed everything on a brand-new n8n, with smoke tests and a customer-style acceptance test. I tested failure on purpose too: XML with entity definitions, duplicates sent in parallel, and a server without the zlib permission, where every upload failed until I fixed it. Part of the suite runs in GitHub Actions on every push; the tests that need a running n8n, real web calls or a Gmail mailbox are run by hand.',
+      'How I checked this 270+ automated tests cover the workflows, the installer, the invoice logic, end-to-end uploads, the mail intake and the alerts. The final run installed everything on a brand-new n8n, with smoke tests and a customer-style acceptance test. The failure cases and what runs on every push I tested failure on purpose too: XML with entity definitions, duplicates sent in parallel, and a server without the zlib permission, where every upload failed until I fixed it. Part of the suite runs in GitHub Actions on every push; the tests that need a running n8n, real web calls or a Gmail mailbox are run by hand.',
     ],
     [
       'outcome',
-      'Outcome It ships with an installer that has checks, a dry run and safe re-runs; a Docker Compose stack with PostgreSQL, HTTPS through Caddy and a pinned n8n version; and backup, restore and health-check scripts. A restore after losing all data volumes was verified. There is no adoption to report.',
+      'Outcome It ships with an installer that has checks, a dry run and safe re-runs; a Docker Compose stack with PostgreSQL, HTTPS through Caddy and a pinned n8n version; and backup, restore and health-check scripts. A restore after losing all data volumes was verified.',
     ],
     [
       'limits',
-      'Limits No production or client validation: the stack ran with Docker on my own computer, not a hosted server, and every invoice it has seen was a generated sample. Not a certified XRechnung validator: the checks are structural, arithmetic and master-data only, with no OCR for scanned PDFs, no accounting-software link and no Outlook or IMAP intake. It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in testing mode its sign-in expires after about a week.',
+      'Limits No client and no production use; every invoice was a generated sample. The stack ran with Docker on my own computer, not a hosted server. Not a certified XRechnung validator: the checks are structural, arithmetic and master-data only, with no OCR for scanned PDFs, no accounting-software link and no Outlook or IMAP intake. What it needs to run It expects a self-hosted n8n that allows the zlib module (without it, PDF invoices go to a person) and an SMTP account; its mails are English only. The Gmail intake was proven on one test mailbox, and while the Google app is in testing mode its sign-in expires after about a week.',
     ],
     [
       'sources',
@@ -116,7 +144,7 @@ describe('the copy, word for word', () => {
 
   it('architecture: the formats, the checks, the routing and the alerts, then the diagram', () => {
     const s = section(PAGE, 'architecture');
-    expect(text(s.replace(/<figure [\s\S]*?<\/figure>/g, ''))).toBe(
+    expect(text(s.replace(/<figure [\s\S]*?<\/figure>/g, '').replace(/<div data-(lead-in|takeaway|figure-sheet)[\s\S]*$/, ''))).toBe(
       'Architecture Invoices arrive by upload or from a Gmail mailbox, as XRechnung (CII or UBL), ZUGFeRD or Factur-X. The intake checks totals, VAT, dates, tax IDs, the IBAN checksum and the currency, finds duplicates even across formats, flags changed bank details and archives the original byte for byte. Known-good invoices are approved automatically; the rest go to a person. The error alerts turn any failing workflow into one readable e-mail, with secrets and personal data removed where possible and repeats throttled.',
     );
     expect(s.indexOf('<p')).toBeLessThan(s.indexOf('data-figure="n8n-flow"'));
@@ -124,7 +152,7 @@ describe('the copy, word for word', () => {
 });
 
 describe('figures', () => {
-  it('prints the test count through its profile fact, in the intro, the glance block and the checks', () => {
+  it('prints the test count through its profile fact, in the h1, the glance block and the checks', () => {
     expect(PAGE.match(/data-fact="profile\.n8n\.automated_tests"/g)).toHaveLength(3);
     expect(section(PAGE, 'how-i-checked-this')).toContain('data-fact="profile.n8n.automated_tests"');
   });
@@ -166,7 +194,8 @@ describe('the flow diagram', () => {
 
 describe('truth', () => {
   it('frames it as document and process automation', () => {
-    expect(PAGE_TEXT).toContain('Document and process automation in n8n: e-invoice intake (XRechnung, ZUGFeRD) and error alerts');
+    expect(PAGE_TEXT).toContain('Document and process automation in n8n');
+    expect(PAGE_TEXT).toContain('E-invoice intake and error alerts in n8n');
   });
 });
 
@@ -180,8 +209,9 @@ describe('links', () => {
 
   it('makes every link a 44 px target and marks the repository links as another site', () => {
     const anchors = [...PAGE.matchAll(/<a [^>]*>/g)].map((m) => m[0]);
-    expect(anchors.length).toBe(BUILD_NOTE_LINKS.length + 4);
-    for (const a of anchors) expect(a, a).toContain('data-touch-target=""');
+    // the code button, the chips, the screenshot's full-size link, the three sources, the close's button, previous and next
+    expect(anchors.length).toBe(1 + BUILD_NOTE_LINKS.length + 1 + 3 + 1 + 2);
+    for (const a of anchors) expect(a, a).toMatch(/data-touch-target="(true)?"/);
     for (const a of anchors.filter((x) => x.includes('github.com'))) expect(a).toContain('rel="noopener"');
   });
 });
@@ -196,10 +226,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('n8n Workflow Library | Mahmoud El Bergui');
-    expect(mod.metadata.description).toBe(
-      'Document and process automation in n8n: an e-invoice intake for XRechnung and ZUGFeRD, error alerts, and how it is tested. A portfolio project with no production use.',
-    );
+    expect(mod.metadata.title).toBe('E-invoice intake and error alerts in n8n | Mahmoud El Bergui');
     expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);
     expect(LIVE_ROUTES).toContain(ROUTE);
   });

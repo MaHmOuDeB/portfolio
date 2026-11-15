@@ -3,12 +3,18 @@
 // evidence is the flow diagram, drawn as two ordered lists so it is its own text alternative.
 // Static, server only.
 import type { ReactNode } from 'react';
+import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
 import {
+  N8N_ACTIONS,
   N8N_ARCHITECTURE,
+  N8N_CLOSE,
+  N8N_REPO,
   N8N_CHECKS,
   N8N_FLOW,
   N8N_FLOW_CAPTION,
+  N8N_FLOW_LEAD_IN,
+  N8N_FLOW_TAKEAWAY,
   N8N_FLOW_TITLE,
   N8N_GLANCE,
   N8N_LIMITS,
@@ -16,7 +22,7 @@ import {
   N8N_PROBLEM,
   N8N_TITLE,
   N8nIntro,
-  N8nRole,
+  N8nQuiet,
   N8nSources,
 } from '../../../content/n8n';
 import {
@@ -24,7 +30,6 @@ import {
   BuildNote,
   DiagramConnector,
   DiagramStep,
-  EVIDENCE,
   NoteList,
   Paragraphs,
   TEXT,
@@ -68,36 +73,61 @@ function FlowDiagram() {
 }
 
 export function N8nPage(): ReactNode {
+  const checks = N8N_CHECKS.slice(0, 1);
+  const checkDetail = N8N_CHECKS.slice(1);
+  const limits = N8N_LIMITS.filter(([key]) => key !== 'needs');
+  const needs = N8N_LIMITS.filter(([key]) => key === 'needs');
   return (
     <BuildNote
       slug="n8n"
       title={N8N_TITLE}
+      quiet={<N8nQuiet />}
       intro={<N8nIntro />}
-      role={<N8nRole />}
+      actions={N8N_ACTIONS}
       glance={N8N_GLANCE}
       sections={{
         problem: <Paragraphs items={N8N_PROBLEM} />,
         architecture: (
           <>
             <Paragraphs items={N8N_ARCHITECTURE} />
-            <div className={EVIDENCE}>
+            <LeadIn>{N8N_FLOW_LEAD_IN}</LeadIn>
+            <FigureSheet>
               <FlowDiagram />
-            </div>
-            <NoteShot shot="n8nDecision" />
+            </FigureSheet>
+            <Takeaway>{N8N_FLOW_TAKEAWAY}</Takeaway>
+            <FigureSheet label="Screenshot">
+              <NoteShot shot="n8nDecision" />
+            </FigureSheet>
           </>
         ),
-        'how-i-checked-this': <Paragraphs items={N8N_CHECKS} />,
+        'how-i-checked-this': (
+          <>
+            <Paragraphs items={checks} />
+            <MethodDetails summary="The failure cases and what runs on every push">
+              <Paragraphs items={checkDetail} />
+            </MethodDetails>
+          </>
+        ),
         outcome: <Paragraphs items={N8N_OUTCOME} />,
         limits: (
-          <div className={TEXT}>
-            <NoteList items={N8N_LIMITS} />
-          </div>
+          <>
+            <div className={TEXT}>
+              <NoteList items={limits} />
+            </div>
+            <MethodDetails summary="What it needs to run">
+              <Paragraphs items={needs} />
+            </MethodDetails>
+          </>
         ),
         sources: (
           <div className={TEXT}>
             <N8nSources />
           </div>
         ),
+      }}
+      close={{
+        body: <p>{N8N_CLOSE}</p>,
+        links: [{ href: `${N8N_REPO.base}/tree/${N8N_REPO.commit}`, label: 'See the code on GitHub', external: true }],
       }}
     />
   );
