@@ -10,6 +10,7 @@ import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, HOME_CASES } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
+import { HOME_TOOLS } from '../../../content/home.ts';
 import { DOCPROOF_REPO } from '../../../content/docproof';
 import { N8N_REPO } from '../../../content/n8n';
 import { aboutPhoto } from '../../../content/about-photo';
@@ -106,11 +107,16 @@ describe('HowITest: the tabs widget', () => {
   const d = doc(html);
   const section = one(d, (el) => has(el, 'data-home-how'));
 
-  it('is a ruled section headed "How I test", "Know what a test really says."', () => {
+  it('is a ruled section headed "How I test", "Planned before it starts, honest about what it shows."', () => {
     expect(section.tagName).toBe('section');
     expect(has(section, 'data-rule')).toBe(true);
     const h = head(section);
-    expect(h).toMatchObject({ chip: 'How I test', title: 'Know what a test really says.', quiet: 'really says.', sub: 'Three steps before I recommend a change.' });
+    expect(h).toMatchObject({
+      chip: 'How I test',
+      title: 'Planned before it starts, honest about what it shows.',
+      quiet: 'honest about what it shows.',
+      sub: 'Three steps behind every recommendation, including when the result is neutral.',
+    });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
 
@@ -154,9 +160,9 @@ describe('HowITest: the tabs widget', () => {
       line: text(one(l, (el) => has(el, 'data-how-line'))),
     }));
     expect(tabs).toEqual([
-      { title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-      { title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
-      { title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
+      { title: 'Plan', line: 'I plan the sample size and run time before a test starts, so when to stop is settled in advance.' },
+      { title: 'Analyse', line: 'I test the primary metric for significance and check that the guardrails held.' },
+      { title: 'Recommend', line: 'I write the recommendation with its reasons, including when a neutral result is still worth shipping.' },
     ]);
   });
 
@@ -273,14 +279,14 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
   const d = doc(html);
   const section = one(d, (el) => attr(el, 'data-home-track') === 'automation');
 
-  it('is ruled and headed "Take the manual steps out of your team\'s week."', () => {
+  it('is ruled and headed "Take the manual steps out, and keep the checks in."', () => {
     expect(has(section, 'data-rule')).toBe(true);
     const h = head(section);
     expect(h).toMatchObject({
       chip: 'Automation and agents',
-      title: "Take the manual steps out of your team's week.",
-      quiet: "out of your team's week.",
-      sub: 'Tools I built so that people, including me, stop doing the same thing by hand.',
+      title: 'Take the manual steps out, and keep the checks in.',
+      quiet: 'and keep the checks in.',
+      sub: 'A tool my team at Audible adopted, and public projects where code checks the work before a person relies on it.',
     });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
@@ -289,7 +295,7 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     const links = all(section, (el) => el.tagName === 'a');
     expect(links.map((a) => attr(a, 'href'))).toEqual(['/work/audible#automation', '/work/docproof', '/work/n8n', '/work/marketingws']);
     // The project name is a small label inside the h3, so the link's name carries both.
-    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-label'))))).toEqual(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-label'))))).toEqual(['Audible test-account tool', 'Docproof', 'n8n workflow library', 'MarketingWS']);
     expect(links.map((a) => text(one(a, (el) => has(el, 'data-card-title'))))).toEqual([
       'Set up a test account in about 3 minutes, not 20',
       'Let agents write, and let checks decide',
@@ -298,11 +304,10 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     ]);
     for (const a of links) expect(all(one(a, (el) => el.tagName === 'h3'), (el) => has(el, 'data-card-label'))).toHaveLength(1);
     for (const a of links) expect(has(a, 'data-experiment-click')).toBe(false);
+    // The automation card's minutes are in its title; its description carries no figure.
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
       'profile.audible.setup_minutes_after',
       'profile.audible.setup_minutes_before',
-      'profile.audible.setup_minutes_before',
-      'profile.audible.setup_minutes_after',
       'profile.audible.markets',
       'profile.n8n.automated_tests',
     ]);
@@ -334,8 +339,8 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     for (const li of all(ul, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['md:px-6', 'md:first:pl-0', 'md:last:pr-0']));
     expect(all(ul, (el) => el.tagName === 'li').map((li) => text(li))).toEqual([
       'I turn repeated manual steps into tools a whole team can use.',
-      'I build agents that work in steps and check each other.',
-      'I put automated tests around my workflows and agent pipelines, so they stay right.',
+      'I build agents in which code, not the model, has the last word on facts.',
+      'I test my workflows against the ways they fail, not only when everything goes right.',
     ]);
   });
 
@@ -389,21 +394,76 @@ describe('QuestionsRows', () => {
 });
 
 describe('ToolsBand', () => {
-  const d = doc(render(createElement(ToolsBand)));
+  const html = render(createElement(ToolsBand));
+  const d = doc(html);
+  const band = one(d, (el) => has(el, 'data-home-shipped'));
+  const groups = all(band, (el) => has(el, 'data-tools-group'));
 
-  it('is a ruled band: the centred line "Tools I have shipped with" and a static grid of chips, About\'s own list', () => {
-    const band = one(d, (el) => has(el, 'data-home-shipped'));
+  it('is a ruled band labelled by its centred line "Methods and tools", with no ribbon', () => {
+    expect(band.tagName).toBe('section');
     expect(has(band, 'data-rule')).toBe(true);
     expect(has(band, 'data-depth-ribbon')).toBe(false);
     expect(all(band, (el) => has(el, 'data-depth-ribbon'))).toEqual([]);
-    const line = one(band, (el) => el.tagName === 'p');
-    expect(text(line)).toBe('Tools I have shipped with');
-    const ul = one(band, (el) => el.tagName === 'ul');
-    expect(attr(ul, 'role')).toBe('list');
-    expect(attr(ul, 'aria-labelledby')).toBe(attr(line, 'id'));
-    const items = all(ul, (el) => el.tagName === 'li').map((li) => text(li));
-    expect(items).toEqual(SHIPPED_TOOLS.map((t) => t.tool));
-    expect(all(ul, (el) => has(el, 'data-chip'))).toHaveLength(items.length);
+    const label = one(band, (el) => has(el, 'data-tools-label'));
+    expect(label.tagName).toBe('p');
+    expect(text(label)).toBe('Methods and tools');
+    expect(attr(band, 'aria-labelledby')).toBe(attr(label, 'id'));
+    expect(classes(label)).toContain('text-center');
+  });
+
+  it('holds two groups, side by side from lg and one column below', () => {
+    expect(groups.map((g) => attr(g, 'data-tools-group'))).toEqual(['experiments', 'automation']);
+    const grid = one(band, (el) => has(el, 'data-tools-groups'));
+    expect(classes(grid)).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-2']));
+  });
+
+  it('gives each group its name, its line, a list of chips labelled by the name, and where it was used', () => {
+    for (const [i, g] of groups.entries()) {
+      const data = HOME_TOOLS.groups[i]!;
+      const name = one(g, (el) => has(el, 'data-tools-name'));
+      expect(text(name)).toBe(data.name);
+      expect(classes(name)).toEqual(expect.arrayContaining(['text-sm', 'font-semibold']));
+      const line = one(g, (el) => has(el, 'data-tools-line'));
+      expect(text(line)).toBe(data.line);
+      expect(classes(line)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
+      const ul = one(g, (el) => el.tagName === 'ul');
+      expect(attr(ul, 'role')).toBe('list');
+      expect(attr(ul, 'aria-labelledby')).toBe(attr(name, 'id'));
+      expect(classes(ul)).toContain('flex-wrap');
+      const items = all(ul, (el) => el.tagName === 'li').map((li) => text(li));
+      expect(items).toEqual([...data.items]);
+      expect(all(ul, (el) => has(el, 'data-chip'))).toHaveLength(items.length);
+      const seen = one(g, (el) => has(el, 'data-tools-seen'));
+      expect(text(seen)).toBe(data.seenIn);
+      expect(classes(seen)).toEqual(expect.arrayContaining(['text-xs', 'text-muted']));
+    }
+    expect(groups.map((g) => all(g, (el) => el.tagName === 'li').map((li) => text(li)))).toEqual([
+      ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
+      ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
+    ]);
+  });
+
+  it('ends in one quiet engineering line after the groups, not chips', () => {
+    const eng = one(band, (el) => has(el, 'data-tools-engineering'));
+    expect(eng.tagName).toBe('p');
+    expect(text(eng)).toBe('Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.');
+    expect(classes(eng)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
+    expect(all(eng, (el) => has(el, 'data-chip'))).toEqual([]);
+    expect(html.indexOf('data-tools-engineering')).toBeGreaterThan(html.lastIndexOf('data-tools-seen'));
+  });
+
+  it('is Home\'s own list, not About\'s, and adds no link, control or heading', () => {
+    const chips = all(band, (el) => has(el, 'data-chip')).map((c) => text(c));
+    expect(chips).toHaveLength(10);
+    expect(chips).not.toEqual(SHIPPED_TOOLS.map((t) => t.tool));
+    expect(all(band, (el) => ['a', 'button', 'input', 'select', 'textarea'].includes(el.tagName))).toEqual([]);
+    expect(all(band, (el) => /^h\d$/.test(el.tagName))).toEqual([]);
+    expect(text(band)).not.toMatch(/Excel|Tableau|as a data source/);
+  });
+
+  it('never ties the AI and automation group to Audible, and passes the truth audit', () => {
+    expect(text(groups[1]!)).not.toMatch(/Audible|Amazon/);
+    expect(audit(html)).toEqual([]);
   });
 });
 

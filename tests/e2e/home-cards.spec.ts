@@ -359,13 +359,13 @@ test.describe('Home reflow and focus', () => {
 });
 
 test.describe('Home automation track', () => {
-  test('four cards after the experiments, each a link to its page, under the heading "Take the manual steps out of your team\'s week."', async ({ page }) => {
+  test('four cards after the experiments, each a link to its page, under the heading "Take the manual steps out, and keep the checks in."', async ({ page }) => {
     await page.goto(host('a'));
     const track = page.locator('[data-home-track="automation"]');
-    await expect(track.getByRole('heading', { level: 2 })).toHaveText("Take the manual steps out of your team's week.");
+    await expect(track.getByRole('heading', { level: 2 })).toHaveText('Take the manual steps out, and keep the checks in.');
     const links = track.getByRole('link');
     await expect(links).toHaveCount(4);
-    await expect(links.locator('h3 [data-card-label]')).toHaveText(['Test-account automation', 'Docproof', 'n8n workflow library', 'MarketingWS']);
+    await expect(links.locator('h3 [data-card-label]')).toHaveText(['Audible test-account tool', 'Docproof', 'n8n workflow library', 'MarketingWS']);
     await expect(links.locator('h3 [data-card-title]')).toHaveText([
       'Set up a test account in about 3 minutes, not 20',
       'Let agents write, and let checks decide',

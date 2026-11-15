@@ -1,5 +1,5 @@
 // The Home page's content as data: the hero, the proof row, the two tracks (featured case studies and
-// automation cards), "How I test", the questions, the tools band, the site band and the FAQ, plus
+// automation cards), "How I test", the questions, the tools band (HOME_TOOLS), the site band and the FAQ, plus
 // the headline text helper.
 // Prose with a figure is a list of parts: plain text, or `{ fact }` for a number that is printed from
 // the facts data, never typed. The group A and B card headlines are frozen with the experiment
@@ -167,7 +167,7 @@ export const HOME_TRACKS = {
   },
   automation: {
     title: 'Automation and agents',
-    lede: 'Tools I built so that people, including me, stop doing the same thing by hand.',
+    lede: 'A tool my team at Audible adopted, and public projects where code checks the work before a person relies on it.',
   },
 } as const;
 
@@ -221,7 +221,7 @@ export const HOME_AUTOMATION: readonly {
 }[] = [
   {
     id: 'automation',
-    label: 'Test-account automation',
+    label: 'Audible test-account tool',
     title: [
       'Set up a test account in about ',
       { fact: 'profile.audible.setup_minutes_after' },
@@ -229,12 +229,9 @@ export const HOME_AUTOMATION: readonly {
       { fact: 'profile.audible.setup_minutes_before' },
     ],
     href: HOME_LINKS.automation,
+    // The minutes are in the title, so the description tells how the tool came about.
     description: [
-      'Tampermonkey with a step recorder. It cut test-account setup at Audible from about ',
-      { fact: 'profile.audible.setup_minutes_before' },
-      ' to about ',
-      { fact: 'profile.audible.setup_minutes_after' },
-      ' minutes and was adopted team-wide.',
+      'Tampermonkey with a step recorder. I spotted the bottleneck myself, built the tool and wrote the guide and video for it. Adopted team-wide.',
     ],
     meta: ['Browser automation, ', { fact: 'profile.audible.markets' }, ' markets'],
   },
@@ -246,7 +243,7 @@ export const HOME_AUTOMATION: readonly {
     description: [
       'Separate agents write, audit and review a document, and deterministic checks decide what reaches the reader. Open source, tested in CI, no users yet.',
     ],
-    meta: ['Multi-agent orchestration, Claude Code'],
+    meta: ['Multi-agent orchestration, automated verification, Claude Code'],
   },
   {
     id: 'n8n',
@@ -254,7 +251,7 @@ export const HOME_AUTOMATION: readonly {
     title: ['Check every e-invoice before a person has to'],
     href: HOME_LINKS.n8n,
     description: [
-      'E-invoice intake and error alerts as reusable workflows, with ',
+      'Checks incoming e-invoices, flags duplicates and changed bank details, and sends exceptions to a person; ',
       { fact: 'profile.n8n.automated_tests' },
       ' automated tests. A portfolio project, not used by a client.',
     ],
@@ -265,7 +262,9 @@ export const HOME_AUTOMATION: readonly {
     label: 'MarketingWS',
     title: ['Draft marketing copy, with a check for invented figures'],
     href: HOME_LINKS.marketingws,
-    description: ["Copy variants for marketing workflows from one brief. The live demo runs on Groq's free tier."],
+    description: [
+      "Copy variants from one brief, and a fact check that turns unsupported figures into placeholders. The live demo runs on Groq's free tier.",
+    ],
     meta: ['Python, FastAPI, Groq'],
   },
 ];
@@ -283,18 +282,26 @@ export const HOME_CARD_LINE = {
 /** A section head: the chip, the headline with its quiet clause, and an optional sub. */
 export type SectionCopy = { chip: string; title: string; quiet?: string; sub?: string };
 
-/** "How I test": three tabs, each a title and the line it stands for (the old "I test." lines). */
+/** "How I test": three tabs, each a title and the line it stands for. */
 export const HOME_HOW = {
   head: {
     chip: 'How I test',
-    title: 'Know what a test',
-    quiet: 'really says.',
-    sub: 'Three steps before I recommend a change.',
+    title: 'Planned before it starts,',
+    quiet: 'honest about what it shows.',
+    sub: 'Three steps behind every recommendation, including when the result is neutral.',
   },
   tabs: [
-    { id: 'plan', title: 'Plan', line: 'I plan the sample size and the run time before a test starts.' },
-    { id: 'analyse', title: 'Analyse', line: 'I read the result against the primary metric and its guardrails.' },
-    { id: 'recommend', title: 'Recommend', line: 'I write the recommendation: ship it, or do not.' },
+    {
+      id: 'plan',
+      title: 'Plan',
+      line: 'I plan the sample size and run time before a test starts, so when to stop is settled in advance.',
+    },
+    { id: 'analyse', title: 'Analyse', line: 'I test the primary metric for significance and check that the guardrails held.' },
+    {
+      id: 'recommend',
+      title: 'Recommend',
+      line: 'I write the recommendation with its reasons, including when a neutral result is still worth shipping.',
+    },
   ],
 } as const satisfies { head: SectionCopy; tabs: readonly { id: string; title: string; line: string }[] };
 
@@ -308,16 +315,16 @@ export const HOME_EXPERIMENTS_HEAD = {
 
 export const HOME_AUTOMATION_HEAD = {
   chip: 'Automation and agents',
-  title: 'Take the manual steps',
-  quiet: "out of your team's week.",
+  title: 'Take the manual steps out,',
+  quiet: 'and keep the checks in.',
   sub: HOME_TRACKS.automation.lede,
 } as const satisfies SectionCopy;
 
 /** The three "I automate." lines, in the ruled row under the automation cards. */
 export const HOME_AUTOMATE_LINES = [
   'I turn repeated manual steps into tools a whole team can use.',
-  'I build agents that work in steps and check each other.',
-  'I put automated tests around my workflows and agent pipelines, so they stay right.',
+  'I build agents in which code, not the model, has the last word on facts.',
+  'I test my workflows against the ways they fail, not only when everything goes right.',
 ] as const;
 
 /** The questions rows: two rows of question chips that slide in opposite directions. */
@@ -330,7 +337,35 @@ export const HOME_QUESTIONS = {
 } as const satisfies { head: SectionCopy; rows: readonly (readonly string[])[] };
 
 /** The tools band's line. */
-export const TOOLS_LABEL = 'Tools I have shipped with';
+export const TOOLS_LABEL = 'Methods and tools';
+
+/** One group of the tools band: its name, what it is for, its chips and where the site shows them. */
+export type HomeToolGroup = { id: string; name: string; line: string; items: readonly string[]; seenIn: string };
+
+/**
+ * The tools band's own list, for Home only (About keeps its longer list with a "where" for each
+ * tool): two groups of chips, then one quiet line for the engineering behind the public projects.
+ * The AI and automation group's "seen in" line never names Audible.
+ */
+export const HOME_TOOLS = {
+  groups: [
+    {
+      id: 'experiments',
+      name: 'Experimentation and analytics',
+      line: 'What I use to plan a test, read it honestly and write the recommendation.',
+      items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
+      seenIn: 'At Audible, in the retention analysis and in Pulse.',
+    },
+    {
+      id: 'automation',
+      name: 'AI and automation',
+      line: 'What I use to take repeated work off a team, with checks around it.',
+      items: ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
+      seenIn: 'In the test-account tool, Docproof, the n8n library and MarketingWS.',
+    },
+  ],
+  engineering: 'Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.',
+} as const satisfies { groups: readonly HomeToolGroup[]; engineering: string };
 
 /** The site band: the test on this site is part of the evidence. The Work page reads `title` and `text`. */
 export const HOME_SITE = {
