@@ -291,6 +291,11 @@ describe('frame CSS and the root layout', () => {
     expect(css).not.toMatch(/(^|[,{}])\s*\[data-quiet\]/m);
   });
 
+  it('keeps a narrow side padding from md on a sheet that holds a sideways-scrolling screenshot', () => {
+    // At 1024 px (screen share) the picture then fits its column, so its frame is no tab stop taller than the screen.
+    expect(css).toMatch(/@media \(width >= 48rem\)\s*\{[^@]*\[data-figure-sheet\]:has\(\[data-shot-frame\]\)\s*\{[^}]*padding-inline:\s*calc\(var\(--spacing\) \* 4\)/);
+  });
+
   it('styles every frame part it renders', () => {
     for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-check']) {
       expect(css, part).toContain(`[${part}`);

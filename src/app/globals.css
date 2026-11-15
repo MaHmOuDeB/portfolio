@@ -804,6 +804,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     [data-figure-sheet] {
       padding: calc(var(--spacing) * 8);
     }
+
+    /* A sideways-scrolling screenshot keeps its full width in a 1024 px screen (screen share), so its
+       frame is no tab stop there, whose focus ring would be taller than that short screen. */
+    [data-figure-sheet]:has([data-shot-frame]) {
+      padding-inline: calc(var(--spacing) * 4);
+    }
   }
 
   /* What the sheet holds ("Screenshot"), small at the top right, where a sketch says "Illustration". */
