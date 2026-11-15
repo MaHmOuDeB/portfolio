@@ -185,7 +185,7 @@ describe('the cohort Figure', () => {
     expect(Math.max(...byValue.map(([, o]) => o))).toBeLessThanOrEqual(0.6);
     // the cohorts are the y tick labels, in export order
     expect(tags(heat, /<text[^>]*data-tick="y"[^>]*>[^<]*<\/text>/g).map(text)).toEqual(
-      ['Jan 2010', 'Feb 2010', 'Mar 2010', 'Apr 2010', 'May 2010', 'Jun 2010', 'Jul 2010', 'Aug 2010', 'Sept 2010', 'Oct 2010', 'Nov 2010'],
+      ['Jan 2010', 'Feb 2010', 'Mar 2010', 'Apr 2010', 'May 2010', 'Jun 2010', 'Jul 2010', 'Aug 2010', 'Sep 2010', 'Oct 2010', 'Nov 2010'],
     );
   });
 

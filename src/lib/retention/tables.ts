@@ -14,7 +14,7 @@ const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'nu
 /** "Jan 2010" for "2010-01". */
 function monthLabel(month: string): string {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new TypeError(`expected a YYYY-MM month, got ${JSON.stringify(month)}`);
-  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`));
+  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`)).replace(/^Sept\b/, 'Sep');
 }
 
 /** The value itself, after checking it is a finite number (a share also between zero and one). */

@@ -23,7 +23,7 @@ function formatDate(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}/.test(value) || Number.isNaN(time)) {
     throw new TypeError(`date value must be an ISO date string, got ${JSON.stringify(value)}`);
   }
-  return dateFormat.format(time);
+  return dateFormat.format(time).replace(/\bSept\b/, 'Sep');
 }
 
 export function formatValue(value: number | string, unit: Unit, o: Options = {}): string {
