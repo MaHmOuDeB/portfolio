@@ -94,6 +94,15 @@ describe('the CI workflow', () => {
     expect(job).toContain('persist-credentials: false');
   });
 
+  it('installs python3 and pdftotext in the CV PDF job before the reserved step', () => {
+    const list = steps(all.get('cv-pdf')!);
+    const install = indexOf(list, /install -y --no-install-recommends python3 poppler-utils/);
+    const reserved = indexOf(list, /run: bash scripts\/cv-pdf-gate\.sh/);
+    expect(install).toBeGreaterThan(-1);
+    expect(install).toBeLessThan(reserved);
+    expect(list[install]).toContain('pdftotext -v');
+  });
+
   it('runs the reserved step with TRUTH_DENYLIST given to that step alone', () => {
     const list = steps(all.get('cv-pdf')!);
     const reserved = indexOf(list, /run: bash scripts\/cv-pdf-gate\.sh/);
