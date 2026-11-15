@@ -89,6 +89,7 @@ const STORY = [
   'I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and worked with 3 teams over my time there, one after another.',
   'I also built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.',
   "I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I have rebuilt my Master's projects on public data and built tools of my own.",
+  'In an earlier role I built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act (DMA).',
 ];
 
 const FOCUS =
@@ -143,19 +144,22 @@ describe('the About page', () => {
     for (const s of sections) expect(attr(s, 'aria-labelledby')).toBe(`${attr(s, 'id')}-title`);
   });
 
-  it('opens with what the two halves of my work have in common, then tells the five-sentence story, word for word', () => {
+  it('opens with what the two halves of my work have in common, then tells the six-sentence story, word for word', () => {
     const story = one(about(), (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p').map(text);
-    expect(paragraphs).toEqual([FOCUS, STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs).toEqual([FOCUS, STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4], STORY[5]]);
     expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), ...STORY]);
     expect(text(story)).not.toMatch(/honestly/i);
+    // The AI tools and the consent-aware SQL work stand in their own paragraph, after the degree, naming no employer.
+    expect(paragraphs.at(-1)).toBe(STORY[5]);
+    expect(paragraphs.at(-1)).not.toMatch(/Audible|Amazon/);
   });
 
   it('puts the focus paragraph first, and leaves the looking-for line to the close with its Write to me button', () => {
     const d = about();
     const story = one(d, (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p');
-    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([0, 2, 2, 1]);
+    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([0, 2, 2, 1, 1]);
     expect(has(paragraphs[0]!, 'data-about-focus')).toBe(true);
     expect(text(story)).not.toContain(LOOKING);
     // The closing call to action says it once, with the button to the contact page.
@@ -479,7 +483,7 @@ describe('the CV page', () => {
 
   it('prints the role line, Berlin, Germany, and the LinkedIn and GitHub profiles as external links', () => {
     const header = one(cv(), (el) => has(el, 'data-cv-header'));
-    expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe(SITE.role);
+    expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe('Experimentation and AI automation analyst');
     expect(text(one(header, (el) => has(el, 'data-cv-place')))).toBe(SITE.city);
     const actions = one(header, (el) => has(el, 'data-cv-actions'));
     const links = all(header, (el) => el.tagName === 'a' && !all(actions, (x) => x === el).length).map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);
@@ -537,6 +541,7 @@ describe('the CV page', () => {
       [],
       ['profile.audible.experiments', 'profile.audible.teams'],
       ['profile.audible.setup_minutes_before', 'profile.audible.setup_minutes_after'],
+      [],
       [],
     ]);
   });

@@ -51,8 +51,7 @@ export const N8N_GLANCE: GlanceParts = {
     'Structural/arithmetic/master-data checks, duplicate and changed-bank-detail flags, restore test, clean-install test.',
   tools: 'n8n, Node.js, REST/webhooks, Gmail API, Docker, PostgreSQL, Caddy, GitHub Actions.',
   when: '2026.',
-  scope:
-    'Personal project, 2026, with Claude Code as pair programmer. No client and no production use; every invoice was a generated sample.',
+  scope: 'Personal project, 2026. No client and no production use; every invoice was a generated sample.',
 };
 
 export const N8N_PROBLEM: readonly [key: string, body: ReactNode][] = [

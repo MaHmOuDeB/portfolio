@@ -1,5 +1,5 @@
 {
-  "inputHash": "f7ffd4a0fa5242e071ba37d369611c398239ee18271846aa96423801d6f4449d",
+  "inputHash": "8136f66704dbd9644fe274d9e82aa8c418e5897b7985830b255218339478bdfe",
   "renderer": "chromium 153.0.8010.12",
   "images": {
     "site.png": {
@@ -19,6 +19,16 @@
     },
     "pulse.png": {
       "sha256": "c2f4dd8508c289151f951edffe48b3e3a98f3c1381260ff1c720333da9305178",
+      "width": 1200,
+      "height": 630
+    },
+    "lab.png": {
+      "sha256": "da63dbf1ecfdbab08192f73e7d0071537dedf5f94d88145d40049eaaddd7db88",
+      "width": 1200,
+      "height": 630
+    },
+    "experiment.png": {
+      "sha256": "13e1db9ae0dc2d9043a736bad21698ffb76c94b87606b90ffd6939a556ac2b8c",
       "width": 1200,
       "height": 630
     }

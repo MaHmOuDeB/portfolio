@@ -108,7 +108,7 @@ const PAGES: readonly { name: string; render: () => string; title: string; glanc
         'Single fact base, claim verification, multi-agent orchestration (author, auditor, context-free reviewer), rendering checks.',
       tools: 'Python, Claude Code agents and skills, headless Chrome, GitHub Actions.',
       when: '2026.',
-      scope: 'Open source (MIT), built in 2026 with Claude Code as pair-programmer. No users yet.',
+      scope: 'Open source (MIT), built in 2026. No users yet.',
     },
   },
   {
@@ -125,7 +125,7 @@ const PAGES: readonly { name: string; render: () => string; title: string; glanc
       tools: 'n8n, Node.js, REST/webhooks, Gmail API, Docker, PostgreSQL, Caddy, GitHub Actions.',
       when: '2026.',
       scope:
-        'Personal project, 2026, with Claude Code as pair programmer. No client and no production use; every invoice was a generated sample.',
+        'Personal project, 2026. No client and no production use; every invoice was a generated sample.',
     },
   },
   {

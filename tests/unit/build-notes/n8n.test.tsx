@@ -52,11 +52,11 @@ describe('the outline', () => {
     expect(WORK_GROUPS.flatMap((g) => g.items).some((i) => i.href === ROUTE)).toBe(true);
   });
 
-  it('states the limit once in Scope and once in Limits, and names the pair programmer once', () => {
+  it('states the limit once in Scope and once in Limits, and never says pair programmer', () => {
     expect(PAGE_TEXT.match(/No client and no production use; every invoice was a generated sample\./g)).toHaveLength(2);
     expect(text(section(PAGE, 'limits'))).toContain('No client and no production use; every invoice was a generated sample.');
     expect(PAGE_TEXT.match(/production use/g)).toHaveLength(2);
-    expect(PAGE_TEXT.match(/pair programmer/g)).toHaveLength(1);
+    expect(PAGE_TEXT).not.toMatch(/pair/i);
     expect(PAGE_TEXT).not.toContain('There is no adoption to report');
   });
 
@@ -106,7 +106,7 @@ describe('the copy, word for word', () => {
       'Document and process automation in n8n that installs with one command, restored and checked after a full wipe of its data.',
     );
     expect(text(glance)).toContain(
-      'Scope Personal project, 2026, with Claude Code as pair programmer. No client and no production use; every invoice was a generated sample.',
+      'Scope Personal project, 2026. No client and no production use; every invoice was a generated sample.',
     );
   });
 

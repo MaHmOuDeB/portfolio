@@ -57,7 +57,17 @@ const CASE_TITLES = {
   retention: `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,
   // The Pulse finding, for /work/pulse, which lands with its own page.
   pulse: `${factText('pulse.events.count')} events, each designed to answer a product question`,
+  // The Lab's lead line: what the page is for.
+  lab: 'Four ways an A/B test can mislead, and the check for each.',
+  // The Live test's lead line.
+  experiment: 'A real A/B test on this site, run in the open.',
 } as const;
+
+/** The Lab's and the Live test's descriptions: each page's search line and the line on its card. */
+const LAB_DESCRIPTION =
+  'Four interactive examples: how many visitors a test needs, why checking early finds false winners, whether the split was fair, and why small tests overstate wins.';
+const EXPERIMENT_DESCRIPTION =
+  'A real A/B test running on this site: the question, the plan published in advance, the results so far and the data to recompute them.';
 
 type CaseName = keyof typeof CASE_TITLES;
 
@@ -73,6 +83,8 @@ export const OG_CARDS: readonly OgCard[] = [
     'retail.returns.yoy_growth_raw',
   ]),
   caseCard('pulse', 'Pulse: a tracking plan for product analytics', ['pulse.events.count']),
+  caseCard('lab', LAB_DESCRIPTION, []),
+  caseCard('experiment', EXPERIMENT_DESCRIPTION, []),
 ];
 
 export function ogCard(name: string): OgCard {
@@ -97,7 +109,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work/audible',
     'A/B testing at Audible (Amazon)',
-    `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
+    `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and a tool I built that the team adopted.`,
     'audible',
   ),
   entry(
@@ -139,8 +151,8 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/lab',
     'A/B test lab: sample size, peeking and fair splits',
-    'Four interactive examples: how many visitors a test needs, why checking early finds false winners, whether the split was fair, and why small tests overstate wins.',
-    'site',
+    LAB_DESCRIPTION,
+    'lab',
   ),
   entry(
     '/lab/peeking',
@@ -151,8 +163,8 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/experiment',
     'A real A/B test on this site',
-    'A real A/B test running on this site: the question, the plan published in advance, the results so far and the data to recompute them.',
-    'site',
+    EXPERIMENT_DESCRIPTION,
+    'experiment',
   ),
   entry(
     '/about',

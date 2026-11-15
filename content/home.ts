@@ -315,7 +315,7 @@ export const HOME_AUTOMATION_HEAD = {
 
 /** The three "I automate." lines, in the ruled row under the automation cards. */
 export const HOME_AUTOMATE_LINES = [
-  'At Audible I built a browser tool and AI tools that the team adopted.',
+  'I turn repeated manual steps into tools a whole team can use.',
   'I build agents that work in steps and check each other.',
   'I put automated tests around my workflows and agent pipelines, so they stay right.',
 ] as const;
@@ -403,10 +403,10 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
       ],
     },
     {
-      // The two Audible tools and the Bedrock evaluation are separate sentences: nothing says the tools ran on it.
+      // The tools and the Bedrock evaluation are separate sentences, nothing says the tools ran on it, and no employer is named.
       question: 'How do you work with AI?',
       answer: [
-        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
+        'I have built internal AI tools that a wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, the other generates the standard content of the Jira ticket for a test launch. I have also evaluated Amazon Bedrock for team-efficiency use cases. Today I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and automated checks decide what reaches the reader.',
       ],
     },
     {

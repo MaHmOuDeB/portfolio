@@ -35,6 +35,11 @@ export const ABOUT_STORY: readonly ReactNode[] = [
     I hold an MSc in Data Science from the University of Europe for Applied Sciences in Berlin (2025), and since then I
     have rebuilt my Master&apos;s projects on public data and built tools of my own.
   </>,
+  <>
+    In an earlier role I built internal AI tools that a wider team adopted, and wrote SQL segmentation queries for
+    consent-aware personalisation, for opted-in and opted-out members, within the rules of the Digital Markets Act
+    (DMA).
+  </>,
 ];
 
 /** The page's opening paragraph: what the two halves of my work have in common. */

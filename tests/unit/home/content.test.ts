@@ -318,7 +318,7 @@ describe('the hero, proof row, the sections and the site band', () => {
       ['Recommend', 'I write the recommendation: ship it, or do not.'],
     ]);
     expect(HOME_AUTOMATE_LINES).toEqual([
-      'At Audible I built a browser tool and AI tools that the team adopted.',
+      'I turn repeated manual steps into tools a whole team can use.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);

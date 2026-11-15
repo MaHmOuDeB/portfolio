@@ -373,7 +373,7 @@ describe('route inventory', () => {
 
   it('writes every number in a description or title from the facts, as the pages print it', () => {
     expect(seoEntry('/work/audible').description).toBe(
-      `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
+      `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and a tool I built that the team adopted.`,
     );
     expect(seoEntry('/work/pulse').description).toBe(
       `A tracking plan of ${factText('pulse.events.count')} events, each tied to one product question, in a demo dashboard I designed and built.`,
@@ -513,7 +513,14 @@ describe('sharingTemplate', () => {
 
   it("a case card states its landing page's finding in 60 characters or fewer, never the experiment's copy", async () => {
     const cases = OG_CARDS.filter((card) => card.variant === 'case');
-    expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'pulse', 'retention']);
+    expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'experiment', 'lab', 'pulse', 'retention']);
+    // The Lab and the Live test: the line each page leads with, and the page's description under it.
+    expect(ogCard('lab').title).toBe('Four ways an A/B test can mislead, and the check for each.');
+    expect(ogCard('lab').sub).toBe(seoEntry('/lab').description);
+    expect(seoEntry('/lab').image).toBe('/og/lab.png');
+    expect(ogCard('experiment').title).toBe('A real A/B test on this site, run in the open.');
+    expect(ogCard('experiment').sub).toBe(seoEntry('/experiment').description);
+    expect(seoEntry('/experiment').image).toBe('/og/experiment.png');
     // Audible: the page's own h1, its figure from the facts.
     const { AUDIBLE_TITLE } = await import('@/components/audible/AudiblePage');
     expect(ogCard('audible').title).toBe(`${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`);

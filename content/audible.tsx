@@ -1,7 +1,7 @@
 // The Audible case study's prose: the opening, the glance card, the ship rule's introduction with
 // the sentences around its Figure, why so many recommendations were adopted, the tool I built and
-// its two timings, the AI tools, the method (the part a reader sees at once, and the three rows one
-// click deeper), the limits, the links and the close. Each export is a server part without its own
+// its two timings, the method (the part a reader sees at once, and the three rows one click deeper),
+// the limits, the links and the close. Each export is a server part without its own
 // heading, so the page decides the outline and the anchors (src/components/audible/AudiblePage.tsx).
 //
 // Every figure is a <Fact> from the profile facts; the rest is plain words. The tests behind these
@@ -194,36 +194,13 @@ export function AudibleAdoption(): ReactNode {
   );
 }
 
-/**
- * The AI tools for the team. Two separate statements in two paragraphs: the evaluation, and the tools
- * I built. Nothing here says where the tools ran, and there is no figure for them.
- */
-export function AudibleAiTools(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>I evaluated Amazon Bedrock for team-efficiency use cases.</p>
-      <p className={ITEM}>
-        I also built internal AI tools that the wider team adopted. One reviews past A/B tests and their results and
-        suggests new test ideas. The other generates the standard content of the Jira ticket for a test launch: the
-        hypothesis, the metrics and the standard fields. I have no usage or time-saving figures for them.
-      </p>
-    </>
-  );
-}
-
-/** The method a reader sees at once: my own planning and testing, and the consent-aware SQL work. */
+/** The method a reader sees at once: my own planning and testing. */
 export function AudibleMethod(): ReactNode {
   return (
-    <>
-      <p className={ITEM}>
-        Before a test started, I planned its sample size and how long it had to run. When it ended, I did the
-        significance testing and read the result against the metrics of the team that ran it.
-      </p>
-      <p className={ITEM}>
-        I also contributed to CRM-driven personalisation for opted-in and opted-out members on the Home and Discovery
-        pages, and wrote the SQL segmentation queries within the consent rules of the Digital Markets Act (DMA).
-      </p>
-    </>
+    <p>
+      Before a test started, I planned its sample size and how long it had to run. When it ended, I did the
+      significance testing and read the result against the metrics of the team that ran it.
+    </p>
   );
 }
 

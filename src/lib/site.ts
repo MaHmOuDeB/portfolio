@@ -1,6 +1,6 @@
 export const SITE = {
   name: 'Mahmoud El Bergui',
-  role: 'Experimentation & growth analyst',
+  role: 'Experimentation and AI automation analyst',
   city: 'Berlin, Germany',
 } as const;
 

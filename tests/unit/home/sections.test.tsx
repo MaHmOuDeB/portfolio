@@ -18,7 +18,7 @@ import { PULSE_EVENT_NAMES } from '@/lib/pulse/names';
 import { toHomeModel } from '@/lib/home/model';
 import { snapshotFixture } from '@/lib/home/fixtures';
 import type { Arm } from '@/experiment.values';
-import { CONTACT_HREF, CV_LINK } from '@/lib/site';
+import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
 
 const { HowITest } = await import('@/components/home/HowITest');
 const { ExperimentsTrack, cardLinePhase } = await import('@/components/home/ExperimentsTrack');
@@ -333,7 +333,7 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     expect(classes(ul)).toContain('md:grid-cols-[minmax(0,calc(100%/3_-_0.5rem))_minmax(0,1fr)_minmax(0,calc(100%/3_-_0.5rem))]');
     for (const li of all(ul, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['md:px-6', 'md:first:pl-0', 'md:last:pr-0']));
     expect(all(ul, (el) => el.tagName === 'li').map((li) => text(li))).toEqual([
-      'At Audible I built a browser tool and AI tools that the team adopted.',
+      'I turn repeated manual steps into tools a whole team can use.',
       'I build agents that work in steps and check each other.',
       'I put automated tests around my workflows and agent pipelines, so they stay right.',
     ]);
@@ -476,7 +476,7 @@ describe('HomeFaq', () => {
       ],
       [
         'How do you work with AI?',
-        'At Audible I built AI tools that the wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, and one generates the standard content of the Jira ticket for a test launch. I also evaluated Amazon Bedrock for team efficiency. Since then I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and deterministic checks decide what reaches the reader.',
+        'I have built internal AI tools that a wider team adopted: one reviews past A/B tests and their results and suggests new test ideas, the other generates the standard content of the Jira ticket for a test launch. I have also evaluated Amazon Bedrock for team-efficiency use cases. Today I build with Claude Code agents and skills. In Docproof, separate agents write, audit and review a document, and automated checks decide what reaches the reader.',
       ],
       ['Is the code public?', 'Yes. Docproof and the n8n workflow library are on GitHub under the MIT licence, and so is the code of this site.'],
       ['Which languages do you speak?', 'Arabic (native), English and French (fluent, C2), German (B1) and Spanish (A2).'],
@@ -541,8 +541,9 @@ describe('HomeCallToAction: the dark call to action with the portrait', () => {
       'Open to roles in AI automation, experimentation and product analytics in Germany. Based in Berlin.',
     );
     const links = all(panel, (el) => el.tagName === 'a');
-    expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV']);
-    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href]);
+    expect(links.map((a) => text(a))).toEqual(['Write to me', 'Read my CV', 'LinkedIn']);
+    expect(links.map((a) => attr(a, 'href'))).toEqual([CONTACT_HREF, CV_LINK.href, CONTACT.linkedin]);
+    expect(attr(links[2]!, 'rel')).toBe('noopener');
   });
 
   it('sits in the same ruled band, with the same space above and below, as on every other page', async () => {

@@ -53,8 +53,9 @@ test.describe('the Work page', () => {
     expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 2]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
     expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
-    // the main links are exactly the eight cards, the site band's one link to the live test and the call to action's two
-    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 3);
+    // the main links are exactly the eight cards, the site band's one link to the live test and the call to
+    // action's three (two buttons and the quiet LinkedIn link)
+    await expect(page.locator('main a[href]')).toHaveCount(LINKS.length + 4);
   });
 
   test('each card shows its provenance chip above the title, then a bold "Shows:" line and a plain line', async ({ page }) => {

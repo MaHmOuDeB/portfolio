@@ -2,7 +2,7 @@
 // one action, the glance card (three pull figures, one sentence, the facts with the scope), the
 // in-page links, then one <section> per part with its own h2. The exhibits come first: the ship rule
 // with its Figure between a lead-in and a takeaway, why so many recommendations were adopted, the
-// tool I built with its two timings, and the AI tools. Then the method (what I did myself in view,
+// tool I built with its two timings. Then the method (what I did myself in view,
 // the rest in details rows one click deeper), the limits, and the sources. The page closes on what
 // it shows about how I work, the next project, and the shared call to action. The prose comes from
 // content/audible.tsx.
@@ -24,7 +24,6 @@ import {
   AUDIBLE_SHIP_LEAD_IN,
   AUDIBLE_SHIP_TAKEAWAY,
   AudibleAdoption,
-  AudibleAiTools,
   AudibleAutomation,
   AudibleChecks,
   AudibleClose,
@@ -56,7 +55,6 @@ export const AUDIBLE_SECTIONS = [
   { id: 'ship-rule', title: 'When to ship: try the rule yourself', link: 'When to ship' },
   { id: 'why-so-many', title: 'Why so many were adopted', link: 'Why so many?' },
   { id: 'automation', title: 'Test-account automation', link: 'Automation' },
-  { id: 'ai-tools', title: 'AI tools for the team', link: 'AI tools' },
   { id: 'method', title: 'Method', link: 'Method' },
   { id: 'limits', title: 'Limits', link: 'Limits' },
   { id: 'sources', title: 'Sources and links', link: 'Sources' },
@@ -131,12 +129,6 @@ export function AudiblePage(): ReactNode {
         </FigureSheet>
         <Prose>
           <AudibleAdoption />
-        </Prose>
-      </Section>
-
-      <Section id="ai-tools">
-        <Prose>
-          <AudibleAiTools />
         </Prose>
       </Section>
 
