@@ -1,7 +1,9 @@
-// The privacy notice: one text column, rendered from content/privacy.ts. Plain static page.
+// The privacy notice, rendered from content/privacy.ts: a two-tone head, the sections as a chip row of
+// in-page links, then each section under a rule that runs to the rail, its words at the reading width.
+// Plain static page; not one word of the notice is set here.
 import type { Metadata } from 'next';
 import { Fragment, type ReactNode } from 'react';
-import { PageHead } from '@/components/frame';
+import { PageHead, SectionNav } from '@/components/frame';
 import { Callout } from '@/components/kit/Callout';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
@@ -50,35 +52,24 @@ const anchorOf = (section: PrivacySection) =>
 export default function PrivacyPage() {
   return (
     <div className="pb-12 md:pb-16">
-      <PageHead id="privacy-title" chip="Privacy" title={PRIVACY.title} />
-      <div className="max-w-text">
-      {/* The notice is long, so it opens with its section headings as links; the list adds no words of its own. */}
-      <nav aria-label="Sections" className="mt-8">
-        {/* role="list": WebKit drops the list role from a list drawn without bullets. */}
-        <ul role="list" className="sm:columns-2 sm:gap-x-8">
-          {PRIVACY.sections.map((section) => (
-            <li key={section.heading} className="break-inside-avoid">
-              <TextLink href={`#${anchorOf(section)}`} standalone>
-                {section.heading}
-              </TextLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <PageHead id="privacy-title" chip="Privacy" title={`${PRIVACY.title}:`} quiet="what this site collects, and what it does not." />
+      {/* The notice is long, so it opens with its section headings as links; the row adds no words of its own. */}
+      <SectionNav label="Sections" items={PRIVACY.sections.map((section) => ({ href: `#${anchorOf(section)}`, label: section.heading }))} />
+      {/* Each section's rule runs to the rail; its heading and paragraphs keep the reading width. */}
       {PRIVACY.sections.map((section) => (
         <section key={section.heading} data-rule="" className="mt-12 pt-12">
-          <h2 id={anchorOf(section)} className="text-xl font-semibold">
+          <h2 id={anchorOf(section)} className="max-w-text text-xl font-semibold">
             {section.heading}
           </h2>
           {section.paragraphs.map((paragraph, i) =>
             paragraph.length === 1 &&
             typeof paragraph[0] === 'object' &&
             ('launchPlaceholder' in paragraph[0] || 'link' in paragraph[0]) ? (
-              <div key={i} className="mt-4">
+              <div key={i} className="mt-4 max-w-text">
                 <Block block={paragraph[0]} standalone />
               </div>
             ) : (
-              <p key={i} className="mt-4 wrap-anywhere">
+              <p key={i} className="mt-4 max-w-text wrap-anywhere">
                 {paragraph.map((block, j) => (
                   <Fragment key={j}>
                     <Block block={block} />
@@ -89,7 +80,6 @@ export default function PrivacyPage() {
           )}
         </section>
       ))}
-      </div>
     </div>
   );
 }

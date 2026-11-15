@@ -89,11 +89,31 @@ describe('the privacy page', () => {
     // It sits between the title and the first section.
     const order = all.filter((el) => el.tagName === 'h1' || el === nav || el.tagName === 'section');
     expect(order.slice(0, 3).map((el) => el.tagName)).toEqual(['h1', 'nav', 'section']);
+    // The links are the frame's chip row.
+    expect(attr(nav, 'data-section-nav')).toBe('');
+  });
+
+  it('runs each section rule to the rail, and keeps the words at the reading width', () => {
+    const sections = all.filter((el) => el.tagName === 'section');
+    expect(sections).toHaveLength(HEADINGS.length);
+    for (const section of sections) {
+      expect(attr(section, 'data-rule')).toBe('');
+      // No ancestor narrows the section, so its rule spans the content column.
+      let parent = (section as unknown as { parentNode: T.Element }).parentNode;
+      while (parent && 'tagName' in parent) {
+        expect(attr(parent, 'class') ?? '', 'an ancestor of a section').not.toMatch(/max-w-text/);
+        parent = (parent as unknown as { parentNode: T.Element }).parentNode;
+      }
+      const body = elements(section).find((el) => (attr(el, 'class') ?? '').split(/\s+/).includes('max-w-text'));
+      expect(body, 'the section text sits in a max-w-text column').toBeDefined();
+    }
   });
 
   it('is titled Privacy, with one h1 and the eleven sections in order', () => {
     expect(metadata.title).toBe('Privacy | Mahmoud El Bergui');
-    expect(all.filter((el) => el.tagName === 'h1').map(text)).toEqual(['Privacy']);
+    expect(all.filter((el) => el.tagName === 'h1').map(text)).toEqual(['Privacy: what this site collects, and what it does not.']);
+    const quiet = all.find((el) => el.tagName === 'span' && attr(el, 'data-quiet') !== undefined)!;
+    expect(text(quiet)).toBe('what this site collects, and what it does not.');
     expect(all.filter((el) => el.tagName === 'h2').map(text)).toEqual(HEADINGS);
     expect(PRIVACY.sections.map((s) => s.heading)).toEqual(HEADINGS);
   });

@@ -5,7 +5,7 @@ import { expectNoA11yViolations, test } from './fixtures';
 
 test('/privacy passes axe', async ({ page }) => {
   await page.goto('/privacy');
-  await expect(page.locator('h1')).toHaveText('Privacy');
+  await expect(page.locator('h1')).toHaveText('Privacy: what this site collects, and what it does not.');
   await expectNoA11yViolations(page);
 });
 
@@ -13,7 +13,7 @@ test('the footer link "Privacy" opens the page', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('contentinfo').getByRole('link', { name: 'Privacy' }).click();
   await expect(page).toHaveURL(/\/privacy$/);
-  await expect(page.locator('h1')).toHaveText('Privacy');
+  await expect(page.locator('h1')).toHaveText('Privacy: what this site collects, and what it does not.');
   await expect(page).toHaveTitle(/Privacy/);
 });
 
