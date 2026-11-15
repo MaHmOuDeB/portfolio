@@ -440,8 +440,9 @@ describe('the CV page', () => {
   });
 
   it('marks the section headings to rise on entry', () => {
-    // The h1 is the LCP element and never animates; the six section headings rise.
-    const headings = all(cv(), (el) => el.tagName === 'h2');
+    // The h1 is the LCP element and never animates; the six section headings rise (the call to action's
+    // h2 is the ink panel's).
+    const headings = all(cv(), (el) => el.tagName === 'h2' && attr(el, 'id') !== 'page-cta-title');
     expect(headings.length).toBe(6);
     for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
     expect(has(one(cv(), (el) => el.tagName === 'h1'), 'data-depth-rise')).toBe(false);
@@ -480,7 +481,8 @@ describe('the CV page', () => {
     const header = one(cv(), (el) => has(el, 'data-cv-header'));
     expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe(SITE.role);
     expect(text(one(header, (el) => has(el, 'data-cv-place')))).toBe(SITE.city);
-    const links = all(header, (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);
+    const actions = one(header, (el) => has(el, 'data-cv-actions'));
+    const links = all(header, (el) => el.tagName === 'a' && !all(actions, (x) => x === el).length).map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);
     expect(links).toEqual([
       ['linkedin.com/in/melbergui', CONTACT.linkedin, 'noopener'],
       ['github.com/MaHmOuDeB', CONTACT.github, 'noopener'],
@@ -551,6 +553,42 @@ describe('the CV page', () => {
     expect(audit(renderToStaticMarkup(createElement(CvPage)), '/cv')).toEqual([]);
     process.env.CV_PDF = PDF_ENV;
     expect(audit(renderToStaticMarkup(createElement(CvPage)), '/cv')).toEqual([]);
+  });
+
+  it('has an action row under the name: a print button that shows once JavaScript runs, and Write to me, hidden in print', () => {
+    const d = cv();
+    const row = one(d, (el) => has(el, 'data-cv-actions'));
+    expect(all(one(d, (el) => has(el, 'data-cv-header')), (el) => el === row)).toEqual([row]);
+    expect(classes(row)).toContain('print:hidden');
+    const print = one(row, (el) => el.tagName === 'button');
+    expect(text(print)).toBe('Print this page');
+    expect(attr(print, 'type')).toBe('button');
+    // Without JavaScript the button cannot work, so the server renders it hidden.
+    expect(has(print, 'hidden')).toBe(true);
+    expect(classes(print)).toContain('min-h-(--size-target)');
+    expect(classes(print)).toContain('bg-ink');
+    const write = all(row, (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href')]);
+    expect(write).toEqual([['Write to me', '/contact']]);
+    // With a checked PDF, the download is the primary action and print steps back.
+    process.env.CV_PDF = PDF_ENV;
+    const withPdf = one(cv(), (el) => has(el, 'data-cv-actions'));
+    expect(all(withPdf, (el) => has(el, 'data-cv-download'))).toHaveLength(1);
+    expect(classes(one(withPdf, (el) => el.tagName === 'button'))).not.toContain('bg-ink');
+  });
+
+  it('puts the dates in a left column beside their roles, and Skills and Languages on the same grid', () => {
+    const d = cv();
+    for (const id of ['experience', 'education']) {
+      for (const e of all(section(d, id), (el) => el.tagName === 'article')) expect(classes(e)).toContain('md:grid-cols-[11rem_1fr]');
+    }
+    for (const id of ['skills', 'languages']) expect(classes(one(section(d, id), (el) => el.tagName === 'dl'))).toContain('md:grid-cols-[11rem_1fr]');
+  });
+
+  it('ends with the ink call to action, which is not printed', () => {
+    const d = cv();
+    const close = one(d, (el) => has(el, 'data-page-cta'));
+    expect(classes(close)).toContain('print:hidden');
+    expect(all(close, (el) => el.tagName === 'a' && attr(el, 'href') === '/contact').map(text)).toEqual(['Write to me']);
   });
 
   it('offers the PDF only when the build found a checked one: one primary button at the top, with its size, hidden in print', () => {
