@@ -114,6 +114,50 @@ function hasRingClass(selector: string): boolean {
 
 const isNone = (value: string) => value.trim().toLowerCase() === 'none';
 
+// The one allowed hover movement: a clickable card (a lean card or a previous/next card) rises by at
+// most 4 px, by `translate` alone, in a plain (not nested) rule whose every selector has the card
+// itself as its hovered subject. The tests list the cases that stay banned.
+const LIFT_MAX_PX = 4;
+const CARD_SUBJECT = /\[data-(?:depth-lean|next)(?:[~|^$*]?=[^\]]*)?\]/;
+
+// The last compound selector (the subject), split at combinators outside brackets and parentheses.
+function subjectOf(selector: string): string {
+  let depth = 0;
+  let start = 0;
+  const s = selector.trim();
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]!;
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth--;
+    else if (depth === 0 && /[\s>+~]/.test(c)) start = i + 1;
+  }
+  return s.slice(start);
+}
+
+// How far up a `translate` value moves, in px, or null if it is not a plain upward move.
+function liftPx(value: string): number | null {
+  const m = /^0(?:px)?\s+(.+)$/.exec(value.trim().replace(/\s+/g, ' '));
+  if (!m) return null;
+  const y = m[1]!.replace(/\s+/g, '');
+  const px = /^-(\d*\.?\d+)px$/.exec(y);
+  if (px) return Number(px[1]);
+  const rem = /^-(\d*\.?\d+)rem$/.exec(y);
+  if (rem) return Number(rem[1]) * 16;
+  const spacing = /^calc\(var\(--spacing\)\*-(\d*\.?\d+)\)$|^calc\(-(\d*\.?\d+)\*var\(--spacing\)\)$/.exec(y);
+  if (spacing) return Number(spacing[1] ?? spacing[2]) * 4;
+  return null;
+}
+
+function isCardLift(prop: string, value: string, rules: Rule[]): boolean {
+  if (prop !== 'translate' || rules.length !== 1) return false;
+  const up = liftPx(value);
+  if (up === null || up <= 0 || up > LIFT_MAX_PX) return false;
+  return rules[0]!.selectors.every((s) => {
+    const subject = subjectOf(s);
+    return CARD_SUBJECT.test(subject) && subject.includes(':hover');
+  });
+}
+
 function lintDeclaration(decl: Declaration, report: (rule: RuleId, node: Node, excerpt: string) => void): void {
   const prop = decl.prop.toLowerCase();
   const rules = enclosingRules(decl);
@@ -150,7 +194,8 @@ function lintDeclaration(decl: Declaration, report: (rule: RuleId, node: Node, e
   if (
     HOVER_MOVE_PROPS.has(prop) &&
     context.includes(':hover') &&
-    !rules.some((r) => HOVER_MOVE_SELECTOR.test(r.selector))
+    !rules.some((r) => HOVER_MOVE_SELECTOR.test(r.selector)) &&
+    !isCardLift(prop, decl.value, rules)
   ) {
     add('no-hover-move');
   }
