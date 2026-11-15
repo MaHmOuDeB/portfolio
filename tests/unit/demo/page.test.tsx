@@ -15,6 +15,7 @@ import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { LAB_SECTIONS } from '../../../content/lab';
 import { DEMO_COPY, FORCED_LINKS, LAB_LINKS, PLANNER_LINK, ForcedNote } from '../../../content/demo';
 import { DEMO_TITLE, DemoPage } from '@/components/demo/DemoPage';
+import { withSiteName } from '@/lib/seo/metadata';
 import { TextLink } from '@/components/kit/TextLink';
 import { FeaturedCases } from '@/components/home/FeaturedCases';
 import { EXPERIMENT, type Arm, type ExperimentPhase } from '@/experiment.values';
@@ -132,7 +133,8 @@ describe('the /demo route', () => {
       metadata: { title?: unknown; description?: unknown; robots?: unknown };
     };
     expect(mod.metadata.robots).toEqual({ index: false, follow: true });
-    expect(mod.metadata.title).toBe(DEMO_TITLE);
+    expect(mod.metadata.title).toBe(withSiteName(DEMO_TITLE));
+    expect(mod.metadata.title).toBe('Interview links | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe('The links I open when I share my screen in an interview.');
     expect(`${String(mod.metadata.title)} ${String(mod.metadata.description)}`).not.toMatch(/\d/);
     expect(renderToStaticMarkup(<>{mod.default()}</>)).toBe(PAGE);
