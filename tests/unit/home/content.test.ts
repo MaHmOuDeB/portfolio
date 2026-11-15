@@ -295,10 +295,8 @@ describe('the hero, proof row, the sections and the site band', () => {
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
     expect(HOME_BAND.caption).toBe('An illustration: a test, the agents that check the work, and the recommendation.');
-    expect(HOME_TRACKS.experiments).toEqual({
-      title: 'Experiments and analytics',
-      lede: 'How I plan a test, read it honestly and write the recommendation.',
-    });
+    // the experiments track has no lede: nothing printed it, and its words were out of date
+    expect(HOME_TRACKS.experiments).toEqual({ title: 'Experiments and analytics' });
     expect(HOME_TRACKS.automation).toEqual({
       title: 'Automation and agents',
       lede: 'Tools I built so that people, including me, stop doing the same thing by hand.',
@@ -367,7 +365,7 @@ describe('all Home copy', () => {
       ...HOME_CASES.map((c) => c.meta),
       ...HOME_AUTOMATION.flatMap((t) => [t.label, headlineText(t.title), headlineText(t.description), headlineText(t.meta)]),
       ...HOME_PROOF.flatMap((p) => [headlineText(p.figure), headlineText(p.caption)]),
-      ...Object.values(HOME_TRACKS).flatMap((t) => [t.title, t.lede]),
+      HOME_TRACKS.experiments.title, HOME_TRACKS.automation.title, HOME_TRACKS.automation.lede,
       HOME_HERO.chip, heroSubText(), ...bandWords(), ...Object.values(HOME_SITE),
       ...sectionCopy(),
       ...HOME_FAQ.items.flatMap((i) => [i.question, faqText(i.answer)]),

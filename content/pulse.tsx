@@ -74,7 +74,7 @@ export function PulseDashboardLeadIn(): ReactNode {
 
 /** The dashboard's takeaway, below its Figure. */
 export function PulseDashboardTakeaway(): ReactNode {
-  return <>A short list of named events answers the product questions; automatic capture stays underneath as a safety net.</>;
+  return <>A short list of named events is meant to answer the product questions; automatic capture stays underneath as a safety net.</>;
 }
 
 /** How the dashboard copy works, in the row under its takeaway. */

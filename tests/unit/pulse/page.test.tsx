@@ -226,7 +226,7 @@ describe('the outline', () => {
       'Use the dashboard. Each action you take appears in the list below it as the event a product team would receive.',
     );
     expect(text(s)).toContain(
-      'A short list of named events answers the product questions; automatic capture stays underneath as a safety net.',
+      'A short list of named events is meant to answer the product questions; automatic capture stays underneath as a safety net.',
     );
   });
 

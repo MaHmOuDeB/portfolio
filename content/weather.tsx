@@ -42,8 +42,7 @@ export const WEATHER_PIPELINE_LEAD_IN = 'Follow a reading from the file to the w
 export function WeatherPipelineTakeaway(): ReactNode {
   return (
     <>
-      Bad readings are neither trusted nor thrown away: <Fact id="weather.quarantine.rows" /> sit in quarantine, and
-      every other reading is accounted for.
+      Bad readings are neither trusted nor thrown away: <Fact id="weather.quarantine.rows" /> sit in quarantine.
     </>
   );
 }

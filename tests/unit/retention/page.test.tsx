@@ -186,7 +186,7 @@ describe('the outline', () => {
       'Switch between counting cancelled orders as returns and removing them, and watch January 2011: the axis keeps room for the counted spike, so the empty space is what the double count added.',
     );
     expect(exhibit('returns-cleaning', 'takeaway')).toBe(
-      'One £77k order, placed and cancelled within a day, produced most of the apparent growth, so a dashboard would have reported a returns problem that did not exist.',
+      'One £77k order, placed and cancelled within 24 hours, produced most of the apparent growth, so a dashboard would have reported a returns problem that did not exist.',
     );
     expect(exhibit('cohort-retention', 'lead-in')).toBe(
       'A cohort is customers grouped by the month of their first order; read each row across to see what share of them ordered again in each later month.',

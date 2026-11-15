@@ -88,7 +88,7 @@ describe('the outline', () => {
     // The page's chip carries the navigation label; the h1 is the headline in two tones.
     expect(PAGE).toMatch(/<span data-chip="">Work<\/span><h1 id="work-title"[^>]*>Open the work <span data-quiet="">and see how it was done\.<\/span><\/h1>/);
     const intro = /<span data-work-intro="">([\s\S]*?)<\/span>/.exec(PAGE);
-    expect(text(intro?.[1] ?? '')).toBe('Seven projects with their code, their sources and their limits. Start with Audible.');
+    expect(text(intro?.[1] ?? '')).toBe('Seven projects with their sources and their limits. Start with Audible.');
     // One muted line under it explains the two kinds, once, before the first group.
     const kinds = /<span data-work-kinds="" class="([^"]*)">([\s\S]*?)<\/span>/.exec(PAGE);
     expect(text(kinds?.[2] ?? '')).toBe(

@@ -160,11 +160,10 @@ export const HOME_EXPERIENCE = {
 /** The text of the "Why so many?" link in the proof row. */
 export const WHY_SO_MANY = 'Why so many?';
 
-/** The two tracks' headings and ledes. */
+/** The two tracks' headings, and the automation track's lede (its head's sub). */
 export const HOME_TRACKS = {
   experiments: {
     title: 'Experiments and analytics',
-    lede: 'How I plan a test, read it honestly and write the recommendation.',
   },
   automation: {
     title: 'Automation and agents',
@@ -299,7 +298,7 @@ export const HOME_HOW = {
   ],
 } as const satisfies { head: SectionCopy; tabs: readonly { id: string; title: string; line: string }[] };
 
-/** The heads of the two tracks (the ledes stay in HOME_TRACKS, which the Work page reads too). */
+/** The heads of the two tracks (the automation lede stays in HOME_TRACKS). */
 export const HOME_EXPERIMENTS_HEAD = {
   chip: 'Experiments and analytics',
   title: 'Open the work',

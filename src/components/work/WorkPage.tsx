@@ -72,7 +72,7 @@ export function WorkPage(): ReactNode {
         quiet="and see how it was done."
         sub={
           <>
-            <span data-work-intro="">Seven projects with their code, their sources and their limits. Start with Audible.</span>
+            <span data-work-intro="">Seven projects with their sources and their limits. Start with Audible.</span>
             <span data-work-kinds="" className="mt-2 block text-sm">
               Case studies are analyses with a question and a finding. Build notes are things I built, and how I tested
               them.

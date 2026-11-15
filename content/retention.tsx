@@ -467,7 +467,7 @@ export function ReturnsLeadIn(): ReactNode {
 export function ReturnsTakeaway(): ReactNode {
   return (
     <>
-      One <Fact id="retail.reversal.january_gbp" /> order, placed and cancelled within a day, produced most of the
+      One <Fact id="retail.reversal.january_gbp" /> order, placed and cancelled within <Hours /> hours, produced most of the
       apparent growth, so a dashboard would have reported a returns problem that did not exist.
     </>
   );

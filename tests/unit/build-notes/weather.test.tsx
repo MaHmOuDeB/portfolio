@@ -142,7 +142,7 @@ describe('the copy, word for word', () => {
       'What to look at Follow a reading from the file to the warehouse, or to the quarantine.',
     );
     expect(text(s.slice(s.indexOf('<div data-takeaway')))).toBe(
-      'What it means Bad readings are neither trusted nor thrown away: 5 sit in quarantine, and every other reading is accounted for.',
+      'What it means Bad readings are neither trusted nor thrown away: 5 sit in quarantine.',
     );
     expect(prose).toBe(
       'Architecture Python loads the file into DuckDB and runs three SQL steps. Staging gives the columns types and plain names, and merges condition spellings that differ only in case or in leading and trailing spaces. The model builds a star schema: places, weather conditions and a fact table of observations. A reading with wind above 150 km/h goes to a quarantine table with its reason, never into the fact table. The checks run last.',
