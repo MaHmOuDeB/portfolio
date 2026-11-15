@@ -173,6 +173,12 @@ describe('the ribbon', () => {
     expect(css).toMatch(/\[data-depth-ribbon\] ul\s*\{[^}]*flex-wrap:\s*wrap/);
   });
 
+  it('wraps the still question rows two chips to a line, so no chip is left alone, and lifts the cap where they slide', () => {
+    expect(css).toMatch(/\[data-home-questions\] \[data-depth-ribbon\] > ul\s*\{[^}]*max-width:\s*46rem/);
+    const moving = block('@media screen and (width >= 40rem) and (prefers-reduced-motion: no-preference)');
+    expect(moving).toMatch(/\[data-home-questions\] \[data-depth-ribbon\] > ul\s*\{[^}]*max-width:\s*none/);
+  });
+
   it('never lets one item be wider than its row: a long question wraps its own text instead of being clipped', () => {
     expect(css).toMatch(/\[data-depth-ribbon\] li\s*\{[^}]*max-width:\s*100cqi/);
   });

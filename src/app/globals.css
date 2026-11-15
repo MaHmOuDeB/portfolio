@@ -2200,6 +2200,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     list-style: none;
   }
 
+  /* The Home question rows, when still, wrap two chips to a line (a pair fits, three never do), so
+     no chip is left alone on a line. Where they slide, the cap is lifted. */
+  [data-home-questions] [data-depth-ribbon] > ul {
+    max-width: 46rem;
+  }
+
   /* No item is ever wider than its row: a long one wraps its own text instead of being clipped. */
   [data-depth-ribbon] li {
     max-width: 100cqi;
@@ -2589,6 +2595,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       [data-depth-ribbon] > ul {
         flex-wrap: nowrap;
         width: max-content;
+      }
+
+      [data-home-questions] [data-depth-ribbon] > ul {
+        max-width: none;
       }
     }
   }
