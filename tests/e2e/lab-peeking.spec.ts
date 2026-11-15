@@ -457,6 +457,8 @@ test.describe('Peeking Figure', () => {
         }
       }).observe(root, { characterData: true, childList: true, subtree: true, attributes: true });
     });
+    // On a phone the lead and labels push the slider below the fold: bring it into view before reading its box.
+    await looks(page).scrollIntoViewIfNeeded();
     const box = (await looks(page).boundingBox())!;
     const y = box.y + box.height / 2;
     await page.mouse.move(box.x + box.width * 0.2, y);

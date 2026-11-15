@@ -487,6 +487,8 @@ test.describe('Full planner', () => {
     // Start with nothing focused, as the kit's own pointer test does.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+    // On a phone the lead and labels push the slider below the fold: bring it into view before reading its box.
+    await baseline(page).scrollIntoViewIfNeeded();
     const box = (await baseline(page).boundingBox())!;
     await page.mouse.click(box.x + box.width * 0.8, box.y + box.height / 2);
     const status = figure(page).getByRole('status');
