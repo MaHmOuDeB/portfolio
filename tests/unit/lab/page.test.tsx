@@ -158,6 +158,15 @@ describe('the Lab page', () => {
     });
   });
 
+  // each method row names its own Figure, so a screen reader's list of rows is not five identical ones
+  const METHOD_SUMMARY: Record<string, string> = {
+    planner: 'The method behind the sample size',
+    duration: 'The method behind the run time',
+    srm: 'The method behind the split check',
+    peeking: 'The method behind the peeking chart',
+    curse: 'The method behind the exaggeration chart',
+  };
+
   it('frames every Figure as an exhibit: what to look at, the Figure on its sheet, what it means, the method one click deeper', () => {
     const all = exhibits(LAB);
     expect(all.map((e) => e.figure)).toEqual(['planner', 'duration', 'srm', 'peeking', 'curse']);
@@ -172,7 +181,7 @@ describe('the Lab page', () => {
       expect(e.html, e.figure).toMatch(/<div data-lab-point="wide" class="max-sm:hidden">/);
       // the caption under the chart is one sentence; the rest is in the method row, closed at first
       expect(e.caption.match(/[.?!](\s|$)/g) ?? [], e.figure).toHaveLength(1);
-      expect(e.method, e.figure).toMatch(/^The method, for the curious /);
+      expect(e.method.startsWith(`${METHOD_SUMMARY[e.figure ?? '']} `), e.figure).toBe(true);
       expect(e.html, e.figure).not.toMatch(/<details data-method="" open/);
     }
     const by = Object.fromEntries(all.map((e) => [e.figure, e]));
@@ -242,12 +251,18 @@ describe('the Lab page', () => {
     expect(section(LAB, 'limits')).toMatch(/<div class="max-w-text mt-4">/);
   });
 
+  it('says in the visible limits what the duration row assumes: every visitor enters the test', () => {
+    expect(text(section(LAB, 'limits'))).toContain(
+      'The planner assumes two groups of equal size, a result read once at the end, the same traffic every day and every visitor entering the test.',
+    );
+  });
+
   it('ends with what the page shows about how I work, two onward links and the shared call to action', () => {
     const close = /<section data-page-close=""[^>]*aria-labelledby="lab-close"[^>]*>([\s\S]*?)<\/section>/.exec(LAB);
     expect(close).not.toBeNull();
     expect(text(/<h2 id="lab-close"[^>]*>([\s\S]*?)<\/h2>/.exec(close![1]!)![1]!)).toBe('What this shows about how I work');
     expect(text(close![1]!)).toContain(
-      "I size a test before it starts, check the split before I read anything, decide in advance how often I will look, and treat a small test's win with suspicion. The live test on this site applies the same checks to real visitors.",
+      "I size a test before it starts, check the split before I read anything, decide in advance how often I will look, and treat a small test's win with suspicion. The live test on this site sizes itself, checks its split and fixes its looks in advance, on real visitors.",
     );
     expect([...close![1]!.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], text(m[2]!)])).toEqual([
       ['/experiment', 'See the live test'],

@@ -12,13 +12,15 @@ import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame
 export type ExhibitProps = {
   leadIn: ReactNode;
   takeaway: ReactNode;
+  /** The method row's summary: names this Figure, so no two rows on the page read the same. */
+  summary: string;
   /** The method row's content: block children. */
   method: ReactNode;
   /** The Figure. */
   children: ReactNode;
 };
 
-export function Exhibit({ leadIn, takeaway, method, children }: ExhibitProps) {
+export function Exhibit({ leadIn, takeaway, summary, method, children }: ExhibitProps) {
   return (
     <div data-lab-exhibit="">
       <LeadIn>{leadIn}</LeadIn>
@@ -26,7 +28,7 @@ export function Exhibit({ leadIn, takeaway, method, children }: ExhibitProps) {
       <div data-lab-point="wide" className="max-sm:hidden">
         <Takeaway>{takeaway}</Takeaway>
       </div>
-      <MethodDetails>{method}</MethodDetails>
+      <MethodDetails summary={summary}>{method}</MethodDetails>
     </div>
   );
 }

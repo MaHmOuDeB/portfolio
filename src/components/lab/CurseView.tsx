@@ -258,6 +258,7 @@ export function CurseFigureView({ values, controls, announcement, preview, fault
   );
   return (
     <Exhibit
+      summary="The method behind the exaggeration chart"
       leadIn={CURSE_LEAD_IN}
       takeaway={takeaway}
       method={

@@ -274,6 +274,7 @@ export function SrmFigureView({ values, controls, announcement, preview, faultAf
   );
   return (
     <Exhibit
+      summary="The method behind the split check"
       leadIn={<SrmLeadIn />}
       takeaway={SRM_TAKEAWAY}
       method={

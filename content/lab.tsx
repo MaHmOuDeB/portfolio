@@ -238,7 +238,8 @@ export function LabLimits(): ReactNode {
         live test.
       </li>
       <li className="mt-2 first:mt-0">
-        The planner assumes two groups of equal size, a result read once at the end and the same traffic every day.
+        The planner assumes two groups of equal size, a result read once at the end, the same traffic every day and
+        every visitor entering the test.
         Checking the result as it comes in needs a different plan, as the peeking example shows.
       </li>
       <li className="mt-2 first:mt-0">
@@ -259,8 +260,8 @@ export function LabClose(): ReactNode {
   return (
     <p>
       I size a test before it starts, check the split before I read anything, decide in advance how often I will look,
-      and treat a small test&apos;s win with suspicion. The live test on this site applies the same checks to real
-      visitors.
+      and treat a small test&apos;s win with suspicion. The live test on this site sizes itself, checks its split and
+      fixes its looks in advance, on real visitors.
     </p>
   );
 }

@@ -138,6 +138,7 @@ export function SizingFigureView({ id, context, values, controls, announcement, 
   if (!exhibit) return figure;
   return (
     <Exhibit
+      summary="The method behind the sample size"
       leadIn={SIZING_LEAD_IN}
       takeaway={SIZING_TAKEAWAY}
       method={
@@ -205,6 +206,7 @@ export function DurationFigureView({ id, context, nPerArm, traffic, controls, an
   if (!exhibit) return figure;
   return (
     <Exhibit
+      summary="The method behind the run time"
       leadIn={DURATION_LEAD_IN}
       takeaway={DURATION_TAKEAWAY}
       method={

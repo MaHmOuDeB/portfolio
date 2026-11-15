@@ -466,6 +466,7 @@ export function PeekingFigureView({ id, view, controls, announcement, preview, f
   );
   return (
     <Exhibit
+      summary="The method behind the peeking chart"
       leadIn={<PeekLeadIn />}
       takeaway={takeaway}
       method={
