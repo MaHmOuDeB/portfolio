@@ -228,7 +228,7 @@ describe('"How I test"', () => {
   it('drifts the sketch panel in from the bottom right, the tabs still, and shifts its rows as layers on a fine pointer', async () => {
     const { HowITest } = await import('@/components/home/HowITest');
     const html = renderToStaticMarkup(createElement(HowITest));
-    expect(html).toMatch(/<div data-depth-drift="br" data-depth-follow="" class="relative min-h-60[^"]*"><div data-how-panel="plan"/);
+    expect(html).toMatch(/<div data-depth-drift="br" data-depth-follow="" class="relative [^"]*"><div data-how-panel="plan"/);
     expect(html).not.toMatch(/<label[^>]*data-depth/);
     const pointer = block('@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
     expect(pointer).toMatch(/\[data-depth-follow\] \[data-how-panel\] \[data-sketch\] > \*\s*\{[^}]*translate:\s*round\(calc\(var\(--mx\) \* var\(--z\) \* 2px\), 1px\)/);

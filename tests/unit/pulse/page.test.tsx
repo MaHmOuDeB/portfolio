@@ -708,7 +708,7 @@ describe('numbers and the route', () => {
     expect(metadata).toEqual(pageMetadata(seoEntry('/work/pulse'), canonicalOrigin()));
     expect(metadata).toMatchObject({
       title: 'Pulse: a tracking plan for product analytics | Mahmoud El Bergui',
-      description: '7 events in Amplitude, each tied to one product question, in a demo dashboard I designed and built.',
+      description: 'A tracking plan of 7 events, each tied to one product question, in a demo dashboard I designed and built.',
     });
     expect(withoutCta(renderToStaticMarkup(<PulseRoute />))).toBe(PAGE);
   });
