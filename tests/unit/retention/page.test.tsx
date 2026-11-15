@@ -428,7 +428,7 @@ describe('the route and the host', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('Customer retention and reactivation analysis');
+    expect(mod.metadata.title).toBe('Customer retention and reactivation analysis | Mahmoud El Bergui');
     // the description is plain words: its only digits are the literal year of the rebuild
     expect(String(mod.metadata.description).replace('rebuilt in 2026', '')).not.toMatch(/\d/);
     expect(withoutCta(renderToStaticMarkup(<>{mod.default()}</>))).toBe(PAGE);

@@ -273,7 +273,7 @@ describe('truth', () => {
 describe('the route', () => {
   it('renders the page with its own title and description', () => {
     expect(withoutCta(renderToStaticMarkup(<DocproofRoute />))).toBe(PAGE);
-    expect(metadata.title).toBe(DOCPROOF_TITLE);
+    expect(metadata.title).toBe(`${DOCPROOF_TITLE} | Mahmoud El Bergui`);
     expect(metadata.description).toBe(
       'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',
     );

@@ -228,7 +228,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('MarketingWS');
+    expect(mod.metadata.title).toBe('MarketingWS | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       "My Master's thesis, a generative AI web service for content marketing, rebuilt in 2026 as a live web app: how it works, how I checked it and its limits.",
     );

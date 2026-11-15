@@ -664,7 +664,7 @@ describe('numbers and the route', () => {
     expect(LIVE_ROUTES).toContain('/work/pulse');
     expect(metadata).toEqual(pageMetadata(seoEntry('/work/pulse'), canonicalOrigin()));
     expect(metadata).toMatchObject({
-      title: 'Pulse: analytics instrumentation demo',
+      title: 'Pulse: analytics instrumentation demo | Mahmoud El Bergui',
       description:
         'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
     });

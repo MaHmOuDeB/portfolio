@@ -92,7 +92,7 @@ describe('the privacy page', () => {
   });
 
   it('is titled Privacy, with one h1 and the eleven sections in order', () => {
-    expect(metadata.title).toBe('Privacy');
+    expect(metadata.title).toBe('Privacy | Mahmoud El Bergui');
     expect(all.filter((el) => el.tagName === 'h1').map(text)).toEqual(['Privacy']);
     expect(all.filter((el) => el.tagName === 'h2').map(text)).toEqual(HEADINGS);
     expect(PRIVACY.sections.map((s) => s.heading)).toEqual(HEADINGS);

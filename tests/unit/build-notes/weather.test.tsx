@@ -283,7 +283,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('Weather data quality');
+    expect(mod.metadata.title).toBe('Weather data quality | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       'A tested SQL pipeline on a public dataset of weather observations, rebuilt in 2026: a star schema, data-quality checks and a quarantine for sensor errors.',
     );

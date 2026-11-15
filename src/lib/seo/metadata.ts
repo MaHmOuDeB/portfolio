@@ -64,10 +64,24 @@ export function canonicalOrigin(
   return new URL(`https://${TEST_ORIGIN_HOST}`);
 }
 
+/** A title with the site's name after it, as a browser tab and a search result show it. */
+export function withSiteName(title: string): string {
+  return `${title} | ${SITE.name}`;
+}
+
 /**
- * A public page's metadata: its title and description, one absolute canonical, and the Open Graph
- * and Twitter fields (with the page's share title) and its 1200 x 630 sharing image. Every URL is absolute on `origin`. There is
- * no robots field, so the page is indexable and followed.
+ * A page's document title: its own title, then the site's name. Home's title is the name alone. The
+ * manifest keeps the bare title (the one the page prints), so the two cannot drift.
+ */
+export function documentTitle(entry: Pick<SeoEntry, 'path' | 'title'>): string {
+  return entry.path === '/' ? entry.title : withSiteName(entry.title);
+}
+
+/**
+ * A public page's metadata: its document title (with the site's name, but for Home) and description,
+ * one absolute canonical, and the Open Graph and Twitter fields (with the page's share title) and its
+ * 1200 x 630 sharing image. Every URL is absolute on `origin`. There is no robots field, so the page
+ * is indexable and followed.
  */
 export function pageMetadata(entry: SeoEntry, origin: URL): Metadata {
   const url = new URL(entry.path, origin).href;
@@ -75,7 +89,7 @@ export function pageMetadata(entry: SeoEntry, origin: URL): Metadata {
   const title = shareTitle(entry);
   return {
     metadataBase: origin,
-    title: entry.title,
+    title: documentTitle(entry),
     description: entry.description,
     alternates: { canonical: url },
     openGraph: {

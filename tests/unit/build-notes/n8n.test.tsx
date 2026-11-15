@@ -196,7 +196,7 @@ describe('the route', () => {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('n8n Workflow Library');
+    expect(mod.metadata.title).toBe('n8n Workflow Library | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       'Document and process automation in n8n: an e-invoice intake for XRechnung and ZUGFeRD, error alerts, and how it is tested. A portfolio project with no production use.',
     );

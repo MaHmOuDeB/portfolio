@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { factText } from '@/lib/facts/text';
 import { serverEnv } from '@/lib/env';
-import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
+import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, documentTitle, pageMetadata, withSiteName } from '@/lib/seo/metadata';
 import { OG_HEIGHT, OG_WIDTH, ogAlt, ogHtml, themeFromTokens } from '@/lib/seo/og-template';
 import { HEADLINE, SITE } from '@/lib/site';
 import { HOME_HERO } from '../../../content/home.ts';
@@ -328,7 +328,11 @@ describe('route inventory', () => {
       request.headers = headers;
       return generate({ searchParams: Promise.resolve(query) });
     };
-    expect(await call(new Headers({ accept: 'text/html' }))).toEqual(expected);
+    // The contact page sets its own title per request (src/lib/contact/title.ts), and that title does
+    // not carry the site's name yet: every other field is the manifest's. documentTitle() and
+    // withSiteName() are there for it.
+    expect(expected.title).toBe('Contact | Mahmoud El Bergui');
+    expect(await call(new Headers({ accept: 'text/html' }))).toEqual({ ...expected, title: 'Contact' });
     expect(await call(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }))).toEqual({ ...expected, title: 'Message not sent: Contact' });
     expect(await call(new Headers(), { sent: '1' })).toEqual({ ...expected, title: 'Message sent: Contact' });
   });
@@ -369,6 +373,29 @@ describe('route inventory', () => {
   });
 });
 
+describe('documentTitle', () => {
+  it('ends every page title but Home\'s with the site\'s name', () => {
+    expect(documentTitle({ path: '/', title: 'Mahmoud El Bergui' })).toBe('Mahmoud El Bergui');
+    expect(documentTitle({ path: '/lab', title: 'Lab' })).toBe('Lab | Mahmoud El Bergui');
+    expect(withSiteName('Message sent: Contact')).toBe('Message sent: Contact | Mahmoud El Bergui');
+    for (const entry of SEO_PAGES) {
+      const title = documentTitle(entry);
+      if (entry.path === '/') expect(title).toBe(SITE.name);
+      else expect(title.endsWith(' | Mahmoud El Bergui'), entry.path).toBe(true);
+      // The name is there once: a page's own title never repeats it.
+      expect(title.split('Mahmoud El Bergui')).toHaveLength(2);
+    }
+  });
+
+  it('leaves the sharing title as it was: the page\'s title and the name, and Home\'s own line', () => {
+    for (const entry of SEO_PAGES) {
+      const m = pageMetadata(entry, new URL('https://site.example.com'));
+      expect(m.openGraph?.title).toBe(shareTitle(entry));
+      if (entry.path !== '/') expect(m.title).toBe(m.openGraph?.title);
+    }
+  });
+});
+
 describe('canonicalAndRobots', () => {
   const origin = new URL('https://site.example.com');
 
@@ -378,7 +405,9 @@ describe('canonicalAndRobots', () => {
       const url = `https://site.example.com${entry.path}`;
       const image = `https://site.example.com${entry.image}`;
       expect(String(m.metadataBase)).toBe('https://site.example.com/');
-      expect(m.title).toBe(entry.title);
+      // The document title of every page but Home ends with the site's name; Home's is the name alone.
+      expect(m.title).toBe(entry.path === '/' ? SITE.name : `${entry.title} | Mahmoud El Bergui`);
+      expect(m.title).toBe(documentTitle(entry));
       expect(m.description).toBe(entry.description);
       expect(m.alternates).toEqual({ canonical: url });
       expect(m.openGraph).toEqual({

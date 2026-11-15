@@ -370,7 +370,7 @@ describe('the route', () => {
       default: () => ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
-    expect(mod.metadata.title).toBe('Work');
+    expect(mod.metadata.title).toBe('Work | Mahmoud El Bergui');
     expect(mod.metadata.description).toBe(
       "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
     );
