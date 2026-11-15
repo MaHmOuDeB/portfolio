@@ -92,7 +92,10 @@
   --text-display-lg: 4rem; /* the Home headline from lg */
   --text-display-lg--line-height: 1.02;
   --text-display-lg--letter-spacing: -0.022em;
-  --text-h2-sm: 2rem; /* a section headline under md */
+  --text-h2-xs: 1.75rem; /* an inner page's section headline under md: above a 24 px Figure title, below the page headline */
+  --text-h2-xs--line-height: 1.12;
+  --text-h2-xs--letter-spacing: -0.022em;
+  --text-h2-sm: 2rem; /* a section headline under md; an inner page's section headline from md */
   --text-h2-sm--line-height: 1.08;
   --text-h2-sm--letter-spacing: -0.022em;
   --text-h2: 2.5rem; /* a section headline, a page headline */
