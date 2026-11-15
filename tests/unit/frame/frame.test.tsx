@@ -255,17 +255,17 @@ describe('Vignette and its marks', () => {
     </Vignette>,
   );
 
-  it('is hidden from assistive technology and says it is an illustration', () => {
+  it('is hidden from assistive technology and carries no visible tag', () => {
     expect(html).toMatch(/^<div data-vignette="" aria-hidden="true">/);
-    expect(html).toContain('<span data-vignette-label="">Illustration</span>');
+    expect(html).not.toMatch(/data-vignette-label|Illustration/);
     // The sheet lifts like a lid inside a card (the hinge is styled in globals.css).
     expect(html).toContain('<div data-vignette-sheet="" data-depth-hinge="">');
   });
 
   it('prints no digits as text: positions live in custom properties only', () => {
-    expect(text(html)).toBe('Illustration A base B higher');
+    expect(text(html)).toBe('A base B higher');
     expect(text(html)).not.toMatch(/\d/);
-    expect(text(renderToStaticMarkup(<Vignette>{null}</Vignette>))).toBe('Illustration');
+    expect(text(renderToStaticMarkup(<Vignette>{null}</Vignette>))).toBe('');
   });
 
   it('draws the interval mark from three percentages', () => {
@@ -326,7 +326,7 @@ describe('frame CSS and the root layout', () => {
   });
 
   it('styles every frame part it renders', () => {
-    for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-label', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-check']) {
+    for (const part of ['data-faq', 'data-faq-row', 'data-faq-chevron', 'data-faq-answer', 'data-cta', 'data-cta-media', 'data-chip', 'data-chip-dot', 'data-section-head', 'data-page-head', 'data-vignette', 'data-vignette-sheet', 'data-mini-row', 'data-mini-label', 'data-mini-track', 'data-interval-mark', 'data-interval-bar', 'data-interval-dot', 'data-tag', 'data-check']) {
       expect(css, part).toContain(`[${part}`);
     }
   });

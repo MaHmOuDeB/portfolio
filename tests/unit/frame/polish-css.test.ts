@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { cardLean } from '@/lib/depth/lean';
 
 // Small rules of the look that are easy to lose: the focus ring's shape, the size of the
-// "Illustration" label, and a card's lean, which must stay small enough for its text to stay sharp.
+// card sketches (no visible tag), and a card's lean, which must stay small enough for its text to stay sharp.
 const css = readFileSync(join(import.meta.dirname, '../../../src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('the focus ring', () => {
@@ -16,10 +16,9 @@ describe('the focus ring', () => {
   });
 });
 
-describe('the "Illustration" label', () => {
-  it('is text-xs (13 px), like the other small text', () => {
-    expect(css).toMatch(/\[data-vignette-label\]\s*\{[^}]*font-size:\s*var\(--text-xs\)/);
-    expect(css).not.toMatch(/\[data-vignette-label\]\s*\{[^}]*font-size:\s*0\.6875rem/);
+describe('the card sketches', () => {
+  it('carry no visible tag (owner decision 2026-11-15): the label rule is gone', () => {
+    expect(css).not.toMatch(/\[data-vignette-label\]/);
   });
 });
 
