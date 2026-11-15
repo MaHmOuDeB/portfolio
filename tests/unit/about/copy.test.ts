@@ -16,7 +16,7 @@ import { aboutPhoto } from '../../../content/about-photo.ts';
 import { FACTS, FACT_DISPLAYS } from '../../../src/lib/facts/facts.generated.ts';
 import { CV_PDF_HREF } from '@/lib/cv-pdf';
 import { CONTACT, CV_LINK, SITE } from '@/lib/site';
-import { compareClaims, pdfClaims, type Omission } from './cv-parity';
+import { compareClaims, pdfClaims } from './cv-parity';
 import { writePdf, type Line } from './synthetic-pdf';
 
 // The header's navigation reads the path; a unit test has no router.
@@ -351,33 +351,6 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['n8n-tests', '270+ automated tests (part of the suite runs in GitHub Actions on every push); verified on a clean n8n install.'],
 ];
 
-/**
- * The PDF's figures the page leaves out, one by one: the site has no sourced fact for them, so the
- * page drops the figure (or the whole claim) and never spells it out in words.
- */
-const OMISSIONS: readonly Omission[] = [
-  {
-    id: 'direct-results-donors',
-    pdf: 'Signed up an average of 3+ new monthly donors per working day through face-to-face outreach for CARE, the International Rescue Committee and World Vision.',
-    omitted: ['an average of 3+ ', ' per working day'],
-  },
-  {
-    id: 'direct-results-team',
-    pdf: 'Recruited and trained 4 new team members: helped the manager run situational interviews, approached promising people on the street and coached new recruits on the street-fundraising sales funnel.',
-    omitted: ['4 '],
-  },
-  {
-    id: 'thesis-validation',
-    pdf: 'Validated with 9 Audible marketers over 2 rounds: 83/100 usability (SUS), 4.6/5 relevance, 4.7/5 fluency; 7 of 9 preferred it to manual writing, and participants reported 50–70% less planning time.',
-    omitted: 'whole claim',
-  },
-  {
-    id: 'docproof-agents',
-    pdf: 'Split the work across 3 agents (author, claim auditor, context-free reviewer), backed by unit tests and GitHub Actions CI with headless-Chrome rendering checks.',
-    omitted: ['3 '],
-  },
-];
-
 const EXPERIENCE = [
   ['AI Data Specialist, Business and Analytics Workflows (Contract)', 'Mercor, Berlin, Germany (remote)', 'Oct 2026 to present'],
   ['Marketing Analytics & Growth Experimentation (Working Student)', 'Audible (Amazon), Berlin, Germany', 'Aug 2023 to Apr 2025'],
@@ -655,7 +628,6 @@ function wrap(s: string, width = 80): string[] {
 }
 
 const claimText = (id: string) => CV_CLAIMS.find(([i]) => i === id)![1];
-const omission = (id: string) => OMISSIONS.find((o) => o.id === id)!;
 
 /** A small synthetic web CV: a summary sentence, one job with three bullets, one project with one. */
 function syntheticCv(bullets: readonly string[]): { pdf: Buffer; manifest: unknown; records: unknown } {
@@ -688,8 +660,6 @@ function syntheticCv(bullets: readonly string[]): { pdf: Buffer; manifest: unkno
   put('Languages');
   lines.push({ text: 'German B1', x: 250, y });
   put('English Fluent (C2)');
-  const agents = omission('docproof-agents').pdf;
-  const at = agents.indexOf('3');
   return {
     pdf: writePdf({ pages: [lines] }),
     manifest: {
@@ -718,22 +688,8 @@ function syntheticCv(bullets: readonly string[]): { pdf: Buffer; manifest: unkno
       ],
       summaryBindings: [{ bindingId: 'summary-skills', sectionId: 'summary', normalizedClaim: claimText('summary-skills'), subject: 'Example Co' }],
     },
-    records: {
-      entries: bullets[3] === agents
-        ? [
-            {
-              id: 'agents',
-              bindingId: 'pipeline',
-              claimId: 'docproof-agents',
-              token: '3',
-              span: { start: at, end: at + 1 },
-              normalizedClaim: agents,
-              subject: 'Pipeline',
-              meaning: 'agents',
-            },
-          ]
-        : [],
-    },
+    // The page's claims print no figure the checker would ask a record for.
+    records: { entries: [] },
   };
 }
 
@@ -751,29 +707,32 @@ describe('the page and the PDF say the same things', () => {
   const page = () => claimsOf(cv()).map(({ id, text: t }) => ({ id, text: t }));
   const subset = (ids: readonly string[]) => page().filter((c) => ids.includes(c.id));
   const IDS = ['summary-skills', 'mercor-data', 'mercor-accuracy', 'mercor-standards', 'docproof-agents'];
-  const BULLETS = [claimText('mercor-data'), claimText('mercor-accuracy'), claimText('mercor-standards'), omission('docproof-agents').pdf];
+  const BULLETS = [claimText('mercor-data'), claimText('mercor-accuracy'), claimText('mercor-standards'), claimText('docproof-agents')];
 
-  it('lists each left-out figure one by one, and only figures', () => {
-    expect(OMISSIONS.map((o) => o.id)).toEqual(['direct-results-donors', 'direct-results-team', 'thesis-validation', 'docproof-agents']);
-    // Every listed fragment is removed from the PDF sentence to give exactly the page's text.
-    const pdf = [...CV_CLAIMS.filter(([id]) => !OMISSIONS.some((o) => o.id === id)).map(([, t]) => t), ...OMISSIONS.map((o) => o.pdf)];
-    expect(compareClaims(page(), pdf, OMISSIONS)).toEqual([]);
+  it('accepts a PDF that holds the page claims, or a subset of them, word for word', () => {
+    expect(compareClaims(page(), CV_CLAIMS.map(([, t]) => t))).toEqual([]);
+    expect(compareClaims(page(), [claimText('summary-tenure'), claimText('n8n-tests')])).toEqual([]);
   });
 
-  it('reads a synthetic PDF with the web CV checker and finds the page claims in it', () => {
+  it('reports a PDF claim the page does not hold, such as a figure the page leaves out, and a claim printed twice', () => {
+    const agents = 'Split the work across 3 agents (author, claim auditor, context-free reviewer), backed by unit tests and GitHub Actions CI with headless-Chrome rendering checks.';
+    expect(compareClaims(page(), [claimText('mercor-data'), agents])).toEqual(['PDF claim 2: matches no page claim']);
+    expect(compareClaims(page(), [claimText('mercor-data'), claimText('mercor-data')])).toEqual(['mercor-data: the PDF holds the page text 2 times']);
+  });
+
+  it('reads a synthetic PDF with the web CV checker and finds only page claims in it', () => {
     const r = runSynthetic(BULLETS);
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
-    expect(compareClaims(subset(IDS), r.claims, OMISSIONS.filter((o) => o.id === 'docproof-agents'))).toEqual([]);
+    expect(r.claims).toHaveLength(IDS.length);
+    expect(compareClaims(subset(IDS), r.claims)).toEqual([]);
   });
 
-  it('reports a page claim the PDF words differently', () => {
+  it('reports a PDF claim that words a page claim differently', () => {
     const changed = [BULLETS[0]!, 'Put accuracy first: check every result.', BULLETS[2]!, BULLETS[3]!];
     const r = runSynthetic(changed);
     expect(r.status).toBe(0);
-    expect(compareClaims(subset(IDS), r.claims, OMISSIONS.filter((o) => o.id === 'docproof-agents'))).toEqual([
-      'mercor-accuracy: the PDF holds the page text 0 times',
-    ]);
+    expect(compareClaims(subset(IDS), r.claims)).toEqual(['PDF claim 3: matches no page claim']);
   });
 
   it('checks the committed PDF against the page, or, with none committed, offers no PDF anywhere', () => {
@@ -781,7 +740,7 @@ describe('the page and the PDF say the same things', () => {
     if (existsSync(pdf)) {
       const r = pdfClaims(pdf, { meta: join(repo, 'public', 'cv.meta.json'), denylist: 'parity check placeholder' });
       expect(r.status, r.stderr).toBe(0);
-      expect(compareClaims(page(), r.claims, OMISSIONS)).toEqual([]);
+      expect(compareClaims(page(), r.claims)).toEqual([]);
     } else {
       expect(existsSync(join(repo, 'public', 'cv.meta.json'))).toBe(false);
       const html = renderToStaticMarkup(createElement(CvPage)) + renderToStaticMarkup(createElement(AboutPage));
