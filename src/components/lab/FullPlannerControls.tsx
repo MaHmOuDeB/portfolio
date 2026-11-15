@@ -1,7 +1,9 @@
 'use client';
 
 // The client side of the full planner that the page loads at once, kept small (no statistics):
-// - FullPlannerIsland is the lazy paired island. Its code (the URL hooks, the statistics, both
+// - LabPlannerIsland is the Lab's lazy island (one Figure, three sliders and Reset, no unit toggle),
+//   and LabPlannerControls its control row, with InertLabPlannerControls the preview's copy.
+// - FullPlannerIsland is the Retention page's lazy paired island. Its code (the URL hooks, the statistics, both
 //   Figures) is fetched only when the loader renders it: on intent, or right after hydration for a
 //   shared URL with keys of either Figure.
 // - SizingControls and DurationControls are the two control rows, each in a group named by its
@@ -27,6 +29,7 @@ import {
   FULL_PLANNER_REFS,
   PLANNER_NOUN,
   SIZING_LABELS,
+  countText,
   percentText,
   pointsText,
   relativePercent,
@@ -34,18 +37,26 @@ import {
   relativeText,
   riseText,
   risePointsFromRelative,
+  upText,
   type FullPlanValues,
+  type LabPlanValues,
   type MdeMode,
   type PlannerContext,
 } from '@/lib/lab/full-planner-values';
 import { riseMax, targetRate } from '@/lib/lab/planner-values';
 import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import type { FullPlannerClientProps } from './FullPlannerClient';
+import type { LabPlannerClientProps } from './LabPlannerClient';
 
 const LazyFullPlanner = lazy(() => import('./FullPlannerClient'));
+const LazyLabPlanner = lazy(() => import('./LabPlannerClient'));
 
 export function FullPlannerIsland(props: FullPlannerClientProps) {
   return <LazyFullPlanner {...props} />;
+}
+
+export function LabPlannerIsland(props: LabPlannerClientProps) {
+  return <LazyLabPlanner {...props} />;
 }
 
 const SLIDER = 'w-full xs:w-72';
@@ -89,7 +100,7 @@ export function SizingControls({ id, context = 'hypothetical', values, onBaselin
           onChange={onBaseline}
           onCommit={onBaselineCommit}
           valueText={(v) => `${percentText(v)} baseline conversion`}
-          readout={words.baselineHint ? (v) => `${percentText(v)}, the ${words.baselineHint}` : percentText}
+          readout={words.baselineHint ? (v) => `${percentText(v)} ${words.baselineHint}` : percentText}
           refs={FULL_PLANNER_REFS}
         />
       </div>
@@ -158,7 +169,92 @@ export function DurationControls({ id, context, label, traffic, onTraffic, onTra
   );
 }
 
+export type LabPlannerControlsProps = {
+  id: string;
+  /** Normalized values. */
+  values: LabPlanValues;
+  onBaseline: (baseline: number) => void;
+  onBaselineCommit: (baseline: number) => void;
+  onRise: (risePoints: number) => void;
+  onRiseCommit: (risePoints: number) => void;
+  onTraffic: (traffic: number) => void;
+  onTrafficCommit: (traffic: number) => void;
+  onReset: () => void;
+};
+
+/** The Lab's one control row: the rate today, the smallest rise worth acting on, the traffic, Reset. */
+export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, onRise, onRiseCommit, onTraffic, onTrafficCommit, onReset }: LabPlannerControlsProps) {
+  const { baseline } = values;
+  const words = SIZING_LABELS.hypothetical;
+  return (
+    <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
+      <div className={SLIDER}>
+        <Slider
+          id={`${id}-baseline`}
+          label={words.baseline}
+          {...FULL_PLAN_SCHEMA.baseline}
+          value={baseline}
+          onChange={onBaseline}
+          onCommit={onBaselineCommit}
+          valueText={(v) => `${percentText(v)} ${words.baselineHint}`}
+          readout={(v) => `${percentText(v)} ${words.baselineHint}`}
+          refs={FULL_PLANNER_REFS}
+        />
+      </div>
+      <div className={SLIDER}>
+        <Slider
+          id={`${id}-rise`}
+          label={words.rise}
+          // The schema allows up to 30 points; the slider stops where the target would pass 99%.
+          min={FULL_PLAN_SCHEMA.risePoints.min}
+          max={riseMax(baseline)}
+          step={FULL_PLAN_SCHEMA.risePoints.step}
+          value={values.risePoints}
+          onChange={onRise}
+          onCommit={onRiseCommit}
+          valueText={(v) => upText(baseline, v)}
+          readout={(v) => upText(baseline, v)}
+          numberLabel={`${words.rise}, points`}
+          refs={FULL_PLANNER_REFS}
+        />
+      </div>
+      <div className={SLIDER}>
+        <Slider
+          id={`${id}-traffic`}
+          label="Visitors per day"
+          {...DURATION_SCHEMA.traffic}
+          value={values.traffic}
+          onChange={onTraffic}
+          onCommit={onTrafficCommit}
+          valueText={(v) => `${countText(v, 'visitors')} a day, both groups together`}
+          readout={(v) => `${formatNumber(v, 0)} a day`}
+          refs={FULL_PLANNER_REFS}
+        />
+      </div>
+      <div className={CONTROL_ROW_RESET}>
+        <ResetButton id={`${id}-reset`} onReset={onReset} />
+      </div>
+    </div>
+  );
+}
+
 const noop = () => {};
+
+export function InertLabPlannerControls({ id, values }: { id: string; values: LabPlanValues }) {
+  return (
+    <LabPlannerControls
+      id={id}
+      values={values}
+      onBaseline={noop}
+      onBaselineCommit={noop}
+      onRise={noop}
+      onRiseCommit={noop}
+      onTraffic={noop}
+      onTrafficCommit={noop}
+      onReset={noop}
+    />
+  );
+}
 
 export function InertSizingControls({ id, context, values }: { id: string; context?: PlannerContext; values: FullPlanValues }) {
   return (

@@ -9,15 +9,17 @@ import {
   FULL_PLANNER_REFS,
   countText,
   normalizeFullPlan,
+  normalizeLabPlan,
   normalizeTraffic,
   percentText,
   relativePercent,
   riseText,
   weeksText,
   type FullPlanValues,
+  type LabPlanValues,
   type PlannerNoun,
 } from './full-planner-values';
-import { planModel } from './planner';
+import { PLANNER_ALPHA, PLANNER_POWER, planModel } from './planner';
 
 export * from './full-planner-values';
 
@@ -98,6 +100,58 @@ export function durationTable(nPerArm: number, traffic: number, noun: PlannerNou
       ['Weeks, rounded up', durationModel(nPerArm, t).weeks],
     ],
     formats: ['number', 'count'],
+    refs: FULL_PLANNER_REFS,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The Lab's merged planner: the same model, one Figure, the words a non-specialist reads.
+
+/** Power and the false-winner risk in plain words: "8 tests out of 10" and "1 in 20". */
+export const PLANNER_POWER_TESTS = { hits: Math.round(PLANNER_POWER * 10), of: 10 } as const;
+export const PLANNER_ALPHA_ODDS = Math.round(1 / PLANNER_ALPHA);
+
+/** Visitors per group, the target and the whole weeks the test needs at the traffic set. */
+export function labPlanModel(v: LabPlanValues): { nPerArm: number; target: number; weeks: number } {
+  const n = normalizeLabPlan(v);
+  const { nPerArm, target } = planModel({ baseline: n.baseline, risePoints: n.risePoints });
+  return { nPerArm, target, weeks: durationModel(nPerArm, n.traffic).weeks };
+}
+
+/**
+ * The result line's words: "To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in
+ * 20 risk of a false winner, at 100 visitors a day:", then the two readouts.
+ */
+export function labPlanLead(v: LabPlanValues): string {
+  const n = normalizeLabPlan(v);
+  const { target } = labPlanModel(n);
+  return `To catch a real rise from ${percentText(n.baseline)} to ${percentText(target)} in ${PLANNER_POWER_TESTS.hits} tests out of ${PLANNER_POWER_TESTS.of}, with a 1 in ${PLANNER_ALPHA_ODDS} risk of a false winner, at ${countText(n.traffic, 'visitors')} a day:`;
+}
+
+/** The announcement: the result line and both readouts, as the Figure shows them. */
+export function labPlanSentence(v: LabPlanValues): string {
+  const { nPerArm, weeks } = labPlanModel(v);
+  return `${labPlanLead(v)} ${countText(nPerArm, 'visitors')} per group and ${weeksText(weeks)}`;
+}
+
+/** The table fallback: the inputs, the rise in both units, and both results. */
+export function labPlanTable(v: LabPlanValues): TableData {
+  const n = normalizeLabPlan(v);
+  const { nPerArm, target, weeks } = labPlanModel(n);
+  return {
+    columns: ['Input or result', 'Value'],
+    rows: [
+      ['Sign-up rate today (%)', Math.round(n.baseline * 100)],
+      ['Smallest rise worth acting on (percentage points)', n.risePoints],
+      ['Smallest rise worth acting on (% of the rate today)', relativePercent(n.baseline, n.risePoints)],
+      ['Target sign-up rate (%)', Math.round(target * 100)],
+      ['Visitors per day, both groups together', n.traffic],
+      ['Visitors per group', nPerArm],
+      ['Visitors in all', 2 * nPerArm],
+      ['Weeks, rounded up', weeks],
+    ],
+    formats: ['number', 'points'],
+    rowDigits: [0, 0, 1, 0, 0, 0, 0, 0],
     refs: FULL_PLANNER_REFS,
   };
 }

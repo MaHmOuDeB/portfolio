@@ -1003,6 +1003,9 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
         'src/components/lab/FullPlannerView.tsx#SizingFigureView',
         'src/components/lab/DurationFigure.tsx#DurationFigure',
         'src/components/lab/FullPlannerView.tsx#DurationFigureView',
+        'src/components/lab/FullPlannerControls.tsx#LabPlannerIsland',
+        'src/components/lab/LabPlannerClient.tsx#LabPlannerClient',
+        'src/components/lab/FullPlannerView.tsx#LabPlannerView',
         'src/components/figures/PeekingFigure.tsx#PeekingFigure',
         'src/components/figures/PeekingFigureClient.tsx#PeekingIsland',
         'src/components/figures/PeekingView.tsx#PeekingFigureView',
@@ -1083,16 +1086,23 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
         'src/components/lab/FullPlannerView.tsx#SizingFigureView',
         'src/components/lab/DurationFigure.tsx#DurationFigure',
         'src/components/lab/FullPlannerView.tsx#DurationFigureView',
+        'src/components/lab/FullPlannerControls.tsx#LabPlannerIsland',
+        'src/components/lab/LabPlannerClient.tsx#LabPlannerClient',
+        'src/components/lab/FullPlannerView.tsx#LabPlannerView',
       ]),
     );
   });
 
-  it('would reject the Lab faults host if a production root reached it', () => {
+  it('would reject the Lab faults host if a production root reached it: one activation per planner it sets', () => {
     const host = 'src/app/kitchen-sink/lab/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
-    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation']]);
+    expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
+    // the Lab's one planner Figure, and the Retention page's pair, each on the line that sets the seam
     const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
-    expect(lines[a.violations[0]!.line - 1]!.trim()).toBe('<FullPlanner faultAfterChange />');
+    expect(a.violations.map((v) => lines[v.line - 1]!.trim()).sort()).toEqual([
+      '<FullPlanner faultAfterChange />',
+      '<FullPlanner id="winback" durationId="winback-duration" context="retention" faultAfterChange />',
+    ]);
   });
 
   it('finds the peeking Figure’s seam components from its host, and accepts their forwarding', () => {
