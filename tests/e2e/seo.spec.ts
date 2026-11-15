@@ -58,7 +58,8 @@ test.describe('canonicalAndRobots', () => {
       const url = `${ORIGIN}${entry.path}`;
       const image = `${ORIGIN}${entry.image}`;
       expect(normal(head.canonicals)).toEqual([url]);
-      expect(head.title).toBe(entry.title);
+      // Every document title but Home's ends with the site's name.
+      expect(head.title).toBe(entry.path === '/' ? entry.title : `${entry.title} | Mahmoud El Bergui`);
       expect(head.meta.description).toEqual([entry.description]);
       expect(head.meta['og:title']).toEqual([shareTitle(entry)]);
       expect(head.meta['og:description']).toEqual([entry.description]);
