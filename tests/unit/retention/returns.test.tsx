@@ -112,8 +112,8 @@ describe('the result line', () => {
 
   it('says the period explicitly, January to November of each year, under a source marker', () => {
     for (const html of [CLEAN, RAW]) {
-      expect(prose(result(html))).toContain('Jan–Nov 2011 versus Jan–Nov 2010');
-      expect(result(html)).toMatch(/<span data-derived="source:retail">Jan–Nov 2011 versus Jan–Nov 2010<\/span>/);
+      expect(prose(result(html))).toContain('Jan to Nov 2011 versus Jan to Nov 2010');
+      expect(result(html)).toMatch(/<span data-derived="source:retail">Jan to Nov 2011 versus Jan to Nov 2010<\/span>/);
     }
   });
 

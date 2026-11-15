@@ -66,7 +66,7 @@ test.describe('Returns-cleaning Figure', () => {
     const page = await context.newPage();
     await page.goto(`${HOST}?${ID}.mode=raw`);
     await expect(figure(page).getByRole('heading', { level: 3 })).toHaveText(TITLE);
-    await expect(result(page)).toContainText('grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010.');
+    await expect(result(page)).toContainText('grew about 2%, Jan to Nov 2011 versus Jan to Nov 2010.');
     await expect(result(page)).toContainText('Counting those orders as returns makes the growth look larger: the difference is mostly one £77k order placed and cancelled on 18 Jan 2011.');
     await expect(figure(page).getByText('Public data', { exact: true })).toBeVisible();
     await expect(figure(page).getByText('Controls need JavaScript.')).toBeVisible();
@@ -106,7 +106,7 @@ test.describe('Returns-cleaning Figure', () => {
     await page.goto(`${HOST}?${ID}.mode=raw`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(raw(page)).toBeChecked();
-    await expect(result(page)).toContainText('looks like it grew 29%, Jan–Nov 2011 versus Jan–Nov 2010.');
+    await expect(result(page)).toContainText('looks like it grew 29%, Jan to Nov 2011 versus Jan to Nov 2010.');
     await expect(figure(page).locator('rect[data-partial]')).toHaveCount(2);
     expect(errors).toEqual([]);
   });
@@ -139,7 +139,7 @@ test.describe('Returns-cleaning Figure', () => {
     await figure(page).getByRole('button', { name: 'Reset' }).click();
     await expect(clean(page)).toBeChecked();
     await expect(result(page)).toContainText('grew about 2%');
-    await expect(live(page)).toHaveText('With orders cancelled within 24 hours removed, returned-order value grew about 2%, Jan–Nov 2011 versus Jan–Nov 2010.');
+    await expect(live(page)).toHaveText('With orders cancelled within 24 hours removed, returned-order value grew about 2%, Jan to Nov 2011 versus Jan to Nov 2010.');
     const url = new URL(page.url());
     expect([...url.searchParams.keys()].filter((k) => k.startsWith(`${ID}.`))).toEqual([]);
     expect(url.searchParams.get('cohorts.cohort')).toBe('2010-03');
@@ -158,7 +158,7 @@ test.describe('Returns-cleaning Figure', () => {
     await expect(raw(page)).toBeFocused();
     await expect(result(page)).toContainText('looks like it grew 29%');
     await expect(live(page)).toHaveText(
-      'Counting orders cancelled within 24 hours as returns, returned-order value looks like it grew 29%, Jan–Nov 2011 versus Jan–Nov 2010.',
+      'Counting orders cancelled within 24 hours as returns, returned-order value looks like it grew 29%, Jan to Nov 2011 versus Jan to Nov 2010.',
     );
     await expect(live(page)).toHaveAttribute('data-derived', 'source:retail');
     await expect.poll(() => new URL(page.url()).searchParams.get(`${ID}.mode`)).toBe('raw');

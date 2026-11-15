@@ -1,5 +1,6 @@
-// The Retention case study's sourced prose: the summary, the problem, the data, the method and its
-// steps, the win-back sizing, the findings, how I checked it, its limits and its sources. Each
+// The Retention case study's sourced prose: the glance card and the plain opening, the data, the
+// method and its steps, each finding's lead-in and takeaway, the win-back sizing, how I checked it,
+// its limits, its sources and the close. Each
 // export is a server section without its own heading, so the page decides the outline and the
 // anchors (src/components/retention/RetentionPage.tsx). Every number is a <Fact> from the vendored
 // exports or a <Derived> that names its source; the rest is plain words. The method was checked against the source code
@@ -10,7 +11,6 @@ import type { ReactNode } from 'react';
 import { Derived, derivedAttr } from '@/components/kit/Derived';
 import type { GlanceParts } from '@/components/depth/GlanceBlock';
 import { Fact } from '@/components/kit/Fact';
-import { Stat } from '@/components/kit/Stat';
 import { TextLink } from '@/components/kit/TextLink';
 import { getFact } from '@/lib/facts';
 import { RETAIL, RETENTION, numericFact, sourceRepo } from '@/lib/retention/data';
@@ -62,110 +62,56 @@ function TargetRate() {
 
 const ITEM = 'mt-4 first:mt-0';
 
-/** The 20-second top of the page, under the title and its line. */
+/** The twenty-second card: three pull figures, one sentence, then the facts and the scope. */
 export const RETENTION_GLANCE: GlanceParts = {
+  points: [
+    {
+      id: 'returns-raw',
+      figure: <Fact id="retail.returns.yoy_growth_raw" />,
+      label: 'growth in returns, as a double count first showed it',
+    },
+    {
+      id: 'returns-clean',
+      figure: (
+        <>
+          <span data-proof-unit="">about </span>
+          <Fact id="retail.returns.yoy_growth_clean" />
+        </>
+      ),
+      label: 'the real growth, with the double count removed',
+    },
+    {
+      id: 'per-group',
+      figure: <Fact id="retention.winback.n_per_arm" />,
+      label: 'customers per group for a fair test of a win-back offer',
+    },
+  ],
   outcome: (
     <>
-      Cleaned returns that made returned-order value look like it grew (<Fact id="retail.returns.yoy_growth_raw" /> raw,
-      about <Fact id="retail.returns.yoy_growth_clean" /> true), then ranked likely repeat buyers (AUC{' '}
-      <Fact id="retention.model.gb_auc" /> vs <Fact id="retention.model.rule_auc" />) and sized a win-back holdout;
-      prediction only, nobody contacted.
+      A model predicts who orders again only slightly better than putting the most recent buyers first, so the next step
+      is a test with a holdout group, not a campaign to the top scorers.
     </>
   ),
   role: 'Personal projects rebuilt from MSc projects.',
-  methods: 'Cohorts, RFM, out-of-time model, sample-size calculation.',
+  methods: 'Cohorts, customer segments, a model scored on a later period, sample-size calculation.',
   tools: 'SQL (DuckDB), scikit-learn, pytest, GitHub Actions; Chart.js for the KPI dashboard.',
   when: 'Rebuilt in 2026, data from 2009 to 2011.',
+  scope: (
+    <>
+      Public dataset, rebuilt in 2026 from my Master&apos;s projects. A prediction and a sample size: nobody was contacted
+      and no test was run.
+    </>
+  ),
 };
 
-/** The TL;DR box: question, my role, method, result, what I would recommend, next step. */
-export function RetentionSummary(): ReactNode {
-  const items: readonly [label: string, body: ReactNode][] = [
-    [
-      'Question',
-      <>Which customers of a UK online gift retailer order again, and how large would a fair test of a win-back offer need to be?</>,
-    ],
-    [
-      'My role',
-      <>
-        Two personal projects on the same public dataset, rebuilt in 2026 from my Master&apos;s projects. I cleaned
-        the orders, analysed the returns, the cohorts and the segments, built and evaluated the model, and sized a
-        holdout test.
-      </>,
-    ],
-    [
-      'Method',
-      <>
-        SQL in DuckDB for the cleaning, the cohorts and the customer snapshots; scikit-learn models that learn on one
-        snapshot and are scored on a later one; a sample-size calculation for a holdout test.
-      </>,
-    ],
-    [
-      'Result',
-      <>
-        Counting orders cancelled within <Hours /> hours as returns made returned-order value look like it grew{' '}
-        <Fact id="retail.returns.yoy_growth_raw" /> in January to November 2011 against the same months of 2010. With
-        those orders removed, it grew about <Fact id="retail.returns.yoy_growth_clean" />. Across the January to
-        November 2010 cohorts, weighted by size, about <Fact id="retention.cohort.month1_rate" /> order again in the
-        month after their first order. A
-        model ranks who orders again only slightly better than putting the most recent buyers first: ROC AUC{' '}
-        <Fact id="retention.model.gb_auc" /> against <Fact id="retention.model.rule_auc" />.
-      </>,
-    ],
-    [
-      'What I would recommend',
-      <>
-        Do not judge a win-back offer by how often the highest-scored lapsed customers order again: the model picks
-        people who were likely to come back anyway. Test the offer against a holdout group first.
-      </>,
-    ],
-    [
-      'Next step',
-      <>
-        A holdout test, which I sized at <Fact id="retention.winback.n_per_arm" /> lapsed customers per group to
-        detect a rise from <Fact id="retention.winback.baseline_rate" /> to <TargetRate /> in those who order again
-        within <Days /> days (<TestSettings />). Nobody was contacted and no test was run.
-      </>,
-    ],
-  ];
-  return (
-    <dl>
-      {items.map(([label, body]) => (
-        <div key={label} className={ITEM}>
-          <dt className="font-semibold">{label}</dt>
-          <dd className="mt-1">{body}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** The line under the page title. */
+/** The plain-words opening under the page title. */
 export function RetentionIntro(): ReactNode {
   return (
-    <p>
-      Two years of orders from a UK online gift retailer (public dataset, rebuilt in 2026): cleaning the returns,
-      cohorts, customer segments, a model of who orders again and a win-back sample size.
+    <p data-plain-opening="">
+      A shop wants to win back customers who stopped ordering. Before it spends on offers it needs to know two things: are
+      its numbers right, and who would have come back anyway? I worked through both on two years of public order data
+      from a UK gift retailer, rebuilt in 2026 from my Master&apos;s projects.
     </p>
-  );
-}
-
-/** The question behind the analysis, and why the numbers had to be cleaned first. */
-export function RetentionProblem(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
-        Which of a shop&apos;s lapsed customers will order again, and would a win-back offer change that? The order
-        history can answer the first question. Only a test with a holdout group, customers who get no offer, can
-        answer the second.
-      </p>
-      <p className={ITEM}>
-        Before either, the numbers have to be right. In this data, an order cancelled within <Hours /> hours counted
-        once as a sale and again as a return, and that made returned-order value look like it grew{' '}
-        <Fact id="retail.returns.yoy_growth_raw" /> in January to November 2011 against the same months of 2010,
-        instead of about <Fact id="retail.returns.yoy_growth_clean" />.
-      </p>
-    </>
   );
 }
 
@@ -213,34 +159,6 @@ export function RetentionMethodSteps(): ReactNode {
   );
 }
 
-/** The two growth figures the cleaning step is about, side by side. */
-export function RetentionCleaningStats(): ReactNode {
-  const source = "From the retail dashboard's export";
-  return (
-    <div className="flex flex-col gap-8 sm:flex-row sm:gap-12">
-      <div className="sm:flex-1">
-        <Stat
-          value={<Fact id="retail.returns.yoy_growth_raw" />}
-          label={
-            <>
-              Growth in returned-order value, January to November 2011 against the same months of 2010, with orders
-              cancelled within <Hours /> hours counted as returns
-            </>
-          }
-          source={source}
-        />
-      </div>
-      <div className="sm:flex-1">
-        <Stat
-          value={<Fact id="retail.returns.yoy_growth_clean" />}
-          label="The same growth with those orders removed"
-          source={source}
-        />
-      </div>
-    </div>
-  );
-}
-
 /** The reversal rule and what it changes in the returns growth. */
 export function RetentionCleaning(): ReactNode {
   return (
@@ -256,8 +174,7 @@ export function RetentionCleaning(): ReactNode {
         <Fact id="retention.data.last_date" />. The change between the two growth figures comes mostly from one{' '}
         <Fact id="retail.reversal.january_gbp" /> order, placed on{' '}
         <Derived value={januaryReversalDate()} unit="date" refs={['source:retail']} /> and cancelled within{' '}
-        <Hours /> hours. The inflated growth was not my catch: a review caught it and I fixed it. Growth is not the
-        same as returns as a share of sales: with the rule, returns were{' '}
+        <Hours /> hours. Growth is not the same as returns as a share of sales: with the rule, returns were{' '}
         <Fact id="retail.returns.rate_2010_clean" /> of sales in January to November 2010 and{' '}
         <Fact id="retail.returns.rate_2011_clean" /> in 2011; without it, <Fact id="retail.returns.rate_2010_raw" /> and{' '}
         <Fact id="retail.returns.rate_2011_raw" />.
@@ -312,8 +229,7 @@ export function RetentionWinBack(): ReactNode {
     <p className={ITEM}>
       Lapsed customers are those with no order in the <Days /> days before the September 2011 cutoff:{' '}
       <Fact id="retention.winback.lapsed_customers" /> of them, and <Fact id="retention.winback.baseline_rate" /> of
-      them ordered again within <Days /> days. I sized a possible holdout test; nobody was contacted and no test was
-      run. With a standard two-group sample-size calculation (<TestSettings />), detecting a rise from{' '}
+      them ordered again within <Days /> days. I sized a possible holdout test. With a standard two-group sample-size calculation (<TestSettings />), detecting a rise from{' '}
       <Fact id="retention.winback.baseline_rate" /> to <TargetRate />, an uplift of{' '}
       <Fact id="retention.winback.uplift_pp" /> percentage points, needs <Fact id="retention.winback.n_per_arm" />{' '}
       lapsed customers in each group.
@@ -403,61 +319,6 @@ export function RetentionMethod(): ReactNode {
       <RetentionModel />
       <RetentionWinBack />
     </>
-  );
-}
-
-/** What the analysis found, one line per step. */
-export function RetentionFindings(): ReactNode {
-  const findings: readonly [key: string, body: ReactNode][] = [
-    [
-      'cleaning',
-      <>
-        Removing orders cancelled within <Hours /> hours changes the returns story: returned-order value grew about{' '}
-        <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{' '}
-        <Fact id="retail.returns.yoy_growth_raw" />. As a share of sales, returns went from{' '}
-        <Fact id="retail.returns.rate_2010_clean" /> to <Fact id="retail.returns.rate_2011_clean" />.
-      </>,
-    ],
-    [
-      'cohorts',
-      <>
-        Across the January to November 2010 cohorts, about <Fact id="retention.cohort.month1_rate" /> order again in
-        the month after their first order, and about <Fact id="retention.cohort.month12_rate" /> in the twelfth month
-        after it. Repeat ordering varies by cohort, and a later month can be higher than an earlier one.
-      </>,
-    ],
-    [
-      'segments',
-      <>
-        Champions are <Fact id="retention.rfm.champions_customer_share" /> of customers at the September 2011 cutoff
-        and hold <Fact id="retention.rfm.champions_revenue_share" /> of spend up to it, partly by construction.
-      </>,
-    ],
-    [
-      'model',
-      <>
-        Gradient boosting ranks who orders again only slightly better than putting the most recent buyers first: ROC
-        AUC <Fact id="retention.model.gb_auc" /> against <Fact id="retention.model.rule_auc" />. Its scores rank
-        customers but are not calibrated probabilities.
-      </>,
-    ],
-    [
-      'sizing',
-      <>
-        Sized to detect a rise of <Fact id="retention.winback.uplift_pp" /> percentage points, a holdout test of all
-        lapsed customers needs <Fact id="retention.winback.n_per_arm" /> per group and fits in one period; a test on
-        the top-scored customers alone does not.
-      </>,
-    ],
-  ];
-  return (
-    <ul className="list-disc pl-6">
-      {findings.map(([key, body]) => (
-        <li key={key} className="mt-2 first:mt-0">
-          {body}
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -588,6 +449,89 @@ export function RetentionChecks(): ReactNode {
   );
 }
 
+/** Each finding's lead-in (what to look at) and takeaway (what it means), in page order. */
+export function ReturnsLeadIn(): ReactNode {
+  return (
+    <>
+      Switch between counting cancelled orders as returns and removing them, and watch January 2011: the axis keeps room
+      for the counted spike, so the empty space is what the double count added.
+    </>
+  );
+}
+
+export function ReturnsTakeaway(): ReactNode {
+  return (
+    <>
+      One <Fact id="retail.reversal.january_gbp" /> order, placed and cancelled within a day, produced most of the
+      apparent growth, so a dashboard would have reported a returns problem that did not exist.
+    </>
+  );
+}
+
+export function CohortLeadIn(): ReactNode {
+  return (
+    <>
+      A cohort is customers grouped by the month of their first order; read each row across to see what share of them
+      ordered again in each later month.
+    </>
+  );
+}
+
+export function CohortTakeaway(): ReactNode {
+  return (
+    <>
+      About <Fact id="retention.cohort.month1_rate" /> of new customers order again the next month, and about{' '}
+      <Fact id="retention.cohort.month12_rate" /> in the twelfth month after their first order.
+    </>
+  );
+}
+
+export function ModelLeadIn(): ReactNode {
+  return (
+    <>
+      Compare the model with the simple rule that puts the most recent buyers first; ROC AUC is the chance that a customer
+      who ordered again is ranked above one who did not, so a coin flip scores one half and a perfect ranking scores one.
+    </>
+  );
+}
+
+export function ModelTakeaway(): ReactNode {
+  return (
+    <>
+      The model finds people who were coming back anyway, so a campaign to its top scorers would look like a success and
+      prove nothing.
+    </>
+  );
+}
+
+export function WinBackLeadIn(): ReactNode {
+  return (
+    <>
+      A holdout is customers who get no offer, so their behaviour shows what would have happened anyway; the table shows
+      how many customers each group of such a test needs.
+    </>
+  );
+}
+
+export function WinBackTakeaway(): ReactNode {
+  return (
+    <>
+      The next step is a test with <Fact id="retention.winback.n_per_arm" /> lapsed customers per group against a holdout,
+      not a campaign to the top scorers.
+    </>
+  );
+}
+
+/** The close: what the page showed about how I work. */
+export function RetentionClose(): ReactNode {
+  return (
+    <p className="max-w-text">
+      I check that the numbers are right before I analyse them, and I treat a prediction as a reason to test, not as proof
+      that an offer works.
+    </p>
+  );
+}
+
 /** What this analysis cannot show. */
 export function RetentionLimits(): ReactNode {
   const lowest = RETENTION.tables.calibration[0];
@@ -599,6 +543,10 @@ export function RetentionLimits(): ReactNode {
         This is historic, observational data from one UK gift retailer. It shows who ordered again, not how anyone would
         respond to a win-back offer. Nobody was contacted.
       </>,
+    ],
+    [
+      'review',
+      <>The inflated growth was not my catch: a review caught it and I fixed it.</>,
     ],
     [
       'uplift',
