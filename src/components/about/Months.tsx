@@ -1,5 +1,5 @@
-// A month range as it prints on the About timeline and the CV: "Aug 2023 – Apr 2025" or
-// "Oct 2026 – present", each month in its own <time> (yyyy-mm). Server-safe, no hooks.
+// A month range as it prints on the About timeline and the CV: "Aug 2023 to Apr 2025" or
+// "Oct 2026 to present" (a word, not a dash), each month in its own <time> (yyyy-mm). Server-safe, no hooks.
 import type { ReactNode } from 'react';
 
 /** A month as yyyy-mm. */
@@ -22,7 +22,7 @@ function MonthTime({ m }: { m: Month }) {
 export function Months({ range }: { range: MonthRange }): ReactNode {
   return (
     <>
-      <MonthTime m={range.from} /> – {range.to ? <MonthTime m={range.to} /> : 'present'}
+      <MonthTime m={range.from} /> to {range.to ? <MonthTime m={range.to} /> : 'present'}
     </>
   );
 }

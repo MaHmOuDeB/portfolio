@@ -84,7 +84,7 @@ const cv = () => dom(renderToStaticMarkup(createElement(CvPage)));
 
 // ═════════════════════════════════════════ About ═════════════════════════════════════════════════
 const STORY = [
-  'I plan A/B tests, read them honestly and build the automation around them.',
+  'I plan A/B tests, say plainly what they show and build the automation around them.',
   'For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some marketing analytics.',
   'I contributed to 25+ A/B tests across web and mobile, did the sample-size planning and significance testing myself, and worked with 3 teams over my time there, one after another.',
   'I also built a browser-automation tool, Tampermonkey with a step recorder, that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.',
@@ -96,10 +96,10 @@ const FOCUS =
 const LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
 
 const TIMELINE = [
-  { dates: 'Oct 2026 – present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
-  { dates: 'Aug 2023 – Apr 2025', datetimes: ['2023-08', '2025-04'], role: 'Working student: Marketing Analytics & Growth Experimentation', where: 'Audible (Amazon), Berlin' },
-  { dates: 'Apr 2023 – Nov 2025', datetimes: ['2023-04', '2025-11'], role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
-  { dates: 'Sep 2019 – Nov 2022', datetimes: ['2019-09', '2022-11'], role: 'BSc Computer Science', where: 'Jacobs University Bremen (now Constructor University), Bremen' },
+  { dates: 'Oct 2026 to present', datetimes: ['2026-10'], role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
+  { dates: 'Aug 2023 to Apr 2025', datetimes: ['2023-08', '2025-04'], role: 'Working student: Marketing Analytics & Growth Experimentation', where: 'Audible (Amazon), Berlin' },
+  { dates: 'Apr 2023 to Nov 2025', datetimes: ['2023-04', '2025-11'], role: 'MSc Data Science', where: 'University of Europe for Applied Sciences, Berlin' },
+  { dates: 'Sep 2019 to Nov 2022', datetimes: ['2019-09', '2022-11'], role: 'BSc Computer Science', where: 'Jacobs University Bremen (now Constructor University), Bremen' },
 ];
 
 const TOOLS: readonly [tool: string, where: string][] = [
@@ -127,32 +127,42 @@ const LANGUAGES: readonly [language: string, level: string][] = [
 describe('the About page', () => {
   it('has one h1 and the sections in order, each a region named by its h2', () => {
     const d = about();
-    expect(all(d, (el) => el.tagName === 'h1').map(text)).toEqual(['Experimentation and growth analyst in Berlin, Germany.']);
-    expect(text(one(d, (el) => has(el, 'data-chip')))).toBe('About');
+    expect(all(d, (el) => el.tagName === 'h1').map(text)).toEqual(['Experimentation and AI automation analyst in Berlin, Germany.']);
+    // The page's chip, and beside it the green-dot chip that says I am open to roles.
+    const chips = all(d, (el) => has(el, 'data-chip'));
+    expect(chips.map(text)).toEqual(['About', 'Open to roles']);
+    expect(all(chips[1]!, (el) => attr(el, 'data-chip-dot') === 'ok')).toHaveLength(1);
+    expect(all(chips[0]!, (el) => has(el, 'data-chip-dot'))).toHaveLength(0);
     const sections = all(d, (el) => el.tagName === 'section' && has(el, 'id'));
     expect(sections.map((s) => [attr(s, 'id'), text(one(s, (el) => el.tagName === 'h2'))])).toEqual([
       ['timeline', 'Timeline'],
-      ['tools', 'Tools I have shipped with'],
+      ['tools', 'Tools, and where I used them'],
       ['languages', 'Languages'],
-      ['cv', 'CV'],
     ]);
-    expect(ABOUT_SECTIONS.map((s) => s.id)).toEqual(['timeline', 'tools', 'languages', 'cv']);
+    expect(ABOUT_SECTIONS.map((s) => s.id)).toEqual(['timeline', 'tools', 'languages']);
     for (const s of sections) expect(attr(s, 'aria-labelledby')).toBe(`${attr(s, 'id')}-title`);
   });
 
-  it('tells the five-sentence story, the new paragraph and the looking-for line, word for word', () => {
+  it('opens with what the two halves of my work have in common, then tells the five-sentence story, word for word', () => {
     const story = one(about(), (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p').map(text);
-    expect(paragraphs).toEqual([STORY.slice(0, 2).join(' '), FOCUS, LOOKING, STORY.slice(2, 4).join(' '), STORY[4]]);
-    expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...STORY.slice(0, 2), ...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), LOOKING, ...STORY.slice(2)]);
+    expect(paragraphs).toEqual([FOCUS, STORY.slice(0, 2).join(' '), STORY.slice(2, 4).join(' '), STORY[4]]);
+    expect(paragraphs.join(' ').split(/(?<=\.)\s+(?=[A-Z])/)).toEqual([...FOCUS.split(/(?<=\.)\s+(?=[A-Z])/), ...STORY]);
+    expect(text(story)).not.toMatch(/honestly/i);
   });
 
-  it('puts the new paragraph right after the first, and the looking-for line alone after it', () => {
-    const story = one(about(), (el) => has(el, 'data-about-story'));
+  it('puts the focus paragraph first, and leaves the looking-for line to the close with its Write to me button', () => {
+    const d = about();
+    const story = one(d, (el) => has(el, 'data-about-story'));
     const paragraphs = all(story, (el) => el.tagName === 'p');
-    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([2, 0, 0, 2, 1]);
-    expect(has(paragraphs[1]!, 'data-about-focus')).toBe(true);
-    expect(has(paragraphs[2]!, 'data-about-looking')).toBe(true);
+    expect(paragraphs.map((p) => all(p, (el) => has(el, 'data-sentence')).length)).toEqual([0, 2, 2, 1]);
+    expect(has(paragraphs[0]!, 'data-about-focus')).toBe(true);
+    expect(text(story)).not.toContain(LOOKING);
+    // The closing call to action says it once, with the button to the contact page.
+    const close = one(d, (el) => has(el, 'data-page-cta'));
+    expect(text(close)).toContain(LOOKING);
+    expect(text(d).split(LOOKING)).toHaveLength(2);
+    expect(all(close, (el) => el.tagName === 'a' && attr(el, 'href') === '/contact').map(text)).toEqual(['Write to me']);
   });
 
   it('keeps exactly the four timeline entries in order, and leaves the two short earlier roles to the CV', () => {
@@ -175,7 +185,7 @@ describe('the About page', () => {
     expect(has(one(d, (el) => el.tagName === 'img'), 'data-depth-parallax')).toBe(true);
     // The four section headings rise; the h1 is the LCP element and the call to action's h2 is the ink panel's.
     const headings = all(d, (el) => el.tagName === 'h2' && has(el, 'id') && attr(el, 'id') !== 'page-cta-title');
-    expect(headings.length).toBe(4);
+    expect(headings.length).toBe(3);
     for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
     expect(has(one(d, (el) => el.tagName === 'h1'), 'data-depth-rise')).toBe(false);
     // the rule that draws is a decorative span next to the list, never the list itself
@@ -196,6 +206,15 @@ describe('the About page', () => {
     const photoCol = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:col-span-5'));
     expect(textCol).toHaveLength(1);
     expect(photoCol).toHaveLength(1);
+    // On a phone the portrait comes first, right under the headline, at a modest size.
+    expect(classes(photoCol[0]!)).toEqual(expect.arrayContaining(['order-first', 'lg:order-last']));
+    expect(classes(img)).toContain('lg:max-w-none');
+    // LinkedIn and GitHub beside the photo, the site's own profile URLs.
+    const profiles = all(photoCol[0]!, (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);
+    expect(profiles).toEqual([
+      ['LinkedIn', CONTACT.linkedin, 'noopener'],
+      ['GitHub', CONTACT.github, 'noopener'],
+    ]);
     expect(all(textCol[0]!, (el) => el === story)).toHaveLength(1);
     expect(all(photoCol[0]!, (el) => el === img)).toHaveLength(1);
     const grid = all(d, (el) => el.tagName === 'div' && classes(el).includes('lg:grid-cols-12'));
@@ -214,8 +233,11 @@ describe('the About page', () => {
     const timeline = one(section(d, 'timeline'), (el) => el.tagName === 'ol');
     expect(classes(timeline)).toContain('max-w-text');
     expect(classes(timeline)).not.toContain('max-w-figure');
-    // Tools are a wrapping set of chips and the languages a grid of small cards.
-    expect(classes(one(section(d, 'tools'), (el) => el.tagName === 'ul'))).toContain('flex-wrap');
+    // Tools are a grid of even cards, three across from lg, and the languages a grid of small cards.
+    const tools = one(section(d, 'tools'), (el) => el.tagName === 'ul');
+    expect(classes(tools)).toEqual(expect.arrayContaining(['grid', 'sm:grid-cols-2', 'lg:grid-cols-3']));
+    expect(classes(tools)).not.toContain('flex-wrap');
+    for (const li of all(tools, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['rounded-xl', 'h-full']));
     expect(classes(one(section(d, 'languages'), (el) => el.tagName === 'dl'))).toContain('lg:grid-cols-5');
     for (const li of all(section(d, 'timeline'), (el) => el.tagName === 'li')) expect(classes(li)).toContain('md:grid-cols-[12rem_1fr]');
   });
@@ -246,7 +268,7 @@ describe('the About page', () => {
     ).toEqual(TIMELINE);
   });
 
-  it('lists the tools I have shipped with and where, as plain words: no levels, bars or frequencies', () => {
+  it('lists the tools and where I used them, as plain words: no levels, bars or frequencies', () => {
     const tools = section(about(), 'tools');
     const chips = all(tools, (el) => el.tagName === 'li').map((li) => {
       const [tool, where] = all(li, (el) => el.tagName === 'span').map(text);
@@ -263,14 +285,23 @@ describe('the About page', () => {
     expect(dts.map((t, i) => [t, dds[i]])).toEqual(LANGUAGES);
   });
 
-  it('links the CV page, and offers the PDF with its size only when the build found a checked one', () => {
-    const links = (d: T.Document) => all(section(d, 'cv'), (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), has(a, 'download')]);
+  it('links the CV page with a button in the head, and offers the PDF with its size only when the build found a checked one', () => {
+    const links = (d: T.Document) =>
+      all(one(d, (el) => has(el, 'data-about-actions')), (el) => el.tagName === 'a').map((a) => [text(a), attr(a, 'href'), has(a, 'download')]);
+    expect(all(about(), (el) => has(el, 'data-about-card'))).toEqual([]);
+    const head = one(about(), (el) => has(el, 'data-page-head'));
+    expect(all(head, (el) => has(el, 'data-about-actions'))).toHaveLength(1);
     expect(links(about())).toEqual([['Read my CV', CV_LINK.href, false]]);
     process.env.CV_PDF = PDF_ENV;
     expect(links(about())).toEqual([
       ['Read my CV', CV_LINK.href, false],
       [DOWNLOAD, CV_PDF_HREF, true],
     ]);
+  });
+
+  it('writes date ranges with "to", and no dash in its text', () => {
+    expect(text(about())).not.toMatch(/[\u2013\u2014]/);
+    expect(text(cv())).not.toMatch(/[\u2013\u2014]/);
   });
 
   it('passes the truth audit: every number is marked, the years and levels are allowed', () => {
@@ -284,7 +315,7 @@ describe('the About page', () => {
 /** Every claim on the CV page, in page order, word for word as it renders (figures as their facts print). */
 const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['summary-tenure', 'Experimentation and growth analyst with nearly two years at Audible (Amazon): contributed to 25+ A/B tests across web and mobile and worked with 3 teams over my time there.'],
-  ['summary-tool', 'Built a browser-automation tool that cut test-account setup from ~20 to ~3 minutes and was adopted team-wide.'],
+  ['summary-tool', 'Built a browser-automation tool that cut test-account setup from about 20 to about 3 minutes and was adopted team-wide.'],
   ['summary-skills', 'MSc in Data Science (2025); I work in SQL and Python and build LLM applications and agentic workflows.'],
   ['mercor-data', 'Build high-quality training data for AI models, applying business and analytics expertise to produce accurate, well-documented work samples.'],
   ['mercor-accuracy', 'Put accuracy first: check and explain every result, and document the work so others can review and repeat it.'],
@@ -293,7 +324,7 @@ const CV_CLAIMS: readonly [id: string, text: string][] = [
   ['audible-adopted', '20+ of my recommendations were adopted: most tests were personalisation and ordering bets against non-personalised baselines, ideas came from a pre-vetted pipeline, and neutral results could ship when guardrails held and there was a product reason.'],
   ['audible-metrics', 'Evaluated experiments for the teams that used mirrored metric setups (revenue primary and listening minutes secondary, or the reverse), with churn and incremental long-term value (ILTV) as guardrails.'],
   ['audible-crm', 'Contributed to CRM-driven personalisation for opted-in vs. opted-out member segments on Home and Discovery pages, writing the SQL segmentation queries within DMA consent rules and aligning targeting across teams.'],
-  ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from ~20 to ~3 minutes (~85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
+  ['audible-automation', 'Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut test-account setup from about 20 to about 3 minutes (about 85%) across 11 markets, then drove team-wide adoption via a guide and video.'],
   ['audible-ai-tools', 'Built AI tools adopted by the wider team after assessing Amazon Bedrock for team-efficiency use cases: an A/B test ideation tool that mines past experiment results, and a Jira launch-ticket generator.'],
   ['audible-reports', 'Built fortnightly Excel performance reports on experiments, campaigns and lifecycle KPIs from Tableau data for senior stakeholders of the teams I worked with.'],
   ['audible-campaigns', 'Set up and updated content campaigns in the CMS across app and website in 11 marketplaces, placing titles chosen with the content curation team; supported French-market content discovery and merchandising.'],
@@ -344,18 +375,18 @@ const OMISSIONS: readonly Omission[] = [
 ];
 
 const EXPERIENCE = [
-  ['AI Data Specialist, Business and Analytics Workflows (Contract)', 'Mercor, Berlin, Germany (remote)', 'Oct 2026 – present'],
-  ['Marketing Analytics & Growth Experimentation (Working Student)', 'Audible (Amazon), Berlin, Germany', 'Aug 2023 – Apr 2025'],
-  ['Fundraiser & Marketing Representative', 'Direct Results, Berlin, Germany', 'Mar 2023 – Jun 2023'],
-  ['Intern, Research Assistant', 'Geo Engineering, Bremen, Germany', 'Jun 2021 – Sep 2021'],
+  ['AI Data Specialist, Business and Analytics Workflows (Contract)', 'Mercor, Berlin, Germany (remote)', 'Oct 2026 to present'],
+  ['Marketing Analytics & Growth Experimentation (Working Student)', 'Audible (Amazon), Berlin, Germany', 'Aug 2023 to Apr 2025'],
+  ['Fundraiser & Marketing Representative', 'Direct Results, Berlin, Germany', 'Mar 2023 to Jun 2023'],
+  ['Intern, Research Assistant', 'Geo Engineering, Bremen, Germany', 'Jun 2021 to Sep 2021'],
 ];
 const EDUCATION = [
   {
-    heading: ['MSc Data Science', 'University of Europe for Applied Sciences, Berlin', 'Apr 2023 – Nov 2025'],
+    heading: ['MSc Data Science', 'University of Europe for Applied Sciences, Berlin', 'Apr 2023 to Nov 2025'],
     lines: ['Relevant coursework: Marketing Analytics, Machine Learning, Data Visualization, Data Engineering, Cloud Computing (AWS), Agile Project Management.'],
   },
   {
-    heading: ['BSc Computer Science', 'Jacobs University Bremen (now Constructor University)', 'Sep 2019 – Nov 2022'],
+    heading: ['BSc Computer Science', 'Jacobs University Bremen (now Constructor University)', 'Sep 2019 to Nov 2022'],
     lines: [
       'Minor in Global Economics and Management.',
       'Relevant coursework: Databases & Web Services, Machine Learning, Probability and Random Processes, Software Engineering, Algorithms & Data Structures.',
@@ -377,7 +408,7 @@ const PROJECTS = [
   ['Customer Retention & Reactivation Analysis', 'Personal project on a public dataset, rebuilt in 2026', 'Technologies: Python (pandas, scikit-learn, statsmodels), SQL (DuckDB), pytest, GitHub Actions.'],
   ['Retail KPI Dashboard', 'Personal project on a public dataset, rebuilt in 2026', 'Technologies: SQL (DuckDB), JavaScript (Chart.js), Python, GitHub Pages, GitHub Actions.'],
   ['Pulse: Amplitude Analytics Demo', 'Personal project, 2026', 'Technologies: React, TypeScript, Vite, Tailwind CSS, Amplitude (event tracking, Session Replay), Git/GitHub, Vercel.'],
-  ['Generative AI Content Marketing Web Service', "Master's thesis, Apr 2025 – Nov 2025", 'Technologies: Python, Flask, FastAPI, Streamlit, Docker, Google Cloud Run, Vercel, OpenAI GPT, Claude, Groq, Meta NLLB.'],
+  ['Generative AI Content Marketing Web Service', "Master's thesis, Apr 2025 to Nov 2025", 'Technologies: Python, Flask, FastAPI, Streamlit, Docker, Google Cloud Run, Vercel, OpenAI GPT, Claude, Groq, Meta NLLB.'],
   ['Docproof: Multi-Agent Document Pipeline', 'Open-source project, 2026', 'Technologies: Python, Claude Code (agents & skills), HTML/CSS, headless Chrome, GitHub Actions.'],
   ['Global Weather Data Pipeline', 'Personal project on a public dataset, rebuilt in 2026', 'Technologies: SQL (DuckDB), Python (pandas, scikit-learn, XGBoost), pytest, GitHub Actions.'],
   ['n8n Library: E-Invoice Intake & Alerts', 'Personal project, 2026', 'Technologies: n8n, JavaScript (Node.js), REST APIs & webhooks, Gmail API (OAuth2), Docker, PostgreSQL, GitHub Actions.'],

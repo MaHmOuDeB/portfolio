@@ -16,7 +16,7 @@ import { WINDOW_DAYS } from '@/lib/retention/rfm';
 
 /** The story, one sentence per entry. */
 export const ABOUT_STORY: readonly ReactNode[] = [
-  <>I plan A/B tests, read them honestly and build the automation around them.</>,
+  <>I plan A/B tests, say plainly what they show and build the automation around them.</>,
   <>
     For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some
     marketing analytics.
@@ -37,12 +37,9 @@ export const ABOUT_STORY: readonly ReactNode[] = [
   </>,
 ];
 
-/** The new paragraph after the first one: what the two halves of my work have in common. */
+/** The page's opening paragraph: what the two halves of my work have in common. */
 export const ABOUT_FOCUS =
   'I work on two things that belong together: experiments that end in a clear recommendation, and automation that takes the manual work out of getting there. At Audible that meant A/B tests and a browser tool my team adopted; since then it has meant agents, workflows and the checks around them.';
-
-/** What I am looking for, as its own short paragraph. */
-export const ABOUT_LOOKING = 'Open to roles in AI automation, experimentation and product analytics in Germany.';
 
 /**
  * Work and study, newest first. The two short earlier roles (the fundraiser job and the research
@@ -63,7 +60,7 @@ export const TIMELINE: readonly { range: MonthRange; role: string; where: string
   },
 ];
 
-/** Tools I have shipped work with, and where. No levels and no frequencies. */
+/** Tools I have used, and where. No levels and no frequencies. */
 export const SHIPPED_TOOLS: readonly { tool: string; where: string }[] = [
   { tool: 'SQL (DuckDB)', where: 'the retention analysis, the KPI dashboard and the weather pipeline' },
   { tool: 'Python: pandas, NumPy, scikit-learn and XGBoost', where: 'the analytics projects' },
@@ -115,8 +112,9 @@ export const CV_SUMMARY: readonly CvClaim[] = [
     id: 'summary-tool',
     body: (
       <>
-        Built a browser-automation tool that cut test-account setup from ~<Fact id="profile.audible.setup_minutes_before" />{' '}
-        to ~<Fact id="profile.audible.setup_minutes_after" /> minutes and was adopted team-wide.
+        Built a browser-automation tool that cut test-account setup from about{' '}
+        <Fact id="profile.audible.setup_minutes_before" /> to about <Fact id="profile.audible.setup_minutes_after" /> minutes
+        and was adopted team-wide.
       </>
     ),
   },
@@ -183,8 +181,8 @@ export const CV_EXPERIENCE: readonly CvEntry[] = [
         body: (
           <>
             Spotted a manual bottleneck and built an automation tool (Tampermonkey with a step recorder) that cut
-            test-account setup from ~<Fact id="profile.audible.setup_minutes_before" /> to ~
-            <Fact id="profile.audible.setup_minutes_after" /> minutes (~<Fact id="profile.audible.setup_time_cut" />)
+            test-account setup from about <Fact id="profile.audible.setup_minutes_before" /> to about{' '}
+            <Fact id="profile.audible.setup_minutes_after" /> minutes (about <Fact id="profile.audible.setup_time_cut" />)
             across <Fact id="profile.audible.markets" /> markets, then drove team-wide adoption via a guide and video.
           </>
         ),
