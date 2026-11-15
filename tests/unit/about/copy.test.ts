@@ -479,7 +479,7 @@ describe('the CV page', () => {
 
   it('prints the role line, Berlin, Germany, and the LinkedIn and GitHub profiles as external links', () => {
     const header = one(cv(), (el) => has(el, 'data-cv-header'));
-    expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe(SITE.role);
+    expect(text(one(header, (el) => has(el, 'data-cv-role')))).toBe('Experimentation and AI automation analyst');
     expect(text(one(header, (el) => has(el, 'data-cv-place')))).toBe(SITE.city);
     const actions = one(header, (el) => has(el, 'data-cv-actions'));
     const links = all(header, (el) => el.tagName === 'a' && !all(actions, (x) => x === el).length).map((a) => [text(a), attr(a, 'href'), attr(a, 'rel')]);

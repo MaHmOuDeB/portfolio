@@ -4,7 +4,7 @@ import { CONTACT, CONTACT_HREF, CONTACT_LINK, CV_LINK, NAV, PRIVACY_HREF, SITE }
 test('identity strings match the spec', () => {
   expect(SITE).toEqual({
     name: 'Mahmoud El Bergui',
-    role: 'Experimentation & growth analyst',
+    role: 'Experimentation and AI automation analyst',
     city: 'Berlin, Germany',
   });
 });
