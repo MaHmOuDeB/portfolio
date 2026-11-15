@@ -258,7 +258,7 @@ describe('Hero', () => {
 
   it('ends in one muted proof line under the buttons, its figures Facts, and a quiet link to the work', () => {
     const proof = one(hero, (el) => has(el, 'data-hero-proof'));
-    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated tests in public code. See the work');
+    expect(text(proof)).toBe('25+ A/B tests at Audible. A tool my team adopted. 270+ automated software tests in public code. See the work');
     expect(all(proof, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual(['profile.audible.experiments', 'profile.n8n.automated_tests']);
     expect(html.indexOf('data-hero-proof')).toBeGreaterThan(html.indexOf('data-hero-actions'));
   });
@@ -337,7 +337,7 @@ describe('ProofRow', () => {
       'A/B tests I contributed to at Audible, across web and mobile.',
       'of my recommendations adopted. Why so many?',
       'to set up a test account, down from about 20, with a tool I built. Adopted team-wide, across 11 markets.',
-      'automated tests behind my workflow library for e-invoice intake.',
+      'automated software tests behind my workflow library for e-invoice intake.',
     ]);
     expect(all(d, (el) => has(el, 'data-fact')).map((el) => attr(el, 'data-fact'))).toEqual([
       'profile.audible.experiments',

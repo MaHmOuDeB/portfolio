@@ -43,7 +43,7 @@ export const HOME_HERO = {
     { fact: 'profile.audible.experiments' },
     ' A/B tests at Audible. A tool my team adopted. ',
     { fact: 'profile.n8n.automated_tests' },
-    ' automated tests in public code.',
+    ' automated software tests in public code.',
   ] as readonly HeadlinePart[],
   work: 'See the work',
 } as const;
@@ -141,7 +141,7 @@ export const HOME_PROOF: readonly ProofItem[] = [
     id: 'tests',
     side: 'Automation',
     figure: [{ fact: 'profile.n8n.automated_tests' }],
-    caption: ['automated tests behind my workflow library for e-invoice intake.'],
+    caption: ['automated software tests behind my workflow library for e-invoice intake.'],
   },
 ];
 
@@ -354,7 +354,7 @@ export const HOME_TOOLS = {
       name: 'Experimentation and analytics',
       line: 'What I use to plan a test, read it honestly and write the recommendation.',
       items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
-      seenIn: 'At Audible, in the retention analysis and in Pulse.',
+      seenIn: 'At Audible and in the retention analysis.',
     },
     {
       id: 'automation',

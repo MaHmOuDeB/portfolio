@@ -138,7 +138,7 @@ describe('HowITest: the tabs widget', () => {
       expect(classes(radios[i]!)).toContain('sr-only');
       // Focus scrolls the whole label into view, not only the radio's 1 px box at its top.
       expect(classes(radios[i]!)).toContain('scroll-mb-36');
-      expect(attr(label, 'class')).toMatch(/has-\[:focus-visible\]:outline/);
+      expect(attr(label, 'class')).toMatch(/focus-within:outline-2/);
       expect(attr(label, 'class')).toMatch(/has-\[:checked\]:/);
     }
   });

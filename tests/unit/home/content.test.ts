@@ -352,7 +352,7 @@ describe('the hero, proof row, the sections and the site band', () => {
           name: 'Experimentation and analytics',
           line: 'What I use to plan a test, read it honestly and write the recommendation.',
           items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
-          seenIn: 'At Audible, in the retention analysis and in Pulse.',
+          seenIn: 'At Audible and in the retention analysis.',
         },
         {
           id: 'automation',
