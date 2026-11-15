@@ -71,7 +71,7 @@ export type CurseValues = ParamValues<typeof CURSE_SCHEMA>;
 /** The control and readout words: plain first, the statistic's name in brackets. */
 export const CURSE_LABELS = {
   trueEffect: 'Real effect',
-  se: 'Noise in the measurement (standard error)',
+  se: 'Noise (standard error)',
   power: 'Chance of detecting it (power)',
   wrongSign: 'Wins that point the wrong way',
   exaggeration: 'How much a win overstates it',
