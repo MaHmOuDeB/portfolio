@@ -200,14 +200,14 @@ describe('ExperimentsTrack: the bento of the three experiment cards', () => {
       chip: 'Experiments and analytics',
       title: 'Open the work and see how it was done.',
       quiet: 'and see how it was done.',
-      sub: 'Case studies with their sources and their limits.',
+      sub: 'Each case study shows the method, the sources and what it cannot tell you.',
     });
     expect(attr(section, 'aria-labelledby')).toBe(h.id);
   });
 
   it('puts the phase line under the sub, before the cards, and holds no note (the live bar has it)', () => {
     const html = track('a', 'calibration');
-    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('Case studies with their sources'));
+    expect(html.indexOf('data-home-card-line')).toBeGreaterThan(html.indexOf('Each case study shows the method'));
     expect(html.indexOf('data-home-card-line')).toBeLessThan(html.indexOf('data-experiment="cards"'));
     expect(text(one(doc(html), (el) => has(el, 'data-home-card-line')))).toBe(
       'These three headlines are what the test will compare. For now everyone sees the same ones.',
