@@ -218,4 +218,4 @@ For `prereg-v1.1` after a failed A/A the edits are: `prereg: { version: 'v1.1', 
 'prereg-v1.1' }`, `namespace: 'aa-v1.1'`, `calibration.startedOn` set to the restart, any
 corrected design value, and a new hash in this page with the reason.
 
-Pre-registration hash: e21dedcac7a27fffb92d9bb1f46d580ff5fe75ea28ea2d012903369493d51c39
+Pre-registration hash: 69b2af032808fd2df20f783058a3c4d571a7062053ce7f56692e1c3852acf277
