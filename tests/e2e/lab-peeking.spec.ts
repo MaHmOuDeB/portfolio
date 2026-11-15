@@ -131,7 +131,7 @@ function expectOneTuple(t: Tuple) {
   expect(Number(last.at(-1))).toBeCloseTo(t.dot.value * 100, 6);
   if (t.mode === 'once') {
     expect(t.chart).toMatchObject({ selectedLooks: 1, selectedNPerLook: 100 * L });
-    expect(t.result.text).toContain(`at one look after ${(100 * L).toLocaleString('en-GB')} visitors per group`);
+    expect(t.result.text).toContain(`Checked once at the end, after ${(100 * L).toLocaleString('en-GB')} visitors per group`);
     expect(t.table).toHaveLength(L + 1);
     expect(last[1]).toBe('One look at the end');
   } else {
@@ -226,9 +226,9 @@ test.describe('Peeking Figure', () => {
     await page.goto(`${HOST}?${ID}.looks=50&${ID}.fix=cs`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
     await expect(looks(page)).toHaveValue('50');
-    await expect(radio(page, 'Confidence sequence')).toBeChecked();
+    await expect(radio(page, 'Always valid (confidence sequence)')).toBeChecked();
     await expect(result(page)).toContainText('Checked every day for 50 days');
-    await expect(result(page)).toContainText('well under the nominal 5%.');
+    await expect(result(page)).toContainText('Read once at the end, about 5% would. It is conservative here; that is not a guarantee for every population.');
     await expect(result(page)).toContainText("At the planned sample, the confidence sequence's interval is about 55% wider than a single fixed test's.");
     expectOneTuple(await tuple(page));
     expect(errors).toEqual([]);
@@ -281,7 +281,7 @@ test.describe('Peeking Figure', () => {
   test('the boundaries: one look is the fixed design on a nondegenerate axis, fifty is the last', async ({ page }) => {
     await page.goto(`${HOST}?${ID}.looks=1&${ID}.fix=obf`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    await expect(result(page)).toContainText('Checked every day for 1 day,');
+    await expect(result(page)).toContainText('Checked every day for 1 day with stricter early looks,');
     await expect(result(page)).toContainText('With one look there is no extra bar: this is the fixed design.');
     await expect(result(page)).not.toContainText('higher');
     const xTicks = () => figure(page).locator('svg[data-chart-frame]:visible [data-tick="x"]').allTextContents();
@@ -309,12 +309,12 @@ test.describe('Peeking Figure', () => {
     // the native fieldset is disabled, and with it every one of its radios
     const fix = figure(page).getByRole('group', { name: 'Correction' });
     await expect(fix).toHaveAttribute('disabled', '');
-    for (const name of ['None', "O'Brien-Fleming", 'Confidence sequence']) await expect(radio(page, name)).toBeDisabled();
+    for (const name of ['None', "Stricter early looks (O'Brien-Fleming)", 'Always valid (confidence sequence)']) await expect(radio(page, name)).toBeDisabled();
     await expect(figure(page).getByText('One check at the end needs no correction.')).toBeVisible();
     // the reason describes the disabled group, so a screen reader that meets the group reads it
     await expect(fix).toHaveAccessibleDescription('One check at the end needs no correction.');
     await expect(looks(page)).toBeEnabled();
-    await expect(radio(page, "O'Brien-Fleming")).toBeChecked();
+    await expect(radio(page, "Stricter early looks (O'Brien-Fleming)")).toBeChecked();
     await expect(result(page)).toContainText('Checked once at the end, after 2,000 visitors per group');
     await expect(result(page)).not.toContainText('higher');
     await expect.poll(() => query(page).get(`${ID}.fix`)).toBe('obf');
@@ -323,8 +323,8 @@ test.describe('Peeking Figure', () => {
     await label(page, 'Check every day').click();
     await expect(fix).not.toHaveAttribute('disabled');
     await expect(radio(page, 'None')).toBeEnabled();
-    await expect(radio(page, "O'Brien-Fleming")).toBeChecked();
-    await expect(result(page)).toContainText('close to or under the nominal 5%.');
+    await expect(radio(page, "Stricter early looks (O'Brien-Fleming)")).toBeChecked();
+    await expect(result(page)).toContainText('Read once at the end, about 5% would. At the last look the bar for a winner is about');
     await expect(figure(page).getByText('One check at the end needs no correction.')).toBeHidden();
     // the hidden reason no longer describes the enabled group
     await expect(fix).toHaveAccessibleDescription('');
@@ -342,7 +342,7 @@ test.describe('Peeking Figure', () => {
       expect(t.chart).toMatchObject({ ghostLooks: L, ghostNPerLook: 100 });
       await expect(caption(page)).toContainText(`Looking once means one check after ${n} visitors per group.`);
       await expect(caption(page)).toContainText(`The pale line is the comparison schedule: ${L} daily looks of 100 visitors per group with no fix.`);
-      await expect(result(page)).toContainText(`at one look after ${n} visitors per group`);
+      await expect(result(page)).toContainText(`Checked once at the end, after ${n} visitors per group`);
       const ghost = figure(page).locator('svg[data-chart-frame]:visible path[data-series="ghost"]');
       expect((await ghost.getAttribute('data-values'))!.split(' ')).toHaveLength(L);
       await expect(figure(page).locator('svg[data-chart-frame]:visible path[data-series="selected"]')).toHaveCount(0);
@@ -372,10 +372,10 @@ test.describe('Peeking Figure', () => {
     });
     await looks(page).focus();
     for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight', { delay: 0 });
-    await label(page, "O'Brien-Fleming").click();
+    await label(page, "Stricter early looks (O'Brien-Fleming)").click();
     await label(page, 'Check once at the end').click();
     await label(page, 'Check every day').click();
-    await label(page, 'Confidence sequence').click();
+    await label(page, 'Always valid (confidence sequence)').click();
     await looks(page).focus();
     for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowLeft', { delay: 0 });
     await label(page, 'Check once at the end').click();
@@ -415,7 +415,7 @@ test.describe('Peeking Figure', () => {
     await page.keyboard.press('ArrowRight');
     await expect(radio(page, 'Check once at the end')).toBeChecked();
     await expect(radio(page, 'Check once at the end')).toBeFocused();
-    await expect(live(page)).toContainText('at one look after 2,100 visitors per group');
+    await expect(live(page)).toContainText('Checked once at the end, after 2,100 visitors per group');
     await expectNoStale25(page);
   });
 
@@ -473,7 +473,7 @@ test.describe('Peeking Figure', () => {
     await page.mouse.up();
     await expect(figure(page)).not.toHaveAttribute('data-dragging');
     await expect(live(page)).toHaveText(/^Checked every day for \d+ days?( with [a-z -]+)?, [\d.]+% of 1,000 tests of two identical versions declared a winner\./);
-    await label(page, 'Confidence sequence').click();
+    await label(page, 'Always valid (confidence sequence)').click();
     await label(page, 'Check once at the end').click();
     await page.waitForTimeout(600);
     const stats = await page.evaluate(() => {

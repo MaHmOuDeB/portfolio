@@ -134,6 +134,29 @@ test.describe('the Lab routes', () => {
     await expect(figure(page, 'peeking').getByRole('heading', { level: 3 })).toBeInViewport();
   });
 
+  test('each method row names its Figure, opens and closes by keyboard, and shows its method only when open', async ({ page }) => {
+    await page.goto(LAB);
+    const rows = page.locator('details[data-method]');
+    await expect(rows.locator('summary')).toHaveText([
+      'The method behind the sample size',
+      'The method behind the run time',
+      'The method behind the split check',
+      'The method behind the peeking chart',
+      'The method behind the exaggeration chart',
+    ]);
+    const row = rows.first();
+    const body = row.locator('[data-method-body]');
+    await expect(body).toBeHidden();
+    await row.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(row).toHaveAttribute('open', '');
+    await expect(body).toBeVisible();
+    await expect(body).toContainText("Cohen's h");
+    await page.keyboard.press('Space');
+    await expect(row).not.toHaveAttribute('open', '');
+    await expect(body).toBeHidden();
+  });
+
   test('every Figure is badged Simulated, its open table is in the served HTML, and no id repeats', async ({ page, request }) => {
     for (const path of [LAB, PEEKING]) {
       const served = await (await request.get(path)).text();

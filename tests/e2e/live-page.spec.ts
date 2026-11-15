@@ -57,6 +57,19 @@ test.describe('the Live test page', () => {
     expect(requests.filter((p) => p.endsWith('data.json'))).toEqual([]);
   });
 
+  test('the status card names the phase in words, and the current step agrees with it', async ({ page }) => {
+    await page.goto(ROUTE);
+    const card = page.locator('[data-live-status]');
+    await expect(card.getByRole('heading', { level: 2 })).toHaveText('Where the test stands');
+    const words = (await card.locator('[data-status-words]').innerText()).trim();
+    expect(words).toMatch(
+      /^(Not started|Checking the stored result|Counts not loaded|Counting is stopped|Stopped for a data fault|Split check failed|Calibration stopped|Paused|Counting has closed|Result being confirmed|A\/B test running|Calibrating|Ship B|Stop for harm|Inconclusive at the limit)$/,
+    );
+    const current = card.locator('[data-live-track] > li[aria-current="step"]');
+    if (words === 'Calibrating') await expect(current).toHaveAttribute('data-step', 'calibration');
+    if (words === 'A/B test running') await expect(current).toHaveAttribute('data-step', 'ab');
+  });
+
   test('links the published data, which is valid experiment data', async ({ page, request }) => {
     await page.goto(ROUTE);
     const link = page.getByRole('link', { name: 'Download the data (data.json)' });

@@ -434,3 +434,39 @@ test.describe('the screenshot frame', () => {
     await context.close();
   });
 });
+
+// The seven work pages are one sequence: each page's Next card opens the page whose Previous card
+// leads back to it, and the last one hands over to the live test.
+const SEQUENCE = [
+  ['/work/audible', 'Audible'],
+  ['/work/retention', 'Retention'],
+  ['/work/pulse', 'Pulse'],
+  ['/work/docproof', 'Docproof'],
+  ['/work/n8n', 'n8n e-invoice intake'],
+  ['/work/marketingws', 'MarketingWS'],
+  ['/work/weather', 'Weather pipeline'],
+  ['/experiment', 'The live test'],
+] as const;
+
+test('previous and next: the work pages lead through the sequence and back', async ({ page }) => {
+  for (let i = 0; i < SEQUENCE.length - 1; i++) {
+    const [route] = SEQUENCE[i]!;
+    const [nextRoute, nextLabel] = SEQUENCE[i + 1]!;
+    await page.goto(route);
+    const row = page.getByRole('navigation', { name: 'More work' });
+    const next = row.locator('[data-next="next"]');
+    await expect(next, route).toHaveAttribute('href', nextRoute);
+    await expect(next.locator('[data-next-label]'), route).toHaveText(nextLabel);
+    if (i === 0) await expect(row.locator('[data-next="prev"]'), route).toHaveCount(0);
+    else {
+      const [prevRoute, prevLabel] = SEQUENCE[i - 1]!;
+      await expect(row.locator('[data-next="prev"]'), route).toHaveAttribute('href', prevRoute);
+      await expect(row.locator('[data-next="prev"] [data-next-label]'), route).toHaveText(prevLabel);
+    }
+  }
+  // following a card by click opens the page it names
+  await page.goto('/work/pulse');
+  await page.getByRole('navigation', { name: 'More work' }).locator('[data-next="next"]').click();
+  await expect(page).toHaveURL(/\/work\/docproof$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+});

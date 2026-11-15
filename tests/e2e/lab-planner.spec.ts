@@ -207,7 +207,7 @@ test.describe('Full planner', () => {
     expect(query(page).get(`${ID}.baseline`)).toBe('0.3');
     expect(query(page).get(`${ID}.risePoints`)).toBe('4');
     // a typed percent goes to the nearest whole point: 20% of 30% is 6 points
-    await typeExact(page, 'Rise to detect, percent of the baseline', '20');
+    await typeExact(page, 'Smallest rise worth detecting, percent of the baseline', '20');
     await expect(result(page)).toContainText('To detect a rise of 20% of the baseline, from 30% to 36%.');
     await expect.poll(() => query(page).get(`${ID}.risePoints`)).toBe('6');
     await figure(page).locator('label', { hasText: 'Points' }).click();
@@ -391,7 +391,7 @@ test.describe('Full planner', () => {
     const errors = watchErrors(page);
     await page.goto(`${HOST}?${ID}.mode=relative`);
     await expect(island(page)).toHaveAttribute('data-island', 'ready');
-    const exact = figure(page).getByRole('spinbutton', { name: 'Rise to detect, percent of the baseline' });
+    const exact = figure(page).getByRole('spinbutton', { name: 'Smallest rise worth detecting, percent of the baseline' });
     // 5 points of 29% is 17.2413...%: the input shows it to one decimal, as the readout does
     await expect(exact).toHaveValue('17.2');
     await expect(exact).toHaveAttribute('aria-invalid', 'false');
