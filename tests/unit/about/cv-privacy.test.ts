@@ -421,10 +421,17 @@ describe('check-web-cv: the numeral rule', () => {
     failsWith(check(withBullet('Worked with two teams.')), 'claim example-co-reports: numeral at 12-15 has no approval record');
   });
 
-  it('fails on "2 teams" with the shipped allow-list', () => {
-    const shipped = JSON.parse(readFileSync(join(ROOT, 'scripts/cv/numeral-allowlist.json'), 'utf8'));
-    const r = check(withBullet('Evaluated experiments for 2 teams with mirrored metric setups.'), { records: shipped });
+  it('fails on "2 teams", and the shipped allow-list approves no team count', () => {
+    const r = check(withBullet('Evaluated experiments for 2 teams with mirrored metric setups.'));
     failsWith(r, 'claim example-co-reports: numeral at 26-27 has no approval record');
+    // A shipped record approves only its own claim's text. The one team count it approves is the
+    // teams fact, said as teams over my time there; no record approves "2 teams".
+    const shipped = JSON.parse(readFileSync(join(ROOT, 'scripts/cv/numeral-allowlist.json'), 'utf8')) as {
+      entries: { token: string; span: { end: number }; normalizedClaim: string; factId?: string }[];
+    };
+    const teams = shipped.entries.filter((e) => /^\s*(?:cross-functional\s+)?teams\b/i.test(e.normalizedClaim.slice(e.span.end)));
+    expect(teams.map((e) => [e.token, e.factId])).toEqual([['3', 'profile.audible.teams']]);
+    expect(teams[0]!.normalizedClaim).toContain('3 teams over my time there');
   });
 
   it('fails on the old Summary sentence that joins tests, teams and markets', () => {
