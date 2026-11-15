@@ -86,15 +86,17 @@ describe('the Lab page', () => {
     expect(LAB_TITLE).toBe('Lab');
     const opening = text(LAB.slice(LAB.indexOf('</h1>'), LAB.indexOf('<nav')));
     expect(opening).toBe(
-      'An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. A wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I make before I trust a result. Each one below is a small model you can play with. Every number is made up or simulated.',
+      'An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. Show both groups the same page, and their results still differ a little, by luck. So a test calls a winner only when the gap clears a bar. The bar is set so that luck alone rarely clears it. A wrong call can ship a change that does nothing, or drop one that works. These are the four checks I make before I trust a result. Every number below is made up or simulated.',
     );
+    // the no-JS view has static Figures, so the opening never asks the reader to play with them
+    expect(opening).not.toMatch(/play with/);
     expect(text(LAB)).not.toMatch(/honestly/i);
-    // the cards' lines, in plain words (card 2 says a gap matters only beyond what chance allows)
+    // the cards' lines, in plain words (card 2 says a gap matters only beyond what luck allows)
     expect(LAB_SECTIONS.map((s) => s.line)).toEqual([
-      'With too few visitors, a real gain looks like noise. I work out the size before the start.',
-      'If the groups differ in size by more than chance allows, the setup is broken. Then no result can be trusted, however good it looks.',
-      'Check every day, stop at the first win, and chance hands you false winners.',
-      'A small test tends to win only on a lucky draw. So its wins look bigger than they are.',
+      'With too few visitors, luck can hide a real gain. So I work out the visitors a test needs before it starts.',
+      'The groups should come out close to half each. A bigger gap than luck allows means the setup is broken. Then no result can be trusted, however good it looks.',
+      'Check daily and stop at the first win, and luck can pick your winner.',
+      'A test too small for the effect wins only on a lucky reading. So its wins look bigger than they are.',
     ]);
   });
 
@@ -168,6 +170,39 @@ describe('the Lab page', () => {
     });
   });
 
+  // Each check opens with its trap: one everyday picture of the mistake, without a number, in the
+  // frame's lead-in labelled "The trap", right under the h2 and before the exhibit.
+  const TRAPS: Record<string, string> = {
+    'sample-size':
+      'Toss a coin a few times and you may get mostly heads, just by luck. A test with few visitors swings by luck the same way. A small real rise can vanish inside those swings.',
+    'split-check':
+      'Each visitor is put in group A or B by a fair coin toss. A fair coin lands near half each, but rarely exactly half. A much bigger gap means something broke, say a page that fails on some phones. Then the groups differ in who is in them, not just in the page.',
+    'peeking-at-results':
+      'Roll a dice until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
+    exaggeration:
+      'A cheap bathroom scale wobbles a little each day. Write down only the days it shows a big loss. Your notes will say you lost more than you really did. A small test is that scale: only its luckiest readings clear the bar.',
+  };
+  it('renders each check\'s trap under its h2, before the exhibit, in plain words without a number', () => {
+    expect(LAB_SECTIONS.map((s) => [s.id, s.trap])).toEqual(Object.entries(TRAPS));
+    const trapOf = (markup: string, id: string) => {
+      const part = section(markup, id);
+      const m = /<\/h2><div data-lead-in=""><p data-exhibit-label="">([\s\S]*?)<\/p><p data-exhibit-text="">([\s\S]*?)<\/p><\/div>/.exec(part);
+      expect(m, id).not.toBeNull();
+      // the trap comes before the exhibit's own lead-in
+      expect(part.indexOf('data-lead-in'), id).toBeLessThan(part.indexOf('data-lab-exhibit'));
+      return { label: text(m![1]!), body: text(m![2]!) };
+    };
+    for (const [id, trap] of Object.entries(TRAPS)) {
+      expect(trapOf(LAB, id), id).toEqual({ label: 'The trap', body: trap });
+      expect(trap, id).not.toMatch(/\d/);
+    }
+    // the peeking page shows the same trap
+    expect(trapOf(PEEKING, 'peeking-at-results')).toEqual({ label: 'The trap', body: TRAPS['peeking-at-results'] });
+    // one trap per section, never inside a Figure
+    expect([...LAB.matchAll(/<p data-exhibit-label="">The trap<\/p>/g)]).toHaveLength(4);
+    for (const { id, html } of figures(LAB)) expect(html, id).not.toContain('The trap');
+  });
+
   // each method row names its own Figure, so a screen reader's list of rows is not four identical ones
   const METHOD_SUMMARY: Record<string, string> = {
     planner: 'How I worked out the size and the weeks',
@@ -179,7 +214,7 @@ describe('the Lab page', () => {
   const CAPTION: Record<string, string> = {
     planner: 'Made-up numbers to plan with. Visitors are split evenly between the two groups.',
     srm: 'Made-up visitor counts. Each group was meant to get half.',
-    peeking: 'Simulated tests of two identical versions, both converting at 35%.',
+    peeking: 'Simulated tests of two identical pages, each with a 35% sign-up rate.',
     curse: 'An exact calculation on made-up values, with no random draws.',
   };
 
@@ -197,12 +232,12 @@ describe('the Lab page', () => {
     expect(css).toMatch(/\[data-takeaway\] \[data-exhibit-text\]\s*\{[^}]*font-size:\s*var\(--text-lg\)/);
   });
 
-  it('frames every Figure as an exhibit: try this, the Figure on its sheet, what I do about it, the method one click deeper', () => {
+  it('frames every Figure as an exhibit: try it, the Figure on its sheet, what I do about it, the method one click deeper', () => {
     const all = exhibits(LAB);
     expect(all.map((e) => e.figure)).toEqual(['planner', 'srm', 'peeking', 'curse']);
     for (const e of all) {
       expect(e.order, e.figure).toEqual(['data-lead-in=""', 'data-figure-sheet=""', 'data-lab-point="wide"', 'data-method=""']);
-      expect(e.leadIn, e.figure).toMatch(/^Try this [A-Z]/);
+      expect(e.leadIn, e.figure).toMatch(/^Try it [A-Z]/);
       expect(e.wide, e.figure).toMatch(/^What I do about it [A-Z]/);
       // on a phone the point comes before the controls: the same sentence as the Figure's lead
       expect(e.phone, e.figure).toBe(e.wide);
@@ -217,22 +252,25 @@ describe('the Lab page', () => {
       expect(e.wide, e.figure).toMatch(/\bI\b/);
     }
     // the old labels are gone from the Lab
-    expect(text(LAB)).not.toMatch(/What to look at|What it means/);
+    expect(text(LAB)).not.toMatch(/What to look at|What it means|Try this/);
     const by = Object.fromEntries(all.map((e) => [e.figure, e]));
-    expect(by.planner!.leadIn).toBe("Try this Set today's sign-up rate and the smallest rise worth acting on. Then set the daily traffic and watch both numbers.");
+    expect(by.planner!.leadIn).toBe(
+      'Try it Make the smallest rise smaller and watch the visitors climb. Halve the rise, and each group needs about four times as many.',
+    );
     expect(by.planner!.wide).toBe(
-      'What I do about it Halve the rise you want to catch and you need about four times the visitors. So before a test I agree the smallest rise worth acting on. Some pages are too quiet to show it within weeks. Then I test a bolder change or a busier page. That beats running for months with little chance of a clear answer.',
+      'What I do about it Before a test, I agree on the smallest rise worth acting on. Some pages get too few visitors to show it within weeks. For those, I test a bolder change or a busier page instead of waiting months.',
     );
     expect(by.srm!.wide).toBe(
-      'What I do about it It is not close enough. A fair split would almost never leave a gap this big. So I read no result until I find what broke the assignment or the counting. Otherwise a winner may only reflect who ended up in each group.',
+      'What I do about it It is not close enough. I make this check before I read any result. When it flags, I find what broke the split before anything else. Otherwise a winner may only reflect who ended up in each group.',
     );
-    expect(by.peeking!.leadIn).toBe('Try this Both versions here are identical, so any winner is a false winner. The line shows how many of 1,000 simulated tests found one, day by day.');
-    expect(by.curse!.leadIn).toBe('Try this Picture a change with a real but small effect. Make the test bigger or smaller, and watch how much its wins overstate the effect.');
+    expect(by.peeking!.leadIn).toBe('Try it Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of 1,000 tests find one.');
+    expect(by.curse!.leadIn).toBe('Try it Drag the slider right, toward a bigger test. Watch the wins shrink toward the real effect.');
     // the method text: the formula, the test, the criterion, the assumptions, and the live statistics moved there
     expect(by.planner!.method).toContain("Sample sizes from Cohen's h for a two-sided test at a significance level of 5% and a power of 80%");
     expect(by.planner!.method).toContain('Either way the sample is the same.');
     expect(by.planner!.method).toContain('in whole weeks, rounded up.');
     expect(by.planner!.method).toContain('The traffic is a number to plan with, not a promise of actual traffic');
+    expect(by.srm!.method).toContain('How the split check works Each visitor is assigned at random, like a fair coin toss. Split check (sample ratio mismatch):');
     expect(by.srm!.method).toContain('The check is a chi-square test with one degree of freedom on the counts against that share.');
     expect(by.srm!.method).toContain('The Lab fixes the planned share at half; the check works against any planned share.');
     expect(by.srm!.method).toMatch(/For your setting: chi-square 11\.56, one degree of freedom, p-value below 0\.001\./);
@@ -264,18 +302,22 @@ describe('the Lab page', () => {
     }
   });
 
-  it('quotes the starting numbers in a takeaway as the Figure prints them at its preset', () => {
+  it('quotes the starting numbers in a lead-in as the Figure prints them at its preset, and keeps every takeaway free of numbers', () => {
     const by = Object.fromEntries(exhibits(LAB).map((e) => [e.figure, e]));
     const figure = (id: string) => figures(LAB).find((f) => f.id === id)!.html;
+    // what I do about it holds at every setting, so no takeaway quotes a number
+    for (const e of exhibits(LAB)) expect(e.wide, e.figure).not.toMatch(/\d/);
     // the split check: the two counts of the preset, and a takeaway worded for the starting numbers
-    expect(by.srm!.leadIn).toBe('Try this Each group should get half the visitors. Here group A got 5,170 and group B 4,830. That looks close. Is it? Move the counts and watch the verdict.');
+    expect(by.srm!.leadIn).toBe(
+      'Try it Here group A got 5,170 visitors and group B 4,830. That looks close. Is it? Move group B closer to group A and watch the verdict.',
+    );
     expect(figure('srm')).toMatch(/id="srm-nA"[^>]*value="5170"/);
     expect(figure('srm')).toMatch(/id="srm-nB"[^>]*value="4830"/);
-    expect(text(figure('srm'))).toContain('Flagged: a fair split leaves a gap at least this big less than 1 time in 1,000.');
+    expect(text(figure('srm'))).toContain('Flagged: a fair coin leaves a gap this big or bigger less than 1 time in 1,000.');
     expect(by.srm!.wide).toContain('It is not close enough.');
-    // peeking: one in twenty is the nominal 5%, the days are the preset's, and the preset's rate is above one in five
+    // peeking: the result line shows the contrast of daily checks and one check; the takeaway is the read plan
     expect(by.peeking!.wide).toBe(
-      'What I do about it Checked once at the end, about 1 test in 20 finds a false winner. Checked daily for 20 days, more than 1 in 5 does. Each one can become a shipped change that does nothing. So before a test starts I decide how I will read it: once at the end, or with a method built for repeated checks. The price of checking often is that a winner needs stronger evidence.',
+      'What I do about it I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.',
     );
     expect(text(figure('peeking'))).toContain('Checked daily for 20 days, 22.1% of 1,000 tests found a false winner. Checked once at the end, about 5% would.');
     // the winner's curse: the slider's power and the readout's factor at the preset
@@ -284,9 +326,9 @@ describe('the Lab page', () => {
     const factor = text(/<span data-curse-exaggeration=""[^>]*>([^<]*)<\/span>/.exec(figure('curse'))![1]!);
     expect(factor).toBe('2.5');
     expect(by.curse!.wide).toBe(
-      `What I do about it At the start, the test clears the bar only 17% of the time. To win at all, it needs a lucky reading well above the truth. On average its wins report ${factor} times the real effect. A forecast built on that number is likely to overpromise. So I treat a surprising win from a small test as a lead. I run it again before anyone plans on that number.`,
+      'What I do about it A forecast built on that win would overpromise. So I treat a surprising win from a small test as a lead. I test it again at full size before anyone plans on that number.',
     );
-    expect(text(figure('curse'))).toContain(`At this size, results that clear the bar are on average ${factor} times the real effect, and 0.9% of them point the wrong way.`);
+    expect(text(figure('curse'))).toContain(`At this setting, results that clear the bar average ${factor} times the real effect. Of those, 0.9% point the wrong way.`);
   });
 
   it('links another setting under each exhibit, each a real key of its Figure with a value other than the preset', () => {
@@ -343,7 +385,7 @@ describe('the Lab page', () => {
     expect(close).not.toBeNull();
     expect(text(/<h2 id="lab-close"[^>]*>([\s\S]*?)<\/h2>/.exec(close![1]!)![1]!)).toBe('What this shows about how I work');
     expect(text(close![1]!)).toContain(
-      "I size a test before it starts. I check the split before I read anything. I decide in advance how often I will look. And I treat a surprising win from a small test with suspicion. The live test on this site follows the same rules on real visitors. Its plan was written down before the first visitor was counted. It checks its split after every completed day, and its method stays valid however often it is read. With this site's traffic it can only catch a large effect, and the plan says so.",
+      "I size a test before it starts. I check the split before I read anything. I decide in advance how often I will look. And I treat a surprising win from a small test with suspicion. The live test on this site follows the same rules on real visitors. Its plan was written down before the first visitor was counted. It checks its split after every completed day. It uses the always-valid check, so it can be read every day. With this site's traffic it can only catch a large effect, and the plan says so.",
     );
     // the live test is never said to size itself or to work "the same way" in every check
     expect(text(close![1]!)).not.toMatch(/sizes itself|works the same way|planned tests/);
@@ -363,8 +405,8 @@ describe('the Lab page', () => {
     expect([...s.matchAll(/<li[\s>]/g)].length).toBeGreaterThanOrEqual(2);
     expect(text(s)).toContain("Every number here is made up or simulated. None comes from a real test or from this site's live test.");
     expect([...s.matchAll(/<li[\s>]/g)]).toHaveLength(4);
-    expect(text(s)).toContain('The peeking numbers come from one simulation with one conversion rate. Other settings give other rates.');
-    expect(text(s)).toContain('The split check and the overstatement example use standard approximations. They tell you when to look closer. They are not a verdict on a real test.');
+    expect(text(s)).toContain('The peeking numbers come from one simulation with one sign-up rate. Other settings give other rates.');
+    expect(text(s)).toContain('The split check and the overstatement example use simple, standard formulas. They tell you when to look closer. They are not a verdict on a real test.');
   });
 
   it('badges every Figure Simulated, never Public data or Live, and server-renders each open table', () => {
@@ -410,8 +452,8 @@ describe('the Lab page', () => {
         'Group A visitors, exact value',
         'Group B visitors',
         'Group B visitors, exact value',
-        'How often the test clears the bar (power)',
-        'How often the test clears the bar (power), percent',
+        'How often the test clears the bar',
+        'How often the test clears the bar, percent',
         'No fix',
         'Sign-up rate today',
         'Sign-up rate today, percent',
@@ -432,7 +474,7 @@ describe('the Lab page', () => {
         'Overstatement among results that clear the bar',
         'Planned share',
         'Ratio of effect to noise',
-        'Results that clear the bar in the wrong direction',
+        'Results that clear the bar but point the wrong way',
         'Value',
         'Visitors',
         'Your setting',
@@ -449,7 +491,7 @@ describe('the peeking page', () => {
     expect(text(PEEKING)).toContain('One example from the Lab: what happens when a test is checked every day and stopped at the first win.');
     // the same exhibit as on the Lab: lead-in, takeaway and method row
     expect(exhibits(PEEKING)).toEqual(exhibits(LAB).filter((e) => e.figure === 'peeking'));
-    expect(text(section(PEEKING, 'peeking-at-results'))).toMatch(/^Did we stop too early\? Try this /);
+    expect(text(section(PEEKING, 'peeking-at-results'))).toMatch(/^Did we stop too early\? The trap Roll a dice [^]*? Try it Both pages /);
     expect(figures(PEEKING).map((f) => f.id)).toEqual(['peeking']);
     expect(figures(PEEKING)[0]!.html).toBe(figures(LAB).find((f) => f.id === 'peeking')!.html);
     const back = /<a ([^>]*)>All the examples in the Lab<\/a>/.exec(PEEKING);

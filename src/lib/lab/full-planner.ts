@@ -119,13 +119,14 @@ export function labPlanModel(v: LabPlanValues): { nPerArm: number; target: numbe
 }
 
 /**
- * The result line's words: "To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in
- * 20 risk of a false winner, at 100 visitors a day:", then the two readouts.
+ * The result line's words: "To catch a real rise from 29% to 34% in 8 tests out of 10, you need:",
+ * then the two readouts. The false-winner risk the size assumes is in the method row's terms, and the
+ * traffic is on its own control, so the line holds one idea.
  */
 export function labPlanLead(v: LabPlanValues): string {
   const n = normalizeLabPlan(v);
   const { target } = labPlanModel(n);
-  return `To catch a real rise from ${percentText(n.baseline)} to ${percentText(target)} in ${PLANNER_POWER_TESTS.hits} tests out of ${PLANNER_POWER_TESTS.of}, with a 1 in ${PLANNER_ALPHA_ODDS} risk of a false winner, at ${countText(n.traffic, 'visitors')} a day:`;
+  return `To catch a real rise from ${percentText(n.baseline)} to ${percentText(target)} in ${PLANNER_POWER_TESTS.hits} tests out of ${PLANNER_POWER_TESTS.of}, you need:`;
 }
 
 /** The announcement: the result line and both readouts, as the Figure shows them. */

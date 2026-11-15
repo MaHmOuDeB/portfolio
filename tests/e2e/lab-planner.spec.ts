@@ -35,8 +35,8 @@ const LAB_FAILURE = 'The planner readout failed after a change (test seam)';
 // The sizing announcement, which also says the weeks the change leads to at the traffic on screen.
 const SIZING_RESULT = /^[\d,]+ customers per group to detect a rise of .+, from \d+% to \d+%; both groups fill in \d+ weeks? at [\d,]+ customers a day$/;
 // The Lab's result line, and its announcement: the line and both readouts.
-const LAB_PRESET_LINE = 'To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 100 visitors a day:';
-const LAB_RESULT = /^To catch a real rise from \d+% to \d+% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at [\d,]+ visitors? a day: [\d,]+ visitors per group and \d+ weeks?$/;
+const LAB_PRESET_LINE = 'To catch a real rise from 29% to 34% in 8 tests out of 10, you need:';
+const LAB_RESULT = /^To catch a real rise from \d+% to \d+% in 8 tests out of 10, you need: [\d,]+ visitors per group and \d+ weeks?$/;
 // A message only the statistics side ships (durationWeeks), so only the island's code holds it.
 const STATS_MARKER = 'entryViewsPerDay must be a finite number above 0';
 
@@ -696,7 +696,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(baseline(page, LAB)).toHaveValue('5');
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(traffic(page, LAB)).toHaveValue('1000');
-    await expect(result(page, LAB)).toHaveText('To catch a real rise from 5% to 6% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 1,000 visitors a day:');
+    await expect(result(page, LAB)).toHaveText('To catch a real rise from 5% to 6% in 8 tests out of 10, you need:');
     await expect(readoutN(page, LAB)).not.toHaveText(PRESET_N);
     await expect(weeks(page, LAB)).toHaveText(/^\d+$/);
     await expect(island(page, 'srm')).toHaveAttribute('data-island', 'idle');
@@ -730,7 +730,7 @@ test.describe('Full planner, the Lab\'s one Figure', () => {
     await expect(rise(page, LAB)).toHaveValue('1');
     await expect(rise(page, LAB)).toHaveAttribute('max', '1');
     await expect(traffic(page, LAB)).toHaveValue('1');
-    await expect(result(page, LAB)).toHaveText('To catch a real rise from 98% to 99% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 1 visitor a day:');
+    await expect(result(page, LAB)).toHaveText('To catch a real rise from 98% to 99% in 8 tests out of 10, you need:');
     await expect(weeks(page, LAB)).toHaveText(/^[\d,]+$/);
     expect(errors).toEqual([]);
   });

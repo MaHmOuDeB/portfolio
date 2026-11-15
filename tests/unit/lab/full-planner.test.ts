@@ -348,12 +348,12 @@ describe('the Lab’s one planner Figure: model, URL state and words', () => {
   });
 
   it('the result line, the announcement and the table say what was computed, in the Lab’s words', () => {
-    expect(labPlanLead(LAB_PRESET)).toBe('To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 100 visitors a day:');
-    expect(labPlanSentence(LAB_PRESET)).toBe(
-      'To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 100 visitors a day: 1,353 visitors per group and 4 weeks',
-    );
-    expect(labPlanSentence({ baseline: 0.29, risePoints: 30, traffic: 10_000 })).toMatch(/at 10,000 visitors a day: [\d,]+ visitors per group and 1 week$/);
-    expect(labPlanLead({ ...LAB_PRESET, traffic: 1 })).toMatch(/, at 1 visitor a day:$/);
+    expect(labPlanLead(LAB_PRESET)).toBe('To catch a real rise from 29% to 34% in 8 tests out of 10, you need:');
+    expect(labPlanSentence(LAB_PRESET)).toBe('To catch a real rise from 29% to 34% in 8 tests out of 10, you need: 1,353 visitors per group and 4 weeks');
+    expect(labPlanSentence({ baseline: 0.29, risePoints: 30, traffic: 10_000 })).toMatch(/, you need: [\d,]+ visitors per group and 1 week$/);
+    // the line holds one idea: the traffic is on its own control and in the method row, never in the line
+    for (const traffic of [1, 100, 10_000]) expect(labPlanLead({ ...LAB_PRESET, traffic })).toBe(labPlanLead(LAB_PRESET));
+    expect(labPlanSentence({ ...LAB_PRESET, traffic: 1 })).not.toMatch(/a day/);
     // the announcement is normalized like the Figure
     expect(labPlanSentence({ baseline: Number.NaN, risePoints: Number.NaN, traffic: Number.NaN })).toBe(labPlanSentence(LAB_PRESET));
     const table = labPlanTable(LAB_PRESET);
@@ -587,7 +587,7 @@ describe('the Lab’s planner, server-rendered', () => {
     const t = textOf(html);
     expect([...html.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => m[1])).toEqual(['Smaller rises need more visitors and more weeks']);
     const result = textOf(html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '').trim();
-    expect(result).toBe('To catch a real rise from 29% to 34% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 100 visitors a day:');
+    expect(result).toBe('To catch a real rise from 29% to 34% in 8 tests out of 10, you need:');
     expect(html).toMatch(/<data data-planner-n="" data-num="" value="1353"[^>]*data-derived="simulated"[^>]*>1,353<\/data>/);
     expect(html).toMatch(/<data data-duration-weeks="" data-num="" value="4"[^>]*data-derived="simulated"[^>]*>4<\/data>/);
     expect(t).toContain('1,353 visitors per group');
@@ -628,9 +628,9 @@ describe('the Lab’s planner, server-rendered', () => {
     const html = renderLab();
     const t = textOf(html);
     expect(html.match(/data-lab-exhibit=""/g)).toHaveLength(1);
-    expect(t).toContain("Try this Set today's sign-up rate and the smallest rise worth acting on. Then set the daily traffic and watch both numbers.");
-    expect(t).toContain('What I do about it Halve the rise you want to catch and you need about four times the visitors. So before a test I agree the smallest rise worth acting on.');
-    expect(t).toContain('That beats running for months with little chance of a clear answer.');
+    expect(t).toContain('Try it Make the smallest rise smaller and watch the visitors climb. Halve the rise, and each group needs about four times as many.');
+    expect(t).toContain('What I do about it Before a test, I agree on the smallest rise worth acting on. Some pages get too few visitors to show it within weeks.');
+    expect(t).toContain('For those, I test a bolder change or a busier page instead of waiting months.');
     const caption = textOf(html.match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/)?.[1] ?? '');
     expect(caption).toContain('Made-up numbers to plan with. Visitors are split evenly between the two groups.');
     expect(caption).not.toContain('If a page gets');
@@ -675,13 +675,14 @@ describe('the Lab’s planner, server-rendered', () => {
     const html = renderLab(v);
     const plan = labPlanModel(v);
     const result = textOf(html.match(/<p data-figure-result=""[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '').trim();
-    expect(result).toBe('To catch a real rise from 5% to 6% in 8 tests out of 10, with a 1 in 20 risk of a false winner, at 1,000 visitors a day:');
+    expect(result).toBe('To catch a real rise from 5% to 6% in 8 tests out of 10, you need:');
     expect(html).toContain(`value="${plan.nPerArm}"`);
     expect(html).toContain(`value="${plan.weeks}"`);
     expect(textOf(methodOf(html))).toContain('at 1,000 visitors a day');
     expect(audit(html)).toEqual([]);
-    // one week is singular
+    // one week is singular, and so is one visitor a day in the method row
     expect(textOf(renderLab({ baseline: 0.29, risePoints: 30, traffic: 10_000 }))).toMatch(/\b1 week\b/);
+    expect(textOf(methodOf(renderLab({ ...v, traffic: 1 })))).toContain('at 1 visitor a day');
   });
 
   it('says "group", never "arm", prints no arrow, dash or middle dot outside the formula, and keeps digits out of the title', () => {

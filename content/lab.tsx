@@ -138,9 +138,9 @@ export function DurationCaption({
 // own constants.
 
 export const PLANNER_LEAD_IN =
-  "Set today's sign-up rate and the smallest rise worth acting on. Then set the daily traffic and watch both numbers.";
+  'Make the smallest rise smaller and watch the visitors climb. Halve the rise, and each group needs about four times as many.';
 export const PLANNER_TAKEAWAY =
-  'Halve the rise you want to catch and you need about four times the visitors. So before a test I agree the smallest rise worth acting on. Some pages are too quiet to show it within weeks. Then I test a bolder change or a busier page. That beats running for months with little chance of a clear answer.';
+  'Before a test, I agree on the smallest rise worth acting on. Some pages get too few visitors to show it within weeks. For those, I test a bolder change or a busier page instead of waiting months.';
 export const PLANNER_METHOD_SUMMARY = 'How I worked out the size and the weeks';
 
 /** The terms the planner's method uses, each in one sentence, with the expert name for each. */
@@ -184,13 +184,15 @@ export const LAB_HEAD = {
   quiet: 'and how I catch each one.',
 } as const;
 
-/** The page's opening, under its heading. */
+/** The page's opening, under its heading: it says once what luck and the bar are, which every check rests on. */
 export function LabIntro(): ReactNode {
   return (
     <p>
-      An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. A
-      wrong reading can ship a change that does nothing, or drop one that works. These are the four checks I make before
-      I trust a result. Each one below is a small model you can play with. Every number is made up or simulated.
+      An A/B test shows two versions of a page to two groups of visitors. Then it compares what each group does. Show
+      both groups the same page, and their results still differ a little, by luck. So a test calls a winner only when
+      the gap clears a bar. The bar is set so that luck alone rarely clears it. A wrong call can ship a change that does
+      nothing, or drop one that works. These are the four checks I make before I trust a result. Every number below is
+      made up or simulated.
     </p>
   );
 }
@@ -198,39 +200,44 @@ export function LabIntro(): ReactNode {
 /**
  * The four checks in the order of a test's life, which is the page's order: the section's anchor, when
  * in a test the check comes, the question (the card's title and the section's h2), one plain line, the
- * section's short label, and the Figure it holds.
+ * section's short label, the trap (one everyday picture of the mistake, under the h2, without a
+ * number) and the Figure it holds.
  */
 export const LAB_SECTIONS = [
   {
     id: 'sample-size',
     when: 'Before the test',
     question: 'Is the test big enough?',
-    line: 'With too few visitors, a real gain looks like noise. I work out the size before the start.',
+    line: 'With too few visitors, luck can hide a real gain. So I work out the visitors a test needs before it starts.',
     label: 'Sample size and power',
+    trap: 'Toss a coin a few times and you may get mostly heads, just by luck. A test with few visitors swings by luck the same way. A small real rise can vanish inside those swings.',
     figure: 'planner',
   },
   {
     id: 'split-check',
     when: 'While it runs',
     question: 'Did each group get its share?',
-    line: 'If the groups differ in size by more than chance allows, the setup is broken. Then no result can be trusted, however good it looks.',
+    line: 'The groups should come out close to half each. A bigger gap than luck allows means the setup is broken. Then no result can be trusted, however good it looks.',
     label: 'Sample ratio mismatch',
+    trap: 'Each visitor is put in group A or B by a fair coin toss. A fair coin lands near half each, but rarely exactly half. A much bigger gap means something broke, say a page that fails on some phones. Then the groups differ in who is in them, not just in the page.',
     figure: 'srm',
   },
   {
     id: 'peeking-at-results',
     when: 'When reading it',
     question: 'Did we stop too early?',
-    line: 'Check every day, stop at the first win, and chance hands you false winners.',
+    line: 'Check daily and stop at the first win, and luck can pick your winner.',
     label: 'Peeking',
+    trap: 'Roll a dice until a six comes up, and one always does. Checking a test daily and stopping at the first win works the same way. Each check gives luck another roll.',
     figure: 'peeking',
   },
   {
     id: 'exaggeration',
     when: 'After a win',
     question: 'Is the win as big as it looks?',
-    line: 'A small test tends to win only on a lucky draw. So its wins look bigger than they are.',
+    line: 'A test too small for the effect wins only on a lucky reading. So its wins look bigger than they are.',
     label: "Winner's curse (type M error)",
+    trap: 'A cheap bathroom scale wobbles a little each day. Write down only the days it shows a big loss. Your notes will say you lost more than you really did. A small test is that scale: only its luckiest readings clear the bar.',
     figure: 'curse',
   },
 ] as const;
@@ -252,10 +259,10 @@ export function LabLimits(): ReactNode {
         needs a different plan, as the peeking example shows.
       </li>
       <li className="mt-2 first:mt-0">
-        The peeking numbers come from one simulation with one conversion rate. Other settings give other rates.
+        The peeking numbers come from one simulation with one sign-up rate. Other settings give other rates.
       </li>
       <li className="mt-2 first:mt-0">
-        The split check and the overstatement example use standard approximations. They tell you when to look closer.
+        The split check and the overstatement example use simple, standard formulas. They tell you when to look closer.
         They are not a verdict on a real test.
       </li>
     </ul>
@@ -269,8 +276,8 @@ export function LabClose(): ReactNode {
       I size a test before it starts. I check the split before I read anything. I decide in advance how often I will
       look. And I treat a surprising win from a small test with suspicion. The live test on this site follows the same
       rules on real visitors. Its plan was written down before the first visitor was counted. It checks its split after
-      every completed day, and its method stays valid however often it is read. With this site&apos;s traffic it can
-      only catch a large effect, and the plan says so.
+      every completed day. It uses the always-valid check, so it can be read every day. With this site&apos;s traffic it
+      can only catch a large effect, and the plan says so.
     </p>
   );
 }

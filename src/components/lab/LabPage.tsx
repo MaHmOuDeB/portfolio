@@ -1,8 +1,8 @@
 // The Lab: four ways an A/B test can mislead and how I catch each one, as one reading page in the
 // order of a test's life (sample size, split check, peeking, the winner's curse). The head says what the page is
 // for; four cards, each with a small sketch, link to the four sections; each section is the short
-// label as a chip, the question as its h2 and one exhibit in the reading model: a sentence on what to
-// try, the Figure on its sheet, a sentence on what I do about it and the method one click deeper. Then
+// label as a chip, the question as its h2, the trap (one everyday picture of the mistake) and one
+// exhibit in the reading model: a sentence on what to try, the Figure on its sheet, a sentence on what I do about it and the method one click deeper. Then
 // what the examples cannot show, what the page shows about how I work, and the shared call to action.
 // Every number is in the exhibits (simulated, or computed from values the visitor sets); the page's
 // own copy is plain words (content/lab.tsx).
@@ -15,7 +15,7 @@
 import type { ReactNode } from 'react';
 import { LeanCard } from '@/components/depth/LeanCard';
 import { PeekingFigure } from '@/components/figures/PeekingFigure';
-import { Chip, PageClose, SECTION_H2 } from '@/components/frame';
+import { Chip, LeadIn, PageClose, SECTION_H2 } from '@/components/frame';
 import { Derived } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
@@ -49,11 +49,14 @@ type SectionId = (typeof LAB_SECTIONS)[number]['id'];
 const PLANNER_CHECK = LAB_SECTIONS.findIndex((s) => s.figure === 'planner') + 1;
 
 const TEXT = 'max-w-text';
+/** The label of the sentence under each check's h2. */
+const LAB_TRAP_LABEL = 'The trap';
 const BAND = 'mt-12 pt-12 md:mt-16 md:pt-16';
 
 /**
- * One check: the short label as a chip, the question as the h2, then the exhibit, which its Figure
- * renders itself (the sentence above, the Figure on its sheet, the sentence below, the method row).
+ * One check: the short label as a chip, the question as the h2, the trap in the frame's lead-in, then
+ * the exhibit, which its Figure renders itself (the sentence above, the Figure on its sheet, the
+ * sentence below, the method row).
  */
 function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean; children: ReactNode }) {
   const entry = LAB_SECTIONS.find((s) => s.id === id);
@@ -64,6 +67,7 @@ function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean;
       <h2 id={`${id}-title`} className={`${TEXT} ${chip ? 'mt-4 ' : ''}${SECTION_H2}`}>
         {entry.question}
       </h2>
+      <LeadIn label={LAB_TRAP_LABEL}>{entry.trap}</LeadIn>
       {children}
     </section>
   );

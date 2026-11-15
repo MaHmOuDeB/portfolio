@@ -33,10 +33,10 @@ const FIGURES = [
 ] as const;
 // Each card's one line, in card order (content/lab.tsx).
 const PURPOSES = [
-  'With too few visitors, a real gain looks like noise. I work out the size before the start.',
-  'If the groups differ in size by more than chance allows, the setup is broken. Then no result can be trusted, however good it looks.',
-  'Check every day, stop at the first win, and chance hands you false winners.',
-  'A small test tends to win only on a lucky draw. So its wins look bigger than they are.',
+  'With too few visitors, luck can hide a real gain. So I work out the visitors a test needs before it starts.',
+  'The groups should come out close to half each. A bigger gap than luck allows means the setup is broken. Then no result can be trusted, however good it looks.',
+  'Check daily and stop at the first win, and luck can pick your winner.',
+  'A test too small for the effect wins only on a lucky reading. So its wins look bigger than they are.',
 ];
 // Each card link's name: when the check comes, with its place in the list, then the question.
 const CARDS = [
