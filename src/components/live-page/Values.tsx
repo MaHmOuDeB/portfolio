@@ -2,7 +2,7 @@
 // hash, a commit, a version) as <data> with its refs, and a Berlin date as <time>.
 // Server-safe, no hooks.
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
-import { berlinDate } from '@/lib/figure/time';
+import { berlinDate, berlinDateYear } from '@/lib/figure/time';
 
 export const BUILD: readonly DerivedRef[] = ['build'];
 
@@ -15,11 +15,11 @@ export function MarkedText({ value, refs, shown }: { value: string; refs: readon
   );
 }
 
-/** An instant (ISO with an offset) as its Berlin date. */
-export function When({ iso, refs }: { iso: string; refs: readonly DerivedRef[] }) {
+/** An instant (ISO with an offset) as its Berlin date; `withYear` adds the year for a date that needs it. */
+export function When({ iso, refs, withYear = false }: { iso: string; refs: readonly DerivedRef[]; withYear?: boolean }) {
   return (
     <time dateTime={iso} {...derivedAttr(refs)}>
-      {berlinDate(iso)}
+      {withYear ? berlinDateYear(iso) : berlinDate(iso)}
     </time>
   );
 }
