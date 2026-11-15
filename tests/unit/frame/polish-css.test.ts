@@ -149,7 +149,7 @@ describe('a clickable card on hover, focus and press', () => {
 // tab rises 4 px where motion is allowed (focus never moves it). The selected tab keeps its own look (a surface fill and an ink bar).
 describe('a "How I test" tab on hover, focus and press', () => {
   const lift = 'translate: 0 calc(var(--spacing) * -1);';
-  const focus = '[data-how-tab]:is(:has(:focus-visible), :active)';
+  const focus = '[data-how-tab]:has(:focus-visible), [data-how-tab]:active';
 
   it('rests on a hairline and transitions its border and its lift with the card tokens', () => {
     const tr = (prop: string, duration: string) => `${prop} var(--duration-${duration}) var(--ease-standard)`;
