@@ -103,6 +103,10 @@ test.describe('the site-wide claims', () => {
         });
         await page.goto(route);
         await page.waitForLoadState('load');
+        // A Figure can sit in a closed method row: open each row as a visitor would, so its island is asked for.
+        for (const row of await page.locator('main details[data-method]').all()) {
+          if (!(await row.evaluate((d) => (d as HTMLDetailsElement).open))) await row.locator(':scope > summary').click();
+        }
         for (const h of await page.locator('main figure[data-figure] h3').all()) await h.hover().catch(() => {});
         await expect(page.locator('[data-island="idle"]')).toHaveCount(0, { timeout: 15_000 });
         await expect(page.locator('[data-island="failed"]'), 'an island failed').not.toHaveCount(0, { timeout: 15_000 });
