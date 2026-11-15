@@ -47,7 +47,7 @@ h2: Sizing a win-back test
 p: What to look at
 p: A holdout is customers who get no offer, so their behaviour shows what would have happened anyway; the table shows how many customers each group of such a test needs.
 h3: Customers needed in each group of a holdout test
-p: A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.
+p: Ordered again is the share who ordered again within the window, and the rise is in percentage points. A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.
 p: What it means
 p: The next step is a test with 1,353 lapsed customers per group against a holdout, not a campaign to the top scorers.
 p: Lapsed customers are those with no order in the 90 days before the September 2011 cutoff: 3,351 of them, and 29% of them ordered again within 90 days. I sized a possible holdout test. With a standard two-group sample-size calculation (two-sided, a 5% significance level and 80% power), detecting a rise from 29% to 34%, an uplift of 5 percentage points, needs 1,353 lapsed customers in each group.
