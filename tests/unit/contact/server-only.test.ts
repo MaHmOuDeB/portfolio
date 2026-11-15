@@ -13,7 +13,7 @@ describe('the contact form server modules', () => {
   it('keeps the client form free of them: it imports only types from the server side', () => {
     const form = readFileSync('src/components/contact/ContactForm.tsx', 'utf8');
     for (const line of form.split('\n').filter((l) => l.startsWith('import '))) {
-      if (/lib\/contact\/(handle|send|address|issue|limiter)|lib\/env/.test(line)) expect(line, line).toMatch(/^import type /);
+      if (/lib\/contact\/(handle|send|address|issue|limiter|title)|lib\/env|lib\/seo\/metadata/.test(line)) expect(line, line).toMatch(/^import type /);
     }
   });
 });

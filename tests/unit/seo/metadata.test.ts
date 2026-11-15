@@ -328,43 +328,59 @@ describe('route inventory', () => {
       request.headers = headers;
       return generate({ searchParams: Promise.resolve(query) });
     };
-    // The contact page sets its own title per request (src/lib/contact/title.ts), and that title does
-    // not carry the site's name yet: every other field is the manifest's. documentTitle() and
-    // withSiteName() are there for it.
+    // Every title the contact page sets per request ends with the site's name, like every other page.
     expect(expected.title).toBe('Contact | Mahmoud El Bergui');
-    expect(await call(new Headers({ accept: 'text/html' }))).toEqual({ ...expected, title: 'Contact' });
-    expect(await call(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }))).toEqual({ ...expected, title: 'Message not sent: Contact' });
-    expect(await call(new Headers(), { sent: '1' })).toEqual({ ...expected, title: 'Message sent: Contact' });
+    expect(await call(new Headers({ accept: 'text/html' }))).toEqual(expected);
+    expect(await call(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }))).toEqual({ ...expected, title: 'Message not sent: Contact | Mahmoud El Bergui' });
+    expect(await call(new Headers(), { sent: '1' })).toEqual({ ...expected, title: 'Message sent: Contact | Mahmoud El Bergui' });
   });
 
-  it('keeps each page title equal to the title its page prints', async () => {
-    const { LAB_TITLE } = await import('@/components/lab/LabPage');
-    const { DOCPROOF_TITLE } = await import('@/components/docproof/DocproofPage');
-    const { MARKETINGWS_TITLE } = await import('@/components/marketingws/MarketingwsPage');
-    const { RETENTION_TITLE } = await import('@/components/retention/RetentionPage');
-    const { WEATHER_TITLE } = await import('../../../content/weather');
-    const { N8N_TITLE } = await import('../../../content/n8n');
+  it('gives every page the title a search result shows, and keeps the contact and privacy titles equal to their own', async () => {
     const { PRIVACY } = await import('../../../content/privacy');
-    const { WORK_TITLE } = await import('@/components/work/WorkPage');
-    const { PULSE_METADATA_TITLE } = await import('@/components/pulse/PulsePage');
-    const { LIVE_TEST_TITLE } = await import('@/components/live-page/LivePage');
     const { ABOUT_TITLE } = await import('@/components/about/AboutPage');
-    const { contactMetadata } = await import('@/lib/contact/title');
-    expect(seoEntry('/').title).toBe(SITE.name);
-    expect(seoEntry('/work').title).toBe(WORK_TITLE);
-    expect(seoEntry('/work/pulse').title).toBe(PULSE_METADATA_TITLE);
-    expect(seoEntry('/experiment').title).toBe(LIVE_TEST_TITLE);
-    expect(seoEntry('/about').title).toBe(ABOUT_TITLE);
-    expect(seoEntry('/cv').title).toBe('CV');
-    expect(seoEntry('/contact').title).toBe(contactMetadata(new Headers(), false).title);
+    const { contactMetadata, contactTitle } = await import('@/lib/contact/title');
+    // The bare titles (documentTitle adds the name). A title says what the page is for; it need not be the h1.
+    expect(Object.fromEntries(SEO_PAGES.map((entry) => [entry.path, entry.title]))).toEqual({
+      '/': SITE.name,
+      '/work': 'Work: experiments, analyses and automation',
+      '/work/audible': 'A/B testing at Audible (Amazon)',
+      '/work/retention': 'Retention analysis: who orders again, and how to test a win-back offer',
+      '/work/pulse': 'Pulse: a tracking plan for product analytics',
+      '/work/weather': 'Weather data quality',
+      '/work/docproof': 'Docproof: agents write, checks decide',
+      '/work/marketingws': 'MarketingWS',
+      '/work/n8n': 'E-invoice intake and error alerts in n8n',
+      '/lab': 'A/B test lab: sample size, peeking and fair splits',
+      '/lab/peeking': 'Peeking at results, in the Lab',
+      '/experiment': 'A real A/B test on this site',
+      '/about': ABOUT_TITLE,
+      '/cv': 'CV',
+      '/contact': contactTitle(new Headers(), false),
+      '/privacy': PRIVACY.title,
+    });
+    expect(ABOUT_TITLE).toBe('About');
+    expect(contactTitle(new Headers(), false)).toBe('Contact');
+    expect(withSiteName(seoEntry('/contact').title)).toBe(contactMetadata(new Headers(), false).title);
     expect(seoEntry('/contact').description).toBe(contactMetadata(new Headers(), false).description);
-    expect(seoEntry('/lab').title).toBe(LAB_TITLE);
-    expect(seoEntry('/work/docproof').title).toBe(DOCPROOF_TITLE);
-    expect(seoEntry('/work/marketingws').title).toBe(MARKETINGWS_TITLE);
-    expect(seoEntry('/work/retention').title).toBe(RETENTION_TITLE);
-    expect(seoEntry('/work/weather').title).toBe(WEATHER_TITLE);
-    expect(seoEntry('/work/n8n').title).toBe(N8N_TITLE);
-    expect(seoEntry('/privacy').title).toBe(PRIVACY.title);
+  });
+
+  it('says experimentation and AI automation analyst, never growth analyst, in the site, About and CV descriptions', () => {
+    const layout = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8');
+    expect(layout).toContain('description: "Experimentation and AI automation analyst in Berlin."');
+    for (const route of ['/about', '/cv']) expect(seoEntry(route).description, route).toMatch(/experimentation and AI automation analyst in Berlin/i);
+    for (const entry of SEO_PAGES) expect(entry.description, entry.path).not.toMatch(/growth analyst/i);
+  });
+
+  it('writes every number in a description or title from the facts, as the pages print it', () => {
+    expect(seoEntry('/work/audible').description).toBe(
+      `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
+    );
+    expect(seoEntry('/work/pulse').description).toBe(
+      `${factText('pulse.events.count')} events in Amplitude, each tied to one product question, in a demo dashboard I designed and built.`,
+    );
+    expect(seoEntry('/work/n8n').description).toBe(
+      `Reads and checks XRechnung and ZUGFeRD invoices, flags duplicates and changed bank details, and alerts on failures. ${factText('profile.n8n.automated_tests')} automated tests. A personal project.`,
+    );
   });
 
   it('keeps /exclude out of search', async () => {
@@ -472,7 +488,7 @@ describe('sharingTemplate', () => {
     expect(SITE_SHARING_HEADLINE).toBe('Experimentation and AI automation for product and growth teams');
     expect(card.title).toBe(SITE_SHARING_HEADLINE);
     expect(SITE_SHARING_LINE).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with agents and workflows.',
+      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
     );
     expect(card.sub).toBe(SITE_SHARING_LINE);
     // The line is the hero's sub line, its two inline chips as plain lower-case words.
@@ -488,7 +504,7 @@ describe('sharingTemplate', () => {
   it('the Home link preview has its own title; other pages add the name to theirs', () => {
     expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: experimentation and AI automation for product and growth teams');
     expect(shareTitle(seoEntry('/'))).toBe(HOME_SHARE_TITLE);
-    expect(shareTitle(seoEntry('/lab'))).toBe('Lab | Mahmoud El Bergui');
+    expect(shareTitle(seoEntry('/lab'))).toBe('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     const home = pageMetadata(seoEntry('/'), new URL('https://site.example.com'));
     expect(home.title).toBe(SITE.name);
     expect((home.openGraph as { title?: string }).title).toBe(HOME_SHARE_TITLE);
@@ -496,11 +512,12 @@ describe('sharingTemplate', () => {
   });
 
   it("a case card states its landing page's finding in 60 characters or fewer, never the experiment's copy", async () => {
-    const { AUDIBLE_TITLE } = await import('@/components/audible/AudiblePage');
     const cases = OG_CARDS.filter((card) => card.variant === 'case');
     expect(cases.map((card) => card.name).sort()).toEqual(['audible', 'pulse', 'retention']);
-    // Audible: the page's own h1.
-    expect(ogCard('audible').title).toBe(AUDIBLE_TITLE);
+    // Audible: the page's own h1, its figure from the facts.
+    expect(ogCard('audible').title).toBe(`${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`);
+    expect(ogCard('audible').sub).toBe('From the plan to the recommendation.');
+    expect(ogCard('audible').factIds).toEqual(['profile.audible.experiments']);
     // Retention: the page's finding (content/retention.tsx RetentionFindings, "returned-order value grew about
     // <clean>, not <raw>"), both figures from the facts.
     expect(ogCard('retention').title).toBe(

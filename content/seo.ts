@@ -4,7 +4,8 @@
 //
 // SEO_PAGES lists every shipped page except SEO_EXCLUDED_ROUTES, and tests/unit/seo/metadata.test.ts
 // keeps it equal to the page files under src/app: a new page fails that test until it has an entry
-// here (or is excluded). A page's title is the one its page prints, so the two cannot drift.
+// here (or is excluded). A title says what the page is for, as a search result shows it; it need not
+// be the page's h1 (the test pins each one).
 //
 // Imports are relative with the .ts extension so scripts run with Node's type stripping can read
 // this module.
@@ -36,7 +37,7 @@ export const SEO_EXCLUDED_ROUTES: readonly string[] = ['/exclude', '/demo'];
  * does not import the Home content, so the experiment's copy never reaches a sharing image).
  */
 export const SITE_SHARING_LINE =
-  'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan tests, read them honestly, and automate the repetitive steps with agents and workflows.';
+  'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.';
 
 /** The site card's headline: the hero's line in one tone. */
 export const SITE_SHARING_HEADLINE = `${HEADLINE.lead} ${HEADLINE.quiet}`;
@@ -49,8 +50,8 @@ export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead.charAt(0).toLower
  * own text here, so a change to the experiment's copy never changes a sharing image.
  */
 const CASE_TITLES = {
-  // The Audible page's h1 (src/components/audible/AudiblePage.tsx AUDIBLE_TITLE).
-  audible: 'Most tests pitted personalisation against plain baselines',
+  // The Audible page's h1, "25+ A/B tests at Audible (Amazon)", its figure from the facts.
+  audible: `${factText('profile.audible.experiments')} A/B tests at Audible (Amazon)`,
   // The Retention page's finding (content/retention.tsx: "returned-order value grew about <clean> in
   // January to November 2011, not <raw>").
   retention: `Returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, not ${factText('retail.returns.yoy_growth_raw')}`,
@@ -66,12 +67,12 @@ function caseCard(name: CaseName, sub: string, factIds: readonly FactId[]): OgCa
 
 export const OG_CARDS: readonly OgCard[] = [
   { name: 'site', variant: 'site', title: SITE_SHARING_HEADLINE, sub: SITE_SHARING_LINE, footer: SITE.name, factIds: [] },
-  caseCard('audible', 'Experimentation at Audible (Amazon)', []),
-  caseCard('retention', 'Customer retention and reactivation analysis', [
+  caseCard('audible', 'From the plan to the recommendation.', ['profile.audible.experiments']),
+  caseCard('retention', 'Retention analysis: who orders again', [
     'retail.returns.yoy_growth_clean',
     'retail.returns.yoy_growth_raw',
   ]),
-  caseCard('pulse', 'Pulse: analytics instrumentation demo', ['pulse.events.count']),
+  caseCard('pulse', 'Pulse: a tracking plan for product analytics', ['pulse.events.count']),
 ];
 
 export function ogCard(name: string): OgCard {
@@ -89,26 +90,26 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry('/', SITE.name, SITE_SHARING_LINE, 'site'),
   entry(
     '/work',
-    'Work',
-    "Every case study and build note on this site: experiments and analyses first, then the tools and pipelines I've built.",
+    'Work: experiments, analyses and automation',
+    'Seven projects with their code, sources and limits: A/B testing at Audible, a retention analysis, a tracking plan, agents, n8n workflows and a SQL pipeline.',
     'site',
   ),
   entry(
     '/work/audible',
-    'Experimentation at Audible (Amazon)',
-    'How I plan and analyse experiments, why so many of my recommendations were adopted, a ship rule on a made-up product and the tool I built for test-account setup.',
+    'A/B testing at Audible (Amazon)',
+    `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
     'audible',
   ),
   entry(
     '/work/retention',
-    'Customer retention and reactivation analysis',
+    'Retention analysis: who orders again, and how to test a win-back offer',
     'Cleaning the returns, cohorts, customer segments, a model of who orders again and a win-back sample size, on a public dataset rebuilt in 2026.',
     'retention',
   ),
   entry(
     '/work/pulse',
-    'Pulse: analytics instrumentation demo',
-    'A demo dashboard I designed and built, with an event taxonomy in which each event is designed to answer a product question. No real users.',
+    'Pulse: a tracking plan for product analytics',
+    `${factText('pulse.events.count')} events in Amplitude, each tied to one product question, in a demo dashboard I designed and built.`,
     'pulse',
   ),
   entry(
@@ -119,8 +120,8 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   ),
   entry(
     '/work/docproof',
-    'Docproof: a multi-agent document pipeline',
-    'Document verification with multi-agent orchestration and automated checks: the architecture, how it is verified and its limits.',
+    'Docproof: agents write, checks decide',
+    'An open-source pipeline in which one agent writes, one audits every claim and one reviews cold, and automated checks decide what reaches the reader.',
     'site',
   ),
   entry(
@@ -131,14 +132,14 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   ),
   entry(
     '/work/n8n',
-    'n8n Workflow Library',
-    'Document and process automation in n8n: an e-invoice intake for XRechnung and ZUGFeRD, error alerts, and how it is tested. A portfolio project with no production use.',
+    'E-invoice intake and error alerts in n8n',
+    `Reads and checks XRechnung and ZUGFeRD invoices, flags duplicates and changed bank details, and alerts on failures. ${factText('profile.n8n.automated_tests')} automated tests. A personal project.`,
     'site',
   ),
   entry(
     '/lab',
-    'Lab',
-    'What a test can and cannot tell: sample size and duration, peeking at results, a split check and exaggeration, on simulated and hypothetical numbers.',
+    'A/B test lab: sample size, peeking and fair splits',
+    'Four interactive examples: how many visitors a test needs, why checking early finds false winners, whether the split was fair, and why small tests overstate wins.',
     'site',
   ),
   entry(
@@ -149,20 +150,20 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   ),
   entry(
     '/experiment',
-    'Live test',
-    'The experiment this site runs on its own visitors: the pre-registered plan, the funnel, the split check, the results under a confidence sequence, and the data with a script to recompute them.',
+    'A real A/B test on this site',
+    'A real A/B test running on this site: the question, the plan published in advance, the results so far and the data to recompute them.',
     'site',
   ),
   entry(
     '/about',
     'About',
-    'Experimentation and growth analyst in Berlin: my story, my timeline, the tools I have shipped with and my CV.',
+    'Experimentation and AI automation analyst in Berlin: my story, my timeline, the tools I used and where, and my CV.',
     'site',
   ),
   entry(
     '/cv',
     'CV',
-    'The CV of Mahmoud El Bergui, experimentation and growth analyst in Berlin, as a page you can read or print.',
+    'The CV of Mahmoud El Bergui, experimentation and AI automation analyst in Berlin, as a page you can read or print.',
     'site',
   ),
   entry('/contact', 'Contact', 'Send me a message about a role, an interview or a project.', 'site'),

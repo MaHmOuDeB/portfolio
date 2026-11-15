@@ -20,7 +20,6 @@ import { CONTACT } from '@/lib/site';
 import { STATUS_ID, StatusBlock } from './StatusBlock';
 
 const IDLE: ContactState = { status: 'idle' };
-const TITLE = 'Contact';
 const NOT_SENT = 'Message not sent';
 
 /** The id of a field's control: the error summary links to it. */
@@ -65,7 +64,11 @@ function onFieldFocus(event: FocusEvent<HTMLFormElement>) {
   if (event.target instanceof HTMLElement && event.target.matches('input, select, textarea')) revealRing(event.target);
 }
 
-export function ContactForm({ issuedAt }: { issuedAt: number }) {
+/**
+ * `notSentTitle` is the document title while a message has not gone (the page passes it from
+ * src/lib/contact/title.ts, which this client module does not import: it reads the server's metadata).
+ */
+export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notSentTitle: string }) {
   const [state, formAction, pending] = useActionState(sendContact, IDLE);
   // The errors on show: the server's after a response, the browser's after a submit it stopped. Each
   // field's own error clears as soon as the field becomes valid; the summary (and the title) keep the
@@ -127,7 +130,7 @@ export function ContactForm({ issuedAt }: { issuedAt: number }) {
 
   return (
     <>
-      {notSent ? <title>{`${NOT_SENT}: ${TITLE}`}</title> : null}
+      {notSent ? <title>{notSentTitle}</title> : null}
       {errorNames.length > 0 ? (
         <StatusBlock ref={status} tone="warn" word={NOT_SENT} className="mt-12">
           <div onClick={onSummaryClick}>

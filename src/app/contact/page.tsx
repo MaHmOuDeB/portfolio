@@ -9,7 +9,7 @@ import { SentStatus } from '@/components/contact/SentStatus';
 import { CaseHead } from '@/components/work/CaseHead';
 import { TextLink } from '@/components/kit/TextLink';
 import { issueTimestamp } from '@/lib/contact/issue';
-import { contactMetadata } from '@/lib/contact/title';
+import { contactMetadata, contactStateTitle } from '@/lib/contact/title';
 import { canonicalOrigin, pageMetadata } from '@/lib/seo/metadata';
 import { CONTACT } from '@/lib/site';
 import { seoEntry } from '../../../content/seo';
@@ -47,7 +47,7 @@ export default async function ContactPage({ searchParams }: PageProps<'/contact'
           data-contact-card=""
           className="max-w-[40rem] rounded-xl border border-hairline bg-surface p-5 md:p-8 [&>*:first-child]:mt-0 [&>form:first-child]:mt-0"
         >
-          {sent === '1' ? <SentStatus /> : <ContactForm issuedAt={issueTimestamp()} />}
+          {sent === '1' ? <SentStatus /> : <ContactForm issuedAt={issueTimestamp()} notSentTitle={contactStateTitle('not-sent')} />}
         </div>
       </div>
     </article>

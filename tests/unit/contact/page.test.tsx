@@ -21,7 +21,7 @@ const sent = await render('1');
 
 describe('the contact page', () => {
   it('is titled Contact, with one h1 and a one-line intro', () => {
-    expect(contactMetadata(new Headers(), false).title).toBe('Contact');
+    expect(contactMetadata(new Headers(), false).title).toBe('Contact | Mahmoud El Bergui');
     expect(form.match(/<h1\b/g)).toHaveLength(1);
     expect(form).toContain('>Contact</h1>');
     expect(form).toMatch(/<span data-chip="">Contact<\/span><h1 id="contact-title" class="[^"]*text-h2-sm/);
@@ -29,9 +29,9 @@ describe('the contact page', () => {
   });
 
   it('titles a page rendered in answer to a document form POST "Message not sent: Contact" (a sent one redirects)', () => {
-    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), false).title).toBe('Message not sent: Contact');
-    expect(contactMetadata(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }), false).title).toBe('Message not sent: Contact');
-    expect(contactMetadata(new Headers({ accept: 'text/html' }), false).title).toBe('Contact');
+    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), false).title).toBe('Message not sent: Contact | Mahmoud El Bergui');
+    expect(contactMetadata(new Headers({ 'content-type': 'application/x-www-form-urlencoded' }), false).title).toBe('Message not sent: Contact | Mahmoud El Bergui');
+    expect(contactMetadata(new Headers({ accept: 'text/html' }), false).title).toBe('Contact | Mahmoud El Bergui');
     expect(contactMetadata(new Headers(), false).description).toBe('Send me a message about a role, an interview or a project.');
   });
 
@@ -39,15 +39,15 @@ describe('the contact page', () => {
     // A Server Action's redirect() with JavaScript renders /contact?sent=1 in the same request, with the
     // original headers forwarded (multipart content type included) and rsc: 1 added.
     const forwardedRedirect = new Headers({ 'content-type': 'multipart/form-data; boundary=x', rsc: '1' });
-    expect(contactMetadata(forwardedRedirect, false).title).toBe('Contact');
-    expect(contactMetadata(forwardedRedirect, true).title).toBe('Message sent: Contact');
+    expect(contactMetadata(forwardedRedirect, false).title).toBe('Contact | Mahmoud El Bergui');
+    expect(contactMetadata(forwardedRedirect, true).title).toBe('Message sent: Contact | Mahmoud El Bergui');
     const fetchAction = new Headers({ 'content-type': 'multipart/form-data; boundary=x', 'next-action': 'abc' });
-    expect(contactMetadata(fetchAction, false).title).toBe('Contact');
+    expect(contactMetadata(fetchAction, false).title).toBe('Contact | Mahmoud El Bergui');
   });
 
   it('titles the sent page "Message sent: Contact", whatever the request carried', () => {
-    expect(contactMetadata(new Headers(), true).title).toBe('Message sent: Contact');
-    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), true).title).toBe('Message sent: Contact');
+    expect(contactMetadata(new Headers(), true).title).toBe('Message sent: Contact | Mahmoud El Bergui');
+    expect(contactMetadata(new Headers({ 'content-type': 'multipart/form-data; boundary=x' }), true).title).toBe('Message sent: Contact | Mahmoud El Bergui');
   });
 
   it('passes the truth audit in both states', () => {
@@ -102,7 +102,7 @@ describe('the contact page', () => {
     expect(sent).toMatch(/<h2 id="contact-status-word"[^>]*>.*Message sent<\/h2>/);
     // The sent block titles the page itself, as the form does for "Message not sent", so a send with
     // JavaScript (a client render of ?sent=1) gets the title too, not only a request for the page.
-    expect(sent).toContain('<title>Message sent: Contact</title>');
+    expect(sent).toContain('<title>Message sent: Contact | Mahmoud El Bergui</title>');
     expect(form).not.toContain('<title>');
     expect(sent).not.toContain('<form');
     expect(sent).toContain('Message sent');
