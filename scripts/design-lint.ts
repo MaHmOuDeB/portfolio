@@ -114,11 +114,12 @@ function hasRingClass(selector: string): boolean {
 
 const isNone = (value: string) => value.trim().toLowerCase() === 'none';
 
-// The one allowed hover movement: a clickable card (a lean card or a previous/next card) rises by at
-// most 4 px, by `translate` alone, in a plain (not nested) rule whose every selector has the card
-// itself as its hovered subject. The tests list the cases that stay banned.
+// The one allowed hover movement: a clickable card rises by at most 4 px, by `translate` alone, in a
+// plain (not nested) rule whose every selector has the card itself as its hovered subject. The
+// clickable cards are a closed list: a lean card [data-depth-lean], a previous/next card [data-next]
+// and a "How I test" tab [data-how-tab]. The tests list the cases that stay banned.
 const LIFT_MAX_PX = 4;
-const CARD_SUBJECT = /\[data-(?:depth-lean|next)(?:[~|^$*]?=[^\]]*)?\]/;
+const CARD_SUBJECT = /\[data-(?:depth-lean|next|how-tab)(?:[~|^$*]?=[^\]]*)?\]/;
 
 // The last compound selector (the subject), split at combinators outside brackets and parentheses.
 function subjectOf(selector: string): string {
