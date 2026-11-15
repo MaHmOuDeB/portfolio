@@ -68,7 +68,8 @@ describe('the band: the stack that unfolds', () => {
   it('below lg is a static vertical column: no pin, no pose, no lean, no links', () => {
     const narrow = block('@media (width < 64rem)');
     expect(narrow).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
-    expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*static[^}]*transform:\s*none/);
+    // Positioned, not static: each sheet's face is an absolute ::before and must resolve against its own sheet.
+    expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*relative[^}]*transform:\s*none/);
     expect(narrow).toMatch(/\[data-depth-tilt\]\s*\{[^}]*transform:\s*none/);
     expect(narrow).toMatch(/\[data-depth-link\]\s*\{[^}]*display:\s*none/);
     expect(narrow).not.toMatch(/sticky|animation-timeline/);

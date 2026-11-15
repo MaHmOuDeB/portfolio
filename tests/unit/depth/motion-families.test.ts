@@ -237,7 +237,7 @@ describe('"How I test"', () => {
 });
 
 describe('the case study glance card', () => {
-  it('lifts once on load by transform only, then its four facts settle in turn, from lg with motion allowed', () => {
+  it('lifts once on load by transform only, then its facts settle in turn, from lg with motion allowed', () => {
     const kf = block('@keyframes depth-hinge-load');
     expect(kf).toMatch(/from\s*\{\s*transform:\s*perspective\(87\.5rem\) rotateX\(24deg\) translateZ\(-80px\);\s*\}\s*to\s*\{\s*transform:\s*none;/);
     expect(kf).not.toContain('opacity');
@@ -247,7 +247,8 @@ describe('the case study glance card', () => {
     const load = block(GATE, media);
     expect(load).toMatch(/\[data-depth-hinge="load"\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge-load var\(--duration-arrive\) var\(--ease-standard\) backwards[^}]*animation-delay:\s*180ms/);
     const delays = [...load.matchAll(/\[data-glance-facts\] > div(?::nth-child\(\d\))?\s*\{[^}]*animation-delay:\s*(\d+)ms/g)].map((m) => Number(m[1]));
-    expect(delays).toEqual([360, 420, 480, 540]);
+    // Four facts, and a fifth (the scope) when a page gives one: each 60 ms after the last.
+    expect(delays).toEqual([360, 420, 480, 540, 600]);
     expect(load).toMatch(/\[data-depth-hinge="load"\]:focus-within,[^{]*\{\s*animation:\s*none;/);
     expect(still).toContain('[data-depth-hinge] [data-glance-facts] > div');
   });
