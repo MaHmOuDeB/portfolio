@@ -174,9 +174,10 @@ test('the links that leave the site are ordinary links: n8n names a fixed commit
   }
   await page.goto('/work/weather');
   const external = await page.locator('main a[href^="http"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(external).toEqual([
-    'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
+  // the repository is linked from the head, the sources and the close, always at the same fixed commit
+  expect([...new Set(external)].sort()).toEqual([
     'https://github.com/MaHmOuDeB/weather-sql-pipeline/tree/ca40977d159ca4d662a93e6768a0b2d01babd6b5',
+    'https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository',
   ]);
   for (const a of await page.locator('main a[href^="http"]').all()) await expect(a).toHaveAttribute('rel', 'noopener');
 });
