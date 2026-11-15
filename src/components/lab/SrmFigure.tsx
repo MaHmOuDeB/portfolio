@@ -38,7 +38,8 @@ export function PresetLinks({ links }: { links: readonly { href: string; label: 
           data-full-load=""
           className="inline-flex min-h-(--size-target) max-w-full items-center wrap-anywhere text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
         >
-          {link.label}
+          {/* One flex item: a label with a number in it keeps the spaces around the number. */}
+          <span>{link.label}</span>
         </a>
       ))}
     </p>

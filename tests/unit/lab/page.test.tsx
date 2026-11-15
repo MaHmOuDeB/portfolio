@@ -221,6 +221,10 @@ describe('the Lab page', () => {
       ['?peeking.fix=cs#peeking-at-results', 'See it with an always-valid interval'],
       ['?curse.trueEffect=3#exaggeration', 'See a test with enough power'],
     ]);
+    // each link is a flex row, so its label is one item: a number inside it keeps its spaces
+    const labels = [...LAB.matchAll(/<a href="[^"]+"[^>]*data-full-load=""[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]!);
+    for (const label of labels) expect(label).toMatch(/^<span>(?:(?!<\/?span)[\s\S])*<\/span>$/);
+    expect(labels[0]).toBe('<span>Try a rise of <data value="2" data-derived="simulated">2</data> points</span>');
     expect(FULL_PLAN_PRESETS.default.risePoints).not.toBe(2);
     expect(readFigureParams(new URLSearchParams('planner.risePoints=2'), 'planner', FULL_PLAN_SCHEMA, FULL_PLAN_PRESETS).values.risePoints).toBe(2);
     for (const fix of ['obf', 'cs'] as const) {

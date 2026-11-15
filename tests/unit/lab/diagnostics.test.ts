@@ -570,7 +570,7 @@ describe('the split Figure as the server draws it', () => {
     expect(srmModel(SRM_PRESETS.even!)).toEqual({ kind: 'result', chi2: 0, p: 1, flagged: false });
     expect(SRM_EVEN_HREF).toBe('/lab?srm.preset=even#split-check');
     const link = renderToStaticMarkup(createElement(SrmEvenLink));
-    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*">See the same check on an even split<\/a><\/p>$/);
+    expect(link).toMatch(/^<p data-js-only=""[^>]*><a href="\/lab\?srm\.preset=even#split-check" data-touch-target="" data-full-load="" class="[^"]*min-h-\(--size-target\)[^"]*"><span>See the same check on an even split<\/span><\/a><\/p>$/);
   });
 
   it('explains the threshold, the warning, the approximation and that these are not live results', () => {
