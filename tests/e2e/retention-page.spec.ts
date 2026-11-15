@@ -305,6 +305,8 @@ test.describe('the Retention page', () => {
 
   test('print: every section heading, the SQL and the sizing tables print, and nothing overflows the page', async ({ page }) => {
     await page.goto(ROUTE);
+    // WebKit prints a closed details row closed: open the rows the print must show first, in every engine.
+    for (const name of ['Customer segments', 'The reversal rule in SQL']) await openMethodRow(page, name);
     await page.emulateMedia({ media: 'print' });
     for (const [, title] of SECTIONS) await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
     for (const id of ['holdout-sizes', 'lapsed-targeting']) await expect(page.locator(`[aria-labelledby="${id}-caption"] table`)).toBeVisible();
