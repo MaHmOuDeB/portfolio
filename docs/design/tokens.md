@@ -87,7 +87,8 @@ All states use existing tokens; there are no extra tints.
 
 | State | Rule |
 |---|---|
-| hover | `muted` text, icons, underlines and borders turn `ink`. The primary button keeps its `ink` fill. A colour change only: no movement, no scale, no shadow. |
+| hover | `muted` text, icons, underlines and borders turn `ink`. The primary button keeps its `ink` fill. A colour change only: no movement, no scale, no shadow, except the clickable card below. |
+| clickable card | A lean card or a previous/next card. On hover (only where hover exists), keyboard focus and press its border turns `ink` and its "+" square fills `ink` with a `surface` glyph; a Next card's label underlines instead. With motion allowed it also rises 4 px (`translate`, `duration-base`) on hover and focus, the one hover movement on the site; under reduced motion it changes colour only. Where there is no hover the "+" is `ink` at rest. In forced-colors mode the border and the "+" take `Highlight`. Cards that are not links never change on hover. |
 | pressed | The same as hover, held while pressed. |
 | selected | `ink` fill with a `bg` label (selected segment). The current step and the current navigation item are `ink` text with a 2 px `ink` bar. In forced-colors mode the selected segment gets a `Highlight` border. |
 | disabled | `muted` text, a `line` border, no fill. StepNav ends use `aria-disabled`, so they keep focus. |
@@ -183,7 +184,7 @@ Use them as `z-(--z-header)`. Nothing else sets a z-index.
 | Token | Value | Use |
 |---|---|---|
 | `duration-fast` | 120 ms | hover and press feedback |
-| `duration-base` | 240 ms | an interactive Figure changing |
+| `duration-base` | 240 ms | an interactive Figure changing; a clickable card's 4 px lift |
 | `duration-settle` | 1000 ms | a proof figure's interval line closing, once on load |
 | `duration-lean` | 500 ms | a card, a button or the hero field following a fine pointer, and springing back |
 | `duration-arrive` | 800 ms | one row of the hero field, or one load-sequence element, arriving once on load |
@@ -223,7 +224,7 @@ so a block whose painted box is already in view is never part-faded.
 - `[data-depth-trace]` (`proof`, `row`, `experience`, `timeline`): Trace. The dividers of a row, the rule after a group's chip, and a timeline's spine draw as the block enters; a timeline's dots appear row by row. Keyframes: `depth-trace-x`, `depth-trace-y`, `depth-dot`.
 - `[data-depth-follow]` (`--mx`, `--my`, `--gx`, `--gy`): A scene follows a fine pointer by a few pixels per layer; a site sketch tilts slightly with a sheen. No keyframes.
 - `[data-depth-glow]`: A soft disc on the ink sheet that follows a fine pointer. No keyframes.
-- `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. Keyframes: transition.
+- `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. On hover and focus it also rises 4 px (see the clickable card in Interaction states). Keyframes: transition.
 - `[data-depth-magnet]` (`--tx`, `--ty`): A button shifts up to 6 px toward a fine pointer. Keyframes: transition.
 - `[data-tile]`, `[data-tile="ink"]`: A white tile with a hairline and an ink tile (`radius-xl`, padding). Not motion.
 
@@ -238,5 +239,6 @@ utility can override it.
 Hex colours outside `tokens.css`; Tailwind default palettes, shadows, sizes and animations (they do
 not exist); any `text-transform: uppercase`; the arrow character, the middle dot and emoji in
 content; monospace outside code blocks; `@keyframes` not named `depth-*`; `fade-up`,
-`animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`); dark
+`animate-in` and `slide-in-from` classes; hover movement (`hover:translate`, `hover:scale`, or a
+transform, scale or translate in a `:hover` rule), except the 4 px lift of a clickable card; dark
 mode. The rule ids are listed in `CLAUDE.md`.
