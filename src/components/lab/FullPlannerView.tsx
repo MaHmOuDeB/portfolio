@@ -27,7 +27,18 @@ import {
   type FullPlanValues,
   type PlannerContext,
 } from '@/lib/lab/full-planner';
-import { DurationCaption, PLANNER_COPY, SizingContextNote, SizingMethod } from '../../../content/lab';
+import {
+  DURATION_LEAD_IN,
+  DURATION_TAKEAWAY,
+  DurationCaption,
+  PLANNER_COPY,
+  SIZING_LEAD_IN,
+  SIZING_TAKEAWAY,
+  SizingContextNote,
+  SizingMethod,
+  SizingTerms,
+} from '../../../content/lab';
+import { Exhibit, PhonePoint } from './Exhibit';
 
 const SIMULATED = derivedAttr(FULL_PLANNER_REFS);
 
@@ -90,10 +101,13 @@ export function SizingFigureView({ id, context, values, controls, announcement, 
   const v = normalizeFullPlan(values);
   const plan = fullPlanModel(v);
   const noun = PLANNER_NOUN[context];
-  return (
+  // The Lab shows the exhibit in the reading model; the Retention page places the bare Figure itself.
+  const exhibit = context === 'hypothetical';
+  const figure = (
     <Figure
       id={id}
       title={PLANNER_COPY[context].sizingTitle}
+      lead={exhibit ? <PhonePoint>{SIZING_TAKEAWAY}</PhonePoint> : undefined}
       provenance="simulated"
       table={fullPlanTable(v, noun)}
       controls={controls}
@@ -108,15 +122,37 @@ export function SizingFigureView({ id, context, values, controls, announcement, 
         </>
       }
       caption={
-        <>
-          <SizingContextNote context={context} />{' '}
-          <SizingMethod context={context} />
-        </>
+        exhibit ? (
+          <SizingContextNote context={context} />
+        ) : (
+          <>
+            <SizingContextNote context={context} /> <SizingMethod context={context} />
+          </>
+        )
       }
     >
       <Readout value={plan.nPerArm} unit={`${noun} per group`} mark="data-planner-n" />
       {faultAfterChange && changed ? <SizingSeamFailure /> : null}
     </Figure>
+  );
+  if (!exhibit) return figure;
+  return (
+    <Exhibit
+      leadIn={SIZING_LEAD_IN}
+      takeaway={SIZING_TAKEAWAY}
+      method={
+        <>
+          <p data-method-terms="">
+            <SizingTerms />
+          </p>
+          <p data-method-text="">
+            <SizingMethod context={context} />
+          </p>
+        </>
+      }
+    >
+      {figure}
+    </Exhibit>
   );
 }
 
@@ -140,10 +176,12 @@ export function DurationFigureView({ id, context, nPerArm, traffic, controls, an
   const t = normalizeTraffic(traffic);
   const { weeks } = durationModel(nPerArm, t);
   const noun = PLANNER_NOUN[context];
-  return (
+  const exhibit = context === 'hypothetical';
+  const figure = (
     <Figure
       id={id}
       title={PLANNER_COPY[context].durationTitle}
+      lead={exhibit ? <PhonePoint>{DURATION_TAKEAWAY}</PhonePoint> : undefined}
       provenance="simulated"
       table={durationTable(nPerArm, t, noun)}
       controls={controls}
@@ -158,10 +196,24 @@ export function DurationFigureView({ id, context, nPerArm, traffic, controls, an
           <ResultBadge context={context} />
         </>
       }
-      caption={<DurationCaption context={context} traffic={t} />}
+      caption={<DurationCaption context={context} traffic={t} part={exhibit ? 'first' : 'all'} />}
     >
       <Readout value={weeks} unit={`${weeks === 1 ? 'week' : 'weeks'}, rounded up`} mark="data-duration-weeks" />
       {faultAfterChange && changed ? <DurationSeamFailure /> : null}
     </Figure>
+  );
+  if (!exhibit) return figure;
+  return (
+    <Exhibit
+      leadIn={DURATION_LEAD_IN}
+      takeaway={DURATION_TAKEAWAY}
+      method={
+        <p data-method-text="">
+          <DurationCaption context={context} traffic={t} part="rest" />
+        </p>
+      }
+    >
+      {figure}
+    </Exhibit>
   );
 }

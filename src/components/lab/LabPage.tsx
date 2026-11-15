@@ -1,61 +1,104 @@
-// The Lab: four worked examples of what a test can and cannot tell me, as one reading page. It copies
-// the Retention page's structure: a heading and a short opening in the readable column, a list of the
-// examples with one sentence on what each is for, then one section per example with its own h2 and
-// its Figure at the figure width, and the limits last. Sections are spaced, not boxed: no card grid
-// and no motion. Every number is in the Figures (simulated or computed from values the visitor sets);
-// the page's own copy is plain words (content/lab.tsx).
+// The Lab: four ways an A/B test can mislead and the check for each, as one reading page in the order
+// of a test's life (sample size, split check, peeking, exaggeration). The head says what the page is
+// for; four cards, each with a small sketch, link to the four sections; each section is the short
+// label as a chip, the question as its h2 and one exhibit in the reading model: a sentence on what to
+// look at, the Figure on its sheet, a sentence on what it means and the method one click deeper. Then
+// what the examples cannot show, what the page shows about how I work, and the shared call to action.
+// Every number is in the exhibits (simulated, or computed from values the visitor sets); the page's
+// own copy is plain words (content/lab.tsx).
 //
 // The section anchors differ from the Figure ids, so both can be linked: `/lab#sample-size` lands on
 // a section heading, `/lab#peeking` on the peeking Figure itself. `LabPeekingPage` is the peeking
 // example alone, the page `/lab/peeking` mounts: the same PeekingFigure (id `peeking`, so its URL
-// state and the interview link `?peeking.preset=interview` are the same), under the heading Lab, with
+// state and the interview link `?peeking.preset=interview` are the same) under its own headline, with
 // a link back to the whole Lab. Both are server components; each Figure loads its own island.
 import type { ReactNode } from 'react';
-import { CaseHead } from '@/components/work/CaseHead';
-import { TextLink } from '@/components/kit/TextLink';
+import { LeanCard } from '@/components/depth/LeanCard';
 import { PeekingFigure } from '@/components/figures/PeekingFigure';
-import { LAB_SECTIONS, LabIntro, LabLimits, LabPeekingIntro } from '../../../content/lab';
+import { Chip, PageClose, SECTION_H2 } from '@/components/frame';
+import { Derived } from '@/components/kit/Derived';
+import { TextLink } from '@/components/kit/TextLink';
+import { PageCallToAction } from '@/components/shell/PageCallToAction';
+import { CaseHead } from '@/components/work/CaseHead';
+import {
+  LAB_CLOSE_LINKS,
+  LAB_HEAD,
+  LAB_LIMITS_TITLE,
+  LAB_PEEKING_HEAD,
+  LAB_SECTIONS,
+  LAB_START,
+  LabClose,
+  LabIntro,
+  LabLimits,
+  LabPeekingIntro,
+} from '../../../content/lab';
 import { CurseFigure } from './CurseFigure';
 import { FullPlanner } from './FullPlanner';
+import { LAB_SKETCHES } from './LabSketches';
 import { SrmEvenLink, SrmFigure } from './SrmFigure';
 
+/** The document's title (the tab and the search result). The h1 says what the page is for. */
 export const LAB_TITLE = 'Lab';
 
 type SectionId = (typeof LAB_SECTIONS)[number]['id'];
 
 const TEXT = 'max-w-text';
+const BAND = 'mt-12 pt-12 md:mt-16 md:pt-16';
 
-function Section({ id, children }: { id: SectionId; children: ReactNode }) {
+/**
+ * One check: the short label as a chip, the question as the h2, then the exhibit, which its Figure
+ * renders itself (the sentence above, the Figure on its sheet, the sentence below, the method row).
+ */
+function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean; children: ReactNode }) {
   const entry = LAB_SECTIONS.find((s) => s.id === id);
   if (!entry) throw new Error(`lab: no section ${id}`);
   return (
-    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-      <h2 id={`${id}-title`} className={`${TEXT} text-xl font-semibold`}>
-        {entry.title}
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className={BAND}>
+      {chip ? <Chip>{entry.label}</Chip> : null}
+      <h2 id={`${id}-title`} className={`${TEXT} ${chip ? 'mt-4 ' : ''}${SECTION_H2}`}>
+        {entry.question}
       </h2>
-      {/* The Figure kit is frozen: the figure sits on a white hairline card of the frame. Under 640 px
-          the card runs edge to edge over the frame's rails, so a chart keeps the full column's width (the
-          screen less 16 px a side) for its axis labels. */}
-      <div data-figure-sheet="" className="mt-6 -mx-[calc(var(--frame-pad)_+_1px)] rounded-none border-y border-hairline bg-surface p-4 sm:mx-0 sm:rounded-xl sm:border md:p-8">
-        {children}
-      </div>
+      {children}
     </section>
   );
 }
 
-/** The examples in page order, each a 44 px link with one sentence on what it is for. */
-function Examples() {
+/**
+ * The four checks as cards, in the order of a test's life: when the check comes, the question, one
+ * line and a sketch. Each card links to its section. The step number is the card's place in the list.
+ */
+function Checks() {
   return (
-    <nav aria-label="On this page" className={`${TEXT} mt-8`}>
-      <ul>
-        {LAB_SECTIONS.map((s) => (
-          <li key={s.id} className="mt-3 first:mt-0">
-            <TextLink href={`#${s.id}`} standalone>
-              {s.title}
-            </TextLink>
-            <p className="text-base">{s.purpose}</p>
-          </li>
-        ))}
+    <nav aria-label="On this page" data-lab-checks="" className="mt-8">
+      <h2 id="lab-checks-title" className="sr-only">
+        The four checks
+      </h2>
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {LAB_SECTIONS.map((s, i) => {
+          const Sketch = LAB_SKETCHES[s.figure];
+          return (
+            <li key={s.id} data-lab-check={s.id} className="grid grid-cols-1 [&>a]:px-5.5 [&>a]:pt-5.5">
+              <LeanCard
+                href={`#${s.id}`}
+                idBase={`check-${s.id}`}
+                size="md"
+                data-touch-target=""
+                title={
+                  <>
+                    <span data-lab-check-when="" className="mb-1.5 block text-xs font-medium tracking-normal text-muted">
+                      <Derived value={i + 1} unit="count" refs={['build']} /> {s.when}
+                    </span>
+                    {s.question}
+                  </>
+                }
+                meta={s.id === LAB_START.id ? <Chip>{LAB_START.chip}</Chip> : null}
+                vignette={<Sketch />}
+              >
+                {s.line}
+              </LeanCard>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -64,16 +107,12 @@ function Examples() {
 export function LabPage(): ReactNode {
   return (
     <article aria-labelledby="lab-title">
-      <CaseHead id="lab-title" chip="Lab" title={LAB_TITLE} intro={<LabIntro />} />
+      <CaseHead id="lab-title" chip={LAB_HEAD.chip} title={LAB_HEAD.title} quiet={LAB_HEAD.quiet} intro={<LabIntro />} />
 
-      <Examples />
+      <Checks />
 
       <Section id="sample-size">
         <FullPlanner />
-      </Section>
-
-      <Section id="peeking-at-results">
-        <PeekingFigure />
       </Section>
 
       <Section id="split-check">
@@ -81,30 +120,47 @@ export function LabPage(): ReactNode {
         <SrmEvenLink />
       </Section>
 
+      <Section id="peeking-at-results">
+        <PeekingFigure />
+      </Section>
+
       <Section id="exaggeration">
         <CurseFigure />
       </Section>
 
-      <section id="limits" aria-labelledby="limits-title" data-rule="" className={`${TEXT} mt-12 pt-12 md:mt-16 md:pt-16`}>
-        <h2 id="limits-title" className="text-xl font-semibold">
-          Limits
+      <section id="limits" aria-labelledby="limits-title" data-rule="" className={BAND}>
+        <h2 id="limits-title" className={`${TEXT} ${SECTION_H2}`}>
+          {LAB_LIMITS_TITLE}
         </h2>
-        <div className="mt-4">
+        <div className={`${TEXT} mt-4`}>
           <LabLimits />
         </div>
       </section>
-      <div className="pb-12 md:pb-16" />
+
+      <PageClose id="lab-close" links={LAB_CLOSE_LINKS}>
+        <LabClose />
+      </PageClose>
+
+      <div className="mt-12 md:mt-16">
+        <PageCallToAction />
+      </div>
     </article>
   );
 }
 
-/** The peeking example on its own page: the same Figure as on the Lab, and a link to the rest. */
+/** The peeking example on its own page: the same exhibit as on the Lab, and a link to the rest. */
 export function LabPeekingPage(): ReactNode {
   return (
     <article aria-labelledby="lab-title">
-      <CaseHead id="lab-title" chip="Lab" title={LAB_TITLE} intro={<LabPeekingIntro />} />
+      <CaseHead
+        id="lab-title"
+        chip={LAB_PEEKING_HEAD.chip}
+        title={LAB_PEEKING_HEAD.title}
+        quiet={LAB_PEEKING_HEAD.quiet}
+        intro={<LabPeekingIntro />}
+      />
 
-      <Section id="peeking-at-results">
+      <Section id="peeking-at-results" chip={false}>
         <PeekingFigure />
       </Section>
 

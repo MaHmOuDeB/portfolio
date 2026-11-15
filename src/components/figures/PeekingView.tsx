@@ -23,8 +23,9 @@ import { Figure } from '@/components/kit/Figure';
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber } from '@/lib/figure/format';
 import { niceTicks, pct } from '@/lib/figure/scales';
-import { PEEK_REFS, peekDomains, type PeekView } from '@/lib/lab/peeking';
-import { PEEK_TITLE } from '@/lib/lab/peeking-values';
+import { Exhibit, PhonePoint } from '@/components/lab/Exhibit';
+import { PEEK_REFS, computePeek, peekDomains, type PeekView } from '@/lib/lab/peeking';
+import { PEEK_PRESETS, PEEK_TITLE } from '@/lib/lab/peeking-values';
 
 /** The Monte Carlo range is a 95% Wilson interval over the runs. */
 const MC_LEVEL = 0.95;
@@ -178,12 +179,15 @@ function legend(view: PeekView): Seg[] {
   ];
 }
 
+/** The caption under the chart: what is simulated. The rest of the method is in the method row. */
 function captionSegments(view: PeekView): Seg[] {
+  return ['Simulated A/A tests: both groups convert at ', share(view.selected.p), ', so every winner is a false one.'];
+}
+
+/** The method row's text for the setting on screen: the schedule, the criterion, the marks, the runs. */
+function methodSegments(view: PeekView): Seg[] {
   const { values, selected } = view;
   return [
-    'Simulated A/A tests: both groups convert at ',
-    share(selected.p),
-    ', so every winner is a false one. ',
     ...(values.mode === 'once'
       ? ['Looking once means one check after ', count(selected.nPerLook), ' visitors per group. ']
       : ['Each scheduled look adds ', count(selected.nPerLook), ' visitors per group. ']),
@@ -202,6 +206,53 @@ function captionSegments(view: PeekView): Seg[] {
     ...(view.cost ? ["The price of a fix is arithmetic at the last look's sample, not a measured loss of power. "] : []),
     'Idea credited to Evan Miller, “How Not To Run an A/B Test”.',
   ];
+}
+
+/** The preset's view, looked up once: the takeaway and the lead-in quote the starting setting. */
+let startView: PeekView | undefined;
+const start = () => (startView ??= computePeek(PEEK_PRESETS.default));
+
+/** The sentence above the Figure. */
+export function PeekLeadIn() {
+  return (
+    <>
+      Both versions here are identical, so every winner is a false alarm. The line counts how many of{' '}
+      <Segments segs={[count(start().selected.runs)]} /> simulated tests have raised one by each daily check.
+    </>
+  );
+}
+
+/**
+ * The sentence below the Figure, at the starting setting: one test in twenty is the nominal level,
+ * and "more than one in five" is the preset's own rate, rounded to the next whole "one in".
+ */
+export function PeekTakeaway() {
+  const { selected } = start();
+  return (
+    <>
+      Read once at the end, about <Segments segs={[count(1), ' test in ', count(Math.round(1 / selected.alpha))]} /> raises a
+      false alarm. At the starting setting, checked on each of <Segments segs={[count(selected.looks)]} /> days, more than{' '}
+      <Segments segs={[count(1), ' in ', count(Math.ceil(1 / selected.falsePositiveRate))]} /> does. Choose a correction to
+      see what it costs to look early and still keep false alarms rare.
+    </>
+  );
+}
+
+/** The terms the peeking example uses, each in one sentence, at the top of the method row. */
+function PeekTerms() {
+  const alpha = start().selected.alpha;
+  const term = (name: string) => <strong className="font-semibold">{name}</strong>;
+  return (
+    <>
+      {term('Peeking')}: checking a running test again and again and stopping the first time it looks significant, which
+      gives chance many tries to produce a false winner. {term('False winner (false positive)')}: a difference the test
+      flags although the two versions are in truth the same; a test read once is set to allow this about{' '}
+      <Segments segs={[count(1), ' time in ', count(Math.round(1 / alpha))]} />. {term("O'Brien-Fleming")}: a planned
+      schedule of looks in which early looks need much stronger evidence, so the false-winner rate over all looks stays
+      at the planned level. {term('Confidence sequence')}: an interval that stays valid however often it is looked at, at
+      the price of being wider than a one-look interval.
+    </>
+  );
 }
 
 /** Look 1, round looks between, and the last look; none crowding either end. */
@@ -380,12 +431,14 @@ export type PeekingFigureViewProps = {
 
 export function PeekingFigureView({ id, view, controls, announcement, preview, faultAfterChange, changed }: PeekingFigureViewProps) {
   const { values, selected } = view;
-  return (
+  const takeaway = <PeekTakeaway />;
+  const figure = (
     <Figure
       id={id}
       title={PEEK_TITLE}
       provenance="simulated"
       table={view.table}
+      lead={<PhonePoint>{takeaway}</PhonePoint>}
       controls={controls}
       announcement={announcement}
       preview={preview}
@@ -399,5 +452,23 @@ export function PeekingFigureView({ id, view, controls, announcement, preview, f
       <PeekChart id={id} view={view} />
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
+  );
+  return (
+    <Exhibit
+      leadIn={<PeekLeadIn />}
+      takeaway={takeaway}
+      method={
+        <>
+          <p data-method-terms="">
+            <PeekTerms />
+          </p>
+          <p data-method-text="" data-peek-method="">
+            <Segments segs={methodSegments(view)} />
+          </p>
+        </>
+      }
+    >
+      {figure}
+    </Exhibit>
   );
 }
