@@ -373,7 +373,7 @@ describe('route inventory', () => {
 
   it('writes every number in a description or title from the facts, as the pages print it', () => {
     expect(seoEntry('/work/audible').description).toBe(
-      `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
+      `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and a tool I built that the team adopted.`,
     );
     expect(seoEntry('/work/pulse').description).toBe(
       `A tracking plan of ${factText('pulse.events.count')} events, each tied to one product question, in a demo dashboard I designed and built.`,

@@ -103,7 +103,7 @@ test.describe('Audible method page', () => {
     await expect(main.locator('[data-glance-point]')).toHaveCount(3);
     await expect(main.locator('[data-glance-point]').nth(1).getByRole('link', { name: 'Why so many?' })).toHaveAttribute('href', '#why-so-many');
     const nav = main.getByRole('navigation', { name: 'On this page' });
-    await expect(nav.getByRole('link')).toHaveText(['When to ship', 'Why so many?', 'Automation', 'AI tools', 'Method', 'Limits', 'Sources']);
+    await expect(nav.getByRole('link')).toHaveText(['When to ship', 'Why so many?', 'Automation', 'Method', 'Limits', 'Sources']);
     for (const href of await nav.getByRole('link').evaluateAll((as) => as.map((a) => a.getAttribute('href')!))) {
       await expect(main.locator(`section${href} > h2`)).toBeVisible();
     }
@@ -111,15 +111,15 @@ test.describe('Audible method page', () => {
       'When to ship: try the rule yourself',
       'Why so many were adopted',
       'Test-account automation',
-      'AI tools for the team',
       'Method',
       'Limits',
       'Sources and links',
       'What this shows about how I work',
       'Find out what I can do for your team.',
     ]);
-    await expect(main.locator('section#ai-tools')).toContainText('I evaluated Amazon Bedrock for team-efficiency use cases.');
-    await expect(main.locator('section#ai-tools')).toContainText('I have no usage or time-saving figures for them.');
+    // The page keeps the AI tools and the consent-aware SQL work off: no section, no word of them.
+    await expect(main.locator('section#ai-tools')).toHaveCount(0);
+    await expect(main).not.toContainText(/AI tools|Bedrock|Jira|opted-in|Digital Markets|\bDMA\b/);
     const next = main.getByRole('navigation', { name: 'More work' }).getByRole('link');
     await expect(next).toHaveCount(1);
     await expect(next).toHaveAttribute('href', '/work/retention');

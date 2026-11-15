@@ -1,6 +1,6 @@
 // The Audible case study and its Figure. The page follows the reading model: a plain opening, a
 // glance card with three pull figures, the in-page links, then the exhibits (the ship rule first,
-// why so many recommendations were adopted, the tool I built with its two timings, the AI tools),
+// why so many recommendations were adopted, the tool I built with its two timings),
 // the method with its details rows, the limits, the sources, the close and the next project. Every
 // claim on it is pinned here by its exact rendered wording. The ship-rule Figure is a made-up product
 // with made-up metric names, typed-in interval bounds and a "Simulated" badge in every view. Every
@@ -80,7 +80,6 @@ const ORDER = [
   ['ship-rule', 'When to ship: try the rule yourself'],
   ['why-so-many', 'Why so many were adopted'],
   ['automation', 'Test-account automation'],
-  ['ai-tools', 'AI tools for the team'],
   ['method', 'Method'],
   ['limits', 'Limits'],
   ['sources', 'Sources and links'],
@@ -177,7 +176,6 @@ describe('the outline', () => {
       ['ship-rule', 'When to ship'],
       ['why-so-many', 'Why so many?'],
       ['automation', 'Automation'],
-      ['ai-tools', 'AI tools'],
       ['method', 'Method'],
       ['limits', 'Limits'],
       ['sources', 'Sources'],
@@ -330,27 +328,19 @@ describe('Audible truth', () => {
     expect(sheet).toMatch(/<div role="group" aria-label="Test-account setup time, by hand and with the tool"/);
   });
 
-  it('describes the AI tools in the safe wording: Bedrock evaluated, tools built and adopted, nothing joining the two, no figure', () => {
-    const paragraphs = blocks(section(PAGE, 'ai-tools')).map(text);
-    expect(paragraphs).toEqual([
-      'I evaluated Amazon Bedrock for team-efficiency use cases.',
-      'I also built internal AI tools that the wider team adopted. One reviews past A/B tests and their results and suggests new test ideas. The other generates the standard content of the Jira ticket for a test launch: the hypothesis, the metrics and the standard fields. I have no usage or time-saving figures for them.',
-    ]);
-    // Bedrock and the tools never share a paragraph, and no word says the tools ran on it or came from it.
-    for (const p of paragraphs) expect(/Bedrock/.test(p) && /tools/.test(p), p).toBe(false);
-    const all = paragraphs.join(' ');
-    expect(all).not.toMatch(/\b(on|with|using|after|then|so|from) (Amazon )?Bedrock|Bedrock[- ](based|powered)|automatically|created? (the )?tickets?|AI-powered/i);
-    expect(section(PAGE, 'ai-tools')).not.toMatch(/data-fact|data-derived/);
-    expect(text(section(PAGE, 'ai-tools'))).not.toMatch(/\d/);
-    expect(text(PAGE).match(/Bedrock/g)).toHaveLength(1);
+  it('says nothing of AI tools, Bedrock, Jira, CRM personalisation or the DMA', () => {
+    expect(PAGE).not.toContain('id="ai-tools"');
+    expect(PAGE).not.toContain('href="#ai-tools"');
+    expect(text(PAGE)).not.toMatch(/AI tools|Bedrock|Jira|CRM|opted-in|opted-out|Digital Markets|\bDMA\b|Discovery pages/);
+    // The only tool the page says the team adopted is the test-account tool.
+    expect(text(PAGE)).not.toMatch(/\btools (the|that the) (wider )?team adopted|built (internal )?(AI )?tools/i);
   });
 
-  it('describes the method as team work: my own planning and testing visible, with the consent-aware SQL work', () => {
+  it('describes the method as team work: my own planning and testing visible', () => {
     const s = section(PAGE, 'method');
     const visible = s.slice(0, s.indexOf('<details'));
     expect(blocks(visible).map(text)).toEqual([
       'Before a test started, I planned its sample size and how long it had to run. When it ended, I did the significance testing and read the result against the metrics of the team that ran it.',
-      'I also contributed to CRM-driven personalisation for opted-in and opted-out members on the Home and Discovery pages, and wrote the SQL segmentation queries within the consent rules of the Digital Markets Act (DMA).',
     ]);
     expect(text(visible)).not.toMatch(/cohort/i);
   });

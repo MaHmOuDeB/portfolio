@@ -109,7 +109,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
   entry(
     '/work/audible',
     'A/B testing at Audible (Amazon)',
-    `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and the tools I built for the team.`,
+    `How I contributed to ${factText('profile.audible.experiments')} A/B tests as a working student at Audible, why ${factText('profile.audible.recommendations_adopted')} of my recommendations were adopted, and a tool I built that the team adopted.`,
     'audible',
   ),
   entry(
