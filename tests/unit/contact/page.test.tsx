@@ -43,6 +43,9 @@ describe('the contact page', () => {
         [CONTACT.github, 'GitHub'],
       ]);
       expect(html).toMatch(/class="[^"]*lg:grid-cols-\[minmax\(0,40rem\)_minmax\(0,1fr\)\]/);
+      // Under lg one shrinkable track: an implicit auto track grows to the widest word, which with
+      // text at 200% on a 320 px screen passed the edge by 2 px in Linux WebKit.
+      expect(html).toMatch(/class="grid grid-cols-1 gap-6 [^"]*lg:grid-cols-\[minmax\(0,40rem\)/);
     }
   });
 
