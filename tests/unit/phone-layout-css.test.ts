@@ -36,8 +36,10 @@ describe('phone layout', () => {
     expect(css).toMatch(/@media \(width >= 48rem\)\s*\{\s*\[data-section-head\]\s*\{\s*padding-top:\s*calc\(var\(--spacing\) \* 21\);/);
   });
 
-  it('hides the frame rails under md only', () => {
-    expect(BELOW_MD).toMatch(/\[data-frame\]\s*\{\s*border-inline:\s*0;/);
+  it('hides the frame rails under md only, keeping their width so the layout does not move', () => {
+    // A zero-width border makes the column 2 px wider, which pushes clipped content 1 px past a phone screen.
+    expect(BELOW_MD).toMatch(/\[data-frame\]\s*\{\s*border-inline-color:\s*var\(--color-clear\);\s*\}/);
+    expect(BELOW_MD).not.toMatch(/border-inline:\s*0/);
     expect(css).toMatch(/\[data-frame\]\s*\{\s*--frame-pad:[^}]*border-inline:\s*1px solid var\(--color-hairline\);/);
   });
 
@@ -73,8 +75,12 @@ describe('phone layout', () => {
   it('compacts the glance card on a phone: each figure beside its label, each fact beside its term', () => {
     expect(PHONE).toMatch(/\[data-glance-points\]\s*\{\s*grid-template-columns:\s*fit-content\(50%\) minmax\(0, 1fr\);/);
     expect(PHONE).toMatch(/\[data-glance-point\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*subgrid;/);
-    expect(PHONE).toMatch(/\[data-glance-facts\] > div\s*\{[^}]*grid-template-columns:\s*80px minmax\(0, 1fr\);/);
-    expect(PHONE).toMatch(/\[data-glance-facts\] dd\s*\{\s*margin-top:\s*0;/);
+    // A fact is a wrapping row, not a fixed grid: a value with a long unbreakable word (n8n's
+    // "Structural/arithmetic/master-data") drops under its term instead of overflowing a 320 px screen.
+    expect(PHONE).toMatch(/\[data-glance-facts\] > div\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
+    expect(PHONE).toMatch(/\[data-glance-facts\] dt\s*\{\s*flex:\s*0 0 80px;/);
+    expect(PHONE).toMatch(/\[data-glance-facts\] dd\s*\{\s*flex:\s*1 1 12rem;\s*margin-top:\s*0;/);
+    expect(PHONE).not.toMatch(/grid-template-columns:\s*80px/);
   });
 
   it('raises the small sketch and tag text to the 13 px floor below lg', () => {

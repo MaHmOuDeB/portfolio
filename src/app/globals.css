@@ -390,10 +390,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 
   /* On a phone the rails would sit on the bezel, so they show from md only. A rule (data-rule) still
-     runs the full width, from screen edge to screen edge. */
+     runs the full width, from screen edge to screen edge. The rails keep their 1 px width, only clear:
+     removing it would widen the column by 2 px and push clipped content 1 px past the screen. */
   @media (width < 48rem) {
     [data-frame] {
-      border-inline: 0;
+      border-inline-color: var(--color-clear);
     }
   }
 
@@ -2860,14 +2861,22 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       padding-block: calc(var(--spacing) * 5);
     }
 
+    /* A wrapping row rather than a two-column grid: when a value cannot fit beside its term (the
+       narrowest phones, or a long unbreakable word such as a slash-joined list) it drops under the
+       term, as above 640 px, instead of running past the screen edge. */
     [data-glance-facts] > div {
-      display: grid;
-      grid-template-columns: 80px minmax(0, 1fr);
-      column-gap: calc(var(--spacing) * 3);
+      display: flex;
+      flex-wrap: wrap;
+      gap: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
       align-items: baseline;
     }
 
+    [data-glance-facts] dt {
+      flex: 0 0 80px;
+    }
+
     [data-glance-facts] dd {
+      flex: 1 1 12rem;
       margin-top: 0;
     }
   }
