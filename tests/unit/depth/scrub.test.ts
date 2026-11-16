@@ -136,8 +136,8 @@ function setup(opts: { supports?: boolean; matches?: boolean; io?: boolean; extr
     documentElement: root,
     querySelectorAll: vi.fn((s: string) => (s === SCRUB_PARTS ? parts : [])),
   };
-  // innerHeight (the visual viewport on iOS) differs from the root's clientHeight on purpose: the
-  // controller must measure against the layout viewport, as a view timeline does.
+  // innerHeight (the visual viewport on iOS) is below the root's clientHeight here, as under pinch
+  // zoom: the controller must not shrink its range with it.
   const win: ScrubWin & { scrollY: number; innerHeight: number } = {
     CSS: { supports: vi.fn((c: string) => (c.includes('animation-timeline') ? supports : true)) },
     matchMedia: vi.fn(() => mq),
@@ -370,6 +370,25 @@ describe('attachScrub: the frame', () => {
     const t = setup({ padding: { 'scroll-padding-top': 'auto', 'scroll-padding-bottom': '0px' } });
     attachScrub(t.doc, t.win);
     expect(t.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('follows iOS toolbars collapsing (innerHeight above clientHeight) and ignores pinch zoom (below it)', () => {
+    // The stack's top is 600 px down. With 900 px visible it is 300 px into its 400 px entry.
+    const s = setup();
+    s.win.innerHeight = 900;
+    attachScrub(s.doc, s.win);
+    expect(s.sheet.props.get('--depth-t')).toBe('0.75');
+    // The default setup has innerHeight 700 under an 800 px clientHeight: 200 px in.
+    const t = setup();
+    attachScrub(t.doc, t.win);
+    expect(t.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('writes the final state for a progress that is not a number', () => {
+    const s = setup({ io: false });
+    s.win.scrollY = Number.NaN;
+    attachScrub(s.doc, s.win);
+    expect(s.bar.props.get('--depth-t')).toBe('1');
   });
 
   it('writes progress in steps of 1/200, so a move of less than a step writes nothing', () => {

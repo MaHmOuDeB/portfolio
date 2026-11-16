@@ -82,6 +82,7 @@ export type ScrubWin = {
     el: ScrubEl,
     pseudo: string | null,
   ): { animationName: string; animationPlayState: string; getPropertyValue(name: string): string };
+  innerHeight: number;
   scrollY: number;
   addEventListener(type: 'scroll' | 'resize', fn: Listener, options: { passive: boolean }): void;
   removeEventListener(type: 'scroll' | 'resize', fn: Listener): void;
@@ -177,8 +178,10 @@ function start(doc: ScrubDoc, win: ScrubWin, pin: boolean, fail: () => void): ()
   let lastY = NaN;
 
   const draw = () => {
-    // The layout viewport, as a view timeline sees it (not the visual viewport of iOS's toolbars).
-    const vh = root.clientHeight;
+    // The visible height, as a view timeline sees it. On iOS the root's clientHeight is the small
+    // viewport (toolbars shown) and innerHeight grows while they are collapsed, so the larger of the
+    // two follows the collapse; it never takes innerHeight's shrink under pinch zoom.
+    const vh = Math.max(root.clientHeight, win.innerHeight);
     const y = win.scrollY;
     // A view timeline's default inset is the scroll container's scroll padding (on this site, room
     // at the bottom for a focus ring and, where the header is sticky, the header at the top).
@@ -205,7 +208,8 @@ function start(doc: ScrubDoc, win: ScrubWin, pin: boolean, fail: () => void): ()
     dirty.clear();
     pinning = false;
     for (const [it, p] of values) {
-      const v = String(Math.round(p * STEPS) / STEPS);
+      // A value that is not a number would make a 0s delay, the start pose: write the final state.
+      const v = String(Number.isFinite(p) ? Math.round(p * STEPS) / STEPS : 1);
       if (v !== it.last) it.el.style.setProperty('--depth-t', (it.last = v));
     }
   };
