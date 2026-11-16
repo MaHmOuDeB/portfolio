@@ -3567,7 +3567,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    paused, lasts 1s and starts --depth-t seconds in, the element's progress through its range, which
    the script writes. The range is the native rule's animation-range, word for word, in
    --depth-range; a timeline that is not the element's own view is named by the element that holds
-   it, in --depth-on. Until the script writes a value the delay is a whole second, the final state.
+   it, in --depth-on. Until the script writes a value the delay is a whole second, the final state:
+   every part starts at 1 (the first rule), so a part never takes a value from a part around it.
    The time-based rules come last, so they still win over the drift's mirror; their animations are
    the same as before the gate, so none of them restarts. Left out: the ribbon's single line (a
    change of layout after load), and everything from lg, where the band pins (a wide screen without
@@ -3584,6 +3585,10 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @media screen and (width < 64rem) and (prefers-reduced-motion: no-preference) {
   @layer components {
+    :root[data-depth-fallback] :is([data-depth-rise], [data-depth-draw], [data-depth-book], [data-depth-scale], [data-depth-parallax], [data-depth-progress], [data-depth-sheet], [data-depth-drift], [data-depth-hinge], [data-depth-trace], [data-depth-trace] > *, [data-experience-rule]) {
+      --depth-t: 1;
+    }
+
     :root[data-depth-fallback] :has(> [data-depth-rise]) {
       perspective: 87.5rem;
     }

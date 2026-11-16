@@ -90,6 +90,7 @@ function setup(opts: { supports?: boolean; matches?: boolean; io?: boolean; extr
   const attrs = new Map<string, string>();
   const root = el(0, 4000) as Fake & ScrubRoot;
   Object.assign(root, {
+    clientHeight: 800,
     scrollHeight: 4000,
     setAttribute: (k: string, v: string) => void attrs.set(k, v),
     removeAttribute: (k: string) => void attrs.delete(k),
@@ -135,16 +136,23 @@ function setup(opts: { supports?: boolean; matches?: boolean; io?: boolean; extr
     documentElement: root,
     querySelectorAll: vi.fn((s: string) => (s === SCRUB_PARTS ? parts : [])),
   };
+  // innerHeight (the visual viewport on iOS) differs from the root's clientHeight on purpose: the
+  // controller must measure against the layout viewport, as a view timeline does.
   const win: ScrubWin & { scrollY: number; innerHeight: number } = {
     CSS: { supports: vi.fn((c: string) => (c.includes('animation-timeline') ? supports : true)) },
     matchMedia: vi.fn(() => mq),
     getComputedStyle: (e, pseudo) => {
       const f = e as Fake;
-      if (e === root) return { animationName: 'none', getPropertyValue: (k: string) => padding[k] ?? '' };
+      if (e === root) return { animationName: 'none', animationPlayState: 'running', getPropertyValue: (k: string) => padding[k] ?? '' };
       const source = (pseudo ? f.before : f.css) ?? {};
-      return { animationName: source.animationName ?? 'none', getPropertyValue: (k: string) => source[k] ?? '' };
+      return {
+        animationName: source.animationName ?? 'none',
+        // The mirrored rules pause their animation; a time-based one runs.
+        animationPlayState: source.animationPlayState ?? 'paused',
+        getPropertyValue: (k: string) => source[k] ?? '',
+      };
     },
-    innerHeight: 800,
+    innerHeight: 700,
     scrollY: 0,
     addEventListener: vi.fn((type: string, fn: () => void) => void (handlers[type] = fn)),
     removeEventListener: vi.fn((type: string) => void delete handlers[type]),
@@ -236,11 +244,11 @@ describe('attachScrub: the frame', () => {
     expect(s.attrs.get(SCRUB_ATTR)).toBe('');
     // The stack's top is 600 px down an 800 px viewport: 200 px into its 400 px entry, the sheet's own
     // offset in the stack does not count (the timeline is the stack's).
-    expect(s.sheet.props.get('--depth-t')).toBe('0.5000');
+    expect(s.sheet.props.get('--depth-t')).toBe('0.5');
     // Below the viewport: not started. The cell's progress is written on the element, for its ::before.
-    expect(s.card.props.get('--depth-t')).toBe('0.0000');
-    expect(s.cell.props.get('--depth-t')).toBe('0.0000');
-    expect(s.bar.props.get('--depth-t')).toBe('0.0000');
+    expect(s.card.props.get('--depth-t')).toBe('0');
+    expect(s.cell.props.get('--depth-t')).toBe('0');
+    expect(s.bar.props.get('--depth-t')).toBe('0');
     // No rule, or no animation (a focused block): never written.
     expect(s.still.props.size).toBe(0);
     expect(s.focused.props.size).toBe(0);
@@ -259,8 +267,8 @@ describe('attachScrub: the frame', () => {
     expect(firstWrite).toBeGreaterThan(0);
     expect(s.log.slice(firstWrite).every((l) => l.startsWith('write'))).toBe(true);
     // The card's top is 400 px into the viewport: 400 of its 140 px range, so done.
-    expect(s.card.props.get('--depth-t')).toBe('1.0000');
-    expect(s.bar.props.get('--depth-t')).toBe('0.3125');
+    expect(s.card.props.get('--depth-t')).toBe('1');
+    expect(s.bar.props.get('--depth-t')).toBe('0.315');
     // The same position again: nothing to write.
     s.log.length = 0;
     s.handlers.scroll!();
@@ -276,23 +284,48 @@ describe('attachScrub: the frame', () => {
     expect(s.observed).toHaveLength(3);
     s.intersect([{ target: s.stack, isIntersecting: true }]);
     s.flush();
-    s.log.length = 0;
-    s.win.scrollY = 1000;
-    s.handlers.scroll!();
-    s.flush();
-    expect(s.log).toContain('read stack');
-    expect(s.log).not.toContain('read card');
+    // Scrolled in steps of a quarter of the screen at most, so the observer keeps up.
+    for (const y of [200, 400, 600]) {
+      s.log.length = 0;
+      s.win.scrollY = y;
+      s.handlers.scroll!();
+      s.flush();
+      expect(s.log).toContain('read stack');
+      expect(s.log).not.toContain('read card');
+    }
     // The stack leaves: one last measure, then no more.
     s.intersect([{ target: s.stack, isIntersecting: false }]);
     s.flush();
-    expect(s.sheet.props.get('--depth-t')).toBe('1.0000');
+    expect(s.sheet.props.get('--depth-t')).toBe('1');
     s.log.length = 0;
-    s.win.scrollY = 1100;
+    s.win.scrollY = 700;
     s.handlers.scroll!();
     s.flush();
     expect(s.log.filter((l) => l.startsWith('read'))).toEqual([]);
-    // The page's scroll is always followed.
-    expect(s.bar.props.get('--depth-t')).toBe('0.3438');
+    // The page's scroll is always followed: 700 of 3200 px.
+    expect(s.bar.props.get('--depth-t')).toBe('0.22');
+  });
+
+  it('measures everything again after a jump of more than a quarter of the screen', () => {
+    const s = setup();
+    attachScrub(s.doc, s.win);
+    // A small scroll: only what the observer reports.
+    s.log.length = 0;
+    s.win.scrollY = 150;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.log.filter((l) => l.startsWith('read'))).toEqual([]);
+    // A jump far down the page and back: the card is measured both times, with no observer entry.
+    s.win.scrollY = 3000;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.card.props.get('--depth-t')).toBe('1');
+    s.log.length = 0;
+    s.win.scrollY = 0;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.log).toContain('read card');
+    expect(s.card.props.get('--depth-t')).toBe('0');
   });
 
   it('measures everything again on resize', () => {
@@ -324,7 +357,7 @@ describe('attachScrub: the frame', () => {
     const part = el(50, 100, { '--depth-range': 'entry 0% entry 100%', animationName: 'depth-draw' }, block);
     const s = setup({ extra: [part] });
     attachScrub(s.doc, s.win);
-    expect(part.props.get('--depth-t')).toBe('0.4900');
+    expect(part.props.get('--depth-t')).toBe('0.49');
   });
 
   it('narrows the visibility range by the root\'s scroll padding, as a view timeline\'s default inset does', () => {
@@ -332,10 +365,162 @@ describe('attachScrub: the frame', () => {
     // stack's top, 600 px down the viewport, is 540 px into it: 176 px into its 400 px entry.
     const s = setup({ padding: { 'scroll-padding-top': '60px', 'scroll-padding-bottom': '24px' } });
     attachScrub(s.doc, s.win);
-    expect(s.sheet.props.get('--depth-t')).toBe('0.4400');
+    expect(s.sheet.props.get('--depth-t')).toBe('0.44');
     // `auto` (no padding) counts as none.
     const t = setup({ padding: { 'scroll-padding-top': 'auto', 'scroll-padding-bottom': '0px' } });
     attachScrub(t.doc, t.win);
-    expect(t.sheet.props.get('--depth-t')).toBe('0.5000');
+    expect(t.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('writes progress in steps of 1/200, so a move of less than a step writes nothing', () => {
+    const s = setup({ io: false });
+    attachScrub(s.doc, s.win);
+    // The card's entry runs 140 px of scroll: 0.7 px is 1/200 of it.
+    s.win.scrollY = 670;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.card.props.get('--depth-t')).toBe('0.5');
+    s.log.length = 0;
+    s.win.scrollY = 670.3;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.log.filter((l) => l === 'write card')).toEqual([]);
+    s.win.scrollY = 670.7;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.card.props.get('--depth-t')).toBe('0.505');
+  });
+
+  it('skips a part whose animation is not paused: a time-based one that shares a mirrored selector', () => {
+    const portrait = el(100, 300, { '--depth-range': 'entry 0% entry 85%', animationName: 'depth-drift-tl-narrow', animationPlayState: 'running' });
+    const s = setup({ extra: [portrait] });
+    attachScrub(s.doc, s.win);
+    expect(portrait.props.size).toBe(0);
+    expect(s.observed).not.toContain(portrait);
+  });
+});
+
+describe('attachScrub: the first attach of a page load', () => {
+  it('pins a part whose subject is on screen at its final pose until the subject has left the screen once', () => {
+    const s = setup({ io: false });
+    attachScrub(s.doc, s.win, { pinInView: true });
+    // The stack is on screen (600 px down an 800 px viewport): pinned, not half way.
+    expect(s.sheet.props.get('--depth-t')).toBe('1');
+    // Off screen at load: scrubbed as usual.
+    expect(s.card.props.get('--depth-t')).toBe('0');
+    // Still on screen after a scroll: still pinned.
+    s.win.scrollY = 100;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('1');
+    // Scrolled back past it so it falls below the screen: it has left, so it follows the scroll again.
+    s.win.scrollY = -300;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('0');
+    s.win.scrollY = 0;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('with an observer, unpins as the subject leaves too', () => {
+    const s = setup();
+    attachScrub(s.doc, s.win, { pinInView: true });
+    expect(s.sheet.props.get('--depth-t')).toBe('1');
+    s.intersect([{ target: s.stack, isIntersecting: true }]);
+    s.flush();
+    s.win.scrollY = 1200;
+    s.handlers.scroll!();
+    s.flush();
+    s.win.scrollY = 0;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('measures a pinned part every frame, so it unpins even when the observer has not reported it', () => {
+    const s = setup();
+    attachScrub(s.doc, s.win, { pinInView: true });
+    // No observer entry at all: the stack is neither live nor dirty, but pinned, so it is measured,
+    // and once it has left (below the screen here) it takes its real progress, 0, instead of the pin.
+    s.win.scrollY = -300;
+    s.handlers.scroll!();
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('0');
+    s.win.scrollY = 0;
+    s.handlers.scroll!();
+    s.flush();
+    // Unpinned, it waits on the observer again like any part.
+    s.intersect([{ target: s.stack, isIntersecting: true }]);
+    s.flush();
+    expect(s.sheet.props.get('--depth-t')).toBe('0.5');
+  });
+
+  it('pins nothing on a client navigation (the default), and never pins the page\'s scroll', () => {
+    const s = setup();
+    attachScrub(s.doc, s.win);
+    expect(s.sheet.props.get('--depth-t')).toBe('0.5');
+    const t = setup();
+    attachScrub(t.doc, t.win, { pinInView: true });
+    expect(t.bar.props.get('--depth-t')).toBe('0');
+  });
+
+  it('pins what is on screen when the query comes to match later, since the page was still just before', () => {
+    const s = setup({ matches: false, io: false });
+    attachScrub(s.doc, s.win);
+    s.changeMedia(true);
+    expect(s.sheet.props.get('--depth-t')).toBe('1');
+  });
+});
+
+describe('attachScrub: an error leaves the final, still state', () => {
+  it('a part whose timeline holder cannot be looked up: no gate, no value, no listener, and no throw', () => {
+    const s = setup();
+    s.sheet.closest = () => {
+      throw new SyntaxError('not a valid selector');
+    };
+    const cleanup = attachScrub(s.doc, s.win);
+    expect(s.attrs.has(SCRUB_ATTR)).toBe(false);
+    expect(Object.keys(s.handlers)).toEqual([]);
+    expect(s.observed).toEqual([]);
+    expect(s.mq.removeEventListener).toHaveBeenCalledTimes(1);
+    for (const f of [s.sheet, s.card, s.cell, s.bar]) expect(f.props.has('--depth-t')).toBe(false);
+    expect(() => cleanup()).not.toThrow();
+  });
+
+  it('a frame that throws: it stops for good and removes the gate, every value and every listener', () => {
+    const s = setup();
+    attachScrub(s.doc, s.win);
+    expect(s.attrs.has(SCRUB_ATTR)).toBe(true);
+    expect(s.card.props.has('--depth-t')).toBe(true);
+    Object.defineProperty(s.card, 'offsetHeight', {
+      get: () => {
+        throw new Error('layout');
+      },
+    });
+    s.intersect([{ target: s.card, isIntersecting: true }]);
+    expect(() => s.flush()).not.toThrow();
+    expect(s.attrs.has(SCRUB_ATTR)).toBe(false);
+    expect(Object.keys(s.handlers)).toEqual([]);
+    expect(s.observed).toEqual([]);
+    expect(s.mq.removeEventListener).toHaveBeenCalledTimes(1);
+    for (const f of [s.sheet, s.card, s.cell, s.bar]) expect(f.props.has('--depth-t')).toBe(false);
+  });
+
+  it('a computed style that throws (a pseudo-element quirk) or a media query that throws: nothing starts', () => {
+    const s = setup();
+    s.win.getComputedStyle = () => {
+      throw new TypeError('pseudo');
+    };
+    attachScrub(s.doc, s.win);
+    expect(s.attrs.has(SCRUB_ATTR)).toBe(false);
+    expect(Object.keys(s.handlers)).toEqual([]);
+    const t = setup();
+    t.win.matchMedia = () => {
+      throw new Error('media');
+    };
+    expect(() => attachScrub(t.doc, t.win)()).not.toThrow();
+    expect(t.attrs.has(SCRUB_ATTR)).toBe(false);
   });
 });

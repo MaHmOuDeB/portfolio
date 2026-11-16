@@ -138,7 +138,20 @@ describe('the scroll fallback below lg', () => {
       ...rules(timed.body).map((r) => gated(r, false)),
     ].filter((r): r is Rule => r !== null);
     const got = rules(fallback.body);
-    expect(got).toEqual(native);
+    // The first rule is the default progress (below); the mirror follows it.
+    expect(got.slice(1)).toEqual(native);
+  });
+
+  it('starts every part at the final state, so a part never takes its progress from a part around it', () => {
+    // --depth-t inherits (a ::before reads its element's value), so each part gets its own 1 until
+    // the script writes one inline.
+    const [first] = rules(fallback.body);
+    expect(first!.media).toEqual([]);
+    expect(first!.decls).toEqual({ '--depth-t': '1' });
+    const inner = new RegExp(`^${GATE.replace(/[[\]]/g, '\\$&')} :is\\((.*)\\)$`).exec(first!.sel)?.[1];
+    expect(inner, first!.sel).toBeDefined();
+    const norm = (list: string) => splitTop(list).map((x) => x.replace(/\s*>\s*/g, '>')).sort();
+    expect(norm(inner!)).toEqual(norm(SCRUB_PARTS));
   });
 
   it('mirrors the unlayered border rules of the ruled row in the same queries', () => {

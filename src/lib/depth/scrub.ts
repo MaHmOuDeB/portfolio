@@ -65,7 +65,12 @@ export type ScrubEl = {
   closest(selector: string): ScrubEl | null;
   style: { setProperty(name: string, value: string): void; removeProperty(name: string): void };
 };
-export type ScrubRoot = ScrubEl & { scrollHeight: number; setAttribute(name: string, value: string): void; removeAttribute(name: string): void };
+export type ScrubRoot = ScrubEl & {
+  clientHeight: number;
+  scrollHeight: number;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
+};
 export type ScrubDoc = { documentElement: ScrubRoot; querySelectorAll(selector: string): Iterable<ScrubEl> };
 type Listener = () => void;
 export type ScrubMedia = { matches: boolean; addEventListener(type: 'change', fn: Listener): void; removeEventListener(type: 'change', fn: Listener): void };
@@ -73,8 +78,10 @@ export type ScrubObserver = { observe(el: ScrubEl): void; disconnect(): void };
 export type ScrubWin = {
   CSS?: { supports(condition: string): boolean };
   matchMedia?: (query: string) => ScrubMedia;
-  getComputedStyle(el: ScrubEl, pseudo: string | null): { animationName: string; getPropertyValue(name: string): string };
-  innerHeight: number;
+  getComputedStyle(
+    el: ScrubEl,
+    pseudo: string | null,
+  ): { animationName: string; animationPlayState: string; getPropertyValue(name: string): string };
   scrollY: number;
   addEventListener(type: 'scroll' | 'resize', fn: Listener, options: { passive: boolean }): void;
   removeEventListener(type: 'scroll' | 'resize', fn: Listener): void;
@@ -85,8 +92,20 @@ export type ScrubWin = {
     options: { rootMargin: string },
   ) => ScrubObserver;
 };
+export type ScrubOptions = {
+  /**
+   * The first attach of a page load: the page has just painted still, so a part whose subject is on
+   * screen keeps its final pose (1) until that subject has left the screen once, instead of jumping
+   * back to a pose part way through its range. A client navigation passes false: its values land
+   * before the new page paints.
+   */
+  pinInView?: boolean;
+};
 
 const noop = () => {};
+
+/** Progress is written in steps of 1/200, so a value that has not moved a step is not written again. */
+const STEPS = 200;
 
 /** The top of an element's layout box in the page, ignoring transforms, as a view timeline does. */
 function pageTop(el: ScrubEl): number {
@@ -99,70 +118,103 @@ function pageTop(el: ScrubEl): number {
  * Starts the fallback where the browser has no scroll timelines, and returns the cleanup. With them
  * (or without CSS.supports or matchMedia) it does nothing at all: no listener, no attribute. Otherwise
  * it follows SCRUB_QUERY: it runs while the query matches and stops when it does not (a wide screen,
- * reduced motion).
+ * reduced motion); a later start pins what is on screen, since the page was still just before. Any
+ * error stops it for good and leaves the final, still state: no gate, no value, no listener. It never
+ * throws, since it runs in the root layout.
  */
-export function attachScrub(doc: ScrubDoc, win: ScrubWin): () => void {
-  if (!win.CSS || win.CSS.supports('animation-timeline: view()') || !win.matchMedia) return noop;
-  const mq = win.matchMedia(SCRUB_QUERY);
+export function attachScrub(doc: ScrubDoc, win: ScrubWin, options: ScrubOptions = {}): () => void {
+  let mq: ScrubMedia | null = null;
   let stop = noop;
-  const sync = () => {
-    stop();
-    stop = mq.matches ? start(doc, win) : noop;
+  let pin = options.pinInView === true;
+  const halt = () => {
+    mq?.removeEventListener('change', sync);
+    const s = stop;
+    stop = noop;
+    try {
+      s();
+    } catch {
+      // Nothing more to undo.
+    }
   };
-  sync();
-  mq.addEventListener('change', sync);
-  return () => {
-    mq.removeEventListener('change', sync);
-    stop();
-  };
+  function sync() {
+    const s = stop;
+    stop = noop;
+    s();
+    if (mq?.matches) stop = start(doc, win, pin, halt);
+    // Any later start comes after a still page.
+    pin = true;
+  }
+  try {
+    if (!win.CSS || win.CSS.supports('animation-timeline: view()') || !win.matchMedia) return noop;
+    mq = win.matchMedia(SCRUB_QUERY);
+    mq.addEventListener('change', sync);
+    sync();
+  } catch {
+    halt();
+    return noop;
+  }
+  return halt;
 }
 
-type Item = { el: ScrubEl; at: ScrubEl; range: string; last?: string };
+type Item = { el: ScrubEl; at: ScrubEl; range: string; last?: string; pinned?: boolean };
 
 /**
- * Sets the gate, finds the elements the mirrored rules animate (on the element or its ::before),
- * then writes each one's progress. One rAF-throttled passive scroll and resize listener; with an
- * IntersectionObserver only the subjects near the viewport are measured, plus one last time as they
- * leave it. Every frame reads all boxes first and writes after, and writes only a changed value.
+ * Sets the gate, finds the elements the mirrored rules scrub (on the element or its ::before: a
+ * paused animation, so not a time-based one that shares a selector), then writes each one's progress.
+ * One rAF-throttled passive scroll and resize listener; with an IntersectionObserver only the subjects
+ * near the viewport are measured, plus one last time as they leave it. Every frame reads all boxes
+ * first and writes after, and writes only a changed value. On an error it undoes itself and calls
+ * `fail`.
  */
-function start(doc: ScrubDoc, win: ScrubWin): () => void {
+function start(doc: ScrubDoc, win: ScrubWin, pin: boolean, fail: () => void): () => void {
   const root = doc.documentElement;
-  root.setAttribute(SCRUB_ATTR, '');
   const items: Item[] = [];
-  for (const el of doc.querySelectorAll(SCRUB_PARTS)) {
-    for (const pseudo of [null, '::before']) {
-      const cs = win.getComputedStyle(el, pseudo);
-      const range = cs.getPropertyValue('--depth-range').trim();
-      const on = cs.getPropertyValue('--depth-on').trim();
-      if (!(range || on) || cs.animationName === 'none') continue;
-      const at = on ? el.closest(on) : el;
-      if (at) items.push({ el, at, range });
-      break;
-    }
-  }
-
   const live = new Set<ScrubEl>();
-  const dirty = new Set<ScrubEl>(items.map((i) => i.at));
+  const dirty = new Set<ScrubEl>();
   let io: ScrubObserver | null = null;
   let raf = 0;
-  const frame = () => {
-    raf = 0;
-    const vh = win.innerHeight;
+  let pinning = pin;
+  let lastY = NaN;
+
+  const draw = () => {
+    // The layout viewport, as a view timeline sees it (not the visual viewport of iOS's toolbars).
+    const vh = root.clientHeight;
     const y = win.scrollY;
     // A view timeline's default inset is the scroll container's scroll padding (on this site, room
     // at the bottom for a focus ring and, where the header is sticky, the header at the top).
     const cs = win.getComputedStyle(root, null);
     const top = parseFloat(cs.getPropertyValue('scroll-padding-top')) || 0;
     const range = vh - top - (parseFloat(cs.getPropertyValue('scroll-padding-bottom')) || 0);
+    // A jump of more than the observer's margin (a quarter of the screen) can carry a subject past
+    // the screen, or onto it, before the observer reports it: measure everything.
+    if (!(Math.abs(y - lastY) <= vh / 4)) for (const it of items) dirty.add(it.at);
+    lastY = y;
     const values: [Item, number][] = [];
     for (const it of items) {
       if (it.at === root) values.push([it, scrollProgress(y, root.scrollHeight, vh)]);
-      else if (!io || live.has(it.at) || dirty.has(it.at)) values.push([it, viewProgress({ top: pageTop(it.at) - y - top, height: it.at.offsetHeight }, range, it.range)]);
+      else if (!io || pinning || it.pinned || live.has(it.at) || dirty.has(it.at)) {
+        // A pinned part is measured every frame until it unpins, so it never waits on the observer.
+        const at = pageTop(it.at) - y;
+        const height = it.at.offsetHeight;
+        const seen = at < vh && at + height > 0;
+        if (pinning && seen) it.pinned = true;
+        else if (!seen) it.pinned = false;
+        values.push([it, it.pinned ? 1 : viewProgress({ top: at - top, height }, range, it.range)]);
+      }
     }
     dirty.clear();
+    pinning = false;
     for (const [it, p] of values) {
-      const v = p.toFixed(4);
+      const v = String(Math.round(p * STEPS) / STEPS);
       if (v !== it.last) it.el.style.setProperty('--depth-t', (it.last = v));
+    }
+  };
+  const frame = () => {
+    raf = 0;
+    try {
+      draw();
+    } catch {
+      fail();
     }
   };
   const schedule = () => {
@@ -172,33 +224,64 @@ function start(doc: ScrubDoc, win: ScrubWin): () => void {
     for (const it of items) dirty.add(it.at);
     schedule();
   };
-
-  const Observer = win.IntersectionObserver;
-  if (Observer) {
-    io = new Observer(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) live.add(e.target);
-          else live.delete(e.target);
-          dirty.add(e.target);
-        }
-        schedule();
-      },
-      { rootMargin: '25% 0px' },
-    );
-    for (const at of new Set(items.map((i) => i.at))) if (at !== root) io.observe(at);
-  }
-
-  // The first values land before the next paint, so nothing shows a wrong pose.
-  frame();
-  win.addEventListener('scroll', schedule, { passive: true });
-  win.addEventListener('resize', resize, { passive: true });
-  return () => {
+  const stop = () => {
     win.removeEventListener('scroll', schedule);
     win.removeEventListener('resize', resize);
     io?.disconnect();
+    io = null;
     if (raf) win.cancelAnimationFrame(raf);
+    raf = 0;
     root.removeAttribute(SCRUB_ATTR);
     for (const it of items) it.el.style.removeProperty('--depth-t');
   };
+
+  try {
+    root.setAttribute(SCRUB_ATTR, '');
+    for (const el of doc.querySelectorAll(SCRUB_PARTS)) {
+      for (const pseudo of [null, '::before']) {
+        const cs = win.getComputedStyle(el, pseudo);
+        const range = cs.getPropertyValue('--depth-range').trim();
+        const on = cs.getPropertyValue('--depth-on').trim();
+        if (!(range || on) || cs.animationName === 'none' || !cs.animationPlayState.includes('paused')) continue;
+        const at = on ? el.closest(on) : el;
+        if (at) items.push({ el, at, range });
+        break;
+      }
+    }
+    for (const it of items) dirty.add(it.at);
+
+    const Observer = win.IntersectionObserver;
+    if (Observer) {
+      io = new Observer(
+        (entries) => {
+          try {
+            for (const e of entries) {
+              if (e.isIntersecting) live.add(e.target);
+              else live.delete(e.target);
+              dirty.add(e.target);
+            }
+            schedule();
+          } catch {
+            fail();
+          }
+        },
+        { rootMargin: '25% 0px' },
+      );
+      for (const at of new Set(items.map((i) => i.at))) if (at !== root) io.observe(at);
+    }
+
+    // The first values land before the next paint, so nothing shows a wrong pose.
+    draw();
+    win.addEventListener('scroll', schedule, { passive: true });
+    win.addEventListener('resize', resize, { passive: true });
+  } catch {
+    try {
+      stop();
+    } catch {
+      // Nothing more to undo.
+    }
+    fail();
+    return noop;
+  }
+  return stop;
 }
