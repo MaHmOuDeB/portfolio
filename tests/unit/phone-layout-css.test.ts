@@ -63,9 +63,11 @@ describe('phone layout', () => {
     expect(PHONE).toMatch(/\[data-home-proof\]\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(PHONE).toMatch(/\[data-proof\]:nth-child\(-n \+ 2\)\s*\{\s*border-top:\s*0;/);
     expect(PHONE).toMatch(/\[data-proof\]:nth-child\(odd\)\s*\{[^}]*padding-left:\s*0;[^}]*border-left:\s*0;/);
-    expect(PHONE).toMatch(/\[data-proof-figure\]\s*\{\s*font-size:\s*var\(--text-2xl\);/);
+    // In a half-width cell the figure may wrap (and break inside a number) instead of overflowing when
+    // the text is enlarged to 200%; at normal size it keeps its line (about 30 px to spare at 320 px).
+    expect(PHONE).toMatch(/\[data-proof-figure\]\s*\{\s*font-size:\s*var\(--text-2xl\);\s*white-space:\s*normal;\s*overflow-wrap:\s*anywhere;/);
     // The phone figure rule comes after the base one, so it wins.
-    expect(css.indexOf('font-size: var(--text-2xl);\n    }\n  }\n\n  [data-proof-unit]')).toBeGreaterThan(css.indexOf('[data-proof-figure] {'));
+    expect(css.indexOf('overflow-wrap: anywhere;\n    }\n  }\n\n  [data-proof-unit]')).toBeGreaterThan(css.indexOf('[data-proof-figure] {'));
   });
 
   it('stacks the experience groups at the column width on a phone, so their rules match', () => {
@@ -75,6 +77,9 @@ describe('phone layout', () => {
   it('compacts the glance card on a phone: each figure beside its label, each fact beside its term', () => {
     expect(PHONE).toMatch(/\[data-glance-points\]\s*\{\s*grid-template-columns:\s*fit-content\(50%\) minmax\(0, 1fr\);/);
     expect(PHONE).toMatch(/\[data-glance-point\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*subgrid;/);
+    // Beside its figure a label has less than the card's width: with enlarged text a long word
+    // ("recommendations") breaks rather than running past the screen.
+    expect(PHONE).toMatch(/\[data-glance-label\]\s*\{\s*margin-top:\s*0;\s*overflow-wrap:\s*break-word;/);
     // A fact is a wrapping row, not a fixed grid: a value with a long unbreakable word (n8n's
     // "Structural/arithmetic/master-data") drops under its term instead of overflowing a 320 px screen.
     expect(PHONE).toMatch(/\[data-glance-facts\] > div\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);

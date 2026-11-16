@@ -1,5 +1,6 @@
 // The ink footer: the wordmark, the site's line in two tones, three link columns (Site, Contact,
-// Legal) in one nav named "Footer", three across at every width. On a phone it follows the page's last
+// Legal) in one nav named "Footer": three across from md, and under md as many as fit columns of at
+// least 4.5rem (three at normal text size, fewer when the text is enlarged). On a phone it follows the page's last
 // block with no margin of its own (the page's closing space is enough); from md it keeps 80 px. The column titles are plain text that
 // labels its list, not headings, so the page outline never gains a second "Contact". Visible labels only; the contact form and LinkedIn are the
 // contact routes, and there is no e-mail address. Every link is a 44 px target both ways, however short its label.
@@ -61,7 +62,7 @@ export function Footer() {
             {HEADLINE.lead} <span className="text-on-ink-muted">{HEADLINE.quiet}</span>
           </p>
         </div>
-        <nav aria-label="Footer" className="col-span-2 grid grid-cols-3 gap-x-4 gap-y-10 md:col-span-3 md:gap-x-8">
+        <nav aria-label="Footer" className="col-span-2 grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-x-4 gap-y-10 md:col-span-3 md:grid-cols-3 md:gap-x-8">
           {COLUMNS.map((col) => {
             const id = `footer-${col.heading.toLowerCase()}`;
             return (

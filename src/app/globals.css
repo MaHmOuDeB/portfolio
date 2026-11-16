@@ -2240,10 +2240,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     white-space: nowrap;
   }
 
-  /* In the phone's two columns the figure is one step smaller, so it keeps its line. */
+  /* In the phone's two columns the figure is one step smaller, so it keeps its line (about 30 px to
+     spare at 320 px). A half-width cell cannot hold it once the text is enlarged to 200%, so there it
+     may wrap, and break inside a number, rather than run past the screen edge. */
   @media (width < 40rem) {
     [data-proof-figure] {
       font-size: var(--text-2xl);
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
   }
 
@@ -2852,8 +2856,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       padding-block: calc(var(--spacing) * 3);
     }
 
+    /* Beside its figure a label is narrower than the card: with enlarged text a long word breaks
+       rather than running past the screen (at normal size every label fits whole). */
     [data-glance-label] {
       margin-top: 0;
+      overflow-wrap: break-word;
     }
 
     [data-glance-facts] {

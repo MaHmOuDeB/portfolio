@@ -62,9 +62,14 @@ describe('Footer', () => {
     expect(cls).not.toContain('mt-20');
   });
 
-  it('sets the three link columns side by side at every width, with a narrower gap under md', () => {
+  it('sets the three link columns side by side, as many as the text size allows under md, three from md', () => {
     const cls = /<nav aria-label="Footer" class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
-    expect(cls).toEqual(expect.arrayContaining(['grid', 'grid-cols-3', 'gap-x-4', 'md:gap-x-8', 'md:col-span-3']));
+    // Under md each column is at least 4.5rem (the widest label is about 3.7rem), so normal text gets
+    // three columns at 320 px and text enlarged to 200% falls back to one, never past the screen edge.
+    expect(cls).toEqual(
+      expect.arrayContaining(['grid', 'grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))]', 'gap-x-4', 'md:grid-cols-3', 'md:gap-x-8', 'md:col-span-3']),
+    );
+    expect(cls).not.toContain('grid-cols-3');
     expect(cls).not.toContain('grid-cols-2');
     expect(cls).not.toContain('gap-x-8');
   });
