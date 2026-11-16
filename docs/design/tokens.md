@@ -202,8 +202,16 @@ follows the tokens. Under `prefers-reduced-motion: reduce`, every duration is 0 
 Motion follows the reader (scroll position or a fine pointer) or plays once on load. Nothing
 loops. The CSS is in `globals.css`, keyed on data attributes, so a component only adds the
 attribute. Scroll-linked rules use `animation-timeline` with linear timing and sit inside
-`@supports`; without scroll timelines, under reduced motion and in print every element is visible
-and untransformed. Only transform, opacity and clip-path change. Keyframes are named `depth-*`.
+`@supports`; under reduced motion and in print every element is visible and untransformed. A
+browser without scroll timelines gets the still page from lg up; below lg it gets the same motion
+from the scroll fallback (`[data-depth-fallback]` below). Only transform, opacity and clip-path
+change. Keyframes are named `depth-*`.
+
+Below lg the families run without sideways travel (so a 320 px page never scrolls sideways), as
+deep as on a wide screen, and over longer ranges: a drift until its block is fully in view, a card's
+lid until the sketch reaches the middle of the screen. The band's sheets fan out further (a 30°
+tilt, turns of up to 8°) and settle into the column as the stack enters. The glance card's lid on
+load is shallower than on a wide screen (12°), since the card is tall.
 Every fade-in is fully opaque by the middle of its range while the movement runs on to the end,
 so a block whose painted box is already in view is never part-faded.
 
@@ -226,6 +234,7 @@ so a block whose painted box is already in view is never part-faded.
 - `[data-depth-glow]`: A soft disc on the ink sheet that follows a fine pointer. No keyframes.
 - `[data-depth-lean]` (`--rx`, `--ry`, `--gx`, `--gy`): A card leans toward a fine pointer, with a sheen; springs back. On hover it also rises 4 px (see the clickable card in Interaction states). Keyframes: transition.
 - `[data-depth-magnet]` (`--tx`, `--ty`): A button shifts up to 6 px toward a fine pointer. Keyframes: transition.
+- `[data-depth-fallback]` (on the root, `--depth-t`, `--depth-range`, `--depth-on`): The scroll fallback below lg, for a browser without scroll timelines (Safari before 26). Lean (`src/lib/depth/scrub.ts`) sets the gate only there, with motion allowed, and writes each animated element's progress through its range (`--depth-t`, 0 to 1) from one rAF-throttled scroll listener, measuring only what is near the viewport. A block of rules mirrors every scroll-linked rule a phone gets, with the same keyframes, paused, 1s long and started `--depth-t` seconds in; each names its range (`--depth-range`, the native `animation-range` word for word) and, for a timeline that is not its own view, the element that holds it (`--depth-on`). A unit test keeps the mirror rule for rule. The ribbon stays wrapped and still there. Keyframes: the families' own.
 - `[data-tile]`, `[data-tile="ink"]`: A white tile with a hairline and an ink tile (`radius-xl`, padding). Not motion.
 
 ## Base styles in `tokens.css`

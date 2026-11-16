@@ -3,11 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Motion below lg (phones and tablets): the Home band's sheets fan out and settle into the static
-// column on the stack's own view timeline; Drift, Hinge (the on-load lid too) and Trace run at
-// smaller amplitudes; a touch press sinks a clickable card or button a little. All of it only where
-// scroll timelines exist and motion is allowed, on screens. Every entrance ends on the static layout
-// and fills backwards only, so reduced motion, print and browsers without scroll timelines keep the
-// still page, and the end state is exactly it. The desktop blocks are pinned by their own tests.
+// column on the stack's own view timeline; Drift, Hinge and Trace run without sideways travel, as
+// deep as on a wide screen, over longer ranges, so a move is still under way as its block reaches the
+// middle of the screen; the on-load lid and portrait run on time; a touch press sinks a clickable card
+// or button a little. The scroll-linked part only where scroll timelines exist (a browser without
+// them gets it from the fallback, tests/unit/depth/scrub-css.test.ts) and motion is allowed, on
+// screens. Every entrance ends on the static layout and fills backwards only, so reduced motion and
+// print keep the still page, and the end state is exactly it. The desktop blocks are pinned by their
+// own tests.
 const css = readFileSync(join(import.meta.dirname, '../../../src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** The body of the first block that starts with `head` at or after `from` (balanced braces). */
@@ -32,6 +35,18 @@ const narrow = (() => {
   expect(supports).toBeGreaterThan(-1);
   expect(css.slice(supports, at).replace(/@supports \(animation-timeline: view\(\)\)\s*\{\s*/, '')).toBe('');
   return block(NARROW);
+})();
+/** The on-load lid and portrait: the same query, after the scroll-linked block, outside any support check. */
+const timed = (() => {
+  let at = css.indexOf(NARROW);
+  for (; at > -1; at = css.indexOf(NARROW, at + 1)) {
+    const b = block(NARROW, at);
+    if (b.includes('[data-depth-drift="tl"]') && !b.includes('data-depth-fallback')) {
+      expect(css.slice(css.lastIndexOf('}', at), at).trim(), 'a top-level block').toBe('}');
+      return b;
+    }
+  }
+  throw new Error('the on-load block below lg');
 })();
 const still = block('@media (prefers-reduced-motion: reduce), print');
 const PRESS = '@media (hover: none) and (width < 64rem) and (prefers-reduced-motion: no-preference)';
@@ -117,30 +132,45 @@ describe('the fan of the band below lg', () => {
 });
 
 describe('Drift, Hinge and Trace below lg', () => {
-  it('drifts from the same corners at smaller amplitudes, never sideways, by transform only', () => {
+  it('drifts from the same corners, as far down and as deep as on a wide screen but never sideways, by transform only', () => {
     for (const [corner, wide] of [['bl', 'bl'], ['br', 'br'], ['tr', 'tr'], ['tl', 'tl']] as const) {
-      const small = fromTransform(`depth-drift-${corner}-narrow`);
-      const big = fromTransform(`depth-drift-${wide}`);
-      expect(small.translate3d![0], corner).toBe(0);
-      expect(Math.abs(small.translate3d![1]!)).toBeLessThan(Math.abs(big.translate3d![1]!));
-      expect(small.translate3d![2]).toBeLessThan(0);
-      expect(Math.abs(small.translate3d![2]!)).toBeLessThan(Math.abs(big.translate3d![2]!));
-      if (big.rotateY) expect(Math.abs(small.rotateY![0]!)).toBeLessThan(Math.abs(big.rotateY[0]!));
+      const narrowFrom = fromTransform(`depth-drift-${corner}-narrow`);
+      const wideFrom = fromTransform(`depth-drift-${wide}`);
+      expect(narrowFrom.translate3d![0], corner).toBe(0);
+      // The same travel, depth and turn as the wide screen's drift, never more.
+      expect(narrowFrom.translate3d![1], corner).toBe(wideFrom.translate3d![1]);
+      expect(narrowFrom.translate3d![2], corner).toBe(wideFrom.translate3d![2]);
+      expect(narrowFrom.translate3d![2]).toBeLessThan(0);
+      if (wideFrom.rotateY) expect(narrowFrom.rotateY![0], corner).toBe(wideFrom.rotateY[0]);
+      else expect(narrowFrom.rotateY, corner).toBeUndefined();
       expect(block(`@keyframes depth-drift-${corner}-narrow {`)).not.toContain('opacity');
     }
     expect(narrow).toMatch(/\[data-depth-drift\]\s*\{[^}]*transform-origin:\s*0% 100%[^}]*animation:\s*depth-drift-bl-narrow linear backwards[^}]*animation-timeline:\s*view\(\)/);
     expect(narrow).toMatch(/\[data-depth-drift="br"\]\s*\{[^}]*animation-name:\s*depth-drift-br-narrow/);
     expect(narrow).toMatch(/\[data-depth-drift="tr"\]\s*\{[^}]*animation-name:\s*depth-drift-tr-narrow/);
-    expect(narrow).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*animation:\s*depth-drift-tl-narrow var\(--duration-arrive\) var\(--ease-standard\) backwards/);
+    expect(timed).toMatch(/\[data-depth-drift="tl"\]\s*\{[^}]*transform-origin:\s*0% 0%[^}]*animation:\s*depth-drift-tl-narrow var\(--duration-arrive\) var\(--ease-standard\) backwards[^}]*animation-delay:\s*180ms/);
+    expect(narrow).not.toContain('[data-depth-drift="tl"]');
   });
 
-  it('lifts the card lid and the glance card from shallower angles', () => {
-    expect(fromTransform('depth-hinge-narrow').rotateX![0]).toBeLessThan(fromTransform('depth-hinge').rotateX![0]!);
-    expect(fromTransform('depth-hinge-load-narrow').rotateX![0]).toBeLessThan(fromTransform('depth-hinge-load').rotateX![0]!);
-    expect(narrow).toMatch(/\[data-depth-lean\] \[data-depth-hinge\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge-narrow linear backwards/);
+  it('runs each scroll-linked entrance until its block is fully in, and the card lids on to mid-screen', () => {
+    expect(narrow).toMatch(/\[data-depth-drift\]\s*\{[^}]*animation-range:\s*entry 0% entry 100%;/);
+    expect(narrow).toMatch(/\[data-depth-drift="tr"\]\s*\{[^}]*animation-range:\s*entry 10% entry 100%;/);
+    expect(narrow).toMatch(/\[data-depth-lean\] \[data-depth-hinge\]\s*\{[^}]*animation-range:\s*entry 0% cover 40%;/);
+    expect(narrow).toMatch(/\[data-depth-drift\] \[data-depth-hinge\]\s*\{\s*animation-range:\s*entry 40% cover 40%;\s*\}/);
+  });
+
+  it('lifts the card lid as on a wide screen, and the tall glance card from a shallower angle, on load', () => {
+    // The card lid is the wide screen's own hinge: no narrow copy of it.
+    expect(css).not.toContain('@keyframes depth-hinge-narrow');
+    expect(narrow).toMatch(/\[data-depth-lean\] \[data-depth-hinge\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge linear backwards/);
     expect(narrow).toMatch(/\[data-depth-lean\] > \[data-vignette\]:has\(> \[data-depth-hinge\]\)\s*\{\s*perspective:\s*87\.5rem;\s*\}/);
-    expect(narrow).toMatch(/\[data-depth-hinge="load"\]\s*\{[^}]*animation:\s*depth-hinge-load-narrow var\(--duration-arrive\) var\(--ease-standard\) backwards[^}]*animation-delay:\s*180ms/);
-    const delays = [...narrow.matchAll(/\[data-glance-facts\] > div(?::nth-child\(\d\))?\s*\{[^}]*animation-delay:\s*(\d+)ms/g)].map((m) => Number(m[1]));
+    const glance = fromTransform('depth-hinge-load-narrow');
+    expect(glance.rotateX![0]).toBeLessThan(fromTransform('depth-hinge-load').rotateX![0]!);
+    expect(glance.rotateX![0]).toBeGreaterThan(8);
+    expect(glance.translateZ![0]).toBeLessThan(0);
+    expect(narrow).not.toContain('[data-depth-hinge="load"]');
+    expect(timed).toMatch(/\[data-depth-hinge="load"\]\s*\{[^}]*transform-origin:\s*50% 100%[^}]*animation:\s*depth-hinge-load-narrow var\(--duration-arrive\) var\(--ease-standard\) backwards[^}]*animation-delay:\s*180ms/);
+    const delays = [...timed.matchAll(/\[data-glance-facts\] > div(?::nth-child\(\d\))?\s*\{[^}]*animation-delay:\s*(\d+)ms/g)].map((m) => Number(m[1]));
     expect(delays).toEqual([360, 420, 480, 540, 600]);
   });
 
@@ -164,12 +194,15 @@ describe('Drift, Hinge and Trace below lg', () => {
   });
 
   it('jumps to the final layout when a control inside has focus', () => {
-    expect(narrow).toMatch(/\[data-depth-drift\]:focus-within,\s*\[data-depth-hinge\]:focus-within,\s*\[data-depth-hinge="load"\]:focus-within \[data-glance-facts\] > div,\s*\[data-depth-trace\]:focus-within::before,\s*\[data-depth-trace\]:focus-within > \*::before\s*\{\s*animation:\s*none;\s*\}/);
+    expect(narrow).toMatch(/\[data-depth-drift\]:focus-within,\s*\[data-depth-hinge\]:focus-within,\s*\[data-depth-trace\]:focus-within::before,\s*\[data-depth-trace\]:focus-within > \*::before\s*\{\s*animation:\s*none;\s*\}/);
+    expect(timed).toMatch(/\[data-depth-drift="tl"\]:focus-within,\s*\[data-depth-hinge="load"\]:focus-within,\s*\[data-depth-hinge="load"\]:focus-within \[data-glance-facts\] > div\s*\{\s*animation:\s*none;\s*\}/);
   });
 
   it('never fills forwards, pins nothing and moves nothing sideways', () => {
-    for (const m of narrow.matchAll(/animation:\s*depth-[a-z0-9-]+ (?:linear|var\([^)]*\) var\([^)]*\)) (\w+)/g)) expect(m[1]).toBe('backwards');
-    expect(narrow).not.toMatch(/sticky|position:\s*fixed|translateX|translate:/);
+    for (const b of [narrow, timed]) {
+      for (const m of b.matchAll(/animation:\s*depth-[a-z0-9-]+ (?:linear|var\([^)]*\) var\([^)]*\)) (\w+)/g)) expect(m[1]).toBe('backwards');
+      expect(b).not.toMatch(/sticky|position:\s*fixed|translateX|translate:/);
+    }
   });
 
   it('stops every one of them under reduced motion and in print', () => {

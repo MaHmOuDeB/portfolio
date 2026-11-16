@@ -46,6 +46,7 @@ const SET_BY_PAGES: Record<string, string> = {
   'data-depth-turn': 'the site-test sketch on Home, which turns in on its centre',
   'data-depth-trace': 'a ruled container a page marks; its rules and dots draw in',
   'data-proof-unit': 'a word around a proof figure\'s number (about, min), which the page passes inside the figure',
+  'data-depth-fallback': 'the scroll fallback\'s gate on the root, set by Lean (src/lib/depth/scrub.ts), never rendered',
 };
 // Rendered parts with no rule of their own. Empty on purpose: add an entry only with a reason.
 const UNSTYLED: Record<string, string> = {};
