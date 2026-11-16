@@ -61,6 +61,13 @@
   body {
     background: var(--color-bg);
     color: var(--color-ink);
+
+    /*
+     * A word that cannot fit its line breaks instead of passing the screen's edge, so enlarged text
+     * never scrolls the page sideways. Unlike "anywhere" it leaves every minimum width alone: text
+     * that fits is laid out exactly as before.
+     */
+    overflow-wrap: break-word;
   }
 
   /*
@@ -2884,6 +2891,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-glance-facts] dd {
       flex: 1 1 12rem;
+      min-width: 0;
       margin-top: 0;
     }
   }

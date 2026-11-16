@@ -4,7 +4,7 @@ import { Months, type MonthRange } from './Months';
 
 export function TimelineRow({ range, role, where }: { range: MonthRange; role: string; where: string }): ReactNode {
   return (
-    <li className="grid gap-x-8 gap-y-1 border-t border-hairline py-4 md:grid-cols-[12rem_1fr]">
+    <li className="grid grid-cols-1 gap-x-8 gap-y-1 border-t border-hairline py-4 md:grid-cols-[12rem_1fr]">
       <p data-timeline-dates="" className="text-sm text-muted">
         <Months range={range} />
       </p>

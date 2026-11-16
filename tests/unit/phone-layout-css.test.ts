@@ -84,7 +84,7 @@ describe('phone layout', () => {
     // "Structural/arithmetic/master-data") drops under its term instead of overflowing a 320 px screen.
     expect(PHONE).toMatch(/\[data-glance-facts\] > div\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(PHONE).toMatch(/\[data-glance-facts\] dt\s*\{\s*flex:\s*0 0 80px;/);
-    expect(PHONE).toMatch(/\[data-glance-facts\] dd\s*\{\s*flex:\s*1 1 12rem;\s*margin-top:\s*0;/);
+    expect(PHONE).toMatch(/\[data-glance-facts\] dd\s*\{\s*flex:\s*1 1 12rem;\s*min-width:\s*0;\s*margin-top:\s*0;/);
     expect(PHONE).not.toMatch(/grid-template-columns:\s*80px/);
   });
 
@@ -98,5 +98,31 @@ describe('phone layout', () => {
   it('keeps a card title its --title-lines lines from lg only', () => {
     expect(css).toMatch(/@media \(width >= 64rem\)\s*\{\s*\[data-depth-lean\] h3\[data-title-lines\]\s*\{\s*min-height:\s*calc\(var\(--title-lines\) \* 1lh\);/);
     expect(css.split('[data-title-lines]')).toHaveLength(2);
+  });
+});
+
+// Text enlarged to 200% at 320 px: a word that cannot fit its line breaks, so the page never scrolls
+// sideways (1.4.4 and 1.4.10). Each rule only bites when a token cannot fit; text at its normal size
+// is laid out as before.
+describe('reflow with enlarged text', () => {
+  const read = (file: string) => readFileSync(join(__dirname, '..', '..', file), 'utf8');
+
+  it('lets a long word break anywhere in the page, without changing any minimum width', () => {
+    expect(blocks('@layer base {')).toMatch(/\bbody\s*\{[^}]*overflow-wrap:\s*break-word;/);
+  });
+
+  it('lets a glance fact shrink below its longest word, so the value breaks instead of overflowing', () => {
+    expect(PHONE).toMatch(/\[data-glance-facts\] dd\s*\{\s*flex:\s*1 1 12rem;\s*min-width:\s*0;/);
+  });
+
+  it('gives the timeline row and the CV skills list one shrinkable column below md', () => {
+    expect(read('src/components/about/TimelineRow.tsx')).toMatch(/className="grid grid-cols-1 [^"]*md:grid-cols-\[12rem_1fr\]"/);
+    expect(read('src/components/about/CvPage.tsx')).toMatch(/className="grid grid-cols-1 [^"]*md:grid-cols-\[11rem_1fr\]"/);
+  });
+
+  it('lets a planner readout number shrink to its column and break', () => {
+    const source = read('src/components/lab/FullPlannerView.tsx');
+    expect(source).toMatch(/className="inline-block min-w-\[min\(6ch,calc\(100vw-2rem\)\)\] wrap-anywhere"/);
+    expect(source).not.toContain('min-w-[6ch]');
   });
 });
