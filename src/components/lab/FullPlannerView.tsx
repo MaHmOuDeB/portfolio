@@ -77,13 +77,14 @@ function ResultBadge({ context }: { context: PlannerContext }) {
 
 /**
  * A large number and its unit. The number keeps room for the widest result the inputs allow, so
- * nothing beside or under it moves while it changes.
+ * nothing beside or under it moves while it changes. With text enlarged that room can pass the screen,
+ * so it is capped at the page's width (the page padding is 1rem a side) and the number then breaks.
  */
 function Readout({ value, unit, mark }: { value: number; unit: string; mark: 'data-planner-n' | 'data-duration-weeks' }) {
   return (
     <div data-planner-readout="">
       <p className="text-3xl font-semibold">
-        <data {...{ [mark]: '' }} data-num="" value={value} className="inline-block min-w-[6ch]" {...SIMULATED}>
+        <data {...{ [mark]: '' }} data-num="" value={value} className="inline-block min-w-[min(6ch,calc(100vw-2rem))] wrap-anywhere" {...SIMULATED}>
           {formatNumber(value, 0)}
         </data>
       </p>

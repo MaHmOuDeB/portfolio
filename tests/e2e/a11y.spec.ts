@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { SEO_PAGES } from '../../content/seo.ts';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
 import { markSlow } from './slow';
@@ -214,20 +215,22 @@ for (const route of routes) {
   });
 }
 
-// Home holds the depth components (the evidence field, the proof figures) that the kitchen sink shows.
-for (const route of ['/', '/privacy', '/missing-a11y-page', '/kitchen-sink']) {
-  test(`accessibility ${route} reflows at 320 CSS px with enlarged root text`, async ({ page }) => {
+// Every page in the sitemap, a 404 and the kitchen sink (it holds the depth components that Home shows).
+// Both 150% and 200% root text: a word that cannot fit must break, never scroll the page sideways.
+const REFLOW_ROUTES = [...SEO_PAGES.map((entry) => entry.path), '/missing-a11y-page', '/kitchen-sink'];
+for (const route of REFLOW_ROUTES) for (const scale of [1.5, 2]) {
+  test(`accessibility ${route} reflows at 320 CSS px with root text at ${scale * 100}%`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(route);
-    if (route === '/kitchen-sink' || route === '/') await waitForIslands(page);
-    const [before, after] = await page.evaluate(async () => {
+    if (route !== '/missing-a11y-page') await waitForIslands(page);
+    const [before, after] = await page.evaluate(async (factor) => {
       const root = document.documentElement;
       const initial = Number.parseFloat(getComputedStyle(root).fontSize);
-      root.style.setProperty('font-size', '200%', 'important');
+      root.style.setProperty('font-size', `${factor * 100}%`, 'important');
       await document.fonts.ready;
       return [initial, Number.parseFloat(getComputedStyle(root).fontSize)];
-    });
-    expect(after).toBeCloseTo(before * 2);
+    }, scale);
+    expect(after).toBeCloseTo(before * scale);
     const overflow = () => page.evaluate(() => {
       const root = document.documentElement;
       return root.scrollWidth - root.clientWidth;

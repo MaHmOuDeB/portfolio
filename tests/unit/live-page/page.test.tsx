@@ -249,7 +249,11 @@ describe('the first screen', () => {
     const card = all(h).find((el) => attr(el, 'data-live-status') !== undefined)!;
     const cells = elements(card).filter((el) => attr(el, 'data-status-cell') !== undefined);
     expect(cells.length).toBeGreaterThanOrEqual(1);
-    expect(attr(elements(card).find((el) => attr(el, 'data-status-cells') !== undefined)!, 'data-count')).toBe(String(cells.length));
+    const grid = elements(card).find((el) => attr(el, 'data-status-cells') !== undefined)!;
+    expect(attr(grid, 'data-count')).toBe(String(cells.length));
+    // One shrinkable track under md: with text at 200% on a 320 px screen a long word breaks instead
+    // of widening the card past the screen (an implicit auto track grows to the longest word).
+    expect(attr(grid, 'class')!.split(/\s+/)).toContain('grid-cols-1');
     for (const cell of cells) {
       const dt = elements(cell).filter((el) => el.tagName === 'dt');
       const dd = elements(cell).filter((el) => el.tagName === 'dd');

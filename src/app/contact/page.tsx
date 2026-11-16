@@ -32,7 +32,7 @@ export default async function ContactPage({ searchParams }: PageProps<'/contact'
         quiet="I reply by e-mail."
         intro={<p>Tell me who you are and what the role or question is.</p>}
       />
-      <div className="grid gap-6 pb-12 md:pb-16 lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="grid grid-cols-1 gap-6 pb-12 md:pb-16 lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
         <div
           data-contact-card=""
           className="max-w-[40rem] rounded-xl border border-hairline bg-surface p-5 md:p-8 [&>*:first-child]:mt-0 [&>form:first-child]:mt-0"

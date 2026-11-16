@@ -190,7 +190,7 @@ export function StatusCard({ d }: { d: LivePageDisplay }) {
       </h2>
       <Track d={d} />
       <div id="where-it-stands" className="mt-6">
-        <dl data-status-cells="" data-count={cells} className={`grid gap-6 md:gap-8 ${COLUMNS[cells]}`}>
+        <dl data-status-cells="" data-count={cells} className={`grid grid-cols-1 gap-6 md:gap-8 ${COLUMNS[cells]}`}>
           <div data-status-cell="state">
             <dt className={LABEL}>Status</dt>
             <dd data-status-words="" className={VALUE}>

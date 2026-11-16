@@ -61,6 +61,13 @@
   body {
     background: var(--color-bg);
     color: var(--color-ink);
+
+    /*
+     * A word that cannot fit its line breaks instead of passing the screen's edge, so enlarged text
+     * never scrolls the page sideways. Unlike "anywhere" it leaves every minimum width alone: text
+     * that fits is laid out exactly as before.
+     */
+    overflow-wrap: break-word;
   }
 
   /*
@@ -1483,13 +1490,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
-/* The same families on a narrow screen (below lg), at smaller amplitudes. Nothing travels sideways:
-   each drift recedes toward its corner (its transform origin, where its own perspective puts the
-   vanishing point) and every depth is negative, so a block only ever shrinks toward that corner and
-   never reaches past its own resting box, which keeps a 320 px page from scrolling sideways. */
+/* The same families on a narrow screen (below lg), as deep and as far as on a wide screen but never
+   sideways: each drift recedes toward its corner (its transform origin, where its own perspective
+   puts the vanishing point) and every depth is negative, so a block only ever shrinks toward that
+   corner and never reaches past its own resting box, which keeps a 320 px page from scrolling
+   sideways. The card lid uses the wide screen's own hinge. */
 @keyframes depth-drift-bl-narrow {
   0% {
-    transform: perspective(87.5rem) translate3d(0, 40px, -140px) rotateY(5deg);
+    transform: perspective(87.5rem) translate3d(0, 72px, -260px) rotateY(8deg);
   }
 
   100% {
@@ -1499,7 +1507,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-drift-br-narrow {
   0% {
-    transform: perspective(87.5rem) translate3d(0, 40px, -140px) rotateY(-5deg);
+    transform: perspective(87.5rem) translate3d(0, 72px, -260px) rotateY(-8deg);
   }
 
   100% {
@@ -1509,7 +1517,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-drift-tr-narrow {
   0% {
-    transform: perspective(87.5rem) translate3d(0, -20px, -120px) rotateY(-5deg);
+    transform: perspective(87.5rem) translate3d(0, -32px, -200px) rotateY(-8deg);
   }
 
   100% {
@@ -1519,17 +1527,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-drift-tl-narrow {
   from {
-    transform: perspective(87.5rem) translate3d(0, -16px, -120px);
-  }
-
-  to {
-    transform: none;
-  }
-}
-
-@keyframes depth-hinge-narrow {
-  from {
-    transform: rotateX(48deg);
+    transform: perspective(87.5rem) translate3d(0, -32px, -200px);
   }
 
   to {
@@ -1540,7 +1538,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 /* A phone's glance card is tall, so the same angle would move its top much further: a shallower lid. */
 @keyframes depth-hinge-load-narrow {
   from {
-    transform: perspective(87.5rem) rotateX(8deg) translateZ(-32px);
+    transform: perspective(87.5rem) rotateX(12deg) translateZ(-48px);
   }
 
   to {
@@ -1554,11 +1552,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    rig keeps its one 3D context, so the sheets are sorted by depth: the tilt brings each sheet's
    lower edge forward, and the depths are far enough apart that a sheet's lower edge is always in
    front of the top of the sheet under it. Every corner stays behind the screen plane, so a sheet
-   only shrinks toward its own centre and its turn widens it by under 11 px a side, inside the
-   16 px page gutter. */
+   only shrinks toward its own centre, and the turns are small enough that no corner passes the
+   screen's edge at 320 px, even with the text at 200% (the front sheet's turn is held to 6.5deg
+   for that: at 8deg its corner passed the edge by 3 px). */
 @keyframes depth-fan-1 {
   from {
-    transform: perspective(62.5rem) translate3d(0, 96px, -40px) rotateX(18deg) rotateZ(-5deg);
+    transform: perspective(62.5rem) translate3d(0, 112px, -72px) rotateX(30deg) rotateZ(-6.5deg);
   }
 
   to {
@@ -1568,7 +1567,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-fan-2 {
   from {
-    transform: perspective(62.5rem) translate3d(0, 0, -110px) rotateX(18deg) rotateZ(2.5deg);
+    transform: perspective(62.5rem) translate3d(0, 0, -160px) rotateX(30deg) rotateZ(4deg);
   }
 
   to {
@@ -1578,7 +1577,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 @keyframes depth-fan-3 {
   from {
-    transform: perspective(62.5rem) translate3d(0, -96px, -180px) rotateX(18deg) rotateZ(-1.5deg);
+    transform: perspective(62.5rem) translate3d(0, -112px, -250px) rotateX(30deg) rotateZ(-2.5deg);
   }
 
   to {
@@ -2884,6 +2883,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
     [data-glance-facts] dd {
       flex: 1 1 12rem;
+      min-width: 0;
       margin-top: 0;
     }
   }
@@ -3321,10 +3321,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /* Below lg, where scroll timelines exist and motion is allowed: the band's fan, and Drift, Hinge
-   (the on-load lid too) and Trace at narrow-screen amplitudes. Every entrance ends on the static
-   layout above and fills backwards only, so once it is over nothing applies and the page is exactly
-   the still one. Nothing is pinned and nothing moves sideways. Browsers without scroll timelines,
-   reduced motion and print keep the still layout. */
+   and Trace without sideways travel. Every entrance ends on the static layout above and fills
+   backwards only, so once it is over nothing applies and the page is exactly the still one. Nothing
+   is pinned and nothing moves sideways. The ranges run longer than on a wide screen, so a move is
+   still under way as its block reaches the middle of a phone's screen. Reduced motion and print keep
+   the still layout; a browser without scroll timelines gets these same rules from the fallback
+   further down. The on-load lid and portrait need no timeline and follow this block. */
 @supports (animation-timeline: view()) {
   @media screen and (width < 64rem) and (prefers-reduced-motion: no-preference) {
     @layer components {
@@ -3354,7 +3356,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         transform-origin: 0% 100%;
         animation: depth-drift-bl-narrow linear backwards;
         animation-timeline: view();
-        animation-range: entry 0% entry 85%;
+        animation-range: entry 0% entry 100%;
       }
 
       [data-depth-drift="br"] {
@@ -3365,13 +3367,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       [data-depth-drift="tr"] {
         transform-origin: 100% 0%;
         animation-name: depth-drift-tr-narrow;
-        animation-range: entry 10% entry 90%;
-      }
-
-      [data-depth-drift="tl"] {
-        transform-origin: 0% 0%;
-        animation: depth-drift-tl-narrow var(--duration-arrive) var(--ease-standard) backwards;
-        animation-delay: 180ms;
+        animation-range: entry 10% entry 100%;
       }
 
       [data-depth-lean] > [data-vignette]:has(> [data-depth-hinge]) {
@@ -3380,42 +3376,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
       [data-depth-lean] [data-depth-hinge] {
         transform-origin: 50% 100%;
-        animation: depth-hinge-narrow linear backwards;
+        animation: depth-hinge linear backwards;
         animation-timeline: view();
-        animation-range: entry 30% entry 100%;
+        animation-range: entry 0% cover 40%;
       }
 
       /* In a drifting card the lid follows its card. */
       [data-depth-drift] [data-depth-hinge] {
-        animation-range: entry 40% contain 10%;
-      }
-
-      /* The glance card lifts once on load, then its facts settle in turn. */
-      [data-depth-hinge="load"] {
-        transform-origin: 50% 100%;
-        animation: depth-hinge-load-narrow var(--duration-arrive) var(--ease-standard) backwards;
-        animation-delay: 180ms;
-      }
-
-      [data-depth-hinge="load"] [data-glance-facts] > div {
-        animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
-        animation-delay: 360ms;
-      }
-
-      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
-        animation-delay: 420ms;
-      }
-
-      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
-        animation-delay: 480ms;
-      }
-
-      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
-        animation-delay: 540ms;
-      }
-
-      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(5) {
-        animation-delay: 600ms;
+        animation-range: entry 40% cover 40%;
       }
 
       /* Trace. The About spine and its dots run as on a wide screen. A group's rule under its label
@@ -3518,7 +3486,6 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
       [data-depth-drift]:focus-within,
       [data-depth-hinge]:focus-within,
-      [data-depth-hinge="load"]:focus-within [data-glance-facts] > div,
       [data-depth-trace]:focus-within::before,
       [data-depth-trace]:focus-within > *::before {
         animation: none;
@@ -3541,6 +3508,350 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     [data-depth-trace="row"] > li + li {
       border-left-color: transparent;
     }
+  }
+}
+
+/* On load below lg, with motion allowed: About's portrait comes in from its top left, and a case
+   study's glance card lifts, then its facts settle in turn. They run on time, not on a scroll
+   timeline, so every browser that allows motion plays them, and they follow the narrow block above
+   (a portrait is also a drift). */
+@media screen and (width < 64rem) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    [data-depth-drift="tl"] {
+      transform-origin: 0% 0%;
+      animation: depth-drift-tl-narrow var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    [data-depth-hinge="load"] {
+      transform-origin: 50% 100%;
+      animation: depth-hinge-load-narrow var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div {
+      animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 360ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
+      animation-delay: 420ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
+      animation-delay: 480ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
+      animation-delay: 540ms;
+    }
+
+    [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(5) {
+      animation-delay: 600ms;
+    }
+
+    /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
+    [data-depth-drift="tl"]:focus-within,
+    [data-depth-hinge="load"]:focus-within,
+    [data-depth-hinge="load"]:focus-within [data-glance-facts] > div {
+      animation: none;
+    }
+  }
+}
+
+/* The scroll fallback below lg. A browser without scroll timelines (Safari before 26) skips every
+   rule above that needs one. There, Lean's fallback (src/lib/depth/scrub.ts) sets
+   data-depth-fallback on the root, and these rules run the same keyframes from the scroll position:
+   each one mirrors a scroll-linked rule above that applies below lg, selector for selector and
+   declaration for declaration (a unit test holds them together), except that the animation is
+   paused, lasts 1s and starts --depth-t seconds in, the element's progress through its range, which
+   the script writes. The range is the native rule's animation-range, word for word, in
+   --depth-range; a timeline that is not the element's own view is named by the element that holds
+   it, in --depth-on. Until the script writes a value the delay is a whole second, the final state:
+   every part starts at 1 (the first rule), so a part never takes a value from a part around it.
+   The time-based rules come last, so they still win over the drift's mirror; their animations are
+   the same as before the gate, so none of them restarts. Left out: the ribbon's single line (a
+   change of layout after load), and everything from lg, where the band pins (a wide screen without
+   scroll timelines keeps the still page). */
+@property --depth-range {
+  syntax: "*";
+  inherits: false;
+}
+
+@property --depth-on {
+  syntax: "*";
+  inherits: false;
+}
+
+@media screen and (width < 64rem) and (prefers-reduced-motion: no-preference) {
+  @layer components {
+    :root[data-depth-fallback] :is([data-depth-rise], [data-depth-draw], [data-depth-book], [data-depth-scale], [data-depth-parallax], [data-depth-progress], [data-depth-sheet], [data-depth-drift], [data-depth-hinge], [data-depth-trace], [data-depth-trace] > *, [data-experience-rule]) {
+      --depth-t: 1;
+    }
+
+    :root[data-depth-fallback] :has(> [data-depth-rise]) {
+      perspective: 87.5rem;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise] {
+      --depth-range: entry 0% entry 70%;
+
+      animation: depth-rise 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise]:nth-child(2) {
+      --depth-range: entry 8% entry 78%;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise]:nth-child(3) {
+      --depth-range: entry 16% entry 86%;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise]:nth-child(4) {
+      --depth-range: entry 24% entry 94%;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise="heading"] {
+      animation-name: depth-rise-heading;
+    }
+
+    :root[data-depth-fallback] :target > [data-depth-rise] {
+      animation: none;
+    }
+
+    :root[data-depth-fallback] [data-depth-draw] {
+      --depth-range: entry 0% entry 80%;
+
+      transform-origin: left;
+      animation: depth-draw 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-book="left"] {
+      --depth-range: entry 0% entry 80%;
+
+      transform-origin: right center;
+      animation: depth-book-left 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-book="right"] {
+      --depth-range: entry 0% entry 80%;
+
+      transform-origin: left center;
+      animation: depth-book-right 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-scale] {
+      --depth-range: entry 0% entry 80%;
+
+      animation: depth-scale 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-parallax] {
+      --depth-range: cover 0% cover 100%;
+
+      animation: depth-parallax 1s linear calc(var(--depth-t, 1) * -1s) paused both;
+    }
+
+    :root[data-depth-fallback] [data-depth-rise]:focus-within,
+    :root[data-depth-fallback] [data-depth-book]:focus-within,
+    :root[data-depth-fallback] [data-depth-scale]:focus-within {
+      animation: none;
+    }
+
+    :root[data-depth-fallback] [data-depth-progress] {
+      --depth-on: :root;
+
+      display: block;
+      animation: depth-progress 1s linear calc(var(--depth-t, 1) * -1s) paused both;
+    }
+
+    :root[data-depth-fallback] [data-depth-sheet] {
+      --depth-on: [data-depth-stack];
+      --depth-range: entry 0% entry 100%;
+
+      animation: depth-fan-1 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-sheet="2"] {
+      animation-name: depth-fan-2;
+    }
+
+    :root[data-depth-fallback] [data-depth-sheet="3"] {
+      animation-name: depth-fan-3;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift] {
+      --depth-range: entry 0% entry 100%;
+
+      transform-origin: 0% 100%;
+      animation: depth-drift-bl-narrow 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift="br"] {
+      transform-origin: 100% 100%;
+      animation-name: depth-drift-br-narrow;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift="tr"] {
+      --depth-range: entry 10% entry 100%;
+
+      transform-origin: 100% 0%;
+      animation-name: depth-drift-tr-narrow;
+    }
+
+    :root[data-depth-fallback] [data-depth-lean] > [data-vignette]:has(> [data-depth-hinge]) {
+      perspective: 87.5rem;
+    }
+
+    :root[data-depth-fallback] [data-depth-lean] [data-depth-hinge] {
+      --depth-range: entry 0% cover 40%;
+
+      transform-origin: 50% 100%;
+      animation: depth-hinge 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift] [data-depth-hinge] {
+      --depth-range: entry 40% cover 40%;
+    }
+
+    :root[data-depth-fallback] [data-depth-trace="timeline"] > li::before {
+      --depth-range: entry 40% entry 70%;
+
+      animation: depth-dot 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-trace="timeline"]::before {
+      --depth-on: [data-depth-trace];
+      --depth-range: cover 10% cover 55%;
+
+      transform-origin: top;
+      animation: depth-trace-y 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-experience-rule] {
+      --depth-range: cover 10% cover 40%;
+
+      transform-origin: 50% 50%;
+      animation: depth-trace-x 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-trace="proof"] > [data-proof]:not(:first-child) {
+      border-top-color: transparent;
+    }
+
+    :root[data-depth-fallback] [data-depth-trace="proof"] > [data-proof]:not(:first-child)::before {
+      --depth-range: cover 5% cover 35%;
+
+      content: "";
+      position: absolute;
+      top: -1px;
+      right: 0;
+      left: 0;
+      height: 1px;
+      background: var(--color-hairline);
+      transform-origin: left;
+      animation: depth-trace-x 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+    }
+
+    :root[data-depth-fallback] [data-depth-trace="proof"] > [data-proof]:nth-child(-n + 2)::before {
+      content: none;
+    }
+
+    @media (width < 48rem) {
+      :root[data-depth-fallback] [data-depth-trace="row"] > li + li::before {
+        --depth-range: cover 5% cover 35%;
+
+        content: "";
+        position: absolute;
+        top: -1px;
+        right: 0;
+        left: 0;
+        height: 1px;
+        background: var(--color-hairline);
+        transform-origin: left;
+        animation: depth-trace-x 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+      }
+    }
+
+    @media (width >= 48rem) {
+      :root[data-depth-fallback] [data-depth-trace="row"] > li + li::before {
+        --depth-on: [data-depth-trace];
+        --depth-range: entry 16% cover 46%;
+
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -1px;
+        width: 1px;
+        background: var(--color-hairline);
+        transform-origin: top;
+        animation: depth-trace-y 1s linear calc(var(--depth-t, 1) * -1s) paused backwards;
+      }
+
+      :root[data-depth-fallback] [data-depth-trace="row"] > li + li + li::before {
+        --depth-range: entry 22% cover 52%;
+      }
+    }
+
+    :root[data-depth-fallback] [data-depth-drift]:focus-within,
+    :root[data-depth-fallback] [data-depth-hinge]:focus-within,
+    :root[data-depth-fallback] [data-depth-trace]:focus-within::before,
+    :root[data-depth-fallback] [data-depth-trace]:focus-within > *::before {
+      animation: none;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift="tl"] {
+      transform-origin: 0% 0%;
+      animation: depth-drift-tl-narrow var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] {
+      transform-origin: 50% 100%;
+      animation: depth-hinge-load-narrow var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 180ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] [data-glance-facts] > div {
+      animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
+      animation-delay: 360ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
+      animation-delay: 420ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
+      animation-delay: 480ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
+      animation-delay: 540ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(5) {
+      animation-delay: 600ms;
+    }
+
+    :root[data-depth-fallback] [data-depth-drift="tl"]:focus-within,
+    :root[data-depth-fallback] [data-depth-hinge="load"]:focus-within,
+    :root[data-depth-fallback] [data-depth-hinge="load"]:focus-within [data-glance-facts] > div {
+      animation: none;
+    }
+  }
+}
+
+/* The ruled row's borders under the fallback, as above: unlayered, so they win over the utilities. */
+@media screen and (width < 48rem) and (prefers-reduced-motion: no-preference) {
+  :root[data-depth-fallback] [data-depth-trace="row"] > li + li {
+    border-top-color: transparent;
+  }
+}
+
+@media screen and (width >= 48rem) and (width < 64rem) and (prefers-reduced-motion: no-preference) {
+  :root[data-depth-fallback] [data-depth-trace="row"] > li + li {
+    border-left-color: transparent;
   }
 }
 

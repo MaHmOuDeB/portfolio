@@ -319,7 +319,7 @@ motion is CSS keyed on their data attributes.
 | `attachLean`, `cardLean`, `fieldFollow`, `magnetShift`, `leanEnabled` | `src/lib/depth/lean.ts` | The lean's maths and guards: a card's turn toward a fine pointer, the band stack's follow values, the magnet's shift, and the delegated listeners `Lean` attaches. |
 | `ProofFigure` | `src/components/depth/ProofFigure.tsx` | A proof cell (`[data-proof]`): the side word, the figure passed in as a `Fact` or `Derived`, and the caption. |
 | `LeanCard` | `src/components/depth/LeanCard.tsx` | A link drawn as a white card that rises on entry and leans toward a fine pointer. `titleMinLines` fixes the headline area's height; `vignette` (a frame `Vignette`) ends the card; extra `data-*` attributes pass to the link; `prefetch` passes to `Link`. |
-| `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the Home band's stack and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. |
+| `Lean` | `src/components/depth/Lean.tsx` (client) | Renders nothing. One delegated `pointermove` and `pointerout` on the document set the lean values on the card under the pointer, the follow values on the Home band's stack and a shift of up to 6 px on a `[data-depth-magnet]` within 24 px of the pointer; off under reduced motion and for a coarse pointer. Below lg, in a browser without scroll timelines and with motion allowed, it also runs the scroll fallback (`attachScrub` in `src/lib/depth/scrub.ts`, in a layout effect): it sets `data-depth-fallback` on the root and writes each scroll-linked element's progress (`--depth-t`); on the loaded page what is on screen keeps its final pose until it has left the screen once, and any error leaves the still page; where scroll timelines exist that part does nothing. |
 | `Ribbon` | `src/components/depth/Ribbon.tsx` | A row of words in a `[data-depth-ribbon]` track that slides with the scroll, done in CSS. A labelled list with each item once. |
 | `Tile` | `src/components/depth/Tile.tsx` | A white tile with a hairline, or an ink one (`tone`). |
 | `GlanceBlock` | `src/components/depth/GlanceBlock.tsx` | The top of a case study as a white hairline card: the outcome as a large paragraph, then Role, Methods, Tools and When. |
@@ -387,9 +387,10 @@ page, give it the primitives catalogue above and the golden page.
   passed"), and colour only repeats it. Navigation is exactly Work, About, Lab, Live test, CV, Contact, Menu.
 - **Motion** (the depth system; the full attribute table is in `docs/design/tokens.md`).
   - Motion follows the reader (scroll position or a fine pointer) or plays once on load. Nothing
-    loops or runs on a clock. It is CSS only (the `depth` system in `globals.css`); every state is
-    complete without it, and under reduced motion. Time-based: only the load sequence and the band's
-    sheets arriving, once.
+    loops or runs on a clock. It is CSS (the `depth` system in `globals.css`); the one script is
+    Lean's scroll fallback below lg (`src/lib/depth/scrub.ts`), which only scrubs those same keyframes
+    in a browser without scroll timelines. Every state is complete without it, and under reduced
+    motion. Time-based: only the load sequence and the band's sheets arriving, once.
   - Scroll-linked means the animation follows the scroll position exactly (`animation-timeline`,
     linear, `backwards` fill, inside `@supports`). No scroll-jacking, no time-based entrance animations,
     no fade-up-on-every-section.
@@ -401,13 +402,16 @@ page, give it the primitives catalogue above and the golden page.
     press; the selected tab keeps its fill and ink bar. Buttons, segmented controls, sliders, chips,
     details rows and inline links keep their own hover; nothing else moves on hover.
   - Only transform, opacity and clip-path animate, never layout. The h1 never animates.
-  - Reduced motion, print and browsers without scroll timelines get the final static state
+  - Reduced motion, print and (from lg) browsers without scroll timelines get the final static state
     (visible, untransformed): the tokens collapse every duration and `globals.css` resets the rest.
+    Below lg a browser without scroll timelines gets the motion from the fallback, whose rules mirror
+    the native ones rule for rule (`tests/unit/depth/scrub-css.test.ts`).
   - Four families: Unfold (the Home band's stack), Hinge with Turn (sheets stand up from an edge,
     tiles turn toward the reader), Drift (a block settles from its own corner) and Trace (rules,
-    dividers and a timeline's spine draw). They run from lg up only; below lg the layout is static
-    apart from the small rise, draw and ribbon. Each keyframe is `depth-*`, ends on none and fills
-    `backwards`, so the base state is the final layout.
+    dividers and a timeline's spine draw). Below lg they run without sideways travel and nothing
+    pins: the band's sheets fan out and settle into the column, Drift, Hinge and Trace run over
+    longer ranges. Each keyframe is `depth-*`, ends on none and fills `backwards`, so the base state
+    is the final layout.
   - What stays still: the h1, charts and their marks, the controls, the header and the footer.
   - Components add data attributes (`data-depth-*`, `data-proof`); they write no motion CSS.
   - The Home scroll: on wide screens with scroll timelines and motion allowed, the band under the

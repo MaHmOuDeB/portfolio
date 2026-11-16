@@ -140,7 +140,7 @@ function ProjectEntry({ entry }: { entry: CvEntry }) {
 
 function Terms({ items }: { items: readonly (readonly [term: string, description: string])[] }) {
   return (
-    <dl className="grid gap-x-8 gap-y-2 md:grid-cols-[11rem_1fr]">
+    <dl className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-[11rem_1fr]">
       {items.map(([term, description]) => (
         <div key={term} className="contents">
           <dt className="font-semibold">{term}</dt>
