@@ -4,13 +4,13 @@
 // (the Home page puts its tracking attributes there). The link is named by its h3 alone and described
 // by the paragraph, so a screen reader does not read the whole card as the link's name.
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { DataAttributes } from './data-attributes';
 
 export type LeanCardProps = DataAttributes & {
   href: string;
   title: ReactNode;
-  /** Keeps the headline area at least this many lines tall, so cards in a row line up. */
+  /** Keeps the headline area at least this many lines tall from lg, so cards in a row line up there (they stack below it). */
   titleMinLines?: number;
   /** The sourced line under the description; a node so that a figure in it can be a <Fact>. */
   meta: ReactNode;
@@ -42,7 +42,11 @@ export function LeanCard({ href, title, titleMinLines, meta, children, size = 'l
       data-size={size}
       {...rest}
     >
-      <h3 id={titleId} style={titleMinLines ? { minHeight: `${titleMinLines}lh` } : undefined}>
+      <h3
+        id={titleId}
+        data-title-lines={titleMinLines ? '' : undefined}
+        style={titleMinLines ? ({ '--title-lines': titleMinLines } as CSSProperties) : undefined}
+      >
         {title}
       </h3>
       <p id={descriptionId}>{children}</p>

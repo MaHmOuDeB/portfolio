@@ -275,6 +275,23 @@ describe('the route: static per-group pages', () => {
     }
   });
 
+  it('ends with the section space from md only: on a phone the footer follows the last block directly', async () => {
+    const read = vi.mocked(live.getExperimentSnapshot);
+    const snapshot = snapshotFixture('calibration');
+    read.mockReset();
+    read.mockResolvedValueOnce(snapshot);
+    vi.setSystemTime(new Date(snapshot.readAt));
+    const el = (await route.default({ params: Promise.resolve({ arm: 'a' }) } as never)) as ReactNode;
+    const h = renderToStaticMarkup(<>{el}</>);
+    const cls = /^<div class="([^"]*)"/.exec(h)![1]!.split(' ');
+    expect(cls).toContain('md:pb-section');
+    expect(cls).not.toContain('pb-section');
+    // The test build host draws the same page.
+    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    expect(host).toMatch(/className="[^"]*\bmd:pb-section\b/);
+    expect(host).not.toMatch(/className="(?:[^"]* )?pb-section\b/);
+  });
+
   it('answers any other group with the 404 page, before reading anything', async () => {
     const read = vi.mocked(live.getExperimentSnapshot);
     read.mockClear();

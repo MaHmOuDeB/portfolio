@@ -71,7 +71,7 @@ export function AboutPage(): ReactNode {
         <h1 id="about-title" className="max-w-[22em] text-h2-sm md:text-h2">
           Experimentation and AI automation analyst <Quiet>in Berlin, Germany.</Quiet>
         </h1>
-        <div data-about-actions="" className="mt-6 flex flex-wrap gap-2.5 print:hidden">
+        <div data-about-actions="" className="mt-6 flex flex-wrap gap-2.5 max-xs:grid max-xs:grid-cols-1 max-xs:[&_a]:w-full print:hidden">
           <ButtonLink href={CV_LINK.href} variant="primary">
             Read my CV
           </ButtonLink>
@@ -80,7 +80,7 @@ export function AboutPage(): ReactNode {
       </div>
       <div className="grid grid-cols-1 gap-8 pb-12 lg:grid-cols-12 lg:items-start lg:gap-12 md:pb-16">
         <div className="lg:col-span-7">
-          <div data-about-story="" className="max-w-text space-y-4 text-lg">
+          <div data-about-story="" className="max-w-text space-y-4 text-base md:text-lg">
             <p data-about-focus="">{ABOUT_FOCUS}</p>
             {STORY_PARAGRAPHS.map(([from, to]) => (
               <p key={from}>
@@ -95,7 +95,9 @@ export function AboutPage(): ReactNode {
           </div>
         </div>
         {/* The portrait's column drifts in once from the top left (the photo keeps its own parallax). On a
-            phone it comes first, under the headline, at a modest size. */}
+            phone it comes first, under the headline, across the column as a square head-and-shoulders crop
+            (80% of the 4:5 photo's height, placed 25% down, so it starts just above the hair and ends on the
+            shoulders); from sm it is the whole photo at a modest size. */}
         <div data-depth-drift="tl" className="order-first lg:order-last lg:col-span-5">
           <Image
             src={aboutPhoto.src}
@@ -104,7 +106,7 @@ export function AboutPage(): ReactNode {
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
             data-depth-parallax=""
-            className="h-auto w-full max-w-56 rounded-xl border border-hairline sm:max-w-72 lg:max-w-none print:max-w-48"
+            className="h-auto w-full rounded-xl border border-hairline max-sm:aspect-square max-sm:object-cover max-sm:object-[50%_25%] sm:max-w-72 lg:max-w-none print:max-w-48"
           />
           <ul role="list" data-about-profiles="" className="mt-3 flex flex-wrap gap-x-6 print:hidden">
             <li>
@@ -133,9 +135,13 @@ export function AboutPage(): ReactNode {
       </Section>
 
       <Section id="tools">
-        <ul role="list" data-about-tools="" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Hairline rows on a phone, a grid of cards from sm. */}
+        <ul role="list" data-about-tools="" className="grid gap-0 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {SHIPPED_TOOLS.map((t) => (
-            <li key={t.tool} className="h-full rounded-xl border border-hairline bg-surface p-4">
+            <li
+              key={t.tool}
+              className="h-full border-t border-hairline py-3 last:border-b sm:rounded-xl sm:border sm:bg-surface sm:p-4"
+            >
               <span className="block text-base font-semibold">{t.tool}</span>
               <span className="mt-1 block text-sm text-muted">{t.where}</span>
             </li>
@@ -144,7 +150,7 @@ export function AboutPage(): ReactNode {
       </Section>
 
       <Section id="languages">
-        <dl data-about-languages="" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <dl data-about-languages="" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {/* Each card opens like a page on its outer edge: the left ones on their left edge, the right
               ones on their right edge, at a steeper angle than elsewhere. */}
           {LANGUAGES.map((l, i) => (

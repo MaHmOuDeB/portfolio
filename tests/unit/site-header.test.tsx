@@ -53,6 +53,39 @@ describe('SiteHeader', () => {
     expect(cv.attrs).not.toContain('px-3.5');
   });
 
+  it('opens the Menu as a full-width sheet under the header, placed against the header itself', () => {
+    const details = /<details[^>]*class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
+    // Not positioned: the header (relative, or sticky from md) is the panel's containing block.
+    expect(details).toEqual(['group', 'lg:hidden']);
+    const menu = /<nav aria-label="Menu" class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
+    expect(menu).toEqual(
+      expect.arrayContaining(['absolute', 'inset-x-0', 'top-full', 'mt-px', 'z-(--z-menu)', 'border-b', 'border-hairline', 'bg-bg', 'px-4', 'md:px-8']),
+    );
+    expect(menu.some((c) => /^(w-|max-w-|right-|rounded)/.test(c))).toBe(false);
+  });
+
+  it('draws the Menu rows full width and at least 48 px, ruled by hairlines, with CV and Contact side by side', () => {
+    const menu = /<nav aria-label="Menu"[\s\S]*?<\/nav>/.exec(MARKUP)![0];
+    const list = /<ul class="([^"]*)"/.exec(menu)![1]!.replaceAll('&amp;', '&').split(' ');
+    expect(list).toEqual(
+      expect.arrayContaining(['flex', 'flex-col', '[&_a]:flex', '[&_a]:w-full', '[&_a]:min-h-12', '[&_a]:text-lg', '[&_li]:border-b', '[&_li]:border-hairline']),
+    );
+    // In the sheet every link is ink (muted grey reads washed out at text-lg); the current page keeps
+    // its ink underline, so it stays marked by more than colour.
+    expect(list).toContain('[&_a]:text-ink');
+    const buttons = /<\/ul><div class="([^"]*)">/.exec(menu)![1]!.split(' ');
+    expect(buttons).toEqual(expect.arrayContaining(['grid', 'grid-cols-2']));
+  });
+
+  it('draws Menu as a bordered button that shows when it is open, with a 44 px target', () => {
+    const summary = /<summary[^>]*class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
+    expect(summary).toEqual(
+      expect.arrayContaining(['min-h-(--size-target)', 'min-w-(--size-target)', 'rounded-md', 'border', 'border-hairline-strong', 'bg-surface', 'group-open:border-ink']),
+    );
+    // The icon still shows from xs only, so the 320 px header keeps its layout.
+    expect(MARKUP).toMatch(/<summary[^>]*>\s*<span class="hidden xs:inline-flex">/);
+  });
+
   it('shows the links and buttons from lg and the Menu under it', () => {
     expect(MARKUP).toMatch(/<nav aria-label="Main" class="hidden lg:block"/);
     expect(MARKUP).toMatch(/<details[^>]*class="[^"]*lg:hidden/);

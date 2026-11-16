@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// Below lg the Home band is a static column of three sheets. Each sheet's face is its ::before
+// Below lg the Home band rests in a static column of three sheets (where scroll timelines exist and
+// motion is allowed, a fan settles into it as the stack enters: phone-motion-css.test.ts). Each sheet's face is its ::before
 // (position: absolute, inset: -1px), so the sheet itself must be the face's containing block. Once the
 // sheet was `position: static` there: every face then resolved against the rig, and the ink face of
 // the third sheet covered the whole column. This pins the cause.
@@ -48,7 +49,7 @@ describe('the Home band below lg', () => {
     }
   });
 
-  it('is a column of the three sheets with no pose, no links and no slab', () => {
+  it('rests as a column of the three sheets with no pose, no links and no slab', () => {
     expect(column).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
     expect(column).toMatch(/\[data-depth-link\]\s*\{[^}]*display:\s*none/);
     expect(column).toMatch(/\[data-depth-sheet\]::after\s*\{[^}]*content:\s*none/);

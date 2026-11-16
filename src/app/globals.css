@@ -92,6 +92,21 @@
   }
 
   /*
+   * Below lg a column is narrow, so a heading's last word can sit alone on its line: headings and
+   * summaries balance their lines, and running text avoids a one-word last line. In base, so a
+   * component's own text-wrap still wins.
+   */
+  @media (width < 64rem) {
+    :is(h1, h2, h3, summary) {
+      text-wrap: balance;
+    }
+
+    :is(p, li, dd, figcaption) {
+      text-wrap: pretty;
+    }
+  }
+
+  /*
    * Leave room for the external focus outline when native scrolling aligns a control to the bottom.
    * WebKit, focusing a text input that is partly below the fold, scrolls only its text line into
    * view, not its box: the line's bottom lands at this padding and the box's lower padding, border
@@ -374,6 +389,15 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
+  /* On a phone the rails would sit on the bezel, so they show from md only. A rule (data-rule) still
+     runs the full width, from screen edge to screen edge. The rails keep their 1 px width, only clear:
+     removing it would widen the column by 2 px and push clipped content 1 px past the screen. */
+  @media (width < 48rem) {
+    [data-frame] {
+      border-inline-color: var(--color-clear);
+    }
+  }
+
   [data-rule] {
     margin-inline: calc(var(--frame-pad, 0) * -1);
     padding-inline: var(--frame-pad, 0);
@@ -422,9 +446,9 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     color: var(--color-surface);
   }
 
-  /* Section and page heads: chip, headline, sub. */
+  /* Section and page heads: chip, headline, sub. 48 px above a section head on a phone, 84 px from md. */
   [data-section-head] {
-    padding-block: calc(var(--spacing) * 16) calc(var(--spacing) * 7);
+    padding-block: calc(var(--spacing) * 12) calc(var(--spacing) * 7);
   }
 
   @media (width >= 48rem) {
@@ -1459,6 +1483,109 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   }
 }
 
+/* The same families on a narrow screen (below lg), at smaller amplitudes. Nothing travels sideways:
+   each drift recedes toward its corner (its transform origin, where its own perspective puts the
+   vanishing point) and every depth is negative, so a block only ever shrinks toward that corner and
+   never reaches past its own resting box, which keeps a 320 px page from scrolling sideways. */
+@keyframes depth-drift-bl-narrow {
+  0% {
+    transform: perspective(87.5rem) translate3d(0, 40px, -140px) rotateY(5deg);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-br-narrow {
+  0% {
+    transform: perspective(87.5rem) translate3d(0, 40px, -140px) rotateY(-5deg);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-tr-narrow {
+  0% {
+    transform: perspective(87.5rem) translate3d(0, -20px, -120px) rotateY(-5deg);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes depth-drift-tl-narrow {
+  from {
+    transform: perspective(87.5rem) translate3d(0, -16px, -120px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-hinge-narrow {
+  from {
+    transform: rotateX(48deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* A phone's glance card is tall, so the same angle would move its top much further: a shallower lid. */
+@keyframes depth-hinge-load-narrow {
+  from {
+    transform: perspective(87.5rem) rotateX(8deg) translateZ(-32px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* The band's fan, below lg: the three sheets of the column start as a loose deck, tilted back,
+   turned a little each way and pulled toward the middle sheet so they overlap like tiles, the test
+   in front and each later sheet further back, as in the wide pose, and settle into the column. The
+   rig keeps its one 3D context, so the sheets are sorted by depth: the tilt brings each sheet's
+   lower edge forward, and the depths are far enough apart that a sheet's lower edge is always in
+   front of the top of the sheet under it. Every corner stays behind the screen plane, so a sheet
+   only shrinks toward its own centre and its turn widens it by under 11 px a side, inside the
+   16 px page gutter. */
+@keyframes depth-fan-1 {
+  from {
+    transform: perspective(62.5rem) translate3d(0, 96px, -40px) rotateX(18deg) rotateZ(-5deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-fan-2 {
+  from {
+    transform: perspective(62.5rem) translate3d(0, 0, -110px) rotateX(18deg) rotateZ(2.5deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes depth-fan-3 {
+  from {
+    transform: perspective(62.5rem) translate3d(0, -96px, -180px) rotateX(18deg) rotateZ(-1.5deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
 @layer components {
   /* 1. The hero, centred: chip, two-tone h1, the sub with two inline chips, two buttons. */
   [data-hero] {
@@ -1512,11 +1639,40 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     text-wrap: balance;
   }
 
+  /* On a phone the hero reads from the left edge: a centred block of five or more lines has a ragged
+     edge on both sides. The inline chips (text, never a target) lose their extra height there, so
+     they no longer push the sub line's lines apart. */
+  @media (width < 40rem) {
+    [data-hero] {
+      text-align: start;
+    }
+
+    [data-hero] h1,
+    [data-hero-sub],
+    [data-hero-proof] {
+      margin-inline: 0;
+    }
+
+    [data-hero-actions] {
+      justify-content: flex-start;
+    }
+
+    [data-hero-proof] {
+      text-wrap: pretty;
+    }
+
+    [data-hero-sub] [data-chip][data-inline] {
+      min-height: 0;
+      line-height: 1.3;
+    }
+  }
+
   /* 2. The band: a framed stage under the hero, from rail to rail, with a faint dot grid that fades
      toward the middle. Three sheets (test, agents, recommendation) and two links sit on the rig,
      which the tilt leans toward a fine pointer (--mx, --my in -1..1, set by Lean). The rig is laid out
      at its full 1040 px and scaled (--k) to the column. Wide screens rest in the isometric pose,
-     stacked; the pin block below unfolds it with the scroll; below lg it is a static column. */
+     stacked; the pin block below unfolds it with the scroll; below lg it rests in a static column,
+     which a fan settles into as the stack enters (the narrow motion block, near the end). */
   [data-depth-band] {
     margin-inline: calc(var(--frame-pad, 0) * -1);
   }
@@ -1809,6 +1965,25 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     background: var(--color-series-2);
   }
 
+  /* Below lg the sketches (the band's sheets, a card's vignette) and their tags are drawn at their
+     true size, not scaled down with a rig, so their small text meets the 13 px floor. */
+  @media (width < 64rem) {
+    [data-vignette],
+    [data-tag],
+    [data-depth-sheet-head],
+    [data-depth-foot],
+    [data-depth-log] em,
+    [data-depth-toast] {
+      font-size: var(--text-xs);
+    }
+
+    /* The test sheet's two notes: on a narrow sheet the second takes its own line, rather than
+       both breaking in two. */
+    [data-depth-foot] {
+      flex-wrap: wrap;
+    }
+  }
+
   [data-depth-caption] {
     position: relative;
     margin: 0;
@@ -1819,7 +1994,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     text-align: center;
   }
 
-  /* Below lg: the three sheets as a static column, no pose, no lean, no links. */
+  /* Below lg: the three sheets as a static column, no pose, no lean, no links. It is the end state of
+     the fan (the narrow motion block), and the whole layout where that does not run. */
   @media (width < 64rem) {
     [data-depth-pin] {
       padding-top: calc(var(--spacing) * 8);
@@ -1923,6 +2099,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     gap: calc(var(--spacing) * 3);
   }
 
+  /* On a phone the two groups stack at the column's width, so their rules are as long as each other. */
+  @media (width < 40rem) {
+    [data-experience-groups] {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
   /* The hairline under a group's label (it draws from the centre where motion is allowed). */
   [data-experience-rule] {
     display: block;
@@ -1945,7 +2129,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.3;
   }
 
-  /* 5. Proof: four cells ruled by hairlines (one column on a phone, two from sm, four from lg), each
+  /* 5. Proof: four cells ruled by hairlines (two columns below lg, four from lg), each
      with its side, its number and a caption. The section is ruled from rail to rail. */
   [data-home-proof] {
     display: grid;
@@ -1977,11 +2161,27 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     border-top: 0;
   }
 
+  /* Two columns on a phone too: the left cell of each row at the column's edge, a hairline between
+     the two (the figure is one step smaller there, below). */
   @media (width < 40rem) {
+    [data-home-proof] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     [data-proof] {
-      padding-inline: 0;
+      padding: calc(var(--spacing) * 6) 0 calc(var(--spacing) * 6.5) calc(var(--spacing) * 4);
+    }
+
+    [data-proof]:nth-child(-n + 2) {
+      border-top: 0;
+    }
+
+    [data-proof]:nth-child(odd) {
+      padding-right: calc(var(--spacing) * 4);
+      padding-left: 0;
       border-left: 0;
     }
+
   }
 
   @media (width >= 40rem) {
@@ -2038,6 +2238,17 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     letter-spacing: -0.03em;
     font-weight: var(--font-weight-heading);
     white-space: nowrap;
+  }
+
+  /* In the phone's two columns the figure is one step smaller, so it keeps its line (about 30 px to
+     spare at 320 px). A half-width cell cannot hold it once the text is enlarged to 200%, so there it
+     may wrap, and break inside a number, rather than run past the screen edge. */
+  @media (width < 40rem) {
+    [data-proof-figure] {
+      font-size: var(--text-2xl);
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
 
   [data-proof-unit] {
@@ -2163,6 +2374,14 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.2;
     letter-spacing: -0.012em;
     font-weight: 600;
+  }
+
+  /* Cards sit side by side from lg, where a title keeps --title-lines lines so the cards line up;
+     below lg they stack and a title takes only its own lines. */
+  @media (width >= 64rem) {
+    [data-depth-lean] h3[data-title-lines] {
+      min-height: calc(var(--title-lines) * 1lh);
+    }
   }
 
   /* A card's small label above its title: the project's name. */
@@ -2305,6 +2524,45 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     [data-how-tab]:hover {
       translate: 0 calc(var(--spacing) * -1);
+    }
+  }
+
+  /* Press, on a touch screen below lg where motion is allowed: what rises or leans under a pointer
+     (a clickable card, a previous or next card, a "How I test" tab, a primary hero button) sinks a
+     little while a finger is down and springs back on release, both fast. On :active only, never on
+     hover. A card or tab by the individual scale, so it adds to any transform; one still inside its
+     scroll-linked rise (which animates scale) presses once that entrance is over. */
+  @media (hover: none) and (width < 64rem) and (prefers-reduced-motion: no-preference) {
+    [data-depth-lean],
+    [data-next] {
+      transition:
+        border-color var(--duration-fast) var(--ease-standard),
+        translate var(--duration-base) var(--ease-standard),
+        scale var(--duration-fast) var(--ease-standard);
+    }
+
+    [data-how-tab] {
+      transition:
+        background-color var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard),
+        translate var(--duration-base) var(--ease-standard),
+        scale var(--duration-fast) var(--ease-standard);
+    }
+
+    [data-depth-magnet] {
+      transition: translate var(--duration-fast) var(--ease-standard);
+    }
+
+    [data-depth-lean]:active,
+    [data-next]:active,
+    [data-how-tab]:active {
+      scale: 0.98;
+    }
+
+    /* A button is a 44 px target: it presses down 2 px rather than shrinking below that. */
+    [data-depth-magnet]:active {
+      translate: 0 2px;
     }
   }
 
@@ -2581,6 +2839,55 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     line-height: 1.5;
   }
 
+  /* On a phone each pull figure sits beside its label (the labels share one column, as wide as the
+     widest figure needs, at most half the card), and each fact beside its term, so the card is about
+     half as tall. */
+  @media (width < 40rem) {
+    [data-glance-points] {
+      grid-template-columns: fit-content(50%) minmax(0, 1fr);
+      column-gap: calc(var(--spacing) * 4);
+    }
+
+    [data-glance-point] {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+      align-items: baseline;
+      padding-block: calc(var(--spacing) * 3);
+    }
+
+    /* Beside its figure a label is narrower than the card: with enlarged text a long word breaks
+       rather than running past the screen (at normal size every label fits whole). */
+    [data-glance-label] {
+      margin-top: 0;
+      overflow-wrap: break-word;
+    }
+
+    [data-glance-facts] {
+      row-gap: calc(var(--spacing) * 3);
+      padding-block: calc(var(--spacing) * 5);
+    }
+
+    /* A wrapping row rather than a two-column grid: when a value cannot fit beside its term (the
+       narrowest phones, or a long unbreakable word such as a slash-joined list) it drops under the
+       term, as above 640 px, instead of running past the screen edge. */
+    [data-glance-facts] > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
+      align-items: baseline;
+    }
+
+    [data-glance-facts] dt {
+      flex: 0 0 80px;
+    }
+
+    [data-glance-facts] dd {
+      flex: 1 1 12rem;
+      margin-top: 0;
+    }
+  }
+
   /* Load sequence: once, in order (--d = 0, 1, 2 ...). Never on the h1, which is the LCP element. */
   [data-depth-load] {
     animation: depth-load var(--duration-arrive) var(--ease-standard) both;
@@ -2801,7 +3108,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 }
 
 /* The motion families beside the band's Unfold, from lg up where scroll timelines exist and motion
-   is allowed (narrower screens and everything else get the final layout, still). Each one ends on
+   is allowed (narrower screens run them at smaller amplitudes in the narrow block below; everything
+   else gets the final layout, still). Each one ends on
    none and fills backwards only, so a finished block is no longer a layer. Perspective sits on the
    immediate parent alone. Drift: the automation cards arrive from the section's outer corners, each
    on its grid wrapper so the card keeps its own lean. Hinge: the sketch at the foot of a card lifts
@@ -2965,7 +3273,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
 
 /* Hinge on load: the case study's "at a glance" card is in the first screen, so it lifts once when
    the page loads, by transform only (its outcome may be the largest paint), and its facts settle
-   in turn after it. From lg, with motion allowed. */
+   in turn after it. From lg, with motion allowed (below lg the narrow block below lifts it less). */
 @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
   @layer components {
     [data-depth-hinge="load"] {
@@ -3006,6 +3314,230 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    unlayered rule hides them where their drawn rules replace them. */
 @supports (animation-timeline: view()) {
   @media screen and (width >= 64rem) and (prefers-reduced-motion: no-preference) {
+    [data-depth-trace="row"] > li + li {
+      border-left-color: transparent;
+    }
+  }
+}
+
+/* Below lg, where scroll timelines exist and motion is allowed: the band's fan, and Drift, Hinge
+   (the on-load lid too) and Trace at narrow-screen amplitudes. Every entrance ends on the static
+   layout above and fills backwards only, so once it is over nothing applies and the page is exactly
+   the still one. Nothing is pinned and nothing moves sideways. Browsers without scroll timelines,
+   reduced motion and print keep the still layout. */
+@supports (animation-timeline: view()) {
+  @media screen and (width < 64rem) and (prefers-reduced-motion: no-preference) {
+    @layer components {
+      /* The fan: the three sheets settle into the column while the stack enters the screen, on the
+         stack's own view timeline, and are the readable column once all of it is in view. */
+      [data-depth-stack] {
+        view-timeline: --depth-fan block;
+      }
+
+      [data-depth-sheet] {
+        animation: depth-fan-1 linear backwards;
+        animation-timeline: --depth-fan;
+        animation-range: entry 0% entry 100%;
+      }
+
+      [data-depth-sheet="2"] {
+        animation-name: depth-fan-2;
+      }
+
+      [data-depth-sheet="3"] {
+        animation-name: depth-fan-3;
+      }
+
+      /* Drift: no stagger by grid row. Under md the cards are one column; from md to lg two cards can
+         sit side by side and drift together, each on its own view, which reads as one row arriving. */
+      [data-depth-drift] {
+        transform-origin: 0% 100%;
+        animation: depth-drift-bl-narrow linear backwards;
+        animation-timeline: view();
+        animation-range: entry 0% entry 85%;
+      }
+
+      [data-depth-drift="br"] {
+        transform-origin: 100% 100%;
+        animation-name: depth-drift-br-narrow;
+      }
+
+      [data-depth-drift="tr"] {
+        transform-origin: 100% 0%;
+        animation-name: depth-drift-tr-narrow;
+        animation-range: entry 10% entry 90%;
+      }
+
+      [data-depth-drift="tl"] {
+        transform-origin: 0% 0%;
+        animation: depth-drift-tl-narrow var(--duration-arrive) var(--ease-standard) backwards;
+        animation-delay: 180ms;
+      }
+
+      [data-depth-lean] > [data-vignette]:has(> [data-depth-hinge]) {
+        perspective: 87.5rem;
+      }
+
+      [data-depth-lean] [data-depth-hinge] {
+        transform-origin: 50% 100%;
+        animation: depth-hinge-narrow linear backwards;
+        animation-timeline: view();
+        animation-range: entry 30% entry 100%;
+      }
+
+      /* In a drifting card the lid follows its card. */
+      [data-depth-drift] [data-depth-hinge] {
+        animation-range: entry 40% contain 10%;
+      }
+
+      /* The glance card lifts once on load, then its facts settle in turn. */
+      [data-depth-hinge="load"] {
+        transform-origin: 50% 100%;
+        animation: depth-hinge-load-narrow var(--duration-arrive) var(--ease-standard) backwards;
+        animation-delay: 180ms;
+      }
+
+      [data-depth-hinge="load"] [data-glance-facts] > div {
+        animation: depth-load var(--duration-arrive) var(--ease-standard) backwards;
+        animation-delay: 360ms;
+      }
+
+      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(2) {
+        animation-delay: 420ms;
+      }
+
+      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(3) {
+        animation-delay: 480ms;
+      }
+
+      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(4) {
+        animation-delay: 540ms;
+      }
+
+      [data-depth-hinge="load"] [data-glance-facts] > div:nth-child(5) {
+        animation-delay: 600ms;
+      }
+
+      /* Trace. The About spine and its dots run as on a wide screen. A group's rule under its label
+         runs on its own view, since the groups can stack here (they do under 40rem). The ruled cells stack too, so each draws
+         the hairline along its top on its own timeline (a pseudo-element has no box to watch). */
+      [data-depth-trace] {
+        view-timeline: --depth-trace block;
+      }
+
+      [data-depth-trace="timeline"] > li {
+        view-timeline: --depth-row block;
+      }
+
+      [data-depth-trace="timeline"] > li::before {
+        animation: depth-dot linear backwards;
+        animation-timeline: --depth-row;
+        animation-range: entry 40% entry 70%;
+      }
+
+      [data-depth-trace="timeline"]::before {
+        transform-origin: top;
+        animation: depth-trace-y linear backwards;
+        animation-timeline: --depth-trace;
+        animation-range: cover 10% cover 55%;
+      }
+
+      [data-experience-rule] {
+        transform-origin: 50% 50%;
+        animation: depth-trace-x linear backwards;
+        animation-timeline: view();
+        animation-range: cover 10% cover 40%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof],
+      [data-depth-trace="row"] > li {
+        view-timeline: --depth-cell block;
+      }
+
+      /* The hairline along the top of a ruled cell: the proof cells' second row (two columns below lg),
+         and the automation lines while they stack (below md). */
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child) {
+        border-top-color: transparent;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:not(:first-child)::before {
+        content: "";
+        position: absolute;
+        top: -1px;
+        right: 0;
+        left: 0;
+        height: 1px;
+        background: var(--color-hairline);
+        transform-origin: left;
+        animation: depth-trace-x linear backwards;
+        animation-timeline: --depth-cell;
+        animation-range: cover 5% cover 35%;
+      }
+
+      [data-depth-trace="proof"] > [data-proof]:nth-child(-n + 2)::before {
+        content: none;
+      }
+
+      @media (width < 48rem) {
+        [data-depth-trace="row"] > li + li::before {
+          content: "";
+          position: absolute;
+          top: -1px;
+          right: 0;
+          left: 0;
+          height: 1px;
+          background: var(--color-hairline);
+          transform-origin: left;
+          animation: depth-trace-x linear backwards;
+          animation-timeline: --depth-cell;
+          animation-range: cover 5% cover 35%;
+        }
+      }
+
+      /* From md the automation lines sit in a row, ruled between them, as on a wide screen. */
+      @media (width >= 48rem) {
+        [data-depth-trace="row"] > li + li::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: -1px;
+          width: 1px;
+          background: var(--color-hairline);
+          transform-origin: top;
+          animation: depth-trace-y linear backwards;
+          animation-timeline: --depth-trace;
+          animation-range: entry 16% cover 46%;
+        }
+
+        [data-depth-trace="row"] > li + li + li::before {
+          animation-range: entry 22% cover 52%;
+        }
+      }
+
+      /* A control that has focus is never mid-arrival: its block jumps to the final layout. */
+      [data-depth-drift]:focus-within,
+      [data-depth-hinge]:focus-within,
+      [data-depth-hinge="load"]:focus-within [data-glance-facts] > div,
+      [data-depth-trace]:focus-within::before,
+      [data-depth-trace]:focus-within > *::before {
+        animation: none;
+      }
+    }
+  }
+}
+
+/* The ruled row's own borders are utility classes, which win over any layer: this unlayered rule
+   hides the ones the drawn rules above replace (the top borders while the lines stack, the left ones
+   from md). */
+@supports (animation-timeline: view()) {
+  @media screen and (width < 48rem) and (prefers-reduced-motion: no-preference) {
+    [data-depth-trace="row"] > li + li {
+      border-top-color: transparent;
+    }
+  }
+
+  @media screen and (width >= 48rem) and (width < 64rem) and (prefers-reduced-motion: no-preference) {
     [data-depth-trace="row"] > li + li {
       border-left-color: transparent;
     }

@@ -1,6 +1,8 @@
 'use client';
 
-// The compact Menu (under lg): a <details>, so it opens and closes without JavaScript. With JavaScript, Escape
+// The compact Menu (under lg): a <details>, so it opens and closes without JavaScript. Open, it is a
+// sheet under the header, as wide as the screen: the details is not positioned, so the panel is placed
+// against the header (relative where it does not stick, sticky from md on a tall screen; both count). With JavaScript, Escape
 // and any navigation close it; Escape also returns focus to the summary.
 // A reader can open the Menu before the page has hydrated (the <details> works from the first
 // paint). Hydration must not close it under them: only a change of path does, never the first
@@ -74,7 +76,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
     <details
       ref={details}
       data-ready={ready ? '' : undefined}
-      className="relative lg:hidden"
+      className="group lg:hidden"
       onPointerDown={(event) => {
         if (event.button === 0 && event.target instanceof Element && event.target.closest('a')) {
           linkPress.current = event.pointerId;
@@ -109,7 +111,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
     >
       <summary
         data-touch-target
-        className="inline-flex min-h-(--size-target) min-w-(--size-target) cursor-pointer list-none items-center justify-center gap-1 rounded-sm px-2 text-sm font-medium text-ink marker:hidden [&::-webkit-details-marker]:hidden"
+        className="inline-flex min-h-(--size-target) min-w-(--size-target) cursor-pointer list-none items-center justify-center gap-1 rounded-md border border-hairline-strong bg-surface px-3 text-sm font-medium text-ink transition-colors group-open:border-ink marker:hidden [&::-webkit-details-marker]:hidden"
       >
         <span className="hidden xs:inline-flex">
           <Icon name="menu" />
@@ -118,7 +120,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
       </summary>
       <nav
         aria-label="Menu"
-        className="absolute top-full right-0 z-(--z-menu) mt-2 w-48 max-w-[calc(100vw_-_8*var(--spacing))] rounded-xl border border-hairline bg-surface px-4 py-2"
+        className="absolute inset-x-0 top-full z-(--z-menu) mt-px border-b border-hairline bg-bg px-4 pt-2 pb-6 md:px-8"
       >
         {children}
       </nav>
