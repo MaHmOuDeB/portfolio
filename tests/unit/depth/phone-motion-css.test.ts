@@ -61,7 +61,11 @@ describe('the fan of the band below lg', () => {
       expect(kf).not.toContain('opacity');
     }
     // The column itself stays the static layout: the motion is only in the gated block.
-    const column = block('@media (width < 64rem)');
+    // (Other blocks below lg come first, such as the text wrapping in base: find the band's own.)
+    const columns: string[] = [];
+    for (let at = css.indexOf('@media (width < 64rem)'); at > -1; at = css.indexOf('@media (width < 64rem)', at + 1)) columns.push(block('@media (width < 64rem)', at));
+    const column = columns.find((b) => /\[data-depth-sheet\]\s*\{/.test(b))!;
+    expect(column, 'the static column below lg').toBeDefined();
     expect(column).toMatch(/\[data-depth-sheet\]\s*\{[^}]*transform:\s*none/);
     expect(column).not.toMatch(/animation/);
   });
@@ -147,8 +151,10 @@ describe('Drift, Hinge and Trace below lg', () => {
     // A stacked cell is ruled along its top, so its drawn rule is horizontal and replaces that border.
     expect(narrow).toMatch(/\[data-depth-trace="proof"\] > \[data-proof\]:not\(:first-child\)\s*\{\s*border-top-color:\s*transparent;\s*\}/);
     expect(narrow).toMatch(/\[data-depth-trace="proof"\] > \[data-proof\]:not\(:first-child\)::before\s*\{[^}]*top:\s*-1px[^}]*height:\s*1px[^}]*animation:\s*depth-trace-x linear backwards[^}]*animation-timeline:\s*--depth-cell/);
-    // From sm the first row's two cells have no top border, so nothing draws there.
-    expect(narrow).toMatch(/@media \(width >= 40rem\)\s*\{\s*\[data-depth-trace="proof"\] > \[data-proof\]:nth-child\(-n \+ 2\)::before\s*\{\s*content:\s*none;/);
+    // The cells are two across at every narrow width, so the first row's two cells have no top border
+    // and nothing draws there.
+    expect(narrow).toMatch(/\}\s*\[data-depth-trace="proof"\] > \[data-proof\]:nth-child\(-n \+ 2\)::before\s*\{\s*content:\s*none;/);
+    expect(narrow).not.toMatch(/@media \(width >= 40rem\)\s*\{\s*\[data-depth-trace="proof"\]/);
     // The automation lines: a top rule while they stack (below md), the wide screen's left rule from md.
     expect(block('@media (width < 48rem)', css.indexOf(NARROW))).toMatch(/\[data-depth-trace="row"\] > li \+ li::before\s*\{[^}]*top:\s*-1px[^}]*animation:\s*depth-trace-x linear backwards/);
     expect(block('@media (width >= 48rem)', css.indexOf(NARROW))).toMatch(/\[data-depth-trace="row"\] > li \+ li::before\s*\{[^}]*left:\s*-1px[^}]*animation:\s*depth-trace-y linear backwards/);

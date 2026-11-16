@@ -81,7 +81,21 @@ describe('the band: the stack that unfolds', () => {
   it('below lg rests in a static vertical column (no pin, no pose, no lean, no links), the end state of the phone fan', () => {
     // The fan that settles into this column lives in its own gated block (phone-motion-css.test.ts),
     // so where it does not run (no scroll timelines, reduced motion, print) this column is the layout.
-    const narrow = block('@media (width < 64rem)');
+    // Other blocks below lg come first (the text wrapping in base, the sketch text): find the band's own.
+    const narrows: string[] = [];
+    for (let at = css.indexOf('@media (width < 64rem)'); at > -1; at = css.indexOf('@media (width < 64rem)', at + 1)) {
+      const open = css.indexOf('{', at);
+      let depth = 0;
+      for (let i = open; i < css.length; i++) {
+        if (css[i] === '{') depth++;
+        else if (css[i] === '}' && --depth === 0) {
+          narrows.push(css.slice(open + 1, i));
+          break;
+        }
+      }
+    }
+    const narrow = narrows.find((b) => /\[data-depth-rig\]\s*\{/.test(b))!;
+    expect(narrow, 'the static column below lg').toBeDefined();
     expect(narrow).toMatch(/\[data-depth-rig\]\s*\{[^}]*flex-direction:\s*column[^}]*transform:\s*none/);
     // Positioned, not static: each sheet's face is an absolute ::before and must resolve against its own sheet.
     expect(narrow).toMatch(/\[data-depth-sheet\]\s*\{[^}]*position:\s*relative[^}]*transform:\s*none/);

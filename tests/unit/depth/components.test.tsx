@@ -63,8 +63,10 @@ describe('LeanCard', () => {
     expect(html).toContain('data-track="card"');
     expect(html).toContain('data-card-id="one"');
   });
-  it('has an h3 with a fixed minimum height, the description, the meta and a hidden disc', () => {
-    expect(html).toMatch(/<h3 id="[^"]+" style="min-height:3lh">A title<\/h3>/);
+  it('has an h3 that keeps its lines from lg (the CSS reads --title-lines there), the description, the meta and a hidden disc', () => {
+    // No inline min-height: stacked below lg, a title takes only its own lines.
+    expect(html).toMatch(/<h3 id="[^"]+" data-title-lines="" style="--title-lines:3">A title<\/h3>/);
+    expect(html).not.toContain('min-height');
     expect(html).toMatch(/<p id="[^"]+">Describes it\.<\/p>/);
     expect(html).toContain('<span data-depth-meta="">Meta line</span>');
     expect(html).toContain('<span data-depth-go="" aria-hidden="true">+</span>');

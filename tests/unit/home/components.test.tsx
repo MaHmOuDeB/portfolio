@@ -160,11 +160,14 @@ describe('FeaturedCases', () => {
     }
   });
 
-  it('keeps the headline area at a fixed minimum height, the same in every card and group', () => {
+  it('keeps the headline area the same number of lines in every card and group (from lg, where the cards sit side by side)', () => {
     for (const arm of ARMS) {
       const h3s = all(doc(cards(arm)), (el) => el.tagName === 'h3');
       expect(h3s).toHaveLength(3);
-      for (const h3 of h3s) expect(style(h3)).toBe('min-height:3lh');
+      for (const h3 of h3s) {
+        expect(style(h3)).toBe('--title-lines:3');
+        expect(has(h3, 'data-title-lines')).toBe(true);
+      }
     }
   });
 

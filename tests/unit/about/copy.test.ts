@@ -239,13 +239,37 @@ describe('the About page', () => {
     const timeline = one(section(d, 'timeline'), (el) => el.tagName === 'ol');
     expect(classes(timeline)).toContain('max-w-text');
     expect(classes(timeline)).not.toContain('max-w-figure');
-    // Tools are a grid of even cards, three across from lg, and the languages a grid of small cards.
+    // Tools are hairline rows on a phone and a grid of even cards from sm, three across from lg; the
+    // languages a grid of small cards, two across on a phone too, five from lg.
     const tools = one(section(d, 'tools'), (el) => el.tagName === 'ul');
-    expect(classes(tools)).toEqual(expect.arrayContaining(['grid', 'sm:grid-cols-2', 'lg:grid-cols-3']));
+    expect(classes(tools)).toEqual(expect.arrayContaining(['grid', 'gap-0', 'sm:gap-3', 'sm:grid-cols-2', 'lg:grid-cols-3']));
     expect(classes(tools)).not.toContain('flex-wrap');
-    for (const li of all(tools, (el) => el.tagName === 'li')) expect(classes(li)).toEqual(expect.arrayContaining(['rounded-xl', 'h-full']));
-    expect(classes(one(section(d, 'languages'), (el) => el.tagName === 'dl'))).toContain('lg:grid-cols-5');
+    for (const li of all(tools, (el) => el.tagName === 'li')) {
+      expect(classes(li)).toEqual(expect.arrayContaining(['border-t', 'border-hairline', 'py-3', 'last:border-b', 'h-full', 'sm:rounded-xl', 'sm:border', 'sm:bg-surface', 'sm:p-4']));
+      expect(classes(li)).not.toContain('rounded-xl');
+    }
+    const langs = one(section(d, 'languages'), (el) => el.tagName === 'dl');
+    expect(classes(langs)).toEqual(expect.arrayContaining(['grid', 'grid-cols-2', 'gap-3', 'lg:grid-cols-5']));
     for (const li of all(section(d, 'timeline'), (el) => el.tagName === 'li')) expect(classes(li)).toContain('md:grid-cols-[12rem_1fr]');
+  });
+
+  it('shows the portrait across the column on a phone as a 4:3 crop from the top, and whole at a modest size from sm', () => {
+    const img = one(about(), (el) => el.tagName === 'img');
+    expect(classes(img)).toEqual(
+      expect.arrayContaining(['h-auto', 'w-full', 'max-sm:aspect-[4/3]', 'max-sm:object-cover', 'max-sm:object-top', 'sm:max-w-72', 'lg:max-w-none']),
+    );
+    expect(classes(img)).not.toContain('max-w-56');
+  });
+
+  it('sets the story at the body size on a phone and one step larger from md', () => {
+    const story = one(about(), (el) => has(el, 'data-about-story'));
+    expect(classes(story)).toEqual(expect.arrayContaining(['text-base', 'md:text-lg']));
+    expect(classes(story)).not.toContain('text-lg');
+  });
+
+  it('stacks the head buttons at one full width under xs and sets them in a row from xs', () => {
+    const actions = one(about(), (el) => has(el, 'data-about-actions'));
+    expect(classes(actions)).toEqual(expect.arrayContaining(['flex', 'flex-wrap', 'gap-2.5', 'max-xs:grid', 'max-xs:grid-cols-1', 'max-xs:[&_a]:w-full']));
   });
 
   it('shows the photograph with its alternative text, 4:5, at 480 px wide (960 px for dense screens), loaded eagerly but not preloaded', () => {
