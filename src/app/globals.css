@@ -1552,11 +1552,12 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
    rig keeps its one 3D context, so the sheets are sorted by depth: the tilt brings each sheet's
    lower edge forward, and the depths are far enough apart that a sheet's lower edge is always in
    front of the top of the sheet under it. Every corner stays behind the screen plane, so a sheet
-   only shrinks toward its own centre and its turn widens it by under 14 px a side, inside the
-   16 px page gutter. */
+   only shrinks toward its own centre, and the turns are small enough that no corner passes the
+   screen's edge at 320 px, even with the text at 200% (the front sheet's turn is held to 6.5deg
+   for that: at 8deg its corner passed the edge by 3 px). */
 @keyframes depth-fan-1 {
   from {
-    transform: perspective(62.5rem) translate3d(0, 112px, -72px) rotateX(30deg) rotateZ(-8deg);
+    transform: perspective(62.5rem) translate3d(0, 112px, -72px) rotateX(30deg) rotateZ(-6.5deg);
   }
 
   to {
