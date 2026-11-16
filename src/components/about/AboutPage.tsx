@@ -95,8 +95,9 @@ export function AboutPage(): ReactNode {
           </div>
         </div>
         {/* The portrait's column drifts in once from the top left (the photo keeps its own parallax). On a
-            phone it comes first, under the headline, across the column as a head-and-shoulders crop (4:3,
-            from the top of the 4:5 photo); from sm it is the whole photo at a modest size. */}
+            phone it comes first, under the headline, across the column as a square head-and-shoulders crop
+            (80% of the 4:5 photo's height, placed 25% down, so it starts just above the hair and ends on the
+            shoulders); from sm it is the whole photo at a modest size. */}
         <div data-depth-drift="tl" className="order-first lg:order-last lg:col-span-5">
           <Image
             src={aboutPhoto.src}
@@ -105,7 +106,7 @@ export function AboutPage(): ReactNode {
             height={(PHOTO_WIDTH * aboutPhoto.height) / aboutPhoto.width}
             loading="eager"
             data-depth-parallax=""
-            className="h-auto w-full rounded-xl border border-hairline max-sm:aspect-[4/3] max-sm:object-cover max-sm:object-top sm:max-w-72 lg:max-w-none print:max-w-48"
+            className="h-auto w-full rounded-xl border border-hairline max-sm:aspect-square max-sm:object-cover max-sm:object-[50%_25%] sm:max-w-72 lg:max-w-none print:max-w-48"
           />
           <ul role="list" data-about-profiles="" className="mt-3 flex flex-wrap gap-x-6 print:hidden">
             <li>

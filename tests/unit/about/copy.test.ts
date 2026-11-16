@@ -253,11 +253,14 @@ describe('the About page', () => {
     for (const li of all(section(d, 'timeline'), (el) => el.tagName === 'li')) expect(classes(li)).toContain('md:grid-cols-[12rem_1fr]');
   });
 
-  it('shows the portrait across the column on a phone as a 4:3 crop from the top, and whole at a modest size from sm', () => {
+  it('shows the portrait across the column on a phone as a square head-and-shoulders crop, and whole at a modest size from sm', () => {
     const img = one(about(), (el) => el.tagName === 'img');
+    // A square window is 80% of the 4:5 photo's height; at 25% it starts just above the hair and ends
+    // on the shoulders (a 4:3 window is too short and cuts at the chin).
     expect(classes(img)).toEqual(
-      expect.arrayContaining(['h-auto', 'w-full', 'max-sm:aspect-[4/3]', 'max-sm:object-cover', 'max-sm:object-top', 'sm:max-w-72', 'lg:max-w-none']),
+      expect.arrayContaining(['h-auto', 'w-full', 'max-sm:aspect-square', 'max-sm:object-cover', 'max-sm:object-[50%_25%]', 'sm:max-w-72', 'lg:max-w-none']),
     );
+    expect(classes(img)).not.toContain('max-sm:aspect-[4/3]');
     expect(classes(img)).not.toContain('max-w-56');
   });
 
