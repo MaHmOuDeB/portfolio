@@ -404,12 +404,32 @@ test.describe('Remaining quality: representative states', () => {
           const photo = await page.locator('main img').first().evaluate((img: HTMLImageElement) => {
             const r = img.getBoundingClientRect();
             const s = getComputedStyle(img);
-            return { width: r.width, height: r.height, natural: [img.naturalWidth, img.naturalHeight], fit: s.objectFit, radius: s.borderRadius, dpr: devicePixelRatio, alt: img.alt };
+            return {
+              width: r.width,
+              height: r.height,
+              natural: [img.naturalWidth, img.naturalHeight],
+              fit: s.objectFit,
+              position: s.objectPosition,
+              radius: s.borderRadius,
+              dpr: devicePixelRatio,
+              alt: img.alt,
+              viewport: innerWidth,
+            };
           });
-          // A 4 by 5 rectangle, never a circle, never upscaled, never cropped further than its file.
-          expect.soft(Math.abs(photo.width / photo.height - 0.8), `${label}: aspect ${JSON.stringify(photo)}`).toBeLessThanOrEqual(0.01);
-          expect.soft(Math.abs(photo.natural[0]! / photo.natural[1]! - photo.width / photo.height), `${label}: crop ${JSON.stringify(photo)}`).toBeLessThanOrEqual(0.01);
-          expect.soft(photo.natural[0]!, `${label}: resolution ${JSON.stringify(photo)}`).toBeGreaterThanOrEqual(Math.round(photo.width * photo.dpr) - 1);
+          if (photo.viewport < 640) {
+            // Under sm: a square head-and-shoulders crop across the column (cover, 25% down the 4:5 file).
+            expect.soft(Math.abs(photo.width / photo.height - 1), `${label}: aspect ${JSON.stringify(photo)}`).toBeLessThanOrEqual(0.01);
+            expect.soft(photo.fit, `${label}: crop ${JSON.stringify(photo)}`).toBe('cover');
+            expect.soft(photo.position, `${label}: crop ${JSON.stringify(photo)}`).toBe('50% 25%');
+          } else {
+            // From sm: a 4 by 5 rectangle, never cropped further than its file.
+            expect.soft(Math.abs(photo.width / photo.height - 0.8), `${label}: aspect ${JSON.stringify(photo)}`).toBeLessThanOrEqual(0.01);
+            expect.soft(Math.abs(photo.natural[0]! / photo.natural[1]! - photo.width / photo.height), `${label}: crop ${JSON.stringify(photo)}`).toBeLessThanOrEqual(0.01);
+          }
+          // Never upscaled: the file is drawn at most 1 device px wider than it is (with cover, at the larger
+          // of the two scales; uncropped, both scales are equal and this is the width check).
+          const scale = Math.max(photo.width / photo.natural[0]!, photo.height / photo.natural[1]!) * photo.dpr;
+          expect.soft(scale * photo.natural[0]!, `${label}: resolution ${JSON.stringify(photo)}`).toBeLessThanOrEqual(photo.natural[0]! + 1);
           expect.soft(photo.radius, `${label}: shape`).not.toContain('50%');
           expect.soft(photo.alt.length, `${label}: alt`).toBeGreaterThan(20);
         }
