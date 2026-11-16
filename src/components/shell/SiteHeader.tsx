@@ -52,8 +52,9 @@ export function SiteHeader() {
             </ButtonLink>
           </div>
           <MenuDisclosure>
-            {/* Full-width rows of at least 48 px, a hairline between them, then the two buttons side by side. */}
-            <NavLinks className="flex flex-col [&_a]:flex [&_a]:min-h-12 [&_a]:w-full [&_a]:text-lg [&_li]:border-b [&_li]:border-hairline" />
+            {/* Full-width rows of at least 48 px in ink, a hairline between them, then the two buttons side by
+                side. The current page keeps its ink underline. */}
+            <NavLinks className="flex flex-col [&_a]:flex [&_a]:min-h-12 [&_a]:w-full [&_a]:text-lg [&_a]:text-ink [&_li]:border-b [&_li]:border-hairline" />
             <div className="grid grid-cols-2 gap-2 pt-4">
               <ButtonLink href={CV_LINK.href} variant="secondary">
                 {CV_LINK.label}

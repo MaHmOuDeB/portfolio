@@ -70,6 +70,9 @@ describe('SiteHeader', () => {
     expect(list).toEqual(
       expect.arrayContaining(['flex', 'flex-col', '[&_a]:flex', '[&_a]:w-full', '[&_a]:min-h-12', '[&_a]:text-lg', '[&_li]:border-b', '[&_li]:border-hairline']),
     );
+    // In the sheet every link is ink (muted grey reads washed out at text-lg); the current page keeps
+    // its ink underline, so it stays marked by more than colour.
+    expect(list).toContain('[&_a]:text-ink');
     const buttons = /<\/ul><div class="([^"]*)">/.exec(menu)![1]!.split(' ');
     expect(buttons).toEqual(expect.arrayContaining(['grid', 'grid-cols-2']));
   });
