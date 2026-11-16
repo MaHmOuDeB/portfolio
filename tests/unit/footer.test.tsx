@@ -56,6 +56,19 @@ describe('Footer', () => {
     for (const title of ['Site', 'Contact', 'Legal']) expect(nav![1]).toMatch(new RegExp(`<p id="[^"]+"[^>]*>${title}</p>`));
   });
 
+  it('follows the page directly on a phone and keeps its 80 px margin from md', () => {
+    const cls = /^<footer [^>]*class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
+    expect(cls).toEqual(expect.arrayContaining(['mt-0', 'md:mt-20']));
+    expect(cls).not.toContain('mt-20');
+  });
+
+  it('sets the three link columns side by side at every width, with a narrower gap under md', () => {
+    const cls = /<nav aria-label="Footer" class="([^"]*)"/.exec(MARKUP)![1]!.split(' ');
+    expect(cls).toEqual(expect.arrayContaining(['grid', 'grid-cols-3', 'gap-x-4', 'md:gap-x-8', 'md:col-span-3']));
+    expect(cls).not.toContain('grid-cols-2');
+    expect(cls).not.toContain('gap-x-8');
+  });
+
   it('makes every link a 44 px target, and has no e-mail address', () => {
     const links = [...MARKUP.matchAll(/<a ([^>]*)>/g)].map((m) => m[1]!);
     expect(links.length).toBe(10);

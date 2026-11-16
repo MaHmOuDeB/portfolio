@@ -1,5 +1,6 @@
 // The ink footer: the wordmark, the site's line in two tones, three link columns (Site, Contact,
-// Legal) in one nav named "Footer". The column titles are plain text that
+// Legal) in one nav named "Footer", three across at every width. On a phone it follows the page's last
+// block with no margin of its own (the page's closing space is enough); from md it keeps 80 px. The column titles are plain text that
 // labels its list, not headings, so the page outline never gains a second "Contact". Visible labels only; the contact form and LinkedIn are the
 // contact routes, and there is no e-mail address. Every link is a 44 px target both ways, however short its label.
 import Link from 'next/link';
@@ -43,7 +44,7 @@ function FooterAnchor({ href, external, children }: { href: string; external?: b
 
 export function Footer() {
   return (
-    <footer data-ink="" className="mt-20 bg-ink text-on-ink">
+    <footer data-ink="" className="mt-0 bg-ink text-on-ink md:mt-20">
       <div className="mx-auto grid max-w-page grid-cols-2 gap-x-8 gap-y-10 px-4 pt-14 pb-10 wrap-break-word md:grid-cols-[1.4fr_1fr_1fr_1fr] md:px-8">
         <div className="col-span-2 md:col-span-1">
           {/* No prefetch: the proxy draws a group per request to /. */}
@@ -60,7 +61,7 @@ export function Footer() {
             {HEADLINE.lead} <span className="text-on-ink-muted">{HEADLINE.quiet}</span>
           </p>
         </div>
-        <nav aria-label="Footer" className="col-span-2 grid grid-cols-2 gap-x-8 gap-y-10 md:col-span-3 md:grid-cols-3">
+        <nav aria-label="Footer" className="col-span-2 grid grid-cols-3 gap-x-4 gap-y-10 md:col-span-3 md:gap-x-8">
           {COLUMNS.map((col) => {
             const id = `footer-${col.heading.toLowerCase()}`;
             return (
