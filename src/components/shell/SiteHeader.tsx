@@ -52,8 +52,9 @@ export function SiteHeader() {
             </ButtonLink>
           </div>
           <MenuDisclosure>
-            <NavLinks className="flex flex-col" />
-            <div className="flex flex-col items-start gap-2 pt-2 pb-2">
+            {/* Full-width rows of at least 48 px, a hairline between them, then the two buttons side by side. */}
+            <NavLinks className="flex flex-col [&_a]:flex [&_a]:min-h-12 [&_a]:w-full [&_a]:text-lg [&_li]:border-b [&_li]:border-hairline" />
+            <div className="grid grid-cols-2 gap-2 pt-4">
               <ButtonLink href={CV_LINK.href} variant="secondary">
                 {CV_LINK.label}
               </ButtonLink>
