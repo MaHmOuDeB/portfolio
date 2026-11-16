@@ -3341,7 +3341,8 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
         animation-name: depth-fan-3;
       }
 
-      /* Drift: one column, so no stagger by grid row. */
+      /* Drift: no stagger by grid row. Under md the cards are one column; from md to lg two cards can
+         sit side by side and drift together, each on its own view, which reads as one row arriving. */
       [data-depth-drift] {
         transform-origin: 0% 100%;
         animation: depth-drift-bl-narrow linear backwards;
@@ -3411,7 +3412,7 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
       }
 
       /* Trace. The About spine and its dots run as on a wide screen. A group's rule under its label
-         runs on its own view, since the groups stack here. The ruled cells stack too, so each draws
+         runs on its own view, since the groups can stack here (they do under 40rem). The ruled cells stack too, so each draws
          the hairline along its top on its own timeline (a pseudo-element has no box to watch). */
       [data-depth-trace] {
         view-timeline: --depth-trace block;

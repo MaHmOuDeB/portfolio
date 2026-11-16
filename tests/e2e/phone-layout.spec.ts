@@ -95,20 +95,39 @@ test.describe('phone layout', () => {
     }
   });
 
-  test('the Home proof row is two columns at 375 px', async ({ page }) => {
+  test('the Home proof row is two columns at 320 and 375 px, each figure on one line', async ({ page }) => {
     test.skip(!isCompact(page), 'compact layout');
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/');
-    const cells = await page.locator('[data-home-proof] > [data-proof]').evaluateAll((els) => (els as HTMLElement[]).map((el) => ({ left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth })));
-    expect(cells).toHaveLength(4);
-    expect(new Set(cells.map((c) => c.top)).size).toBe(2);
-    expect(new Set(cells.map((c) => c.left)).size).toBe(2);
-    expect(cells[0]!.top).toBe(cells[1]!.top);
-    expect(cells[2]!.top).toBe(cells[3]!.top);
-    expect(cells[0]!.width).toBe(cells[1]!.width);
-    // Every figure keeps its one line.
-    const fits = await page.locator('[data-proof-figure]').evaluateAll((els) => els.every((el) => el.scrollWidth <= el.clientWidth + 1));
-    expect(fits).toBe(true);
+    for (const width of [320, 375]) {
+      await page.setViewportSize({ width, height: 812 });
+      await page.goto('/');
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const cells = await page.locator('[data-home-proof] > [data-proof]').evaluateAll((els) => (els as HTMLElement[]).map((el) => ({ left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth })));
+      expect(cells, `${width}`).toHaveLength(4);
+      expect(new Set(cells.map((c) => c.top)).size, `${width}`).toBe(2);
+      expect(new Set(cells.map((c) => c.left)).size, `${width}`).toBe(2);
+      expect(cells[0]!.top, `${width}`).toBe(cells[1]!.top);
+      expect(cells[2]!.top, `${width}`).toBe(cells[3]!.top);
+      expect(cells[0]!.width, `${width}`).toBe(cells[1]!.width);
+      // Every figure keeps its one line ("about 3 min" is the longest): it neither overflows its cell
+      // nor wraps, which a scrollWidth check alone cannot see.
+      const lines = await page.locator('[data-proof-figure]').evaluateAll((els) =>
+        els.map((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          // A smaller word ("about") sits on the same line with a different box, so a new line starts
+          // only where a box begins below the bottom of every box before it.
+          const rects = [...range.getClientRects()].filter((r) => r.width > 0).sort((a, b) => a.top - b.top);
+          let lines = 0;
+          let bottom = -Infinity;
+          for (const r of rects) {
+            if (r.top >= bottom - 1) lines++;
+            bottom = Math.max(bottom, r.bottom);
+          }
+          return { lines, overflow: el.scrollWidth > el.clientWidth + 1 };
+        }),
+      );
+      for (const figure of lines) expect(figure, `${width}`).toEqual({ lines: 1, overflow: false });
+    }
   });
 });
 
