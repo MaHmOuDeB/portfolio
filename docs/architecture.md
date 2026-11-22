@@ -1,6 +1,6 @@
 # Architecture
 
-The site uses the Next.js App Router, with static pages and interval regeneration for the experiment views. The current home page is a scaffold with a beacon and an empty featured-card region; the case-study pages and finished live-test page are still to come. Sources: [package.json](../package.json), [Next configuration](../next.config.ts) and [home page](../src/app/v/[arm]/page.tsx).
+The site uses the Next.js App Router, with static pages and interval regeneration for the experiment views. The current home page is a scaffold with a beacon and an empty featured-card region; the case-study pages and finished live-test page are still to come. Sources: [package.json](../package.json), [Next configuration](../next.config.ts) and [home page](<../src/app/(en)/v/[arm]/page.tsx>).
 
 ## Figure kit
 
@@ -32,7 +32,7 @@ flowchart TD
     Snapshot --> Data[Published data.json]
 ```
 
-[The proxy](../src/proxy.ts) rewrites `/` to `/v/a` or `/v/b` using a fresh, equal-probability draw, without a stored visitor assignment. [Assignment logic](../src/lib/experiment/assign.ts) sends known bots to A and supports forced demo groups. Ordinary direct requests to `/v/*` resolve to a missing group; revalidation requests bypass that rule. The [group pages](../src/app/v/[arm]/page.tsx) are generated statically and regenerate every five minutes. They render the beacon before the featured-card region.
+[The proxy](../src/proxy.ts) rewrites `/` to `/v/a` or `/v/b` using a fresh, equal-probability draw, without a stored visitor assignment. [Assignment logic](../src/lib/experiment/assign.ts) sends known bots to A and supports forced demo groups. Ordinary direct requests to `/v/*` resolve to a missing group; revalidation requests bypass that rule. The [group pages](<../src/app/(en)/v/[arm]/page.tsx>) are generated statically and regenerate every five minutes. They render the beacon before the featured-card region.
 
 [The beacon component](../src/components/experiment/ExperimentBeacon.tsx) reads navigation signals, honours Global Privacy Control and Do Not Track by sending nothing, and records exposure, engagement and relevant clicks. [Entry classification](../src/lib/experiment/entry.ts) excludes reloads, internal navigation, repeated views in the same document, prerendering and restored pages. [The sender](../src/lib/experiment/beacon.ts) waits for entry confirmation before sending later events and flushes outstanding events when the page is left or hidden.
 
