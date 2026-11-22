@@ -1,7 +1,7 @@
-// Renders the sharing (Open Graph) images, public/og/<card>.png at 1200 x 630, from the cards in
-// content/seo.ts and the template in src/lib/seo/og-template.ts, with Playwright's Chromium:
+// Renders the sharing (Open Graph) images, public/og/<card>.png and the German set public/og/de/<card>.png
+// at 1200 x 630, from the cards in content/seo.ts and content/de/seo.ts and the template in src/lib/seo/og-template.ts, with Playwright's Chromium:
 //
-//   npm run og:render                    # writes public/og/*.png and scripts/og-images.lock.json
+//   npm run og:render                    # writes public/og/*.png, public/og/de/*.png and scripts/og-images.lock.json
 //   npm run og:render -- --preview DIR   # also writes DIR/<card>-350.png, each card at 350 px wide
 //
 // Everything is local: the colours are read from src/styles/tokens.css, the font is the vendored
@@ -14,6 +14,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { OG_CARDS_DE } from '../content/de/seo.ts';
 import { OG_CARDS } from '../content/seo.ts';
 import { OG_HEIGHT, OG_WIDTH, ogHtml, themeFromTokens } from '../src/lib/seo/og-template.ts';
 
@@ -26,11 +27,17 @@ const VIEWPORT = { width: OG_WIDTH, height: OG_HEIGHT, deviceScaleFactor: 1 };
 
 type Plan = { cards: { file: string; html: string }[]; inputHash: string };
 
-/** The page of every card, and the hash of everything that decides the pixels. */
+/** The lock key and output path of a card, relative to public/og: English at the top, German under de/. */
+export const ogFile = (name: string, lang: 'en' | 'de') => (lang === 'de' ? `de/${name}.png` : `${name}.png`);
+
+/** The page of every card of both sets, and the hash of everything that decides the pixels. */
 export function renderPlan(root: string): Plan {
   const theme = themeFromTokens(readFileSync(join(root, TOKENS), 'utf8'));
   const fontUrl = `data:font/woff2;base64,${readFileSync(join(root, FONT)).toString('base64')}`;
-  const cards = OG_CARDS.map((card) => ({ file: `${card.name}.png`, html: ogHtml(card, theme, fontUrl) }));
+  const cards = [
+    ...OG_CARDS.map((card) => ({ file: ogFile(card.name, 'en'), html: ogHtml(card, theme, fontUrl) })),
+    ...OG_CARDS_DE.map((card) => ({ file: ogFile(card.name, 'de'), html: ogHtml(card, theme, fontUrl, 'de') })),
+  ];
   const inputHash = createHash('sha256').update(JSON.stringify({ viewport: VIEWPORT, cards })).digest('hex');
   return { cards, inputHash };
 }
@@ -55,7 +62,10 @@ async function main(argv: string[]): Promise<number> {
     const page = await context.newPage();
     const out = join(root, OUT_DIR);
     mkdirSync(out, { recursive: true });
-    for (const stale of readdirSync(out).filter((f) => f.endsWith('.png'))) rmSync(join(out, stale));
+    mkdirSync(join(out, 'de'), { recursive: true });
+    for (const dir of [out, join(out, 'de')]) {
+      for (const stale of readdirSync(dir).filter((f) => f.endsWith('.png'))) rmSync(join(dir, stale));
+    }
     const images: Record<string, { sha256: string; width: number; height: number }> = {};
     for (const card of plan.cards) {
       await page.setContent(card.html, { waitUntil: 'load' });
@@ -90,7 +100,7 @@ async function main(argv: string[]): Promise<number> {
           { waitUntil: 'load' },
         );
         mkdirSync(resolve(previewDir), { recursive: true });
-        await preview.screenshot({ path: join(resolve(previewDir), card.file.replace(/\.png$/, `-${PREVIEW_WIDTH}.png`)) });
+        await preview.screenshot({ path: join(resolve(previewDir), card.file.replace(/\.png$/, `-${PREVIEW_WIDTH}.png`).replace('/', '-')) });
         await preview.close();
       }
       console.log(`og:render ${OUT_DIR}/${card.file}`);

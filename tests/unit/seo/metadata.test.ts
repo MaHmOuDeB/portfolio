@@ -8,6 +8,7 @@ import { serverEnv } from '@/lib/env';
 import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, documentTitle, pageMetadata, withSiteName } from '@/lib/seo/metadata';
 import { OG_HEIGHT, OG_WIDTH, ogAlt, ogHtml, themeFromTokens } from '@/lib/seo/og-template';
 import { HEADLINE, SITE } from '@/lib/site';
+import { OG_CARDS_DE } from '../../../content/de/seo.ts';
 import { HOME_HERO } from '../../../content/home.ts';
 import {
   HOME_SHARE_TITLE,
@@ -431,6 +432,7 @@ describe('canonicalAndRobots', () => {
       expect(m.openGraph).toEqual({
         type: 'website',
         siteName: SITE.name,
+        locale: 'en_GB',
         url,
         title: shareTitle(entry),
         description: entry.description,
@@ -619,8 +621,13 @@ describe('sharingTemplate', () => {
     };
     const plan = renderPlan(ROOT);
     expect(lock.inputHash).toBe(plan.inputHash);
-    expect(Object.keys(lock.images).sort()).toEqual(OG_CARDS.map((card) => `${card.name}.png`).sort());
-    const committed = fs.readdirSync(path.join(ROOT, 'public/og')).filter((f) => f.endsWith('.png')).sort();
+    // The lock covers both sets: English at the top of public/og, German under de/.
+    expect(Object.keys(lock.images).sort()).toEqual(
+      [...OG_CARDS.map((card) => `${card.name}.png`), ...OG_CARDS_DE.map((card) => `de/${card.name}.png`)].sort(),
+    );
+    const committed = ['', 'de']
+      .flatMap((dir) => fs.readdirSync(path.join(ROOT, 'public/og', dir)).filter((f) => f.endsWith('.png')).map((f) => (dir ? `${dir}/${f}` : f)))
+      .sort();
     expect(committed).toEqual(Object.keys(lock.images).sort());
     for (const [file, meta] of Object.entries(lock.images)) {
       const png = fs.readFileSync(path.join(ROOT, 'public/og', file));

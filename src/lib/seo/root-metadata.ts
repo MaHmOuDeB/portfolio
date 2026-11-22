@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { ogCard } from '../../../content/seo.ts';
 import { SITE } from '../site.ts';
+import { OG_LOCALE } from './alternates.ts';
 import { canonicalOrigin } from './metadata.ts';
 import { OG_HEIGHT, OG_WIDTH, ogAlt } from './og-template.ts';
 
@@ -18,6 +19,7 @@ export function rootMetadata(): Metadata {
     openGraph: {
       type: 'website',
       siteName: SITE.name,
+      locale: OG_LOCALE.en,
       images: [{ ...siteImage, width: OG_WIDTH, height: OG_HEIGHT, type: 'image/png' }],
     },
     twitter: { card: 'summary_large_image', images: [siteImage] },

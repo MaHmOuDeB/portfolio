@@ -7,7 +7,9 @@
 import type { Metadata } from 'next';
 import { shareTitle, type SeoEntry } from '../../../content/seo.ts';
 import { serverEnv, type ServerEnv } from '../env.ts';
+import { DE_PAGES } from '../i18n/pages.ts';
 import { SITE } from '../site.ts';
+import { OG_LOCALE, hasTwin, languageAlternates, pathIn } from './alternates.ts';
 import { bareHostname } from './hostname.ts';
 import { OG_HEIGHT, OG_WIDTH } from './og-template.ts';
 
@@ -82,19 +84,28 @@ export function documentTitle(entry: Pick<SeoEntry, 'path' | 'title'>): string {
  * one absolute canonical, and the Open Graph and Twitter fields (with the page's share title) and its
  * 1200 x 630 sharing image. Every URL is absolute on `origin`. There is no robots field, so the page
  * is indexable and followed.
+ *
+ * `entry.path` is the English path; a German entry's own address is its /de twin, which is its
+ * canonical. A page in `pages` (the German registry) has both languages as hreflang alternates, with
+ * English as x-default, and names the other language as an alternate Open Graph locale; a page not in
+ * it advertises nothing. og:locale is the entry's own language.
  */
-export function pageMetadata(entry: SeoEntry, origin: URL): Metadata {
-  const url = new URL(entry.path, origin).href;
+export function pageMetadata(entry: SeoEntry, origin: URL, pages: readonly string[] = DE_PAGES): Metadata {
+  const url = new URL(pathIn(entry.locale, entry.path), origin).href;
+  const twin = hasTwin(entry.path, pages);
+  const other = entry.locale === 'de' ? 'en' : 'de';
   const image = new URL(entry.image, origin).href;
   const title = shareTitle(entry);
   return {
     metadataBase: origin,
     title: documentTitle(entry),
     description: entry.description,
-    alternates: { canonical: url },
+    alternates: twin ? { canonical: url, languages: languageAlternates(entry.path, origin) } : { canonical: url },
     openGraph: {
       type: 'website',
       siteName: SITE.name,
+      locale: OG_LOCALE[entry.locale],
+      ...(twin ? { alternateLocale: OG_LOCALE[other] } : {}),
       url,
       title,
       description: entry.description,
