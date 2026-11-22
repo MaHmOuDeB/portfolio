@@ -5,37 +5,40 @@
 import { useEffect } from 'react';
 import { buttonClass } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
 import { CONTACT } from '@/lib/site';
+import { ERROR_EN, type ErrorCopy } from '../../../content/shell';
 
 type Props = {
   error: Error & { digest?: string };
   retry: () => void;
+  /** The words and the language; English when a page passes neither. */
+  text?: ErrorCopy;
+  locale?: Locale;
 };
 
-export function ErrorMessage({ error, retry }: Props) {
+export function ErrorMessage({ error, retry, text = ERROR_EN, locale = 'en' }: Props) {
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
     <div className="max-w-text py-section">
-      <h1 className="text-2xl font-semibold md:text-3xl">This page could not load</h1>
-      <p className="mt-4">
-        An error stopped this page from loading. Try again. If it happens again, send me the page
-        address on LinkedIn.
-      </p>
+      <h1 className="text-2xl font-semibold md:text-3xl">{text.title}</h1>
+      <p className="mt-4">{text.body}</p>
       <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
         <button type="button" data-touch-target className={buttonClass('primary')} onClick={() => retry()}>
-          Try again
+          {text.retry}
         </button>
-        <TextLink href="/work" standalone>
-          Work
+        <TextLink href={localHref(locale, '/work')} standalone>
+          {text.work}
         </TextLink>
-        <TextLink href="/lab" standalone>
-          Lab
+        <TextLink href={localHref(locale, '/lab')} standalone>
+          {text.lab}
         </TextLink>
         <TextLink href={CONTACT.linkedin} external standalone>
-          LinkedIn
+          {text.linkedin}
         </TextLink>
       </div>
     </div>

@@ -57,6 +57,21 @@
   }
 }
 
+/*
+ * German text hyphenates where a long compound would otherwise overflow its column. Never inside a
+ * number, a code sample or a preformatted block: a hyphen there changes what is read. The
+ * break-word backstop on body stays for words the dictionary cannot split.
+ */
+:lang(de) {
+  hyphens: auto;
+}
+
+:lang(de) [data-num],
+:lang(de) code,
+:lang(de) pre {
+  hyphens: manual;
+}
+
 @layer base {
   body {
     background: var(--color-bg);

@@ -48,7 +48,7 @@ test.describe('phone layout', () => {
     for (const width of [320, 393]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/');
-      const menu = page.locator('[data-site-header] details');
+      const menu = page.locator('[data-menu]');
       await waitForHydration(menu);
       await menu.locator('summary').click();
       const sheet = page.getByRole('navigation', { name: 'Menu' });

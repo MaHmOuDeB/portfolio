@@ -31,7 +31,7 @@ async function open(page: Page, route: string): Promise<void> {
 }
 
 async function openMenu(page: Page): Promise<boolean> {
-  const menu = page.locator('[data-site-header] details');
+  const menu = page.locator('[data-menu]');
   if (!await menu.isVisible()) return false;
   if (!await menu.evaluate((el) => (el as HTMLDetailsElement).open)) {
     await menu.locator(':scope > summary').click();
@@ -164,7 +164,7 @@ for (const route of routes) {
           seen.add(result.selector);
           if (result.errors.length) findings.push({ route, ...result });
           // Open the phone disclosure with its real keyboard action, then traverse its links too.
-          if (await page.locator('[data-site-header] details:not([open]) > summary:focus').count()) await page.keyboard.press('Space');
+          if (await page.locator('[data-menu]:not([open]) > summary:focus').count()) await page.keyboard.press('Space');
           await page.keyboard.press(key);
         }
       } finally {
@@ -236,7 +236,7 @@ for (const route of REFLOW_ROUTES) for (const scale of [1.5, 2]) {
       return root.scrollWidth - root.clientWidth;
     });
     await expect.poll(overflow, { message: `${route}, Menu closed` }).toBe(0);
-    const menu = page.locator('[data-site-header] details');
+    const menu = page.locator('[data-menu]');
     await menu.locator('summary').press('Enter');
     await expect(menu).toHaveAttribute('open', '');
     await expect.poll(overflow, { message: `${route}, Menu open` }).toBe(0);
@@ -260,7 +260,7 @@ test.describe('the touch-target check and the inline exception', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/privacy');
     expect(await openMenu(page)).toBe(true);
-    await page.locator('[data-site-header] details nav').evaluate((nav) => {
+    await page.locator('[data-menu] nav').evaluate((nav) => {
       const p = document.createElement('p');
       // Short, so the link stays on one line in the narrow panel (a wrapped link's box is two lines tall).
       p.innerHTML = 'See <a href="/fixture-menu-inline">menu link</a> now.';

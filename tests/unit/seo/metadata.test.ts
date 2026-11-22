@@ -55,6 +55,8 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (entry.name.startsWith('_')) continue;
+      // The German tree is checked through the German page registry, not this English inventory.
+      if (segments.length === 0 && entry.name === 'de') continue;
       const segment = /^\(.*\)$/.test(entry.name) ? [] : [entry.name];
       routes.push(...pageRoutes(path.join(dir, entry.name), [...segments, ...segment]));
     } else if (/^page\.(tsx|ts|jsx|js|mdx)$/.test(entry.name)) {

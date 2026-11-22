@@ -6,9 +6,9 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/app/fonts', () => ({ inter: { variable: 'font-inter-variable' } }));
 vi.mock('@/components/depth/Lean', () => ({ Lean: () => <i data-test="lean" /> }));
 vi.mock('@/components/shell/RegionFocus', () => ({ RegionFocus: () => <i data-test="region-focus" /> }));
-vi.mock('@/components/shell/SiteHeader', () => ({ SiteHeader: () => <header data-test="header" /> }));
-vi.mock('@/components/shell/Footer', () => ({ Footer: () => <footer data-test="footer" /> }));
-vi.mock('@/components/shell/SkipLink', () => ({ SkipLink: () => <a data-test="skip" href="#main" /> }));
+vi.mock('@/components/shell/SiteHeader', () => ({ SiteHeader: ({ locale }: { locale: string }) => <header data-test="header" data-locale={locale} /> }));
+vi.mock('@/components/shell/Footer', () => ({ Footer: ({ locale }: { locale: string }) => <footer data-test="footer" data-locale={locale} /> }));
+vi.mock('@/components/shell/SkipLink', () => ({ SkipLink: ({ locale }: { locale: string }) => <a data-test="skip" data-locale={locale} href="#main" /> }));
 
 const SHELL: Array<[string, string]> = [
   ['Lean', 'data-test="lean"'],
@@ -23,15 +23,49 @@ const SHELL: Array<[string, string]> = [
   ['the language', '<html lang="en"'],
 ];
 
-function expectShell(html: string): void {
-  for (const [name, needle] of SHELL) expect(html, name).toContain(needle);
+function expectShell(html: string, locale = 'en'): void {
+  for (const [name, needle] of SHELL) {
+    expect(html, name).toContain(name === 'the language' ? `<html lang="${locale}"` : needle);
+  }
   expect(html).toContain('BODY-MARK');
+  // The shell parts that print words get the language.
+  expect(html.match(new RegExp(`data-locale="${locale}"`, 'g'))).toHaveLength(3);
 }
 
 describe('the English root layout', () => {
   it('draws the whole shell around its children', async () => {
     const { default: Layout } = await import('@/app/(en)/layout');
     expectShell(renderToStaticMarkup(<Layout params={Promise.resolve({})}>BODY-MARK</Layout>));
+  });
+});
+
+describe('the German root layout', () => {
+  it('draws the whole shell in German around its children', async () => {
+    const { default: Layout } = await import('@/app/de/layout');
+    expectShell(renderToStaticMarkup(<Layout>BODY-MARK</Layout>), 'de');
+  });
+
+  it('has German metadata defaults on the shared base', async () => {
+    const { metadata } = await import('@/app/de/layout');
+    const { rootMetadata } = await import('@/lib/seo/root-metadata');
+    expect(metadata.metadataBase).toEqual(rootMetadata().metadataBase);
+    expect(metadata.description).toBeTruthy();
+    expect(metadata.description).not.toBe(rootMetadata().description);
+    expect(metadata.twitter).toMatchObject({ card: 'summary_large_image' });
+  });
+});
+
+describe('the German 404 and error pages', () => {
+  it('draws the 404 body in German', async () => {
+    const { default: NotFound } = await import('@/app/de/not-found');
+    const html = renderToStaticMarkup(<NotFound />);
+    expect(html).toContain('Seite nicht gefunden');
+    expect(html).not.toContain('Page not found');
+  });
+
+  it('calls notFound from the catch-all page', async () => {
+    const { default: Page } = await import('@/app/de/[...rest]/page');
+    expect(() => Page()).toThrow();
   });
 });
 

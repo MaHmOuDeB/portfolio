@@ -8,7 +8,7 @@ test.use({ viewport: { width: 375, height: 812 } });
 // open Menu leaves it open, as it does without JavaScript.
 async function openMenu(page: Page, path = '/') {
   await page.goto(path);
-  const menu = page.locator('[data-site-header] details');
+  const menu = page.locator('[data-menu]');
   const summary = menu.locator('summary');
   await expect(menu).toHaveAttribute('data-ready', '');
   await summary.focus();
@@ -91,7 +91,7 @@ test('Menu link tapped on a touch screen navigates', async ({ browser, baseURL }
   const page = await context.newPage();
   for (const [from, label, to] of [['/', 'Lab', /\/lab$/], ['/about', 'Work', /\/work$/]] as const) {
     await page.goto(from);
-    const menu = page.locator('[data-site-header] details');
+    const menu = page.locator('[data-menu]');
     await expect(menu).toHaveAttribute('data-ready', '');
     await menu.locator('summary').tap();
     await expect(menu).toHaveAttribute('open', '');
@@ -111,7 +111,7 @@ test('Menu opened before the page hydrates stays open through hydration', async 
     await route.continue();
   });
   await page.goto('/', { waitUntil: 'commit' });
-  const menu = page.locator('[data-site-header] details');
+  const menu = page.locator('[data-menu]');
   await menu.locator('summary').click();
   await expect(menu).toHaveAttribute('open', '');
   await expect(menu).not.toHaveAttribute('data-ready', '');

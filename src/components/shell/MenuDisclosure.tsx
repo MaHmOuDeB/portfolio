@@ -16,7 +16,7 @@ const noSubscription = () => () => {};
 /** How long a press released on a Menu link waits for its click before it ends. */
 const LINK_CLICK_GRACE_MS = 1000;
 
-export function MenuDisclosure({ children }: { children: ReactNode }) {
+export function MenuDisclosure({ label, children }: { label: string; children: ReactNode }) {
   const details = useRef<HTMLDetailsElement>(null);
   const linkPress = useRef<number | null>(null);
   const pathname = usePathname();
@@ -75,6 +75,7 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
   return (
     <details
       ref={details}
+      data-menu=""
       data-ready={ready ? '' : undefined}
       className="group lg:hidden"
       onPointerDown={(event) => {
@@ -116,10 +117,10 @@ export function MenuDisclosure({ children }: { children: ReactNode }) {
         <span className="hidden xs:inline-flex">
           <Icon name="menu" />
         </span>
-        Menu
+        {label}
       </summary>
       <nav
-        aria-label="Menu"
+        aria-label={label}
         className="absolute inset-x-0 top-full z-(--z-menu) mt-px border-b border-hairline bg-bg px-4 pt-2 pb-6 md:px-8"
       >
         {children}

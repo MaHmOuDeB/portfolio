@@ -10,20 +10,29 @@
 import Link from 'next/link';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { IntervalGlyph } from '@/components/kit/IntervalGlyph';
-import { CONTACT_LINK, CV_LINK, SITE } from '@/lib/site';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import { CONTACT_LINK, CV_LINK, NAV, SITE } from '@/lib/site';
+import { shellCopy } from './copy';
+import { LanguageMenu } from './LanguageMenu';
 import { MenuDisclosure } from './MenuDisclosure';
 import { NavLinks } from './NavLinks';
 
 /** The glyph's width under xs (480 px); the full one is 48 px. */
 const PHONE_GLYPH_LENGTH = 28;
 
-export function SiteHeader() {
+export function SiteHeader({ locale = 'en' }: { locale?: Locale }) {
+  const copy = shellCopy(locale);
+  const labels = [copy.nav.work, copy.nav.about, copy.nav.lab, copy.nav.live];
+  const items = NAV.map((item, i) => ({ label: labels[i]!, href: localHref(locale, item.href) }));
+  const cvHref = localHref(locale, CV_LINK.href);
+  const contactHref = localHref(locale, CONTACT_LINK.href);
   return (
     <header data-site-header="" className="z-(--z-header) md:h-(--header-h)">
       <div className="mx-auto flex min-h-(--header-h) max-w-page flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 md:h-full md:px-8 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         {/* No prefetch: the proxy draws a group per request to /, and Next 16.4 re-requests a prefetched /. */}
         <Link
-          href="/"
+          href={localHref(locale, '/')}
           prefetch={false}
           data-touch-target
           className="inline-flex min-h-(--size-target) items-center gap-1.5 text-sm font-semibold text-ink xs:gap-2"
@@ -39,31 +48,33 @@ export function SiteHeader() {
         {/* From lg the four links sit in the middle column, centred between the wordmark and the
             buttons. One gap between labels whatever their length: each link pads its label evenly (a
             short label is centred in its 44 px target). */}
-        <nav aria-label="Main" className="hidden lg:block">
-          <NavLinks className="flex items-center gap-1.5 [&_a]:justify-center [&_a]:px-2.5" />
+        <nav aria-label={copy.mainLabel} className="hidden lg:block">
+          <NavLinks items={items} className="flex items-center gap-1.5 [&_a]:justify-center [&_a]:px-2.5" />
         </nav>
         <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1 xs:gap-2 md:gap-6 lg:justify-self-end">
           <div className="hidden items-center gap-2 lg:flex">
-            <ButtonLink href={CV_LINK.href} variant="secondary" compact>
-              {CV_LINK.label}
+            <ButtonLink href={cvHref} variant="secondary" compact>
+              {copy.cv}
             </ButtonLink>
-            <ButtonLink href={CONTACT_LINK.href} variant="primary" compact>
-              {CONTACT_LINK.label}
+            <ButtonLink href={contactHref} variant="primary" compact>
+              {copy.contact}
             </ButtonLink>
           </div>
-          <MenuDisclosure>
+          <MenuDisclosure label={copy.menu}>
             {/* Full-width rows of at least 48 px in ink, a hairline between them, then the two buttons side by
                 side. The current page keeps its ink underline. */}
-            <NavLinks className="flex flex-col [&_a]:flex [&_a]:min-h-12 [&_a]:w-full [&_a]:text-lg [&_a]:text-ink [&_li]:border-b [&_li]:border-hairline" />
+            <NavLinks items={items} className="flex flex-col [&_a]:flex [&_a]:min-h-12 [&_a]:w-full [&_a]:text-lg [&_a]:text-ink [&_li]:border-b [&_li]:border-hairline" />
             <div className="grid grid-cols-2 gap-2 pt-4">
-              <ButtonLink href={CV_LINK.href} variant="secondary">
-                {CV_LINK.label}
+              <ButtonLink href={cvHref} variant="secondary">
+                {copy.cv}
               </ButtonLink>
-              <ButtonLink href={CONTACT_LINK.href} variant="primary">
-                {CONTACT_LINK.label}
+              <ButtonLink href={contactHref} variant="primary">
+                {copy.contact}
               </ButtonLink>
             </div>
+            <LanguageMenu locale={locale} text={copy.language} variant="rows" />
           </MenuDisclosure>
+          <LanguageMenu locale={locale} text={copy.language} variant="header" />
         </div>
       </div>
       <span data-depth-progress="" aria-hidden="true" />
