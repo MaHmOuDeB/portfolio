@@ -11,7 +11,7 @@ import { AUTOMATION_SKETCHES } from '@/components/frame/sketches';
 export function AutomationTrack() {
   const head = HOME_AUTOMATION_HEAD;
   return (
-    <section data-home-track="automation" data-rule="" aria-labelledby="track-automation-title">
+    <section data-home-track="automation" data-rule="" aria-labelledby="track-automation-title" className="pb-2.5">
       <SectionHead id="track-automation-title" chip={head.chip} title={head.title} quiet={head.quiet} sub={head.sub} />
       <div data-home-cards="automation" className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
         {HOME_AUTOMATION.map((c, i) => {
