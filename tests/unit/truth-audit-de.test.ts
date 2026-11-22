@@ -11,6 +11,7 @@ const ctx = (over: Partial<AuditContext> = {}): AuditContext => ({
   factIds: new Set(Object.keys(FACTS)),
   factDisplays: ['1.067', '25+', '85 %'],
   denylist: [],
+  document: true,
   ...over,
 });
 const doc = (lang: string | null, body: string, head = '<title>Seite</title>') =>
@@ -126,5 +127,11 @@ describe('German pages in the truth audit', () => {
     expect(auditHtml(dePage('<p>python3</p>'), ctx({ route: '/de/experiment' }))).toEqual([]);
     expect(auditHtml(dePage('<p>OAuth2 und F1</p>'), ctx({ route: '/de/cv' }))).toEqual([]);
     expect(kinds(auditHtml(dePage('<p>python3</p>'), ctx({ route: '/de/lab' })))).toEqual(['stray-number']);
+  });
+});
+
+describe('a fragment (a rendered component, not a built page)', () => {
+  it('skips the page-level checks: no lang on <html> and no links are not findings', () => {
+    expect(auditHtml('<!doctype html><html><body><p>Hallo.</p></body></html>', ctx({ document: false }))).toEqual([]);
   });
 });

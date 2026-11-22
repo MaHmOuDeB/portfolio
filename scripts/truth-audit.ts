@@ -41,6 +41,11 @@ export type AuditContext = {
   denylist: readonly string[];
   /** The English paths that have a German twin; the link check reads it (default: the site's list). */
   pages?: readonly string[];
+  /**
+   * A whole built page, not a fragment: also check `<html lang>` and that a German page has internal
+   * links to examine. The build audit sets it; a unit test that audits a rendered component leaves it off.
+   */
+  document?: boolean;
 };
 
 /** A German page: `/de` or anything under it (never `/design`). */
@@ -280,9 +285,9 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   walk(parse(html, { scriptingEnabled: false }), false, false);
   // A term split across nodes (inline markup, React's <!-- --> separators) is caught in the joined
   // text; one that ships outside scanned text (RSC payload, JSON-LD, href slugs) in the raw HTML.
-  if (german && linksExamined === 0) add('bad-link', 'no internal links were examined');
+  if (ctx.document && german && linksExamined === 0) add('bad-link', 'no internal links were examined');
   const expectedLang = german ? 'de' : 'en';
-  if (!FRAMEWORK_ROUTES.includes(ctx.route) && htmlLang !== expectedLang) {
+  if (ctx.document && !FRAMEWORK_ROUTES.includes(ctx.route) && htmlLang !== expectedLang) {
     add('wrong-lang', `<html lang="${htmlLang ?? ''}">, expected "${expectedLang}"`);
   }
   checkDenylist(textParts.join(''));
@@ -342,7 +347,7 @@ function main(): number {
   }
   const factIds = new Set(Object.keys(FACTS));
   const findings: Finding[] = pages.flatMap((p) =>
-    auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: displaysFor(routeOf(p)), denylist }),
+    auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: displaysFor(routeOf(p)), denylist, document: true }),
   );
   // The client scripts are public too; with no deny-list there is nothing to check them for.
   const staticDir = join(process.cwd(), '.next/static');
