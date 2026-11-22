@@ -10,8 +10,8 @@ import { CTA_DE } from './home.ts';
 export const WORK_DE: WorkCopy = {
   title: 'Projekte',
   head: {
-    title: 'Die Arbeit ansehen',
-    quiet: 'und sehen, wie sie entstanden ist.',
+    title: 'Die Projekte öffnen',
+    quiet: 'und sehen, wie sie entstanden sind.',
     intro: 'Sieben Projekte und ein Tool, mit ihren Quellen und ihren Grenzen. Beginnen Sie mit Audible.',
     kinds:
       'Fallstudien sind Analysen mit einer Frage und einem Ergebnis. Projektnotizen beschreiben, was ich gebaut habe und wie ich es getestet habe.',
@@ -71,7 +71,7 @@ export const WORK_DE: WorkCopy = {
           shows: 'Ich mache aus wiederkehrenden manuellen Schritten Tools, die ein ganzes Team nutzen kann.',
           description: (
             <>
-              Tampermonkey mit einem Schritt-Rekorder. Es hat die Einrichtung von Testkonten bei Audible von etwa{' '}
+              Tampermonkey mit einem Schritt-Rekorder. Das Tool hat die Einrichtung von Testkonten bei Audible von etwa{' '}
               <Fact id="profile.audible.setup_minutes_before" locale="de" /> auf etwa <Fact id="profile.audible.setup_minutes_after" locale="de" />{' '}
               Minuten verkürzt und wurde im ganzen Team übernommen.
             </>
@@ -80,10 +80,10 @@ export const WORK_DE: WorkCopy = {
         {
           href: HOME_LINKS.docproof,
           chip: 'Open Source',
-          title: 'Docproof: Agenten, die die Arbeit der anderen prüfen',
+          title: 'Docproof: Agenten, die gegenseitig ihre Arbeit prüfen',
           shows: 'Ich baue KI-Tools, in denen Code und nicht das Modell das letzte Wort über Fakten hat.',
           description:
-            'Getrennte Agenten schreiben, prüfen und lesen ein Dokument gegen, und deterministische Prüfungen entscheiden, was bei den Lesern ankommt. In der CI getestet, noch ohne Anwender.',
+            'Getrennte Agenten schreiben ein Dokument, prüfen es und lesen es gegen, und deterministische Prüfungen entscheiden, was beim Leser ankommt. In der CI getestet, noch ohne Anwender.',
         },
         {
           href: HOME_LINKS.n8n,

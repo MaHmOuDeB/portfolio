@@ -108,7 +108,7 @@ const FAQ_ITEMS: readonly { question: string; answer: readonly FaqPart[] }[] = [
   {
     question: 'Was haben Sie bei Audible gemacht?',
     answer: [
-      'Ich war fast zwei Jahre Werkstudent, hauptsächlich im Growth-Experimentieren mit etwas Marketing-Analytics. Ich habe an ',
+      'Ich war fast zwei Jahre Werkstudent, hauptsächlich im Bereich Growth-Experimente, dazu etwas Marketing-Analytics. Ich habe an ',
       { fact: 'profile.audible.experiments' },
       ' A/B-Tests im Web und in den mobilen Apps mitgewirkt, die Stichprobenplanung und die Signifikanztests selbst gemacht und ein Tool zur Browser-Automatisierung gebaut, Tampermonkey mit einem Schritt-Rekorder, das die Einrichtung von Testkonten von etwa ',
       { fact: 'profile.audible.setup_minutes_before' },
@@ -142,7 +142,7 @@ const FAQ_ITEMS: readonly { question: string; answer: readonly FaqPart[] }[] = [
   {
     question: 'Wie arbeiten Sie mit KI?',
     answer: [
-      'Ich habe interne KI-Tools gebaut, die ein größeres Team übernommen hat: Das eine prüft frühere A/B-Tests und ihre Ergebnisse und schlägt neue Testideen vor, das andere erzeugt den Standardinhalt des Jira-Tickets für einen Teststart. Außerdem habe ich Amazon Bedrock für Anwendungsfälle zur Effizienz im Team evaluiert. Heute baue ich mit Claude-Code-Agenten und Skills. In Docproof schreiben, prüfen und lesen getrennte Agenten ein Dokument gegen, und automatisierte Prüfungen entscheiden, was bei den Lesern ankommt.',
+      'Ich habe interne KI-Tools gebaut, die ein größeres Team übernommen hat: Das eine prüft frühere A/B-Tests und ihre Ergebnisse und schlägt neue Testideen vor, das andere erzeugt den Standardinhalt des Jira-Tickets für einen Teststart. Außerdem habe ich Amazon Bedrock für Anwendungsfälle zur Effizienz im Team evaluiert. Heute baue ich mit Claude-Code-Agenten und Skills. In Docproof schreiben getrennte Agenten ein Dokument, prüfen es und lesen es gegen, und automatisierte Prüfungen entscheiden, was beim Leser ankommt.',
     ],
   },
   {
@@ -174,7 +174,7 @@ export const HOME_DE: HomeCopy = {
       chips: ['Agenten', 'Workflows'],
       join: ' und ',
       end: ', die manuelle Arbeit überflüssig machen',
-      rest: ', und ich plane und analysiere A/B-Tests, mit fast zwei Jahren davon bei Audible (Amazon).',
+      rest: ', und ich plane und analysiere A/B-Tests; bei Audible (Amazon) habe ich das fast zwei Jahre lang getan.',
     },
     cv: 'Lebenslauf lesen',
     contact: 'Schreiben Sie mir',
@@ -260,13 +260,13 @@ export const HOME_DE: HomeCopy = {
   },
   experimentsHead: {
     chip: 'Experimente und Analysen',
-    title: 'Die Arbeit ansehen',
-    quiet: 'und sehen, wie sie entstanden ist.',
+    title: 'Die Projekte öffnen',
+    quiet: 'und sehen, wie sie entstanden sind.',
     sub: 'Jede Fallstudie zeigt die Methode, die Quellen und was sich daraus nicht ablesen lässt.',
   },
   automationHead: {
     chip: 'Automatisierung und Agenten',
-    title: 'Die manuellen Schritte entfernen,',
+    title: 'Die manuellen Schritte entfernen',
     quiet: 'und die Prüfungen behalten.',
     sub: 'Ein Tool, das mein Team bei Audible übernommen hat, und öffentliche Projekte, in denen Code die Arbeit prüft, bevor sich jemand darauf verlässt.',
   },
@@ -295,7 +295,7 @@ export const HOME_DE: HomeCopy = {
           { fact: 'pulse.events.count' },
           ' Ereignissen entworfen und gebaut habe. Eine Demo ohne echte Anwender.',
         ],
-        meta: 'Amplitude, React, Ereignis-Taxonomie, 2026',
+        meta: 'Amplitude, React, Ereignistaxonomie, 2026',
       },
     ],
   },
@@ -326,7 +326,7 @@ export const HOME_DE: HomeCopy = {
       title: ['Agenten schreiben, Prüfungen entscheiden'],
       href: HOME_LINKS.docproof,
       description: [
-        'Getrennte Agenten schreiben, prüfen und lesen ein Dokument gegen, und deterministische Prüfungen entscheiden, was bei den Lesern ankommt. Open Source, in der CI getestet, noch ohne Anwender.',
+        'Getrennte Agenten schreiben ein Dokument, prüfen es und lesen es gegen, und deterministische Prüfungen entscheiden, was beim Leser ankommt. Open Source, in der CI getestet, noch ohne Anwender.',
       ],
       meta: ['Multi-Agenten-Orchestrierung, automatisierte Prüfung, Claude Code'],
     },
@@ -357,7 +357,7 @@ export const HOME_DE: HomeCopy = {
     head: {
       chip: 'Wie ich teste',
       title: 'Vor dem Start geplant,',
-      quiet: 'ehrlich darüber, was es zeigt.',
+      quiet: 'ehrlich in dem, was das Ergebnis zeigt.',
       sub: 'Drei Schritte hinter jeder Empfehlung, auch wenn das Ergebnis neutral ist.',
     },
     tabs: [
@@ -374,14 +374,14 @@ export const HOME_DE: HomeCopy = {
       {
         id: 'recommend',
         title: 'Empfehlen',
-        line: 'Ich schreibe die Empfehlung mit ihren Gründen, auch wenn sich ein neutrales Ergebnis trotzdem auszurollen lohnt.',
+        line: 'Ich schreibe die Empfehlung mit ihren Gründen, auch dann, wenn es sich lohnt, ein neutrales Ergebnis trotzdem auszurollen.',
       },
     ],
   },
   automate: [
     'Ich mache aus wiederkehrenden manuellen Schritten Tools, die ein ganzes Team nutzen kann.',
     'Ich baue Agenten, in denen Code und nicht das Modell das letzte Wort über Fakten hat.',
-    'Ich teste meine Workflows gegen die Arten, wie sie scheitern, nicht nur dann, wenn alles gut läuft.',
+    'Ich teste meine Workflows auf die Fälle, in denen sie scheitern, nicht nur auf den, in dem alles gut läuft.',
   ],
   questions: {
     head: { chip: 'Fragen', title: 'Die Fragen, die ein Team stellt.', quiet: 'Ich bringe die Antworten mit, schriftlich.' },
@@ -392,12 +392,12 @@ export const HOME_DE: HomeCopy = {
   },
   site: {
     title: 'Diese Website ist Teil des Nachweises.',
-    text: 'Sie führt einen A/B-Test mit den drei Experiment-Karten darüber durch. Der Plan wurde vor dem Start des Tests veröffentlicht, und die Daten sind öffentlich. Ich habe sie mit Coding-Agenten gebaut, und jede Änderung besteht ihre automatisierten Prüfungen, bevor sie ausgeliefert wird.',
+    text: 'Sie führt einen A/B-Test mit den drei Experiment-Karten auf der englischen Startseite durch. Der Plan wurde vor dem Start des Tests veröffentlicht, und die Daten sind öffentlich. Ich habe sie mit Coding-Agenten gebaut, und jede Änderung besteht ihre automatisierten Prüfungen, bevor sie ausgeliefert wird.',
     live: 'Den Live-Test ansehen',
     lab: 'Das Lab ausprobieren',
   },
   faq: {
-    head: { chip: 'FAQ', title: 'Fragen, die Teams beim Einstellen stellen', sub: 'Kurze Antworten; die Seiten dahinter enthalten die Einzelheiten.' },
+    head: { chip: 'FAQ', title: 'Was Teams bei der Einstellung fragen', sub: 'Kurze Antworten; die Seiten dahinter enthalten die Einzelheiten.' },
     items: FAQ_ITEMS,
   },
   sketches: SKETCH_TEXT_DE,

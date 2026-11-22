@@ -16,7 +16,7 @@ const de = { locale: 'de' } as const;
 
 /** The German form of the site's sharing line (the English one is the Home description). */
 export const SITE_SHARING_LINE_DE =
-  'Analyst in Berlin. Ich baue die Agenten und Workflows, die manuelle Arbeit überflüssig machen, und ich plane und analysiere A/B-Tests, mit fast zwei Jahren davon bei Audible (Amazon).';
+  'Analyst in Berlin. Ich baue die Agenten und Workflows, die manuelle Arbeit überflüssig machen, und ich plane und analysiere A/B-Tests; bei Audible (Amazon) habe ich das fast zwei Jahre lang getan.';
 
 /** The German headline in one tone: the same words as the shell's headline (a unit test keeps them equal). */
 export const SITE_SHARING_HEADLINE_DE = 'KI-Automatisierung und A/B-Testing für Produkt- und Growth-Teams';
@@ -47,7 +47,7 @@ function caseCard(name: CaseName, sub: string, factIds: readonly FactId[]): OgCa
 export const OG_CARDS_DE: readonly OgCard[] = [
   { name: 'site', variant: 'site', title: SITE_SHARING_HEADLINE_DE, sub: SITE_SHARING_LINE_DE, footer: SITE.name, factIds: [] },
   caseCard('audible', 'Vom Plan bis zur Empfehlung.', ['profile.audible.experiments']),
-  caseCard('retention', 'Analyse der Kundenbindung: Wer bestellt erneut', [
+  caseCard('retention', 'Analyse der Kundenbindung: wer erneut bestellt', [
     'retail.returns.yoy_growth_clean',
     'retail.returns.yoy_growth_raw',
   ]),
@@ -82,7 +82,7 @@ export const SEO_PAGES_DE: SeoPagesDe = {
     card: 'audible',
   },
   '/work/retention': {
-    title: 'Kundenbindungsanalyse: Wer bestellt erneut, und wie man ein Rückgewinnungsangebot testet',
+    title: 'Kundenbindungsanalyse: wer erneut bestellt und wie man ein Rückgewinnungsangebot testet',
     description:
       'Bereinigung der Retouren, Kohorten, Kundensegmente, ein Modell dafür, wer erneut bestellt, und eine Stichprobengröße für die Rückgewinnung, auf einem öffentlichen Datensatz, der 2026 neu aufgebaut wurde.',
     card: 'retention',
@@ -101,7 +101,7 @@ export const SEO_PAGES_DE: SeoPagesDe = {
   '/work/docproof': {
     title: 'Docproof: Agenten schreiben, Prüfungen entscheiden',
     description:
-      'Eine Open-Source-Pipeline, in der ein Agent schreibt, einer jede Aussage prüft und einer ohne Vorwissen gegenliest, und automatisierte Prüfungen entscheiden, was bei den Lesern ankommt.',
+      'Eine Open-Source-Pipeline, in der ein Agent schreibt, einer jede Aussage prüft und einer ohne Vorwissen gegenliest, und automatisierte Prüfungen entscheiden, was beim Leser ankommt.',
     card: 'site',
   },
   '/work/marketingws': {
@@ -130,13 +130,13 @@ export const SEO_PAGES_DE: SeoPagesDe = {
   '/about': {
     title: 'Über mich',
     description:
-      'Analyst für KI-Automatisierung und A/B-Testing in Berlin: meine Geschichte, mein Werdegang, die Tools, die ich genutzt habe, und wo, und mein Lebenslauf.',
+      'Analyst für A/B-Testing und KI-Automatisierung in Berlin: meine Geschichte, mein Werdegang, die Tools, die ich genutzt habe, und wo, sowie mein Lebenslauf.',
     card: 'site',
   },
   '/cv': {
     title: 'Lebenslauf',
     description:
-      'Der Lebenslauf von Mahmoud El Bergui, Analyst für KI-Automatisierung und A/B-Testing in Berlin, als Seite zum Lesen oder Drucken.',
+      'Der Lebenslauf von Mahmoud El Bergui, Analyst für A/B-Testing und KI-Automatisierung in Berlin, als Seite zum Lesen oder Drucken.',
     card: 'site',
   },
   '/contact': {

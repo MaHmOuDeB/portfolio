@@ -149,8 +149,8 @@ describe('the pieces the About and Work pages reuse', () => {
   });
 
   it('prints the FAQ months in German and the two dates in a time element', () => {
-    expect(faq).toMatch(/<time dateTime="2025-11">Nov\. 2025<\/time>/);
-    expect(faq).toMatch(/<time dateTime="2026-10">Okt\. 2026<\/time>/);
+    expect(faq).toMatch(/<time dateTime="2025-11">November 2025<\/time>/);
+    expect(faq).toMatch(/<time dateTime="2026-10">Oktober 2026<\/time>/);
   });
 
   it('writes the languages from the shared list, German at B1', () => {
@@ -165,7 +165,7 @@ describe('the pieces the About and Work pages reuse', () => {
 describe('the German Work page', () => {
   it('has the page head, the two groups with their eight cards and the German anchors', () => {
     expect(plain(work)).toContain('Projekte');
-    expect(plain(work)).toContain('Die Arbeit ansehen und sehen, wie sie entstanden ist.');
+    expect(plain(work)).toContain('Die Projekte öffnen und sehen, wie sie entstanden sind.');
     expect(work).toContain('id="experimentation"');
     expect(work).toContain('id="automation"');
     expect([...work.matchAll(/data-work-item="([^"]*)"/g)]).toHaveLength(8);

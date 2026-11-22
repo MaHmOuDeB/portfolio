@@ -75,7 +75,7 @@ export const KIT_TEXT_DE: KitText = {
     paused: 'Das Experiment auf dieser Website ist pausiert.',
     calibration:
       'Diese Website führt ein Live-Experiment mit ihren eigenen Besuchern durch. Zuerst wird kalibriert, daher sehen alle dieselbe Seite.',
-    ab: 'Diese Website führt einen A/B-Test mit ihren Besuchern durch. Diese Seite zeigt Gruppe {group}.',
+    ab: 'Diese Website führt einen A/B-Test mit ihren Besuchern durch, und Sie sind in Gruppe {group}.',
     abNoGroup: 'Diese Website führt einen A/B-Test mit ihren Besuchern durch.',
     views: (p) => seq(' Bisher gab es ', p.count, ' Aufrufe.'),
     linkPaused: 'Warum das Experiment pausiert ist',

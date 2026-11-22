@@ -12,13 +12,13 @@ import { homeCopy } from './copy';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
-/** "2025-11" as "Nov 2025" (German: the month's de-DE short name, "Nov. 2025"), as the About timeline prints a month. */
+/** "2025-11" as "Nov 2025" (German: the month's long name, "November 2025"), as the About timeline prints a month. */
 function monthText(m: string, locale: Locale): string {
   const [year, month] = m.split('-');
   const name = MONTHS[Number(month) - 1];
   if (!year || !name || !/^\d{4}$/.test(year)) throw new Error(`faq: "${m}" is not a yyyy-mm month`);
   if (locale === 'en') return `${name} ${year}`;
-  return new Intl.DateTimeFormat(INTL[locale], { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(Number(year), Number(month) - 1, 1));
+  return new Intl.DateTimeFormat(INTL[locale], { month: locale === 'de' ? 'long' : 'short', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(Number(year), Number(month) - 1, 1));
 }
 
 function Answer({ parts, locale }: { parts: readonly FaqPart[]; locale: Locale }) {
