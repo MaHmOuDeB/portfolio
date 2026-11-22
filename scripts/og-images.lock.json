@@ -1,5 +1,5 @@
 {
-  "inputHash": "42d5a351f1406a966815e684abe5dfe823775c2f24b49ad0be01ace297605c95",
+  "inputHash": "2aa23924dfbc8b67b6b7dbae5176263af82cf96fabac54afe51849a3efde8954",
   "renderer": "chromium 153.0.8010.12",
   "images": {
     "site.png": {
@@ -33,7 +33,7 @@
       "height": 630
     },
     "de/site.png": {
-      "sha256": "63a6ad7ca107865a887a04ae2e0cc67b2c1e3f664f7014dc424e852d74004f39",
+      "sha256": "50e5fd13d54f39817e4edd3bbb9d74239d4b9d61804021421502d51d61977ba2",
       "width": 1200,
       "height": 630
     },
@@ -43,7 +43,7 @@
       "height": 630
     },
     "de/retention.png": {
-      "sha256": "a6c071ecb9707f3f43d222f302baee6582deb9d88b577fafb0077518caf831a4",
+      "sha256": "6446bbd3e75e43ab793234d47474e0249fd59cd6d995ecc6f6c160f3299516fe",
       "width": 1200,
       "height": 630
     },
