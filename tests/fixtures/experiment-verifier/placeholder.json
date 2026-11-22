@@ -1,13 +1,13 @@
 {
   "schema": "experiment-data/1",
-  "namespace": "aa-v1",
+  "namespace": "aa-v1.1",
   "configPhase": "calibration",
   "status": "before-data",
   "prereg": {
-    "version": "v1",
-    "tag": "prereg-v1",
+    "version": "v1.1",
+    "tag": "prereg-v1.1",
     "commit": "0123456789abcdef0123456789abcdef01234567",
-    "configSha256": "69b2af032808fd2df20f783058a3c4d571a7062053ce7f56692e1c3852acf277"
+    "configSha256": "6a60666d578deeceff51f74c4042fc1cfd110a9876108a636563746f5b8d1cb6"
   },
   "readAt": "2026-11-01T12:00:00+01:00",
   "source": "unavailable",

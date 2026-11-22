@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { main } from '../../../scripts/experiment-check.ts';
+import { EXPERIMENT } from '@/experiment.config';
 
 const REDIS_URL = 'https://eu1-secret-host-1234.upstash.io';
 const READ_TOKEN = 'read-token-value-that-must-never-be-printed';
@@ -9,7 +10,7 @@ const SECRETS = [REDIS_URL, 'secret-host', READ_TOKEN, 'ecfg_secretid123', 'edge
 
 const DATA = {
   schema: 'experiment-data/1',
-  namespace: 'aa-v1',
+  namespace: EXPERIMENT.namespace,
   configPhase: 'calibration',
   status: 'calibration',
   source: 'store',
@@ -112,7 +113,7 @@ describe('experiment:check --storage', () => {
     const f = fakeFetch({ status: 404, digest: true });
     const r = await run(['--storage'], ENV, f.fetch);
     expect(r.code).toBe(0);
-    expect(r.lines).toEqual(['redis: ok (14 fields in exp:aa-v1)', 'edge config: ok (item experiment: missing)']);
+    expect(r.lines).toEqual([`redis: ok (14 fields in exp:${EXPERIMENT.namespace})`, 'edge config: ok (item experiment: missing)']);
     for (const s of SECRETS) expect(r.out).not.toContain(s);
     expect(f.seen.some((u) => u.startsWith(REDIS_URL))).toBe(true);
   });

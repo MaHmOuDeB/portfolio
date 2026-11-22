@@ -822,7 +822,7 @@ describe('the pre-registration and build lines', () => {
   const v11 = { ...EXPERIMENT, prereg: { version: 'v1.1', tag: 'prereg-v1.1' } } as unknown as ExperimentConfig;
 
   it.each([
-    ['v1', EXPERIMENT as ExperimentConfig],
+    ['configured', EXPERIMENT as ExperimentConfig],
     ['v1.1', v11],
   ])('names version, tag and design hash from the data (%s), and links the tag', (_name, config) => {
     const s = snapshotFixture('calibration');

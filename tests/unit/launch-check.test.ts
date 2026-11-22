@@ -55,7 +55,7 @@ function deps(over: Partial<LaunchDeps> = {}): { deps: Partial<LaunchDeps>; line
     calls.push([cmd, ...args]);
     if (cmd === 'gh' && args[0] === 'api' && args[1]?.endsWith('/actions/runners')) return { status: 0, stdout: '0\n' };
     if (cmd === 'git' && args[0] === 'rev-parse') return { status: 0, stdout: 'abc\n' };
-    if (cmd === 'git' && args[0] === 'ls-remote') return { status: 0, stdout: 'abc\trefs/tags/prereg-v1\n' };
+    if (cmd === 'git' && args[0] === 'ls-remote') return { status: 0, stdout: `abc\trefs/tags/${EXPERIMENT.prereg.tag}\n` };
     if (cmd === 'git' && args[0] === 'show') return { status: 0, stdout: `# Pre-registration\n\nPre-registration hash: ${HASH}\n` };
     if (cmd === 'gh' && args[0] === 'variable' && args[1] === 'get') return { status: 0, stdout: 'portfolio.example\n' };
     if (cmd === 'gh' && args[0] === 'variable') return { status: 0, stdout: `${GITHUB_VARIABLES.join('\n')}\n` };
@@ -352,10 +352,10 @@ describe('launch:check', () => {
     const base = d.deps.run!;
     d.deps.run = (cmd, args) => (cmd === 'git' && args[0] === 'rev-parse' ? { status: 1, stdout: '' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
-    expect(d.lines.join('\n')).toMatch(/^unmet: the prereg-v1 tag does not exist/m);
+    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replace('.', '\\.')} tag does not exist`, 'm'));
     const changed = deps({ preregHash: () => 'b'.repeat(64) });
     expect(main(ARGS, changed.deps)).toBe(1);
-    expect(changed.lines.join('\n')).toMatch(/^unmet: the design changed since prereg-v1/m);
+    expect(changed.lines.join('\n')).toMatch(new RegExp(`^unmet: the design changed since ${EXPERIMENT.prereg.tag.replace('.', '\\.')}`, 'm'));
   });
 
   it('names a tag that was never pushed to origin', () => {
@@ -363,7 +363,7 @@ describe('launch:check', () => {
     const base = d.deps.run!;
     d.deps.run = (cmd, args) => (cmd === 'git' && args[0] === 'ls-remote' ? { status: 0, stdout: '' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
-    expect(d.lines.join('\n')).toMatch(/^unmet: the prereg-v1 tag is not on origin/m);
+    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replace('.', '\\.')} tag is not on origin`, 'm'));
   });
 
   it('counts a headers PASS only when it ran on the canonical domain, which must be given', () => {

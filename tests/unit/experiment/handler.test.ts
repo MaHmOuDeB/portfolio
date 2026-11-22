@@ -20,7 +20,7 @@ vi.mock('@vercel/edge-config', () => ({
 
 const NOW = '2026-11-20T10:00:00Z';
 const DAY = '2026-11-20';
-const NS = 'aa-v1';
+const NS: string = EXPERIMENT.namespace;
 const PRODUCTION_HOST = 'portfolio.example';
 const DEPLOYMENT_HOST = 'portfolio-abc123.vercel.app';
 const CANONICAL = `https://${PRODUCTION_HOST}`;
