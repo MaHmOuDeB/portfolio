@@ -114,3 +114,17 @@ describe('renderFactsModule', () => {
     for (const d of ['25+', '270+', '85%', '20.1%', '3,351']) expect(listed, d).toContain(d);
   });
 });
+
+describe('FACT_DISPLAYS_DE in the generated module', () => {
+  const out = renderFactsModule(collectFacts(inputs()));
+
+  it('is exported, sorted and unique, with German digits', () => {
+    const m = /FACT_DISPLAYS_DE: readonly string\[\] = (\[[\s\S]*?\]);/.exec(out);
+    expect(m).not.toBeNull();
+    const listed = JSON.parse(m![1]!) as string[];
+    expect(listed).toEqual([...listed].sort());
+    expect(new Set(listed).size).toBe(listed.length);
+    for (const d of ['25+', '85 %', '270+']) expect(listed, d).toContain(d);
+    expect(listed).not.toContain('85%');
+  });
+});
