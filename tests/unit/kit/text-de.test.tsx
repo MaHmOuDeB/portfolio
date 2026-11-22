@@ -18,6 +18,7 @@ import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { SelectField } from '@/components/kit/SelectField';
 import { Slider } from '@/components/kit/Slider';
+import { TextField } from '@/components/kit/TextField';
 import { StepNav } from '@/components/kit/StepNav';
 import { KIT_TEXT_EN, type KitText } from '@/components/kit/text';
 import { TextArea } from '@/components/kit/TextArea';
@@ -197,6 +198,9 @@ describe('a German render', () => {
     expect(html(<Slider id="s" label="Blicke" min={1} max={50} step={1} value={20} onChange={noop} valueText={String} refs={REFS} text={T.slider} />)).toContain('Blicke, genauer Wert');
     expect(html(<SelectField id="a" name="a" label="Grund" options={[]} text={T} />)).toContain('>Bitte wählen<');
     expect(html(<Field id="f" label="Name" error="Zu kurz" text={T}>{() => <input id="f" />}</Field>)).toContain('Fehler: ');
+    const field = html(<TextField id="t" name="t" label="Name" error="Zu kurz" text={T} />);
+    expect(field).toContain('Fehler: ');
+    expect(field).not.toContain('Error: ');
     expect(html(<ProvenanceBadge kind="live" text={T.badge} />)).toContain('Live von dieser Website');
     const count = html(<CharacterCount id="c" controlId="t" limit={2000} refs={REFS} text={T.count} />);
     expect(count).toMatch(/Bis zu <data[^>]*>2\.000<\/data> Zeichen/);
