@@ -10,7 +10,7 @@
 // list; the Audible card opens the top of its page, where the adoption figure has its context link.
 import type { ReactNode } from 'react';
 import { Fact } from '@/components/kit/Fact';
-import { HOME_SITE } from './home.ts';
+import { HOME_SITE, type PageCtaCopy } from './home.ts';
 import { HOME_LINKS } from './home-destinations.ts';
 
 /** Where a project comes from, as the card's chip. */
@@ -24,7 +24,8 @@ export type WorkChip =
 
 export type WorkItem = {
   href: string;
-  chip: WorkChip;
+  /** English values are `WorkChip`s; another language writes its own words. */
+  chip: WorkChip | string;
   title: string;
   /** What the project shows about how I work: one sentence, printed after "Shows:". */
   shows: string;
@@ -139,3 +140,34 @@ export const WORK_SITE = {
 
 /** The site band's headline in two tones: the lead, then the quiet clause. Together they are WORK_SITE.title. */
 export const WORK_SITE_HEAD = { lead: 'This site is', quiet: 'part of the evidence.' } as const;
+
+/**
+ * The Work page's words as one typed value per language: English is WORK_EN, assembled from the exports
+ * above; German is WORK_DE in content/de/work.tsx, typed by the same WorkCopy. The page's own sentences
+ * are here too, so the page prints no English of its own.
+ */
+export type WorkCopy = {
+  /** The chip above the page's h1. */
+  title: string;
+  head: { title: string; quiet: string; intro: string; kinds: string };
+  groups: readonly WorkGroup[];
+  /** Printed before each card's "shows" sentence, with its space. */
+  shows: string;
+  site: { title: string; text: string; chip: string; live: string; lead: string; quiet: string };
+  /** The closing call to action's words where they differ from the shared English ones. */
+  cta: PageCtaCopy | null;
+};
+
+export const WORK_EN: WorkCopy = {
+  title: 'Work',
+  head: {
+    title: 'Open the work',
+    quiet: 'and see how it was done.',
+    intro: 'Seven projects and one tool, with their sources and their limits. Start with Audible.',
+    kinds: 'Case studies are analyses with a question and a finding. Build notes are things I built, and how I tested them.',
+  },
+  groups: WORK_GROUPS,
+  shows: 'Shows: ',
+  site: { ...WORK_SITE, chip: 'Live test', live: HOME_SITE.live, lead: WORK_SITE_HEAD.lead, quiet: WORK_SITE_HEAD.quiet },
+  cta: null,
+};

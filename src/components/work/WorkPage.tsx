@@ -29,11 +29,18 @@ import {
   StepsSketch,
   VariantsSketch,
   WorkflowSketch,
+  type SketchProps,
 } from '@/components/frame/sketches';
+import { CallToAction } from '@/components/frame';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import type { SketchText } from '../../../content/home.ts';
 import { prefetchFor } from '@/lib/nav';
-import { HOME_SITE } from '../../../content/home.ts';
+import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
+import { homeCopy } from '@/components/home/copy';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { WORK_GROUPS, WORK_SITE, WORK_SITE_HEAD } from '../../../content/work.tsx';
+import { WORK_GROUPS } from '../../../content/work.tsx';
+import { workCopy } from './copy';
 
 export const WORK_TITLE = 'Work';
 
@@ -43,7 +50,7 @@ export const WORK_SECTIONS = WORK_GROUPS;
 const TEXT = 'max-w-text';
 
 /** Each card's sketch: Home's sketch for the same project; Weather has its checks. */
-const SKETCHES: Record<string, () => ReactNode> = {
+const SKETCHES: Record<string, (props: SketchProps) => ReactNode> = {
   '/work/audible': ProcessSketch,
   [HOME_LINKS.retention]: CohortsSketch,
   [HOME_LINKS.pulse]: EventsSketch,
@@ -54,9 +61,9 @@ const SKETCHES: Record<string, () => ReactNode> = {
   [HOME_LINKS.marketingws]: VariantsSketch,
 };
 
-function vignette(href: string): ReactNode {
+function vignette(href: string, text: SketchText): ReactNode {
   const Sketch = SKETCHES[href];
-  return Sketch ? <Sketch /> : undefined;
+  return Sketch ? <Sketch text={text} /> : undefined;
 }
 
 /**
@@ -65,28 +72,49 @@ function vignette(href: string): ReactNode {
  */
 const CARD_CELL = 'grid grid-cols-1 [&_p]:contents [&_[data-depth-meta]]:hidden';
 
-export function WorkPage(): ReactNode {
+/**
+ * The closing call to action. English is the shared one; a page with its own words (German) draws the
+ * same ruled band around the frame's panel.
+ */
+function Cta({ copy, locale }: { copy: NonNullable<ReturnType<typeof workCopy>['cta']>; locale: Locale }) {
+  return (
+    <div data-rule="" data-page-cta="" className="print:hidden pb-12 pt-12 md:pb-16 md:pt-16">
+      <CallToAction
+        id="page-cta-title"
+        title={copy.title}
+        quiet={copy.quiet}
+        line={copy.line}
+        primary={{ label: copy.write, href: localHref(locale, CONTACT_HREF) }}
+        secondary={{ label: copy.cv, href: localHref(locale, CV_LINK.href) }}
+        tertiary={{ label: copy.linkedin, href: CONTACT.linkedin, external: true }}
+      />
+    </div>
+  );
+}
+
+export function WorkPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = workCopy(locale);
+  const sketches = homeCopy(locale).sketches;
   return (
     <article aria-labelledby="work-title">
       <PageHead
         id="work-title"
-        chip={WORK_TITLE}
-        title="Open the work"
-        quiet="and see how it was done."
+        chip={copy.title}
+        title={copy.head.title}
+        quiet={copy.head.quiet}
         sub={
           <>
-            <span data-work-intro="">Seven projects and one tool, with their sources and their limits. Start with Audible.</span>
+            <span data-work-intro="">{copy.head.intro}</span>
             <span data-work-kinds="" className="mt-2 block text-sm">
-              Case studies are analyses with a question and a finding. Build notes are things I built, and how I tested
-              them.
+              {copy.head.kinds}
             </span>
           </>
         }
       />
 
-      <HowITest />
+      <HowITest locale={locale} />
 
-      {WORK_SECTIONS.map((section) => (
+      {copy.groups.map((section) => (
         <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} data-rule="">
           <div data-work-head="">
             <SectionHead id={`${section.id}-title`} chip={section.kind} title={section.label} align="left" />
@@ -96,13 +124,21 @@ export function WorkPage(): ReactNode {
           <ul role="list" className={`grid grid-cols-1 gap-4 pt-8 md:grid-cols-2 ${section.id === 'automation' ? 'pb-4' : 'pb-12 md:pb-16'}`}>
             {section.items.map((item) => (
               <li key={item.href} data-work-item={item.href} className={CARD_CELL}>
-                <LeanCard href={item.href} title={item.title} meta={null} size="md" prefetch={prefetchFor(item.href)} vignette={vignette(item.href)}>
+                <LeanCard
+                  href={localHref(locale, item.href)}
+                  title={item.title}
+                  meta={null}
+                  size="md"
+                  prefetch={prefetchFor(item.href)}
+                  vignette={vignette(item.href, sketches)}
+                >
                   {/* pr-9 keeps the chip clear of the card's "+" at the top right, as the title is. */}
                   <span data-work-chip="" className="order-first mb-3.5 self-start pr-9">
                     <Chip>{item.chip}</Chip>
                   </span>
                   <strong data-work-shows="" className="mt-2.5 font-semibold text-ink">
-                    Shows: {item.shows}
+                    {copy.shows}
+                    {item.shows}
                   </strong>
                   <span data-work-line="" className="mt-1.5 pb-6">
                     {item.description}
@@ -114,7 +150,7 @@ export function WorkPage(): ReactNode {
           {/* The "I automate." row ends the Automation group, then the group's own space below. */}
           {section.id === 'automation' ? (
             <div className="pb-12 md:pb-16">
-              <AutomateRow />
+              <AutomateRow locale={locale} />
             </div>
           ) : null}
         </section>
@@ -124,14 +160,14 @@ export function WorkPage(): ReactNode {
         <Tile data-work-site="">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
             <div>
-              <Chip dot="live">Live test</Chip>
+              <Chip dot="live">{copy.site.chip}</Chip>
               <h2 className="mt-4.5 max-w-[22em] text-h2-sm md:text-h2">
-                {WORK_SITE_HEAD.lead} <Quiet>{WORK_SITE_HEAD.quiet}</Quiet>
+                {copy.site.lead} <Quiet>{copy.site.quiet}</Quiet>
               </h2>
-              <p className={`mt-3.5 ${TEXT} text-muted`}>{WORK_SITE.text}</p>
+              <p className={`mt-3.5 ${TEXT} text-muted`}>{copy.site.text}</p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <ButtonLink href={HOME_LINKS.experiment} variant="primary">
-                  {HOME_SITE.live}
+                <ButtonLink href={localHref(locale, HOME_LINKS.experiment)} variant="primary">
+                  {copy.site.live}
                 </ButtonLink>
               </div>
             </div>
@@ -146,14 +182,14 @@ export function WorkPage(): ReactNode {
               className="overflow-clip rounded-xl border border-hairline lg:transform-[perspective(56rem)_rotateY(-14deg)_rotateX(6deg)]"
             >
               <div data-site-sketch="" className="[&>[data-vignette]]:h-60 [&>[data-vignette]]:border-t-0">
-                <ConfidenceSketch />
+                <ConfidenceSketch text={sketches} />
               </div>
             </div>
           </div>
         </Tile>
       </div>
 
-      <PageCallToAction />
+      {copy.cta === null ? <PageCallToAction /> : <Cta copy={copy.cta} locale={locale} />}
     </article>
   );
 }

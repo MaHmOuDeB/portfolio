@@ -8,6 +8,7 @@
 // Imports are relative with the .ts extension so scripts run with Node's type stripping can read
 // this module. Site links come from content/home-destinations.ts.
 import { factText } from '../src/lib/facts/text.ts';
+import { HEADLINE } from '../src/lib/site.ts';
 import { HEADLINES, type CardHeadlines, type HeadlinePart } from './experiment/headlines.ts';
 import { HOME_LINKS } from './home-destinations.ts';
 import { languagesSentence } from './languages.ts';
@@ -106,7 +107,7 @@ export const WORK_ANCHOR = 'work';
 /** One proof figure: the side it belongs to, the figure and its caption (figures are fact parts). */
 export type ProofItem = {
   id: string;
-  side: 'Experiments' | 'Automation';
+  side: string;
   figure: readonly HeadlinePart[];
   caption: readonly HeadlinePart[];
   /** The caption ends with the "Why so many?" link. */
@@ -430,4 +431,173 @@ export const HOME_FAQ: { head: SectionCopy; items: readonly { question: string; 
       answer: ['Through the contact form or on LinkedIn. I answer myself.'],
     },
   ],
+};
+
+// The Home page's copy as one typed value per language. English is HOME_EN, assembled from the named
+// exports above (unchanged, so the tests and the launch checker that read them keep working); German is
+// HOME_DE in content/de/home.ts, typed by the same HomeCopy, so a missing key fails the typecheck. A
+// client component never imports either: it gets the strings it prints as props.
+
+/** The hero: the h1 in two tones, the chip, the sub line around its two chips, the buttons and the proof line. */
+export type HeroCopy = {
+  headline: { lead: string; quiet: string };
+  chip: string;
+  sub: { lead: string; chips: readonly [string, string]; join: string; end: string; rest: string };
+  cv: string;
+  contact: string;
+  proof: readonly HeadlinePart[];
+  work: string;
+};
+
+/** The words on the stack band's three sheets and its caption. */
+export type BandCopy = {
+  test: {
+    title: string;
+    note: string;
+    rows: readonly { label: string; tag: string }[];
+    foot: readonly string[];
+  };
+  agents: { title: string; note: string; steps: readonly { step: string; note: string }[] };
+  recommendation: { title: string; note: string; verdict: string; why: string; toast: string };
+  caption: string;
+};
+
+export type CaseCopy = { study: Study; href: string; description: readonly HeadlinePart[]; meta: string };
+
+export type AutomationCopy = {
+  id: string;
+  label: string;
+  title: readonly HeadlinePart[];
+  href: string;
+  description: readonly HeadlinePart[];
+  meta: readonly HeadlinePart[];
+};
+
+export type HowCopy = {
+  head: SectionCopy;
+  tabs: readonly { id: 'plan' | 'analyse' | 'recommend'; title: string; line: string }[];
+};
+
+export type QuestionsCopy = { head: SectionCopy; rows: readonly (readonly string[])[] };
+
+export type SiteCopy = { title: string; text: string; live: string; lab: string };
+
+export type FaqCopy = { head: SectionCopy; items: readonly { question: string; answer: readonly FaqPart[] }[] };
+
+/** The words of the call to action that ends a page (the shared panel). */
+export type PageCtaCopy = { title: string; quiet: string; line: string; write: string; cv: string; linkedin: string };
+
+/**
+ * The words in the card sketches (decorative, aria-hidden). Pulse's event names and Weather's check
+ * names are the data's own and are not here.
+ */
+export type SketchText = {
+  process: { rows: readonly { name: string; tag: string }[] };
+  cohorts: { name: string; note: string };
+  events: { name: string; note: string; tags: readonly [string, string, string] };
+  steps: { name: string; note: string; rows: readonly [string, string, string] };
+  agents: { name: string; note: string; author: string; draft: string; auditor: string; blocked: string; reviewer: string; waiting: string };
+  workflow: { name: string; note: string; nodes: readonly [string, string, string] };
+  variants: { name: string; note: string; brief: string };
+  plan: { name: string; note: string; rows: readonly { label: string; tag: string }[] };
+  read: { name: string; note: string; rows: readonly { label: string; tag: string }[] };
+  recommend: { name: string; note: string; verdict: string; reasons: string };
+  confidence: { name: string; note: string };
+};
+
+export const SKETCH_TEXT_EN: SketchText = {
+  process: {
+    rows: [
+      { name: 'Sample size', tag: 'planned' },
+      { name: 'Run time', tag: 'set' },
+      { name: 'Guardrails', tag: 'checked' },
+      { name: 'Recommendation', tag: 'written' },
+    ],
+  },
+  cohorts: { name: 'Cohorts', note: 'share who order again' },
+  events: { name: 'Events', note: 'each answers a question', tags: ['activation', 'engagement', 'intent'] },
+  steps: { name: 'Steps', note: 'recorded once, replayed', rows: ['Record', 'Replay', 'Verify'] },
+  agents: {
+    name: 'Agents',
+    note: 'each one checks the last',
+    author: 'Author',
+    draft: 'draft',
+    auditor: 'Claim auditor',
+    blocked: 'blocked: unsupported claim',
+    reviewer: 'Reviewer',
+    waiting: 'waiting',
+  },
+  workflow: { name: 'Workflow', note: 'e-invoice intake', nodes: ['Intake', 'Validate', 'Alert'] },
+  variants: { name: 'One brief', note: 'three copy variants', brief: 'Brief' },
+  plan: {
+    name: 'Sample size',
+    note: 'set before the start',
+    rows: [
+      { label: 'Effect', tag: 'smallest' },
+      { label: 'Power', tag: 'planned' },
+      { label: 'Run', tag: 'fixed' },
+    ],
+  },
+  read: {
+    name: 'Readout',
+    note: 'the metric and its guardrail',
+    rows: [
+      { label: 'Metric', tag: 'higher' },
+      { label: 'Guard', tag: 'intact' },
+    ],
+  },
+  recommend: { name: 'Recommendation', note: 'written down', verdict: 'Ship it.', reasons: 'reasons attached' },
+  confidence: { name: 'Confidence over time', note: 'B minus A, with its band' },
+};
+
+export type HomeCopy = {
+  hero: HeroCopy;
+  band: BandCopy;
+  /** The proof row: its landmark name, the four cells and the "Why so many?" link. */
+  proof: { label: string; items: readonly ProofItem[]; why: string };
+  experience: { title: string; groups: readonly { label: string; from: readonly string[] }[] };
+  experimentsHead: SectionCopy;
+  automationHead: SectionCopy;
+  /** The featured cards: the region's landmark name and each card's description and meta line. */
+  featured: { label: string; cases: readonly CaseCopy[] };
+  /** Fixed card headlines (a page that is not in the experiment), or null where the experiment chooses them. */
+  headlines: readonly { study: Study; parts: readonly HeadlinePart[] }[] | null;
+  automation: readonly AutomationCopy[];
+  how: HowCopy;
+  automate: readonly string[];
+  questions: QuestionsCopy;
+  site: SiteCopy;
+  faq: FaqCopy;
+  /** The words of the card sketches. */
+  sketches: SketchText;
+  /** The live bar's landmark name. */
+  liveBar: string;
+  /** The static note of a page outside the experiment (the sentence, its link and the rest). Null where the live note is used. */
+  staticNote: { before: string; link: string; after: string } | null;
+  /** The call to action's words where they differ from the shared English ones. */
+  cta: PageCtaCopy | null;
+  /** The portrait's alternative text where it differs from the English one. */
+  photoAlt: string | null;
+};
+
+export const HOME_EN: HomeCopy = {
+  hero: { headline: HEADLINE, ...HOME_HERO },
+  band: HOME_BAND,
+  proof: { label: 'Evidence at a glance', items: HOME_PROOF, why: WHY_SO_MANY },
+  experience: HOME_EXPERIENCE,
+  experimentsHead: HOME_EXPERIMENTS_HEAD,
+  automationHead: HOME_AUTOMATION_HEAD,
+  featured: { label: 'Featured case studies', cases: HOME_CASES },
+  headlines: null,
+  automation: HOME_AUTOMATION,
+  how: HOME_HOW,
+  automate: HOME_AUTOMATE_LINES,
+  questions: HOME_QUESTIONS,
+  site: HOME_SITE,
+  faq: HOME_FAQ,
+  sketches: SKETCH_TEXT_EN,
+  liveBar: 'Live test',
+  staticNote: null,
+  cta: null,
+  photoAlt: null,
 };

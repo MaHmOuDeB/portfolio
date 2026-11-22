@@ -54,3 +54,43 @@ describe('src/app/de', () => {
     }
   });
 });
+
+// The German Home composition must not reach the Home model, the phase note, the live note or the
+// beacon through any import (a type-only import is erased and does not count).
+function importClosure(entry: string): string[] {
+  const seen = new Set<string>();
+  const resolveSpec = (from: string, spec: string): string | null => {
+    const base = spec.startsWith('@/') ? join(ROOT, 'src', spec.slice(2)) : spec.startsWith('.') ? resolve(from, '..', spec) : null;
+    if (base === null) return null;
+    for (const candidate of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    }
+    return null;
+  };
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = readFileSync(file, 'utf8');
+    for (const m of text.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s+['"]([^'"]+)['"]/gm)) {
+      const next = resolveSpec(file, m[1]!);
+      if (next !== null) visit(next);
+    }
+  };
+  visit(join(ROOT, entry));
+  return [...seen];
+}
+
+describe('the German Home composition', () => {
+  const closure = importClosure('src/components/home/HomeStatic.tsx');
+
+  it('reaches no Home model, phase note, live note or beacon', () => {
+    expect(closure.length).toBeGreaterThan(10);
+    for (const file of closure) expect(file, file).not.toMatch(/lib\/home\/model|PhaseLabel|TestNote|LiveNote|Beacon|lib\/experiment\/live/);
+  });
+
+  it('is a static page: no revalidate, no dynamic marker', () => {
+    for (const page of ['src/app/de/page.tsx', 'src/app/de/work/page.tsx']) {
+      expect(readFileSync(join(ROOT, page), 'utf8'), page).not.toMatch(/export const (revalidate|dynamic)/);
+    }
+  });
+});

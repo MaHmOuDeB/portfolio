@@ -5,9 +5,10 @@
 // a surface fill and an ink bar at its left; hover and focus give it a clickable card's states. Each
 // panel is a decorative sketch; the words a reader needs are in the tabs. The same for every visitor.
 // Server-safe.
-import { HOME_HOW } from '../../../content/home.ts';
 import { SectionHead } from '@/components/frame';
 import { HOW_SKETCHES } from '@/components/frame/sketches';
+import type { Locale } from '@/lib/i18n/locale';
+import { homeCopy } from './copy';
 
 const TITLE_ID = 'how-title';
 const NAME = 'how-tab';
@@ -23,8 +24,9 @@ const SHOW = [
   '[&:has(#how-recommend:checked)_[data-how-panel=recommend]]:block',
 ].join(' ');
 
-export function HowITest() {
-  const { head, tabs } = HOME_HOW;
+export function HowITest({ locale = 'en' }: { locale?: Locale } = {}) {
+  const copy = homeCopy(locale);
+  const { head, tabs } = copy.how;
   return (
     <section data-home-how="" data-rule="" aria-labelledby={TITLE_ID} className="pb-12 md:pb-16">
       <SectionHead id={TITLE_ID} chip={head.chip} title={head.title} quiet={head.quiet} sub={head.sub} />
@@ -63,7 +65,7 @@ export function HowITest() {
             const Sketch = HOW_SKETCHES[SKETCH[tab.id]];
             return (
               <div key={tab.id} data-how-panel={tab.id} aria-hidden="true" className="hidden [&>[data-vignette]]:rounded-xl [&>[data-vignette]]:border-t-0">
-                <Sketch />
+                <Sketch text={copy.sketches} />
               </div>
             );
           })}

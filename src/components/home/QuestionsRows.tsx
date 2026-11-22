@@ -3,14 +3,15 @@
 // fades its own edges, and its list slides where scroll timelines exist and motion is allowed); the
 // second list runs the same slide in reverse. Anywhere else both rows are static and wrap. Each
 // question appears once; the chips are text, not links. Server-safe.
-import { HOME_QUESTIONS } from '../../../content/home.ts';
 import { Chip, SectionHead } from '@/components/frame';
 import { cx } from '@/lib/cx';
+import type { Locale } from '@/lib/i18n/locale';
+import { homeCopy } from './copy';
 
 const TITLE_ID = 'questions-title';
 
-export function QuestionsRows() {
-  const { head, rows } = HOME_QUESTIONS;
+export function QuestionsRows({ locale = 'en' }: { locale?: Locale } = {}) {
+  const { head, rows } = homeCopy(locale).questions;
   return (
     <section data-home-questions="" data-rule="" aria-labelledby={TITLE_ID} className="pb-12 md:pb-16">
       <SectionHead id={TITLE_ID} chip={head.chip} title={head.title} quiet={head.quiet} />

@@ -8,7 +8,7 @@
 // scroll timelines and motion allowed) they settle into from a fanned pose as the stack enters, on its
 // own view timeline. Nothing is pinned there. Server-safe.
 import type { CSSProperties } from 'react';
-import { HOME_BAND } from '../../../content/home.ts';
+import { HOME_BAND, type BandCopy } from '../../../content/home.ts';
 import { IntervalMark, MiniRow, Tag, Tick } from '@/components/frame/marks';
 
 const order = (n: number) => ({ '--n': n }) as CSSProperties;
@@ -28,8 +28,8 @@ function Head({ title, note }: { title: string; note: string }) {
   );
 }
 
-export function StackBand() {
-  const { test, agents, recommendation, caption } = HOME_BAND;
+export function StackBand({ copy = HOME_BAND }: { copy?: BandCopy } = {}) {
+  const { test, agents, recommendation, caption } = copy;
   return (
     <div data-depth-band="">
       <div data-depth-pin="">
