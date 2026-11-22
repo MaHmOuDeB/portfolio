@@ -1,11 +1,17 @@
-// The Home widgets that are native elements: the "How I test" tabs (radios inside labels, one panel at a
-// time), the FAQ rows (details), the live bar and the experience band's sheets at two sizes.
+// The widgets that are native elements: the "How I test" tabs on /work (radios inside labels, one panel
+// at a time), the FAQ rows on /about (details), and on Home the live bar and the experience band's sheets
+// at two sizes. Home itself no longer holds the tabs or the FAQ.
 import { expect } from '@playwright/test';
 import { test } from './fixtures';
 
 test.describe('Home widgets', () => {
-  test('How I test: the tabs switch by keyboard and by pointer, and one panel shows at a time', async ({ page }) => {
+  test('Home holds neither the "How I test" tabs nor the FAQ', async ({ page }) => {
     await page.goto('/');
+    await expect(page.locator('[data-home-how], [data-home-faq], [data-home-questions], [data-home-shipped], [data-home-site]')).toHaveCount(0);
+  });
+
+  test('How I test (on /work): the tabs switch by keyboard and by pointer, and one panel shows at a time', async ({ page }) => {
+    await page.goto('/work');
     const tabs = page.locator('[data-home-how] [role="radiogroup"] input[type="radio"]');
     await expect(tabs).toHaveCount(3);
     const visiblePanels = () =>
@@ -28,8 +34,8 @@ test.describe('Home widgets', () => {
     expect(await visiblePanels()).toEqual(['plan']);
   });
 
-  test('FAQ: a row opens and closes by keyboard', async ({ page }) => {
-    await page.goto('/');
+  test('FAQ (on /about): a row opens and closes by keyboard', async ({ page }) => {
+    await page.goto('/about');
     const rows = page.locator('[data-home-faq] [data-faq-row]');
     expect(await rows.count()).toBeGreaterThanOrEqual(2);
     await expect(rows.first()).toHaveJSProperty('open', true);

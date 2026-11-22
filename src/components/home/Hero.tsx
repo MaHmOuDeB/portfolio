@@ -43,11 +43,13 @@ export function Hero() {
           {sub.lead}
           <Chip inline>{sub.chips[0]}</Chip>
           {sub.join}
-          {/* The second chip and the last words never break apart (from sm up; a phone wraps freely). */}
+          {/* The second chip and the words up to the first comma never break apart (from sm up; a phone
+              wraps freely); the rest of the sentence wraps as text. */}
           <span data-hero-tail="">
             <Chip inline>{sub.chips[1]}</Chip>
-            {sub.end}
+            {sub.end.slice(0, sub.end.indexOf(','))}
           </span>
+          {sub.end.slice(sub.end.indexOf(','))}
         </p>
         <div data-hero-actions="">
           <Step d={1}>

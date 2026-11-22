@@ -1,6 +1,5 @@
 // The real home page, served at / (the proxy rewrites it to /v/a or /v/b), end to end: its parts (live
-// bar, hero, experience band, proof, "How I test", two tracks, questions, tools, site band, FAQ, call
-// to action) in page order, the headlines of the reader's group with both strings in the HTML for sizing, the same
+// bar, hero, experience band, proof, the automation and experiments tracks, call to action) in page order, the headlines of the reader's group with both strings in the HTML for sizing, the same
 // card geometry in both groups (forced with ?variant=, never a header bypass), the real next/link card
 // counted once with its secondary click, soft returns that never count a second entry, the uncounted
 // middle click, the note's "as of" time by the reader's clock, and a payload with no raw statistic.
@@ -81,17 +80,18 @@ test.describe('the home page at /', () => {
       expect(html.match(/data-headline-twin="b"/g)).toHaveLength(3);
       await page.goto(`/?variant=${variant}`);
       const order = await page.evaluate(() =>
-        [...document.querySelectorAll('[data-live-bar], [data-home-note], [data-hero], [data-experience], [data-home-proof], [data-home-how], [data-home-track], [data-experiment="cards"], [data-home-questions], [data-home-shipped], [data-home-site], [data-home-faq], [data-home-cta]')].map(
+        [...document.querySelectorAll('[data-live-bar], [data-home-note], [data-hero], [data-experience], [data-home-proof], [data-home-track], [data-experiment="cards"], [data-home-cta]')].map(
           (el) => {
-            const name = ['data-live-bar', 'data-home-note', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'data-home-track', 'data-experiment', 'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta'].find((a) => el.hasAttribute(a));
+            const name = ['data-live-bar', 'data-home-note', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-track', 'data-experiment', 'data-home-cta'].find((a) => el.hasAttribute(a));
             return name === 'data-home-track' ? `track:${el.getAttribute(name)}` : name;
           },
         ),
       );
-      // The note sits once, in the live bar above the hero; the site band has no second copy.
+      // The note sits once, in the live bar above the hero. The automation cards come before the experiments'
+      // cards region; "How I test", the questions, the tools, the site band and the FAQ are not on Home.
       expect(order).toEqual([
-        'data-live-bar', 'data-home-note', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'track:experiments', 'data-experiment',
-        'track:automation', 'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta',
+        'data-live-bar', 'data-home-note', 'data-hero', 'data-experience', 'data-home-proof', 'track:automation',
+        'track:experiments', 'data-experiment', 'data-home-cta',
       ]);
       expect(await page.locator('[data-scroll-moment], [data-hero-simulator], figure[data-figure="hero-planner"]').count()).toBe(0);
       await expect(page.locator('h1')).toHaveCount(1);

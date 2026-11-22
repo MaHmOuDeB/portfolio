@@ -9,12 +9,15 @@
 // described by the paragraph, which holds the chip, so a screen reader hears where the work comes
 // from; the paragraph lays its parts out in the card (display: contents), and the chip is ordered
 // first, above the title. No dates and no outcome numbers: a figure in a line is a Fact.
-// Server-safe, no hooks.
+// After the page head comes "How I test" (moved from Home), and the Automation group ends with the
+// three "I automate." lines. Server-safe, no hooks.
 import type { ReactNode } from 'react';
 import { LeanCard } from '@/components/depth/LeanCard';
 import { Tile } from '@/components/depth/Tile';
 import { Chip, PageHead, Quiet, SectionHead } from '@/components/frame';
 import { ButtonLink } from '@/components/kit/ButtonLink';
+import { AutomateRow } from '@/components/home/AutomateRow';
+import { HowITest } from '@/components/home/HowITest';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import {
   AgentsSketch,
@@ -81,6 +84,8 @@ export function WorkPage(): ReactNode {
         }
       />
 
+      <HowITest />
+
       {WORK_SECTIONS.map((section) => (
         <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`} data-rule="">
           <div data-work-head="">
@@ -88,7 +93,7 @@ export function WorkPage(): ReactNode {
           </div>
           {/* The rule that draws on entry is its own decorative element, so the cards are never scaled with it. */}
           <span data-depth-draw="" aria-hidden="true" className="block h-px bg-hairline" />
-          <ul role="list" className="grid grid-cols-1 gap-4 pb-12 pt-8 md:grid-cols-2 md:pb-16">
+          <ul role="list" className={`grid grid-cols-1 gap-4 pt-8 md:grid-cols-2 ${section.id === 'automation' ? 'pb-4' : 'pb-12 md:pb-16'}`}>
             {section.items.map((item) => (
               <li key={item.href} data-work-item={item.href} className={CARD_CELL}>
                 <LeanCard href={item.href} title={item.title} meta={null} size="md" prefetch={prefetchFor(item.href)} vignette={vignette(item.href)}>
@@ -106,6 +111,12 @@ export function WorkPage(): ReactNode {
               </li>
             ))}
           </ul>
+          {/* The "I automate." row ends the Automation group, then the group's own space below. */}
+          {section.id === 'automation' ? (
+            <div className="pb-12 md:pb-16">
+              <AutomateRow />
+            </div>
+          ) : null}
         </section>
       ))}
 

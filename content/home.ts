@@ -1,5 +1,5 @@
 // The Home page's content as data: the hero, the proof row, the two tracks (featured case studies and
-// automation cards), "How I test", the questions, the tools band (HOME_TOOLS), the site band and the FAQ, plus
+// automation cards), "How I test", the questions, the site band and the FAQ (the last three shown on /work and /about), plus
 // the headline text helper.
 // Prose with a figure is a list of parts: plain text, or `{ fact }` for a number that is printed from
 // the facts data, never typed. The group A and B card headlines are frozen with the experiment
@@ -31,10 +31,10 @@ export function headlineText(parts: readonly HeadlinePart[]): string {
 export const HOME_HERO = {
   chip: 'Open to roles in Germany',
   sub: {
-    lead: 'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the ',
+    lead: 'Analyst in Berlin. I build the ',
     chips: ['agents', 'workflows'],
     join: ' and ',
-    end: ' that take the manual work out.',
+    end: ' that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
   },
   cv: 'Read my CV',
   contact: 'Write to me',
@@ -335,37 +335,6 @@ export const HOME_QUESTIONS = {
     ['Should we ship it?', 'Which step can be automated?', "Who checks the agent's work?", 'Will it still work next month?'],
   ],
 } as const satisfies { head: SectionCopy; rows: readonly (readonly string[])[] };
-
-/** The tools band's line. */
-export const TOOLS_LABEL = 'Methods and tools';
-
-/** One group of the tools band: its name, what it is for, its chips and where the site shows them. */
-export type HomeToolGroup = { id: string; name: string; line: string; items: readonly string[]; seenIn: string };
-
-/**
- * The tools band's own list, for Home only (About keeps its longer list with a "where" for each
- * tool): two groups of chips, then one quiet line for the engineering behind the public projects.
- * The AI and automation group's "seen in" line never names Audible.
- */
-export const HOME_TOOLS = {
-  groups: [
-    {
-      id: 'experiments',
-      name: 'Experimentation and analytics',
-      line: 'What I use to plan a test, read it honestly and write the recommendation.',
-      items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
-      seenIn: 'At Audible and in the retention analysis.',
-    },
-    {
-      id: 'automation',
-      name: 'AI and automation',
-      line: 'What I use to take repeated work off a team, with checks around it.',
-      items: ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
-      seenIn: 'In the test-account tool, Docproof, the n8n library and MarketingWS.',
-    },
-  ],
-  engineering: 'Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.',
-} as const satisfies { groups: readonly HomeToolGroup[]; engineering: string };
 
 /** The site band: the test on this site is part of the evidence. The Work page reads `title` and `text`. */
 export const HOME_SITE = {

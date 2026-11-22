@@ -24,8 +24,6 @@ import {
   HOME_QUESTIONS,
   HOME_FAQ,
   type FaqPart,
-  TOOLS_LABEL,
-  HOME_TOOLS,
   headlineText,
   type HeadlinePart,
   type Study,
@@ -277,27 +275,19 @@ describe('the automation cards', () => {
   });
 });
 
-/** Every string of the tools band: each group's name, line, chips and "seen in" line, then the engineering line. */
-const toolsCopy = (): string[] => [
-  ...HOME_TOOLS.groups.flatMap((g) => [g.name, g.line, ...g.items, g.seenIn]),
-  HOME_TOOLS.engineering,
-];
-
-/** Every string of the sections from "How I test" to the site band (heads, tabs, lines, questions, tools). */
+/** Every string of the moved sections (heads, tabs, lines, questions) and the site band's head. */
 const sectionCopy = (): string[] => [
   ...[HOME_HOW.head, HOME_EXPERIMENTS_HEAD, HOME_AUTOMATION_HEAD, HOME_QUESTIONS.head, HOME_SITE_HEAD, HOME_FAQ.head].flatMap((h) => Object.values(h) as string[]),
   ...HOME_HOW.tabs.flatMap((t) => [t.title, t.line]),
   ...HOME_AUTOMATE_LINES,
   ...HOME_QUESTIONS.rows.flat(),
-  TOOLS_LABEL,
-  ...toolsCopy(),
 ];
 
 describe('the hero, proof row, the sections and the site band', () => {
   it('say the approved words', () => {
     expect(HOME_HERO.chip).toBe('Open to roles in Germany');
     expect(heroSubText()).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
+      'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
     );
     expect([HOME_HERO.cv, HOME_HERO.contact]).toEqual(['Read my CV', 'Write to me']);
     expect(HOME_BAND.caption).toBe('How I work: a test, the agents that check the work, and the recommendation.');
@@ -314,7 +304,6 @@ describe('the hero, proof row, the sections and the site band', () => {
       lab: 'Try the Lab',
     });
     expect(HOME_SITE_HEAD).toEqual({ chip: 'Live test', title: 'This site is', quiet: 'part of the evidence.' });
-    expect(TOOLS_LABEL).toBe('Methods and tools');
   });
 
   it('say the approved "How I test" and "I automate." lines word for word, in the tabs and the row under the cards', () => {
@@ -342,42 +331,6 @@ describe('the hero, proof row, the sections and the site band', () => {
     ]);
     // The automation sub is the track's lede.
     expect(HOME_AUTOMATION_HEAD.sub).toBe(HOME_TRACKS.automation.lede);
-  });
-
-  it('give the tools band two groups of methods and tools, each with its line and where it was used, then one engineering line', () => {
-    expect(HOME_TOOLS).toEqual({
-      groups: [
-        {
-          id: 'experiments',
-          name: 'Experimentation and analytics',
-          line: 'What I use to plan a test, read it honestly and write the recommendation.',
-          items: ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
-          seenIn: 'At Audible and in the retention analysis.',
-        },
-        {
-          id: 'automation',
-          name: 'AI and automation',
-          line: 'What I use to take repeated work off a team, with checks around it.',
-          items: ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
-          seenIn: 'In the test-account tool, Docproof, the n8n library and MarketingWS.',
-        },
-      ],
-      engineering: 'Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.',
-    });
-  });
-
-  it('never tie the AI and automation group to Audible', () => {
-    const ai = HOME_TOOLS.groups.find((g) => g.id === 'automation');
-    expect(ai).toBeDefined();
-    for (const s of [ai!.name, ai!.line, ...ai!.items, ai!.seenIn]) expect(s, s).not.toMatch(/Audible|Amazon/i);
-  });
-
-  it('keep the tools band to the Home list: no Excel, Tableau, Amplitude or the methods and tools that stay on About', () => {
-    for (const s of [TOOLS_LABEL, ...toolsCopy()]) {
-      expect(s, s).not.toMatch(
-        /Excel|Tableau|Amplitude|significance testing|cohort|RFM|event tracking|webhook|REST API|pytest|shipped with|as a data source/i,
-      );
-    }
   });
 
   it('give the FAQ figures as facts that exist, never typed', () => {

@@ -11,7 +11,8 @@ import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch
 // - the real page (/?variant=a and /?variant=b) across the size matrix: HTTP 200 with the matching
 //   x-arm, no sideways scroll, every pointer target at least 44 px (the pinned inline links aside),
 //   every focus ring visible, unclipped and clear of the sticky header, and the same geometry in both
-//   groups for every block; the phone fold at 375x812 holds the h1 and the primary button in both;
+//   groups for every block; the phone fold at 375x812 holds the h1 and the primary button in both, and
+//   at 375x667 and 1280x720 the h1, the sub line and both hero buttons are in the first screen;
 // - every text state of the Home composition on the test build's host, in a wide, a phone, a
 //   reduced-motion and a no-JavaScript layout: one h1 and the landmarks, no repeated id, no "undefined"
 //   or "NaN", named images, captioned tables, and no axe violation;
@@ -137,12 +138,7 @@ async function sections(page: Page): Promise<Record<string, Rect>> {
       put(`${study}:link`, card.matches('[data-experiment-click="card"]') ? card : null);
     }
     put('automation', document.querySelector('[data-home-track="automation"]'));
-    put('how', document.querySelector('[data-home-how]'));
-    put('questions', document.querySelector('[data-home-questions]'));
-    put('tools', document.querySelector('[data-home-shipped]'));
-    put('site', document.querySelector('[data-home-site]'));
     put('note', document.querySelector('[data-home-note]'));
-    put('faq', document.querySelector('[data-home-faq]'));
     put('cta', document.querySelector('[data-home-cta]'));
     put('footer', document.querySelector('footer'));
     out.page = { x: 0, y: 0, width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight };
@@ -235,7 +231,7 @@ test.describe('Home quality: the real page in both groups across the size matrix
       const a = geometry.a!;
       const b = geometry.b!;
       expect(Object.keys(b).sort()).toEqual(Object.keys(a).sort());
-      for (const key of ['hero', 'proof', 'how', 'experiments', 'cards', 'automation', 'questions', 'tools', 'site', 'faq', 'cta', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
+      for (const key of ['hero', 'proof', 'experiments', 'cards', 'automation', 'cta', 'footer', 'audible:card', 'retention:card', 'pulse:card']) expect(a[key], key).toBeDefined();
       for (const key of Object.keys(a)) {
         for (const side of ['x', 'y', 'width', 'height'] as const) {
           expect(Math.abs(a[key]![side] - b[key]![side]), `${key}.${side}: group A ${a[key]![side]}, group B ${b[key]![side]}`).toBeLessThanOrEqual(TOLERANCE);
@@ -264,6 +260,32 @@ test.describe('Home quality: the real page in both groups across the size matrix
     }
     expect(boxes[1]).toEqual(boxes[0]);
   });
+
+  for (const size of [
+    { width: 375, height: 667, note: 'small phone', phone: true },
+    { width: 1280, height: 720, note: 'laptop', phone: false },
+  ]) {
+    test(`@quality first screen at ${size.width}x${size.height} (${size.note}): the h1, the sub line and both hero buttons are in view`, async ({ browser }, info) => {
+      test.skip(info.project.name !== 'desktop-chromium', 'explicit size');
+      for (const arm of ['a', 'b'] as const) {
+        const page = await openHome(browser, arm, { ...size }, size.phone ? { isMobile: true, hasTouch: true } : {});
+        const hero = page.locator('[data-hero]');
+        const parts = [
+          ['h1', hero.locator('h1')],
+          ['sub line', hero.locator('[data-hero-sub]')],
+          ['Read my CV', hero.getByRole('link', { name: 'Read my CV' })],
+          ['Write to me', hero.getByRole('link', { name: 'Write to me' })],
+        ] as const;
+        for (const [name, locator] of parts) {
+          await expect(locator, `group ${arm}: ${name}`).toBeVisible();
+          const box = (await locator.boundingBox())!;
+          expect(box.y, `group ${arm} ${size.width}x${size.height}: ${name} top`).toBeGreaterThanOrEqual(0);
+          expect(box.y + box.height, `group ${arm} ${size.width}x${size.height}: ${name} bottom`).toBeLessThanOrEqual(size.height);
+        }
+        await page.context().close();
+      }
+    });
+  }
 
   test('@quality the Lighthouse URLs answer 200 with the matching x-arm', async ({ request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');

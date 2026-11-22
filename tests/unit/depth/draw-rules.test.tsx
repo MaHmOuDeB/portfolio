@@ -22,19 +22,20 @@ const elements = (node: T.ParentNode, out: El[] = []): El[] => {
 };
 const attr = (el: El, name: string) => el.attrs.find((a) => a.name === name)?.value;
 
-const PAGES: readonly [string, () => string][] = [
-  ['Home', () => renderToStaticMarkup(<HomeBody model={toHomeModel(snapshotFixture('calibration'), 'a')} />)],
-  ['Work', () => renderToStaticMarkup(<WorkPage />)],
-  ['About', () => renderToStaticMarkup(<AboutPage />)],
-  ['Audible case study', () => renderToStaticMarkup(<AudiblePage />)],
+// The second value is the fewest rules the page draws: Home draws none since its "I automate." row moved to Work.
+const PAGES: readonly [string, () => string, number][] = [
+  ['Home', () => renderToStaticMarkup(<HomeBody model={toHomeModel(snapshotFixture('calibration'), 'a')} />), 0],
+  ['Work', () => renderToStaticMarkup(<WorkPage />), 1],
+  ['About', () => renderToStaticMarkup(<AboutPage />), 1],
+  ['Audible case study', () => renderToStaticMarkup(<AudiblePage />), 1],
 ];
 
 describe('every [data-depth-draw] is a decorative rule', () => {
-  it.each(PAGES)('%s', (_name, render) => {
+  it.each(PAGES)('%s', (_name, render, fewest) => {
     const drawn = elements(parse(`<!doctype html><body>${render()}</body>`)).filter(
       (el) => attr(el, 'data-depth-draw') !== undefined,
     );
-    expect(drawn.length).toBeGreaterThan(0);
+    expect(drawn.length).toBeGreaterThanOrEqual(fewest);
     for (const el of drawn) {
       expect(el.tagName).toBe('span');
       expect(attr(el, 'aria-hidden')).toBe('true');

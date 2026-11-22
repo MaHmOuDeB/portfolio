@@ -38,6 +38,8 @@ test.describe('About and CV', () => {
       expect(count).toBeGreaterThan(0);
       for (let i = 0; i < count; i++) {
         const link = links.nth(i);
+        // A link in a closed FAQ row cannot take focus until the row is open (its answer is not rendered).
+        if (await link.evaluate((el) => el.closest('details:not([open])') !== null)) continue;
         await link.focus();
         await expect(link).toBeFocused();
         const ring = await link.evaluate((el) => {
@@ -77,6 +79,19 @@ test.describe('About and CV', () => {
       await expect(page.locator('[data-site-header]')).toBeVisible();
     });
   }
+
+  test('/about: the questions rows follow the story, the FAQ comes before the call to action, and no id repeats', async ({ page }) => {
+    await page.goto('/about');
+    await expect(page.locator('[data-home-questions]')).toHaveCount(1);
+    await expect(page.locator('[data-home-faq]')).toHaveCount(1);
+    const order = await page.evaluate(() => {
+      const top = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().top + scrollY;
+      return [top('[data-about-story]'), top('[data-home-questions]'), top('#timeline'), top('#languages'), top('[data-home-faq]'), top('[data-page-cta]')];
+    });
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    const ids = await page.evaluate(() => [...document.querySelectorAll('[id]')].map((el) => el.id));
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
 
   test('/about: the photograph loads at 480 px wide, or 960 px on a dense screen, from the optimiser', async ({ page }) => {
     await page.goto('/about');

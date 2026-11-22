@@ -200,7 +200,8 @@ describe('Trace', () => {
     const band = renderToStaticMarkup(createElement(ExperienceBand));
     expect(band).toContain('<div data-experience-groups="" data-depth-trace="experience">');
     expect([...band.matchAll(/<span data-experience-rule="" aria-hidden="true"><\/span>/g)]).toHaveLength(2);
-    expect(renderToStaticMarkup(createElement(AutomationTrack))).toContain('<ul role="list" data-depth-trace="row"');
+    const { AutomateRow } = await import('@/components/home/AutomateRow');
+    expect(renderToStaticMarkup(createElement(AutomateRow))).toContain('<ul role="list" data-depth-trace="row"');
   });
 
   it('keeps the static spine and dots in the base style and stops every draw under reduced motion and in print', () => {

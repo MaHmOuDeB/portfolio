@@ -1,7 +1,8 @@
 // The About page: the head (the page's chip beside the "Open to roles" chip, the h1 and a "Read my CV"
 // button), then the photograph beside the story from lg up (on a phone the photo comes first, under the
 // headline), the timeline (Audible as a working student), the tools and where I used them, and the
-// languages. It ends on the ink call to action, which says what roles I am open to, with "Write to me".
+// languages, then the FAQ (moved from Home; the questions rows, also from Home, sit after the story).
+// It ends on the ink call to action, which says what roles I am open to, with "Write to me".
 // Static: the prose comes from content/about.tsx and the photo's description from content/about-photo.ts.
 // Sections are spaced, not boxed, like the Retention page, and each is a <section> named by its h2.
 //
@@ -10,6 +11,8 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { Chip, Quiet, SECTION_H2 } from '@/components/frame';
+import { HomeFaq } from '@/components/home/HomeFaq';
+import { QuestionsRows } from '@/components/home/QuestionsRows';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { ButtonLink } from '@/components/kit/ButtonLink';
 import { TextLink } from '@/components/kit/TextLink';
@@ -123,6 +126,8 @@ export function AboutPage(): ReactNode {
         </div>
       </div>
 
+      <QuestionsRows />
+
       <Section id="timeline">
         {/* The rule that draws on entry is its own decorative element: a list may hold only items. */}
         <span data-depth-draw="" aria-hidden="true" className="block h-px max-w-text bg-hairline-strong" />
@@ -165,6 +170,8 @@ export function AboutPage(): ReactNode {
           ))}
         </dl>
       </Section>
+
+      <HomeFaq />
 
       <PageCallToAction />
     </article>

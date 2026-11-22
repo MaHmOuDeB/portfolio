@@ -70,12 +70,12 @@ test.describe('home review captures', () => {
       }
     }
 
-    // Each review state: the site tile and its note, desktop and phone.
+    // Each review state: the first screen with the live bar and its note, desktop and phone (the site band left Home).
     for (const { state, what } of REVIEW_STATES) {
       for (const size of [{ width: 1440, height: 900 }, { width: 375, height: 667 }]) {
         const page = await open(browser, host('b', state), size);
         const viewport = `${size.width}x${size.height}`;
-        await take(page, { path: host('b', state), state, arm: 'b', viewport, layout: 'site tile', what }, '[data-home-site]');
+        await take(page, { path: host('b', state), state, arm: 'b', viewport, layout: 'first screen, live bar', what }, 'viewport');
         await page.context().close();
       }
     }

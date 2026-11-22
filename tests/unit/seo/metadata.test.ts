@@ -364,9 +364,9 @@ describe('route inventory', () => {
     expect(seoEntry('/contact').description).toBe(contactMetadata(new Headers(), false).description);
   });
 
-  it('says experimentation and AI automation analyst, never growth analyst, in the site, About and CV descriptions', () => {
+  it('says AI automation and experimentation analyst on the site and experimentation and AI automation analyst on About and CV, never growth analyst', () => {
     const layout = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8');
-    expect(layout).toContain('description: "Experimentation and AI automation analyst in Berlin."');
+    expect(layout).toContain('description: "AI automation and experimentation analyst in Berlin."');
     for (const route of ['/about', '/cv']) expect(seoEntry(route).description, route).toMatch(/experimentation and AI automation analyst in Berlin/i);
     for (const entry of SEO_PAGES) expect(entry.description, entry.path).not.toMatch(/growth analyst/i);
   });
@@ -485,10 +485,10 @@ describe('sharingTemplate', () => {
 
   it('the site card is the approved text: headline, role line and name, with no figure', () => {
     const card = ogCard('site');
-    expect(SITE_SHARING_HEADLINE).toBe('Experimentation and AI automation for product and growth teams');
+    expect(SITE_SHARING_HEADLINE).toBe('AI automation and experimentation for product and growth teams');
     expect(card.title).toBe(SITE_SHARING_HEADLINE);
     expect(SITE_SHARING_LINE).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
+      'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
     );
     expect(card.sub).toBe(SITE_SHARING_LINE);
     // The line is the hero's sub line, its two inline chips as plain lower-case words.
@@ -502,7 +502,10 @@ describe('sharingTemplate', () => {
   });
 
   it('the Home link preview has its own title; other pages add the name to theirs', () => {
-    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: experimentation and AI automation for product and growth teams');
+    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: AI automation and experimentation for product and growth teams');
+    // The lead keeps its own case: lower-casing its first letter would print "aI" (and break German nouns).
+    expect(HOME_SHARE_TITLE).not.toMatch(/: aI/);
+    expect(HOME_SHARE_TITLE).toBe(`${SITE.name}: ${HEADLINE.lead} ${HEADLINE.quiet}`);
     expect(shareTitle(seoEntry('/'))).toBe(HOME_SHARE_TITLE);
     expect(shareTitle(seoEntry('/lab'))).toBe('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     const home = pageMetadata(seoEntry('/'), new URL('https://site.example.com'));
@@ -597,7 +600,7 @@ describe('sharingTemplate', () => {
       for (const hex of hexes) expect(Object.values(theme)).toContain(hex);
     }
     const site = ogHtml(ogCard('site'), theme, 'data:,');
-    expect(site).toContain('<h1>Experimentation and AI automation for product and growth teams</h1>');
+    expect(site).toContain('<h1>AI automation and experimentation for product and growth teams</h1>');
     expect(site).toContain('<div class="foot">Mahmoud El Bergui</div>');
     expect(site).not.toContain('class="sub proof"');
     const proof = { strong: `${factText('profile.audible.experiments')} A/B tests`, rest: ' across web and mobile' };

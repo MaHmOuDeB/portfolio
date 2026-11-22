@@ -37,13 +37,16 @@ export const SEO_EXCLUDED_ROUTES: readonly string[] = ['/exclude', '/demo'];
  * does not import the Home content, so the experiment's copy never reaches a sharing image).
  */
 export const SITE_SHARING_LINE =
-  'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.';
+  'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).';
 
 /** The site card's headline: the hero's line in one tone. */
 export const SITE_SHARING_HEADLINE = `${HEADLINE.lead} ${HEADLINE.quiet}`;
 
-/** The Home page's title in a link preview (og:title, twitter:title). */
-export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead.charAt(0).toLowerCase()}${HEADLINE.lead.slice(1)} ${HEADLINE.quiet}`;
+/**
+ * The Home page's title in a link preview (og:title, twitter:title). The lead keeps its own case: a
+ * lower-cased first letter would print "aI" and would break a German noun.
+ */
+export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead} ${HEADLINE.quiet}`;
 
 /**
  * A case card's headline states its landing page's finding in the page's own words. The cards have their
