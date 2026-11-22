@@ -40,6 +40,17 @@ describe('Berlin time', () => {
     expect(updatedLabel('2026-10-24T21:30:00Z', '2026-10-24T22:30:00Z')).toBe('Updated 24.10, 23:30');
   });
 
+  it('writes the German forms: a closing dot on a date and the word the kit text gives', () => {
+    expect(berlinDate('2026-10-24T22:30:00Z', { locale: 'de' })).toBe('25.10.');
+    expect(berlinDate('2026-10-24T22:30:00Z', { locale: 'en' })).toBe('25.10');
+    expect(updatedLabel('2026-07-01T12:05:00Z', '2026-07-01T20:00:00Z', { word: 'Aktualisiert', locale: 'de' })).toBe(
+      'Aktualisiert 14:05',
+    );
+    expect(updatedLabel('2026-10-24T21:30:00Z', '2026-10-24T22:30:00Z', { word: 'Aktualisiert', locale: 'de' })).toBe(
+      'Aktualisiert 24.10., 23:30',
+    );
+  });
+
   it('is identical under TZ=UTC and TZ=America/New_York', () => {
     process.env.TZ = 'UTC';
     const inUtc = CASES();

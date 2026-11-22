@@ -3,7 +3,7 @@
 // tick label. Too short an estimate pushes a label past its box; so each character counts as an upper
 // bound of its advance in Inter, the site font, over the chart text styles (13 px regular with and
 // without tabular figures, 15 px semibold), rounded up to 0.02 em. tests/unit/figure/label-width.test.ts
-// checks the table against the font file's measured advances and a list of the label strings the charts use.
+// checks the table (the German letters ä ö ü Ä Ö Ü ß and the quotes „ “ included) against the font file's measured advances and a list of the label strings the charts use.
 
 /** Characters by the upper bound of their advance, in em. */
 const ADVANCE_EM: ReadonlyArray<readonly [string, number]> = [
@@ -13,21 +13,21 @@ const ADVANCE_EM: ReadonlyArray<readonly [string, number]> = [
   ['M', 0.92],
   ['m', 0.9],
   ['w', 0.84],
-  ['OQ', 0.78],
-  ['GHNU', 0.76],
-  ['ACDV', 0.74],
+  ['OQÖ', 0.78],
+  ['GHNUÜ', 0.76],
+  ['ACDVÄ', 0.74],
   ['KXY', 0.72],
   ['α', 0.7],
   ['4&+<=>~×−≈≤≥€', 0.68],
-  ['012356789#$*-BPRSTZ√', 0.66],
+  ['012356789#$*-BPRSTZ√ß', 0.66],
   ['bdgpq£', 0.64],
-  ['Ehnouβ', 0.62],
+  ['Ehnouβöü', 0.62],
   ['Fcevy', 0.6],
-  ['JLakxz', 0.58],
+  ['JLakxzä', 0.58],
   ['?s', 0.56],
-  ['"', 0.52],
+  ['"“', 0.52],
   ['–₀', 0.5],
-  ['^_', 0.48],
+  ['^_„', 0.48],
   ['{}₂₋', 0.46],
   ['()[]fr', 0.4],
   ['/\\', 0.38],

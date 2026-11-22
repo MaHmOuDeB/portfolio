@@ -12,10 +12,12 @@
 // data-num and the caller's refs. It never scrolls the page: on focus the browser does that, and the
 // control's scroll margin (fieldControlClass) keeps the label and error above it in view.
 import { useEffect, useRef, useState } from 'react';
-import { countSentence, countState, shouldAnnounce } from '@/lib/form/count';
+import { countState, shouldAnnounce } from '@/lib/form/count';
+import { fill } from '@/lib/i18n/template';
 import { formatValue } from '@/lib/facts/format';
 import { derivedAttr, type DerivedRef } from './Derived';
 import { Icon } from './Icon';
+import { aroundPlaceholder, EN_COUNT, type CountText } from './text';
 
 type Props = {
   /** The counter's id, which the textarea's aria-describedby names. */
@@ -24,12 +26,21 @@ type Props = {
   controlId: string;
   limit: number;
   refs: readonly DerivedRef[];
+  /** The counter's words and language; default English. */
+  text?: CountText;
 };
 
 const ANNOUNCE_AFTER_MS = 1000;
-const format = (n: number) => formatValue(n, 'count');
 
-export function CharacterCount({ id, controlId, limit, refs }: Props) {
+/** The sentence a screen reader hears (the visible counter says the same). */
+function sentence(state: ReturnType<typeof countState>, text: CountText, format: (n: number) => string): string {
+  if (state.kind === 'none') return text.none;
+  const forms = state.kind === 'left' ? text.left : text.over;
+  return fill(state.n === 1 ? forms.one : forms.other, { n: format(state.n) });
+}
+
+export function CharacterCount({ id, controlId, limit, refs, text = EN_COUNT }: Props) {
+  const format = (n: number) => formatValue(n, 'count', { locale: text.locale });
   // null until hydrated: the server text.
   const [length, setLength] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -45,7 +56,7 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
       if (timer.current !== null) clearTimeout(timer.current);
       if (!announce) return;
       timer.current = setTimeout(() => {
-        setAnnouncement(shouldAnnounce(n, limit) ? countSentence(countState(n, limit), format) : '');
+        setAnnouncement(shouldAnnounce(n, limit) ? sentence(countState(n, limit), text, (k) => formatValue(k, 'count', { locale: text.locale })) : '');
       }, ANNOUNCE_AFTER_MS);
     };
     update(false);
@@ -59,7 +70,7 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
       control.form?.removeEventListener('reset', onReset);
       if (timer.current !== null) clearTimeout(timer.current);
     };
-  }, [controlId, limit]);
+  }, [controlId, limit, text]);
 
   const number = (n: number) => (
     <data value={n} data-num="" {...derivedAttr(refs)}>
@@ -69,16 +80,26 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
 
   let body;
   if (length === null) {
-    body = <>Up to {number(limit)} characters</>;
+    const [before, after] = aroundPlaceholder(text.upTo, 'limit');
+    body = (
+      <>
+        {before}
+        {number(limit)}
+        {after}
+      </>
+    );
   } else {
     const state = countState(length, limit);
-    const unit = state.n === 1 ? 'character' : 'characters';
+    const forms = state.kind === 'left' ? text.left : text.over;
+    const [before, after] = aroundPlaceholder(state.n === 1 ? forms.one : forms.other, 'n');
     body =
       state.kind === 'none' ? (
-        'No characters left'
+        text.none
       ) : state.kind === 'left' ? (
         <>
-          {number(state.n)} {unit} left
+          {before}
+          {number(state.n)}
+          {after}
         </>
       ) : (
         <>
@@ -86,7 +107,9 @@ export function CharacterCount({ id, controlId, limit, refs }: Props) {
             <Icon name="alert" />
           </span>
           <span>
-            {number(state.n)} {unit} too many
+            {before}
+            {number(state.n)}
+            {after}
           </span>
         </>
       );

@@ -9,6 +9,7 @@
 import type { ReactNode } from 'react';
 import { cx } from '@/lib/cx';
 import { Icon } from './Icon';
+import { EN_FIELD, type KitText } from './text';
 
 /**
  * The control box shared by input, textarea and select. Focus is the global ring from tokens.css:
@@ -35,9 +36,11 @@ type Props = {
   children: (describedBy: string | undefined) => ReactNode;
   /** The counter, drawn under the control. */
   after?: ReactNode;
+  text?: Pick<KitText, 'field'>;
 };
 
-export function Field({ id, label, hint, error, counterId, children, after }: Props) {
+export function Field({ id, label, hint, error, counterId, children, after, text }: Props) {
+  const errorWord = text?.field.error ?? EN_FIELD.error;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId, counterId].filter(Boolean).join(' ') || undefined;
@@ -57,7 +60,7 @@ export function Field({ id, label, hint, error, counterId, children, after }: Pr
             <Icon name="alert" />
           </span>
           <span>
-            <span className="sr-only">Error: </span>
+            <span className="sr-only">{errorWord}</span>
             {error}
           </span>
         </p>

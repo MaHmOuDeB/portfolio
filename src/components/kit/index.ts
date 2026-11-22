@@ -33,6 +33,40 @@ export { LiveStateBody } from './LiveStateBody';
 export { NowRow } from './NowRow';
 export { PhaseLabel, type TestNote } from './PhaseLabel';
 export { SelectField } from './SelectField';
+export {
+  aroundPlaceholder,
+  seq,
+  KIT_TEXT_EN,
+  EN_BADGE,
+  EN_CONFIDENCE,
+  EN_COUNT,
+  EN_ERROR,
+  EN_FIELD,
+  EN_FIGURE,
+  EN_LIVE,
+  EN_NOW_ROW,
+  EN_PHASE,
+  EN_RESET,
+  EN_SELECT,
+  EN_SLIDER,
+  EN_STEP,
+  EN_TABLE,
+  EN_ZERO,
+  type BadgeText,
+  type ConfidenceText,
+  type CountText,
+  type ErrorText,
+  type FieldText,
+  type FigureText,
+  type KitText,
+  type LiveText,
+  type NowRowText,
+  type PhaseText,
+  type SliderText,
+  type StepText,
+  type TableText,
+  type ZeroText,
+} from './text';
 export { ProvenanceBadge, type Provenance } from './ProvenanceBadge';
 export { Stat } from './Stat';
 export { SubmitButton } from './SubmitButton';

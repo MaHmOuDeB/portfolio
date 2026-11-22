@@ -1,5 +1,7 @@
 // Timestamps for visitors. ISR renders on a UTC server and visitors read in any locale, so every
-// time is written in Europe/Berlin as dd.mm and 24-hour hh:mm, whatever the machine's timezone.
+// time is written in Europe/Berlin as dd.mm and 24-hour hh:mm, whatever the machine's timezone. The
+// German form closes a date with a dot ("25.10." before the year, as DIN 5008 writes it).
+import type { Locale } from '../i18n/locale.ts';
 
 const berlin = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Berlin',
@@ -31,10 +33,10 @@ function parts(iso: string): Parts {
   return found as Parts;
 }
 
-/** "25.10": the Berlin calendar day of an instant. */
-export function berlinDate(iso: string): string {
+/** "25.10": the Berlin calendar day of an instant ("25.10." with `locale: 'de'`). */
+export function berlinDate(iso: string, o: { locale?: Locale } = {}): string {
   const p = parts(iso);
-  return `${p.day}.${p.month}`;
+  return `${p.day}.${p.month}${o.locale === 'de' ? '.' : ''}`;
 }
 
 /** "25.10.2026": the Berlin calendar day of an instant with its year, for a date that needs it. */
@@ -49,10 +51,20 @@ export function berlinTime(iso: string): string {
   return `${p.hour}:${p.minute}`;
 }
 
-/** "Updated 14:05", or "Updated 24.10, 23:30" when the Berlin day is not the day of rendering. */
-export function updatedLabel(updatedAt: string, renderedAt: string): string {
+/**
+ * "Updated 14:05", or "Updated 24.10, 23:30" when the Berlin day is not the day of rendering. `word` is
+ * the word before the time (the kit text's, "Aktualisiert" in German); with `locale: 'de'` the date
+ * closes with a dot ("Aktualisiert 24.10., 23:30").
+ */
+export function updatedLabel(
+  updatedAt: string,
+  renderedAt: string,
+  o: { word?: string; locale?: Locale } = {},
+): string {
   const u = parts(updatedAt);
   const r = parts(renderedAt);
+  const word = o.word ?? 'Updated';
   const sameDay = u.year === r.year && u.month === r.month && u.day === r.day;
-  return sameDay ? `Updated ${u.hour}:${u.minute}` : `Updated ${u.day}.${u.month}, ${u.hour}:${u.minute}`;
+  const dot = o.locale === 'de' ? '.' : '';
+  return sameDay ? `${word} ${u.hour}:${u.minute}` : `${word} ${u.day}.${u.month}${dot}, ${u.hour}:${u.minute}`;
 }

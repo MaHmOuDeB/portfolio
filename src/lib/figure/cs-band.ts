@@ -15,6 +15,7 @@
 import { scaleLinear } from 'd3-scale';
 import type { TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
+import type { Locale } from '../i18n/locale.ts';
 import { formatNumber, formatSignedNumber, formatSignedPoints } from './format';
 import { niceTicks, type Layout } from './scales';
 import {
@@ -218,14 +219,20 @@ export function intervalDigits(lower: number, upper: number): number {
  * sign ("the lower end is above zero"): a bound below the display floor then prints as the smallest
  * shown unit on its own side ("+0.001"), never as "0".
  */
-export function formatIntervalPoints(lower: number, upper: number, o: { awayFromZero?: boolean } = {}): string {
+export function formatIntervalPoints(
+  lower: number,
+  upper: number,
+  o: { awayFromZero?: boolean; locale?: Locale } = {},
+): string {
   const digits = intervalDigits(lower, upper);
+  const locale = o.locale ?? 'en';
   const one = (v: number) => {
-    const text = formatSignedPoints(v, digits);
+    const text = formatSignedPoints(v, digits, { locale });
     if (text !== '0' || v === 0 || !o.awayFromZero) return text;
-    return `${v < 0 ? '−' : '+'}${(10 ** -digits).toFixed(digits)}`;
+    const unit = locale === 'en' ? (10 ** -digits).toFixed(digits) : formatNumber(10 ** -digits, digits, { fixed: true, locale });
+    return `${v < 0 ? '−' : '+'}${unit}`;
   };
-  return `${one(lower)} to ${one(upper)}`;
+  return `${one(lower)} ${locale === 'de' ? 'bis' : 'to'} ${one(upper)}`;
 }
 
 /**
@@ -317,14 +324,19 @@ export type ConfidenceModel = {
   includesZero: boolean;
 };
 
-function axis(domain: [number, number], counts: Record<Layout, number>, signed: boolean): AxisModel {
+function axis(domain: [number, number], counts: Record<Layout, number>, signed: boolean, locale: Locale): AxisModel {
   const ticks = { narrow: niceTicks(domain, counts.narrow), wide: niceTicks(domain, counts.wide) };
   const digits = Math.max(stepDigits(ticks.narrow), stepDigits(ticks.wide));
-  return { domain, ticks, format: signed ? (v) => formatSignedNumber(v, digits) : (v) => formatNumber(v, digits) };
+  return {
+    domain,
+    ticks,
+    format: signed ? (v) => formatSignedNumber(v, digits, { locale }) : (v) => formatNumber(v, digits, { locale }),
+  };
 }
 
 /** What ConfidenceChart draws, or null when nothing may be drawn (low data). */
-export function confidenceModel(s: LiveSnapshot): ConfidenceModel | null {
+export function confidenceModel(s: LiveSnapshot, o: { locale?: Locale } = {}): ConfidenceModel | null {
+  const locale = o.locale ?? 'en';
   if (liveFigureState(s).live?.data !== 'enough-data') return null;
   const series = shownSeries(s);
   const current = series[series.length - 1];
@@ -353,8 +365,8 @@ export function confidenceModel(s: LiveSnapshot): ConfidenceModel | null {
   return {
     series,
     current,
-    x: axis([0, xMax], X_TICKS, false),
-    y: axis(yDomain, Y_TICKS, true),
+    x: axis([0, xMax], X_TICKS, false, locale),
+    y: axis(yDomain, Y_TICKS, true, locale),
     projection,
     // A count past the end of the axis is drawn at the edge, where its label sits inside the plot.
     yourViewN: view !== undefined && Number.isFinite(view) && view >= 0 ? Math.min(view, xMax) : undefined,

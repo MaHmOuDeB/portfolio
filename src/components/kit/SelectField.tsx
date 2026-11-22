@@ -9,23 +9,25 @@
 import { cx } from '@/lib/cx';
 import { Field, fieldControlClass } from './Field';
 import { Icon } from './Icon';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Props = {
   id: string;
   name: string;
   label: string;
   options: readonly { value: string; label: string }[];
-  /** The empty option's text. */
+  /** The empty option's text; default the kit text's "Choose one". */
   emptyLabel?: string;
+  text?: KitText;
   hint?: string;
   error?: string;
   defaultValue?: string;
   disabled?: boolean;
 };
 
-export function SelectField({ id, name, label, options, emptyLabel = 'Choose one', hint, error, defaultValue = '', disabled }: Props) {
+export function SelectField({ id, name, label, options, emptyLabel, hint, error, defaultValue = '', disabled, text = KIT_TEXT_EN }: Props) {
   return (
-    <Field id={id} label={label} hint={hint} error={error}>
+    <Field id={id} label={label} hint={hint} error={error} text={text}>
       {(describedBy) => (
         <div className="relative mt-2">
           <select
@@ -38,7 +40,7 @@ export function SelectField({ id, name, label, options, emptyLabel = 'Choose one
             aria-invalid={error ? true : undefined}
             className={cx(fieldControlClass, "appearance-none overflow-hidden pr-11 [&:has(option[value='']:checked)]:text-muted [&_option]:text-ink")}
           >
-            <option value="">{emptyLabel}</option>
+            <option value="">{emptyLabel ?? text.select}</option>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}

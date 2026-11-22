@@ -3,6 +3,7 @@
 import { useId } from 'react';
 import { berlinDate, updatedLabel } from '@/lib/figure/time';
 import { Derived, derivedAttr, type DerivedRef } from './Derived';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Refs = { /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */ refs: readonly DerivedRef[] };
 
@@ -10,10 +11,11 @@ export function UpdatedLabel({
   updatedAt,
   renderedAt,
   refs,
-}: { updatedAt: string; renderedAt: string } & Refs) {
+  text = KIT_TEXT_EN,
+}: { updatedAt: string; renderedAt: string; text?: Pick<KitText, 'locale' | 'live'> } & Refs) {
   return (
     <time dateTime={updatedAt} className="text-xs text-muted" {...derivedAttr(refs)}>
-      {updatedLabel(updatedAt, renderedAt)}
+      {updatedLabel(updatedAt, renderedAt, { word: text.live.updated, locale: text.locale })}
     </time>
   );
 }
@@ -24,7 +26,9 @@ export function ProgressLine({
   plannedEnd,
   plannedEndKind,
   refs,
+  text = KIT_TEXT_EN,
 }: {
+  text?: Pick<KitText, 'locale' | 'live'>;
   nSmaller: number;
   target: number;
   plannedEnd: string;
@@ -42,14 +46,16 @@ export function ProgressLine({
       />
       <p className="mt-2 text-sm">
         <span id={labelId}>
-          Progress: <Derived value={nSmaller} unit="count" refs={refs} /> of{' '}
-          <Derived value={target} unit="count" refs={refs} /> in the smaller group
+          {text.live.progress({
+            n: <Derived value={nSmaller} unit="count" refs={refs} locale={text.locale} />,
+            target: <Derived value={target} unit="count" refs={refs} locale={text.locale} />,
+          })}
         </span>
-        . {plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end'}:{' '}
+        . {plannedEndKind === 'earliest' ? text.live.earliestEnd : text.live.plannedEnd}:{' '}
         <time dateTime={plannedEnd} {...derivedAttr(refs)}>
-          {berlinDate(plannedEnd)}
+          {berlinDate(plannedEnd, { locale: text.locale })}
         </time>
-        .
+        {text.locale === 'de' ? null : '.'}
       </p>
     </div>
   );

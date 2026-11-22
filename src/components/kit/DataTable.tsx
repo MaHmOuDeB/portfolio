@@ -3,7 +3,11 @@
 // the caller names, so the truth audit knows where the numbers come from. Server-safe, no hooks.
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber, formatSignedNumber, formatSignedPoints } from '@/lib/figure/format';
+import type { Locale } from '@/lib/i18n/locale';
 import { derivedAttr, type DerivedRef } from './Derived';
+import { EN_TABLE, type KitText } from './text';
+
+const EN_TABLE_TEXT = { locale: 'en', table: EN_TABLE } as const;
 
 /**
  * How a column's numbers are written. A string cell is always printed as is.
@@ -27,22 +31,22 @@ import { derivedAttr, type DerivedRef } from './Derived';
  */
 export type ColumnFormat = 'number' | 'count' | 'points' | 'signedPoints' | 'share' | { fixed: number };
 
-function formatCell(v: number, format: ColumnFormat, digits?: number): string {
-  if (typeof format === 'object') return formatNumber(v, format.fixed, { fixed: true });
+function formatCell(v: number, format: ColumnFormat, digits: number | undefined, locale: Locale): string {
+  if (typeof format === 'object') return formatNumber(v, format.fixed, { fixed: true, locale });
   if (digits !== undefined && (format === 'points' || format === 'signedPoints')) {
-    return format === 'points' ? formatNumber(v, digits) : formatSignedPoints(v, digits);
+    return format === 'points' ? formatNumber(v, digits, { locale }) : formatSignedPoints(v, digits, { locale });
   }
   switch (format) {
     case 'count':
-      return formatNumber(v, 0);
+      return formatNumber(v, 0, { locale });
     case 'points':
-      return formatNumber(v, 1);
+      return formatNumber(v, 1, { locale });
     case 'signedPoints':
-      return formatSignedNumber(v, 1);
+      return formatSignedNumber(v, 1, { locale });
     case 'share':
-      return formatValue(v, 'share', { decimals: 0 });
+      return formatValue(v, 'share', { decimals: 0, locale });
     default:
-      return formatNumber(v);
+      return formatNumber(v, undefined, { locale });
   }
 }
 
@@ -75,9 +79,11 @@ type Props = {
   mode: 'disclosure' | 'open';
   /** `disclosure` only: one line above the open table without JavaScript ("Controls need JavaScript."). */
   noJsNote?: string;
+  /** The kit's words and language; default English. */
+  text?: Pick<KitText, 'locale' | 'table'>;
 };
 
-function Table({ id, caption, table }: Omit<Props, 'mode' | 'noJsNote'>) {
+function Table({ id, caption, table, text = EN_TABLE_TEXT }: Omit<Props, 'mode' | 'noJsNote'>) {
   const cell = derivedAttr(table.refs);
   if (table.formats && table.formats.length !== table.columns.length) {
     throw new Error('a table needs one format per column');
@@ -110,7 +116,7 @@ function Table({ id, caption, table }: Omit<Props, 'mode' | 'noJsNote'>) {
               <tr key={r}>
                 {row.map((v, i) => (
                   <td key={i} {...cell} {...(typeof v === 'number' ? { 'data-num': '' } : {})} className={`border-b border-line py-2 pr-3 last:pr-0 whitespace-nowrap ${align(i)}`}>
-                    {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number', table.rowDigits?.[r]) : v}
+                    {typeof v === 'number' ? formatCell(v, table.formats?.[i] ?? 'number', table.rowDigits?.[r], text.locale) : v}
                   </td>
                 ))}
               </tr>
@@ -133,8 +139,8 @@ function Table({ id, caption, table }: Omit<Props, 'mode' | 'noJsNote'>) {
  * body it shows with aria-controls. The top margins collapse into the caller's, so the no-JS body
  * sits 12 px down, or 8 px under the note.
  */
-export function DataTable({ id, caption, table, mode, noJsNote }: Props) {
-  if (mode === 'open') return <Table id={id} caption={caption} table={table} />;
+export function DataTable({ id, caption, table, mode, noJsNote, text = EN_TABLE_TEXT }: Props) {
+  if (mode === 'open') return <Table id={id} caption={caption} table={table} text={text} />;
   const body = `${id}-body`;
   return (
     <>
@@ -149,11 +155,11 @@ export function DataTable({ id, caption, table, mode, noJsNote }: Props) {
           className="flex min-h-(--size-target) cursor-pointer items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
           data-touch-target=""
         >
-          Show the numbers as a table
+          {text.table.show}
         </summary>
       </details>
       <div id={body} data-nojs-only="" data-table-body="" className={noJsNote ? 'mt-2' : 'mt-3'}>
-        <Table id={id} caption={caption} table={table} />
+        <Table id={id} caption={caption} table={table} text={text} />
       </div>
     </>
   );
