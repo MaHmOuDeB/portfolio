@@ -20,18 +20,12 @@ import { Derived } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
-import {
-  LAB_CLOSE_LINKS,
-  LAB_HEAD,
-  LAB_LIMITS_TITLE,
-  LAB_PEEKING_HEAD,
-  LAB_SECTIONS,
-  LAB_START,
-  LabClose,
-  LabIntro,
-  LabLimits,
-  LabPeekingIntro,
-} from '../../../content/lab';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import { labCopy } from '@/lib/lab/copy';
+import { sentenceNodes } from '@/lib/retention/sentence';
+import { FRAME_DE } from '../../../content/de/frame';
+import type { LabSectionId } from '../../../content/lab';
 import { CurseFigure } from './CurseFigure';
 import { FullPlanner } from './FullPlanner';
 import { LAB_SKETCHES } from './LabSketches';
@@ -43,14 +37,7 @@ import { PresetLinks, SrmEvenLink, SrmFigure } from './SrmFigure';
 /** The document's title (the tab and the search result). The h1 says what the page is for. */
 export const LAB_TITLE = 'Lab';
 
-type SectionId = (typeof LAB_SECTIONS)[number]['id'];
-
-/** The planner's place in the list of checks, as its card numbers it. */
-const PLANNER_CHECK = LAB_SECTIONS.findIndex((s) => s.figure === 'planner') + 1;
-
 const TEXT = 'max-w-text';
-/** The label of the sentence under each check's h2. */
-const LAB_TRAP_LABEL = 'The trap';
 const BAND = 'mt-12 pt-12 md:mt-16 md:pt-16';
 
 /**
@@ -58,8 +45,9 @@ const BAND = 'mt-12 pt-12 md:mt-16 md:pt-16';
  * the exhibit, which its Figure renders itself (the sentence above, the Figure on its sheet, the
  * sentence below, the method row).
  */
-function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean; children: ReactNode }) {
-  const entry = LAB_SECTIONS.find((s) => s.id === id);
+function Section({ id, chip = true, locale, children }: { id: LabSectionId; chip?: boolean; locale: Locale; children: ReactNode }) {
+  const page = labCopy(locale).page;
+  const entry = page.sections.find((s) => s.id === id);
   if (!entry) throw new Error(`lab: no section ${id}`);
   return (
     <section id={id} aria-labelledby={`${id}-title`} data-rule="" className={BAND}>
@@ -67,7 +55,7 @@ function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean;
       <h2 id={`${id}-title`} className={`${TEXT} ${chip ? 'mt-4 ' : ''}${SECTION_H2}`}>
         {entry.question}
       </h2>
-      <LeadIn label={LAB_TRAP_LABEL}>{entry.trap}</LeadIn>
+      <LeadIn label={page.trapLabel}>{entry.trap}</LeadIn>
       {children}
     </section>
   );
@@ -77,14 +65,15 @@ function Section({ id, chip = true, children }: { id: SectionId; chip?: boolean;
  * The four checks as cards, in the order of a test's life: when the check comes, the question, one
  * line and a sketch. Each card links to its section. The step number is the card's place in the list.
  */
-function Checks() {
+function Checks({ locale }: { locale: Locale }) {
+  const page = labCopy(locale).page;
   return (
-    <nav aria-label="On this page" data-lab-checks="" className="mt-8">
+    <nav aria-label={locale === 'de' ? FRAME_DE.sectionNav : 'On this page'} data-lab-checks="" className="mt-8">
       <h2 id="lab-checks-title" className="sr-only">
-        The four checks
+        {page.checksTitle}
       </h2>
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {LAB_SECTIONS.map((s, i) => {
+        {page.sections.map((s, i) => {
           const Sketch = LAB_SKETCHES[s.figure];
           return (
             <li key={s.id} data-lab-check={s.id} className="grid grid-cols-1 [&>a]:px-5.5 [&>a]:pt-5.5">
@@ -96,13 +85,13 @@ function Checks() {
                 title={
                   <>
                     <span data-lab-check-when="" className="mb-1.5 block text-xs font-medium tracking-normal text-muted">
-                      <Derived value={i + 1} unit="count" refs={['build']} /> {s.when}
+                      <Derived value={i + 1} unit="count" refs={['build']} locale={locale} /> {s.when}
                     </span>
                     {s.question}
                   </>
                 }
-                meta={s.id === LAB_START.id ? <Chip>{LAB_START.chip}</Chip> : null}
-                vignette={<Sketch />}
+                meta={s.id === page.start.id ? <Chip>{page.start.chip}</Chip> : null}
+                vignette={locale === 'de' ? <Sketch text={page.sketch} /> : <Sketch />}
               >
                 {s.line}
               </LeanCard>
@@ -114,96 +103,103 @@ function Checks() {
   );
 }
 
-export function LabPage(): ReactNode {
+export function LabPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = labCopy(locale);
+  const { page } = copy;
+  /** The planner's place in the list of checks, as its card numbers it. */
+  const plannerCheck = page.sections.findIndex((s) => s.figure === 'planner') + 1;
   return (
     <article aria-labelledby="lab-title">
-      <CaseHead id="lab-title" chip={LAB_HEAD.chip} title={LAB_HEAD.title} quiet={LAB_HEAD.quiet} intro={<LabIntro />} />
-
-      <Checks />
-
-      <Section id="sample-size">
-        <FullPlanner />
+      <CaseHead id="lab-title" chip={page.head.chip} title={page.head.title} quiet={page.head.quiet} intro={<p>{page.intro}</p>} />
+      <Checks locale={locale} />
+      <Section id="sample-size" locale={locale}>
+        <FullPlanner locale={locale} />
         <PresetLinks
           links={[
             {
               href: PLANNER_PRESET_HREF,
-              label: (
-                <>
-                  Try a smaller rise: <Derived value={PLANNER_PRESET_RISE} unit="count" refs={FULL_PLANNER_REFS} /> points
-                </>
-              ),
+              label: sentenceNodes(page.plannerLink, {
+                rise: <Derived value={PLANNER_PRESET_RISE} unit="count" refs={FULL_PLANNER_REFS} locale={locale} />,
+              }),
             },
           ]}
         />
       </Section>
-
-      <Section id="split-check">
-        <SrmFigure />
-        <SrmEvenLink />
+      <Section id="split-check" locale={locale}>
+        <SrmFigure locale={locale} />
+        <SrmEvenLink locale={locale} />
       </Section>
-
-      <Section id="peeking-at-results">
-        <PeekingFigure />
-        <PresetLinks links={PEEK_PRESET_LINKS} />
+      <Section id="peeking-at-results" locale={locale}>
+        <PeekingFigure locale={locale} />
+        <PresetLinks links={peekLinks(copy.peek)} />
       </Section>
-
-      <Section id="exaggeration">
-        <CurseFigure />
+      <Section id="exaggeration" locale={locale}>
+        <CurseFigure locale={locale} />
         <PresetLinks
           links={[
             {
               href: CURSE_PRESET_LINK.href,
               // "check 1": the planner's place in the list of checks, the number its card prints
-              label: (
-                <>
-                  {CURSE_PRESET_LINK.label} <Derived value={PLANNER_CHECK} unit="count" refs={['build']} />
-                </>
-              ),
+              label: sentenceNodes(copy.curse.presetLink, {
+                check: <Derived value={plannerCheck} unit="count" refs={['build']} locale={locale} />,
+              }),
             },
           ]}
         />
       </Section>
-
       <section id="limits" aria-labelledby="limits-title" data-rule="" className={BAND}>
         <h2 id="limits-title" className={`${TEXT} ${SECTION_H2}`}>
-          {LAB_LIMITS_TITLE}
+          {page.limitsTitle}
         </h2>
         <div className={`${TEXT} mt-4`}>
-          <LabLimits />
+          <ul className="list-disc pl-5">
+            {page.limits.map((item) => (
+              <li key={item} className="mt-2 first:mt-0">
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
-
-      <PageClose id="lab-close" links={LAB_CLOSE_LINKS}>
-        <LabClose />
+      <PageClose
+        id="lab-close"
+        links={page.closeLinks.map((link) => ({ ...link, href: localHref(locale, link.href) }))}
+        {...(locale === 'de' ? { title: FRAME_DE.pageClose } : {})}
+      >
+        <p>{page.close}</p>
       </PageClose>
-
       <div className="mt-12 md:mt-16">
-        <PageCallToAction />
+        {locale === 'de' ? <PageCallToAction locale={locale} /> : <PageCallToAction />}
       </div>
     </article>
   );
 }
 
+/** The links under the peeking exhibit: the same setting with each fix. */
+function peekLinks(peek: { presetLinks: { obf: string; cs: string } }) {
+  return PEEK_PRESET_LINKS.map((link, i) => ({ href: link.href, label: i === 0 ? peek.presetLinks.obf : peek.presetLinks.cs }));
+}
+
 /** The peeking example on its own page: the same exhibit as on the Lab, and a link to the rest. */
-export function LabPeekingPage(): ReactNode {
+export function LabPeekingPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = labCopy(locale);
+  const { page } = copy;
   return (
     <article aria-labelledby="lab-title">
       <CaseHead
         id="lab-title"
-        chip={LAB_PEEKING_HEAD.chip}
-        title={LAB_PEEKING_HEAD.title}
-        quiet={LAB_PEEKING_HEAD.quiet}
-        intro={<LabPeekingIntro />}
+        chip={page.peekingHead.chip}
+        title={page.peekingHead.title}
+        quiet={page.peekingHead.quiet}
+        intro={<p>{page.peekingIntro}</p>}
       />
-
-      <Section id="peeking-at-results" chip={false}>
-        <PeekingFigure />
-        <PresetLinks links={PEEK_PRESET_LINKS} />
+      <Section id="peeking-at-results" chip={false} locale={locale}>
+        <PeekingFigure locale={locale} />
+        <PresetLinks links={peekLinks(copy.peek)} />
       </Section>
-
       <div className={`${TEXT} mt-8 pb-12 md:pb-16`}>
-        <TextLink href="/lab" standalone>
-          All the examples in the Lab
+        <TextLink href={localHref(locale, '/lab')} standalone>
+          {page.allExamples}
         </TextLink>
       </div>
     </article>

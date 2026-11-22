@@ -13,16 +13,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
-import { SRM_ID, SRM_PRESETS, SRM_SCHEMA, normalizeSrm, type SrmValues } from '@/lib/lab/diagnostics';
+import { SRM_ID, SRM_PRESETS, SRM_SCHEMA, normalizeSrm, srmResultText, type SrmValues } from '@/lib/lab/diagnostics';
+import { EN_SRM, type SrmText } from '@/lib/lab/text-srm';
 import { useResetHandoff } from './resetHandoff';
 import { SrmControls } from './SrmFigureClient';
-import { SrmFigureView, srmPlainText } from './SrmView';
+import { SrmFigureView } from './SrmView';
 
 export type SrmInteractiveProps = {
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: SrmText;
 };
 
-export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps) {
+export default function SrmInteractive({ faultAfterChange, text = EN_SRM }: SrmInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(SRM_ID, SRM_SCHEMA, SRM_PRESETS);
   useResetHandoff(`#${SRM_ID} [data-srm-controls]`);
   const shown = normalizeSrm(values);
@@ -37,6 +40,7 @@ export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps
   const next = (key: keyof SrmValues, value: number) => normalizeSrm({ ...latest.current, [key]: value });
   return (
     <SrmFigureView
+      text={text}
       values={shown}
       preview={false}
       announcement={announcement}
@@ -44,6 +48,7 @@ export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps
       changed={changed}
       controls={
         <SrmControls
+          text={text}
           values={shown}
           onChange={(key, value) => {
             const v = next(key, value);
@@ -51,13 +56,13 @@ export default function SrmInteractive({ faultAfterChange }: SrmInteractiveProps
             set(key, v[key]);
             setChanged(true);
           }}
-          onCommit={(key, value) => setAnnouncement(srmPlainText(next(key, value)))}
+          onCommit={(key, value) => setAnnouncement(srmResultText(next(key, value), undefined, text))}
           onReset={() =>
             instantly(SRM_ID, () => {
               reset();
               const restored = normalizeSrm(SRM_PRESETS[preset]!);
               latest.current = restored;
-              setAnnouncement(srmPlainText(restored));
+              setAnnouncement(srmResultText(restored, undefined, text));
             })
           }
         />

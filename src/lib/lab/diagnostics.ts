@@ -6,10 +6,12 @@
 import type { TableData } from '@/components/kit/DataTable';
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
+import { INTL, type Locale } from '@/lib/i18n/locale';
+import { sentenceText } from '@/lib/retention/sentence';
 import { retrodesign, srmTest, type RetrodesignInput, type RetrodesignResult } from '@/lib/stats';
 import {
   CURSE_ALPHA,
-  CURSE_LABELS,
   CURSE_SCHEMA,
   DIAGNOSTICS_REFS,
   SRM_SHARE,
@@ -19,6 +21,8 @@ import {
   type CurseValues,
   type SrmValues,
 } from './diagnostics-values';
+import { EN_CURSE, type CurseText } from './text-curse';
+import { EN_SRM, type SrmText } from './text-srm';
 
 export * from './diagnostics-values';
 
@@ -52,58 +56,57 @@ export function srmSmallExpected(v: SrmValues): boolean {
 }
 
 /** "20", "0", "0.0123": the statistic with the chart formatter's digits. */
-export const chi2Text = (chi2: number) => formatNumber(chi2);
+export const chi2Text = (chi2: number, locale: Locale = 'en') => formatNumber(chi2, undefined, { locale });
 
 /**
  * "below 0.001" for a flagged split, so a p-value just under the threshold never prints as the
  * threshold itself; otherwise three significant digits ("0.123", "1"), which cannot round below it.
  */
-export function pValueText(r: { p: number; flagged: boolean }): string {
-  return r.flagged ? `below ${formatNumber(SRM_THRESHOLD)}` : formatNumber(r.p);
+export function pValueText(r: { p: number; flagged: boolean }, text: SrmText = EN_SRM): string {
+  const locale = text.kit.locale;
+  return r.flagged ? fill(text.below, { value: formatNumber(SRM_THRESHOLD, undefined, { locale }) }) : formatNumber(r.p, undefined, { locale });
 }
 
 /** The threshold as odds, "1 time in 1,000": the number of tests per false alarm. */
 export const SRM_ODDS = Math.round(1 / SRM_THRESHOLD);
 
-export const SRM_EMPTY = 'No visitors yet, so there is nothing to check.';
-export const SRM_SMALL_NOTE = 'With so few visitors, this check is only rough.';
+export const SRM_EMPTY = EN_SRM.empty;
+export const SRM_SMALL_NOTE = EN_SRM.smallNote;
 
 /**
  * The verdict's sentence after the word, in plain words: the p-value as how often a fair coin leaves
  * a gap this big or bigger. The two sides are exact complements.
  */
-export function srmVerdictText(flagged: boolean): string {
-  const odds = `1 time in ${formatNumber(SRM_ODDS, 0)}`;
-  return flagged
-    ? `a fair coin leaves a gap this big or bigger less than ${odds}.`
-    : `a fair coin leaves a gap this big or bigger at least ${odds}.`;
+export function srmVerdictText(flagged: boolean, text: SrmText = EN_SRM): string {
+  const odds = sentenceText(text.odds, { one: '1', n: formatNumber(SRM_ODDS, 0, { locale: text.kit.locale }) });
+  return sentenceText(flagged ? text.verdict.flagged : text.verdict.ok, { odds });
 }
 
 /** The result line as plain text: the announcement, and what the view prints. */
-export function srmResultText(v: SrmValues, deps?: SrmDeps): string {
+export function srmResultText(v: SrmValues, deps?: SrmDeps, text: SrmText = EN_SRM): string {
   const r = srmModel(v, deps);
-  if (r.kind === 'empty') return SRM_EMPTY;
-  const parts = [`${r.flagged ? 'Flagged' : 'Not flagged'}: ${srmVerdictText(r.flagged)}`];
-  if (srmSmallExpected(v)) parts.push(SRM_SMALL_NOTE);
+  if (r.kind === 'empty') return text.empty;
+  const parts = [`${r.flagged ? text.status.flagged : text.status.ok}: ${srmVerdictText(r.flagged, text)}`];
+  if (srmSmallExpected(v)) parts.push(text.smallNote);
   return parts.join(' ');
 }
 
 /** The statistic for the method row: "chi-square 11.56, one degree of freedom, p-value below 0.001". */
-export function srmStatText(r: { chi2: number; p: number; flagged: boolean }): string {
-  return `chi-square ${chi2Text(r.chi2)}, one degree of freedom, p-value ${pValueText(r)}`;
+export function srmStatText(r: { chi2: number; p: number; flagged: boolean }, text: SrmText = EN_SRM): string {
+  return fill(text.statText, { chi2: chi2Text(r.chi2, text.kit.locale), p: pValueText(r, text) });
 }
 
 /** The table fallback: observed and expected visitors per group, and the planned share. */
-export function srmTable(v: SrmValues): TableData {
+export function srmTable(v: SrmValues, text: SrmText = EN_SRM): TableData {
   const e = srmExpected(v);
   return {
-    columns: ['Group', 'Visitors', 'Planned share', 'Expected visitors'],
+    columns: [...text.table.columns],
     rows: [
-      ['Group A', v.nA, SRM_SHARE, e.a],
-      ['Group B', v.nB, 1 - SRM_SHARE, e.b],
+      [text.table.groupA, v.nA, SRM_SHARE, e.a],
+      [text.table.groupB, v.nB, 1 - SRM_SHARE, e.b],
     ],
     formats: ['number', 'count', 'share', 'number'],
-    note: 'Made-up counts you set. The expected visitors are half of all visitors.',
+    note: text.table.note,
     refs: DIAGNOSTICS_REFS,
   };
 }
@@ -222,7 +225,7 @@ export const DOT_CLEARANCE_PX = DOT_RADIUS + DOT_RING + 2;
 export const curseY = (exaggeration: number): number => Math.max(1, exaggeration) - 1;
 
 /** The y tick text: a tick printed back as its plain multiple ("1", "2", "4"). */
-export const exaggerationTick = (v: number): string => formatNumber(v + 1, 0);
+export const exaggerationTick = (v: number, locale: Locale = 'en'): string => formatNumber(v + 1, 0, { locale });
 
 /**
  * The linear exaggeration axis: from one times the real effect (the zero line) to the first whole
@@ -248,63 +251,72 @@ export function curseAxis(
 /** The x-axis ticks: powers of 10%, 30%, 50%, 70% and 90% wide, three of them narrow. */
 export const CURSE_X_TICKS = { wide: [0.1, 0.3, 0.5, 0.7, 0.9], narrow: [0.1, 0.5, 0.9] };
 /** A power tick as a whole percent ("10%"). */
-export const powerTick = (power: number) => `${formatNumber(power * 100, 0)}%`;
+export const powerTick = (power: number, text: CurseText = EN_CURSE) =>
+  fill(text.percent, { value: formatNumber(power * 100, 0, { locale: text.kit.locale }) });
 
 /** Below this wrong-sign rate the readout says "below 0.1%" rather than a rounded zero. */
 const WRONG_SIGN_FLOOR = 0.001;
 
 /** Power as a whole percent; a value that would round to 100% is "over 99%", never a certainty. */
-export function formatPower(power: number): string {
-  const s = formatValue(power, 'share', { decimals: 0 });
-  return s === '100%' ? `over ${formatValue(0.99, 'share', { decimals: 0 })}` : s;
+export function formatPower(power: number, text: CurseText = EN_CURSE): string {
+  const locale = text.kit.locale;
+  return Math.round(power * 100) >= 100
+    ? fill(text.over, { value: formatValue(0.99, 'share', { decimals: 0, locale }) })
+    : formatValue(power, 'share', { decimals: 0, locale });
 }
 
 /** The wrong-sign rate with one decimal, or "below 0.1%" (a true zero underflows the same way). */
-export function formatWrongSign(typeS: number): string {
-  return typeS < WRONG_SIGN_FLOOR ? `below ${formatValue(WRONG_SIGN_FLOOR, 'share', { decimals: 1 })}` : formatValue(typeS, 'share', { decimals: 1 });
+export function formatWrongSign(typeS: number, text: CurseText = EN_CURSE): string {
+  const locale = text.kit.locale;
+  return typeS < WRONG_SIGN_FLOOR
+    ? fill(text.below, { value: formatValue(WRONG_SIGN_FLOOR, 'share', { decimals: 1, locale }) })
+    : formatValue(typeS, 'share', { decimals: 1, locale });
 }
 
-const oneDecimal = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const oneDecimal: Record<Locale, Intl.NumberFormat> = {
+  en: new Intl.NumberFormat(INTL.en, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+  de: new Intl.NumberFormat(INTL.de, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+};
 /** The exaggeration factor with one decimal: "2.5", "1.0". It is at least 1. */
-export const formatExaggeration = (e: number) => oneDecimal.format(e);
+export const formatExaggeration = (e: number, locale: Locale = 'en') => oneDecimal[locale].format(e);
 
-export const CURSE_UNBOUNDED = 'At this setting the calculation has no finite answer, so no number is shown.';
+export const CURSE_UNBOUNDED = EN_CURSE.unbounded;
 
 /** The result line as plain text: the announcement, and what the view prints. */
-export function curseResultText(v: CurseValues, deps?: CurseDeps): string {
+export function curseResultText(v: CurseValues, deps?: CurseDeps, text: CurseText = EN_CURSE): string {
   const r = curseModel(v, deps);
-  if (r.kind === 'unbounded') return CURSE_UNBOUNDED;
-  return `At this setting, results that clear the bar average ${formatExaggeration(r.exaggeration)} times the real effect. Of those, ${formatWrongSign(r.typeS)} of them point the wrong way.`;
+  if (r.kind === 'unbounded') return text.unbounded;
+  return sentenceText(text.result, {
+    x: formatExaggeration(r.exaggeration, text.kit.locale),
+    wrong: formatWrongSign(r.typeS, text),
+  });
 }
 
 /** The reference powers the table always lists, from one end of the slider to the other. */
 const TABLE_POWERS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99];
-const NO_VALUE = 'no finite value';
 
 /**
  * The table fallback: the reference powers and the current one (marked), each with the ratio it
  * implies and the readout's own words for the wrong-sign rate and exaggeration, so a row and the
  * readout always agree. A non-finite result is written in words.
  */
-export function curseTable(v: CurseValues, deps: CurseDeps = STATS_RETRO): TableData {
+export function curseTable(v: CurseValues, deps: CurseDeps = STATS_RETRO, text: CurseText = EN_CURSE): TableData {
   const current = normalizeCurse(v).power;
+  const t = text.table;
+  const locale = text.kit.locale;
   const powers = [...new Set([...TABLE_POWERS, current])].sort((a, b) => a - b);
   return {
-    columns: [
-      'How often the test clears the bar (power)',
-      'Ratio of effect to noise',
-      CURSE_LABELS.wrongSign,
-      'Overstatement among results that clear the bar',
-      'Your setting',
-    ],
+    columns: [...t.columns],
     rows: powers.map((power) => {
       const ratio = ratioForPower(power);
       const r = deps.retrodesign({ trueEffect: ratio, se: 1, alpha: CURSE_ALPHA });
-      const mine = power === current ? 'Yes' : '';
-      return finite(r) ? [power, ratio, formatWrongSign(r.typeS), formatExaggeration(r.exaggeration), mine] : [power, ratio, NO_VALUE, NO_VALUE, mine];
+      const mine = power === current ? t.yes : '';
+      return finite(r)
+        ? [power, ratio, formatWrongSign(r.typeS, text), formatExaggeration(r.exaggeration, locale), mine]
+        : [power, ratio, t.noValue, t.noValue, mine];
     }),
     formats: ['share', { fixed: 2 }, 'number', 'number', 'number'],
-    note: 'An exact calculation at a two-sided significance level. Each power fixes the ratio of the true effect to its standard error, in the same arbitrary units.',
+    note: t.note,
     refs: DIAGNOSTICS_REFS,
   };
 }

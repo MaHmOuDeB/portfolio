@@ -19,15 +19,8 @@ import { ResetButton } from '@/components/kit/ResetButton';
 import { Segmented } from '@/components/kit/Segmented';
 import { Slider } from '@/components/kit/Slider';
 import type { PeekView } from '@/lib/lab/peeking';
-import {
-  FIX_OPTIONS,
-  PEEK_LABELS,
-  PEEK_SCHEMA,
-  PEEK_UI_REFS,
-  looksReadout,
-  looksValueText,
-  type PeekParams,
-} from '@/lib/lab/peeking-values';
+import { PEEK_SCHEMA, PEEK_UI_REFS, fixOptions, looksReadout, looksValueText, type PeekParams } from '@/lib/lab/peeking-values';
+import { EN_PEEK, type PeekText } from '@/lib/lab/text-peek';
 import type { PeekingInteractiveProps } from './PeekingInteractive';
 
 const LazyPeeking = lazy(() => import('./PeekingInteractive'));
@@ -44,9 +37,11 @@ export type PeekingControlsProps = {
   onLooksCommit: (looks: number) => void;
   onFix: (fix: PeekParams['fix']) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: PeekText;
 };
 
-export function PeekingControls({ id, values, onLooks, onLooksCommit, onFix, onReset }: PeekingControlsProps) {
+export function PeekingControls({ id, values, onLooks, onLooksCommit, onFix, onReset, text = EN_PEEK }: PeekingControlsProps) {
   return (
     <div
       role="group"
@@ -57,29 +52,30 @@ export function PeekingControls({ id, values, onLooks, onLooksCommit, onFix, onR
       <div className="w-full xs:w-96">
         <Slider
           id={`${id}-looks`}
-          label={PEEK_LABELS.looks}
+          label={text.labels.looks}
           min={PEEK_SCHEMA.looks.min}
           max={PEEK_SCHEMA.looks.max}
           step={PEEK_SCHEMA.looks.step}
           value={values.looks}
           onChange={onLooks}
           onCommit={onLooksCommit}
-          valueText={looksValueText}
-          readout={looksReadout}
+          valueText={(looks) => looksValueText(looks, text)}
+          readout={(looks) => looksReadout(looks, text)}
           refs={PEEK_UI_REFS}
+          text={text.kit.slider}
         />
       </div>
-      <Segmented name={`${id}-fix`} legend={PEEK_LABELS.fix} options={FIX_OPTIONS} value={values.fix} onChange={onFix} />
-      <ResetButton onReset={onReset} />
+      <Segmented name={`${id}-fix`} legend={text.labels.fix} options={fixOptions(text)} value={values.fix} onChange={onFix} />
+      <ResetButton onReset={onReset} label={text.kit.reset} />
     </div>
   );
 }
 
 const noop = () => {};
 
-export function InertPeekingControls({ id, values }: { id: string; values: PeekParams }) {
+export function InertPeekingControls({ id, values, text }: { id: string; values: PeekParams; text?: PeekText }) {
   return (
-    <PeekingControls id={id} values={values} onLooks={noop} onLooksCommit={noop} onFix={noop} onReset={noop} />
+    <PeekingControls id={id} values={values} onLooks={noop} onLooksCommit={noop} onFix={noop} onReset={noop} text={text} />
   );
 }
 
@@ -88,6 +84,7 @@ export function PeekingFigureClient({
   preview,
   initial,
   faultAfterChange,
+  text,
 }: {
   id: string;
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
@@ -95,10 +92,16 @@ export function PeekingFigureClient({
   /** The preset's view, so the island's first render needs no lookup. */
   initial: PeekView;
   faultAfterChange?: true;
+  /** The Figure's words, handed over for a language other than English only (English is the default). */
+  text?: PeekText;
 }) {
   return (
     <EagerOrIntent ids={[id]} preview={preview}>
-      <PeekingIsland id={id} initial={initial} faultAfterChange={faultAfterChange} />
+      {text ? (
+        <PeekingIsland id={id} initial={initial} faultAfterChange={faultAfterChange} text={text} />
+      ) : (
+        <PeekingIsland id={id} initial={initial} faultAfterChange={faultAfterChange} />
+      )}
     </EagerOrIntent>
   );
 }

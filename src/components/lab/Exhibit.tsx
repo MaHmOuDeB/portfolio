@@ -8,10 +8,11 @@
 // shown from 640 px. Only one of the two is ever displayed.
 import type { ReactNode } from 'react';
 import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
+import { EN_EXHIBIT, type ExhibitLabels } from '@/lib/lab/text-common';
 
-/** The Lab's labels for the sentence above an exhibit and the one below it. */
-export const LAB_LEAD_IN_LABEL = 'Try it';
-export const LAB_TAKEAWAY_LABEL = 'What I do about it';
+/** The Lab's labels for the sentence above an exhibit and the one below it (English; German is passed in). */
+export const LAB_LEAD_IN_LABEL = EN_EXHIBIT.leadIn;
+export const LAB_TAKEAWAY_LABEL = EN_EXHIBIT.takeaway;
 
 export type ExhibitProps = {
   leadIn: ReactNode;
@@ -20,17 +21,19 @@ export type ExhibitProps = {
   summary: string;
   /** The method row's content: block children. */
   method: ReactNode;
+  /** The two labels, in the page's language; English when absent. */
+  labels?: ExhibitLabels;
   /** The Figure. */
   children: ReactNode;
 };
 
-export function Exhibit({ leadIn, takeaway, summary, method, children }: ExhibitProps) {
+export function Exhibit({ leadIn, takeaway, summary, method, labels = EN_EXHIBIT, children }: ExhibitProps) {
   return (
     <div data-lab-exhibit="">
-      <LeadIn label={LAB_LEAD_IN_LABEL}>{leadIn}</LeadIn>
+      <LeadIn label={labels.leadIn}>{leadIn}</LeadIn>
       <FigureSheet>{children}</FigureSheet>
       <div data-lab-point="wide" className="max-sm:hidden">
-        <Takeaway label={LAB_TAKEAWAY_LABEL}>{takeaway}</Takeaway>
+        <Takeaway label={labels.takeaway}>{takeaway}</Takeaway>
       </div>
       <MethodDetails summary={summary}>{method}</MethodDetails>
     </div>
@@ -38,10 +41,10 @@ export function Exhibit({ leadIn, takeaway, summary, method, children }: Exhibit
 }
 
 /** The takeaway as a Figure's `lead`: before the controls, on a phone only. */
-export function PhonePoint({ children }: { children: ReactNode }) {
+export function PhonePoint({ children, label = EN_EXHIBIT.takeaway }: { children: ReactNode; label?: string }) {
   return (
     <div data-lab-point="phone" className="sm:hidden">
-      <Takeaway label={LAB_TAKEAWAY_LABEL}>{children}</Takeaway>
+      <Takeaway label={label}>{children}</Takeaway>
     </div>
   );
 }

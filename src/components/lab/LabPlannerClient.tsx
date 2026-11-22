@@ -17,15 +17,18 @@ import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { LAB_PLAN_PRESETS, LAB_PLAN_SCHEMA, labPlanSentence, normalizeLabPlan, type LabPlanValues } from '@/lib/lab/full-planner';
+import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
 import { LabPlannerControls } from './FullPlannerControls';
 import { LabPlannerView } from './FullPlannerView';
 
 export type LabPlannerClientProps = {
   id: string;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: PlannerText;
 };
 
-export default function LabPlannerClient({ id, faultAfterChange }: LabPlannerClientProps) {
+export default function LabPlannerClient({ id, faultAfterChange, text = EN_PLANNER }: LabPlannerClientProps) {
   const { values, preset, set, reset } = useFigureParams(id, LAB_PLAN_SCHEMA, LAB_PLAN_PRESETS);
   const shown = normalizeLabPlan(values);
   const latest = useRef(shown);
@@ -45,12 +48,13 @@ export default function LabPlannerClient({ id, faultAfterChange }: LabPlannerCli
   };
   const commit = (next: LabPlanValues) => {
     setChanged(true);
-    setAnnouncement(labPlanSentence(next));
+    setAnnouncement(labPlanSentence(next, text));
   };
 
   return (
     <LabPlannerView
       id={id}
+      text={text}
       values={shown}
       preview={false}
       announcement={announcement}
@@ -59,6 +63,7 @@ export default function LabPlannerClient({ id, faultAfterChange }: LabPlannerCli
       controls={
         <LabPlannerControls
           id={id}
+          text={text}
           values={shown}
           onBaseline={(baseline) => apply(normalizeLabPlan({ ...current(), baseline }))}
           onBaselineCommit={(baseline) => commit(normalizeLabPlan({ ...current(), baseline }))}
@@ -71,7 +76,7 @@ export default function LabPlannerClient({ id, faultAfterChange }: LabPlannerCli
               reset();
               const restored = normalizeLabPlan(LAB_PLAN_PRESETS[preset]!);
               latest.current = restored;
-              setAnnouncement(labPlanSentence(restored));
+              setAnnouncement(labPlanSentence(restored, text));
             })
           }
         />

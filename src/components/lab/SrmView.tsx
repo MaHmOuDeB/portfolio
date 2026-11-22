@@ -16,17 +16,18 @@ import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
 import { pct } from '@/lib/figure/scales';
+import type { Locale } from '@/lib/i18n/locale';
+import { labKit } from '@/lib/lab/text-common';
+import { EN_SRM, type SrmText } from '@/lib/lab/text-srm';
+import { sentenceNodes } from '@/lib/retention/sentence';
 import { Exhibit, PhonePoint } from './Exhibit';
 import {
   DIAGNOSTICS_REFS,
-  SRM_EMPTY,
   SRM_ID,
   SRM_ODDS,
   SRM_PRESETS,
   SRM_SMALL_EXPECTED,
-  SRM_SMALL_NOTE,
   SRM_THRESHOLD,
-  SRM_TITLE,
   chi2Text,
   normalizeSrm,
   pValueText,
@@ -44,25 +45,20 @@ import {
 const SIMULATED = derivedAttr(DIAGNOSTICS_REFS);
 
 /** A visitor count of the starting numbers, marked as the Figure marks its own. */
-const startCount = (n: number) => (
+const startCount = (n: number, locale: Locale) => (
   <span data-num="" {...SIMULATED}>
-    {formatNumber(n, 0)}
+    {formatNumber(n, 0, { locale })}
   </span>
 );
 
 /** The sentence above the Figure: the starting numbers, as the Figure draws them at its preset, and the one control to move. */
-export function SrmLeadIn() {
+export function SrmLeadIn({ text = EN_SRM }: { text?: SrmText } = {}) {
   const { nA, nB } = SRM_PRESETS.default;
-  return (
-    <>
-      Here group A got {startCount(nA)} visitors and group B {startCount(nB)}. That looks close. Is it? Move group B closer
-      to group A and watch the verdict.
-    </>
-  );
+  const locale = text.kit.locale;
+  return sentenceNodes(text.leadIn, { a: startCount(nA, locale), b: startCount(nB, locale) });
 }
 
-export const SRM_TAKEAWAY =
-  'It is not close enough. I make this check before I read any result. When it flags, I find what broke the split before anything else. Otherwise a winner may only reflect who ended up in each group.';
+export const SRM_TAKEAWAY = EN_SRM.takeaway;
 
 const GROUPS = ['A', 'B'] as const;
 /** Each bar's width and the gap between a group's two bars, in groups (one group is one unit). */
@@ -80,13 +76,13 @@ function SrmSeamFailure(): never {
   throw new Error('The split chart failed after a change (test seam)');
 }
 
-function chartName(r: SrmResult): string {
-  const base = 'The visitors who arrived and half of all visitors, in group A and group B, as paired bars';
-  if (r.kind === 'empty') return `${base}: no visitors yet, so nothing is tested`;
-  return `${base}: the split is ${r.flagged ? 'flagged for a closer look' : 'not flagged'}`;
+function chartName(r: SrmResult, text: SrmText): string {
+  if (r.kind === 'empty') return text.chartName.empty;
+  return r.flagged ? text.chartName.flagged : text.chartName.ok;
 }
 
-export function SrmChart({ values, result }: { values: SrmValues; result: SrmResult }) {
+export function SrmChart({ values, result, text = EN_SRM }: { values: SrmValues; result: SrmResult; text?: SrmText }) {
+  const locale = text.kit.locale;
   const v = normalizeSrm(values);
   const e = srmExpected(v);
   const { top, ticks } = srmAxis(v);
@@ -123,22 +119,22 @@ export function SrmChart({ values, result }: { values: SrmValues; result: SrmRes
   return (
     <ChartFrame
       id={`${SRM_ID}-chart`}
-      ariaLabel={chartName(result)}
+      ariaLabel={chartName(result, text)}
       // No kit ticks on x: the frame anchors its first and last tick at their start and end, which
       // would put "Group A" and "Group B" off their bars. The names are drawn centred under each pair
       // in the overlay instead, on the tick line, below the baseline and clear of every mark.
       x={{
         domain: [-0.5, 1.5],
         ticks: { narrow: [], wide: [] },
-        format: (i) => formatNumber(i, 0),
-        label: 'Group',
+        format: (i) => formatNumber(i, 0, { locale }),
+        label: text.axis.x,
         refs: DIAGNOSTICS_REFS,
       }}
       y={{
         domain: [0, top],
         ticks,
-        format: (t) => formatNumber(t, 0),
-        label: 'Visitors',
+        format: (t) => formatNumber(t, 0, { locale }),
+        label: text.axis.y,
         refs: DIAGNOSTICS_REFS,
       }}
       height={HEIGHT}
@@ -153,7 +149,7 @@ export function SrmChart({ values, result }: { values: SrmValues; result: SrmRes
             y={ctx.height + GROUP_LABEL_BASELINE}
             textAnchor="middle"
           >
-            Group {b.group}
+            {sentenceNodes(text.groupLabel, { group: b.group })}
           </text>
         ))
       }
@@ -162,7 +158,7 @@ export function SrmChart({ values, result }: { values: SrmValues; result: SrmRes
 }
 
 /** The legend: the two series in words, each with its swatch. */
-function Legend() {
+function Legend({ text }: { text: SrmText }) {
   const swatch = (observed: boolean) => (
     <svg aria-hidden="true" width="16" height="12" className="shrink-0">
       <rect
@@ -180,11 +176,11 @@ function Legend() {
     <ul data-srm-legend="" className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
       <li className="flex items-center gap-2">
         {swatch(true)}
-        Visitors who arrived (filled)
+        {text.legend.observed}
       </li>
       <li className="flex items-center gap-2">
         {swatch(false)}
-        Half of all visitors, the plan (outlined)
+        {text.legend.expected}
       </li>
     </ul>
   );
@@ -204,24 +200,20 @@ const num = (text: string, mark?: string) => (
  * The result line: the flag as a word, then how often a fair coin leaves a gap this big; a rough-check
  * warning with few visitors; nothing to check without visitors.
  */
-export function SrmResultLine({ values, result }: { values: SrmValues; result: SrmResult }) {
-  if (result.kind === 'empty') return <>{SRM_EMPTY}</>;
-  const odds = (
-    <>
-      {num('1')} time in {num(formatNumber(SRM_ODDS, 0))}
-    </>
-  );
+export function SrmResultLine({ values, result, text = EN_SRM }: { values: SrmValues; result: SrmResult; text?: SrmText }) {
+  if (result.kind === 'empty') return <>{text.empty}</>;
+  const odds = sentenceNodes(text.odds, { one: num('1'), n: num(formatNumber(SRM_ODDS, 0, { locale: text.kit.locale })) });
   return (
     <>
       <span data-srm-status="" className={`font-semibold ${result.flagged ? 'text-warn' : 'text-ok'}`}>
-        {result.flagged ? 'Flagged' : 'Not flagged'}
+        {result.flagged ? text.status.flagged : text.status.ok}
       </span>
       :{' '}
-      a fair coin leaves a gap this big or bigger {result.flagged ? 'less than' : 'at least'} {odds}.
+      {sentenceNodes(result.flagged ? text.verdict.flagged : text.verdict.ok, { odds })}
       {srmSmallExpected(values) ? (
         <>
           {' '}
-          <span data-srm-small="">{SRM_SMALL_NOTE}</span>
+          <span data-srm-small="">{text.smallNote}</span>
         </>
       ) : null}
     </>
@@ -243,62 +235,59 @@ export type SrmFigureViewProps = {
   changed?: boolean;
   /** The statistics, injectable for tests; srmTest by default. */
   deps?: SrmDeps;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: SrmText;
 };
 
-export function SrmFigureView({ values, controls, announcement, preview, faultAfterChange, changed, deps }: SrmFigureViewProps) {
+export function SrmFigureView({ values, controls, announcement, preview, faultAfterChange, changed, deps, text = EN_SRM }: SrmFigureViewProps) {
   const v = normalizeSrm(values);
   const result = srmModel(v, deps);
+  const locale = text.kit.locale;
   const figure = (
     <Figure
       id={SRM_ID}
-      title={SRM_TITLE}
+      title={text.title}
+      text={labKit(text.kit)}
       provenance="simulated"
-      table={srmTable(v)}
-      lead={<PhonePoint>{SRM_TAKEAWAY}</PhonePoint>}
+      table={srmTable(v, text)}
+      lead={<PhonePoint label={text.exhibit.takeaway}>{text.takeaway}</PhonePoint>}
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<SrmResultLine values={v} result={result} />}
-      caption={<>Made-up visitor counts. Each group was meant to get half.</>}
+      result={<SrmResultLine values={v} result={result} text={text} />}
+      caption={<>{text.caption}</>}
     >
-      <SrmChart values={v} result={result} />
-      <Legend />
+      <SrmChart values={v} result={result} text={text} />
+      <Legend text={text} />
       {faultAfterChange && changed ? <SrmSeamFailure /> : null}
     </Figure>
   );
   return (
     <Exhibit
-      summary="How the split check works"
-      leadIn={<SrmLeadIn />}
-      takeaway={SRM_TAKEAWAY}
+      summary={text.summary}
+      leadIn={<SrmLeadIn text={text} />}
+      takeaway={text.takeaway}
+      labels={text.exhibit}
       method={
         <>
           <p data-method-terms="">
-            Each visitor is assigned at random, like a fair coin toss.{' '}
-            <strong className="font-semibold">Split check (sample ratio mismatch)</strong>: a test of whether each group
-            received the share of visitors the design gave it; if it fails, the assignment or the counting is at fault
-            and no result should be read. The Lab fixes the planned share at half; the check works against any planned
-            share.
+            {sentenceNodes(text.terms, { term: <strong className="font-semibold">{text.term}</strong> })}
           </p>
           <p data-method-text="">
-            The check is a chi-square test with one degree of freedom on the counts against that share. It flags the
-            split when the p-value is below <span {...SIMULATED}>{formatNumber(SRM_THRESHOLD)}</span>, a strict
-            threshold, so that a check run on every test rarely raises a false alarm. A flag is a warning to
-            investigate the assignment and the logging, not proof of what caused it. The test is an approximation: with
-            fewer than <span {...SIMULATED}>{formatNumber(SRM_SMALL_EXPECTED)}</span> expected visitors in a group its
-            p-value is rough. It assumes each visitor is counted once and assigned independently with the same chance
-            (a binomial model), and it guarantees no business outcome. These p-values are simulated diagnostics on
-            numbers you set, not results from this site’s live test.
-            {result.kind === 'result' ? (
-              <>
-                {' '}
-                For your setting: chi-square {num(chi2Text(result.chi2), 'data-srm-chi2')}, one degree of freedom, p-value{' '}
-                <span data-srm-p="" {...SIMULATED}>
-                  {pValueText(result)}
-                </span>
-                .
-              </>
-            ) : null}
+            {sentenceNodes(text.method, {
+              threshold: <span {...SIMULATED}>{formatNumber(SRM_THRESHOLD, undefined, { locale })}</span>,
+              small: <span {...SIMULATED}>{formatNumber(SRM_SMALL_EXPECTED, undefined, { locale })}</span>,
+            })}
+            {result.kind === 'result'
+              ? sentenceNodes(text.setting, {
+                  chi2: num(chi2Text(result.chi2, locale), 'data-srm-chi2'),
+                  p: (
+                    <span data-srm-p="" {...SIMULATED}>
+                      {pValueText(result, text)}
+                    </span>
+                  ),
+                })
+              : null}
           </p>
         </>
       }

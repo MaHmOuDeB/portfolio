@@ -15,8 +15,10 @@
 // `faultAfterChange` is a test seam, absent in production: it is forwarded unchanged to the island,
 // whose Figures then throw after an input change. Only a test host sets it.
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
+import type { Locale } from '@/lib/i18n/locale';
 import { DURATION_ID, DURATION_PRESETS, FULL_PLANNER_ID, FULL_PLAN_PRESETS, LAB_PLAN_PRESETS, fullPlanModel, type PlannerContext } from '@/lib/lab/full-planner';
-import { PLANNER_COPY } from '../../../content/lab';
+import { labCopy } from '@/lib/lab/copy';
+import { EN_PLANNER } from '@/lib/lab/text-planner';
 import { FullPlannerIsland, InertDurationControls, InertLabPlannerControls, InertSizingControls, LabPlannerIsland } from './FullPlannerControls';
 import { DurationFigureView, LabPlannerView, PAIR_CLASS, SizingFigureView } from './FullPlannerView';
 
@@ -27,14 +29,29 @@ export type FullPlannerProps = {
   durationId?: string;
   context?: PlannerContext;
   faultAfterChange?: true;
+  /** The page's language; English unless a German page passes it. */
+  locale?: Locale;
 };
 
-export function FullPlanner({ id = FULL_PLANNER_ID, durationId = DURATION_ID, context = 'hypothetical', faultAfterChange }: FullPlannerProps) {
+export function FullPlanner({ id = FULL_PLANNER_ID, durationId = DURATION_ID, context = 'hypothetical', faultAfterChange, locale = 'en' }: FullPlannerProps) {
+  // The words go to the client only in a language other than English, so the English payload is unchanged.
+  const other = locale === 'en' ? undefined : labCopy(locale).planner;
+  const text = other ?? EN_PLANNER;
   if (context === 'hypothetical') {
     const values = LAB_PLAN_PRESETS.default;
     return (
-      <EagerOrIntent ids={[id]} preview={<LabPlannerView id={id} values={values} controls={<InertLabPlannerControls id={id} values={values} />} />}>
-        <LabPlannerIsland id={id} faultAfterChange={faultAfterChange} />
+      <EagerOrIntent
+        ids={[id]}
+        preview={
+          <LabPlannerView
+            id={id}
+            values={values}
+            text={other}
+            controls={other ? <InertLabPlannerControls id={id} values={values} text={other} /> : <InertLabPlannerControls id={id} values={values} />}
+          />
+        }
+      >
+        {other ? <LabPlannerIsland id={id} faultAfterChange={faultAfterChange} text={other} /> : <LabPlannerIsland id={id} faultAfterChange={faultAfterChange} />}
       </EagerOrIntent>
     );
   }
@@ -47,18 +64,41 @@ export function FullPlanner({ id = FULL_PLANNER_ID, durationId = DURATION_ID, co
       ids={[id, durationId]}
       preview={
         <div data-full-planner="" className={PAIR_CLASS}>
-          <SizingFigureView id={id} context={context} values={values} controls={<InertSizingControls id={id} context={context} values={values} />} />
+          <SizingFigureView
+            id={id}
+            context={context}
+            values={values}
+            text={other}
+            controls={
+              other ? (
+                <InertSizingControls id={id} context={context} values={values} text={other} />
+              ) : (
+                <InertSizingControls id={id} context={context} values={values} />
+              )
+            }
+          />
           <DurationFigureView
             id={durationId}
             context={context}
             nPerArm={nPerArm}
             traffic={traffic}
-            controls={<InertDurationControls id={durationId} context={context} label={PLANNER_COPY[context].trafficLabel} traffic={traffic} />}
+            text={other}
+            controls={
+              other ? (
+                <InertDurationControls id={durationId} context={context} label={text.context[context].trafficLabel} traffic={traffic} text={other} />
+              ) : (
+                <InertDurationControls id={durationId} context={context} label={text.context[context].trafficLabel} traffic={traffic} />
+              )
+            }
           />
         </div>
       }
     >
-      <FullPlannerIsland id={id} durationId={durationId} context={context} faultAfterChange={faultAfterChange} />
+      {other ? (
+        <FullPlannerIsland id={id} durationId={durationId} context={context} faultAfterChange={faultAfterChange} text={other} />
+      ) : (
+        <FullPlannerIsland id={id} durationId={durationId} context={context} faultAfterChange={faultAfterChange} />
+      )}
     </EagerOrIntent>
   );
 }

@@ -12,8 +12,13 @@
 //   error (the statistics side finds it), and with it the exaggeration among results that clear the bar.
 import type { DerivedRef } from '@/components/kit/Derived';
 import type { ParamSchema, ParamValues, Presets } from '@/lib/figure/url-state';
+import { formatNumber } from '@/lib/figure/format';
 import { snapToStep } from '@/lib/figure/snap';
+import { fill } from '@/lib/i18n/template';
 import { PLANNER_POWER } from './planner-values';
+import { plural } from './text-common';
+import { EN_CURSE, type CurseText } from './text-curse';
+import { EN_SRM, type SrmText } from './text-srm';
 
 /** Every number on these Figures is computed from values the visitor sets: none is a sourced fact. */
 export const DIAGNOSTICS_REFS: readonly DerivedRef[] = ['simulated'];
@@ -22,7 +27,7 @@ export const DIAGNOSTICS_REFS: readonly DerivedRef[] = ['simulated'];
 // The split check.
 
 export const SRM_ID = 'srm';
-export const SRM_TITLE = 'The bigger the gap, the less often a fair coin makes it';
+export const SRM_TITLE = EN_SRM.title;
 
 export const SRM_SCHEMA = {
   nA: { kind: 'number', min: 0, max: 10_000, step: 1 },
@@ -64,7 +69,7 @@ export const SRM_SMALL_EXPECTED = 5;
 // Exaggeration.
 
 export const CURSE_ID = 'curse';
-export const CURSE_TITLE = 'The smaller the test, the more its wins overstate the effect';
+export const CURSE_TITLE = EN_CURSE.title;
 
 /** One control: how often the test clears the bar, from one test in ten to nearly every test. */
 export const CURSE_SCHEMA = {
@@ -77,14 +82,10 @@ export type CurseValues = ParamValues<typeof CURSE_SCHEMA>;
  * The control and readout words, plain only: the statistic's name ("power") is in the table's
  * header and the method row, not in the main text.
  */
-export const CURSE_LABELS = {
-  power: 'How often the test clears the bar',
-  exaggeration: 'Results that clear the bar overstate the effect by',
-  wrongSign: 'Results that clear the bar but point the wrong way',
-} as const;
+export const CURSE_LABELS = EN_CURSE.labels;
 
 /** The link under the exhibit: a test sized as the planner sizes one, at the planner's power. */
-export const CURSE_PRESET_LINK = { href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: 'See a test sized as in check' } as const;
+export const CURSE_PRESET_LINK = { href: `?curse.power=${PLANNER_POWER}#exaggeration`, label: EN_CURSE.presetLink[0] as string } as const;
 
 /**
  * The preset: a test that clears the bar 17% of the time, which is a ratio of true effect to standard
@@ -117,11 +118,12 @@ export function normalizeCurse(v: CurseValues): CurseValues {
 // ---------------------------------------------------------------------------------------------
 // Words for the controls' values, shared by the islands and the inert preview copies.
 
-const countFormat = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
-
 /** "1,000 visitors", "1 visitor". */
-export const visitorsText = (n: number) => `${countFormat.format(n)} ${n === 1 ? 'visitor' : 'visitors'}`;
+export const visitorsText = (n: number, text: SrmText = EN_SRM) =>
+  fill(plural(n, text.visitors), { n: formatNumber(n, 0, { locale: text.kit.locale }) });
 /** "50%" for a share of 0.5. */
-export const sharePercentText = (share: number) => `${countFormat.format(Math.round(share * 100))}%`;
+export const sharePercentText = (share: number, text: CurseText = EN_CURSE) =>
+  fill(text.percent, { value: formatNumber(Math.round(share * 100), 0, { locale: text.kit.locale }) });
 /** The power slider's words: "17% of the time". */
-export const powerTimeText = (power: number) => `${sharePercentText(power)} of the time`;
+export const powerTimeText = (power: number, text: CurseText = EN_CURSE) =>
+  fill(text.powerTime, { value: sharePercentText(power, text) });

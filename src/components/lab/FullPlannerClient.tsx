@@ -30,6 +30,7 @@ import {
   type FullPlanValues,
   type PlannerContext,
 } from '@/lib/lab/full-planner';
+import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
 import { DurationFigure } from './DurationFigure';
 import { SizingControls } from './FullPlannerControls';
 import { PAIR_CLASS, SizingFigureView } from './FullPlannerView';
@@ -41,9 +42,11 @@ export type FullPlannerClientProps = {
   durationId: string;
   context: PlannerContext;
   faultAfterChange?: true;
+  /** The Figures' words; English when absent. */
+  text?: PlannerText;
 };
 
-export default function FullPlannerClient({ id, durationId, context, faultAfterChange }: FullPlannerClientProps) {
+export default function FullPlannerClient({ id, durationId, context, faultAfterChange, text = EN_PLANNER }: FullPlannerClientProps) {
   const { values, preset, set, reset } = useFigureParams(id, FULL_PLAN_SCHEMA, FULL_PLAN_PRESETS);
   const shown = normalizeFullPlan(values);
   const latest = useRef(shown);
@@ -58,7 +61,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
   // The duration Figure's traffic on screen: a sizing change moves its weeks, so the sizing
   // announcement says them too (the duration Figure announces only its own changes).
   const trafficShownRef = useRef(DURATION_PRESETS.default.traffic);
-  const announce = (next: FullPlanValues) => setAnnouncement(pairedSentence(next, trafficShownRef.current, noun));
+  const announce = (next: FullPlanValues) => setAnnouncement(pairedSentence(next, trafficShownRef.current, noun, text));
 
   // The whole normalized triple, every time: a stale or capped URL pair is replaced by the one on screen.
   const apply = (next: FullPlanValues) => {
@@ -77,6 +80,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
       <SizingFigureView
         id={id}
         context={context}
+        text={text}
         values={shown}
         preview={false}
         announcement={announcement}
@@ -86,6 +90,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
           <SizingControls
             id={id}
             context={context}
+            text={text}
             values={shown}
             onBaseline={(baseline) => apply(normalizeFullPlan({ ...current(), baseline }))}
             onBaselineCommit={(baseline) => commit(normalizeFullPlan({ ...current(), baseline }))}
@@ -110,6 +115,7 @@ export default function FullPlannerClient({ id, durationId, context, faultAfterC
       <DurationFigure
         id={durationId}
         context={context}
+        text={text}
         nPerArm={fullPlanModel(shown).nPerArm}
         trafficShownRef={trafficShownRef}
         faultAfterChange={faultAfterChange}

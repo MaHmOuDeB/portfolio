@@ -9,17 +9,23 @@
 // `faultAfterChange` is a test seam, absent in production: it is forwarded unchanged to the island,
 // whose chart then throws after a change. Only a test host sets it.
 import type { ReactNode } from 'react';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import { labCopy } from '@/lib/lab/copy';
 import { SRM_EVEN_HREF, SRM_PRESETS } from '@/lib/lab/diagnostics';
+import { EN_SRM } from '@/lib/lab/text-srm';
 import { InertSrmControls, SrmFigureClient } from './SrmFigureClient';
 import { SrmFigureView } from './SrmView';
 
-export function SrmFigure({ faultAfterChange }: { faultAfterChange?: true } = {}) {
+export function SrmFigure({ faultAfterChange, locale = 'en' }: { faultAfterChange?: true; locale?: Locale } = {}) {
   const values = SRM_PRESETS.default;
-  return (
-    <SrmFigureClient
-      preview={<SrmFigureView values={values} controls={<InertSrmControls values={values} />} />}
-      faultAfterChange={faultAfterChange}
-    />
+  // The words go to the client only in a language other than English, so the English payload is unchanged.
+  const text = locale === 'en' ? undefined : labCopy(locale).srm;
+  const view = <SrmFigureView values={values} text={text} controls={text ? <InertSrmControls values={values} text={text} /> : <InertSrmControls values={values} />} />;
+  return text ? (
+    <SrmFigureClient preview={view} faultAfterChange={faultAfterChange} text={text} />
+  ) : (
+    <SrmFigureClient preview={view} faultAfterChange={faultAfterChange} />
   );
 }
 
@@ -47,6 +53,7 @@ export function PresetLinks({ links }: { links: readonly { href: string; label: 
 }
 
 /** The link under the split check to the even preset. */
-export function SrmEvenLink() {
-  return <PresetLinks links={[{ href: SRM_EVEN_HREF, label: 'See an even split pass' }]} />;
+export function SrmEvenLink({ locale = 'en' }: { locale?: Locale } = {}) {
+  const text = locale === 'en' ? EN_SRM : labCopy(locale).srm;
+  return <PresetLinks links={[{ href: localHref(locale, SRM_EVEN_HREF), label: text.evenLink }]} />;
 }

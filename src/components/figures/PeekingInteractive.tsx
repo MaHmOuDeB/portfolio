@@ -15,6 +15,7 @@ import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { computePeek, type PeekValues, type PeekView } from '@/lib/lab/peeking';
 import { PEEK_PRESETS, PEEK_SCHEMA, type PeekParams } from '@/lib/lab/peeking-values';
+import { EN_PEEK, type PeekText } from '@/lib/lab/text-peek';
 import { PeekingControls } from './PeekingFigureClient';
 import { PeekingFigureView, peekAnnouncement } from './PeekingView';
 
@@ -23,6 +24,8 @@ export type PeekingInteractiveProps = {
   /** The server's preset view. */
   initial: PeekView;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: PeekText;
 };
 
 /** Frames to wait for the preview to leave and the island's control to exist. */
@@ -51,9 +54,9 @@ const same = (a: PeekParams, b: PeekParams) => a.looks === b.looks && a.fix === 
 /** The Figure checks daily: the model's values for the control values. */
 const daily = (v: PeekParams): PeekValues => ({ looks: v.looks, mode: 'daily', fix: v.fix });
 
-export default function PeekingInteractive({ id, initial, faultAfterChange }: PeekingInteractiveProps) {
+export default function PeekingInteractive({ id, initial, faultAfterChange, text = EN_PEEK }: PeekingInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(id, PEEK_SCHEMA, PEEK_PRESETS);
-  const view = useMemo(() => (same(values, initial.values) ? initial : computePeek(daily(values))), [values, initial]);
+  const view = useMemo(() => (same(values, initial.values) ? initial : computePeek(daily(values), text.table)), [values, initial, text]);
   // The latest values, for handlers made in an earlier render: a slider's release handler is the
   // one from the render where the drag began.
   const latest = useRef<PeekParams>({ looks: view.values.looks, fix: view.values.fix });
@@ -96,13 +99,14 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
   const [changed, setChanged] = useState(false);
   const commit = (next: PeekParams) => {
     setChanged(true);
-    setAnnouncement(peekAnnouncement(computePeek(daily(next))));
+    setAnnouncement(peekAnnouncement(computePeek(daily(next)), text));
   };
 
   return (
     <PeekingFigureView
       id={id}
       view={view}
+      text={text}
       preview={false}
       announcement={announcement}
       faultAfterChange={faultAfterChange}
@@ -110,6 +114,7 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
       controls={
         <PeekingControls
           id={id}
+          text={text}
           values={view.values}
           onLooks={(looks) => {
             latest.current = { ...latest.current, looks };
@@ -126,7 +131,7 @@ export default function PeekingInteractive({ id, initial, faultAfterChange }: Pe
               reset();
               const restored = PEEK_PRESETS[preset]!;
               latest.current = restored;
-              setAnnouncement(peekAnnouncement(computePeek(daily(restored))));
+              setAnnouncement(peekAnnouncement(computePeek(daily(restored)), text));
             })
           }
         />

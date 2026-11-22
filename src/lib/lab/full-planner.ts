@@ -4,6 +4,7 @@
 // loads at once live in full-planner-values.ts.
 import type { TableData } from '@/components/kit/DataTable';
 import { formatNumber } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
 import { durationWeeks } from '@/lib/stats';
 import {
   FULL_PLANNER_REFS,
@@ -20,6 +21,7 @@ import {
   type PlannerNoun,
 } from './full-planner-values';
 import { PLANNER_POWER, planModel } from './planner';
+import { EN_PLANNER, type PlannerText } from './text-planner';
 
 export * from './full-planner-values';
 
@@ -43,13 +45,17 @@ export function durationModel(nPerArm: number, traffic: number): { weeks: number
   return { weeks: durationWeeks({ nPerArm, entryViewsPerDay: normalizeTraffic(traffic) }) };
 }
 
-const capital = (noun: PlannerNoun) => `${noun[0]!.toUpperCase()}${noun.slice(1)}`;
-
 /** The sizing announcement: "1,353 visitors per group to detect a rise of 5 points, from 29% to 34%". */
-export function fullPlanSentence(v: FullPlanValues, noun: PlannerNoun = 'visitors'): string {
+export function fullPlanSentence(v: FullPlanValues, noun: PlannerNoun = 'visitors', text: PlannerText = EN_PLANNER): string {
   const n = normalizeFullPlan(v);
   const plan = fullPlanModel(n);
-  return `${formatNumber(plan.nPerArm, 0)} ${noun} per group to detect a rise of ${riseText(n)}, from ${percentText(n.baseline)} to ${percentText(plan.target)}`;
+  return fill(text.announce.sizing, {
+    n: formatNumber(plan.nPerArm, 0, { locale: text.kit.locale }),
+    noun: text.nouns[noun].other,
+    rise: riseText(n, text),
+    from: percentText(n.baseline, text),
+    to: percentText(plan.target, text),
+  });
 }
 
 /**
@@ -57,24 +63,30 @@ export function fullPlanSentence(v: FullPlanValues, noun: PlannerNoun = 'visitor
  * a committed sizing change moves the duration readout too: "...from 29% to 34%; both groups fill in
  * 4 weeks at 100 visitors a day".
  */
-export function pairedSentence(v: FullPlanValues, traffic: number, noun: PlannerNoun = 'visitors'): string {
+export function pairedSentence(v: FullPlanValues, traffic: number, noun: PlannerNoun = 'visitors', text: PlannerText = EN_PLANNER): string {
   const t = normalizeTraffic(traffic);
   const { weeks } = durationModel(fullPlanModel(v).nPerArm, t);
-  return `${fullPlanSentence(v, noun)}; both groups fill in ${weeksText(weeks)} at ${formatNumber(t, 0)} ${noun} a day`;
+  return fill(text.announce.paired, {
+    sentence: fullPlanSentence(v, noun, text),
+    weeks: weeksText(weeks, text),
+    n: formatNumber(t, 0, { locale: text.kit.locale }),
+    noun: text.nouns[noun].other,
+  });
 }
 
 /** The sizing table: the inputs in both units and the result. The unit shown does not change it. */
-export function fullPlanTable(v: FullPlanValues, noun: PlannerNoun = 'visitors'): TableData {
+export function fullPlanTable(v: FullPlanValues, noun: PlannerNoun = 'visitors', text: PlannerText = EN_PLANNER): TableData {
   const n = normalizeFullPlan(v);
   const plan = fullPlanModel(n);
+  const t = text.tables;
   return {
-    columns: ['Input or result', 'Value'],
+    columns: [...t.columns],
     rows: [
-      ['Baseline conversion (%)', Math.round(n.baseline * 100)],
-      ['Rise to detect (percentage points)', n.risePoints],
-      ['Rise to detect (% of baseline)', relativePercent(n.baseline, n.risePoints)],
-      ['Target conversion (%)', Math.round(plan.target * 100)],
-      [`${capital(noun)} per group`, plan.nPerArm],
+      [t.sizing.baseline, Math.round(n.baseline * 100)],
+      [t.sizing.rise, n.risePoints],
+      [t.sizing.riseRelative, relativePercent(n.baseline, n.risePoints)],
+      [t.sizing.target, Math.round(plan.target * 100)],
+      [fill(text.perGroup, { noun: text.nouns[noun].capital }), plan.nPerArm],
     ],
     formats: ['number', 'points'],
     rowDigits: [0, 0, 1, 0, 0],
@@ -83,21 +95,28 @@ export function fullPlanTable(v: FullPlanValues, noun: PlannerNoun = 'visitors')
 }
 
 /** The duration announcement: "4 weeks at 100 visitors a day to reach 1,353 visitors per group". */
-export function durationSentence(nPerArm: number, traffic: number, noun: PlannerNoun = 'visitors'): string {
+export function durationSentence(nPerArm: number, traffic: number, noun: PlannerNoun = 'visitors', text: PlannerText = EN_PLANNER): string {
   const t = normalizeTraffic(traffic);
-  return `${weeksText(durationModel(nPerArm, t).weeks)} at ${formatNumber(t, 0)} ${noun} a day to reach ${countText(nPerArm, noun)} per group`;
+  return fill(text.announce.duration, {
+    weeks: weeksText(durationModel(nPerArm, t).weeks, text),
+    n: formatNumber(t, 0, { locale: text.kit.locale }),
+    noun: text.nouns[noun].other,
+    count: countText(nPerArm, noun, text),
+  });
 }
 
 /** The duration table: the traffic, the sample it must reach and the weeks. */
-export function durationTable(nPerArm: number, traffic: number, noun: PlannerNoun = 'visitors'): TableData {
+export function durationTable(nPerArm: number, traffic: number, noun: PlannerNoun = 'visitors', text: PlannerText = EN_PLANNER): TableData {
   const t = normalizeTraffic(traffic);
+  const cap = text.nouns[noun].capital;
+  const d = text.tables.duration;
   return {
-    columns: ['Input or result', 'Value'],
+    columns: [...text.tables.columns],
     rows: [
-      [`${capital(noun)} per day, both groups together`, t],
-      [`${capital(noun)} per group`, nPerArm],
-      [`${capital(noun)} in all`, 2 * nPerArm],
-      ['Weeks, rounded up', durationModel(nPerArm, t).weeks],
+      [fill(d.perDay, { noun: cap }), t],
+      [fill(text.perGroup, { noun: cap }), nPerArm],
+      [fill(d.inAll, { noun: cap }), 2 * nPerArm],
+      [d.weeks, durationModel(nPerArm, t).weeks],
     ],
     formats: ['number', 'count'],
     refs: FULL_PLANNER_REFS,
@@ -122,33 +141,43 @@ export function labPlanModel(v: LabPlanValues): { nPerArm: number; target: numbe
  * then the two readouts. The false-winner risk the size assumes is in the method row's terms, and the
  * traffic is on its own control, so the line holds one idea.
  */
-export function labPlanLead(v: LabPlanValues): string {
+export function labPlanLead(v: LabPlanValues, text: PlannerText = EN_PLANNER): string {
   const n = normalizeLabPlan(v);
   const { target } = labPlanModel(n);
-  return `To catch a real rise from ${percentText(n.baseline)} to ${percentText(target)} in ${PLANNER_POWER_TESTS.hits} tests out of ${PLANNER_POWER_TESTS.of}, you need:`;
+  return fill(text.announce.labLead, {
+    from: percentText(n.baseline, text),
+    to: percentText(target, text),
+    hits: String(PLANNER_POWER_TESTS.hits),
+    of: String(PLANNER_POWER_TESTS.of),
+  });
 }
 
 /** The announcement: the result line and both readouts, as the Figure shows them. */
-export function labPlanSentence(v: LabPlanValues): string {
+export function labPlanSentence(v: LabPlanValues, text: PlannerText = EN_PLANNER): string {
   const { nPerArm, weeks } = labPlanModel(v);
-  return `${labPlanLead(v)} ${countText(nPerArm, 'visitors')} per group and ${weeksText(weeks)}`;
+  return fill(text.announce.lab, {
+    lead: labPlanLead(v, text),
+    count: countText(nPerArm, 'visitors', text),
+    weeks: weeksText(weeks, text),
+  });
 }
 
 /** The table fallback: the inputs, the rise in both units, and both results. */
-export function labPlanTable(v: LabPlanValues): TableData {
+export function labPlanTable(v: LabPlanValues, text: PlannerText = EN_PLANNER): TableData {
   const n = normalizeLabPlan(v);
   const { nPerArm, target, weeks } = labPlanModel(n);
+  const t = text.tables.lab;
   return {
-    columns: ['Input or result', 'Value'],
+    columns: [...text.tables.columns],
     rows: [
-      ['Sign-up rate today (%)', Math.round(n.baseline * 100)],
-      ['Smallest rise worth acting on (percentage points)', n.risePoints],
-      ['Smallest rise worth acting on (% of the rate today)', relativePercent(n.baseline, n.risePoints)],
-      ['Target sign-up rate (%)', Math.round(target * 100)],
-      ['Visitors per day, both groups together', n.traffic],
-      ['Visitors per group', nPerArm],
-      ['Visitors in all', 2 * nPerArm],
-      ['Weeks, rounded up', weeks],
+      [t.baseline, Math.round(n.baseline * 100)],
+      [t.rise, n.risePoints],
+      [t.riseRelative, relativePercent(n.baseline, n.risePoints)],
+      [t.target, Math.round(target * 100)],
+      [t.traffic, n.traffic],
+      [t.perGroup, nPerArm],
+      [t.inAll, 2 * nPerArm],
+      [t.weeks, weeks],
     ],
     formats: ['number', 'points'],
     rowDigits: [0, 0, 1, 0, 0, 0, 0, 0],

@@ -14,15 +14,18 @@ import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { CURSE_ID, CURSE_PRESETS, CURSE_SCHEMA, curseResultText, normalizeCurse, type CurseValues } from '@/lib/lab/diagnostics';
+import { EN_CURSE, type CurseText } from '@/lib/lab/text-curse';
 import { CurseControls } from './CurseFigureClient';
 import { CurseFigureView } from './CurseView';
 import { useResetHandoff } from './resetHandoff';
 
 export type CurseInteractiveProps = {
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: CurseText;
 };
 
-export default function CurseInteractive({ faultAfterChange }: CurseInteractiveProps) {
+export default function CurseInteractive({ faultAfterChange, text = EN_CURSE }: CurseInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(CURSE_ID, CURSE_SCHEMA, CURSE_PRESETS);
   useResetHandoff(`#${CURSE_ID} [data-curse-controls]`);
   const shown = normalizeCurse(values);
@@ -37,6 +40,7 @@ export default function CurseInteractive({ faultAfterChange }: CurseInteractiveP
   const next = (key: keyof CurseValues, value: number) => normalizeCurse({ ...latest.current, [key]: value });
   return (
     <CurseFigureView
+      text={text}
       values={shown}
       preview={false}
       announcement={announcement}
@@ -44,6 +48,7 @@ export default function CurseInteractive({ faultAfterChange }: CurseInteractiveP
       changed={changed}
       controls={
         <CurseControls
+          text={text}
           values={shown}
           onChange={(key, value) => {
             const v = next(key, value);
@@ -51,13 +56,13 @@ export default function CurseInteractive({ faultAfterChange }: CurseInteractiveP
             set(key, v[key]);
             setChanged(true);
           }}
-          onCommit={(key, value) => setAnnouncement(curseResultText(next(key, value)))}
+          onCommit={(key, value) => setAnnouncement(curseResultText(next(key, value), undefined, text))}
           onReset={() =>
             instantly(CURSE_ID, () => {
               reset();
               const restored = normalizeCurse(CURSE_PRESETS[preset]!);
               latest.current = restored;
-              setAnnouncement(curseResultText(restored));
+              setAnnouncement(curseResultText(restored, undefined, text));
             })
           }
         />

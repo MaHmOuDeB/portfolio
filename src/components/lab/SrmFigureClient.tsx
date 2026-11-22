@@ -17,6 +17,7 @@ import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
 import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import { DIAGNOSTICS_REFS, SRM_ID, SRM_SCHEMA, visitorsText, type SrmValues } from '@/lib/lab/diagnostics-values';
+import { EN_SRM, type SrmText } from '@/lib/lab/text-srm';
 import type { SrmInteractiveProps } from './SrmInteractive';
 
 const LazySrm = lazy(() => import('./SrmInteractive'));
@@ -31,9 +32,11 @@ export type SrmControlsProps = {
   onChange: (key: keyof SrmValues, value: number) => void;
   onCommit: (key: keyof SrmValues, value: number) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: SrmText;
 };
 
-export function SrmControls({ values, onChange, onCommit, onReset }: SrmControlsProps) {
+export function SrmControls({ values, onChange, onCommit, onReset, text = EN_SRM }: SrmControlsProps) {
   const slider = (key: keyof SrmValues, label: string, valueText: (v: number) => string) => (
     <div className="w-full xs:w-64">
       <Slider
@@ -45,6 +48,7 @@ export function SrmControls({ values, onChange, onCommit, onReset }: SrmControls
         onCommit={(v) => onCommit(key, v)}
         valueText={valueText}
         refs={DIAGNOSTICS_REFS}
+        text={text.kit.slider}
       />
     </div>
   );
@@ -55,10 +59,10 @@ export function SrmControls({ values, onChange, onCommit, onReset }: SrmControls
       data-srm-controls=""
       className={CONTROL_ROW}
     >
-      {slider('nA', 'Group A visitors', visitorsText)}
-      {slider('nB', 'Group B visitors', visitorsText)}
+      {slider('nA', text.labelA, (n) => visitorsText(n, text))}
+      {slider('nB', text.labelB, (n) => visitorsText(n, text))}
       <div className={CONTROL_ROW_RESET}>
-        <ResetButton onReset={onReset} />
+        <ResetButton onReset={onReset} label={text.kit.reset} />
       </div>
     </div>
   );
@@ -66,21 +70,24 @@ export function SrmControls({ values, onChange, onCommit, onReset }: SrmControls
 
 const noop = () => {};
 
-export function InertSrmControls({ values }: { values: SrmValues }) {
-  return <SrmControls values={values} onChange={noop} onCommit={noop} onReset={noop} />;
+export function InertSrmControls({ values, text }: { values: SrmValues; text?: SrmText }) {
+  return <SrmControls values={values} onChange={noop} onCommit={noop} onReset={noop} text={text} />;
 }
 
 export function SrmFigureClient({
   preview,
   faultAfterChange,
+  text,
 }: {
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
   faultAfterChange?: true;
+  /** The Figure's words, handed over for a language other than English only (English is the default). */
+  text?: SrmText;
 }) {
   return (
     <EagerOrIntent ids={[SRM_ID]} preview={preview}>
-      <SrmIsland faultAfterChange={faultAfterChange} />
+      {text ? <SrmIsland faultAfterChange={faultAfterChange} text={text} /> : <SrmIsland faultAfterChange={faultAfterChange} />}
     </EagerOrIntent>
   );
 }
