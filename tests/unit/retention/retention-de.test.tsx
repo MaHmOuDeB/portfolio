@@ -41,7 +41,7 @@ describe('the German page', () => {
   it('has the same outline as the English one, with the English ids and German headings', () => {
     expect([...DE.matchAll(/<section id="([^"]+)" aria-labelledby/g)].map((m) => m[1])).toEqual([...RETENTION_SECTION_IDS]);
     const h1 = /<h1 id="retention-title"[^>]*>([\s\S]*?)<\/h1>/.exec(DE)![1]!;
-    expect(text(h1).replace(/­/g, '')).toBe('Wer erneut bestellt, und wie sich ein Rückgewinnungsangebot testen lässt.');
+    expect(text(h1).replace(/­/g, '')).toBe('Wer erneut bestellt und wie sich ein Rückgewinnungsangebot testen lässt.');
     expect([...DE.matchAll(/data-figure="([^"]+)"/g)].map((m) => m[1])).toEqual(['returns', 'cohorts', 'models', 'rfm']);
     expect(DE).toContain('aria-label="Auf dieser Seite"');
     expect(DE).toContain('aria-label="Weitere Projekte"');
@@ -97,7 +97,7 @@ describe('the German page', () => {
 
   it('states each rate with its period and whom it is of', () => {
     expect(text(section(DE, 'cohort-retention'))).toContain('im zwölften Monat nach ihrer ersten Bestellung');
-    expect(DE_TEXT).toContain('Von Januar bis November 2011'.replace('Von', 'von'));
+    expect(DE_TEXT).toContain('im Zeitraum Januar bis November 2011');
     expect(DE_TEXT).toContain('Jan. bis Nov. 2011 gegenüber Jan. bis Nov. 2010');
     expect(DE_TEXT).toContain('Kohorten von Januar bis November 2010');
     expect(DE_TEXT).toContain('Im Zehntel der Kunden mit den niedrigsten Scores');
@@ -188,7 +188,7 @@ describe('the islands take their words as props', () => {
       'Die obersten 20 % der abgewanderten Kunden nach Score',
     ].map((s) => s.replace('20 %', '20 %')));
     expect(modelsTable(RETENTION_DE.tables).rows.map((r) => r[0])).toEqual([
-      'Ausgangsregel: zuletzt aktive Käufer zuerst',
+      'Vergleichsregel: zuletzt aktive Käufer zuerst',
       'Logistische Regression',
       'Gradient Boosting',
     ]);

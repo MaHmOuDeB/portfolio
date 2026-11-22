@@ -124,7 +124,7 @@ const COHORTS_DE: CohortText = {
 };
 
 const MODEL_NAMES: Readonly<Record<string, string>> = {
-  'Baseline: most recent buyer first': 'Ausgangsregel: zuletzt aktive Käufer zuerst',
+  'Baseline: most recent buyer first': 'Vergleichsregel: zuletzt aktive Käufer zuerst',
   'Logistic regression': 'Logistische Regression',
   'Gradient boosting': 'Gradient Boosting',
 };
@@ -163,7 +163,7 @@ const TABLES_DE: SourcedTablesText = {
 };
 
 export const RETENTION_DE: RetentionCopy = {
-  title: 'Wer erneut bestellt,',
+  title: 'Wer erneut bestellt',
   quiet: 'und wie sich ein Rück­gewinnungs­angebot testen lässt.',
   chip: 'Fallstudie',
   github: 'Code auf GitHub ansehen',
@@ -230,7 +230,7 @@ export const RETENTION_DE: RetentionCopy = {
     role: 'Persönliche Projekte, aus meinen Masterprojekten neu aufgebaut.',
     methods: 'Kohorten, Kundensegmente, ein auf einem späteren Zeitraum bewertetes Modell, Stichprobenberechnung.',
     tools: 'SQL (DuckDB), scikit-learn, pytest, GitHub Actions; Chart.js für das KPI-Dashboard.',
-    when: 'Neu aufgebaut 2026, Daten von 2009 bis 2011.',
+    when: '2026 neu aufgebaut, Daten von 2009 bis 2011.',
     scope: (
       <>
         Öffentlicher Datensatz, 2026 aus meinen Masterprojekten neu aufgebaut. Eine Vorhersage und eine Stichprobengröße:
@@ -242,8 +242,7 @@ export const RETENTION_DE: RetentionCopy = {
   intro: () => (
     <>
       Ein Händler möchte Kunden zurückgewinnen, die nicht mehr bestellen. Bevor er Geld für Angebote ausgibt, muss er zwei
-      Dinge wissen: Stimmen seine Zahlen, und wer wäre ohnehin zurückgekommen? Beides habe ich an zwei Jahren öffentlicher
-      Bestelldaten eines britischen Geschenkhändlers durchgearbeitet, 2026 aus meinen Masterprojekten neu aufgebaut.
+      Dinge wissen: Stimmen seine Zahlen, und wer wäre ohnehin zurückgekommen? Beides habe ich anhand von zwei Jahren öffentlicher Bestelldaten eines britischen Geschenkhändlers untersucht, 2026 aus meinen Masterprojekten neu aufgebaut.
     </>
   ),
 
@@ -286,7 +285,7 @@ export const RETENTION_DE: RetentionCopy = {
           bewerten.
         </>
       ),
-      () => <>Einen Holdout-Test eines Rückgewinnungsangebots für abgewanderte Kunden dimensionieren.</>,
+      () => <>Einen Holdout-Test für ein Rückgewinnungsangebot an abgewanderte Kunden dimensionieren.</>,
     ],
     after:
       'Jedes Diagramm unten hat seine Zahlen in einer Tabelle darunter und ein Etikett, das sagt, woher seine Daten stammen. Die interaktiven speichern ihre Einstellung in der Seitenadresse, sodass ein Link dieselbe Ansicht öffnet.',
@@ -296,7 +295,7 @@ export const RETENTION_DE: RetentionCopy = {
     (p) => (
       <>
         Das Entfernen von Bestellungen, die innerhalb von {p.hours} Stunden storniert wurden, verändert das Bild der
-        Retouren: Der Retourenwert wuchs von Januar bis November 2011 um etwa {p.fact('retail.returns.yoy_growth_clean')},
+        Retouren: Der Retourenwert wuchs im Zeitraum Januar bis November 2011 um etwa {p.fact('retail.returns.yoy_growth_clean')},
         nicht um {p.fact('retail.returns.yoy_growth_raw')}.
       </>
     ),
@@ -304,8 +303,7 @@ export const RETENTION_DE: RetentionCopy = {
       <>
         Eine Stornierung, die zu einer Bestellzeile desselben Kunden für dasselbe Produkt und dieselbe Menge passt und bis
         zu {p.hours} Stunden vor ihr aufgegeben wurde, kennzeichnet eine Bestellung, die nie stattgefunden hat; deshalb
-        entferne ich beide Zeilen. Diese Regel nimmt Bestellungen heraus, die innerhalb von {p.hours} Stunden storniert
-        wurden, etwa {p.fact('retention.data.reversed_revenue_gbp')} an Verkäufen. Ohne sie zählt dieselbe Bestellung
+        entferne ich beide Zeilen. Diese Regel nimmt Bestellungen im Wert von etwa {p.fact('retention.data.reversed_revenue_gbp')} heraus, die innerhalb von {p.hours} Stunden storniert wurden. Ohne sie zählt dieselbe Bestellung
         einmal als Verkauf und noch einmal als Retoure.
       </>
     ),
@@ -337,16 +335,15 @@ export const RETENTION_DE: RetentionCopy = {
   segments: (p) => (
     <>
       Zum Stichtag im September 2011 bewerte ich jeden Kunden nach dem Rang bei Recency (Zeit seit dem letzten Kauf),
-      Häufigkeit und Ausgaben. Champions (die besten Kunden) erreichen {p.num(p.d.championsMin, 'count', RS)} oder{' '}
-      {p.num(p.d.topScore, 'count', RS)} von {p.num(p.d.topScore, 'count', RS)} Punkten bei Recency, Häufigkeit und
-      Ausgaben (grob die obersten zwei Fünftel bei jedem). Sie machen {p.fact('retention.rfm.champions_customer_share')}{' '}
+      Häufigkeit und Ausgaben. Champions (die besten Kunden) erreichen bei Recency, Häufigkeit und Ausgaben jeweils {p.num(p.d.championsMin, 'count', RS)} oder{' '}
+      {p.num(p.d.topScore, 'count', RS)} von {p.num(p.d.topScore, 'count', RS)} Punkten (grob die obersten zwei Fünftel bei jedem). Sie machen {p.fact('retention.rfm.champions_customer_share')}{' '}
       der Kunden aus und halten {p.fact('retention.rfm.champions_revenue_share')} der Ausgaben bis zum Stichtag.
     </>
   ),
 
   model: (p) => (
     <>
-      Für das Modell nutzen die Merkmale jedes Kunden nur Bestellungen bis zu einem Stichtag, und das Label sagt, ob er
+      Für das Modell nutzen die Merkmale jedes Kunden nur Bestellungen bis zu einem Stichtag, und die Zielvariable sagt, ob er
       innerhalb von {p.days} Tagen danach erneut bestellt hat. Logistische Regression und Gradient Boosting lernen auf
       einem früheren Stichtag, dessen Fenster vor dem späteren schließt, und werden auf dem Stichtag im September 2011
       gegen eine Regel bewertet, die die zuletzt aktiven Käufer zuerst nimmt. In diesem Fenster haben{' '}
@@ -357,11 +354,11 @@ export const RETENTION_DE: RetentionCopy = {
   winBack: (p) => (
     <>
       Abgewanderte Kunden sind die ohne Bestellung in den {p.days} Tagen vor dem Stichtag im September 2011:{' '}
-      {p.fact('retention.winback.lapsed_customers')} von ihnen, und {p.fact('retention.winback.baseline_rate')} von ihnen
+      es sind {p.fact('retention.winback.lapsed_customers')}, und {p.fact('retention.winback.baseline_rate')} von ihnen
       haben innerhalb von {p.days} Tagen erneut bestellt. Ich habe einen möglichen Holdout-Test dimensioniert. Mit einer
       üblichen Stichprobenberechnung für zwei Gruppen (
       <>
-        zweiseitig, auf dem Signifikanzniveau {p.num(p.d.alpha, 'share', RS)} und mit einer Teststärke von{' '}
+        zweiseitig, auf dem Signifikanzniveau {p.num(p.d.alpha, 'share', RS)} und mit einer Teststärke (Power) von{' '}
         {p.num(p.d.power, 'share', RS)}
       </>
       ) braucht der Nachweis eines Anstiegs von {p.fact('retention.winback.baseline_rate')} auf {p.target}, also um{' '}
@@ -375,8 +372,7 @@ export const RETENTION_DE: RetentionCopy = {
       Zwei Gruppen dieser Größe sind {p.num(2 * p.d.perGroup, 'count', ['retention.winback.n_per_arm'])} Kunden, und{' '}
       {p.fact('retention.winback.lapsed_customers')} Kunden waren zum Stichtag abgewandert, also reicht ein Zeitraum dafür
       aus. Das ist Arithmetik darüber, wie viele Kunden es gibt, kein Beleg dafür, dass ein Angebot wirken würde. Ein Test
-      nur mit den obersten {p.num(p.d.topShare, 'share', RS)} der abgewanderten Kunden nach Score würde nicht passen: Bei
-      ihrer Rate des erneuten Bestellens von {p.num(p.d.topSized.baseline_rate, 'share', RS)} braucht derselbe Anstieg{' '}
+      nur mit den obersten {p.num(p.d.topShare, 'share', RS)} der abgewanderten Kunden nach Score würde nicht passen: Bei ihrer Wiederkaufrate von {p.num(p.d.topSized.baseline_rate, 'share', RS)} braucht derselbe Anstieg{' '}
       {p.num(p.d.topSized.customers_per_arm, 'count', RS)} Kunden je Gruppe, insgesamt{' '}
       {p.num(2 * p.d.topSized.customers_per_arm, 'count', RS)}, und diese Gruppe umfasst{' '}
       {p.fact('retention.winback.top20_customers')}.
@@ -389,7 +385,7 @@ export const RETENTION_DE: RetentionCopy = {
       {p.num(p.d.firstTarget.contact_share, 'share', RS)} der abgewanderten Kunden nach Score, das sind{' '}
       {p.num(p.d.firstTarget.contacted, 'count', RS)} Kunden, haben {p.num(p.d.firstTarget.returners_model, 'count', RS)}{' '}
       innerhalb von {p.days} Tagen erneut bestellt, gegenüber etwa{' '}
-      {p.num(p.d.firstTarget.returners_random, 'count', RS)} bei einer zufälligen Auswahl gleicher Größe. Das sind spätere
+      {p.num(p.d.firstTarget.returners_random, 'count', RS)}, die bei einer zufälligen Auswahl gleicher Größe zu erwarten wären. Das sind spätere
       Bestellungen von Kunden, die niemand angesprochen hat. Sie zeigen, dass der Score gut ordnet, nicht, dass ein Angebot
       etwas bewirken würde; dafür ist der Holdout-Test da.
     </>
@@ -471,7 +467,7 @@ export const RETENTION_DE: RetentionCopy = {
       'out-of-time',
       () => (
         <>
-          Die Modelle werden auf einem späteren Stichtag bewertet, als sie gelernt haben, sodass keine Bestellung aus dem
+          Die Modelle werden auf einem späteren Stichtag bewertet als dem, auf dem sie gelernt haben, sodass keine Bestellung aus dem
           Testfenster im Training verwendet wurde.
         </>
       ),
@@ -481,8 +477,7 @@ export const RETENTION_DE: RetentionCopy = {
       (p) => (
         <>
           Der Gewinn bei der ROC AUC beträgt {p.fact('retention.model.auc_gain')}, mit einem Intervall von{' '}
-          {p.fact('retention.model.auc_gain_low')} bis {p.fact('retention.model.auc_gain_high')} auf dem Niveau{' '}
-          {p.num(p.d.intervalLevel, 'share', RS)}, aus einem gepaarten Bootstrap über die Testkunden; es deckt daher nur
+          {p.fact('retention.model.auc_gain_low')} bis {p.fact('retention.model.auc_gain_high')} zum Niveau von{' '} {p.num(p.d.intervalLevel, 'share', RS)}, aus einem gepaarten Bootstrap über die Testkunden; es deckt daher nur
           die Schwankung der Teststichprobe ab.
         </>
       ),
@@ -532,7 +527,7 @@ export const RETENTION_DE: RetentionCopy = {
     model: {
       leadIn: () => (
         <>
-          Vergleichen Sie das Modell mit der einfachen Regel, die die zuletzt aktiven Käufer zuerst nimmt, und sehen Sie,
+          Vergleichen Sie das Modell mit der einfachen Recency-Regel, die die zuletzt aktiven Käufer zuerst nimmt, und sehen Sie,
           wie nah ihre beiden Scores beieinanderliegen.
         </>
       ),
@@ -546,7 +541,7 @@ export const RETENTION_DE: RetentionCopy = {
     winBack: {
       leadIn: () => (
         <>
-          Ein Holdout sind Kunden, die kein Angebot erhalten, sodass ihr Verhalten zeigt, was ohnehin geschehen wäre; die
+          Eine Holdout-Gruppe sind Kunden, die kein Angebot erhalten, sodass ihr Verhalten zeigt, was ohnehin geschehen wäre; die
           Tabelle zeigt, wie viele Kunden jede Gruppe eines solchen Tests braucht.
         </>
       ),
@@ -592,8 +587,7 @@ export const RETENTION_DE: RetentionCopy = {
       'interval',
       () => (
         <>
-          Das Intervall beim Gewinn der AUC deckt nur die Schwankung der Teststichprobe ab. Es deckt nicht ab, dass das
-          Modell neu trainiert wird, einen anderen Zeitraum oder eine Änderung in der Zusammensetzung der Kunden.
+          Das Intervall beim Gewinn der AUC deckt nur die Schwankung der Teststichprobe ab. Es deckt weder ein neues Training des Modells noch einen anderen Zeitraum oder eine veränderte Zusammensetzung der Kunden ab.
         </>
       ),
     ],
@@ -656,7 +650,7 @@ export const RETENTION_DE: RetentionCopy = {
         Gradient Boosting ordnet mit einer ROC AUC von {p.fact('retention.model.gb_auc')}, gegenüber{' '}
         {p.fact('retention.model.rule_auc')} für die Regel, die die zuletzt aktiven Käufer zuerst nimmt: ein Gewinn von{' '}
         {p.fact('retention.model.auc_gain')}, mit einem Intervall von {p.fact('retention.model.auc_gain_low')} bis{' '}
-        {p.fact('retention.model.auc_gain_high')} auf dem Niveau {p.num(p.d.intervalLevel, 'share', RS)}, das nur die
+        {p.fact('retention.model.auc_gain_high')} zum Niveau von {p.num(p.d.intervalLevel, 'share', RS)}, das nur die
         Schwankung der Teststichprobe abdeckt.
       </>
     ),
@@ -665,8 +659,7 @@ export const RETENTION_DE: RetentionCopy = {
         Wie gut jede Methode die Kunden eines öffentlichen Datensatzes danach ordnet, ob sie innerhalb von {p.days} Tagen
         nach dem Stichtag im September 2011 erneut bestellt haben. Das Modell hat auf einem früheren Stichtag gelernt, und
         beide wurden auf diesem späteren bewertet. Eine ROC AUC ist die Wahrscheinlichkeit, dass ein Kunde, der erneut
-        bestellt hat, über einem eingeordnet wird, der es nicht getan hat: Der untere Rand der Skala entspricht dem Zufall,
-        der obere einer perfekten Rangfolge. Das ist Genauigkeit der Rangfolge, keine Reaktion auf ein Angebot: Ein hoher
+        bestellt hat, über einem eingeordnet wird, der es nicht getan hat: Ein Wert von einhalb ist nicht besser als Zufall, ein Wert von eins ist eine perfekte Rangfolge. Das ist Genauigkeit der Rangfolge, keine Reaktion auf ein Angebot: Ein hoher
         Score ist eine Vorhersage, keine Wirkung eines Kontakts. Die Tabelle ergänzt die logistische Regression und die
         Scores nur für abgewanderte Kunden.
       </>
