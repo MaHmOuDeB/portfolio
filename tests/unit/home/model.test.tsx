@@ -279,14 +279,20 @@ describe('toHomeModel: modes and precedence', () => {
 
 describe('LiveNote: the exact notes', () => {
   it('reuses PhaseLabel for the active notes', () => {
+    // Fresh data: the clock sits just after each fixture's read time, so no "Updated" line is added.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const fresh = (mode: Parameters<typeof snapshotFixture>[0]) => {
+      vi.setSystemTime(new Date(Date.parse(snapshotFixture(mode).readAt) + 1000));
+      return snapshotFixture(mode);
+    };
     for (const mode of ['before-data', 'calibration'] as const) {
-      const m = toHomeModel(snapshotFixture(mode), 'b');
+      const m = toHomeModel(fresh(mode), 'b');
       expect(html(m)).toBe(renderToStaticMarkup(<PhaseLabel note={{ mode: 'calibration' }} href="/experiment" refs={m.refs} />));
     }
-    const ab = toHomeModel(snapshotFixture('ab'), 'b');
+    const ab = toHomeModel(fresh('ab'), 'b');
     expect(ab.testNote).toEqual({ mode: 'ab', arm: 'b', nA: ab.live.nA, nB: ab.live.nB });
     expect(html(ab)).toBe(renderToStaticMarkup(<PhaseLabel note={ab.testNote!} href="/experiment" refs={ab.refs} />));
-    const paused = toHomeModel(snapshotFixture('paused'), 'a');
+    const paused = toHomeModel(fresh('paused'), 'a');
     expect(html(paused)).toBe(renderToStaticMarkup(<PhaseLabel note={{ mode: 'paused' }} href="/experiment" refs={paused.refs} />));
     // The flag's own date and reason belong to the explanation page.
     expect(everything(html(paused))).not.toContain('updating');
