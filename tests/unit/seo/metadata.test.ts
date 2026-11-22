@@ -565,7 +565,7 @@ describe('sharingTemplate', () => {
   it('the Retention card states what the Retention page says', () => {
     const page = fs.readFileSync(path.join(ROOT, 'content/retention.tsx'), 'utf8').replace(/\s+/g, ' ');
     expect(page).toContain(
-      'returned-order value grew about{\' \'} <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{\' \'} <Fact id="retail.returns.yoy_growth_raw" />',
+      "returned-order value grew about{' '} {p.fact('retail.returns.yoy_growth_clean')} in January to November 2011, not{' '} {p.fact('retail.returns.yoy_growth_raw')}",
     );
   });
 
