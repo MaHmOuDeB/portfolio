@@ -1,5 +1,5 @@
 // The Home page as one server composition (HomeSections) and the per-group route that serves it
-// (src/app/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
+// (src/app/(en)/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
 // groups, and read as a visitor and a screen reader get them, hidden markup included: the hero,
 // the proof row, the cards, the note and the props serialized for the browser's client components
 // (the RSC payload). The route is checked for its static-generation settings, its one snapshot read,
@@ -38,7 +38,7 @@ vi.mock('@/lib/experiment/live', async (original) => {
 
 const live = await import('@/lib/experiment/live');
 const { HomeSections } = await import('@/components/home/HomeSections');
-const route = await import('@/app/v/[arm]/page');
+const route = await import('@/app/(en)/v/[arm]/page');
 const { ExperimentBeacon } = await import('@/components/experiment/ExperimentBeacon');
 const { canonicalOrigin, pageMetadata } = await import('@/lib/seo/metadata');
 const { SITE_SHARING_LINE, seoEntry } = await import('../../../content/seo.ts');
@@ -287,7 +287,7 @@ describe('the route: static per-group pages', () => {
     expect(cls).toContain('md:pb-section');
     expect(cls).not.toContain('pb-section');
     // The test build host draws the same page.
-    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    const host = readFileSync(path.join(ROOT, 'src/app/(en)/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/className="[^"]*\bmd:pb-section\b/);
     expect(host).not.toMatch(/className="(?:[^"]* )?pb-section\b/);
   });
@@ -315,20 +315,20 @@ describe('the route: static per-group pages', () => {
   });
 
   it('uses no request-time API, no persistent layout beacon and no cache components', () => {
-    const source = readFileSync(path.join(ROOT, 'src/app/v/[arm]/page.tsx'), 'utf8');
+    const source = readFileSync(path.join(ROOT, 'src/app/(en)/v/[arm]/page.tsx'), 'utf8');
     expect(source).not.toMatch(/searchParams|next\/headers|cookies\(|headers\(|connection\(|draftMode|export const dynamic\b|noindex|'use cache'/);
     expect(source.match(/getExperimentSnapshot\(/g)).toHaveLength(1);
     expect(source).not.toMatch(/getLiveView/);
     // The beacon lives in the page segment only: no layout or template keeps one across pages.
-    expect(readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8')).not.toMatch(/ExperimentBeacon/);
-    for (const f of ['src/app/v/layout.tsx', 'src/app/v/[arm]/layout.tsx', 'src/app/v/template.tsx', 'src/app/v/[arm]/template.tsx', 'src/app/template.tsx']) {
+    expect(readFileSync(path.join(ROOT, 'src/app/(en)/layout.tsx'), 'utf8')).not.toMatch(/ExperimentBeacon/);
+    for (const f of ['src/app/(en)/v/layout.tsx', 'src/app/(en)/v/[arm]/layout.tsx', 'src/app/(en)/v/template.tsx', 'src/app/(en)/v/[arm]/template.tsx', 'src/app/template.tsx']) {
       expect(existsSync(path.join(ROOT, f)), f).toBe(false);
     }
     expect(readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8')).not.toMatch(/cacheComponents/);
   });
 
   it('the test build host uses the same composition, without a beacon', () => {
-    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    const host = readFileSync(path.join(ROOT, 'src/app/(en)/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/HomeBody/);
     expect(host).not.toMatch(/ExperimentBeacon|<Hero|<LiveNote|<FeaturedCases|<Tools/);
   });

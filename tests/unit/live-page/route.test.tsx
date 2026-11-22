@@ -11,7 +11,7 @@ vi.mock('@/lib/experiment/live', async (importOriginal) => ({
   getExperimentSnapshot: read,
 }));
 
-const route = async () => (await import('@/app/experiment/page')).default;
+const route = async () => (await import('@/app/(en)/experiment/page')).default;
 
 afterEach(() => {
   read.mockReset();

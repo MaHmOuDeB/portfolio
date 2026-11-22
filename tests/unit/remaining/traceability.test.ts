@@ -231,7 +231,7 @@ describe('no client module reaches the raw experiment data', () => {
   });
 
   it('the walk is real: the Live test route reaches the reader and the projection, and a type-only import is not followed', () => {
-    const fromRoute = [...reachable('src/app/experiment/page.tsx').keys()];
+    const fromRoute = [...reachable('src/app/(en)/experiment/page.tsx').keys()];
     expect(fromRoute).toEqual(expect.arrayContaining(['src/lib/experiment/live.ts', 'src/lib/live-page/model.ts']));
     for (const f of SERVER_ONLY) expect(existsSync(path.join(ROOT, f)), f).toBe(true);
     // ExperimentsTrack imports the Home model for its type only.

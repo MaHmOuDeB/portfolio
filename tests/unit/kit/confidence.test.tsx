@@ -5,7 +5,7 @@ import { parseFragment } from 'parse5';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
-import { liveFixture, FRESHNESS_KINDS, pausedAbAboveZeroFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
+import { liveFixture, FRESHNESS_KINDS, pausedAbAboveZeroFixture } from '@/app/(en)/kitchen-sink/_parts/live-fixtures';
 import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import { LiveStateBody } from '@/components/kit/LiveStateBody';
 import { NowRow } from '@/components/kit/NowRow';

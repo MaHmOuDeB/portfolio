@@ -105,7 +105,7 @@ test.describe('canonicalAndRobots', () => {
   });
 
   test('/demo is noindex, follow', async ({ page }) => {
-    test.skip(!fs.existsSync(path.resolve('src/app/demo/page.tsx')), 'the /demo page is not on this branch yet');
+    test.skip(!fs.existsSync(path.resolve('src/app/(en)/demo/page.tsx')), 'the /demo page is not on this branch yet');
     await page.goto('/demo');
     const head = await readHead(page);
     expect(head.robots.join(',')).toMatch(/noindex/);

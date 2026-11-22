@@ -64,7 +64,7 @@ describe('the daily ceiling and the command quota', () => {
         return statSync(path).isDirectory() ? files(path) : /\.tsx?$/.test(name) ? [path] : [];
       });
     const isr = files(app).filter((f) => /export const revalidate = /.test(readFileSync(f, 'utf8'))).map((f) => f.slice(app.length));
-    expect(isr.sort()).toEqual(['/experiment/data.json/route.ts', '/experiment/page.tsx', '/v/[arm]/page.tsx']);
+    expect(isr.sort()).toEqual(['/(en)/experiment/page.tsx', '/(en)/v/[arm]/page.tsx', '/experiment/data.json/route.ts']);
     const routes = 4; // /v/a and /v/b (one file), /experiment/data.json, /experiment
     const regenerationsPerMonth = (30 * 24 * 60 * 60) / EXPERIMENT.revalidateSeconds;
     expect(regenerationsPerMonth).toBe(8_640);

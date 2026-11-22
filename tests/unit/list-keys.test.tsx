@@ -33,29 +33,29 @@ const route = (load: () => Promise<unknown>) => async (): Promise<ReactNode[]> =
 const PAGES: Record<string, () => Promise<ReactNode[]>> = {
   '/ (all home modes, both groups)': async () =>
     HOME_MODES.flatMap((m) => (['a', 'b'] as const).map((arm) => createElement(HomeSections, { model: toHomeModel(snapshotFixture(m), arm) }))),
-  '/about': route(() => import('@/app/about/page')),
+  '/about': route(() => import('@/app/(en)/about/page')),
   '/contact': async () => {
-    const { default: Contact } = await import('@/app/contact/page');
+    const { default: Contact } = await import('@/app/(en)/contact/page');
     return [await Contact({ searchParams: Promise.resolve({}) } as never)];
   },
   'layout (header, footer, skip link)': async () => {
-    const { default: Layout } = await import('@/app/layout');
+    const { default: Layout } = await import('@/app/(en)/layout');
     return [Layout({ children: createElement('p', null, 'x') } as never)];
   },
-  '/cv': route(() => import('@/app/cv/page')),
-  '/demo': route(() => import('@/app/demo/page')),
-  '/exclude': route(() => import('@/app/exclude/page')),
-  '/lab': route(() => import('@/app/lab/page')),
-  '/lab/peeking': route(() => import('@/app/lab/peeking/page')),
-  '/privacy': route(() => import('@/app/privacy/page')),
-  '/work': route(() => import('@/app/work/page')),
-  '/work/audible': route(() => import('@/app/work/audible/page')),
-  '/work/docproof': route(() => import('@/app/work/docproof/page')),
-  '/work/marketingws': route(() => import('@/app/work/marketingws/page')),
-  '/work/n8n': route(() => import('@/app/work/n8n/page')),
-  '/work/pulse': route(() => import('@/app/work/pulse/page')),
-  '/work/retention': route(() => import('@/app/work/retention/page')),
-  '/work/weather': route(() => import('@/app/work/weather/page')),
+  '/cv': route(() => import('@/app/(en)/cv/page')),
+  '/demo': route(() => import('@/app/(en)/demo/page')),
+  '/exclude': route(() => import('@/app/(en)/exclude/page')),
+  '/lab': route(() => import('@/app/(en)/lab/page')),
+  '/lab/peeking': route(() => import('@/app/(en)/lab/peeking/page')),
+  '/privacy': route(() => import('@/app/(en)/privacy/page')),
+  '/work': route(() => import('@/app/(en)/work/page')),
+  '/work/audible': route(() => import('@/app/(en)/work/audible/page')),
+  '/work/docproof': route(() => import('@/app/(en)/work/docproof/page')),
+  '/work/marketingws': route(() => import('@/app/(en)/work/marketingws/page')),
+  '/work/n8n': route(() => import('@/app/(en)/work/n8n/page')),
+  '/work/pulse': route(() => import('@/app/(en)/work/pulse/page')),
+  '/work/retention': route(() => import('@/app/(en)/work/retention/page')),
+  '/work/weather': route(() => import('@/app/(en)/work/weather/page')),
 };
 
 const nameOf = (t: unknown): string => {

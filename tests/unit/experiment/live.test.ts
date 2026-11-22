@@ -500,7 +500,7 @@ describe('the source', () => {
     // and the home page, which projects it at once into the server-only Home model (toHomeModel copies
     // no p-value, chi-square or outcome count; tests/unit/home/page.test.tsx checks the serialized
     // client props). The home page may use it in exactly that one form, and so may the Live test page.
-    const HOME = join(SRC, 'app/v/[arm]/page.tsx');
+    const HOME = join(SRC, 'app/(en)/v/[arm]/page.tsx');
     expect(readFileSync(HOME, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
       'getExperimentSnapshot',
       'getExperimentSnapshot',
@@ -508,7 +508,7 @@ describe('the source', () => {
     expect(readFileSync(HOME, 'utf8')).toContain('toHomeModel(await getExperimentSnapshot(), arm)');
     // The Live test page reads it once and projects it at once, on the server, into the display shape
     // (toLivePageDisplay keeps published cells only; tests/unit/live-page/page.test.tsx checks it).
-    const LIVE_TEST = join(SRC, 'app/experiment/page.tsx');
+    const LIVE_TEST = join(SRC, 'app/(en)/experiment/page.tsx');
     expect(readFileSync(LIVE_TEST, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
       'getExperimentSnapshot',
       'getExperimentSnapshot',
@@ -549,7 +549,7 @@ describe('the source', () => {
       .filter((f) => !FIXTURES.includes(f) && /lib\/(home\/(narrative-)?|live-page\/)fixtures['"]/.test(readFileSync(f, 'utf8')))
       .map((f) => relative(SRC, f));
     expect(importers.length).toBeGreaterThan(0);
-    expect(importers.filter((f) => !f.startsWith('app/kitchen-sink/') || /(^|\/)page\.tsx$/.test(f))).toEqual([]);
+    expect(importers.filter((f) => !f.startsWith('app/(en)/kitchen-sink/') || /(^|\/)page\.tsx$/.test(f))).toEqual([]);
   });
 });
 

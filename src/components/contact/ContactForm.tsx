@@ -12,7 +12,7 @@ import { SubmitButton } from '@/components/kit/SubmitButton';
 import { TextArea } from '@/components/kit/TextArea';
 import { TextField } from '@/components/kit/TextField';
 import { TextLink } from '@/components/kit/TextLink';
-import { sendContact } from '@/app/contact/actions';
+import { sendContact } from '@/app/(en)/contact/actions';
 import { revealRing } from '@/lib/focus/reveal-ring';
 import { CONTACT_LIMITS, FIELD_ORDER, HONEYPOT_FIELD, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
 import type { ContactState } from '@/lib/contact/handle';

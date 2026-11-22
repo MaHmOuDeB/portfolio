@@ -67,7 +67,7 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
 /** The visitor's URL for a page file: the per-group Home page stands for /. */
 const visitorRoute = (route: string) => (route === '/v/[arm]' ? '/' : route);
 /** The page file's module for a visitor's URL. */
-const pageModule = (route: string) => (route === '/' ? 'v/[arm]' : route.slice(1));
+const pageModule = (route: string) => (route === '/' ? '(en)/v/[arm]' : '(en)/' + route.slice(1));
 
 describe('canonicalOrigin', () => {
   it('gives the fixed test origin in a local build with no environment', () => {
@@ -365,8 +365,8 @@ describe('route inventory', () => {
   });
 
   it('says AI automation and experimentation analyst on the site and experimentation and AI automation analyst on About and CV, never growth analyst', () => {
-    const layout = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8');
-    expect(layout).toContain('description: "AI automation and experimentation analyst in Berlin."');
+    const layout = fs.readFileSync(path.join(ROOT, 'src/lib/seo/root-metadata.ts'), 'utf8');
+    expect(layout).toContain("description: 'AI automation and experimentation analyst in Berlin.'");
     for (const route of ['/about', '/cv']) expect(seoEntry(route).description, route).toMatch(/experimentation and AI automation analyst in Berlin/i);
     for (const entry of SEO_PAGES) expect(entry.description, entry.path).not.toMatch(/growth analyst/i);
   });
@@ -384,7 +384,7 @@ describe('route inventory', () => {
   });
 
   it('keeps /exclude out of search', async () => {
-    const mod = (await import('@/app/exclude/page')) as { metadata: { robots?: { index?: boolean } } };
+    const mod = (await import('@/app/(en)/exclude/page')) as { metadata: { robots?: { index?: boolean } } };
     expect(mod.metadata.robots?.index).toBe(false);
   });
 });
@@ -447,7 +447,7 @@ describe('canonicalAndRobots', () => {
   });
 
   it('the same Home metadata serves both groups: canonical / and indexable', async () => {
-    const mod = (await import('@/app/v/[arm]/page')) as { metadata: ReturnType<typeof pageMetadata> };
+    const mod = (await import('@/app/(en)/v/[arm]/page')) as { metadata: ReturnType<typeof pageMetadata> };
     expect(mod.metadata.alternates?.canonical).toBe(new URL('/', canonicalOrigin()).href);
     expect(mod.metadata.robots).toBeUndefined();
   });
@@ -471,7 +471,7 @@ describe('canonicalAndRobots', () => {
   });
 
   it('metadata, sitemap and robots read no request or snapshot API', () => {
-    const files = ['src/lib/seo/metadata.ts', 'src/app/sitemap.ts', 'src/app/robots.ts', 'content/seo.ts', 'src/app/layout.tsx'];
+    const files = ['src/lib/seo/metadata.ts', 'src/app/sitemap.ts', 'src/app/robots.ts', 'content/seo.ts', 'src/lib/seo/root-metadata.ts', 'src/app/(en)/layout.tsx'];
     for (const file of files) {
       const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
       expect(source, file).not.toMatch(/next\/headers|cookies\(|headers\(|connection\(|searchParams|getExperimentSnapshot|draftMode|'use cache'/);

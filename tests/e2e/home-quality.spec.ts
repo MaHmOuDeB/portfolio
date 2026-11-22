@@ -311,7 +311,7 @@ function listed(file: string, start: string, end: string): string[] {
   const body = src.slice(from + start.length, src.indexOf(end, from + start.length));
   return [...body.matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1]!);
 }
-const MODES = listed('src/app/kitchen-sink/home/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
+const MODES = listed('src/app/(en)/kitchen-sink/home/states.ts', 'const MODES: readonly HomeMode[] = [', '];');
 const NARRATIVE = listed('src/lib/home/narrative-fixtures.ts', 'export const NARRATIVE_FIXTURES = [', '] as const');
 const STATES = [...MODES, ...NARRATIVE, 'ab-many-looks'];
 

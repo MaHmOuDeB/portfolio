@@ -1,7 +1,7 @@
 // The contact page as static HTML (no JavaScript): the form, its fields and the sent state pass the
 // truth audit, name no address, and keep the honeypot out of reach.
 import { renderToStaticMarkup } from 'react-dom/server';
-import ContactPage from '@/app/contact/page';
+import ContactPage from '@/app/(en)/contact/page';
 import { contactMetadata } from '@/lib/contact/title';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts/facts.generated';

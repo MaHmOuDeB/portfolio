@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '@/app/kitchen-sink/_demo/DemoControls';
-import { DemoChart, DemoFigureView, demoModel } from '@/app/kitchen-sink/_demo/demo-view';
+import { PRESETS } from '@/app/(en)/kitchen-sink/_demo/DemoControls';
+import { DemoChart, DemoFigureView, demoModel } from '@/app/(en)/kitchen-sink/_demo/demo-view';
 
 const caption = (html: string) => /<figcaption[\s\S]*?<\/p>/.exec(html)![0].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
 

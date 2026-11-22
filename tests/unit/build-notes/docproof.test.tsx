@@ -10,7 +10,7 @@ import { DOCPROOF_SECTIONS, DOCPROOF_TITLE, DocproofPage } from '@/components/do
 import { DocproofRunEvidence, VERIFY_RUN } from '../../../content/docproof';
 import { FACTS, FACT_DISPLAYS } from '@/lib/facts';
 import { LIVE_ROUTES } from '@/lib/site';
-import DocproofRoute, { metadata } from '@/app/work/docproof/page';
+import DocproofRoute, { metadata } from '@/app/(en)/work/docproof/page';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 
 const decode = (s: string) =>

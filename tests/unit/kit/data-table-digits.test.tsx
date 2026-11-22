@@ -4,7 +4,7 @@ import { DataTable, type TableData } from '@/components/kit/DataTable';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
 import { confidenceTable, formatIntervalPoints, type LiveSnapshot } from '@/lib/figure/cs-band';
-import { liveFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
+import { liveFixture } from '@/app/(en)/kitchen-sink/_parts/live-fixtures';
 
 const cells = (html: string) => [...html.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((m) => m[1]!);
 

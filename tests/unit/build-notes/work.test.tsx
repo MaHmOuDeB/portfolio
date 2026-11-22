@@ -419,7 +419,7 @@ describe('the directory', () => {
     expect(auditHtml(doc, ctx)).toEqual([]);
     // The rendered text is linted as content (the lint keys its content rules on the extension).
     expect(lintSource(text(PAGE), 'content/work.mdx')).toEqual([]);
-    for (const file of ['src/components/work/WorkPage.tsx', 'src/app/work/page.tsx', 'content/work.tsx']) {
+    for (const file of ['src/components/work/WorkPage.tsx', 'src/app/(en)/work/page.tsx', 'content/work.tsx']) {
       expect(lintSource(readFileSync(join(repo, file), 'utf8'), file), file).toEqual([]);
     }
   });
@@ -427,7 +427,7 @@ describe('the directory', () => {
 
 /** The page file of a site path, or null when no page ships there. */
 const pageFile = (path: string) => {
-  const file = join(repo, 'src/app', path, 'page.tsx');
+  const file = join(repo, 'src/app/(en)', path, 'page.tsx');
   return existsSync(file) ? file : null;
 };
 
@@ -451,7 +451,7 @@ describe('every destination resolves', () => {
 });
 
 describe('the route', () => {
-  const route = readFileSync(join(repo, 'src/app/work/page.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/page.tsx'), 'utf8');
 
   it('ships at /work, the navigation target', () => {
     expect(LIVE_ROUTES).toContain('/work');
@@ -461,7 +461,7 @@ describe('the route', () => {
   it('is a plain static page that renders the composition, with its title and description', async () => {
     expect(route).toMatch(/<WorkPage \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(/);
-    const mod = (await import('@/app/work/page')) as {
+    const mod = (await import('@/app/(en)/work/page')) as {
       default: () => ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
