@@ -60,6 +60,11 @@ describe('German pages in the truth audit', () => {
     expect(new Set(kinds(attr))).toEqual(new Set(['english-leak']));
   });
 
+  it('lets a proper name through the leak check, but not the bare English word', () => {
+    expect(kinds(auditHtml(dePage('<p>Das Signal Global Privacy Control (GPC) wird beachtet.</p>'), ctx()))).toEqual([]);
+    expect(kinds(auditHtml(dePage('<p>Privacy</p>'), ctx()))).toEqual(['english-leak']);
+  });
+
   it('does not run the English leak check on an English page', () => {
     expect(auditHtml(doc('en', '<p>Show the numbers as a table</p>'), ctx({ route: '/work' }))).toEqual([]);
   });

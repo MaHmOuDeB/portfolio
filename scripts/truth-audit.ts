@@ -80,6 +80,8 @@ const DERIVED_KEYWORDS = new Set(['simulated', 'live', 'build', ...SOURCE_IDS.ma
 // Words the English strings share with German on purpose (names, a loan word, and the language menu's own labels).
 const LEAK_EXEMPT = new Set(['English', 'Deutsch', 'LinkedIn', 'final']);
 const MIN_LEAK = 5;
+// Proper names that contain an English shell word ("Privacy"); removed from the text before the leak check only.
+const LEAK_PROPER_NAMES = /Global Privacy Control/g;
 const SENTINEL = '\u0000';
 
 // The text of a ReactNode built by the kit's `seq`: strings, arrays and fragment children.
@@ -214,7 +216,8 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
     for (const m of stripInvisible(text).matchAll(BANNED)) add('banned-phrase', `"${m[0]}" in ${where}`);
     if (german) {
       for (const m of stripInvisible(text).matchAll(BANNED_DE)) add('banned-phrase', `"${m[0]}" in ${where}`);
-      for (const { s, re } of leaks) if (re.test(text)) add('english-leak', `"${s}" in ${where}`);
+      const leakText = text.replace(LEAK_PROPER_NAMES, ' ');
+      for (const { s, re } of leaks) if (re.test(leakText)) add('english-leak', `"${s}" in ${where}`);
     }
     if (cover === 'marked') return;
     for (const m of text.matchAll(NUMBER)) {

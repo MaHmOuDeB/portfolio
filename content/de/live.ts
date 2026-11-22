@@ -315,7 +315,7 @@ export const LIVE_DE: LiveCopy = {
     caption:
       'Jede Stufe behält, was die vorherige durchgelassen hat. Die ersten beiden Summen werden nicht veröffentlicht, weil eine Summe eine Zählung verraten könnte, die nur als kleiner als fünf gezeigt wird.',
     method:
-      'Das Beacon auf der englischen Startseite (ein kleines Signal, das die Seite beim Laden sendet) sendet Ereignisse, und der Server entscheidet, welche davon zählen. Das sind empfangene Beacons, keine Besucher: Eine Person kann viele senden. Von Bots, die nie JavaScript ausführen, oder von Besuchern, deren Browser das Signal GPC oder Do Not Track sendet, kommt nichts, daher gehen sie in keine Zählung ein.',
+      'Das Beacon auf der englischen Startseite (ein kleines Signal, das die Seite beim Laden sendet) sendet Ereignisse, und der Server entscheidet, welche davon zählen. Das sind empfangene Beacons, keine Besucher: Eine Person kann viele senden. Von Bots, die nie JavaScript ausführen, oder von Besuchern, deren Browser das Signal Global Privacy Control oder Do Not Track sendet, kommt nichts, daher gehen sie in keine Zählung ein.',
     noCounts: 'Es werden keine Zählungen gezeigt: Diese Seite hat keine Daten.',
     reasons: {
       bot: ['Bekannte Bots', 'Ein Bot als User-Agent oder ein per Automatisierung gesteuerter Browser'],
