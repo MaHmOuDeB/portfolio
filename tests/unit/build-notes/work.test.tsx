@@ -210,12 +210,12 @@ describe('the layout', () => {
     // Its heading is a section heading like the groups', never as large as the page title.
     const h2 = /<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
     expect(h2).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
-    // The sketch is the shared one, decorative, and it stays still here: no entry turn and no pointer follow.
+    // The sketch is the shared one, decorative, and it turns in and follows a fine pointer (the Turn family; Home no longer has the band).
     const { ConfidenceSketch } = await import('@/components/frame/sketches');
     const sketch = tile.slice(tile.indexOf('<div data-work-site-sketch'));
     expect(sketch).toContain(html(createElement(ConfidenceSketch)));
-    expect(sketch).toMatch(/^<div data-work-site-sketch="" aria-hidden="true"/);
-    expect(tile).not.toMatch(/data-depth-turn|data-depth-follow/);
+    expect(sketch).toMatch(/^<div data-work-site-sketch="" data-depth-turn="" data-depth-follow="" aria-hidden="true"[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
+    expect(sketch).not.toMatch(/<path[^>]*data-depth/);
   });
 });
 

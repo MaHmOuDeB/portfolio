@@ -492,8 +492,8 @@ describe('sharingTemplate', () => {
     );
     expect(card.sub).toBe(SITE_SHARING_LINE);
     // The line is the hero's sub line, its two inline chips as plain lower-case words.
-    const { lead, chips, join, end } = HOME_HERO.sub;
-    expect(SITE_SHARING_LINE).toBe(`${lead}${chips[0].toLowerCase()}${join}${chips[1].toLowerCase()}${end}`);
+    const { lead, chips, join, end, rest } = HOME_HERO.sub;
+    expect(SITE_SHARING_LINE).toBe(`${lead}${chips[0].toLowerCase()}${join}${chips[1].toLowerCase()}${end}${rest}`);
     expect(SITE_SHARING_HEADLINE).toBe(`${HEADLINE.lead} ${HEADLINE.quiet}`);
     expect(card.footer).toBe(SITE.name);
     expect(card.proof).toBeUndefined();

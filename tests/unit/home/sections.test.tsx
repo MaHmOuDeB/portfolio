@@ -26,7 +26,6 @@ const { FeaturedCases } = await import('@/components/home/FeaturedCases');
 const { AutomationTrack } = await import('@/components/home/AutomationTrack');
 const { QuestionsRows } = await import('@/components/home/QuestionsRows');
 const { AutomateRow } = await import('@/components/home/AutomateRow');
-const { SiteTile } = await import('@/components/home/SiteTile');
 const { HomeFaq } = await import('@/components/home/HomeFaq');
 const { HomeCallToAction } = await import('@/components/home/HomeCallToAction');
 
@@ -410,45 +409,6 @@ describe('QuestionsRows', () => {
   it('holds no link and no digit', () => {
     expect(all(section, (el) => el.tagName === 'a')).toEqual([]);
     expect(text(section)).not.toMatch(/\d/);
-  });
-});
-
-describe('SiteTile: the site band', () => {
-  const html = render(createElement(SiteTile));
-  const d = doc(html);
-  const root = one(d, (el) => has(el, 'data-home-site'));
-
-  it('takes no props: the same band for every visitor and every state', () => {
-    expect(SiteTile.length).toBe(0);
-  });
-
-  it('is a white card on the frame: chip "Live test", the two-tone h2, the sentence and two buttons', () => {
-    expect(root.tagName).toBe('section');
-    expect(has(root, 'data-rule')).toBe(true);
-    const tile = one(root, (el) => has(el, 'data-tile'));
-    expect(attr(tile, 'data-tile')).toBe('');
-    expect(text(one(root, (el) => has(el, 'data-chip')))).toBe('Live test');
-    const h2 = one(root, (el) => el.tagName === 'h2');
-    expect(squash(text(h2))).toBe('This site is part of the evidence.');
-    expect(text(one(h2, (el) => has(el, 'data-quiet')))).toBe('part of the evidence.');
-    expect(attr(root, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    expect(text(one(root, (el) => has(el, 'data-home-site-text')))).toBe(
-      'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
-    );
-    const buttons = all(root, (el) => el.tagName === 'a');
-    expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
-    expect(buttons.map((a) => attr(a, 'href'))).toEqual([HOME_LINKS.experiment, HOME_LINKS.lab]);
-  });
-
-  it('has a tilted sketch of a confidence chart, an illustration with no text in its SVG', () => {
-    const [v] = expectVignettes(root, 1);
-    expect(sketchOf(v!)).toBe('confidence');
-    for (const svg of all(v!, (el) => el.tagName === 'svg')) expect(all(svg, (el) => el.tagName === 'text')).toEqual([]);
-  });
-
-  it('holds no note and types no numeral', () => {
-    expect(all(d, (el) => has(el, 'data-home-note'))).toEqual([]);
-    expect(text(d)).not.toMatch(/\d|more than/);
   });
 });
 

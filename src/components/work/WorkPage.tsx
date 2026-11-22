@@ -121,7 +121,7 @@ export function WorkPage(): ReactNode {
       ))}
 
       <div data-rule="" className="pb-12 pt-12 md:pb-16 md:pt-16">
-        <Tile data-work-site="" data-depth-rise="">
+        <Tile data-work-site="">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
             <div>
               <Chip dot="live">Live test</Chip>
@@ -135,14 +135,19 @@ export function WorkPage(): ReactNode {
                 </ButtonLink>
               </div>
             </div>
-            {/* The sketch Home shows in the same band, at the same resting tilt. Here it stays still: it
-                neither turns in nor follows the pointer. Decorative, so hidden from assistive technology. */}
+            {/* The sketch turns in on its centre to its resting tilt as it enters, then leans a little to a
+                fine pointer with a sheen that follows it (the Turn family). Its band is never drawn on: a
+                band that grows would read as live data. Decorative, so hidden from assistive technology. */}
             <div
               data-work-site-sketch=""
+              data-depth-turn=""
+              data-depth-follow=""
               aria-hidden="true"
-              className="overflow-clip rounded-xl border border-hairline lg:transform-[perspective(56rem)_rotateY(-14deg)_rotateX(6deg)] [&>[data-vignette]]:h-60 [&>[data-vignette]]:border-t-0"
+              className="overflow-clip rounded-xl border border-hairline lg:transform-[perspective(56rem)_rotateY(-14deg)_rotateX(6deg)]"
             >
-              <ConfidenceSketch />
+              <div data-site-sketch="" className="[&>[data-vignette]]:h-60 [&>[data-vignette]]:border-t-0">
+                <ConfidenceSketch />
+              </div>
             </div>
           </div>
         </Tile>

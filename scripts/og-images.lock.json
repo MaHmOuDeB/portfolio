@@ -1,9 +1,9 @@
 {
-  "inputHash": "8136f66704dbd9644fe274d9e82aa8c418e5897b7985830b255218339478bdfe",
+  "inputHash": "b8c977ed59496d8617df6487bb7de1c10e29f1c2ff6fc82b2743ebb210aff315",
   "renderer": "chromium 153.0.8010.12",
   "images": {
     "site.png": {
-      "sha256": "1f9be974bcb53cfaec614d614675792a6aa7111223fde6a8ef80feede9168a52",
+      "sha256": "a35ee27c0483960a5b7666969a291e32c0643112ed51e66ac51727105b6b5458",
       "width": 1200,
       "height": 630
     },

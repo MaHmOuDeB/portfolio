@@ -152,9 +152,9 @@ describe('Turn', () => {
     expect(kf).toMatch(/from\s*\{\s*transform:\s*perspective\(56rem\) rotateY\(-28deg\) rotateX\(10deg\) translateZ\(-120px\);\s*\}/);
     expect(kf).not.toMatch(/\bto\b|100%/);
     expect(families).toMatch(/\[data-depth-turn\]\s*\{[^}]*transform-origin:\s*50% 50%[^}]*animation:\s*depth-turn linear backwards[^}]*animation-range:\s*entry 10% cover 45%/);
-    const { SiteTile } = await import('@/components/home/SiteTile');
-    const html = renderToStaticMarkup(createElement(SiteTile));
-    expect(html).toMatch(/<div data-depth-turn="" data-depth-follow=""[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
+    const { WorkPage } = await import('@/components/work/WorkPage');
+    const html = renderToStaticMarkup(createElement(WorkPage));
+    expect(html).toMatch(/<div data-work-site-sketch="" data-depth-turn="" data-depth-follow=""[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
     expect(html).not.toMatch(/<path[^>]*data-depth/);
   });
 

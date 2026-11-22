@@ -234,6 +234,7 @@ describe('no client module reaches the raw experiment data', () => {
     const fromRoute = [...reachable('src/app/experiment/page.tsx').keys()];
     expect(fromRoute).toEqual(expect.arrayContaining(['src/lib/experiment/live.ts', 'src/lib/live-page/model.ts']));
     for (const f of SERVER_ONLY) expect(existsSync(path.join(ROOT, f)), f).toBe(true);
-    expect(valueImports('src/components/home/SiteTile.tsx')).not.toContain('src/lib/home/model.ts');
+    // ExperimentsTrack imports the Home model for its type only.
+    expect(valueImports('src/components/home/ExperimentsTrack.tsx')).not.toContain('src/lib/home/model.ts');
   });
 });

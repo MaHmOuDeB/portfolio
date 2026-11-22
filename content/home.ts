@@ -34,7 +34,10 @@ export const HOME_HERO = {
     lead: 'Analyst in Berlin. I build the ',
     chips: ['agents', 'workflows'],
     join: ' and ',
-    end: ' that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
+    /** Kept on one line with the second chip from sm up. */
+    end: ' that take the manual work out',
+    /** Wraps as plain text. */
+    rest: ', and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
   },
   cv: 'Read my CV',
   contact: 'Write to me',
@@ -50,8 +53,8 @@ export const HOME_HERO = {
 
 /** The hero's sub line as one string, the two chips' words in place. */
 export function heroSubText(): string {
-  const { lead, chips, join, end } = HOME_HERO.sub;
-  return `${lead}${chips[0]}${join}${chips[1]}${end}`;
+  const { lead, chips, join, end, rest } = HOME_HERO.sub;
+  return `${lead}${chips[0]}${join}${chips[1]}${end}${rest}`;
 }
 
 /** Every word the band prints, the caption last. */
@@ -343,13 +346,6 @@ export const HOME_SITE = {
   live: 'See the live test',
   lab: 'Try the Lab',
 } as const;
-
-/** The site band's head on Home: the same headline in two tones. */
-export const HOME_SITE_HEAD = {
-  chip: 'Live test',
-  title: 'This site is',
-  quiet: 'part of the evidence.',
-} as const satisfies SectionCopy;
 
 /**
  * A part of a FAQ answer: text, a fact, a link (a site path, or a repository the site already links,

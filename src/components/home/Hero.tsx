@@ -47,9 +47,9 @@ export function Hero() {
               wraps freely); the rest of the sentence wraps as text. */}
           <span data-hero-tail="">
             <Chip inline>{sub.chips[1]}</Chip>
-            {sub.end.slice(0, sub.end.indexOf(','))}
+            {sub.end}
           </span>
-          {sub.end.slice(sub.end.indexOf(','))}
+          {sub.rest}
         </p>
         <div data-hero-actions="">
           <Step d={1}>

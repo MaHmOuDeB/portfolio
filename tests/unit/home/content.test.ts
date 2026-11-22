@@ -15,7 +15,6 @@ import {
   heroSubText,
   HOME_PROOF,
   HOME_SITE,
-  HOME_SITE_HEAD,
   HOME_TRACKS,
   HOME_HOW,
   HOME_EXPERIMENTS_HEAD,
@@ -277,7 +276,7 @@ describe('the automation cards', () => {
 
 /** Every string of the moved sections (heads, tabs, lines, questions) and the site band's head. */
 const sectionCopy = (): string[] => [
-  ...[HOME_HOW.head, HOME_EXPERIMENTS_HEAD, HOME_AUTOMATION_HEAD, HOME_QUESTIONS.head, HOME_SITE_HEAD, HOME_FAQ.head].flatMap((h) => Object.values(h) as string[]),
+  ...[HOME_HOW.head, HOME_EXPERIMENTS_HEAD, HOME_AUTOMATION_HEAD, HOME_QUESTIONS.head, HOME_FAQ.head].flatMap((h) => Object.values(h) as string[]),
   ...HOME_HOW.tabs.flatMap((t) => [t.title, t.line]),
   ...HOME_AUTOMATE_LINES,
   ...HOME_QUESTIONS.rows.flat(),
@@ -303,7 +302,6 @@ describe('the hero, proof row, the sections and the site band', () => {
       live: 'See the live test',
       lab: 'Try the Lab',
     });
-    expect(HOME_SITE_HEAD).toEqual({ chip: 'Live test', title: 'This site is', quiet: 'part of the evidence.' });
   });
 
   it('say the approved "How I test" and "I automate." lines word for word, in the tabs and the row under the cards', () => {
