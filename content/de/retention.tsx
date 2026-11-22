@@ -477,7 +477,7 @@ export const RETENTION_DE: RetentionCopy = {
       (p) => (
         <>
           Der Gewinn bei der ROC AUC beträgt {p.fact('retention.model.auc_gain')}, mit einem Intervall von{' '}
-          {p.fact('retention.model.auc_gain_low')} bis {p.fact('retention.model.auc_gain_high')} zum Niveau von{' '} {p.num(p.d.intervalLevel, 'share', RS)}, aus einem gepaarten Bootstrap über die Testkunden; es deckt daher nur
+          {p.fact('retention.model.auc_gain_low')} bis {p.fact('retention.model.auc_gain_high')} zum Niveau von {p.num(p.d.intervalLevel, 'share', RS)}, aus einem gepaarten Bootstrap über die Testkunden; es deckt daher nur
           die Schwankung der Teststichprobe ab.
         </>
       ),
