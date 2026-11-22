@@ -19,6 +19,26 @@ export const ALLOW: readonly { pattern: RegExp; routes?: readonly string[]; reas
   { pattern: /\bF1\b/, routes: ['/cv'], reason: 'the metric name F1' },
 ];
 
+// The German twin of a route: "/privacy" is "/de/privacy", "/" is "/de".
+const dePath = (route: string) => (route === '/' ? '/de' : `/de${route}`);
+
+// German pages: the twin of every route-limited entry above, and the German shapes of the citations
+// (a space, or a non-breaking one, after "Art." and "§"). The numbers of a citation are not claims.
+const SP = '[ \\u00A0]';
+export const ALLOW_DE: readonly { pattern: RegExp; routes: readonly string[]; reason: string }[] = [
+  ...ALLOW.flatMap((a) => (a.routes === undefined ? [] : [{ ...a, routes: a.routes.map(dePath) }])),
+  {
+    pattern: new RegExp(`\\bArt\\.${SP}\\d+(?:${SP}Abs\\.${SP}\\d+)?(?:${SP}S\\.${SP}\\d+)?(?:${SP}lit\\.${SP}[a-z])?(?:${SP}DSGVO)?`),
+    routes: ['/de/privacy'],
+    reason: 'GDPR article citation (German)',
+  },
+  {
+    pattern: new RegExp(`§${SP}\\d+(?:${SP}Abs\\.${SP}\\d+)?(?:${SP}Nr\\.${SP}\\d+)?(?:${SP}TDDDG)?`),
+    routes: ['/de/privacy'],
+    reason: 'TDDDG section citation (German)',
+  },
+];
+
 // Routes the site does not author. The stray-number check is skipped on them; the deny-list, banned
 // phrases and marker validation still run. `/_global-error` is the static page Next 16.4.6 hard-codes
 // for a crash of the root layout itself (title "500: This page couldn't load"). It is shown only
