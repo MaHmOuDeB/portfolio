@@ -43,7 +43,7 @@ const text = (markup: string) =>
     .replace(/ ([.,:;)])/g, '$1')
     .trim();
 const audit = (markup: string) =>
-  auditHtml(`<!doctype html><html><head><title>t</title></head><body>${markup}</body></html>`, {
+  auditHtml(`<!doctype html><html lang="en"><head><title>t</title></head><body>${markup}</body></html>`, {
     route: '/demo',
     factIds: new Set(Object.keys(FACTS)),
     factDisplays: FACT_DISPLAYS,
