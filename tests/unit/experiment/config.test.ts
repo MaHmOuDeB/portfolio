@@ -15,9 +15,9 @@ describe('EXPERIMENT', () => {
     expect(FIXTURE_START).toBe('2026-11-02T00:00:00+01:00');
     expect(EXPERIMENT).toEqual({
       id: 'card-headlines',
-      prereg: { version: 'v1', tag: 'prereg-v1' },
+      prereg: { version: 'v1.1', tag: 'prereg-v1.1' },
       phase: 'calibration',
-      namespace: 'aa-v1',
+      namespace: 'aa-v1.1',
       calibration: { startedOn: '2026-11-16T12:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
       ab: { startedOn: null, capMonths: 6 },
       alpha: 0.05,
@@ -213,7 +213,7 @@ describe('docs/experiment/prereg.md', () => {
       'α = 0.05', 'p < 0.001', '50 per group', 'at least 2 weeks', 'at least 100', '6-month cap',
       '+10 percentage points', '5 seconds', 'half of the cards area', '1 second', 'clicks a featured card',
       '30 minutes', 'completed Berlin day', 'first decision is final', 'Global Privacy Control',
-      'Do Not Track', 'views, not people', '390 to 470', 'aa-v1.1', 'prereg-final', 'prereg-v1.1',
+      'Do Not Track', 'views, not people', '390 to 470', 'aa-v1.1', 'prereg-final', 'prereg-v1.1', 'aa-v1.2', 'prereg-v1.2',
       'Threat model', 'At most 200 counted entry views per Berlin day',
       'any Berlin day that reached the ceiling\nis flagged and does not feed a look', `Pre-registration hash: ${preregHash()}`,
     ];

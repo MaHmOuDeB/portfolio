@@ -1,9 +1,10 @@
 # Pre-registration: card headlines
 
-**Version:** v1 (git tag `prereg-v1`)
-**Status:** committed before data collection.
+**Version:** v1.1 (git tag `prereg-v1.1`); v1 is tag `prereg-v1`.
+**Status:** v1 was committed before data collection. Namespace `aa-v1` collected A/A data from
+16.11.2026 until the v1.1 deploy; that data is set aside and not analysed (see the amendment).
 
-I wrote this before any visitor was counted. It fixes the design, the numbers I plan with, the
+I wrote v1 before any visitor was counted; the v1.1 amendment at the end changes no design value. It fixes the design, the numbers I plan with, the
 decision rule and what I will do in each outcome. The treatment copy and every value below live in
 `src/experiment.config.ts` and `content/experiment/headlines.ts`; a hash of both is at the end of
 this page, and a test fails if either file changes without this page changing with it.
@@ -108,7 +109,7 @@ fault on is reported; a faulty look that also fails the split check or the A/A k
 the fact:
 
 - in the A/A, a data fault fails the calibration, so it also blocks the switch to the A/B, and the
-  calibration restarts in namespace `aa-v1.1`;
+  calibration restarts in namespace `aa-v1.2`;
 - in the A/B, the test is reported as stopped for a data fault and is not resumed; at the cap it
   reports the last clean look's interval, or none;
 - an SRM flag after the fault still suppresses the verdict.
@@ -142,7 +143,7 @@ The A/A fails if there is an SRM flag at any completed-day look, or if the A/A i
 0: either that look's own interval or the running band. An A/A detects instrumentation faults,
 not small biases; the synthetic-traffic and end-to-end tests are the main evidence that the
 instrumentation works. If the A/A fails, I stop, fix the
-cause, tag `prereg-v1.1` with the reason, and restart in namespace `aa-v1.1`.
+cause, tag `prereg-v1.2` with the reason, and restart in namespace `aa-v1.2`.
 
 ## Exclusions and the SRM base
 
@@ -168,7 +169,7 @@ view once and in order. A click counts for its view only inside that window.
 ## The daily ceiling
 
 At most 200 counted entry views per Berlin day. After that the reason is "ceiling" and nothing
-more is counted that day. That is about 50 times the traffic I expect, and low enough that a month at the ceiling, page reads included, uses about 70 percent of the store's free monthly command allowance. Visits turned away after the ceiling cost a few more commands each.
+more is counted that day. That is about 50 times the traffic I expect, and low enough that a month at the ceiling, page reads included, uses about 73 percent of the store's free monthly command allowance. Visits turned away after the ceiling cost a few more commands each.
 
 ## Expected detectable effect
 
@@ -214,8 +215,27 @@ At the switch to the A/B I make one commit, tagged `prereg-final`, with these ed
 - `phase: 'ab'`, `namespace: 'ab-v1'`, and `ab.startedOn` set to the start;
 - a new hash in this page.
 
-For `prereg-v1.1` after a failed A/A the edits are: `prereg: { version: 'v1.1', tag:
-'prereg-v1.1' }`, `namespace: 'aa-v1.1'`, `calibration.startedOn` set to the restart, any
+For `prereg-v1.2` after a failed A/A the edits are: `prereg: { version: 'v1.2', tag:
+'prereg-v1.2' }`, `namespace: 'aa-v1.2'`, `calibration.startedOn` set to the restart, any
 corrected design value, and a new hash in this page with the reason.
 
-Pre-registration hash: 69b2af032808fd2df20f783058a3c4d571a7062053ce7f56692e1c3852acf277
+## Amendment v1.1
+
+Version v1.1 (git tag `prereg-v1.1`) restarts the A/A calibration. No design value changes: the
+hypothesis, the headlines, the metrics, the numbers I plan with and the decision rule are those of
+v1.
+
+- **Why.** The home page was shortened and the featured cards moved higher on it. The A/A must
+  measure the page the A/B will run on, so the A/A data collected on the old page (namespace
+  `aa-v1`, from 16.11.2026 to the v1.1 deploy) is set aside and never analysed.
+- **What changes.** The pre-registration version and tag become v1.1 and `prereg-v1.1`, the
+  namespace becomes `aa-v1.1`, and the calibration starts again on the day v1.1 is deployed. A
+  failed A/A now restarts as `prereg-v1.2` in namespace `aa-v1.2`.
+- **What both groups see.** The home page carries a language menu in its header in both groups.
+- **German pages.** `/de` and every page under it are never assigned to a group, never counted and
+  never analysed. A German Live test page regenerates every 10 minutes, which is why the daily
+  ceiling section now says about 73 percent.
+
+v1 design hash (tag `prereg-v1`): 69b2af032808fd2df20f783058a3c4d571a7062053ce7f56692e1c3852acf277
+
+Pre-registration hash: 6a60666d578deeceff51f74c4042fc1cfd110a9876108a636563746f5b8d1cb6
