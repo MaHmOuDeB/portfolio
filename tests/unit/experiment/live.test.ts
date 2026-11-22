@@ -514,7 +514,14 @@ describe('the source', () => {
       'getExperimentSnapshot',
     ]);
     expect(readFileSync(LIVE_TEST, 'utf8')).toContain('toLivePageDisplay(toLivePageModel(await getExperimentSnapshot()');
-    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME, LIVE_TEST]);
+    // Its German twin reads and projects it the same way.
+    const LIVE_TEST_DE = join(SRC, 'app/de/experiment/page.tsx');
+    expect(readFileSync(LIVE_TEST_DE, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
+      'getExperimentSnapshot',
+      'getExperimentSnapshot',
+    ]);
+    expect(readFileSync(LIVE_TEST_DE, 'utf8')).toContain('toLivePageDisplay(toLivePageModel(await getExperimentSnapshot()');
+    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME, LIVE_TEST, LIVE_TEST_DE]);
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);

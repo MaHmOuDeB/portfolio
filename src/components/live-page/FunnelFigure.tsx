@@ -12,69 +12,59 @@ import type { TableData } from '@/components/kit/DataTable';
 import { TextTable } from '../tables/TextTable';
 import { Derived, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { PublishedCountText } from '@/components/home/PublishedCountText';
 import type { RejectReason } from '@/lib/experiment/events';
 import type { FigureRuntime } from '@/lib/figure/states';
+import type { Locale } from '@/lib/i18n/locale';
 import type { LivePagePublic } from '@/lib/live-page/model';
-import { BUILD, provenanceOf } from './Values';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
+import { liveCopy } from './copy';
+import { BUILD, Count, provenanceOf } from './Values';
 
-const NOT_PUBLISHED = 'Not published';
-const NO_DATA = 'No data';
 const P = 'max-w-text text-base';
 
-/** Each reason as the pre-registration lists it, and what it means. */
-const REASONS: Record<RejectReason, [string, string]> = {
-  bot: ['Known bots', 'A bot user agent, or a browser driven by automation'],
-  internal: ['Automated test and Lighthouse runs', 'Requests carrying the site’s own test header'],
-  self: ['My own devices', 'Browsers I excluded on the exclusion page'],
-  forced: ['Forced demo views', 'A group asked for in the address'],
-  not_entry: ['Not an entry view', 'A view that is not a fresh arrival on the home page'],
-  rate_limited: ['Over the rate limit', 'Too many requests from one network address in a minute'],
-  ceiling: ['After the daily ceiling', 'Entries after the day’s limit was reached'],
-};
 const ORDER: readonly RejectReason[] = ['bot', 'internal', 'self', 'forced', 'not_entry', 'rate_limited', 'ceiling'];
 
-type Props = { data: LivePagePublic; refs: readonly DerivedRef[]; runtime?: FigureRuntime };
+type Props = { data: LivePagePublic; refs: readonly DerivedRef[]; runtime?: FigureRuntime; locale?: Locale };
 
-export function FunnelFigure({ data, refs, runtime }: Props) {
+export function FunnelFigure({ data, refs, runtime, locale = 'en' }: Props) {
+  const t = liveCopy(locale).funnelFigure;
   const placeholder = data.source === 'unavailable';
   const c = data.current;
-  const cell = (v: number | '<5') => (placeholder ? NO_DATA : v);
+  const cell = (v: number | '<5') => (placeholder ? t.noData : v);
   const table: TableData = {
-    columns: ['Stage', 'Group A', 'Group B'],
+    columns: [t.columns.stage, t.columns.a, t.columns.b],
     rows: [
-      ['Beacons received', NOT_PUBLISHED, NOT_PUBLISHED],
-      ['After the bot filter', NOT_PUBLISHED, NOT_PUBLISHED],
-      ['Counted entry views', cell(c.a.entry), cell(c.b.entry)],
-      ['Cards in view (analysed views)', cell(c.a.inview), cell(c.b.inview)],
+      [t.stages.beacons, t.notPublished, t.notPublished],
+      [t.stages.bot, t.notPublished, t.notPublished],
+      [t.stages.entry, cell(c.a.entry), cell(c.b.entry)],
+      [t.stages.inview, cell(c.a.inview), cell(c.b.inview)],
     ],
     formats: ['number', 'count', 'count'],
-    note: 'Views per group. A count from one to four is shown as less than five.',
+    note: t.note,
     refs,
   };
   const pair = (a: number | '<5', b: number | '<5') =>
     placeholder ? (
-      NO_DATA
+      t.noData
     ) : (
-      <>
-        group A <PublishedCountText value={a} refs={refs} />, group B <PublishedCountText value={b} refs={refs} />
-      </>
+      t.pair({ a: <Count value={a} refs={refs} locale={locale} />, b: <Count value={b} refs={refs} locale={locale} /> })
     );
   return (
     <Figure
       id="live-funnel"
-      title="Only the last two stages are published"
+      title={t.title}
       state={runtime === undefined ? undefined : { runtime }}
-      caption="Each stage keeps what the one before it let through. The first two totals are not published, because a total could give away a count that is shown only as less than five."
+      caption={t.caption}
       provenance={provenanceOf(refs)}
       table={table}
+      {...(locale === 'de' ? { text: KIT_TEXT_DE } : {})}
     >
       <ol data-funnel="" className="grid divide-y divide-hairline-strong rounded-md border border-hairline-strong text-base md:grid-cols-4 md:divide-x md:divide-y-0">
         {[
-          ['Beacons received', NOT_PUBLISHED],
-          ['After the bot filter', NOT_PUBLISHED],
-          ['Counted entry views', pair(c.a.entry, c.b.entry)],
-          ['Cards in view (analysed views)', pair(c.a.inview, c.b.inview)],
+          [t.stages.beacons, t.notPublished],
+          [t.stages.bot, t.notPublished],
+          [t.stages.entry, pair(c.a.entry, c.b.entry)],
+          [t.stages.inview, pair(c.a.inview, c.b.inview)],
         ].map(([name, value], i) => (
           <li key={i} className="p-3 md:p-4">
             <span className="font-semibold">{name}</span>
@@ -88,32 +78,29 @@ export function FunnelFigure({ data, refs, runtime }: Props) {
 }
 
 /** What a beacon is, and who sends none: the method behind the stages. */
-export function FunnelMethod() {
-  return (
-    <p className={P}>
-      The beacon on the home page (a small signal the page sends when it loads) sends events, and the server decides which of
-      them count. These are beacons received, not visitors: one person can send many. Nothing comes from bots that never run
-      JavaScript, or from visitors whose browser sends Global Privacy Control or Do Not Track, so they are in no count.
-    </p>
-  );
+export function FunnelMethod({ locale = 'en' }: { locale?: Locale }) {
+  return <p className={P}>{liveCopy(locale).funnelFigure.method}</p>;
 }
 
 /** The entries turned away, by reason, with the structural preview row and the footnote. */
-export function FunnelExclusions({ data, refs }: { data: LivePagePublic; refs: readonly DerivedRef[] }) {
+export function FunnelExclusions({ data, refs, locale = 'en' }: { data: LivePagePublic; refs: readonly DerivedRef[]; locale?: Locale }) {
+  const t = liveCopy(locale).funnelFigure;
   const placeholder = data.source === 'unavailable';
+  const zero = <Derived value={0} unit="count" refs={BUILD} locale={locale} />;
   return (
     <div>
       {placeholder ? (
-        <p className={P}>No counts are shown: this page has no data.</p>
+        <p className={P}>{t.noCounts}</p>
       ) : (
         <div id="live-exclusions" className="max-w-figure">
           {/* A text table: the meanings are sentences, so they wrap instead of scrolling sideways. */}
           <TextTable
             id="live-exclusions-table"
-            caption="Entries turned away, by reason"
+            caption={t.exclusionsCaption}
+            locale={locale}
             table={{
-              columns: ['Reason', 'Entries', 'What it means'],
-              rows: ORDER.map((r) => [REASONS[r][0], data.funnel.excluded[r], REASONS[r][1]]),
+              columns: [...t.exclusionsColumns],
+              rows: ORDER.map((r) => [t.reasons[r][0], data.funnel.excluded[r], t.reasons[r][1]]),
               formats: ['number', 'count', 'number'],
               refs,
             }}
@@ -121,15 +108,9 @@ export function FunnelExclusions({ data, refs }: { data: LivePagePublic; refs: r
         </div>
       )}
       <p id="live-preview-row" className={`${P} mt-3`}>
-        Preview deployments: <Derived value={0} unit="count" refs={BUILD} />. A preview never writes to the store, so this is
-        always <Derived value={0} unit="count" refs={BUILD} />.
+        {t.preview(zero)}
       </p>
-      <p className={`${P} mt-3`}>
-        Each row counts entries turned away for one reason, with two exceptions: “Over the rate limit” counts at most one per
-        network address a minute, and “After the daily ceiling” counts one for each day the limit was reached. Once a day is full,
-        entries that would have counted are turned away without being counted under any reason. The rows are not visitors lost and do not add up:
-        one visitor can appear under several reasons, and some visits never reach the server at all.
-      </p>
+      <p className={`${P} mt-3`}>{t.footnote}</p>
     </div>
   );
 }

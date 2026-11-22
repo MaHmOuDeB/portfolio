@@ -10,8 +10,9 @@
 import { derivedAttr } from '@/components/kit/Derived';
 import type { TableData } from '@/components/kit/DataTable';
 import { formatNumber } from '@/lib/figure/format';
+import type { Locale } from '@/lib/i18n/locale';
 
-type Props = { id: string; caption: string; table: TableData };
+type Props = { id: string; caption: string; table: TableData; /** The language of the counts; omitted, English. */ locale?: Locale };
 
 /**
  * Every number here prints as a grouped whole count, so the only column formats it takes are `number`
@@ -28,7 +29,7 @@ function checkFormats(id: string, table: TableData): void {
   }
 }
 
-export function TextTable({ id, caption, table }: Props) {
+export function TextTable({ id, caption, table, locale }: Props) {
   checkFormats(id, table);
   const cell = derivedAttr(table.refs);
   const captionId = `${id}-caption`;
@@ -63,7 +64,7 @@ export function TextTable({ id, caption, table }: Props) {
                     i === 0 ? 'font-semibold md:whitespace-nowrap' : 'max-md:mt-2'
                   }`}
                 >
-                  {typeof v === 'number' ? formatNumber(v, 0) : v}
+                  {typeof v === 'number' ? formatNumber(v, 0, { locale }) : v}
                 </td>
               ))}
             </tr>

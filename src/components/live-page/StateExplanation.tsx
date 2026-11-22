@@ -9,169 +9,162 @@
 // a held test never reads as running, passed or inconclusive; this page assigns no group, so it never
 // says which group the reader is in.
 import type { ReactNode } from 'react';
-import { PublishedCountText } from '@/components/home/PublishedCountText';
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { berlinStartOfDay } from '@/lib/experiment/time';
+import { stopReasonKey } from '@/lib/experiment/reasons';
 import { berlinDate } from '@/lib/figure/time';
+import type { Locale } from '@/lib/i18n/locale';
 import type { LivePageDisplay } from '@/lib/live-page/model';
-import type { NextStep } from '@/lib/live-page/next-step';
+import { AB_START_STEP, CLOSED_STEP, CONFIRMING_STEP, RESTART_STEP, type NextStep } from '@/lib/live-page/next-step';
+import type { LiveCopy } from '../../../content/live';
+import { liveCopy } from './copy';
+import { Count } from './Values';
 
-function When({ iso, refs }: { iso: string; refs: readonly DerivedRef[] }) {
+function When({ iso, refs, locale }: { iso: string; refs: readonly DerivedRef[]; locale: Locale }) {
   return (
     <time dateTime={iso} {...derivedAttr(refs)}>
-      {berlinDate(iso)}
+      {berlinDate(iso, { locale })}
     </time>
   );
 }
 /** A Berlin calendar day ("2026-12-02"), printed as its date. */
-const Day = ({ day, refs }: { day: string; refs: readonly DerivedRef[] }) => <When iso={berlinStartOfDay(day)} refs={refs} />;
+const Day = ({ day, refs, locale }: { day: string; refs: readonly DerivedRef[]; locale: Locale }) => (
+  <When iso={berlinStartOfDay(day)} refs={refs} locale={locale} />
+);
 
 /** The configured A/B start is a build value; fictional pages stay simulated. */
 const startRefs = (d: LivePageDisplay): readonly DerivedRef[] => (d.refs.includes('simulated') ? ['simulated'] : ['build']);
 
-const BASE_WORDS = { entry: 'entry views', analysed: 'analysed views', both: 'entry and analysed views' } as const;
 /** A stored reason, without its own closing full stop (the sentence adds one). */
 const reasonText = (r: string) => r.replace(/[.\s]+$/, '');
 
+/**
+ * A stored reason in the page's language. English prints the stored words. German prints the German
+ * twin of a reason the site wrote; the owner's own note (a pause flag) has no twin and stays as
+ * written, marked as English.
+ */
+export function reasonIn(reason: string, locale: Locale): ReactNode {
+  if (locale === 'en') return reasonText(reason);
+  const key = stopReasonKey(reason);
+  return key !== null ? liveCopy(locale).reasons[key] : <span lang="en">{reasonText(reason)}</span>;
+}
+
 /** Where a split check failed and, unless the test is held, its published counts at that check. */
-function SplitFailure({ split, refs, lead, counts }: { split: NonNullable<LivePageDisplay['split']>; refs: readonly DerivedRef[]; lead: string; counts: boolean }) {
+function SplitFailure({
+  split,
+  refs,
+  lead,
+  counts,
+  locale,
+}: {
+  split: NonNullable<LivePageDisplay['split']>;
+  refs: readonly DerivedRef[];
+  lead: string;
+  counts: boolean;
+  locale: Locale;
+}) {
+  const t = liveCopy(locale).state;
   const bases = !counts ? [] : split.base === 'both' ? (['entry', 'analysed'] as const) : ([split.base] as const);
   return (
     <>
-      {` ${lead} `}
-      <Day day={split.day} refs={refs} />, on {BASE_WORDS[split.base]}.
+      {t.splitFailure({ lead: t.splitLead(lead), day: <Day day={split.day} refs={refs} locale={locale} />, base: t.base[split.base] })}
       {bases.map((b) => (
         <span key={b}>
-          {` ${b === 'entry' ? 'Entry' : 'Analysed'} views at that check: `}
-          <PublishedCountText value={split[b].a} refs={refs} /> in group A and <PublishedCountText value={split[b].b} refs={refs} /> in group B.
+          {t.viewsAt[b]({
+            a: <Count value={split[b].a} refs={refs} locale={locale} />,
+            b: <Count value={split[b].b} refs={refs} locale={locale} />,
+          })}
         </span>
       ))}
     </>
   );
 }
 
-const OUTCOME_WORDS = {
-  'ship-b': 'Ship B.',
-  'stop-for-harm': 'Stop for harm.',
-  inconclusive: 'Inconclusive at the limit; this is not evidence of no effect.',
-} as const;
-const CALIBRATING = 'Calibrating: both groups see the same page.';
-
 /** The state's own sentence(s). */
-function stateSentence(d: LivePageDisplay): ReactNode {
+function stateSentence(d: LivePageDisplay, locale: Locale): ReactNode {
   const refs = d.refs;
+  const t = liveCopy(locale).state;
+  const day = (iso: string) => <When iso={iso} refs={refs} locale={locale} />;
   switch (d.mode) {
     case 'not-started':
-      return 'The experiment has not started. Nothing is counted yet.';
+      return t.notStarted;
     case 'closure-check':
       // No day: the stored day is the deciding look's, and the route stops counting only once the stop
       // is stored, up to a day later. The Home note prints no day either.
-      return 'Counting has stopped for this run. I am checking the stored result before showing it.';
+      return t.closureCheck;
     case 'unavailable':
-      return d.closedConfirmed
-        ? 'The live counts could not be loaded, and counting has closed.'
-        : d.countingClosed
-          ? 'The live counts could not be loaded.'
-          : 'The live counts could not be loaded. They will appear at the next update.';
+      return d.closedConfirmed ? t.unavailableClosed : d.countingClosed ? t.unavailableCountingClosed : t.unavailable;
     case 'settings-unreadable':
-      return 'Counting is stopped because the experiment settings could not be read.';
+      return t.settingsUnreadable;
     case 'held': {
       const held = d.held!;
-      return (
-        <>
-          {held.reason === 'inconsistent-counts'
-            ? 'The test stopped because the counts failed a consistency check.'
-            : 'The test stopped because the interval failed a consistency check.'}
-          {' Results use only the data up to the last check that passed. The check failed on '}
-          <Day day={held.on} refs={refs} />.
-          {d.split ? <SplitFailure split={d.split} refs={refs} lead="The split check also failed on" counts={false} /> : null}
-        </>
-      );
+      return t.held({
+        reason: held.reason === 'inconsistent-counts' ? t.heldCounts : t.heldInterval,
+        on: <Day day={held.on} refs={refs} locale={locale} />,
+        split: d.split ? <SplitFailure split={d.split} refs={refs} lead={t.splitAlso} counts={false} locale={locale} /> : null,
+      });
     }
     case 'srm-suppressed':
-      return (
-        <>
-          The split check failed, so no result is shown.
-          {d.split ? <SplitFailure split={d.split} refs={refs} lead="It failed on" counts /> : null}
-        </>
-      );
-    case 'aa-failed':
-      return (
-        <>
-          {d.aaFailed ? (
-            <>
-              Calibration stopped on <When iso={d.aaFailed.on} refs={refs} />: {reasonText(d.aaFailed.reason)}.
-            </>
-          ) : (
-            'Calibration stopped.'
-          )}
-          {d.split ? <SplitFailure split={d.split} refs={refs} lead="It failed on" counts /> : null}
-        </>
-      );
+      return t.srm(d.split ? <SplitFailure split={d.split} refs={refs} lead={t.splitIt} counts locale={locale} /> : null);
+    case 'aa-failed': {
+      const split = d.split ? <SplitFailure split={d.split} refs={refs} lead={t.splitIt} counts locale={locale} /> : null;
+      return d.aaFailed ? t.aaFailed({ on: day(d.aaFailed.on), reason: reasonIn(d.aaFailed.reason, locale), split }) : t.aaStopped(split);
+    }
     case 'paused':
-      return d.paused ? (
-        <>
-          Paused on <When iso={d.paused.on} refs={refs} />: {reasonText(d.paused.reason)}.
-        </>
-      ) : (
-        'The experiment on this site is paused.'
-      );
+      return d.paused ? t.paused({ on: day(d.paused.on), reason: reasonIn(d.paused.reason, locale) }) : t.pausedPlain;
     case 'ship-b':
     case 'stop-for-harm':
     case 'inconclusive':
       return (
         <>
-          {OUTCOME_WORDS[d.mode]}
-          {d.afterDecisionSrm ? ' A later split check failed; the recorded decision is unchanged.' : null}
+          {t.outcome[d.mode]}
+          {d.afterDecisionSrm ? t.laterSplit : null}
         </>
       );
     case 'before-data':
     case 'calibration':
     case 'ab': {
       // Past the A/B's planned end (or a stored stop) before a decision is recorded.
-      if (d.countingClosed) return d.closedConfirmed ? 'Counting has closed; no decision is recorded in this snapshot.' : 'The result is being confirmed.';
+      if (d.countingClosed) return d.closedConfirmed ? t.closedNoDecision : t.beingConfirmed;
       if (d.mode === 'ab') {
-        return d.abStartedOn !== null ? (
-          <>
-            A/B started <When iso={d.abStartedOn} refs={startRefs(d)} />.
-          </>
-        ) : (
-          'The A/B test is running.'
-        );
+        return d.abStartedOn !== null ? t.abStarted(<When iso={d.abStartedOn} refs={startRefs(d)} locale={locale} />) : t.abRunning;
       }
       const c = d.calibration;
-      return c !== null && c.ready && c.evaluatedOn !== null ? (
-        <>
-          {`${CALIBRATING} The calibration passed its checks on `}
-          <Day day={c.evaluatedOn} refs={refs} />.
-        </>
-      ) : (
-        CALIBRATING
-      );
+      return c !== null && c.ready && c.evaluatedOn !== null ? t.calibratingPassed(<Day day={c.evaluatedOn} refs={refs} locale={locale} />) : t.calibrating;
     }
   }
 }
 
+/** The English next-step sentence (as the model holds it) in the page's language. */
+function nextText(text: string, copy: LiveCopy): string {
+  if (text === CLOSED_STEP) return copy.next.closed;
+  if (text === CONFIRMING_STEP) return copy.next.confirming;
+  if (text === RESTART_STEP) return copy.next.restart;
+  if (text === AB_START_STEP) return copy.next.abStart;
+  return text;
+}
+
 /** The next step, with its date as a `<time>` where the sentence has one. */
-function NextStepText({ step }: { step: NextStep }): ReactNode {
-  if (step.date === undefined) return step.text;
-  const [before, after] = step.text.split('{date}') as [string, string];
+function NextStepText({ step, locale }: { step: NextStep; locale: Locale }): ReactNode {
+  const text = nextText(step.text, liveCopy(locale));
+  if (step.date === undefined) return text;
+  const [before, after] = text.split('{date}') as [string, string];
   return (
     <>
       {before}
-      <When iso={step.date} refs={step.refs} />
+      <When iso={step.date} refs={step.refs} locale={locale} />
       {after}
     </>
   );
 }
 
-export function StateExplanation({ model: d }: { model: LivePageDisplay }): ReactNode {
+export function StateExplanation({ model: d, locale = 'en' }: { model: LivePageDisplay; locale?: Locale }): ReactNode {
   return (
     <div data-live-state={d.mode} className="max-w-text text-base">
-      <p>{stateSentence(d)}</p>
+      <p>{stateSentence(d, locale)}</p>
       {d.nextStep !== null ? (
         <p data-next-step="" className="mt-3">
-          <NextStepText step={d.nextStep} />
+          <NextStepText step={d.nextStep} locale={locale} />
         </p>
       ) : null}
     </div>
