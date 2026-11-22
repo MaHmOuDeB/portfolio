@@ -31,12 +31,10 @@ import {
   WorkflowSketch,
   type SketchProps,
 } from '@/components/frame/sketches';
-import { CallToAction } from '@/components/frame';
 import { localHref } from '@/lib/i18n/href';
 import type { Locale } from '@/lib/i18n/locale';
 import type { SketchText } from '../../../content/home.ts';
 import { prefetchFor } from '@/lib/nav';
-import { CONTACT, CONTACT_HREF, CV_LINK } from '@/lib/site';
 import { homeCopy } from '@/components/home/copy';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { WORK_GROUPS } from '../../../content/work.tsx';
@@ -71,26 +69,6 @@ function vignette(href: string, text: SketchText): ReactNode {
  * card's meta line is empty here, so it is not drawn.
  */
 const CARD_CELL = 'grid grid-cols-1 [&_p]:contents [&_[data-depth-meta]]:hidden';
-
-/**
- * The closing call to action. English is the shared one; a page with its own words (German) draws the
- * same ruled band around the frame's panel.
- */
-function Cta({ copy, locale }: { copy: NonNullable<ReturnType<typeof workCopy>['cta']>; locale: Locale }) {
-  return (
-    <div data-rule="" data-page-cta="" className="print:hidden pb-12 pt-12 md:pb-16 md:pt-16">
-      <CallToAction
-        id="page-cta-title"
-        title={copy.title}
-        quiet={copy.quiet}
-        line={copy.line}
-        primary={{ label: copy.write, href: localHref(locale, CONTACT_HREF) }}
-        secondary={{ label: copy.cv, href: localHref(locale, CV_LINK.href) }}
-        tertiary={{ label: copy.linkedin, href: CONTACT.linkedin, external: true }}
-      />
-    </div>
-  );
-}
 
 export function WorkPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
   const copy = workCopy(locale);
@@ -189,7 +167,7 @@ export function WorkPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode
         </Tile>
       </div>
 
-      {copy.cta === null ? <PageCallToAction /> : <Cta copy={copy.cta} locale={locale} />}
+      <PageCallToAction locale={locale} />
     </article>
   );
 }

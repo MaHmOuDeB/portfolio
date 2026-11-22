@@ -17,7 +17,7 @@ export const SHELL_DE: ShellCopy = {
   headline: { lead: 'KI-Automatisierung und A/B-Testing', quiet: 'für Produkt- und Growth-Teams' },
   footerColumns: { site: 'Website', contact: 'Kontakt', legal: 'Rechtliches' },
   language: { label: 'Sprache', english: 'English', german: 'Deutsch' },
-  description: 'Analyst für A/B-Testing und KI-Automatisierung in Berlin.',
+  description: 'Analyst für KI-Automatisierung und A/B-Testing in Berlin.',
   notFound: {
     chip: 'Nicht gefunden',
     title: 'Seite nicht gefunden',

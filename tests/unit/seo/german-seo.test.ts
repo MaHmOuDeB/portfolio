@@ -1,4 +1,5 @@
 // The German SEO data, the language-aware page metadata and the sitemap's twins.
+import { DE_PAGES } from '@/lib/i18n/pages';
 import { describe, expect, it } from 'vitest';
 import { factText } from '@/lib/facts/text';
 import { pageMetadata } from '@/lib/seo/metadata';
@@ -77,8 +78,11 @@ describe('pageMetadata and the German registry', () => {
     expect(meta.openGraph).not.toHaveProperty('alternateLocale');
   });
 
-  it('an unregistered page is the same by default, because the registry is empty', () => {
-    expect(pageMetadata(seoEntry('/work'), ORIGIN)).toEqual(pageMetadata(seoEntry('/work'), ORIGIN, []));
+  it('an unregistered page advertises no twin: the same as with an empty registry', () => {
+    const unregistered = SEO_PAGES.find((e) => !DE_PAGES.includes(e.path));
+    if (unregistered === undefined) return; // every page has its twin
+    expect(pageMetadata(unregistered, ORIGIN)).toEqual(pageMetadata(unregistered, ORIGIN, []));
+    expect(pageMetadata(unregistered, ORIGIN).alternates).toEqual({ canonical: new URL(unregistered.path, ORIGIN).href });
   });
 
   it('a registered page carries both languages and x-default on both twins', () => {

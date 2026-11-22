@@ -54,10 +54,11 @@ describe('localHrefWith', () => {
 });
 
 describe('localHref', () => {
-  it('uses the registry, empty for now, so de passes pages through', () => {
-    expect(DE_PAGES).toEqual([]);
-    expect(localHref('de', '/work')).toBe('/work');
-    expect(localHref('de', '/v/a')).toBe('/');
+  it('uses the registry: a registered page gets its twin, any other page stays English', () => {
+    expect(DE_PAGES).toContain('/work');
+    expect(localHref('de', '/work')).toBe('/de/work');
+    expect(localHref('de', '/v/a')).toBe(DE_PAGES.includes('/') ? '/de' : '/');
+    expect(localHref('de', '/kitchen-sink')).toBe('/kitchen-sink');
     expect(localHref('en', '/work')).toBe('/work');
   });
 });

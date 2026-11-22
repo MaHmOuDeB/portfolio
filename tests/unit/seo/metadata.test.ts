@@ -1,4 +1,5 @@
 // Canonical metadata, the route inventory, the sitemap and robots, and the sharing images.
+import { DE_PAGES } from '@/lib/i18n/pages';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -428,11 +429,17 @@ describe('canonicalAndRobots', () => {
       expect(m.title).toBe(entry.path === '/' ? SITE.name : `${entry.title} | Mahmoud El Bergui`);
       expect(m.title).toBe(documentTitle(entry));
       expect(m.description).toBe(entry.description);
-      expect(m.alternates).toEqual({ canonical: url });
+      // A page with a German twin names both languages, and English as the default.
+      const twin = DE_PAGES.includes(entry.path);
+      const deUrl = `https://site.example.com${entry.path === '/' ? '/de' : `/de${entry.path}`}`;
+      expect(m.alternates).toEqual(
+        twin ? { canonical: url, languages: { en: url, de: deUrl, 'x-default': url } } : { canonical: url },
+      );
       expect(m.openGraph).toEqual({
         type: 'website',
         siteName: SITE.name,
         locale: 'en_GB',
+        ...(twin ? { alternateLocale: 'de_DE' } : {}),
         url,
         title: shareTitle(entry),
         description: entry.description,
@@ -459,7 +466,11 @@ describe('canonicalAndRobots', () => {
   it('the sitemap lists every manifest page on the canonical origin and nothing internal', async () => {
     const { default: sitemap } = await import('@/app/sitemap');
     const urls = sitemap().map((item) => item.url);
-    expect(urls).toEqual(SEO_PAGES.map((entry) => new URL(entry.path, canonicalOrigin()).href));
+    const english = SEO_PAGES.map((entry) => new URL(entry.path, canonicalOrigin()).href);
+    const german = SEO_PAGES.filter((entry) => DE_PAGES.includes(entry.path)).map(
+      (entry) => new URL(entry.path === '/' ? '/de' : `/de${entry.path}`, canonicalOrigin()).href,
+    );
+    expect([...urls].sort()).toEqual([...english, ...german].sort());
     for (const url of urls) {
       expect(url).toMatch(/^https:\/\/canonical\.invalid\//);
       expect(url).not.toMatch(/[?#]|\/api\/|\/v\/|kitchen-sink|\/exclude|\/demo|data\.json/);

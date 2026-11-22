@@ -78,7 +78,7 @@ export const SEO_PAGES_DE: SeoPagesDe = {
   },
   '/work/audible': {
     title: 'A/B-Testing bei Audible (Amazon)',
-    description: `Wie ich als Werkstudent bei Audible an ${factText('profile.audible.experiments', { locale: 'de' })} A/B-Tests mitgewirkt habe, warum ${factText('profile.audible.recommendations_adopted', { locale: 'de' })} meiner Empfehlungen übernommen wurden und ein von mir gebautes Tool, das das Team eingeführt hat.`,
+    description: `Wie ich als Werkstudent bei Audible an ${factText('profile.audible.experiments', { locale: 'de' })} A/B-Tests mitgewirkt habe, warum ${factText('profile.audible.recommendations_adopted', { locale: 'de' })} meiner Empfehlungen übernommen wurden und ein von mir gebautes Tool, das das Team übernommen hat.`,
     card: 'audible',
   },
   '/work/retention': {
@@ -130,13 +130,13 @@ export const SEO_PAGES_DE: SeoPagesDe = {
   '/about': {
     title: 'Über mich',
     description:
-      'Analyst für A/B-Testing und KI-Automatisierung in Berlin: meine Geschichte, mein Werdegang, die Tools, die ich genutzt habe, und wo, und mein Lebenslauf.',
+      'Analyst für KI-Automatisierung und A/B-Testing in Berlin: meine Geschichte, mein Werdegang, die Tools, die ich genutzt habe, und wo, und mein Lebenslauf.',
     card: 'site',
   },
   '/cv': {
     title: 'Lebenslauf',
     description:
-      'Der Lebenslauf von Mahmoud El Bergui, Analyst für A/B-Testing und KI-Automatisierung in Berlin, als Seite zum Lesen oder Drucken.',
+      'Der Lebenslauf von Mahmoud El Bergui, Analyst für KI-Automatisierung und A/B-Testing in Berlin, als Seite zum Lesen oder Drucken.',
     card: 'site',
   },
   '/contact': {
