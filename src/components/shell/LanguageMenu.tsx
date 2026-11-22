@@ -40,8 +40,16 @@ export function LanguageMenu({ locale, text, variant }: Props) {
       el.open = false;
       el.querySelector('summary')?.focus();
     };
+    // A press anywhere outside the open list closes it, as a click elsewhere would expect.
+    const onOutside = (event: PointerEvent) => {
+      if (el.open && event.target instanceof Node && !el.contains(event.target)) el.open = false;
+    };
     el.addEventListener('keydown', onKey);
-    return () => el.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onOutside);
+    return () => {
+      el.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onOutside);
+    };
   }, []);
 
   const links = items.map(({ language, name }) => {

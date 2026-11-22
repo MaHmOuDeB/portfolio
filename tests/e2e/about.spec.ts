@@ -127,11 +127,11 @@ test.describe('About and CV', () => {
       await page.goto(route);
       const header = page.locator('[data-site-header]');
       // Under 1024 px the header's links and both buttons live behind Menu: open it first there.
-      const summary = header.locator('summary');
+      const summary = header.locator('[data-menu] > summary');
       if (await summary.isVisible()) {
-        await waitForHydration(header.locator('details'));
+        await waitForHydration(header.locator('[data-menu]'));
         await summary.click();
-        await expect(header.locator('details')).toHaveAttribute('open', '');
+        await expect(header.locator('[data-menu]')).toHaveAttribute('open', '');
       }
       const cv = header.getByRole('link', { name: 'CV', exact: true });
       await expect(cv.filter({ visible: true })).toHaveCount(1);

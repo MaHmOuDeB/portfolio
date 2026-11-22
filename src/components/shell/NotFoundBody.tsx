@@ -18,7 +18,7 @@ export function NotFoundBody({ locale = 'en' }: { locale?: Locale }) {
       <p>
         {notFound.body}
       </p>
-      <div className={`mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 [&>a[href='${lab}']]:min-w-(--size-target)`}>
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 [&>a[href$='/lab']]:min-w-(--size-target)">
         <ButtonLink href={work} variant="primary">
           {notFound.work}
         </ButtonLink>
