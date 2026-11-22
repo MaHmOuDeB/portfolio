@@ -423,22 +423,37 @@ git show prereg-v1:docs/experiment/prereg.md | tail -n 3
 Use `git tag -a` instead of `git tag -s` if there is no signing key. The last command must show the
 same hash as `npm run prereg:hash`.
 
-## 8. If the A/A calibration fails: restart as `aa-v1.1`
+## 8. If the A/A calibration fails: restart as `aa-v1.2`
 
 A failed calibration stops counting and shows why on the site. To restart after the fault is fixed:
 
-1. In `src/experiment.values.ts`, set `namespace` to `'aa-v1.1'`, the pre-registration version to
-   `'v1.1'` and its tag to `'prereg-v1.1'`, and set `calibration.startedOn` to the new start (a
+1. In `src/experiment.values.ts`, set `namespace` to `'aa-v1.2'`, the pre-registration version to
+   `'v1.2'` and its tag to `'prereg-v1.2'`, and set `calibration.startedOn` to the new start (a
    date and time with its offset, for example `2026-12-07T00:00:00+01:00`). The new start is the
    day this commit is deployed, never a later day, and the same holds for `ab.startedOn` in the
    switch to the A/B: before its start date the site says the experiment has not started, which is
    false once a run has begun.
 2. Run `npm run prereg:hash`, write the new hash at the end of `docs/experiment/prereg.md`, and add
    a short note there on what failed and what changed.
-3. Commit, merge, tag `prereg-v1.1` on the merge commit (as in step 7) and let it deploy.
+3. Commit, merge, tag `prereg-v1.2` on the merge commit (as in step 7) and let it deploy.
 4. Only after that deployment is live: Vercel, **Storage**, the Edge Config store, **Items**, open
    the `experiment` item and remove its `aaFailed` entry (or the whole item if nothing else is in
    it), and **Save**. The fresh namespace starts empty, so the old counts never enter the new run.
+
+Version v1.1 (tag `prereg-v1.1`, namespace `aa-v1.1`) was a planned restart, not a failure: the
+home page was shortened, so the A/A started again on the new page (see the amendment in
+`docs/experiment/prereg.md`). The same steps applied, with v1.1 values.
+
+After any restart deploy:
+
+- A tab opened before the deploy still sends the old namespace (`ns: 'aa-v1'` after v1.1). Those
+  events are refused; this is expected and needs nothing.
+- The ISR pages are rebuilt by the deploy, so `/experiment` and `/experiment/data.json` show the
+  new namespace at once.
+- To roll back, revert the commit that caused the problem and keep `src/experiment.values.ts` and
+  `docs/experiment/prereg.md` at the current version. Never use Vercel's Instant Rollback past the
+  restart deploy, and never set `LAUNCH_SHA` back to a commit of the earlier version: either would
+  bring back the old namespace and resume the old A/A with a gap.
 
 ## 9. Pausing
 
