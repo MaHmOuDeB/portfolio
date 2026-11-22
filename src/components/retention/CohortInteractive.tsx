@@ -16,6 +16,7 @@ import type { Provenance } from '@/components/kit/ProvenanceBadge';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { COHORTS_ID, cohortAt, cohortPresets, cohortSchema, cohortTableFrom, type Cohort } from '@/lib/retention/cohorts';
+import { EN_COHORTS, type CohortText } from '@/lib/retention/text';
 import { CohortControls } from './CohortFigureClient';
 import { CohortFigureView, cohortResultText } from './CohortView';
 
@@ -23,9 +24,11 @@ export type CohortInteractiveProps = {
   rows: readonly Cohort[];
   provenance: Provenance;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: CohortText;
 };
 
-export default function CohortInteractive({ rows, provenance, faultAfterChange }: CohortInteractiveProps) {
+export default function CohortInteractive({ rows, provenance, faultAfterChange, text = EN_COHORTS }: CohortInteractiveProps) {
   // The schema and the preset come from the rows, once: useFigureParams needs them stable.
   const [schema] = useState(() => cohortSchema(rows));
   const [presets] = useState(() => cohortPresets(rows));
@@ -38,24 +41,26 @@ export default function CohortInteractive({ rows, provenance, faultAfterChange }
       rows={rows}
       cohort={cohort}
       provenance={provenance}
-      table={cohortTableFrom(rows)}
+      table={cohortTableFrom(rows, text)}
+      text={text}
       preview={false}
       announcement={announcement}
       faultAfterChange={faultAfterChange}
       changed={changed}
       controls={
         <CohortControls
+          text={text}
           rows={rows}
           cohort={cohort}
           onCohort={(next) => {
             set('cohort', next);
             setChanged(true);
-            setAnnouncement(cohortResultText(cohortAt(rows, next).row));
+            setAnnouncement(cohortResultText(cohortAt(rows, next).row, text));
           }}
           onReset={() =>
             instantly(COHORTS_ID, () => {
               reset();
-              setAnnouncement(cohortResultText(cohortAt(rows, presets[preset]!.cohort).row));
+              setAnnouncement(cohortResultText(cohortAt(rows, presets[preset]!.cohort).row, text));
             })
           }
         />

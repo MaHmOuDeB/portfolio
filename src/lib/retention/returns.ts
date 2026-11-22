@@ -6,8 +6,10 @@
 import type { TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
 import type { Provenance } from '@/components/kit/ProvenanceBadge';
+import { INTL, type Locale } from '@/lib/i18n/locale';
 import type { ParamSchema, Presets } from '@/lib/figure/url-state';
 import type { RETAIL, ReturnMode } from './data';
+import { EN_RETURNS, type ReturnsText } from './text';
 
 export type { ReturnMode };
 /** A monthly row of the retail export, sales columns included. */
@@ -24,7 +26,7 @@ export function returnsPlotRows(rows: readonly ExportMonth[]): RetailMonth[] {
 }
 
 export const RETURNS_ID = 'returns';
-export const RETURNS_TITLE = 'Removing reversed orders changes the returns story';
+export const RETURNS_TITLE = EN_RETURNS.title;
 
 export const RETURNS_SCHEMA = {
   mode: { kind: 'enum', values: ['raw', 'clean'] },
@@ -41,12 +43,16 @@ export const RETURNS_REFS: readonly DerivedRef[] = ['source:retail'];
  */
 export const RULE_HOURS = 24;
 
-const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const monthFormats: Record<Locale, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat(INTL.en, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+  de: new Intl.DateTimeFormat(INTL.de, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+};
 
-/** "Jan 2010" for "2010-01". */
-export function monthLabel(month: string): string {
+/** "Jan 2010" for "2010-01" ("Jan. 2010" in German). */
+export function monthLabel(month: string, locale: Locale = 'en'): string {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new TypeError(`expected a YYYY-MM month, got ${JSON.stringify(month)}`);
-  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`)).replace(/^Sept\b/, 'Sep');
+  const text = monthFormats[locale].format(Date.parse(`${month}-01T00:00:00Z`));
+  return locale === 'en' ? text.replace(/^Sept\b/, 'Sep') : text;
 }
 
 /** The returned-order value of a month in the chosen mode, checked to be a finite, non-negative number. */
@@ -57,15 +63,13 @@ export function returnsValue(row: RetailMonth, mode: ReturnMode): number {
 }
 
 /** The same table as returnsTable(mode) in ./tables, from the rows the Figure was given. */
-export function returnsTableFrom(rows: readonly RetailMonth[], mode: ReturnMode): TableData {
+export function returnsTableFrom(rows: readonly RetailMonth[], mode: ReturnMode, text: ReturnsText = EN_RETURNS): TableData {
+  const locale = text.kit.locale;
   return {
-    columns: ['Month', 'Returned-order value (GBP)', 'Partial month'],
-    rows: rows.map((m) => [monthLabel(m.month), returnsValue(m, mode), m.partial ? 'Yes' : 'No']),
+    columns: [...text.table.columns],
+    rows: rows.map((m) => [monthLabel(m.month, locale), returnsValue(m, mode), m.partial ? text.table.yes : text.table.no]),
     formats: ['number', 'count', 'number'],
-    note:
-      mode === 'raw'
-        ? 'Without the reversal rule: a cancellation that reverses an order counts as a returned order. The last month is partial: the data ends early in December.'
-        : 'With the reversal rule: an order and the cancellation that reverses it are both removed. The last month is partial: the data ends early in December.',
+    note: text.table.note[mode],
     refs: RETURNS_REFS,
   };
 }
@@ -103,14 +107,29 @@ export type ReturnsEvidence = {
   januaryReversalDate: string;
 };
 
-const shortMonth = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' });
+const shortMonths: Record<Locale, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat(INTL.en, { month: 'short', timeZone: 'UTC' }),
+  // With the year, German writes the abbreviation's dot ("Jan. 2011"): the month part of that form.
+  de: new Intl.DateTimeFormat(INTL.de, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+};
+
+function shortMonthName(m: number, locale: Locale): string {
+  const when = Date.UTC(2000, m - 1, 1);
+  if (locale === 'en') return shortMonths.en.format(when).replace(/^Sept$/, 'Sep');
+  return shortMonths.de.formatToParts(when).find((p) => p.type === 'month')!.value;
+}
 
 /**
  * The growth comparison's window, read from the rows: the full months of the last year with data
  * (the partial last month left out), against the same months a year earlier, such as
  * "Jan to Nov 2011 versus Jan to Nov 2010". Throws when a month of either window is missing or partial.
  */
-export function comparisonPeriod(rows: readonly RetailMonth[]): string {
+export function comparisonPeriod(
+  rows: readonly RetailMonth[],
+  o: { locale?: Locale; words?: ReturnsText['period'] } = {},
+): string {
+  const locale = o.locale ?? 'en';
+  const words = o.words ?? EN_RETURNS.period;
   const lastFull = rows.findLast((r) => !r.partial);
   if (!lastFull) throw new Error('returns: no full month');
   const [year, endMonth] = lastFull.month.split('-').map(Number) as [number, number];
@@ -121,7 +140,7 @@ export function comparisonPeriod(rows: readonly RetailMonth[]): string {
       if (!full.has(key)) throw new Error(`returns: the comparison needs the full month ${key}`);
     }
   }
-  const name = (m: number) => shortMonth.format(Date.UTC(2000, m - 1, 1)).replace(/^Sept$/, 'Sep');
-  const span = endMonth === 1 ? name(1) : `${name(1)} to ${name(endMonth)}`;
-  return `${span} ${year} versus ${span} ${year - 1}`;
+  const name = (m: number) => shortMonthName(m, locale);
+  const span = endMonth === 1 ? name(1) : `${name(1)} ${words.to} ${name(endMonth)}`;
+  return `${span} ${year} ${words.versus} ${span} ${year - 1}`;
 }

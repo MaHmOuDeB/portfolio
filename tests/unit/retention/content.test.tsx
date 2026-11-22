@@ -6,21 +6,20 @@ import { join } from 'node:path';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import {
-  RETENTION_GLANCE,
-  RetentionChecks,
-  RetentionIntro,
-  RetentionLimits,
-  RetentionMethod,
-  RetentionSources,
-  ReturnsTakeaway,
-  WinBackTakeaway,
-} from '../../../content/retention';
+import { RETENTION_EN, blocks, slotsFor } from '../../../content/retention';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
+
 import { FACTS, FACT_DISPLAYS, getFact } from '@/lib/facts';
 import { RETAIL, RETENTION } from '@/lib/retention/data';
 import { sampleSizePerArm } from '@/lib/stats';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
+
+const P = slotsFor('en');
+const B = blocks(RETENTION_EN, P);
+const RETENTION_GLANCE = RETENTION_EN.glance(P);
+const { intro: RetentionIntro, method: RetentionMethod, checks: RetentionChecks, limits: RetentionLimits, sources: RetentionSources } = B;
+const ReturnsTakeaway = () => RETENTION_EN.exhibits.returns.takeaway(P);
+const WinBackTakeaway = () => RETENTION_EN.exhibits.winBack.takeaway(P);
 
 const repo = join(import.meta.dirname, '../../..');
 const lock = JSON.parse(readFileSync(join(repo, 'sources.lock.json'), 'utf8')) as {

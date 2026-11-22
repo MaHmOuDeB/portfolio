@@ -10,15 +10,17 @@
 // or sorts it.
 import type { ColumnFormat, TableData } from '@/components/kit/DataTable';
 import type { DerivedRef } from '@/components/kit/Derived';
+import { INTL, type Locale } from '@/lib/i18n/locale';
 import type { Presets } from '@/lib/figure/url-state';
 import type { Cohort } from './data';
 import { monthLabel } from './returns';
+import { EN_COHORTS, type CohortText } from './text';
 
 export type { Cohort };
 export { monthLabel };
 
 export const COHORTS_ID = 'cohorts';
-export const COHORTS_TITLE = 'Repeat ordering varies by cohort and month';
+export const COHORTS_TITLE = EN_COHORTS.title;
 export const COHORTS_REFS: readonly DerivedRef[] = ['source:retention'];
 
 /** The months after the first order that the export holds for each cohort. */
@@ -68,37 +70,40 @@ export function cohortAt(rows: readonly Cohort[], month: string): { row: Cohort;
   return { row: rows[index]!, index };
 }
 
-const longMonth = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' });
+const longMonths: Record<Locale, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat(INTL.en, { month: 'long', timeZone: 'UTC' }),
+  de: new Intl.DateTimeFormat(INTL.de, { month: 'long', timeZone: 'UTC' }),
+};
 const yearOf = (month: string) => month.slice(0, 4);
-const monthName = (month: string) => longMonth.format(Date.parse(`${month}-01T00:00:00Z`));
+const monthName = (month: string, locale: Locale) => longMonths[locale].format(Date.parse(`${month}-01T00:00:00Z`));
 
 /** "January", the month of a cohort in words with no digit, for an accessible chart name. */
-export function cohortMonthWord(month: string): string {
-  return monthName(month);
+export function cohortMonthWord(month: string, locale: Locale = 'en'): string {
+  return monthName(month, locale);
 }
 
 /** "January to November 2010": the months the cohorts span, read from the rows. */
-export function cohortSpan(rows: readonly Cohort[]): string {
+export function cohortSpan(rows: readonly Cohort[], o: { locale?: Locale; words?: CohortText['span'] } = {}): string {
+  const locale = o.locale ?? 'en';
+  const to = (o.words ?? EN_COHORTS.span).to;
   const first = rows[0]?.cohort_month;
   const last = rows.at(-1)?.cohort_month;
   if (!first || !last) throw new RangeError('cohorts: no cohort rows');
-  if (first === last) return `${monthName(first)} ${yearOf(first)}`;
+  if (first === last) return `${monthName(first, locale)} ${yearOf(first)}`;
   return yearOf(first) === yearOf(last)
-    ? `${monthName(first)} to ${monthName(last)} ${yearOf(last)}`
-    : `${monthName(first)} ${yearOf(first)} to ${monthName(last)} ${yearOf(last)}`;
+    ? `${monthName(first, locale)} ${to} ${monthName(last, locale)} ${yearOf(last)}`
+    : `${monthName(first, locale)} ${yearOf(first)} ${to} ${monthName(last, locale)} ${yearOf(last)}`;
 }
 
-const MONTH_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-
 /** The same table as cohortTable() in ./tables, from the rows the Figure was given. */
-export function cohortTableFrom(rows: readonly Cohort[]): TableData {
+export function cohortTableFrom(rows: readonly Cohort[], text: CohortText = EN_COHORTS): TableData {
   checkCohorts(rows);
+  const locale = text.kit.locale;
   return {
-    columns: ['Cohort', 'Customers', 'Formation month', ...MONTH_WORDS.map((w) => `Month ${w}`)],
-    rows: rows.map((c) => [monthLabel(c.cohort_month), c.cohort_size, ...c.retention]),
+    columns: [...text.table.columns, ...text.table.months],
+    rows: rows.map((c) => [monthLabel(c.cohort_month, locale), c.cohort_size, ...c.retention]),
     formats: ['number', 'count', ...Array<ColumnFormat>(LATER_MONTHS + 1).fill('share')],
-    note:
-      'Customers are grouped by the month of their first order in the data. Each later month counts the cohort members who ordered in that month, so a share can rise again; it is not the share who kept buying every month since.',
+    note: text.table.note,
     refs: COHORTS_REFS,
   };
 }

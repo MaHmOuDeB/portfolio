@@ -19,10 +19,11 @@ import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
+import { sentenceNodes } from '@/lib/retention/sentence';
+import { EN_RETURNS, kitFromSlice, type ReturnsText } from '@/lib/retention/text';
 import {
   RETURNS_ID,
   RETURNS_REFS,
-  RETURNS_TITLE,
   RULE_HOURS,
   checkMonths,
   comparisonPeriod,
@@ -37,19 +38,15 @@ import {
 const SOURCE = derivedAttr(RETURNS_REFS);
 /** Half a bar's width, in months: bars fill seven tenths of their month. */
 const HALF_BAR = 0.35;
-const PARTIAL_LABEL = 'Partial month';
 
-export const Hours = () => <Derived value={RULE_HOURS} unit="count" refs={RETURNS_REFS} />;
+export const Hours = ({ text = EN_RETURNS }: { text?: ReturnsText } = {}) => (
+  <Derived value={RULE_HOURS} unit="count" refs={RETURNS_REFS} locale={text.kit.locale} />
+);
 
 /** The comparison window, marked as read from the export's rows. */
-export function Period({ data }: { data: readonly RetailMonth[] }) {
-  return <span {...SOURCE}>{comparisonPeriod(data)}</span>;
+export function Period({ data, text = EN_RETURNS }: { data: readonly RetailMonth[]; text?: ReturnsText }) {
+  return <span {...SOURCE}>{comparisonPeriod(data, { locale: text.kit.locale, words: text.period })}</span>;
 }
-
-const CHART_NAME: Record<ReturnMode, string> = {
-  raw: 'Returned-order value by month, with reversed orders counted as returns: a spike in the second January and a tall partial last month',
-  clean: 'Returned-order value by month, with reversed orders removed: no spike in the second January, and a small partial last month',
-};
 
 /**
  * Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests.
@@ -59,14 +56,15 @@ function SeamFailure(): never {
   throw new Error('The returns chart failed after a change (test seam)');
 }
 
-export function ReturnsChart({ mode, data }: { mode: ReturnMode; data: readonly RetailMonth[] }) {
+export function ReturnsChart({ mode, data, text = EN_RETURNS }: { mode: ReturnMode; data: readonly RetailMonth[]; text?: ReturnsText }) {
+  const locale = text.kit.locale;
   checkMonths(data);
   const last = data.length - 1;
   const { top, ticks } = returnsAxis(data);
   const monthTick = (v: number) => {
     const row = Number.isInteger(v) ? data[v] : undefined;
     if (!row) throw new RangeError(`returns: no month at tick ${v}`);
-    return monthLabel(row.month);
+    return monthLabel(row.month, locale);
   };
   // Every sixth month on a wide chart, every twelfth on a narrow one: the first and the last month
   // are always labelled, so the partial month's tick names it.
@@ -98,50 +96,53 @@ export function ReturnsChart({ mode, data }: { mode: ReturnMode; data: readonly 
   return (
     <ChartFrame
       id={`${RETURNS_ID}-chart`}
-      ariaLabel={CHART_NAME[mode]}
+      ariaLabel={text.chartName[mode]}
       x={{
         domain: [-0.5, last + 0.5],
         ticks: { wide: every(6), narrow: every(12) },
         format: monthTick,
-        label: 'Month',
+        label: text.axis.x,
         refs: RETURNS_REFS,
       }}
       y={{
         domain: [0, top],
         ticks: { wide: ticks, narrow: ticks.filter((_, i) => i % 2 === 0) },
-        format: (v) => formatNumber(v, 0),
-        label: 'Returned-order value (GBP)',
+        format: (v) => formatNumber(v, 0, { locale }),
+        label: text.axis.y,
         refs: RETURNS_REFS,
       }}
       height={{ narrow: 220, wide: 280 }}
       marks={marks}
       // Above the last bar, in the top band no bar of either mode reaches.
-      annotation={partial ? () => ({ x: last + 0.45, y: top * 0.95, text: PARTIAL_LABEL, anchor: 'end' }) : undefined}
+      annotation={partial ? () => ({ x: last + 0.45, y: top * 0.95, text: text.partial, anchor: 'end' }) : undefined}
     />
   );
 }
 
 /** The result line: the growth in this mode over the window, and the order behind most of the gap. */
-export function ReturnsResult({ mode, data, evidence }: { mode: ReturnMode; data: readonly RetailMonth[]; evidence: ReturnsEvidence }) {
+export function ReturnsResult({
+  mode,
+  data,
+  evidence,
+  text = EN_RETURNS,
+}: {
+  mode: ReturnMode;
+  data: readonly RetailMonth[];
+  evidence: ReturnsEvidence;
+  text?: ReturnsText;
+}) {
+  const locale = text.kit.locale;
   // The other mode, named in words so the sentence has its referent without a second figure.
-  const reversal = (
-    <>
-      {mode === 'raw' ? 'Removing those orders brings the growth down' : 'Counting those orders as returns makes the growth look larger'}: the
-      difference is mostly one <Fact id="retail.reversal.january_gbp" /> order placed and cancelled on{' '}
-      <Derived value={evidence.januaryReversalDate} unit="date" refs={RETURNS_REFS} />.
-    </>
-  );
-  return mode === 'raw' ? (
-    <>
-      Counting orders cancelled within <Hours /> hours as returns, returned-order value looks like it grew{' '}
-      <Fact id="retail.returns.yoy_growth_raw" />, <Period data={data} />. {reversal}
-    </>
-  ) : (
-    <>
-      With orders cancelled within <Hours /> hours removed, returned-order value grew about{' '}
-      <Fact id="retail.returns.yoy_growth_clean" />, <Period data={data} />. {reversal}
-    </>
-  );
+  const reversal = sentenceNodes(text.reversal[mode], {
+    january: <Fact id="retail.reversal.january_gbp" locale={locale} />,
+    date: <Derived value={evidence.januaryReversalDate} unit="date" refs={RETURNS_REFS} locale={locale} />,
+  });
+  return sentenceNodes(text.lead[mode], {
+    hours: <Hours text={text} />,
+    growth: <Fact id={mode === 'raw' ? 'retail.returns.yoy_growth_raw' : 'retail.returns.yoy_growth_clean'} locale={locale} />,
+    period: <Period data={data} text={text} />,
+    reversal,
+  });
 }
 
 export type ReturnsFigureViewProps = {
@@ -161,30 +162,36 @@ export type ReturnsFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has changed the mode since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; default English. */
+  text?: ReturnsText;
 };
 
-export function ReturnsFigureView({ mode, data, evidence, table, controls, announcement, preview, faultAfterChange, changed }: ReturnsFigureViewProps) {
+export function ReturnsFigureView({
+  mode,
+  data,
+  evidence,
+  table,
+  controls,
+  announcement,
+  preview,
+  faultAfterChange,
+  changed,
+  text = EN_RETURNS,
+}: ReturnsFigureViewProps) {
   return (
     <Figure
       id={RETURNS_ID}
-      title={RETURNS_TITLE}
+      title={text.title}
+      text={kitFromSlice(text.kit)}
       provenance={evidence.provenance}
       table={table}
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<ReturnsResult mode={mode} data={data} evidence={evidence} />}
-      caption={
-        <>
-          Returned-order value per month, in pounds, from a public dataset of a UK online gift retailer&apos;s orders.
-          The reversal rule removes a cancellation together with the order line it reverses: the same customer, product
-          and quantity, ordered up to <Hours /> hours before it. The data stops early in its last month, so that bar is
-          a partial month, drawn as an outline and not compared with the full months. Growth here is in returned-order
-          value, not returns as a share of sales.
-        </>
-      }
+      result={<ReturnsResult mode={mode} data={data} evidence={evidence} text={text} />}
+      caption={sentenceNodes(text.caption, { hours: <Hours text={text} /> })}
     >
-      <ReturnsChart mode={mode} data={data} />
+      <ReturnsChart mode={mode} data={data} text={text} />
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
   );

@@ -9,6 +9,7 @@
 import { getFact } from '@/lib/facts';
 import { RETAIL, figureProvenance } from '@/lib/retention/data';
 import { RETURNS_PRESETS, returnsPlotRows, type ReturnsEvidence } from '@/lib/retention/returns';
+import { EN_RETURNS, type ReturnsText } from '@/lib/retention/text';
 import { returnsTable } from '@/lib/retention/tables';
 import { InertReturnsControls, ReturnsFigureClient } from './ReturnsFigureClient';
 import { ReturnsFigureView } from './ReturnsView';
@@ -21,24 +22,28 @@ function januaryReversalDate(): string {
   return row.date;
 }
 
-export function ReturnsFigure({ faultAfterChange }: { faultAfterChange?: true } = {}) {
+/**
+ * `text` is the Figure's words in a language other than English; English (the default) hands the
+ * island nothing, so its markup and its payload are what they always were.
+ */
+export function ReturnsFigure({ faultAfterChange, text }: { faultAfterChange?: true; text?: ReturnsText } = {}) {
   const data = returnsPlotRows(RETAIL.tables.monthly);
   const evidence: ReturnsEvidence = { provenance: figureProvenance('retail'), januaryReversalDate: januaryReversalDate() };
   const mode = RETURNS_PRESETS.default.mode;
-  return (
-    <ReturnsFigureClient
-      preview={
-        <ReturnsFigureView
-          mode={mode}
-          data={data}
-          evidence={evidence}
-          table={returnsTable(mode)}
-          controls={<InertReturnsControls mode={mode} />}
-        />
-      }
+  const view = (
+    <ReturnsFigureView
+      mode={mode}
       data={data}
       evidence={evidence}
-      faultAfterChange={faultAfterChange}
+      table={returnsTable(mode, text ?? EN_RETURNS)}
+      controls={text ? <InertReturnsControls mode={mode} text={text} /> : <InertReturnsControls mode={mode} />}
+      text={text}
     />
+  );
+  // A client component gets `text` only in a language other than English, so the English payload is unchanged.
+  return text ? (
+    <ReturnsFigureClient preview={view} data={data} evidence={evidence} faultAfterChange={faultAfterChange} text={text} />
+  ) : (
+    <ReturnsFigureClient preview={view} data={data} evidence={evidence} faultAfterChange={faultAfterChange} />
   );
 }
