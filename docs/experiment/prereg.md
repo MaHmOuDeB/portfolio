@@ -4,10 +4,12 @@
 **Status:** v1 was committed before data collection. Namespace `aa-v1` collected A/A data from
 16.11.2026 until the v1.1 deploy; that data is set aside and not analysed (see the amendment).
 
-I wrote v1 before any visitor was counted; the v1.1 amendment at the end changes no design value. It fixes the design, the numbers I plan with, the
-decision rule and what I will do in each outcome. The treatment copy and every value below live in
-`src/experiment.config.ts` and `content/experiment/headlines.ts`; a hash of both is at the end of
-this page, and a test fails if either file changes without this page changing with it.
+I wrote v1 before any visitor was counted, and v1.1 before any view in its namespace; the v1.1
+amendment at the end keeps every value of the design except the version, tag and namespace. It fixes
+the design, the numbers I plan with, the decision rule and what I will do in each outcome. The
+treatment copy and every value below live in `src/experiment.config.ts` and
+`content/experiment/headlines.ts`; a hash of both is at the end of this page, and a test fails if
+either file changes without this page changing with it.
 
 ## Hypothesis
 
@@ -201,7 +203,8 @@ is flagged and does not feed a look's decision until reviewed. A view's later ev
 click after midnight, count on the day of its entry, so leaving a day out leaves out all of its
 views' events.
 
-A pause shows on pages within about 10 minutes and stops counting at once.
+A pause shows on pages within about 10 minutes (about 20 on the German Live test page) and stops
+counting at once.
 
 ## Phase switch procedure
 
@@ -221,20 +224,25 @@ corrected design value, and a new hash in this page with the reason.
 
 ## Amendment v1.1
 
-Version v1.1 (git tag `prereg-v1.1`) restarts the A/A calibration. No design value changes: the
-hypothesis, the headlines, the metrics, the numbers I plan with and the decision rule are those of
-v1.
+Version v1.1 (git tag `prereg-v1.1`) restarts the A/A calibration. The hypothesis, the headlines,
+the metrics, the numbers I plan with and the decision rule are those of v1. Only the version, the
+tag and the namespace change; they are part of the hashed configuration, so the hash changes.
 
-- **Why.** The home page was shortened and the featured cards moved higher on it. The A/A must
-  measure the page the A/B will run on, so the A/A data collected on the old page (namespace
-  `aa-v1`, from 16.11.2026 to the v1.1 deploy) is set aside and never analysed.
+- **Why.** The home page was shortened: the sections above and below the featured cards changed,
+  and the automation track now sits above them. The A/A must measure the page the A/B will run on,
+  so the data collected on the old page (namespace `aa-v1`, from 16.11.2026 to the v1.1 deploy) is
+  set aside and never analysed. I decided the restart because the page changed. The `aa-v1` counts
+  were public on the Live test page; when I decided, on 22.11.2026, `aa-v1` had no split-check
+  flag and too few views per group for an interval, so no look had a result.
 - **What changes.** The pre-registration version and tag become v1.1 and `prereg-v1.1`, the
   namespace becomes `aa-v1.1`, and the calibration starts again on the day v1.1 is deployed. A
   failed A/A now restarts as `prereg-v1.2` in namespace `aa-v1.2`.
 - **What both groups see.** The home page carries a language menu in its header in both groups.
 - **German pages.** `/de` and every page under it are never assigned to a group, never counted and
-  never analysed. A German Live test page regenerates every 10 minutes, which is why the daily
-  ceiling section now says about 73 percent.
+  never analysed. A German Live test page regenerates every 10 minutes and shows a pause within
+  about 20 minutes; it is why the daily ceiling section now says about 73 percent. Links between
+  the languages may send some German-speaking visitors to `/de`, so fewer of them are counted, the
+  same in both groups.
 
 v1 design hash (tag `prereg-v1`): 69b2af032808fd2df20f783058a3c4d571a7062053ce7f56692e1c3852acf277
 

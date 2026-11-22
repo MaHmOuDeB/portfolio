@@ -248,7 +248,8 @@ launch conditions met" once none is left. It checks:
   `--canonical` (it reads this one public value to compare, and never prints it). Unlike the two
   above, I set it before launch, to the canonical domain (see "The canonical domain:
   `CANONICAL_HOST`" below);
-- the `prereg-v1` tag exists, is pushed to GitHub, and matches the current design.
+- the pre-registration tag (`EXPERIMENT.prereg.tag`) exists, is pushed to GitHub, and matches the
+  current design.
 
 It is not part of the everyday checks or CI: before launch it is supposed to fail.
 
@@ -272,7 +273,7 @@ Optional read-only check of the production store (it prints only two status line
 npx vercel env pull .env.production.local --environment=production --scope <team> && node --env-file=.env.production.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/experiment-check.ts --storage; rm .env.production.local
 ```
 
-Expected before launch: `redis: ok (0 fields in exp:aa-v1)` and
+Expected before launch: `redis: ok (0 fields in exp:<namespace>)` and
 `edge config: ok (item experiment: missing)`. The last part deletes the pulled file again; make
 sure it is gone.
 
@@ -449,18 +450,28 @@ After any restart deploy:
 - A tab opened before the deploy still sends the old namespace (`ns: 'aa-v1'` after v1.1). Those
   events are refused; this is expected and needs nothing.
 - The ISR pages are rebuilt by the deploy, so `/experiment` and `/experiment/data.json` show the
-  new namespace at once.
+  new namespace at once, or, if the build could not read the store, after the first regeneration
+  (at most 5 minutes; 10 for the German Live test page).
 - To roll back, revert the commit that caused the problem and keep `src/experiment.values.ts` and
   `docs/experiment/prereg.md` at the current version. Never use Vercel's Instant Rollback past the
   restart deploy, and never set `LAUNCH_SHA` back to a commit of the earlier version: either would
-  bring back the old namespace and resume the old A/A with a gap.
+  bring back the old namespace and resume the old A/A with a gap. The squash merge carries the
+  values and the pre-registration too, so revert with `git revert --no-commit <sha>`, then
+  `git checkout HEAD -- src/experiment.values.ts docs/experiment/prereg.md
+  tests/unit/experiment/config.test.ts tests/fixtures/experiment-verifier`, and commit.
+- If the revert changes the home page above or around the cards, or removes the language menu, the
+  reason for v1.1 no longer holds: pause (step 9) and restart as `aa-v1.2` (above). Never count
+  both pages in one namespace.
+- The deploy must land on the `startedOn` day (Berlin). If it cannot, do not deploy: commit the new
+  day first (with the test clocks), and set `LAUNCH_SHA` to that commit. The hash excludes
+  `startedOn`, so the tag on the merge commit stays valid and needs no retag.
 
 ## 9. Pausing
 
 To pause counting, set the `experiment` item in Edge Config to
 `{"paused": {"on": "<now, with offset>", "reason": "<a short reason>"}}`. The reason is shown on the
 site: it must never name a person. Counting stops within a minute; pages show it within about ten
-minutes. Remove the `paused` entry to resume.
+minutes (about twenty on the German Live test page). Remove the `paused` entry to resume.
 
 
 ### If the closure cannot be reproduced
@@ -476,18 +487,19 @@ See [Redis conformance](redis-conformance.md) for the staging checks.
 
 The counter database's free tier allows 500,000 commands a month. The experiment is built to stay
 under it at the daily limit of 200 counted views: 200 views x 48 commands x 30 days is 288,000,
-page reads add up to 70,000 (four pages that regenerate every five minutes, `/v/a`, `/v/b`,
-`/experiment/data.json` and `/experiment`, two reads each: 4 x 2 x 8,640 is 69,120), and I allow
+page reads add up to 78,000 (five pages: four that regenerate every five minutes, `/v/a`, `/v/b`,
+`/experiment/data.json` and `/experiment`, two reads each: 4 x 2 x 8,640 is 69,120, plus the German Live test page every ten minutes,
+2 x 4,320: 77,760), and I allow
 120,000 for refused entries beyond the daily limit (500 a day at 8 commands each: an allowance
-inside the 142,000 left after counted views and page reads, not a measured figure). A server that
+inside the 134,000 left after counted views and page reads, not a measured figure). A server that
 has already seen that day's limit reached answers a lone entry without touching the database, so
 the real cost is lower, but a refused request that also carries later events still pays the full 8.
-The total is 478,000, which leaves 22,000 spare if the assumptions are wrong.
+The total is 486,000, which leaves 14,000 spare if the assumptions are wrong.
 
-A full month at the daily limit now reaches about 72% of the quota from counted views and page
-reads alone (358,000 of 500,000), so the 70% alert below (350,000) can fire near the end of such a
+A full month at the daily limit now reaches about 73% of the quota from counted views and page
+reads alone (366,000 of 500,000), so the 70% alert below (350,000) can fire near the end of such a
 month without any flood. Step 3's "before the 20th" test still tells the two apart: a month at the
-limit reaches about 239,000 by day 20.
+limit reaches about 244,000 by day 20.
 
 1. Upstash console, the database, **Usage**: look at the command count once a week and after any
    day with unusual traffic.

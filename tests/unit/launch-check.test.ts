@@ -352,10 +352,10 @@ describe('launch:check', () => {
     const base = d.deps.run!;
     d.deps.run = (cmd, args) => (cmd === 'git' && args[0] === 'rev-parse' ? { status: 1, stdout: '' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
-    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replace('.', '\\.')} tag does not exist`, 'm'));
+    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replaceAll('.', '\\.')} tag does not exist`, 'm'));
     const changed = deps({ preregHash: () => 'b'.repeat(64) });
     expect(main(ARGS, changed.deps)).toBe(1);
-    expect(changed.lines.join('\n')).toMatch(new RegExp(`^unmet: the design changed since ${EXPERIMENT.prereg.tag.replace('.', '\\.')}`, 'm'));
+    expect(changed.lines.join('\n')).toMatch(new RegExp(`^unmet: the design changed since ${EXPERIMENT.prereg.tag.replaceAll('.', '\\.')}`, 'm'));
   });
 
   it('names a tag that was never pushed to origin', () => {
@@ -363,7 +363,7 @@ describe('launch:check', () => {
     const base = d.deps.run!;
     d.deps.run = (cmd, args) => (cmd === 'git' && args[0] === 'ls-remote' ? { status: 0, stdout: '' } : base(cmd, args));
     expect(main(ARGS, d.deps)).toBe(1);
-    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replace('.', '\\.')} tag is not on origin`, 'm'));
+    expect(d.lines.join('\n')).toMatch(new RegExp(`^unmet: the ${EXPERIMENT.prereg.tag.replaceAll('.', '\\.')} tag is not on origin`, 'm'));
   });
 
   it('counts a headers PASS only when it ran on the canonical domain, which must be given', () => {

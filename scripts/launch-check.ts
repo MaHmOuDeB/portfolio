@@ -14,7 +14,7 @@
 // - the GitHub repository variables the deploy reads exist, by name: LAUNCHED; LAUNCH_SHA, the
 //   commit the deploy workflow lets deploy production once LAUNCHED is true; and CANONICAL_HOST, the
 //   bare canonical domain the production deploy checks the built pages against;
-// - the prereg-v1 tag exists, is on origin, and its pre-registration hash is the design's current
+// - the pre-registration tag (EXPERIMENT.prereg.tag) exists, is on origin, and its pre-registration hash is the design's current
 //   hash;
 // - CI is off self-hosted runners: no workflow names one, and GitHub lists none for the repository;
 // - every site path the Home page links to resolves: each is a live route (LIVE_ROUTES), each
