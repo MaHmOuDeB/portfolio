@@ -135,3 +135,11 @@ describe('a fragment (a rendered component, not a built page)', () => {
     expect(auditHtml('<!doctype html><html><body><p>Hallo.</p></body></html>', ctx({ document: false }))).toEqual([]);
   });
 });
+
+describe('the language menu', () => {
+  it('lets the English link (hreflang="en") leave German, and still flags a plain English link', () => {
+    const page = (a: string) => `<!doctype html><html lang="de"><body><a href="/de/work">Projekte</a>${a}</body></html>`;
+    expect(auditHtml(page('<a href="/work" hreflang="en" lang="en">English</a>'), ctx({ pages: ['/work'] }))).toEqual([]);
+    expect(kinds(auditHtml(page('<a href="/work">Projekte</a>'), ctx({ pages: ['/work'] })))).toEqual(['bad-link']);
+  });
+});

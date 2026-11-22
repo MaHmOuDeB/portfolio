@@ -257,7 +257,8 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
       const attrs = new Map(el.attrs.map((a) => [a.name, a.value]));
       const covered = checkMarkers(attrs) || marked;
       if (el.tagName === 'html') htmlLang = attrs.get('lang');
-      const href = el.tagName === 'a' ? attrs.get('href') : undefined;
+      // The language menu's English link leaves German on purpose: it says so with hreflang="en".
+      const href = el.tagName === 'a' && attrs.get('hreflang') !== 'en' ? attrs.get('href') : undefined;
       if (german && href !== undefined && href.startsWith('/') && !href.startsWith('//')) {
         linksExamined += 1;
         const path = href.split(/[?#]/)[0] ?? href;
