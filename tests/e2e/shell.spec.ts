@@ -173,7 +173,7 @@ test('a dragged figure turns off mark transitions even when a duration utility i
 
 const PHONE = /\+\d{2}[\d\s]{8,}|\b0\d{3}\s?\d{3,}/;
 const LABELS = ['Work', 'About', 'Lab', 'Live test'];
-const MENU_LABELS = [...LABELS, 'CV', 'Contact'];
+const MENU_LABELS = [...LABELS, 'CV', 'Contact', 'English', 'Deutsch'];
 
 /**
  * Makes the page 3000 px taller without touching the DOM React hydrates. A node added to <main> before
@@ -219,7 +219,9 @@ test.describe('site header', () => {
     // Keyboard order is visual order: wordmark, four page links, CV, Contact.
     const hrefs = await header.getByRole('link').evaluateAll((els) => els.map((el) => el.getAttribute('href')));
     expect(hrefs).toEqual(['/', '/work', '/about', '/lab', '/experiment', '/cv', '/contact']);
-    await expect(header.locator('summary')).toBeHidden();
+    await expect(header.locator('[data-menu] > summary')).toBeHidden();
+    // From lg the language menu is the one disclosure in the header row.
+    await expect(header.locator('[data-language-menu] > summary')).toBeVisible();
   });
 
   test('one row from 1024 px: wordmark, links and both buttons', async ({ page }) => {
@@ -238,18 +240,19 @@ test.describe('site header', () => {
     const header = page.getByRole('banner');
     await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
     await expect(header.getByRole('link', { name: 'Mahmoud El Bergui' })).toBeVisible();
-    await expect(header.locator('summary')).toHaveText('Menu');
-    await expect(header.locator('summary')).toBeVisible();
+    await expect(header.locator('[data-menu] > summary')).toHaveText('Menu');
+    await expect(header.locator('[data-menu] > summary')).toBeVisible();
+    await expect(header.locator('[data-language-menu]')).toBeHidden();
   });
 
   test('under lg: Menu lists the four labels, CV and Contact, and Escape closes it', async ({ page }) => {
     test.skip(!isCompact(page), 'compact layout');
     await page.goto('/');
-    const summary = page.getByRole('banner').locator('summary');
+    const summary = page.getByRole('banner').locator('[data-menu] > summary');
     const list = page.getByRole('navigation', { name: 'Menu' });
     await expect(list).toBeHidden();
     // The Menu opens without JavaScript, but Escape closes it only once it is hydrated.
-    await waitForHydration(page.getByRole('banner').locator('details'));
+    await waitForHydration(page.getByRole('banner').locator('[data-menu]'));
     await summary.click();
     await expect(list.getByRole('link')).toHaveText(MENU_LABELS);
     await expect(list.getByRole('link', { name: 'CV', exact: true })).toHaveAttribute('href', '/cv');
@@ -266,7 +269,7 @@ test.describe('site header', () => {
     const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 375, height: 812 } });
     const page = await context.newPage();
     await page.goto('/');
-    await page.getByRole('banner').locator('summary').click();
+    await page.getByRole('banner').locator('[data-menu] > summary').click();
     await expect(page.getByRole('navigation', { name: 'Menu' }).getByRole('link')).toHaveText(MENU_LABELS);
     await context.close();
   });
@@ -399,7 +402,7 @@ test('axe finds no violations with the shell in place', async ({ page }) => {
 test('axe finds no violations with the phone Menu open', async ({ page }) => {
   test.skip(!isPhone(page), 'phone layout');
   await page.goto('/');
-  await page.getByRole('banner').locator('summary').click();
+  await page.getByRole('banner').locator('[data-menu] > summary').click();
   await expectNoA11yViolations(page);
 });
 

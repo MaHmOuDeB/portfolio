@@ -18,6 +18,7 @@ import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Segmented } from '@/components/kit/Segmented';
 import { RETURNS_ID, type RetailMonth, type ReturnMode, type ReturnsEvidence } from '@/lib/retention/returns';
+import { EN_RETURNS, type ReturnsText } from '@/lib/retention/text';
 import type { ReturnsInteractiveProps } from './ReturnsInteractive';
 
 const LazyReturns = lazy(() => import('./ReturnsInteractive'));
@@ -26,12 +27,21 @@ export function ReturnsIsland(props: ReturnsInteractiveProps) {
   return <LazyReturns {...props} />;
 }
 
-const MODE_OPTIONS: readonly { value: ReturnMode; label: string }[] = [
-  { value: 'raw', label: 'Counted as returns' },
-  { value: 'clean', label: 'Removed' },
-];
-
-export function ReturnsControls({ mode, onMode, onReset }: { mode: ReturnMode; onMode: (mode: ReturnMode) => void; onReset: () => void }) {
+export function ReturnsControls({
+  mode,
+  onMode,
+  onReset,
+  text = EN_RETURNS,
+}: {
+  mode: ReturnMode;
+  onMode: (mode: ReturnMode) => void;
+  onReset: () => void;
+  text?: ReturnsText;
+}) {
+  const options: readonly { value: ReturnMode; label: string }[] = [
+    { value: 'raw', label: text.mode.raw },
+    { value: 'clean', label: text.mode.clean },
+  ];
   return (
     <div
       role="group"
@@ -39,16 +49,16 @@ export function ReturnsControls({ mode, onMode, onReset }: { mode: ReturnMode; o
       data-returns-controls=""
       className="flex flex-col gap-4 max-xs:w-full xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
     >
-      <Segmented name={`${RETURNS_ID}-mode`} legend="Reversed orders" options={MODE_OPTIONS} value={mode} onChange={onMode} />
-      <ResetButton id={`${RETURNS_ID}-reset`} onReset={onReset} />
+      <Segmented name={`${RETURNS_ID}-mode`} legend={text.mode.legend} options={options} value={mode} onChange={onMode} />
+      <ResetButton id={`${RETURNS_ID}-reset`} onReset={onReset} label={text.kit.reset} />
     </div>
   );
 }
 
 const noop = () => {};
 
-export function InertReturnsControls({ mode }: { mode: ReturnMode }) {
-  return <ReturnsControls mode={mode} onMode={noop} onReset={noop} />;
+export function InertReturnsControls({ mode, text }: { mode: ReturnMode; text?: ReturnsText }) {
+  return <ReturnsControls mode={mode} onMode={noop} onReset={noop} text={text} />;
 }
 
 export function ReturnsFigureClient({
@@ -56,6 +66,7 @@ export function ReturnsFigureClient({
   data,
   evidence,
   faultAfterChange,
+  text,
 }: {
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
@@ -63,10 +74,12 @@ export function ReturnsFigureClient({
   data: readonly RetailMonth[];
   evidence: ReturnsEvidence;
   faultAfterChange?: true;
+  /** The Figure's words, handed over for a language other than English only (English is the default). */
+  text?: ReturnsText;
 }) {
   return (
     <EagerOrIntent ids={[RETURNS_ID]} preview={preview}>
-      <ReturnsIsland data={data} evidence={evidence} faultAfterChange={faultAfterChange} />
+      <ReturnsIsland data={data} evidence={evidence} faultAfterChange={faultAfterChange} text={text} />
     </EagerOrIntent>
   );
 }

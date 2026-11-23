@@ -521,8 +521,8 @@ describe('the peeking page', () => {
 
 describe('the routes', () => {
   const routes = [
-    ['/lab', 'src/app/lab/page.tsx', '<LabPage />', LAB, () => import('@/app/lab/page')],
-    ['/lab/peeking', 'src/app/lab/peeking/page.tsx', '<LabPeekingPage />', PEEKING, () => import('@/app/lab/peeking/page')],
+    ['/lab', 'src/app/(en)/lab/page.tsx', '<LabPage />', LAB, () => import('@/app/(en)/lab/page')],
+    ['/lab/peeking', 'src/app/(en)/lab/peeking/page.tsx', '<LabPeekingPage />', PEEKING, () => import('@/app/(en)/lab/peeking/page')],
   ] as const;
 
   it.each(routes)('%s is a thin, plain static page that renders its composition, indexable', async (_route, file, jsx, markup, load) => {
@@ -546,8 +546,8 @@ describe('the routes', () => {
   });
 
   it('the dev hosts mount the same compositions', () => {
-    const lab = readFileSync(join(repo, 'src/app/kitchen-sink/lab/page.dev.tsx'), 'utf8');
-    const peeking = readFileSync(join(repo, 'src/app/kitchen-sink/lab/peeking/page.dev.tsx'), 'utf8');
+    const lab = readFileSync(join(repo, 'src/app/(en)/kitchen-sink/lab/page.dev.tsx'), 'utf8');
+    const peeking = readFileSync(join(repo, 'src/app/(en)/kitchen-sink/lab/peeking/page.dev.tsx'), 'utf8');
     expect(lab).toContain('<LabPage />');
     expect(peeking).toContain('<LabPeekingPage />');
     for (const host of [lab, peeking]) expect(host).not.toMatch(/faultAfterChange/);

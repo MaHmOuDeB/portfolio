@@ -290,7 +290,7 @@ describe('Vignette and its marks', () => {
 
 describe('frame CSS and the root layout', () => {
   const css = readFileSync(join(ROOT, 'src/app/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const layout = readFileSync(join(ROOT, 'src/app/layout.tsx'), 'utf8');
+  const layout = readFileSync(join(ROOT, 'src/components/shell/RootDocument.tsx'), 'utf8');
 
   it('puts the frame on main, with a hairline rail at each side', () => {
     expect(layout).toMatch(/<main [^>]*data-frame/);

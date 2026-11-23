@@ -3,8 +3,9 @@
 // (content/about.tsx), never retyped: each entry's place without its town and without a "(now ...)"
 // note. No logos. Server-safe.
 import { TIMELINE } from '../../../content/about';
-import { HOME_EXPERIENCE } from '../../../content/home.ts';
 import { Chip } from '@/components/frame/Chip';
+import type { Locale } from '@/lib/i18n/locale';
+import { homeCopy } from './copy';
 
 /** The name the band prints for a timeline entry: its place, without the town and any "(now ...)" note. */
 export function experienceName(where: string): string {
@@ -20,14 +21,15 @@ export function experienceNames(prefixes: readonly string[]): string[] {
   });
 }
 
-export function ExperienceBand() {
+export function ExperienceBand({ locale = 'en' }: { locale?: Locale } = {}) {
+  const experience = homeCopy(locale).experience;
   return (
     <section data-experience="" data-rule="" aria-labelledby="experience-title">
       <p id="experience-title" data-experience-title="">
-        {HOME_EXPERIENCE.title}
+        {experience.title}
       </p>
       <div data-experience-groups="" data-depth-trace="experience">
-        {HOME_EXPERIENCE.groups.map((g) => (
+        {experience.groups.map((g) => (
           <div key={g.label} data-experience-group="">
             <Chip>{g.label}</Chip>
             {/* A hairline under the label; it draws from the centre as the band enters. The names stay still. */}

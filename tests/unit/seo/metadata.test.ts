@@ -1,4 +1,5 @@
 // Canonical metadata, the route inventory, the sitemap and robots, and the sharing images.
+import { DE_PAGES } from '@/lib/i18n/pages';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,6 +9,7 @@ import { serverEnv } from '@/lib/env';
 import { CanonicalOriginError, TEST_ORIGIN_HOST, canonicalOrigin, documentTitle, pageMetadata, withSiteName } from '@/lib/seo/metadata';
 import { OG_HEIGHT, OG_WIDTH, ogAlt, ogHtml, themeFromTokens } from '@/lib/seo/og-template';
 import { HEADLINE, SITE } from '@/lib/site';
+import { OG_CARDS_DE } from '../../../content/de/seo.ts';
 import { HOME_HERO } from '../../../content/home.ts';
 import {
   HOME_SHARE_TITLE,
@@ -55,6 +57,8 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (entry.name.startsWith('_')) continue;
+      // The German tree is checked through the German page registry, not this English inventory.
+      if (segments.length === 0 && entry.name === 'de') continue;
       const segment = /^\(.*\)$/.test(entry.name) ? [] : [entry.name];
       routes.push(...pageRoutes(path.join(dir, entry.name), [...segments, ...segment]));
     } else if (/^page\.(tsx|ts|jsx|js|mdx)$/.test(entry.name)) {
@@ -67,7 +71,7 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
 /** The visitor's URL for a page file: the per-group Home page stands for /. */
 const visitorRoute = (route: string) => (route === '/v/[arm]' ? '/' : route);
 /** The page file's module for a visitor's URL. */
-const pageModule = (route: string) => (route === '/' ? 'v/[arm]' : route.slice(1));
+const pageModule = (route: string) => (route === '/' ? '(en)/v/[arm]' : '(en)/' + route.slice(1));
 
 describe('canonicalOrigin', () => {
   it('gives the fixed test origin in a local build with no environment', () => {
@@ -271,7 +275,7 @@ describe('noTestOriginInProduction', () => {
       const app = path.join(dir, 'server/app');
       fs.mkdirSync(app, { recursive: true });
       fs.writeFileSync(path.join(app, 'lab.html'), page(good).text);
-      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>');
+      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc><xhtml:link rel="alternate" hreflang="de" href="https://site.example.com/de/lab"/></url></urlset>');
       const quiet = { log: () => {}, error: () => {} };
       expect(originCheck(['--canonical', CANONICAL, '--dir', dir], quiet)).toBe(0);
       fs.writeFileSync(path.join(app, 'index.html'), page(good.replaceAll('site.example.com', 'canonical.invalid')).text);
@@ -364,9 +368,9 @@ describe('route inventory', () => {
     expect(seoEntry('/contact').description).toBe(contactMetadata(new Headers(), false).description);
   });
 
-  it('says experimentation and AI automation analyst, never growth analyst, in the site, About and CV descriptions', () => {
-    const layout = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8');
-    expect(layout).toContain('description: "Experimentation and AI automation analyst in Berlin."');
+  it('says AI automation and experimentation analyst on the site and experimentation and AI automation analyst on About and CV, never growth analyst', () => {
+    const layout = fs.readFileSync(path.join(ROOT, 'src/lib/seo/root-metadata.ts'), 'utf8');
+    expect(layout).toContain("description: 'AI automation and experimentation analyst in Berlin.'");
     for (const route of ['/about', '/cv']) expect(seoEntry(route).description, route).toMatch(/experimentation and AI automation analyst in Berlin/i);
     for (const entry of SEO_PAGES) expect(entry.description, entry.path).not.toMatch(/growth analyst/i);
   });
@@ -384,7 +388,7 @@ describe('route inventory', () => {
   });
 
   it('keeps /exclude out of search', async () => {
-    const mod = (await import('@/app/exclude/page')) as { metadata: { robots?: { index?: boolean } } };
+    const mod = (await import('@/app/(en)/exclude/page')) as { metadata: { robots?: { index?: boolean } } };
     expect(mod.metadata.robots?.index).toBe(false);
   });
 });
@@ -425,10 +429,17 @@ describe('canonicalAndRobots', () => {
       expect(m.title).toBe(entry.path === '/' ? SITE.name : `${entry.title} | Mahmoud El Bergui`);
       expect(m.title).toBe(documentTitle(entry));
       expect(m.description).toBe(entry.description);
-      expect(m.alternates).toEqual({ canonical: url });
+      // A page with a German twin names both languages, and English as the default.
+      const twin = DE_PAGES.includes(entry.path);
+      const deUrl = `https://site.example.com${entry.path === '/' ? '/de' : `/de${entry.path}`}`;
+      expect(m.alternates).toEqual(
+        twin ? { canonical: url, languages: { en: url, de: deUrl, 'x-default': url } } : { canonical: url },
+      );
       expect(m.openGraph).toEqual({
         type: 'website',
         siteName: SITE.name,
+        locale: 'en_GB',
+        ...(twin ? { alternateLocale: 'de_DE' } : {}),
         url,
         title: shareTitle(entry),
         description: entry.description,
@@ -447,7 +458,7 @@ describe('canonicalAndRobots', () => {
   });
 
   it('the same Home metadata serves both groups: canonical / and indexable', async () => {
-    const mod = (await import('@/app/v/[arm]/page')) as { metadata: ReturnType<typeof pageMetadata> };
+    const mod = (await import('@/app/(en)/v/[arm]/page')) as { metadata: ReturnType<typeof pageMetadata> };
     expect(mod.metadata.alternates?.canonical).toBe(new URL('/', canonicalOrigin()).href);
     expect(mod.metadata.robots).toBeUndefined();
   });
@@ -455,7 +466,11 @@ describe('canonicalAndRobots', () => {
   it('the sitemap lists every manifest page on the canonical origin and nothing internal', async () => {
     const { default: sitemap } = await import('@/app/sitemap');
     const urls = sitemap().map((item) => item.url);
-    expect(urls).toEqual(SEO_PAGES.map((entry) => new URL(entry.path, canonicalOrigin()).href));
+    const english = SEO_PAGES.map((entry) => new URL(entry.path, canonicalOrigin()).href);
+    const german = SEO_PAGES.filter((entry) => DE_PAGES.includes(entry.path)).map(
+      (entry) => new URL(entry.path === '/' ? '/de' : `/de${entry.path}`, canonicalOrigin()).href,
+    );
+    expect([...urls].sort()).toEqual([...english, ...german].sort());
     for (const url of urls) {
       expect(url).toMatch(/^https:\/\/canonical\.invalid\//);
       expect(url).not.toMatch(/[?#]|\/api\/|\/v\/|kitchen-sink|\/exclude|\/demo|data\.json/);
@@ -471,7 +486,7 @@ describe('canonicalAndRobots', () => {
   });
 
   it('metadata, sitemap and robots read no request or snapshot API', () => {
-    const files = ['src/lib/seo/metadata.ts', 'src/app/sitemap.ts', 'src/app/robots.ts', 'content/seo.ts', 'src/app/layout.tsx'];
+    const files = ['src/lib/seo/metadata.ts', 'src/app/sitemap.ts', 'src/app/robots.ts', 'content/seo.ts', 'src/lib/seo/root-metadata.ts', 'src/app/(en)/layout.tsx'];
     for (const file of files) {
       const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
       expect(source, file).not.toMatch(/next\/headers|cookies\(|headers\(|connection\(|searchParams|getExperimentSnapshot|draftMode|'use cache'/);
@@ -485,15 +500,15 @@ describe('sharingTemplate', () => {
 
   it('the site card is the approved text: headline, role line and name, with no figure', () => {
     const card = ogCard('site');
-    expect(SITE_SHARING_HEADLINE).toBe('Experimentation and AI automation for product and growth teams');
+    expect(SITE_SHARING_HEADLINE).toBe('AI automation and experimentation for product and growth teams');
     expect(card.title).toBe(SITE_SHARING_HEADLINE);
     expect(SITE_SHARING_LINE).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
+      'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
     );
     expect(card.sub).toBe(SITE_SHARING_LINE);
     // The line is the hero's sub line, its two inline chips as plain lower-case words.
-    const { lead, chips, join, end } = HOME_HERO.sub;
-    expect(SITE_SHARING_LINE).toBe(`${lead}${chips[0].toLowerCase()}${join}${chips[1].toLowerCase()}${end}`);
+    const { lead, chips, join, end, rest } = HOME_HERO.sub;
+    expect(SITE_SHARING_LINE).toBe(`${lead}${chips[0].toLowerCase()}${join}${chips[1].toLowerCase()}${end}${rest}`);
     expect(SITE_SHARING_HEADLINE).toBe(`${HEADLINE.lead} ${HEADLINE.quiet}`);
     expect(card.footer).toBe(SITE.name);
     expect(card.proof).toBeUndefined();
@@ -502,7 +517,10 @@ describe('sharingTemplate', () => {
   });
 
   it('the Home link preview has its own title; other pages add the name to theirs', () => {
-    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: experimentation and AI automation for product and growth teams');
+    expect(HOME_SHARE_TITLE).toBe('Mahmoud El Bergui: AI automation and experimentation for product and growth teams');
+    // The lead keeps its own case: lower-casing its first letter would print "aI" (and break German nouns).
+    expect(HOME_SHARE_TITLE).not.toMatch(/: aI/);
+    expect(HOME_SHARE_TITLE).toBe(`${SITE.name}: ${HEADLINE.lead} ${HEADLINE.quiet}`);
     expect(shareTitle(seoEntry('/'))).toBe(HOME_SHARE_TITLE);
     expect(shareTitle(seoEntry('/lab'))).toBe('A/B test lab: sample size, peeking and fair splits | Mahmoud El Bergui');
     const home = pageMetadata(seoEntry('/'), new URL('https://site.example.com'));
@@ -547,7 +565,7 @@ describe('sharingTemplate', () => {
   it('the Retention card states what the Retention page says', () => {
     const page = fs.readFileSync(path.join(ROOT, 'content/retention.tsx'), 'utf8').replace(/\s+/g, ' ');
     expect(page).toContain(
-      'returned-order value grew about{\' \'} <Fact id="retail.returns.yoy_growth_clean" /> in January to November 2011, not{\' \'} <Fact id="retail.returns.yoy_growth_raw" />',
+      "returned-order value grew about{' '} {p.fact('retail.returns.yoy_growth_clean')} in January to November 2011, not{' '} {p.fact('retail.returns.yoy_growth_raw')}",
     );
   });
 
@@ -597,7 +615,7 @@ describe('sharingTemplate', () => {
       for (const hex of hexes) expect(Object.values(theme)).toContain(hex);
     }
     const site = ogHtml(ogCard('site'), theme, 'data:,');
-    expect(site).toContain('<h1>Experimentation and AI automation for product and growth teams</h1>');
+    expect(site).toContain('<h1>AI automation and experimentation for product and growth teams</h1>');
     expect(site).toContain('<div class="foot">Mahmoud El Bergui</div>');
     expect(site).not.toContain('class="sub proof"');
     const proof = { strong: `${factText('profile.audible.experiments')} A/B tests`, rest: ' across web and mobile' };
@@ -614,8 +632,13 @@ describe('sharingTemplate', () => {
     };
     const plan = renderPlan(ROOT);
     expect(lock.inputHash).toBe(plan.inputHash);
-    expect(Object.keys(lock.images).sort()).toEqual(OG_CARDS.map((card) => `${card.name}.png`).sort());
-    const committed = fs.readdirSync(path.join(ROOT, 'public/og')).filter((f) => f.endsWith('.png')).sort();
+    // The lock covers both sets: English at the top of public/og, German under de/.
+    expect(Object.keys(lock.images).sort()).toEqual(
+      [...OG_CARDS.map((card) => `${card.name}.png`), ...OG_CARDS_DE.map((card) => `de/${card.name}.png`)].sort(),
+    );
+    const committed = ['', 'de']
+      .flatMap((dir) => fs.readdirSync(path.join(ROOT, 'public/og', dir)).filter((f) => f.endsWith('.png')).map((f) => (dir ? `${dir}/${f}` : f)))
+      .sort();
     expect(committed).toEqual(Object.keys(lock.images).sort());
     for (const [file, meta] of Object.entries(lock.images)) {
       const png = fs.readFileSync(path.join(ROOT, 'public/og', file));
@@ -629,7 +652,7 @@ describe('sharingTemplate', () => {
 describe('seo-origin-check never passes on nothing', () => {
   const CANONICAL = 'site.example.com';
   const head = '<link rel="canonical" href="https://site.example.com/lab"/>';
-  const sitemap = '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>';
+  const sitemap = '<urlset><url><loc>https://site.example.com/lab</loc><xhtml:link rel="alternate" hreflang="de" href="https://site.example.com/de/lab"/></url></urlset>';
 
   function check(files: Record<string, string>) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-origin-empty-'));
@@ -648,7 +671,7 @@ describe('seo-origin-check never passes on nothing', () => {
   it('passes when it checked at least one canonical link and one sitemap location', () => {
     expect(check({ 'lab.html': `<html><head>${head}</head></html>`, 'sitemap.xml.body': sitemap })).toEqual({
       status: 0,
-      lines: ['seo origin check: 2 files, 1 canonical link and 1 sitemap location, only https://site.example.com'],
+      lines: ['seo origin check: 2 files, 1 canonical link and 1 sitemap location, 1 hreflang alternate, only https://site.example.com'],
     });
   });
 

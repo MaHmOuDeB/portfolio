@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
 import {
   FULL_PLANNER_REFS,
   PLANNER_NOUN,
@@ -34,18 +35,11 @@ import {
   type LabPlanValues,
   type PlannerContext,
 } from '@/lib/lab/full-planner';
-import {
-  DurationCaption,
-  PLANNER_COPY,
-  PLANNER_LEAD_IN,
-  PLANNER_METHOD_SUMMARY,
-  PLANNER_TAKEAWAY,
-  PlannerWeeksMethod,
-  SizingContextNote,
-  SizingMethod,
-  SizingTerms,
-} from '../../../content/lab';
+import { labKit, plural } from '@/lib/lab/text-common';
+import { EN_PLANNER, trafficNoun, type PlannerText } from '@/lib/lab/text-planner';
+import { sentenceNodes } from '@/lib/retention/sentence';
 import { Exhibit, PhonePoint } from './Exhibit';
+import { DurationCaption, PlannerWeeksMethod, SizingContextNote, SizingMethod, SizingTerms } from './PlannerCopy';
 
 const SIMULATED = derivedAttr(FULL_PLANNER_REFS);
 
@@ -71,8 +65,8 @@ function LabPlannerSeamFailure(): never {
 }
 
 /** The kind of case beside the result. The provenance badge comes from the Figure, not from here. */
-function ResultBadge({ context }: { context: PlannerContext }) {
-  return <span className="text-sm text-muted">{PLANNER_COPY[context].label}</span>;
+function ResultBadge({ context, text }: { context: PlannerContext; text: PlannerText }) {
+  return <span className="text-sm text-muted">{text.context[context].label}</span>;
 }
 
 /**
@@ -80,12 +74,22 @@ function ResultBadge({ context }: { context: PlannerContext }) {
  * nothing beside or under it moves while it changes. With text enlarged that room can pass the screen,
  * so it is capped at the page's width (the page padding is 1rem a side) and the number then breaks.
  */
-function Readout({ value, unit, mark }: { value: number; unit: string; mark: 'data-planner-n' | 'data-duration-weeks' }) {
+function Readout({
+  value,
+  unit,
+  mark,
+  locale,
+}: {
+  value: number;
+  unit: string;
+  mark: 'data-planner-n' | 'data-duration-weeks';
+  locale: PlannerText['kit']['locale'];
+}) {
   return (
     <div data-planner-readout="">
       <p className="text-3xl font-semibold">
         <data {...{ [mark]: '' }} data-num="" value={value} className="inline-block min-w-[min(6ch,calc(100vw-2rem))] wrap-anywhere" {...SIMULATED}>
-          {formatNumber(value, 0)}
+          {formatNumber(value, 0, { locale })}
         </data>
       </p>
       <p className="mt-1 text-base">{unit}</p>
@@ -108,36 +112,44 @@ export type SizingFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has committed a change to this Figure since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: PlannerText;
 };
 
-export function SizingFigureView({ id, context, values, controls, announcement, preview, faultAfterChange, changed }: SizingFigureViewProps) {
+export function SizingFigureView({ id, context, values, controls, announcement, preview, faultAfterChange, changed, text = EN_PLANNER }: SizingFigureViewProps) {
   const v = normalizeFullPlan(values);
   const plan = fullPlanModel(v);
   const noun = PLANNER_NOUN[context];
+  const locale = text.kit.locale;
   return (
     <Figure
       id={id}
-      title={PLANNER_COPY[context].sizingTitle}
+      title={text.context[context].sizingTitle}
+      text={labKit(text.kit)}
       provenance="simulated"
-      table={fullPlanTable(v, noun)}
+      table={fullPlanTable(v, noun, text)}
       controls={controls}
       preview={preview}
       announcement={announcement}
       result={
         <>
           <span data-planner-result="" {...SIMULATED}>
-            To detect a rise of {riseText(v)}, from {percentText(v.baseline)} to {percentText(plan.target)}.
+            {sentenceNodes(text.sizingResult, {
+              rise: riseText(v, text),
+              from: percentText(v.baseline, text),
+              to: percentText(plan.target, text),
+            })}
           </span>{' '}
-          <ResultBadge context={context} />
+          <ResultBadge context={context} text={text} />
         </>
       }
       caption={
         <>
-          <SizingContextNote context={context} /> <SizingMethod context={context} />
+          <SizingContextNote context={context} text={text} /> <SizingMethod context={context} text={text} />
         </>
       }
     >
-      <Readout value={plan.nPerArm} unit={`${noun} per group`} mark="data-planner-n" />
+      <Readout value={plan.nPerArm} unit={fill(text.perGroup, { noun: text.nouns[noun].other })} mark="data-planner-n" locale={locale} />
       {faultAfterChange && changed ? <SizingSeamFailure /> : null}
     </Figure>
   );
@@ -157,33 +169,52 @@ export type DurationFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has committed a traffic change since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: PlannerText;
 };
 
-export function DurationFigureView({ id, context, nPerArm, traffic, controls, announcement, preview, faultAfterChange, changed }: DurationFigureViewProps) {
+export function DurationFigureView({
+  id,
+  context,
+  nPerArm,
+  traffic,
+  controls,
+  announcement,
+  preview,
+  faultAfterChange,
+  changed,
+  text = EN_PLANNER,
+}: DurationFigureViewProps) {
   const t = normalizeTraffic(traffic);
   const { weeks } = durationModel(nPerArm, t);
   const noun = PLANNER_NOUN[context];
+  const locale = text.kit.locale;
   return (
     <Figure
       id={id}
-      title={PLANNER_COPY[context].durationTitle}
+      title={text.context[context].durationTitle}
+      text={labKit(text.kit)}
       provenance="simulated"
-      table={durationTable(nPerArm, t, noun)}
+      table={durationTable(nPerArm, t, noun, text)}
       controls={controls}
       preview={preview}
       announcement={announcement}
       result={
         <>
           <span data-duration-result="" {...SIMULATED}>
-            To reach {countText(nPerArm, noun)} per group, {formatNumber(2 * nPerArm, 0)} in all, at {formatNumber(t, 0)}{' '}
-            {noun} a day.
+            {sentenceNodes(text.durationResult, {
+              count: countText(nPerArm, noun, text),
+              all: formatNumber(2 * nPerArm, 0, { locale }),
+              traffic: formatNumber(t, 0, { locale }),
+              noun: trafficNoun(text, noun, t),
+            })}
           </span>{' '}
-          <ResultBadge context={context} />
+          <ResultBadge context={context} text={text} />
         </>
       }
-      caption={<DurationCaption context={context} traffic={t} />}
+      caption={<DurationCaption context={context} traffic={t} text={text} />}
     >
-      <Readout value={weeks} unit={`${weeks === 1 ? 'week' : 'weeks'}, rounded up`} mark="data-duration-weeks" />
+      <Readout value={weeks} unit={plural(weeks, text.weeksRounded)} mark="data-duration-weeks" locale={locale} />
       {faultAfterChange && changed ? <DurationSeamFailure /> : null}
     </Figure>
   );
@@ -200,6 +231,8 @@ export type LabPlannerViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has committed a change since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: PlannerText;
 };
 
 /**
@@ -208,48 +241,51 @@ export type LabPlannerViewProps = {
  * readouts, the visitors per group and the weeks. The method row holds the terms, the formula and the
  * assumptions.
  */
-export function LabPlannerView({ id, values, controls, announcement, preview, faultAfterChange, changed }: LabPlannerViewProps) {
+export function LabPlannerView({ id, values, controls, announcement, preview, faultAfterChange, changed, text = EN_PLANNER }: LabPlannerViewProps) {
   const v = normalizeLabPlan(values);
   const { nPerArm, weeks } = labPlanModel(v);
+  const locale = text.kit.locale;
   const figure = (
     <Figure
       id={id}
-      title={PLANNER_COPY.hypothetical.sizingTitle}
-      lead={<PhonePoint>{PLANNER_TAKEAWAY}</PhonePoint>}
+      title={text.context.hypothetical.sizingTitle}
+      text={labKit(text.kit)}
+      lead={<PhonePoint label={text.exhibit.takeaway}>{text.lab.takeaway}</PhonePoint>}
       provenance="simulated"
-      table={labPlanTable(v)}
+      table={labPlanTable(v, text)}
       controls={controls}
       preview={preview}
       announcement={announcement}
       result={
         <span data-planner-result="" {...SIMULATED}>
-          {labPlanLead(v)}
+          {labPlanLead(v, text)}
         </span>
       }
-      caption={<SizingContextNote context="hypothetical" />}
+      caption={<SizingContextNote context="hypothetical" text={text} />}
     >
       <div className="flex flex-wrap gap-x-12 gap-y-6">
-        <Readout value={nPerArm} unit="visitors per group" mark="data-planner-n" />
-        <Readout value={weeks} unit={weeks === 1 ? 'week' : 'weeks'} mark="data-duration-weeks" />
+        <Readout value={nPerArm} unit={fill(text.perGroup, { noun: text.nouns.visitors.other })} mark="data-planner-n" locale={locale} />
+        <Readout value={weeks} unit={plural(weeks, text.week)} mark="data-duration-weeks" locale={locale} />
       </div>
       {faultAfterChange && changed ? <LabPlannerSeamFailure /> : null}
     </Figure>
   );
   return (
     <Exhibit
-      summary={PLANNER_METHOD_SUMMARY}
-      leadIn={PLANNER_LEAD_IN}
-      takeaway={PLANNER_TAKEAWAY}
+      summary={text.lab.methodSummary}
+      leadIn={text.lab.leadIn}
+      takeaway={text.lab.takeaway}
+      labels={text.exhibit}
       method={
         <>
           <p data-method-terms="">
-            <SizingTerms />
+            <SizingTerms text={text} />
           </p>
           <p data-method-text="">
-            <SizingMethod context="hypothetical" />
+            <SizingMethod context="hypothetical" text={text} />
           </p>
           <p data-method-text="">
-            <PlannerWeeksMethod traffic={v.traffic} />
+            <PlannerWeeksMethod traffic={v.traffic} text={text} />
           </p>
         </>
       }

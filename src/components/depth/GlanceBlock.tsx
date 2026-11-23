@@ -20,22 +20,43 @@ export type GlanceParts = {
   /** A fifth fact: what the project is and is not. */
   scope?: ReactNode;
 };
-type Props = DataAttributes & GlanceParts;
+/** The block's own words: its landmark name, the key figures' list name and the five fact terms. English by default. */
+export type GlanceLabels = {
+  region: string;
+  points: string;
+  when: string;
+  role: string;
+  methods: string;
+  tools: string;
+  scope: string;
+};
+
+export const GLANCE_LABELS_EN: GlanceLabels = {
+  region: 'At a glance',
+  points: 'Key figures',
+  when: 'When',
+  role: 'Role',
+  methods: 'Methods',
+  tools: 'Tools',
+  scope: 'Scope',
+};
+
+type Props = DataAttributes & GlanceParts & { labels?: GlanceLabels };
 
 const MAX_POINTS = 3;
 
-export function GlanceBlock({ outcome, role, methods, tools, when, points, scope, ...rest }: Props) {
+export function GlanceBlock({ outcome, role, methods, tools, when, points, scope, labels = GLANCE_LABELS_EN, ...rest }: Props) {
   const shown = (points ?? []).slice(0, MAX_POINTS);
   const facts: Array<[string, ReactNode]> = [
-    ['When', when],
-    ['Role', role],
-    ['Methods', methods],
-    ['Tools', tools],
+    [labels.when, when],
+    [labels.role, role],
+    [labels.methods, methods],
+    [labels.tools, tools],
   ];
-  if (scope) facts.push(['Scope', scope]);
+  if (scope) facts.push([labels.scope, scope]);
   return (
     <section
-      aria-label="At a glance"
+      aria-label={labels.region}
       data-glance=""
       className="mt-8 rounded-xl border border-hairline bg-surface p-5 md:p-8 [&_[data-glance-rule]]:bg-hairline [&>[data-glance-rule]:last-child]:hidden"
       data-depth-hinge="load"
@@ -43,7 +64,7 @@ export function GlanceBlock({ outcome, role, methods, tools, when, points, scope
     >
       {shown.length > 0 ? (
         // role="list": WebKit drops the list role from a list drawn without bullets.
-        <ul role="list" data-glance-points="" data-count={shown.length} aria-label="Key figures">
+        <ul role="list" data-glance-points="" data-count={shown.length} aria-label={labels.points}>
           {shown.map((point) => (
             <li key={point.id} data-glance-point="">
               <p data-glance-figure="">{point.figure}</p>

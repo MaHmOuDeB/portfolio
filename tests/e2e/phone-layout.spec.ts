@@ -48,7 +48,7 @@ test.describe('phone layout', () => {
     for (const width of [320, 393]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/');
-      const menu = page.locator('[data-site-header] details');
+      const menu = page.locator('[data-menu]');
       await waitForHydration(menu);
       await menu.locator('summary').click();
       const sheet = page.getByRole('navigation', { name: 'Menu' });
@@ -60,15 +60,22 @@ test.describe('phone layout', () => {
       expect(box.width, `${width} px`).toBe(screen);
       // Under the header and its hairline, never over them.
       expect(Math.round(box.y), `${width} px`).toBe(Math.round(header.y + header.height));
-      const rows = await sheet.locator('ul a').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ width: r.width, height: r.height })));
+      const rows = await sheet.locator('ul').first().locator('a').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ width: r.width, height: r.height })));
       expect(rows).toHaveLength(4);
       for (const row of rows) {
         expect(row.height).toBeGreaterThanOrEqual(48);
         expect(row.width).toBe(screen - 32);
       }
       // CV and Contact side by side, at one width.
-      const buttons = await sheet.locator(':scope > div a').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ top: r.top, width: r.width, height: r.height })));
+      const buttons = await sheet.locator(':scope > div.grid a').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ top: r.top, width: r.width, height: r.height })));
       expect(buttons).toHaveLength(2);
+      // Then the two language rows, full width and at least 48 px like the page links.
+      const languages = await sheet.locator('ul').nth(1).locator('a').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ width: r.width, height: r.height })));
+      expect(languages).toHaveLength(2);
+      for (const row of languages) {
+        expect(row.height).toBeGreaterThanOrEqual(48);
+        expect(row.width).toBe(screen - 32);
+      }
       expect(buttons[0]!.top).toBe(buttons[1]!.top);
       expect(Math.abs(buttons[0]!.width - buttons[1]!.width)).toBeLessThan(1);
       for (const b of buttons) expect(b.height).toBeGreaterThanOrEqual(44);
@@ -136,7 +143,7 @@ test.describe('desktop is unchanged at 1440 px', () => {
     test.skip(isCompact(page), 'desktop layout');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
-    await expect(page.getByRole('banner').locator('details')).toBeHidden();
+    await expect(page.locator('[data-menu]')).toBeHidden();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
   });
 

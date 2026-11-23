@@ -13,13 +13,13 @@ export type ExperimentPhase = 'calibration' | 'ab';
 export const EXPERIMENT = {
   id: 'card-headlines',
   // The pre-registration version and the git tag that marks it.
-  prereg: { version: 'v1', tag: 'prereg-v1' },
+  prereg: { version: 'v1.1', tag: 'prereg-v1.1' },
   // Both groups see group A while calibrating; the A/B starts with a redeploy tagged prereg-final.
   phase: 'calibration' as ExperimentPhase,
   // The store namespace: a fresh one per phase, so A/A data never enters the A/B analysis.
-  namespace: 'aa-v1' as string,
+  namespace: 'aa-v1.1' as string,
   // At least 2 weeks and at least 100 analysed views before the switch. startedOn was set at launch.
-  calibration: { startedOn: '2026-11-16T12:00:00+01:00' as string | null, minDays: 14, minAnalysedViews: 100 },
+  calibration: { startedOn: '2026-11-23T00:00:00+01:00' as string | null, minDays: 14, minAnalysedViews: 100 },
   // The A/B runs to a 6-month cap. startedOn is set at the switch.
   ab: { startedOn: null as string | null, capMonths: 6 },
   // Two-sided confidence sequence at 95%, planned at 80% power.

@@ -9,19 +9,19 @@
 // - It is ranking accuracy on observed orders, not a response to an offer (the page says once that nobody was contacted).
 // - The table is the sourced models table, with logistic regression and the lapsed-only scores too.
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
-import { Derived, derivedAttr } from '@/components/kit/Derived';
-import { Fact } from '@/components/kit/Fact';
+import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import type { FactId } from '@/lib/facts';
 import { formatNumber } from '@/lib/figure/format';
 import { factText } from '@/lib/facts/text';
 import { pct } from '@/lib/figure/scales';
+import type { Locale } from '@/lib/i18n/locale';
 import { RETENTION, figureProvenance, numericFact } from '@/lib/retention/data';
-import { INTERVAL_LEVEL, WINDOW_DAYS } from '@/lib/retention/rfm';
 import { modelsTable } from '@/lib/retention/tables';
+import { slotsFor } from '../../../content/retention';
+import { retentionCopy } from './copy';
 
 const ID = 'models';
-const TITLE = 'The model ranks repeat buyers only slightly better than recency';
 const REFS = ['source:retention'] as const;
 
 /** The two methods compared, by their export names, with the fact that holds each AUC. */
@@ -45,26 +45,27 @@ function plotted() {
   });
 }
 
-function ModelChart() {
+function ModelChart({ locale }: { locale: Locale }) {
+  const c = retentionCopy(locale);
   const rows = plotted();
   const n = rows.length;
   const top = (ctx: PlotContext, i: number) => ctx.yPx(i + 0.5);
   return (
     <ChartFrame
       id={`${ID}-chart`}
-      ariaLabel="ROC AUC of the most-recent-buyer-first rule and of gradient boosting on the later test period, on a scale from chance to a perfect ranking: gradient boosting is only slightly higher"
+      ariaLabel={c.models.ariaLabel}
       x={{
         domain: [0.5, 1],
         ticks: { wide: [0.5, 0.6, 0.7, 0.8, 0.9, 1], narrow: [0.5, 0.6, 0.7, 0.8, 0.9, 1] },
-        format: (v) => formatNumber(v, 1, { fixed: true }),
-        label: 'ROC AUC on the later test period',
+        format: (v) => formatNumber(v, 1, { fixed: true, locale }),
+        label: c.models.axis.x,
         refs: REFS,
       }}
       y={{
         domain: [n + 0.5, 0.5],
         ticks: { wide: [], narrow: [] },
         format: () => '',
-        label: 'Ranking method',
+        label: c.models.axis.y,
         refs: REFS,
       }}
       height={{ narrow: n * BAND, wide: n * BAND }}
@@ -93,7 +94,7 @@ function ModelChart() {
               y={top(ctx, i) + NAME_Y}
               dominantBaseline="middle"
             >
-              {r.model}
+              {c.tables.models.name(r.model)}
             </text>
           ))}
           {rows.map((r, i) => (
@@ -120,7 +121,7 @@ function ModelChart() {
               y={top(ctx, i) + DOT_Y}
               dominantBaseline="middle"
             >
-              {factText(r.fact)}
+              {factText(r.fact, { locale })}
             </text>
           ))}
         </>
@@ -129,35 +130,20 @@ function ModelChart() {
   );
 }
 
-export function ModelFigure() {
+export function ModelFigure({ locale = 'en' }: { locale?: Locale } = {}) {
+  const c = retentionCopy(locale);
+  const p = slotsFor(locale);
   return (
     <Figure
       id={ID}
-      title={TITLE}
+      title={c.models.title}
+      text={c.kit}
       provenance={figureProvenance('retention')}
-      table={modelsTable()}
-      result={
-        <>
-          Gradient boosting ranks with a ROC AUC of <Fact id="retention.model.gb_auc" />, against{' '}
-          <Fact id="retention.model.rule_auc" /> for putting the most recent buyers first: a gain of{' '}
-          <Fact id="retention.model.auc_gain" />, with a <Derived value={INTERVAL_LEVEL} unit="share" refs={REFS} /> interval
-          of <Fact id="retention.model.auc_gain_low" /> to <Fact id="retention.model.auc_gain_high" /> that covers
-          test-sample variability only.
-        </>
-      }
-      caption={
-        <>
-          How well each method ranks the customers of a public dataset by whether they ordered again within the{' '}
-          <Derived value={WINDOW_DAYS} unit="count" refs={REFS} /> days after the September 2011 cutoff. The model learned
-          on an earlier cutoff and both were scored on this later one. A ROC AUC is the chance that a customer who
-          ordered again is ranked above one who did not: one half is no better than chance, one is a perfect ranking.
-          This is ranking accuracy, not a response to any offer: a high score is a prediction, not an effect of
-          contact. The table adds logistic regression and the scores for lapsed customers
-          only.
-        </>
-      }
+      table={modelsTable(c.tables)}
+      result={c.models.result(p)}
+      caption={c.models.caption(p)}
     >
-      <ModelChart />
+      <ModelChart locale={locale} />
     </Figure>
   );
 }

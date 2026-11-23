@@ -3,7 +3,7 @@
 // a redirect. Nothing about the visitor is logged or stored here: a refusal logs one fixed line that
 // names its reason and nothing else, so a flood shows in the function logs.
 import 'server-only';
-import { cleanValues, HONEYPOT_FIELD, readValues, validate, type ContactValues, type FieldErrors } from './fields.ts';
+import { cleanValues, HONEYPOT_FIELD, readLocale, readValues, validate, type ContactValues, type FieldErrors } from './fields.ts';
 import type { ContactLimiter } from './limiter.ts';
 import type { ContactMessage } from './send.ts';
 
@@ -52,7 +52,10 @@ export async function handleContact(fd: FormData, ctx: ContactContext): Promise<
 
   const values = readValues(fd);
   const issuedAt = readIssuedAt(fd);
-  const errors = validate(values);
+  // The German messages load only on the server, when a form is answered: the action module is reachable
+  // from the client form's import graph, and a client file never reaches a dictionary.
+  const { contactErrors } = await import('@/components/contact/copy');
+  const errors = validate(values, contactErrors(readLocale(fd)));
   if (Object.keys(errors).length > 0) return { status: 'invalid', errors, values, issuedAt };
 
   const now = ctx.now();

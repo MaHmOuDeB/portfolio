@@ -17,6 +17,8 @@ type Measured = {
 const repo = path.resolve(import.meta.dirname, '../../..');
 const measured = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'inter-advances.json'), 'utf8')) as Measured;
 
+const WIDEST = 1.02;
+
 describe('labelWidth', () => {
   it('was measured from the font file the site serves', () => {
     const file = fs.readFileSync(path.join(repo, measured.font));
@@ -28,6 +30,8 @@ describe('labelWidth', () => {
     // Printable ASCII and the symbols content uses, among them "%" and the minus sign.
     expect(chars.length).toBeGreaterThanOrEqual(95);
     expect(chars).toEqual(expect.arrayContaining(['%', '−', '+', '.', ',', 'm', 'w', 'W', 'M']));
+    // The German letters and quotes of the German chart words.
+    expect(chars).toEqual(expect.arrayContaining([...'äöüÄÖÜß„“']));
     for (const [c, em] of Object.entries(measured.glyphs)) {
       expect(advanceEm(c), `U+${c.codePointAt(0)!.toString(16)} "${c}"`).toBeGreaterThanOrEqual(em);
       // A bound, not a guess far above: within the 0.02 em rounding.
@@ -69,6 +73,14 @@ describe('labelWidth', () => {
     expect(advanceEm('−')).toBe(advanceEm('+'));
     // "no change" was counted as 9 letters of 6.6 px, 59.4 px, against its real 64.8 px.
     expect(labelWidth('no change', 13)).toBeGreaterThanOrEqual(measured.strings.word['no change']! * 13);
+  });
+
+  it('bounds the German chart words, kerned, and counts a German letter by its own advance', () => {
+    for (const word of ['kein Unterschied', 'B höher', 'B niedriger']) {
+      expect(labelWidth(word, 13), word).toBeGreaterThanOrEqual(measured.strings.word[word]! * 13);
+    }
+    expect(advanceEm('ä')).toBeLessThan(WIDEST);
+    expect(advanceEm('ß')).toBeGreaterThanOrEqual(measured.glyphs['ß']!);
   });
 
   it('counts a character it does not know as the widest', () => {

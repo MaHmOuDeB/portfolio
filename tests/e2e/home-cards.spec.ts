@@ -76,11 +76,6 @@ async function geometry(page: Page): Promise<Geometry> {
     put('proof', document.querySelector('[data-home-proof]'));
     put('experiments', document.querySelector('[data-home-track="experiments"]'));
     put('automation', document.querySelector('[data-home-track="automation"]'));
-    put('how', document.querySelector('[data-home-how]'));
-    put('questions', document.querySelector('[data-home-questions]'));
-    put('tools', document.querySelector('[data-home-shipped]'));
-    put('site', document.querySelector('[data-home-site]'));
-    put('faq', document.querySelector('[data-home-faq]'));
     put('cta', document.querySelector('[data-home-cta]'));
     return out;
   });
@@ -299,7 +294,7 @@ test.describe('Home hero', () => {
       const page = await open(browser, arm, 'inter', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
       const hero = page.locator('[data-hero]');
       await expect(hero.locator('h1')).toHaveCSS('font-size', '36px');
-      await expect(hero.locator('h1')).toHaveText('Experimentation and AI automation for product and growth teams');
+      await expect(hero.locator('h1')).toHaveText('AI automation and experimentation for product and growth teams');
       const primary = hero.getByRole('link', { name: 'Write to me' });
       await expect(primary).toBeVisible();
       const box = (await primary.boundingBox())!;
@@ -326,11 +321,11 @@ test.describe('Home reflow and focus', () => {
       const page = await open(browser, 'b', 'inter', { viewport: size });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       const targets = page.locator(
-        '[data-hero] a, [data-home-how] label, [data-experiment="cards"] a, [data-home-track="automation"] a, [data-home-site] a, [data-home-faq] summary, [data-home-cta] a',
+        '[data-hero] a, [data-experiment="cards"] a, [data-home-track="automation"] a, [data-home-cta] a',
       );
       const count = await targets.count();
-      // Two hero buttons, three tabs, three cards, four automation cards, two site buttons, seven FAQ rows, two call-to-action buttons.
-      expect(count).toBeGreaterThanOrEqual(2 + 3 + 3 + 4 + 2 + 7 + 2);
+      // Two hero buttons, three cards, four automation cards, two call-to-action buttons.
+      expect(count).toBeGreaterThanOrEqual(2 + 3 + 4 + 2);
       for (let i = 0; i < count; i++) {
         const target = targets.nth(i);
         if (!(await target.isVisible())) continue;
@@ -400,7 +395,8 @@ test.describe('Home cards: which cards are clickable', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect.poll(() => target.evaluate(look)).toEqual({ border: colourInk, translate: '0px -4px', plus: colourInk });
 
-    // A tile that is not a link keeps its look under the pointer.
+    // A tile that is not a link keeps its look under the pointer (the live-test band is on /work, not on Home).
+    await page.goto('/work');
     const tile = '[data-tile]:not(a)';
     await settle(page, tile);
     const still = page.locator(tile).first();
@@ -413,9 +409,10 @@ test.describe('Home cards: which cards are clickable', () => {
     await page.context().close();
   });
 
-  test('a "How I test" tab lifts 4 px on hover, turns its border ink on hover and on keyboard focus (without moving), and the selected tab still reads as selected', async ({ browser }, info) => {
+  test('a "How I test" tab (on /work) lifts 4 px on hover, turns its border ink on hover and on keyboard focus (without moving), and the selected tab still reads as selected', async ({ browser }, info) => {
     test.skip(info.project.name !== 'desktop-chromium' && info.project.name !== 'desktop-webkit', 'hover needs a desktop pointer');
     const page = await open(browser, 'a', 'inter', { viewport: { width: 1440, height: 900 } });
+    await page.goto('/work');
     const colourInk = await ink(page);
     const tabs = page.locator('[data-home-how] label[data-how-tab]');
     await expect(tabs).toHaveCount(3);
@@ -470,7 +467,7 @@ test.describe('Home cards: which cards are clickable', () => {
 });
 
 test.describe('Home automation track', () => {
-  test('four cards after the experiments, each a link to its page, under the heading "Take the manual steps out, and keep the checks in."', async ({ page }) => {
+  test('four cards before the experiments, each a link to its page, under the heading "Take the manual steps out, and keep the checks in."', async ({ page }) => {
     await page.goto(host('a'));
     const track = page.locator('[data-home-track="automation"]');
     await expect(track.getByRole('heading', { level: 2 })).toHaveText('Take the manual steps out, and keep the checks in.');
@@ -492,7 +489,7 @@ test.describe('Home automation track', () => {
     await expect(track).toContainText('Tampermonkey with a step recorder');
     const cards = (await page.locator('[data-experiment="cards"]').boundingBox())!;
     const box = (await track.boundingBox())!;
-    expect(box.y).toBeGreaterThan(cards.y + cards.height - TOLERANCE);
+    expect(cards.y).toBeGreaterThan(box.y + box.height - TOLERANCE);
     // The automation cards are not the experiment's: no click marker, outside the cards region.
     await expect(track.locator('[data-experiment-click]')).toHaveCount(0);
     await expect(page.locator('[data-experiment="cards"] [data-home-track]')).toHaveCount(0);

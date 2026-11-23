@@ -48,7 +48,7 @@ export type BeaconResponse =
 const NAMESPACE = /^[a-z0-9.-]{1,32}$/;
 /** 'rl' would share the `exp:rl:` prefix of the rate-limit keys. */
 const RESERVED_NAMESPACES = ['rl'];
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const BATCH_KEYS = ['arm', 'events', 'ns', 'pv', 'v'];
 
 const encoder = new TextEncoder();

@@ -2,10 +2,11 @@
 // what the cards are in the test, then the three featured cards as a bento, which are the live
 // experiment's cards region. Nothing here depends on the group: only the cards' visible headlines do.
 // The live test's note is in the live bar at the top of the page, not here. Server-safe.
-import { HOME_CARD_LINE, HOME_EXPERIMENTS_HEAD, WORK_ANCHOR } from '../../../content/home.ts';
+import { HOME_CARD_LINE, WORK_ANCHOR } from '../../../content/home.ts';
 import { SectionHead } from '@/components/frame';
 import type { Arm } from '@/experiment.values';
-import type { HomeModel } from '@/lib/home/model';
+import type { Locale } from '@/lib/i18n/locale';
+import { homeCopy } from './copy';
 import { FeaturedCases } from './FeaturedCases';
 
 export type CardLinePhase = keyof typeof HOME_CARD_LINE;
@@ -15,7 +16,10 @@ export type CardLinePhase = keyof typeof HOME_CARD_LINE;
  * calibration or the A/B while counting goes on, nothing when the test is paused, stopped, decided,
  * closed or not configured. The note's group never reaches the line.
  */
-export function cardLinePhase(model: HomeModel): CardLinePhase | null {
+export function cardLinePhase(model: {
+  countingClosed: boolean;
+  testNote: { mode: CardLinePhase | 'paused' } | null;
+}): CardLinePhase | null {
   if (model.countingClosed || model.testNote === null) return null;
   switch (model.testNote.mode) {
     case 'calibration':
@@ -27,8 +31,16 @@ export function cardLinePhase(model: HomeModel): CardLinePhase | null {
   }
 }
 
-export function ExperimentsTrack({ headlineArm, phase = null }: { headlineArm: Arm; phase?: CardLinePhase | null }) {
-  const head = HOME_EXPERIMENTS_HEAD;
+export function ExperimentsTrack({
+  headlineArm,
+  phase = null,
+  locale = 'en',
+}: {
+  headlineArm: Arm;
+  phase?: CardLinePhase | null;
+  locale?: Locale;
+}) {
+  const head = homeCopy(locale).experimentsHead;
   return (
     <section id={WORK_ANCHOR} data-home-track="experiments" data-rule="" aria-labelledby="track-experiments-title" className="scroll-mt-24 pb-2.5">
       <SectionHead id="track-experiments-title" chip={head.chip} title={head.title} quiet={head.quiet} sub={head.sub} />
@@ -37,7 +49,7 @@ export function ExperimentsTrack({ headlineArm, phase = null }: { headlineArm: A
           {HOME_CARD_LINE[phase]}
         </p>
       ) : null}
-      <FeaturedCases headlineArm={headlineArm} />
+      <FeaturedCases headlineArm={headlineArm} locale={locale} />
     </section>
   );
 }

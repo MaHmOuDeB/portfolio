@@ -17,8 +17,9 @@ import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { derivedAttr } from '@/components/kit/Derived';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Segmented } from '@/components/kit/Segmented';
-import { CHANNELS, PULSE_ID, RANGES, type ChannelValue, type DashboardView, type RangeValue } from '@/lib/pulse/dashboard';
+import { PULSE_ID, RANGES, channelOptions, type ChannelValue, type DashboardView, type RangeValue } from '@/lib/pulse/dashboard';
 import { PULSE_TAXONOMY_REFS } from '@/lib/pulse/names';
+import { EN_PULSE, type PulseText } from '@/lib/pulse/text';
 import type { PulseTaxonomyRow } from '@/lib/pulse/taxonomy';
 import type { PulseInteractiveProps } from './PulseInteractive';
 
@@ -35,40 +36,49 @@ export type PulseControlsProps = {
   onChannel: (channel: ChannelValue) => void;
   onRange: (range: RangeValue) => void;
   onReset: () => void;
+  /** The control row's words; English when absent. */
+  text?: PulseText;
 };
 
-export function PulseControls({ view, onChannel, onRange, onReset }: PulseControlsProps) {
+export function PulseControls({ view, onChannel, onRange, onReset, text = EN_PULSE }: PulseControlsProps) {
   return (
     <>
-      <Segmented name={`${PULSE_ID}-channel`} legend="Channel" options={CHANNELS} value={view.channel} onChange={onChannel} />
+      <Segmented name={`${PULSE_ID}-channel`} legend={text.controls.channel} options={channelOptions(text)} value={view.channel} onChange={onChannel} />
       <div {...derivedAttr(PULSE_TAXONOMY_REFS)} className="max-xs:w-full">
-        <Segmented name={`${PULSE_ID}-range`} legend="Date range" options={RANGE_OPTIONS} value={view.range} onChange={onRange} />
+        <Segmented name={`${PULSE_ID}-range`} legend={text.controls.range} options={RANGE_OPTIONS} value={view.range} onChange={onRange} />
       </div>
-      <ResetButton id={`${PULSE_ID}-reset`} onReset={onReset} />
+      <ResetButton id={`${PULSE_ID}-reset`} onReset={onReset} label={text.kit.reset} />
     </>
   );
 }
 
 const noop = () => {};
 
-export function InertPulseControls({ view }: { view: DashboardView }) {
-  return <PulseControls view={view} onChannel={noop} onRange={noop} onReset={noop} />;
+export function InertPulseControls({ view, text }: { view: DashboardView; text?: PulseText }) {
+  return <PulseControls view={view} onChannel={noop} onRange={noop} onReset={noop} text={text} />;
 }
 
 export function PulseFigureClient({
   taxonomy,
   preview,
   faultAfterChange,
+  text,
 }: {
   /** The export's event rows, read on the server: the island's bus accepts exactly these events. */
   taxonomy: readonly PulseTaxonomyRow[];
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
   faultAfterChange?: true;
+  /** The Figure's words, handed over only for a language other than English. */
+  text?: PulseText;
 }) {
   return (
     <EagerOrIntent ids={[PULSE_ID]} preview={preview}>
-      <PulseIsland taxonomy={taxonomy} faultAfterChange={faultAfterChange} />
+      {text ? (
+        <PulseIsland taxonomy={taxonomy} faultAfterChange={faultAfterChange} text={text} />
+      ) : (
+        <PulseIsland taxonomy={taxonomy} faultAfterChange={faultAfterChange} />
+      )}
     </EagerOrIntent>
   );
 }

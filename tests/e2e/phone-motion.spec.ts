@@ -6,7 +6,7 @@ import { test, waitForIslands } from './fixtures';
 // sheets start in a fanned pose and settle into the static column as the stack scrolls into view, and
 // that end state is exactly the still column (the one reduced motion shows). Nothing scrolls sideways
 // at 320, 375 or 390 px at any point of the scroll: before, during and after the stack, through the
-// drifting, hinging and tracing blocks of Home, About and a case study. Under reduced motion nothing
+// drifting, hinging and tracing blocks of Home, About, Work ("How I test" and the "I automate." row) and a case study. Under reduced motion nothing
 // this motion touches is transformed or animated. An engine without scroll timelines shows the static
 // column from the start, and that is checked instead of the fan.
 
@@ -15,7 +15,7 @@ const PHONES = [
   { width: 375, height: 812 },
   { width: 390, height: 844 },
 ] as const;
-const ROUTES = ['/', '/about', '/work/audible'] as const;
+const ROUTES = ['/', '/about', '/work', '/work/audible'] as const;
 
 const frames = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 

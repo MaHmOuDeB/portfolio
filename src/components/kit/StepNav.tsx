@@ -12,6 +12,7 @@ import { buttonClass } from '@/components/kit/ButtonLink';
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { cx } from '@/lib/cx';
 import { normalizeSteps, stepDirection, stepLabel, stepTarget } from '@/lib/figure/steps';
+import { EN_STEP, type StepText } from './text';
 
 export type StepNavProps = {
   /** 1-based. Clamped to 1 to total, so a stale or hostile value never throws. */
@@ -25,6 +26,8 @@ export type StepNavProps = {
   refs: readonly DerivedRef[];
   /** With it, Previous and Next get the ids `${id}-previous` and `${id}-next`; the nav has none. Without it, no ids. */
   id?: string;
+  /** Previous, Next and the language of "3 of 5"; default English. */
+  text?: StepText;
 };
 
 const BUTTON = cx(
@@ -32,7 +35,7 @@ const BUTTON = cx(
   'aria-disabled:cursor-not-allowed aria-disabled:border-line aria-disabled:text-muted aria-disabled:hover:bg-transparent',
 );
 
-export function StepNav({ current, total, onChange, label, refs, id }: StepNavProps) {
+export function StepNav({ current, total, onChange, label, refs, id, text = EN_STEP }: StepNavProps) {
   const at = normalizeSteps(current, total);
   // The counter changes on every use, so the same text announced twice (3 of 5, then an outside
   // change, then 3 of 5 again) is a new node in the live region and is read again.
@@ -43,7 +46,7 @@ export function StepNav({ current, total, onChange, label, refs, id }: StepNavPr
     const target = stepTarget(at.current, at.total, direction);
     if (target === null) return;
     onChange(target);
-    setAnnounced((prev) => ({ text: stepLabel(target, at.total), n: prev.n + 1 }));
+    setAnnounced((prev) => ({ text: stepLabel(target, at.total, { locale: text.locale }), n: prev.n + 1 }));
   };
 
   return (
@@ -67,10 +70,10 @@ export function StepNav({ current, total, onChange, label, refs, id }: StepNavPr
         aria-disabled={at.current <= 1 ? 'true' : undefined}
         onClick={() => move(-1)}
       >
-        Previous
+        {text.previous}
       </button>
       <span data-step-count data-num="" {...marker} className="min-w-[5ch] text-center text-sm">
-        {stepLabel(at.current, at.total)}
+        {stepLabel(at.current, at.total, { locale: text.locale })}
       </span>
       <button
         type="button"
@@ -80,7 +83,7 @@ export function StepNav({ current, total, onChange, label, refs, id }: StepNavPr
         aria-disabled={at.current >= at.total ? 'true' : undefined}
         onClick={() => move(1)}
       >
-        Next
+        {text.next}
       </button>
       <span aria-live="polite" data-step-live {...marker} className="sr-only">
         {announced.n > 0 ? <span key={announced.n}>{announced.text}</span> : null}

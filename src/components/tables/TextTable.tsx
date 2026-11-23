@@ -10,8 +10,9 @@
 import { derivedAttr } from '@/components/kit/Derived';
 import type { TableData } from '@/components/kit/DataTable';
 import { formatNumber } from '@/lib/figure/format';
+import type { Locale } from '@/lib/i18n/locale';
 
-type Props = { id: string; caption: string; table: TableData };
+type Props = { id: string; caption: string; table: TableData; /** The language of the counts; omitted, English. */ locale?: Locale; /** One BCP 47 tag per column, for a column whose cells are in another language than the page (undefined: the page's); omitted, no cell is marked. */ lang?: readonly (string | undefined)[] };
 
 /**
  * Every number here prints as a grouped whole count, so the only column formats it takes are `number`
@@ -28,8 +29,9 @@ function checkFormats(id: string, table: TableData): void {
   }
 }
 
-export function TextTable({ id, caption, table }: Props) {
+export function TextTable({ id, caption, table, locale, lang }: Props) {
   checkFormats(id, table);
+  if (lang !== undefined && lang.length !== table.columns.length) throw new Error(`TextTable ${id}: ${lang.length} languages for ${table.columns.length} columns`);
   const cell = derivedAttr(table.refs);
   const captionId = `${id}-caption`;
   const numeric = table.columns.map((_, i) => table.rows.length > 0 && table.rows.every((r) => typeof r[i] === 'number' || r[i] === '<5'));
@@ -57,13 +59,14 @@ export function TextTable({ id, caption, table }: Props) {
                   key={i}
                   role="cell"
                   {...cell}
+                  {...(lang?.[i] ? { lang: lang[i] } : {})}
                   {...(typeof v === 'number' || v === '<5' ? { 'data-num': '' } : {})}
                   {...(i > 0 ? { 'data-label': table.columns[i] } : {})}
                   className={`align-top max-md:block md:border-b md:border-line md:py-2 md:pr-4 md:last:pr-0 ${align(i)} ${
                     i === 0 ? 'font-semibold md:whitespace-nowrap' : 'max-md:mt-2'
                   }`}
                 >
-                  {typeof v === 'number' ? formatNumber(v, 0) : v}
+                  {typeof v === 'number' ? formatNumber(v, 0, { locale }) : v}
                 </td>
               ))}
             </tr>

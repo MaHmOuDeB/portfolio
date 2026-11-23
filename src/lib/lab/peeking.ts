@@ -14,7 +14,9 @@ import { normalQuantile } from '@/lib/stats/normal';
 import type { PeekResult } from '@/lib/stats/peeking';
 import { wilson } from '@/lib/stats/proportions';
 import { mixtureCs, obfBoundary, optimalTau2 } from '@/lib/stats/sequential';
+import { fill } from '@/lib/i18n/template';
 import { PEEK_TABLE, PEEK_TABLE_MANIFEST, type PeekTableEntry } from './peeking-table.generated';
+import { EN_PEEK, type PeekTableText } from './text-peek';
 
 export type PeekValues = { looks: number; mode: 'daily' | 'once'; fix: 'naive' | 'obf' | 'cs' };
 /** A planning ratio: `boundary` is O'Brien-Fleming's last-look bar over one look's, `width` the confidence sequence's half-width over the fixed interval's. */
@@ -116,52 +118,51 @@ const percent = (share: number) => Math.round(share * M.runs) / (M.runs / 100);
  */
 const ONE_DECIMAL = { fixed: 1 } as const;
 
-const FIX_NAME: Record<Fix, string> = { naive: 'no fix', obf: 'stricter early checks', cs: 'always-valid check' };
-
-function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult): TableData {
+function tableOf(v: PeekValues, selected: PeekResult, naive: PeekResult, text: PeekTableText): TableData {
   const ghost = naive.cumulativeByLook.map(percent);
   if (v.mode === 'once') {
     // One row per daily look with no fix, then the one look at the end as its own row, so every
     // numeric column holds a number in every row.
     return {
-      columns: ['Look', 'Schedule', 'False winners so far (%)'],
+      columns: [...text.once.columns],
       rows: [
-        ...ghost.map((g, i): (string | number)[] => [i + 1, 'Peeking daily, no fix', g]),
-        [v.looks, 'One look at the end', percent(selected.falsePositiveRate)],
+        ...ghost.map((g, i): (string | number)[] => [i + 1, text.once.daily, g]),
+        [v.looks, text.once.end, percent(selected.falsePositiveRate)],
       ],
       formats: ['count', 'number', ONE_DECIMAL],
-      note: 'Shares of the simulated runs. Looking once means a single check, made after as many visitors as the daily schedule has at its last look.',
+      note: text.once.note,
       refs: PEEK_REFS,
     };
   }
   if (v.fix === 'naive') {
     return {
-      columns: ['Day', 'False winners so far, no fix (%)'],
+      columns: [...text.naive.columns],
       rows: ghost.map((g, i) => [i + 1, g]),
       formats: ['count', ONE_DECIMAL],
-      note: 'Shares of the simulated runs flagged as a winner on or before each day, checked once a day.',
+      note: text.naive.note,
       refs: PEEK_REFS,
     };
   }
   const chosen = selected.cumulativeByLook.map(percent);
+  const [day, naiveColumn, fixColumn] = text.fix.columns;
   return {
-    columns: ['Day', 'False winners so far, no fix (%)', `False winners so far, ${FIX_NAME[v.fix]} (%)`],
+    columns: [day, naiveColumn, fill(fixColumn, { fix: text.fixNames[v.fix] })],
     rows: ghost.map((g, i) => [i + 1, g, chosen[i]!]),
     formats: ['count', ONE_DECIMAL, ONE_DECIMAL],
-    note: 'Shares of the simulated runs flagged as a winner on or before each day, checked once a day.',
+    note: text.fix.note,
     refs: PEEK_REFS,
   };
 }
 
 /** The whole comparison for one set of control values: one consistent tuple for chart, readout and table. */
-export function computePeek(v: PeekValues): PeekView {
+export function computePeek(v: PeekValues, tableText: PeekTableText = EN_PEEK.table): PeekView {
   const values = normalizePeek(v);
   const naive = daily('naive', values.looks);
   const selected = values.mode === 'once' ? once(values.looks) : daily(values.fix, values.looks);
   // Wilson from the whole number of flagged runs, never from the rounded standard error.
   const flagged = Math.round(selected.falsePositiveRate * selected.runs);
   const { lower, upper } = wilson(flagged, selected.runs, MC_ALPHA);
-  return { values, selected, naive, mc: { lower, upper }, cost: costOf(values), table: tableOf(values, selected, naive) };
+  return { values, selected, naive, mc: { lower, upper }, cost: costOf(values), table: tableOf(values, selected, naive, tableText) };
 }
 
 /**

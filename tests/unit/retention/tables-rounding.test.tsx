@@ -6,7 +6,10 @@
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { RetentionChecks, RetentionIntro, RetentionLimits, RetentionMethod, RetentionSources } from '../../../content/retention';
+import { RETENTION_EN, blocks, slotsFor } from '../../../content/retention';
+
+const B = blocks(RETENTION_EN, slotsFor('en'));
+const { checks: RetentionChecks, intro: RetentionIntro, limits: RetentionLimits, method: RetentionMethod, sources: RetentionSources } = B;
 import type { TableData } from '@/components/kit/DataTable';
 import { FACTS, formatValue, getFact, type FactId } from '@/lib/facts';
 import { RETAIL, RETENTION, sourceRepo } from '@/lib/retention/data';

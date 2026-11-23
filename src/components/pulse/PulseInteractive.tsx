@@ -21,7 +21,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
-import { createAnnouncer, pulseMessages } from '@/lib/pulse/announce';
+import { createAnnouncer, messagesFor } from '@/lib/pulse/announce';
 import { createPulseBus, type PulseEvent } from '@/lib/pulse/bus';
 import {
   PULSE_ID,
@@ -33,6 +33,7 @@ import {
 } from '@/lib/pulse/dashboard';
 import { connectDashboard, pulseEvents, resetDashboard, type Stream } from '@/lib/pulse/session';
 import type { PulseTaxonomyRow } from '@/lib/pulse/taxonomy';
+import { EN_PULSE, type PulseText } from '@/lib/pulse/text';
 import { PulseControls } from './PulseFigureClient';
 import { PulseFigureView } from './PulseView';
 
@@ -40,6 +41,8 @@ export type PulseInteractiveProps = {
   /** The export's event rows, as the server read them. */
   taxonomy: readonly PulseTaxonomyRow[];
   faultAfterChange?: true;
+  /** The Figure's words; the default is English. */
+  text?: PulseText;
 };
 
 /** How long the CSV's object URL lives after the click that saves it, in ms. */
@@ -55,7 +58,8 @@ function saveCsv(view: DashboardView) {
   window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_MS);
 }
 
-export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseInteractiveProps) {
+export default function PulseInteractive({ taxonomy, faultAfterChange, text = EN_PULSE }: PulseInteractiveProps) {
+  const pulseMessages = messagesFor(text);
   const { values, set, reset } = useFigureParams(PULSE_ID, PULSE_SCHEMA, PULSE_PRESETS);
   const view: DashboardView = { channel: values.channel, range: values.range };
 
@@ -93,8 +97,10 @@ export default function PulseInteractive({ taxonomy, faultAfterChange }: PulseIn
       announcement={announcement}
       faultAfterChange={faultAfterChange}
       changed={changed}
+      text={text}
       controls={
         <PulseControls
+          text={text}
           view={view}
           onChannel={(channel) => {
             set('channel', channel);

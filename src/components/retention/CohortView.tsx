@@ -28,10 +28,13 @@ import type { Provenance } from '@/components/kit/ProvenanceBadge';
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber } from '@/lib/figure/format';
 import { pct } from '@/lib/figure/scales';
+import { fill } from '@/lib/i18n/template';
+import { sentenceNodes, sentenceText } from '@/lib/retention/sentence';
+import { EN_COHORTS, kitFromSlice, type CohortText } from '@/lib/retention/text';
+import type { Locale } from '@/lib/i18n/locale';
 import {
   COHORTS_ID,
   COHORTS_REFS,
-  COHORTS_TITLE,
   MONTHS,
   cellOpacity,
   checkCohorts,
@@ -44,7 +47,7 @@ import {
 } from '@/lib/retention/cohorts';
 
 const SOURCE = derivedAttr(COHORTS_REFS);
-const share = (v: number) => formatValue(v, 'share');
+const share = (v: number, locale: Locale) => formatValue(v, 'share', { locale });
 /** A share as a position on the line's percent axis (0.3179 is 31.79): a plotting unit, never printed. */
 const toPercent = (v: number) => v * 100;
 /** A tick, a whole tenth of the axis, in whole percent: 30, never 30.000000000000004. */
@@ -61,8 +64,6 @@ const LINE_HEIGHT = 220;
 const MARK_DECIMALS = 4;
 /** A mark-layer x position or width, rounded for print: 70.1754, never 70.17543859649122. */
 const units = (v: number) => Number(v.toFixed(MARK_DECIMALS));
-const SELECTED = 'Selected';
-const X_LABEL = 'Months after the first order';
 
 /** Thrown by the test seam's chart: a chart failure after a change, for the error fallback's tests. */
 function SeamFailure(): never {
@@ -70,19 +71,20 @@ function SeamFailure(): never {
 }
 
 /** A cohort's name as printed, marked as read from the export. */
-function CohortName({ month }: { month: string }) {
-  return <span {...SOURCE}>{monthLabel(month)}</span>;
+function CohortName({ month, locale }: { month: string; locale: Locale }) {
+  return <span {...SOURCE}>{monthLabel(month, locale)}</span>;
 }
 
 /** Every cohort as a row, every later month as a cell; the selected row outlined and labelled. */
-export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; selected: string }) {
+export function CohortHeatmap({ rows, selected, text = EN_COHORTS }: { rows: readonly Cohort[]; selected: string; text?: CohortText }) {
+  const locale = text.kit.locale;
   checkCohorts(rows);
   const { top } = cohortAxis(rows);
   const { index } = cohortAt(rows, selected);
   const n = rows.length;
   const rowTick = (v: number) => {
     const row = Number.isInteger(v) ? rows[v - 1] : undefined;
-    return row ? monthLabel(row.cohort_month) : '';
+    return row ? monthLabel(row.cohort_month, locale) : '';
   };
   const marks = (ctx: PlotContext) => {
     const x = (m: number) => ctx.xFrac(m) * MARK_UNITS;
@@ -148,7 +150,7 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
             textAnchor="middle"
             dominantBaseline="middle"
           >
-            {share(c.retention[m]!)}
+            {share(c.retention[m]!, locale)}
           </text>
         )),
       )}
@@ -160,7 +162,7 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
         y={ctx.yPx(index + 1)}
         dominantBaseline="middle"
       >
-        {SELECTED}
+        {text.selected}
       </text>
     </>
   );
@@ -168,12 +170,12 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
     <ChartFrame
       id={`${COHORTS_ID}-heatmap`}
       layout="wide"
-      ariaLabel={`Share of each cohort, by month of first order from ${cohortSpanWords(rows)}, who ordered again in each month after it, as shaded cells with their values; the ${cohortMonthWord(selected)} cohort is outlined`}
+      ariaLabel={fill(text.aria.heat, { span: cohortSpanWords(rows, text), month: cohortMonthWord(selected, locale) })}
       x={{
         domain: [0.5, LATER_END + LABEL_MONTHS],
         ticks: { wide: [...MONTHS], narrow: [...MONTHS] },
-        format: (v) => formatNumber(v, 0),
-        label: X_LABEL,
+        format: (v) => formatNumber(v, 0, { locale }),
+        label: text.axis.x,
         refs: COHORTS_REFS,
       }}
       y={{
@@ -181,7 +183,7 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
         domain: [n + 0.5, 0.5],
         ticks: { wide: rows.map((_, i) => i + 1), narrow: rows.map((_, i) => i + 1) },
         format: rowTick,
-        label: 'Cohort, by month of first order',
+        label: text.axis.heat,
         refs: COHORTS_REFS,
       }}
       height={{ narrow: n * ROW_PX, wide: n * ROW_PX }}
@@ -192,29 +194,31 @@ export function CohortHeatmap({ rows, selected }: { rows: readonly Cohort[]; sel
 }
 
 /** "January to November", the span's months in words, for the accessible name. */
-function cohortSpanWords(rows: readonly Cohort[]): string {
+function cohortSpanWords(rows: readonly Cohort[], text: CohortText): string {
+  const locale = text.kit.locale;
   const first = rows[0]!.cohort_month;
   const last = rows.at(-1)!.cohort_month;
-  return first === last ? cohortMonthWord(first) : `${cohortMonthWord(first)} to ${cohortMonthWord(last)}`;
+  return first === last ? cohortMonthWord(first, locale) : `${cohortMonthWord(first, locale)} ${text.span.to} ${cohortMonthWord(last, locale)}`;
 }
 
 /** The selected cohort's twelve later months as a line, on the axis every cohort shares. */
-export function CohortLine({ rows, selected }: { rows: readonly Cohort[]; selected: string }) {
+export function CohortLine({ rows, selected, text = EN_COHORTS }: { rows: readonly Cohort[]; selected: string; text?: CohortText }) {
+  const locale = text.kit.locale;
   checkCohorts(rows);
   const { top, ticks } = cohortAxis(rows);
   const { row } = cohortAt(rows, selected);
   const points = MONTHS.map((m) => [m, row.retention[m]!] as const);
-  const name = monthLabel(row.cohort_month);
+  const name = monthLabel(row.cohort_month, locale);
   return (
     <ChartFrame
       id={`${COHORTS_ID}-line`}
       layout="narrow"
-      ariaLabel={`Share of the ${cohortMonthWord(selected)} cohort who ordered again, month by month for the twelve months after their first order`}
+      ariaLabel={fill(text.aria.line, { month: cohortMonthWord(selected, locale) })}
       x={{
         domain: [1, MONTHS.length],
         ticks: { narrow: [1, 3, 6, 9, 12], wide: [1, 3, 6, 9, 12] },
-        format: (v) => formatNumber(v, 0),
-        label: X_LABEL,
+        format: (v) => formatNumber(v, 0, { locale }),
+        label: text.axis.x,
         refs: COHORTS_REFS,
       }}
       // In percent, so a tick prints "30" and the unit is in the label: the frame sizes its left
@@ -222,8 +226,8 @@ export function CohortLine({ rows, selected }: { rows: readonly Cohort[]; select
       y={{
         domain: [0, top * 100],
         ticks: { narrow: ticks.map(wholePercent), wide: ticks.map(wholePercent) },
-        format: (v) => formatNumber(v, 0),
-        label: 'Ordered again that month (%)',
+        format: (v) => formatNumber(v, 0, { locale }),
+        label: text.axis.line,
         refs: COHORTS_REFS,
       }}
       height={{ narrow: LINE_HEIGHT, wide: LINE_HEIGHT }}
@@ -254,26 +258,31 @@ export function CohortLine({ rows, selected }: { rows: readonly Cohort[]; select
         ))
       }
       // In the top band, above every cohort's largest month, at the line's right end.
-      annotation={() => ({ x: MONTHS.length, y: toPercent(top) * 0.94, text: `${name} cohort`, anchor: 'end', refs: COHORTS_REFS })}
+      annotation={() => ({ x: MONTHS.length, y: toPercent(top) * 0.94, text: fill(text.annotation, { name }), anchor: 'end', refs: COHORTS_REFS })}
     />
   );
 }
 
 /** The result line: the selected cohort's first and twelfth later month. */
-export function CohortResult({ row }: { row: Cohort }) {
-  return (
-    <>
-      In the month after their first order, <Derived value={row.retention[1]!} unit="share" refs={COHORTS_REFS} /> of
-      the <CohortName month={row.cohort_month} /> cohort (
-      <Derived value={row.cohort_size} unit="count" refs={COHORTS_REFS} /> customers) ordered again; in the twelfth month
-      after it, <Derived value={row.retention[MONTHS.length]!} unit="share" refs={COHORTS_REFS} /> did.
-    </>
-  );
+export function CohortResult({ row, text = EN_COHORTS }: { row: Cohort; text?: CohortText }) {
+  const locale = text.kit.locale;
+  return sentenceNodes(text.result, {
+    share1: <Derived value={row.retention[1]!} unit="share" refs={COHORTS_REFS} locale={locale} />,
+    name: <CohortName month={row.cohort_month} locale={locale} />,
+    size: <Derived value={row.cohort_size} unit="count" refs={COHORTS_REFS} locale={locale} />,
+    share12: <Derived value={row.retention[MONTHS.length]!} unit="share" refs={COHORTS_REFS} locale={locale} />,
+  });
 }
 
 /** The same sentence as plain text, for the announcement on a committed change. */
-export function cohortResultText(row: Cohort): string {
-  return `In the month after their first order, ${share(row.retention[1]!)} of the ${monthLabel(row.cohort_month)} cohort (${formatValue(row.cohort_size, 'count')} customers) ordered again; in the twelfth month after it, ${share(row.retention[MONTHS.length]!)} did.`;
+export function cohortResultText(row: Cohort, text: CohortText = EN_COHORTS): string {
+  const locale = text.kit.locale;
+  return sentenceText(text.result, {
+    share1: share(row.retention[1]!, locale),
+    name: monthLabel(row.cohort_month, locale),
+    size: formatValue(row.cohort_size, 'count', { locale }),
+    share12: share(row.retention[MONTHS.length]!, locale),
+  });
 }
 
 export type CohortFigureViewProps = {
@@ -291,6 +300,8 @@ export type CohortFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has changed the cohort since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; default English. */
+  text?: CohortText;
 };
 
 export function CohortFigureView({
@@ -303,34 +314,28 @@ export function CohortFigureView({
   preview,
   faultAfterChange,
   changed,
+  text = EN_COHORTS,
 }: CohortFigureViewProps) {
+  const locale = text.kit.locale;
   const { row } = cohortAt(rows, cohort);
   return (
     <Figure
       id={COHORTS_ID}
-      title={COHORTS_TITLE}
+      title={text.title}
+      text={kitFromSlice(text.kit)}
       provenance={provenance}
       table={table}
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<CohortResult row={row} />}
-      caption={
-        <>
-          Customers of a UK online gift retailer, from a public dataset, grouped by the month of their first order in
-          the data, <span {...SOURCE}>{cohortSpan(rows)}</span>. Each later month shows the share of a cohort who
-          ordered again in that later month, so a share can rise again: it is not the share still ordering every
-          month since. Month zero, the first order itself, includes every member by definition, so only the table
-          shows it. On a wide screen each row is a cohort and darker cells hold larger shares, with the chosen cohort
-          outlined; on a narrow one the chosen cohort is a line.
-        </>
-      }
+      result={<CohortResult row={row} text={text} />}
+      caption={sentenceNodes(text.caption, { span: <span {...SOURCE}>{cohortSpan(rows, { locale, words: text.span })}</span> })}
     >
       <div data-cohort-mode="heatmap" className="hidden min-[37.5rem]:block">
-        <CohortHeatmap rows={rows} selected={cohort} />
+        <CohortHeatmap rows={rows} selected={cohort} text={text} />
       </div>
       <div data-cohort-mode="line" className="min-[37.5rem]:hidden">
-        <CohortLine rows={rows} selected={cohort} />
+        <CohortLine rows={rows} selected={cohort} text={text} />
       </div>
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>

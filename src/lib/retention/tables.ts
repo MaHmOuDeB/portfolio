@@ -6,16 +6,56 @@
 import type { DerivedRef } from '@/components/kit/Derived';
 import type { ColumnFormat, TableData } from '@/components/kit/DataTable';
 import { COHORTS, RETAIL, RETENTION, numericFact, type ReturnMode } from './data';
+import { monthLabel } from './returns';
+import { EN_COHORTS, EN_RETURNS, type CohortText, type ReturnsText } from './text';
 
 const RETAIL_REFS: readonly DerivedRef[] = ['source:retail'];
 
-const monthFormat = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+/**
+ * The words of the four tables that only the server draws (the segments, the models, the targeting and
+ * the holdout sizes). English here; the German values are in content/de/retention.tsx. The group and
+ * model names are the export's own keys, so a text maps each key to the name it prints, and throws on a
+ * key it does not know.
+ */
+export type SourcedTablesText = {
+  rfm: { columns: readonly [segment: string, customers: string, customerShare: string, spendShare: string]; note: string };
+  models: {
+    columns: readonly [model: string, all: string, lapsed: string];
+    note: string;
+    /** The name printed for an export model name. */
+    name: (model: string) => string;
+  };
+  targeting: { columns: readonly [share: string, selected: string, ordered: string, expected: string]; note: string };
+  holdout: {
+    columns: readonly [group: string, ordered: string, rise: string, perGroup: string];
+    note: string;
+    /** The label printed for an export group name. */
+    group: (group: string) => string;
+  };
+};
 
-/** "Jan 2010" for "2010-01". */
-function monthLabel(month: string): string {
-  if (!/^\d{4}-\d{2}$/.test(month)) throw new TypeError(`expected a YYYY-MM month, got ${JSON.stringify(month)}`);
-  return monthFormat.format(Date.parse(`${month}-01T00:00:00Z`)).replace(/^Sept\b/, 'Sep');
-}
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export const EN_TABLES: SourcedTablesText = {
+  rfm: {
+    columns: ['Segment', 'Customers', 'Share of customers', 'Share of spend'],
+    note: 'Customers at the September cutoff of the analysis; spend is everything they bought up to it.',
+  },
+  models: {
+    columns: ['Model', 'ROC AUC, all customers', 'ROC AUC, lapsed customers only'],
+    note: 'How well each model ranks the customers who ordered again within the window, scored on a later period than it learned from. Ranking accuracy, not a response to any offer.',
+    name: (model) => model,
+  },
+  targeting: {
+    columns: ['Share selected', 'Customers selected', 'Ordered again within the window', 'Expected to order again, random selection'],
+    note: 'Lapsed customers with the highest model scores, selected on paper only. These are observed orders, not the effect of an offer.',
+  },
+  holdout: {
+    columns: ['Sized for', 'Ordered again', 'Rise (points)', 'Customers per group'],
+    note: 'Ordered again is the share who ordered again within the window, and the rise is in percentage points. A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
+    group: capitalise,
+  },
+};
 
 /** The value itself, after checking it is a finite number (a share also between zero and one). */
 function finite(v: number, what: string, share = false): number {
@@ -24,45 +64,39 @@ function finite(v: number, what: string, share = false): number {
   return v;
 }
 
-const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
 /** Returned-order value per month, in whole pounds, with or without the 24-hour reversal rule. */
-export function returnsTable(mode: ReturnMode): TableData {
+export function returnsTable(mode: ReturnMode, text: ReturnsText = EN_RETURNS): TableData {
+  const locale = text.kit.locale;
   return {
-    columns: ['Month', 'Returned-order value (GBP)', 'Partial month'],
+    columns: [...text.table.columns],
     rows: RETAIL.tables.monthly.map((m) => [
-      monthLabel(m.month),
+      monthLabel(m.month, locale),
       finite(mode === 'raw' ? m.returns_gbp_raw : m.returns_gbp_clean, `returns ${m.month}`),
-      m.partial ? 'Yes' : 'No',
+      m.partial ? text.table.yes : text.table.no,
     ]),
     formats: ['number', 'count', 'number'],
-    note:
-      mode === 'raw'
-        ? 'Without the reversal rule: a cancellation that reverses an order counts as a returned order. The last month is partial: the data ends early in December.'
-        : 'With the reversal rule: an order and the cancellation that reverses it are both removed. The last month is partial: the data ends early in December.',
+    note: text.table.note[mode],
     refs: RETAIL_REFS,
   };
 }
 
-const MONTH_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-
 /** Every cohort's share active in each month after its first order: all thirteen values per row. */
-export function cohortTable(): TableData {
+export function cohortTable(text: CohortText = EN_COHORTS): TableData {
+  const locale = text.kit.locale;
   const months = COHORTS[0]?.retention.length ?? 0;
-  if (months !== MONTH_WORDS.length + 1) throw new Error(`retention: expected ${MONTH_WORDS.length + 1} months per cohort, got ${months}`);
+  if (months !== text.table.months.length + 1) throw new Error(`retention: expected ${text.table.months.length + 1} months per cohort, got ${months}`);
   return {
-    columns: ['Cohort', 'Customers', 'Formation month', ...MONTH_WORDS.map((w) => `Month ${w}`)],
+    columns: [...text.table.columns, ...text.table.months],
     rows: COHORTS.map((c) => {
       if (c.retention.length !== months) throw new Error(`retention: cohort ${c.cohort_month} has ${c.retention.length} months`);
       return [
-        monthLabel(c.cohort_month),
+        monthLabel(c.cohort_month, locale),
         finite(c.cohort_size, `cohort ${c.cohort_month} size`),
         ...c.retention.map((v, i) => finite(v, `cohort ${c.cohort_month} month ${i}`, true)),
       ];
     }),
     formats: ['number', 'count', ...Array<ColumnFormat>(months).fill('share')],
-    note:
-      'Customers are grouped by the month of their first order in the data. Each later month counts the cohort members who ordered in that month, so a share can rise again; it is not the share who kept buying every month since.',
+    note: text.table.note,
     refs: ['source:retention'],
   };
 }
@@ -72,7 +106,7 @@ export function cohortTable(): TableData {
  * customer share to three decimals, which would print one point too high, so that cell is the
  * checked fact computed from counts.
  */
-export function rfmTable(): TableData {
+export function rfmTable(text: SourcedTablesText = EN_TABLES): TableData {
   const championsShare = numericFact('retention.rfm.champions_customer_share');
   const championsSpend = numericFact('retention.rfm.champions_revenue_share');
   const segments = RETENTION.tables.rfm_segments;
@@ -84,7 +118,7 @@ export function rfmTable(): TableData {
   }
   if (champions.revenue_share !== championsSpend) throw new Error('retention: Champions spend share differs from its fact');
   return {
-    columns: ['Segment', 'Customers', 'Share of customers', 'Share of spend'],
+    columns: [...text.rfm.columns],
     rows: segments.map((s) => [
       s.segment,
       finite(s.customers, `${s.segment} customers`),
@@ -92,31 +126,31 @@ export function rfmTable(): TableData {
       finite(s.revenue_share, `${s.segment} spend share`, true),
     ]),
     formats: ['number', 'count', 'share', 'share'],
-    note: "Customers at the September cutoff of the analysis; spend is everything they bought up to it.",
+    note: text.rfm.note,
     refs: ['source:retention', 'retention.rfm.champions_customer_share', 'retention.rfm.champions_revenue_share'],
   };
 }
 
 /** ROC AUC of each model on the later test snapshot, for all customers and for lapsed ones only. */
-export function modelsTable(): TableData {
+export function modelsTable(text: SourcedTablesText = EN_TABLES): TableData {
   const models = RETENTION.tables.models;
   const auc = (name: string) => models.find((m) => m.model === name)?.roc_auc;
   if (auc('Baseline: most recent buyer first') !== numericFact('retention.model.rule_auc')) throw new Error('retention: rule AUC differs from its fact');
   if (auc('Gradient boosting') !== numericFact('retention.model.gb_auc')) throw new Error('retention: gradient-boosting AUC differs from its fact');
   return {
-    columns: ['Model', 'ROC AUC, all customers', 'ROC AUC, lapsed customers only'],
-    rows: models.map((m) => [m.model, finite(m.roc_auc, `${m.model} AUC`, true), finite(m.lapsed_roc_auc, `${m.model} lapsed AUC`, true)]),
+    columns: [...text.models.columns],
+    rows: models.map((m) => [text.models.name(m.model), finite(m.roc_auc, `${m.model} AUC`, true), finite(m.lapsed_roc_auc, `${m.model} lapsed AUC`, true)]),
     // Every AUC has three decimals in the export, so each prints three, "0.710" among them.
     formats: ['number', { fixed: 3 }, { fixed: 3 }],
-    note: 'How well each model ranks the customers who ordered again within the window, scored on a later period than it learned from. Ranking accuracy, not a response to any offer.',
+    note: text.models.note,
     refs: ['source:retention', 'retention.model.rule_auc', 'retention.model.gb_auc'],
   };
 }
 
 /** Lapsed customers ranked by score: observed later orders against a random selection of the same size. */
-export function targetingTable(): TableData {
+export function targetingTable(text: SourcedTablesText = EN_TABLES): TableData {
   return {
-    columns: ['Share selected', 'Customers selected', 'Ordered again within the window', 'Expected to order again, random selection'],
+    columns: [...text.targeting.columns],
     rows: RETENTION.tables.lapsed_targeting.map((r) => [
       finite(r.contact_share, 'share selected', true),
       finite(r.contacted, 'customers selected'),
@@ -124,23 +158,23 @@ export function targetingTable(): TableData {
       finite(r.returners_random, 'expected from random selection'),
     ]),
     formats: ['share', 'count', 'count', 'number'],
-    note: 'Lapsed customers with the highest model scores, selected on paper only. These are observed orders, not the effect of an offer.',
+    note: text.targeting.note,
     refs: ['source:retention', 'retention.winback.top20_customers'],
   };
 }
 
 /** The holdout-test sizing: customers needed in each group to detect each rise. */
-export function holdoutTable(): TableData {
+export function holdoutTable(text: SourcedTablesText = EN_TABLES): TableData {
   return {
-    columns: ['Sized for', 'Ordered again', 'Rise (points)', 'Customers per group'],
+    columns: [...text.holdout.columns],
     rows: RETENTION.tables.holdout_sizes.map((h) => [
-      capitalise(h.group),
+      text.holdout.group(h.group),
       finite(h.baseline_rate, `${h.group} baseline`, true),
       finite(h.uplift_pp, `${h.group} uplift`),
       finite(h.customers_per_arm, `${h.group} customers per group`),
     ]),
     formats: ['number', 'share', 'count', 'count'],
-    note: 'Ordered again is the share who ordered again within the window, and the rise is in percentage points. A sample-size calculation only. Where the customers needed per group exceed the customers in that group, the test would need lapsed customers from more than one period.',
+    note: text.holdout.note,
     refs: ['source:retention', 'retention.winback.n_per_arm', 'retention.winback.baseline_rate', 'retention.winback.uplift_pp'],
   };
 }

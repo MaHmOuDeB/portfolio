@@ -57,6 +57,56 @@
   }
 }
 
+/*
+ * German text hyphenates where a long compound would otherwise overflow its column. Never inside a
+ * number, a code sample or a preformatted block: a hyphen there changes what is read. The
+ * break-word backstop on body stays for words the dictionary cannot split.
+ */
+:lang(de) {
+  hyphens: auto;
+}
+
+:lang(de) [data-num],
+:lang(de) code,
+:lang(de) pre {
+  hyphens: manual;
+}
+
+/*
+ * On a phone, a German compound the browser cannot hyphenate (no dictionary, as in WebKit on Linux)
+ * may break anywhere rather than hold a chip, a label or a cell wider than the screen. Unlike the
+ * body's break-word, "anywhere" also lowers minimum widths, so flex and grid items can shrink. Text
+ * that fits is laid out as before. Only inside main: the header and footer size their columns by
+ * their words, which this would crush. A number, a time, code and a table (which scrolls in its own
+ * frame and sizes its columns by their words) keep the body's break-word: they break only when they
+ * cannot fit at all, as on English pages, and never lower a minimum width. A number inside a part
+ * that breaks anywhere on its own (a pull figure, a proof figure, a headline) keeps that part's rule,
+ * as in English, so it never squeezes the label beside it.
+ */
+@media (width < 40rem) {
+  main:lang(de) {
+    overflow-wrap: anywhere;
+  }
+
+  main:lang(de)
+    :is([data-num], data, time, code, pre, table):not(
+      :is(
+          [data-section-head] h2,
+          [data-page-head] h1,
+          [data-hero] h1,
+          :is(h1, h2, h3):is([class*="text-display"], [class*="text-h2"]),
+          [data-key-point],
+          [data-section-nav] a > span,
+          [data-next],
+          [data-proof-figure],
+          [data-glance-figure]
+        )
+        *
+    ) {
+    overflow-wrap: break-word;
+  }
+}
+
 @layer base {
   body {
     background: var(--color-bg);
@@ -1666,6 +1716,23 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
     }
   }
 
+  /* A short phone (375x667 and the like): the hero's spacing tightens, so the h1, the sub line and
+     both buttons fit the first screen under the live bar. Taller phones keep the spacing above. */
+  @media (width < 40rem) and (height < 45rem) {
+    [data-hero] {
+      padding-top: calc(var(--spacing) * 6);
+    }
+
+    [data-hero] h1,
+    [data-hero-sub] {
+      margin-top: calc(var(--spacing) * 4);
+    }
+
+    [data-hero-actions] {
+      margin-top: calc(var(--spacing) * 5);
+    }
+  }
+
   /* 2. The band: a framed stage under the hero, from rail to rail, with a faint dot grid that fades
      toward the middle. Three sheets (test, agents, recommendation) and two links sit on the rig,
      which the tilt leans toward a fine pointer (--mx, --my in -1..1, set by Lean). The rig is laid out
@@ -1996,8 +2063,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* Below lg: the three sheets as a static column, no pose, no lean, no links. It is the end state of
      the fan (the narrow motion block), and the whole layout where that does not run. */
   @media (width < 64rem) {
+    /* The fan's 3D poses can project a sheet a pixel or two past the stage's sides at narrow widths with
+       large text; the stage is rail to rail and holds no control, so its sides clip (the reflow floor). */
     [data-depth-pin] {
       padding-top: calc(var(--spacing) * 8);
+      overflow-x: clip;
     }
 
     [data-depth-stack] {

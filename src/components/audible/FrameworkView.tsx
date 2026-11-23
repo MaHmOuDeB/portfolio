@@ -19,21 +19,20 @@ import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { GUARDRAIL_MARGIN, frameworkDecision, type FrameworkDecision, type FrameworkValues } from '@/lib/audible/framework';
 import { FRAMEWORK_ID } from '@/lib/audible/framework-url';
+import { EN_FRAMEWORK, type FrameworkText } from '@/lib/audible/text';
 import { formatSignedNumber, formatSignedPoints } from '@/lib/figure/format';
 import { pct } from '@/lib/figure/scales';
 import type { FigureState } from '@/lib/figure/states';
+import { labKit } from '@/lib/lab/text-common';
+import { fill } from '@/lib/i18n/template';
+import { sentenceNodes, sentenceText } from '@/lib/retention/sentence';
 
 export const FRAMEWORK_REFS: readonly DerivedRef[] = ['simulated'];
 const SOURCE = derivedAttr(FRAMEWORK_REFS);
 
-export const FRAMEWORK_TITLE = 'Where the two intervals fall decides the call';
+export const FRAMEWORK_TITLE = EN_FRAMEWORK.title;
 
-export const DECISION_LABEL: Record<FrameworkDecision, string> = {
-  ship: 'Ship: the main metric rose, guardrail intact',
-  'ship-neutral': 'May ship: neutral on the main metric, guardrail intact',
-  harm: 'Stop: the main metric fell',
-  hold: "Hold: the guardrail's upper end is past its limit",
-};
+export const DECISION_LABEL: Record<FrameworkDecision, string> = EN_FRAMEWORK.decision;
 
 /** The colour that repeats the decision word: never the only signal. */
 const DECISION_TONE: Record<FrameworkDecision, string> = {
@@ -43,20 +42,10 @@ const DECISION_TONE: Record<FrameworkDecision, string> = {
   hold: 'text-warn',
 };
 
-const CHART_NAME: Record<FrameworkDecision, string> = {
-  ship: "The main metric's interval lies above zero and the guardrail's upper end is within its limit",
-  'ship-neutral': "The main metric's interval reaches zero and the guardrail's upper end is within its limit",
-  harm: "The main metric's interval lies below zero",
-  hold: "The guardrail's upper end is past its limit",
-};
-
 /** Bounds print with one decimal, the grid's step; the limit is a whole number. */
-const bound = (v: number) => formatSignedPoints(v, 1);
-const limitText = () => formatSignedNumber(GUARDRAIL_MARGIN, 1);
+const boundIn = (locale: FrameworkText['kit']['locale']) => (v: number) => formatSignedPoints(v, 1, { locale });
+const limitIn = (locale: FrameworkText['kit']['locale']) => formatSignedNumber(GUARDRAIL_MARGIN, 1, { locale });
 
-const X_NAMES = ['Session completion', 'Help requests'] as const;
-/** Under sm the names are short, so the two never run into each other at 320 px. */
-const X_NAMES_NARROW = ['Completion', 'Help requests'] as const;
 const Y_TICKS = { wide: [-10, -5, 0, 5, 10], narrow: [-10, -5, 0, 5, 10] };
 const HEIGHT = { narrow: 220, wide: 260 } as const;
 const CAP = 7;
@@ -72,28 +61,34 @@ function xNameIn(names: readonly string[]): (v: number) => string {
   };
 }
 
-/** The bounds and the limit as one sentence, for the result line and the announcement. */
-function boundsText(v: FrameworkValues): string {
-  return `Session completion: ${bound(v.primaryLower)} to ${bound(v.primaryUpper)} points; help requests: at most ${bound(v.guardrailUpper)} points, against a limit of ${limitText()}.`;
+/** The bounds and the limit as one sentence, for the announcement. */
+function boundsText(v: FrameworkValues, text: FrameworkText): string {
+  const locale = text.kit.locale;
+  const bound = boundIn(locale);
+  return sentenceText(text.result, {
+    interval: `${bound(v.primaryLower)} ${text.to} ${bound(v.primaryUpper)}`,
+    guardrail: bound(v.guardrailUpper),
+    limit: limitIn(locale),
+  });
 }
 
 /** The announcement: the decision and the bounds, as plain text. */
-export function frameworkAnnouncement(v: FrameworkValues): string {
-  return `${DECISION_LABEL[frameworkDecision(v)]}. ${boundsText(v)}`;
+export function frameworkAnnouncement(v: FrameworkValues, text: FrameworkText = EN_FRAMEWORK): string {
+  return `${text.decision[frameworkDecision(v)]}. ${boundsText(v, text)}`;
 }
 
-export function frameworkTable(v: FrameworkValues): TableData {
+export function frameworkTable(v: FrameworkValues, text: FrameworkText = EN_FRAMEWORK): TableData {
   return {
-    columns: ['Bound', 'Points'],
+    columns: [...text.table.columns],
     rows: [
-      ['Session completion, lower end', v.primaryLower],
-      ['Session completion, upper end', v.primaryUpper],
-      ['Help requests, upper end', v.guardrailUpper],
-      ['Help requests, limit', GUARDRAIL_MARGIN],
+      [text.table.rows[0], v.primaryLower],
+      [text.table.rows[1], v.primaryUpper],
+      [text.table.rows[2], v.guardrailUpper],
+      [text.table.rows[3], GUARDRAIL_MARGIN],
     ],
     formats: ['number', 'signedPoints'],
     rowDigits: [1, 1, 1, 0],
-    note: 'Points are percentage points. Every value is made up.',
+    note: text.table.note,
     refs: FRAMEWORK_REFS,
   };
 }
@@ -104,24 +99,25 @@ export function frameworkTable(v: FrameworkValues): TableData {
  * right margin: "no change" would be cut by the figure's edge at 320 px. The zero tick still marks
  * the line.
  */
-function FrameworkFrame({ values: v, layout }: { values: FrameworkValues; layout: 'narrow' | 'wide' }) {
+function FrameworkFrame({ values: v, layout, text }: { values: FrameworkValues; layout: 'narrow' | 'wide'; text: FrameworkText }) {
   const decision = frameworkDecision(v);
   const narrow = layout === 'narrow';
+  const locale = text.kit.locale;
   return (
     <ChartFrame
       id={`${FRAMEWORK_ID}-chart`}
       layout={layout}
-      ariaLabel={CHART_NAME[decision]}
-      x={{ domain: [-0.5, 1.5], ticks: { wide: [0, 1], narrow: [0, 1] }, format: xNameIn(narrow ? X_NAMES_NARROW : X_NAMES), label: 'Metric', refs: FRAMEWORK_REFS }}
+      ariaLabel={text.chartName[decision]}
+      x={{ domain: [-0.5, 1.5], ticks: { wide: [0, 1], narrow: [0, 1] }, format: xNameIn(narrow ? text.metricsNarrow : text.metrics), label: text.axis.x, refs: FRAMEWORK_REFS }}
       y={{
         domain: [-10, 10],
         ticks: Y_TICKS,
-        format: (t) => formatSignedNumber(t, 0),
-        label: 'Change (percentage points)',
+        format: (t) => formatSignedNumber(t, 0, { locale }),
+        label: text.axis.y,
         refs: FRAMEWORK_REFS,
-        zeroLabel: narrow ? undefined : 'no change',
-        aboveLabel: 'higher',
-        belowLabel: 'lower',
+        zeroLabel: narrow ? undefined : text.zero.noChange,
+        aboveLabel: text.zero.higher,
+        belowLabel: text.zero.lower,
       }}
       height={HEIGHT}
       marks={() => null}
@@ -157,7 +153,7 @@ function FrameworkFrame({ values: v, layout }: { values: FrameworkValues; layout
       annotation={(ctx) => ({
         x: 1.12,
         y: GUARDRAIL_MARGIN + (20 * LABEL_LIFT) / ctx.height,
-        text: `Limit ${limitText()}`,
+        text: fill(text.limit, { value: limitIn(locale) }),
         anchor: 'start',
         refs: FRAMEWORK_REFS,
       })}
@@ -165,40 +161,48 @@ function FrameworkFrame({ values: v, layout }: { values: FrameworkValues; layout
   );
 }
 
-export function FrameworkChart({ values }: { values: FrameworkValues }) {
+export function FrameworkChart({ values, text = EN_FRAMEWORK }: { values: FrameworkValues; text?: FrameworkText }) {
   return (
     <>
       <div className="sm:hidden">
-        <FrameworkFrame values={values} layout="narrow" />
+        <FrameworkFrame values={values} layout="narrow" text={text} />
       </div>
       <div className="max-sm:hidden">
-        <FrameworkFrame values={values} layout="wide" />
+        <FrameworkFrame values={values} layout="wide" text={text} />
       </div>
     </>
   );
 }
 
 /** The result line: the decision as a word, then the bounds. */
-export function FrameworkResult({ values: v }: { values: FrameworkValues }) {
+export function FrameworkResult({ values: v, text = EN_FRAMEWORK }: { values: FrameworkValues; text?: FrameworkText }) {
   const decision = frameworkDecision(v);
+  const locale = text.kit.locale;
+  const bound = boundIn(locale);
   return (
     <>
       <span data-framework-decision={decision} className={`font-semibold ${DECISION_TONE[decision]}`}>
-        {DECISION_LABEL[decision]}.
+        {text.decision[decision]}.
       </span>{' '}
-      Session completion:{' '}
-      <span data-num="" {...SOURCE}>
-        {bound(v.primaryLower)} to {bound(v.primaryUpper)}
-      </span>{' '}
-      points; help requests: at most{' '}
-      <span data-num="" {...SOURCE}>
-        {bound(v.guardrailUpper)}
-      </span>{' '}
-      points, against a limit of{' '}
-      <span data-num="" {...SOURCE}>
-        {limitText()}
-      </span>
-      .
+      {sentenceNodes(text.result, {
+        interval: (
+          <span data-num="" {...SOURCE}>
+            {bound(v.primaryLower)}
+            {` ${text.to} `}
+            {bound(v.primaryUpper)}
+          </span>
+        ),
+        guardrail: (
+          <span data-num="" {...SOURCE}>
+            {bound(v.guardrailUpper)}
+          </span>
+        ),
+        limit: (
+          <span data-num="" {...SOURCE}>
+            {limitIn(locale)}
+          </span>
+        ),
+      })}
     </>
   );
 }
@@ -226,29 +230,26 @@ export type FrameworkFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has changed a bound since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: FrameworkText;
 };
 
-export function FrameworkFigureView({ values, controls, announcement, preview, state, faultAfterChange, changed }: FrameworkFigureViewProps) {
+export function FrameworkFigureView({ values, controls, announcement, preview, state, faultAfterChange, changed, text = EN_FRAMEWORK }: FrameworkFigureViewProps) {
   return (
     <Figure
       id={FRAMEWORK_ID}
-      title={FRAMEWORK_TITLE}
+      title={text.title}
+      text={labKit(text.kit)}
       state={state}
       provenance="simulated"
-      table={frameworkTable(values)}
+      table={frameworkTable(values, text)}
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<FrameworkResult values={values} />}
-      caption={
-        <>
-          Chapter Club, session completion and help requests are made up. The interval ends are typed in, not estimated
-          from observations: no data, test or sample is behind them. A rise in help requests is bad, so the guardrail is
-          drawn by its upper end only, and the dashed line is its limit.
-        </>
-      }
+      result={<FrameworkResult values={values} text={text} />}
+      caption={<>{text.caption}</>}
     >
-      <FrameworkChart values={values} />
+      <FrameworkChart values={values} text={text} />
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
   );

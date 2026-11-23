@@ -26,40 +26,67 @@ import { TextLink } from '@/components/kit/TextLink';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
 import { MIN_PER_GROUP, type FigureRuntime } from '@/lib/figure/states';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
 import type { LivePageDisplay } from '@/lib/live-page/model';
 import { CONTACT } from '@/lib/site';
-import { DETECTABLE_METHOD, DetectableFigure } from './DetectableFigure';
+import { FRAME_DE } from '../../../content/de/frame';
+import { LIVE_EN } from '../../../content/live';
+import { liveCopy } from './copy';
+import { DetectableFigure } from './DetectableFigure';
 import { FunnelExclusions, FunnelFigure, FunnelMethod } from './FunnelFigure';
 import { ResultsFigure, resultsKind } from './ResultsFigure';
-import { DECISION_WORDS, StatusCard, WITH_END, isRunning, stateWords } from './StatusCard';
+import { StatusCard, WITH_END, isRunning, stateWords } from './StatusCard';
 import { BUILD, MarkedText, When } from './Values';
 
 /** The h1, with its quiet second clause. */
-export const LIVE_TEST_TITLE = 'A real A/B test on this site,';
-export const LIVE_TEST_QUIET = 'run in the open.';
+export const LIVE_TEST_TITLE = LIVE_EN.head.title;
+export const LIVE_TEST_QUIET = LIVE_EN.head.quiet;
+
+/**
+ * How often the German Live test page regenerates, in seconds: a fifth route that reads the store,
+ * every ten minutes, so it stays under the 15-minute stale mark. The route file writes the same number
+ * as a literal (Next reads `revalidate` statically); a unit test holds the two equal. The English
+ * pages keep the pre-registered 300 seconds.
+ */
+export const DE_LIVE_REVALIDATE_SECONDS = 600;
 
 /** The ruled sections after the first screen, in page order. The close sits between the last two. */
 export const LIVE_SECTIONS = [
-  { id: 'results', title: 'Result so far' },
-  { id: 'plan', title: 'The plan, fixed before the start' },
-  { id: 'health', title: 'Is the test healthy?' },
-  { id: 'funnel', title: 'How views are counted' },
-  { id: 'check-it-yourself', title: 'Check it yourself' },
+  { id: 'results', title: LIVE_EN.sections.results },
+  { id: 'plan', title: LIVE_EN.sections.plan },
+  { id: 'health', title: LIVE_EN.sections.health },
+  { id: 'funnel', title: LIVE_EN.sections.funnel },
+  { id: 'check-it-yourself', title: LIVE_EN.sections.checkItYourself },
 ] as const;
 
 type SectionId = (typeof LIVE_SECTIONS)[number]['id'];
+const SECTION_KEY = { results: 'results', plan: 'plan', health: 'health', funnel: 'funnel', 'check-it-yourself': 'checkItYourself' } as const;
 
 const TEXT = 'max-w-text';
 const P = `${TEXT} text-base`;
 const H3 = `${TEXT} text-lg font-semibold`;
 const REPO = `${CONTACT.github}/portfolio`;
 
-function Section({ id, title, children }: { id: SectionId; title?: string; children: ReactNode }) {
-  const entry = LIVE_SECTIONS.find((s) => s.id === id)!;
+/** The frame parts' own labels: their English defaults, and the German ones on a German page. */
+function frameLabels(locale: Locale) {
+  return locale === 'de'
+    ? {
+        sectionNav: { label: FRAME_DE.sectionNav },
+        keyPoints: { label: FRAME_DE.keyPoints },
+        leadIn: { label: FRAME_DE.leadIn },
+        takeaway: { label: FRAME_DE.takeaway },
+        method: { summary: FRAME_DE.methodDetails },
+        close: { title: FRAME_DE.pageClose },
+      }
+    : { sectionNav: {}, keyPoints: {}, leadIn: {}, takeaway: {}, method: {}, close: {} };
+}
+
+function Section({ id, title, locale, children }: { id: SectionId; title?: string; locale: Locale; children: ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
       <h2 id={`${id}-title`} className={`${TEXT} ${SECTION_H2}`}>
-        {title ?? entry.title}
+        {title ?? liveCopy(locale).sections[SECTION_KEY[id]]}
       </h2>
       {children}
     </section>
@@ -67,7 +94,7 @@ function Section({ id, title, children }: { id: SectionId; title?: string; child
 }
 
 /** A number quoted from the plan (the pre-registration's v1 text): fixed, so its ref is `build`. */
-const N = ({ v }: { v: number }) => <Derived value={v} unit="count" refs={BUILD} />;
+const N = ({ v, locale }: { v: number; locale: Locale }) => <Derived value={v} unit="count" refs={BUILD} locale={locale} />;
 /** "<5" as text, marked: the label a count from 1 to 4 is printed as. */
 const SmallLabel = () => (
   <span data-num="" {...derivedAttr(BUILD)}>
@@ -76,7 +103,7 @@ const SmallLabel = () => (
 );
 /** A status word in semibold, as on the Retention page; the word carries the meaning, never a colour. */
 const Status = ({ children }: { children: string }) => (
-  <span data-status="" className="font-semibold whitespace-nowrap">
+  <span data-status="" className="font-semibold sm:whitespace-nowrap">
     {children}
   </span>
 );
@@ -97,181 +124,140 @@ const ShortHash = ({ value }: { value: string }) => (
 );
 
 /** The result's heading: "so far" until a decision is recorded. */
-const resultTitle = (d: LivePageDisplay) => (d.outcome !== null ? 'Result' : 'Result so far');
+const resultTitle = (d: LivePageDisplay, locale: Locale) =>
+  d.outcome !== null ? liveCopy(locale).sections.resultsDecided : liveCopy(locale).sections.results;
 
 /**
  * What a reader with two minutes must take away. The second card follows the state; the others are
  * the design, so they hold in every state. While the configuration is in the calibration, the first
  * card says that the comparison has not started.
  */
-function keyPoints(d: LivePageDisplay) {
+function keyPoints(d: LivePageDisplay, locale: Locale) {
+  const t = liveCopy(locale).keyPoints;
+  const n = (v: number) => <N v={v} locale={locale} />;
   const standing: ReactNode =
     d.outcome === 'inconclusive'
-      ? 'Inconclusive reports the final interval as the range of effects consistent with the data, never as no effect.'
+      ? t.standing.inconclusive
       : d.outcome !== null
-        ? 'The first decision is final, so later looks change nothing.'
+        ? t.standing.decided
         : !isRunning(d)
-          ? 'The card above has the details.'
+          ? t.standing.notRunning
           : d.configPhase === 'calibration'
-            ? 'Calibration is a dry run: both groups see the same headlines, so the counting and the split can be checked before the real comparison starts.'
-            : 'The two groups see different headlines. The counts on this page are current; the interval and the verdict change once a day.';
+            ? t.standing.calibration
+            : t.standing.running;
   return [
     {
       id: 'tested',
-      title: 'What is tested',
+      title: t.tested.title,
       body: (
         <>
-          The three featured cards on the home page. Group A: headlines that name the topic. Group B: headlines that state the
-          finding. Nothing else differs.
-          {d.configPhase === 'calibration' && d.outcome === null
-            ? ' The comparison starts after the calibration; during it both groups see group A’s headlines.'
-            : null}
+          {t.tested.body}
+          {d.configPhase === 'calibration' && d.outcome === null ? t.tested.calibrationExtra : null}
         </>
       ),
     },
     {
       id: 'standing',
-      title: 'Where it stands',
-      body: (
-        <>
-          <Status>{stateWords(d)}</Status>. {standing}
-        </>
-      ),
+      title: t.standing.title,
+      body: <>{t.standing.body({ status: <Status>{stateWords(d, locale)}</Status>, standing })}</>,
     },
     {
       id: 'expect',
-      title: d.outcome !== null ? 'What I expected' : 'What I expect',
-      body: (
-        <>
-          Probably no clear answer. At the planned <N v={225} /> views per group, only a lift of about <N v={15} /> percentage
-          points would be found <N v={8} /> times in <N v={10} />, and I said so before the test started.
-        </>
-      ),
+      title: d.outcome !== null ? t.expect.titleDecided : t.expect.title,
+      body: <>{t.expect.body({ cap: n(225), lift: n(15), eight: n(8), ten: n(10) })}</>,
     },
     {
       id: 'why',
-      title: 'Why run it then',
-      body: 'Because how a test is planned, checked and reported matters more than whether it wins. The results here can be recomputed from the published data.',
+      title: t.why.title,
+      body: t.why.body,
     },
   ];
 }
 
 /** The result so far: the lead-in for what is drawn, the Figure on its sheet, what it means, the decision and the end. */
-function Result({ d, runtime }: { d: LivePageDisplay; runtime?: FigureRuntime }) {
+function Result({ d, runtime, locale }: { d: LivePageDisplay; runtime?: FigureRuntime; locale: Locale }) {
+  const t = liveCopy(locale).result;
+  const f = frameLabels(locale);
   const kind = resultsKind(d);
-  const range = 'the range of differences between the groups that the data are compatible with';
+  const range = t.range;
   const open = d.outcome === null && !d.countingClosed && d.mode !== 'held';
   const collecting = kind === 'hollow' && isRunning(d) && !(typeof d.counts.smaller === 'number' && d.counts.smaller >= MIN_PER_GROUP);
-  const target = <N v={MIN_PER_GROUP} />;
+  const target = <N v={MIN_PER_GROUP} locale={locale} />;
   return (
     <>
       {kind === 'none' ? (
         <div className="mt-4">
-          <ResultsFigure display={d} runtime={runtime} />
+          <ResultsFigure display={d} runtime={runtime} locale={locale} />
         </div>
       ) : (
         <>
-          <LeadIn>
-            {kind === 'hollow'
-              ? `The hollow mark stands in for the bar: ${range}.`
-              : d.configPhase === 'calibration'
-                ? `The bar is ${range}. In the calibration both groups see the same page, so the bar should include zero.`
-                : `The bar is ${range}. Wholly on the side marked B higher, B is ahead; across zero, there is no clear answer${open ? ' yet' : ''}.`}
+          <LeadIn {...f.leadIn}>
+            {kind === 'hollow' ? t.hollow(range) : d.configPhase === 'calibration' ? t.calibrationBar(range) : t.bar(range, open)}
           </LeadIn>
           <FigureSheet>
-            <ResultsFigure display={d} runtime={runtime} />
+            <ResultsFigure display={d} runtime={runtime} locale={locale} />
           </FigureSheet>
-          {collecting ? (
-            <Takeaway>
-              No estimate is drawn until each group has {target} views. That threshold was fixed before the start.
-            </Takeaway>
-          ) : null}
+          {collecting ? <Takeaway {...f.takeaway}>{t.collecting(target)}</Takeaway> : null}
         </>
       )}
-      <Decision d={d} />
+      <Decision d={d} locale={locale} />
     </>
   );
 }
 
-function Plan({ d }: { d: LivePageDisplay }) {
+function Plan({ d, locale }: { d: LivePageDisplay; locale: Locale }) {
+  const t = liveCopy(locale).plan;
+  const n = (v: number) => <N v={v} locale={locale} />;
   const prereg = d.public.prereg;
   const commit = prereg.commit;
   return (
     <>
-      <p className={`${P} mt-4`}>
-        Pre-registered means the design, the numbers I plan with and the decision rule were fixed and published before any
-        visitor was counted, so they cannot be changed quietly after seeing results.
-      </p>
-      <p className={`${P} mt-3`}>
-        The pre-registration fixes the design, the numbers I plan with, the decision rule and what I will do in each outcome. Its
-        hypothesis: “Featured case-study cards that state the finding get more clicks than cards that name the topic.”
-      </p>
+      <p className={`${P} mt-4`}>{t.meaning}</p>
+      <p className={`${P} mt-3`}>{t.fixes}</p>
       <div id="plan-planning" className="mt-3 space-y-3">
-        <p className={P}>
-          I planned the test at <N v={225} /> views per group. At that size, the smallest lift it would find <N v={8} /> times in{' '}
-          <N v={10} /> is about <N v={15} /> percentage points. Even a <N v={5} />-point lift would be found about <N v={1} /> time in{' '}
-          <N v={20} />. Inconclusive is the likely, honest outcome.
-        </p>
-        <p className={P}>
-          There is also a guardrail, a second measure that must not get worse: quick exits. A quick exit is a view whose visitor
-          leaves within <N v={5} /> seconds without interacting. To ship B, the data must rule out a rise in quick exits of{' '}
-          <N v={10} /> percentage points or more. To show that, even two identical groups would need about <N v={390} /> to{' '}
-          <N v={470} /> entry views (fresh arrivals on the home page) each. That is a planning figure, not a target.
-        </p>
-        <p className={P}>The test counts views, not people: one person can count more than once, and in both groups.</p>
+        <p className={P}>{t.planning({ cap: n(225), eight: n(8), ten: n(10), lift: n(15), small: n(5), one: n(1), twenty: n(20) })}</p>
+        <p className={P}>{t.guardrail({ secs: n(5), margin: n(10), low: n(390), high: n(470) })}</p>
+        <p className={P}>{t.views}</p>
       </div>
       <p id="plan-prereg-short" className={`${P} mt-4`}>
-        Pre-registration <MarkedText value={prereg.version} refs={BUILD} />, design hash <ShortHash value={prereg.configSha256} />.
+        {t.short({ version: <MarkedText value={prereg.version} refs={BUILD} />, hash: <ShortHash value={prereg.configSha256} /> })}
       </p>
       <div className={TEXT}>
         <TextLink href={`${REPO}/blob/${prereg.tag}/docs/experiment/prereg.md`} external standalone>
-          Read the pre-registration at its tag
+          {t.readLink}
         </TextLink>
       </div>
-      <MethodDetails summary="Pre-registration record">
+      <MethodDetails summary={t.recordSummary}>
         <p id="plan-prereg" className="wrap-anywhere">
-          Pre-registration <MarkedText value={prereg.version} refs={BUILD} />, tag <MarkedText value={prereg.tag} refs={BUILD} />, design
-          hash <Hash value={prereg.configSha256} />.
+          {t.record({
+            version: <MarkedText value={prereg.version} refs={BUILD} />,
+            tag: <MarkedText value={prereg.tag} refs={BUILD} />,
+            hash: <Hash value={prereg.configSha256} />,
+          })}
         </p>
         {/* No line when the build recorded no commit: an empty value would read as a fault. */}
         {commit !== null ? (
-          <p id="plan-build">
-            This page was built from commit <MarkedText value={commit} shown={commit.slice(0, 7)} refs={BUILD} />.
-          </p>
+          <p id="plan-build">{t.build({ commit: <MarkedText value={commit} shown={commit.slice(0, 7)} refs={BUILD} /> })}</p>
         ) : null}
       </MethodDetails>
     </>
   );
 }
 
-const CHECK_WORDS = { passed: 'passed', failed: 'failed', 'not-evaluated': 'not checked yet' } as const;
-
-function SplitCheck({ d }: { d: LivePageDisplay }) {
+function SplitCheck({ d, locale }: { d: LivePageDisplay; locale: Locale }) {
+  const t = liveCopy(locale).health.split;
   const lead = (
-    <p className={`${P} mt-3`}>
-      The split check asks whether the two groups got the share of views chance would give them (sample ratio mismatch, SRM). If it
-      fails, the split is further from even than chance would plausibly give, so something may have moved views between the groups,
-      and no result is shown. Because it is checked at every completed day, the chance of a false flag over the whole run is about{' '}
-      <N v={1} />% to <N v={3} />%.
-    </p>
+    <p className={`${P} mt-3`}>{t.lead({ one: <N v={1} locale={locale} />, three: <N v={3} locale={locale} /> })}</p>
   );
   let status: ReactNode;
-  if (d.public.source === 'unavailable') status = <p className={`${P} mt-3`}>No split check is shown: this page has no data.</p>;
+  if (d.public.source === 'unavailable') status = <p className={`${P} mt-3`}>{t.noData}</p>;
   else if (d.mode === 'held') {
-    status = (
-      <p className={`${P} mt-3`}>
-        {d.split ? 'The split check also failed, as the note at the top of this page says.' : 'The split check is not reported after the consistency check failed.'}
-      </p>
-    );
+    status = <p className={`${P} mt-3`}>{d.split ? t.heldFailed : t.heldNotReported}</p>;
   } else {
     status = (
       <ul className={`${TEXT} mt-3 space-y-2 text-base`}>
-        <li>
-          Entry views: <Status>{CHECK_WORDS[d.splitStatus.entry]}</Status>
-        </li>
-        <li>
-          Analysed views: <Status>{CHECK_WORDS[d.splitStatus.analysed]}</Status>
-        </li>
+        <li>{t.entry(<Status>{t.checks[d.splitStatus.entry]}</Status>)}</li>
+        <li>{t.analysed(<Status>{t.checks[d.splitStatus.analysed]}</Status>)}</li>
       </ul>
     );
   }
@@ -279,7 +265,7 @@ function SplitCheck({ d }: { d: LivePageDisplay }) {
     <>
       {lead}
       {status}
-      {d.afterDecisionSrm ? <p className={`${P} mt-3`}>A later split check failed; the recorded decision is unchanged.</p> : null}
+      {d.afterDecisionSrm ? <p className={`${P} mt-3`}>{t.later}</p> : null}
     </>
   );
 }
@@ -287,42 +273,34 @@ function SplitCheck({ d }: { d: LivePageDisplay }) {
 /** A decision can still come: the test has not stopped for good and no stop is confirmed. */
 const DECISION_AHEAD = new Set(['not-started', 'before-data', 'calibration', 'ab', 'paused']);
 
-function Decision({ d }: { d: LivePageDisplay }) {
+function Decision({ d, locale }: { d: LivePageDisplay; locale: Locale }) {
+  const t = liveCopy(locale).decision;
   const configRefs: readonly DerivedRef[] = d.refs.includes('simulated') ? ['simulated'] : BUILD;
   const showEnd = d.public.source !== 'unavailable' && WITH_END.includes(d.mode);
   const ahead = DECISION_AHEAD.has(d.mode) && !(d.countingClosed && d.closedConfirmed);
   return (
     <div id="decision" className="mt-6">
       <p id="decision-line" className={`${P} font-semibold`}>
-        {d.outcome === null ? (
-          ahead ? (
-            'No decision yet.'
-          ) : (
-            'No decision is shown.'
-          )
-        ) : (
-          <>
-            Decision: {DECISION_WORDS[d.outcome]}
-            {d.decidedOn !== null ? (
-              <>
-                , on <When iso={d.decidedOn} refs={d.refs} />
-              </>
-            ) : null}
-            .
-          </>
-        )}
+        {d.outcome === null
+          ? ahead
+            ? t.none.ahead
+            : t.none.shown
+          : t.decided({
+              word: liveCopy(locale).status.decisionWords[d.outcome],
+              when: d.decidedOn !== null ? <When iso={d.decidedOn} refs={d.refs} locale={locale} /> : null,
+            })}
       </p>
       {showEnd ? (
         <p id="decision-end" className={`${P} mt-3`}>
-          {d.plannedEndKind === 'earliest' ? 'Earliest end' : 'Planned end'}: <When iso={d.plannedEnd} refs={configRefs} />.
-          {d.plannedEndKind === 'earliest' ? ' During the calibration this is the earliest date the A/B test’s time limit can fall; a decision can end the test sooner.' : null}
+          {t.end({ earliest: d.plannedEndKind === 'earliest', when: <When iso={d.plannedEnd} refs={configRefs} locale={locale} /> })}
         </p>
       ) : null}
     </div>
   );
 }
 
-function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null }) {
+function CheckItYourself({ d, host, locale }: { d: LivePageDisplay; host: string | null; locale: Locale }) {
+  const t = liveCopy(locale).check;
   const source = d.public.source;
   return (
     <>
@@ -333,27 +311,18 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
           data-touch-target=""
           className="inline-flex min-h-(--size-target) items-center text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
         >
-          Download the data (data.json)
+          {t.download}
         </a>
       </p>
       <p className={`${P} mt-3`}>
-        The data are aggregated daily counts, no identifiers. They are not anonymous: someone who knows when a person visited could
-        link a change between two days to that visit. A count from <N v={1} /> to <N v={4} /> is shown as “<SmallLabel />”, here and
-        in the file.
+        {t.data({ one: <N v={1} locale={locale} />, four: <N v={4} locale={locale} />, small: <SmallLabel /> })}
       </p>
-      {host !== null ? (
-        <p className={`${P} mt-3`}>To recompute the results yourself, run this from a copy of the repository:</p>
-      ) : (
-        <p className={`${P} mt-3`}>
-          To recompute the results yourself, save the file from the address of this page followed by /data.json, then run this from a
-          copy of the repository:
-        </p>
-      )}
+      {host !== null ? <p className={`${P} mt-3`}>{t.recomputeHost}</p> : <p className={`${P} mt-3`}>{t.recomputeNoHost}</p>}
       <pre
         className="mt-3 max-w-figure overflow-x-auto rounded-md border border-hairline-strong bg-surface p-3 text-sm"
         tabIndex={0}
         role="region"
-        aria-label="Commands"
+        aria-label={t.commands}
       >
         <code>
           {host !== null ? (
@@ -366,27 +335,18 @@ function CheckItYourself({ d, host }: { d: LivePageDisplay; host: string | null 
           {'python3 scripts/verify_experiment.py data.json'}
         </code>
       </pre>
-      <MethodDetails summary="How the script treats small counts">
-        <p>
-          The script uses the Python standard library only and imports nothing from this site. It recomputes the split check, both
-          intervals over the daily looks, the decision and the detectable effect, and checks the publishing rules. Each check agrees
-          with the published value to within a hundred-millionth, or the script reports it as failed; a check the published data
-          cannot settle is reported as indeterminate, with its reason.
-        </p>
-        <p>
-          Where a check depends on a count shown as “<SmallLabel />”, the script tries every value the cell may hold. The check passes
-          when all of them give the published result, fails when none does, and is reported as indeterminate otherwise. It never prints those values.
-          Its own tests run it on saved copies of published data, built by the site’s code from known counts.
-        </p>
+      <MethodDetails summary={t.scriptSummary}>
+        <p>{t.script1}</p>
+        <p>{t.script2(<SmallLabel />)}</p>
       </MethodDetails>
       {source === 'fixture' ? (
-        <p className={`${P} mt-3`}>This build has no store, so the numbers on this page are a stand-in, not visitors.</p>
+        <p className={`${P} mt-3`}>{t.fixture}</p>
       ) : source === 'local' ? (
-        <p className={`${P} mt-3`}>This build reads a local test store, so its numbers are simulated, not visitors.</p>
+        <p className={`${P} mt-3`}>{t.local}</p>
       ) : null}
       <div className={`${TEXT} mt-3`}>
         <TextLink href={`${REPO}/blob/${d.public.prereg.commit ?? d.public.prereg.tag}/scripts/verify_experiment.py`} external standalone>
-          Read the script
+          {t.readScript}
         </TextLink>
       </div>
     </>
@@ -398,58 +358,55 @@ type Props = {
   /** The production host for the download command; null names "the address of this page" instead. */
   host: string | null;
   runtime?: FigureRuntime;
+  /** The page's language; omitted, English. */
+  locale?: Locale;
 };
 
-export function LivePage({ display: d, host, runtime }: Props): ReactNode {
+export function LivePage({ display: d, host, runtime, locale = 'en' }: Props): ReactNode {
+  const t = liveCopy(locale);
+  const f = frameLabels(locale);
+  const n = (v: number) => <N v={v} locale={locale} />;
   const preregHref = `${REPO}/blob/${d.public.prereg.tag}/docs/experiment/prereg.md`;
   return (
     <article aria-labelledby="live-test-title">
       <CaseHead
         id="live-test-title"
-        chip="Live test"
-        title={LIVE_TEST_TITLE}
-        quiet={LIVE_TEST_QUIET}
-        intro={
-          <p>
-            The test is about the three featured cards on the home page. In group A their headlines name the topic; in group B
-            they state the finding. The question is whether the finding headlines get more clicks. I published the plan before any
-            data came in, and this page shows every step, including a result that may well be: not enough data to say.
-          </p>
-        }
+        chip={t.head.chip}
+        title={t.head.title}
+        quiet={t.head.quiet}
+        intro={<p>{t.head.intro}</p>}
       />
 
-      <StatusCard d={d} />
-      <KeyPoints items={keyPoints(d)} />
+      <StatusCard d={d} locale={locale} />
+      <KeyPoints items={keyPoints(d, locale)} {...f.keyPoints} />
 
       <SectionNav
+        {...f.sectionNav}
         items={[
-          { href: '#results', label: resultTitle(d) },
-          { href: '#plan', label: 'The plan' },
-          { href: '#health', label: 'Is the test healthy?' },
-          { href: '#funnel', label: 'How views are counted' },
-          { href: '#check-it-yourself', label: 'Check it yourself' },
+          { href: '#results', label: resultTitle(d, locale) },
+          { href: '#plan', label: t.nav.plan },
+          { href: '#health', label: t.sections.health },
+          { href: '#funnel', label: t.sections.funnel },
+          { href: '#check-it-yourself', label: t.sections.checkItYourself },
         ]}
       />
 
-      <Section id="results" title={resultTitle(d)}>
-        <Result d={d} runtime={runtime} />
+      <Section id="results" title={resultTitle(d, locale)} locale={locale}>
+        <Result d={d} runtime={runtime} locale={locale} />
       </Section>
 
-      <Section id="plan">
-        <Plan d={d} />
+      <Section id="plan" locale={locale}>
+        <Plan d={d} locale={locale} />
       </Section>
 
-      <Section id="health">
+      <Section id="health" locale={locale}>
         <div id="split-check" className="mt-6">
-          <h3 className={H3}>Did both groups get a fair share?</h3>
-          <SplitCheck d={d} />
+          <h3 className={H3}>{t.health.splitTitle}</h3>
+          <SplitCheck d={d} locale={locale} />
         </div>
         <div id="detectable" className="mt-10">
-          <h3 className={H3}>How small a difference this test can see</h3>
-          <LeadIn>
-            How big a difference could this test notice? The line is the smallest lift it would catch <N v={8} /> times in{' '}
-            <N v={10} /> at each number of views.
-          </LeadIn>
+          <h3 className={H3}>{t.health.detectableTitle}</h3>
+          <LeadIn {...f.leadIn}>{t.health.detectableLead({ eight: n(8), ten: n(10) })}</LeadIn>
           <FigureSheet>
             <DetectableFigure
               data={d.public}
@@ -458,47 +415,44 @@ export function LivePage({ display: d, host, runtime }: Props): ReactNode {
               smaller={d.counts.smaller}
               hideCurrentSize={d.mode === 'srm-suppressed'}
               runtime={runtime}
+              locale={locale}
             />
           </FigureSheet>
-          <Takeaway>Smaller real differences will mostly end as inconclusive, which is not the same as no effect.</Takeaway>
-          <MethodDetails summary="How the line is computed">
-            <p>{DETECTABLE_METHOD}</p>
+          <Takeaway {...f.takeaway}>{t.health.detectableTakeaway}</Takeaway>
+          <MethodDetails summary={t.health.detectableSummary}>
+            <p>{t.detectable.method}</p>
           </MethodDetails>
         </div>
       </Section>
 
-      <Section id="funnel">
-        <LeadIn>
-          Not every page load counts. Raw signals from the home page are filtered down to the views the analysis uses.
-        </LeadIn>
+      <Section id="funnel" locale={locale}>
+        <LeadIn {...f.leadIn}>{t.funnel.lead}</LeadIn>
         <FigureSheet>
-          <FunnelFigure data={d.public} refs={d.refs} runtime={runtime} />
+          <FunnelFigure data={d.public} refs={d.refs} runtime={runtime} locale={locale} />
         </FigureSheet>
-        <MethodDetails>
-          <FunnelMethod />
+        <MethodDetails {...f.method}>
+          <FunnelMethod locale={locale} />
         </MethodDetails>
-        <MethodDetails summary="Why views were not counted">
-          <FunnelExclusions data={d.public} refs={d.refs} />
+        <MethodDetails summary={t.funnel.reasonsSummary}>
+          <FunnelExclusions data={d.public} refs={d.refs} locale={locale} />
         </MethodDetails>
       </Section>
 
-      <Section id="check-it-yourself">
-        <CheckItYourself d={d} host={host} />
+      <Section id="check-it-yourself" locale={locale}>
+        <CheckItYourself d={d} host={host} locale={locale} />
       </Section>
 
       <PageClose
+        {...f.close}
         links={[
-          { href: '/lab', label: 'Try the same checks in the Lab' },
-          { href: preregHref, label: 'See the pre-registration', external: true },
+          { href: localHref(locale, '/lab'), label: t.close.lab },
+          { href: preregHref, label: t.close.prereg, external: true },
         ]}
       >
-        <p>
-          Here I publish the plan before the data, show the checks beside the result, say in advance when a test is too small to
-          settle the question, and give you the data to prove me wrong.
-        </p>
+        <p>{t.close.body}</p>
       </PageClose>
 
-      <PageCallToAction />
+      <PageCallToAction locale={locale} />
     </article>
   );
 }

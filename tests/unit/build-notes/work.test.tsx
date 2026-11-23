@@ -110,12 +110,14 @@ describe('the outline', () => {
       expect(attrs).toContain('class="text-h2-sm md:text-h2"');
     }
     expect(WORK_SECTIONS.map((s) => [s.id, s.label])).toEqual(GROUPS.map(([id, title]) => [id, title]));
-    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length + 1);
+    // the two groups, "How I test" before them and the live test tile after them
+    expect([...PAGE.matchAll(/<h2[\s>]/g)]).toHaveLength(GROUPS.length + 2);
     // each group holds its own items, as one list whose rule draws on entry
     for (const [id, , , count] of GROUPS) {
       const start = PAGE.indexOf(`<section id="${id}"`);
       const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
-      expect([...body.matchAll(/<ul[\s>]/g)], id).toHaveLength(1);
+      // the Automation group's second list is the "I automate." row, after the cards
+      expect([...body.matchAll(/<ul[\s>]/g)], id).toHaveLength(id === 'automation' ? 2 : 1);
       // The rule that draws in is its own decorative element: the list itself is never transformed.
       expect(body, id).toMatch(/<span data-depth-draw="" aria-hidden="true"[^>]*><\/span><ul /);
       expect(body, id).not.toMatch(/<ul[^>]*data-depth-draw/);
@@ -137,8 +139,8 @@ describe('the outline', () => {
 
   it('names each item by an h3 inside its one card link, with no level skipped', () => {
     const headings = [...PAGE.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
-    // the last h2 is the live test tile, after the two groups
-    expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2]);
+    // the first h2 is "How I test" (its tabs are labels, so no h3), the last is the live test tile
+    expect(headings).toEqual([1, 2, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2]);
     for (const row of rows()) {
       expect(row.links, row.key).toHaveLength(1);
       expect(row.body, row.key).toMatch(/^<a [^>]*><h3[^>]*>[\s\S]*?<\/h3>/);
@@ -208,12 +210,12 @@ describe('the layout', () => {
     // Its heading is a section heading like the groups', never as large as the page title.
     const h2 = /<h2 class="([^"]*)"/.exec(tile)![1]!.split(/\s+/);
     expect(h2).toEqual(expect.arrayContaining(['text-h2-sm', 'md:text-h2']));
-    // The sketch is the shared one, decorative, and it stays still here: no entry turn and no pointer follow.
+    // The sketch is the shared one, decorative, and it turns in and follows a fine pointer (the Turn family; Home no longer has the band).
     const { ConfidenceSketch } = await import('@/components/frame/sketches');
     const sketch = tile.slice(tile.indexOf('<div data-work-site-sketch'));
     expect(sketch).toContain(html(createElement(ConfidenceSketch)));
-    expect(sketch).toMatch(/^<div data-work-site-sketch="" aria-hidden="true"/);
-    expect(tile).not.toMatch(/data-depth-turn|data-depth-follow/);
+    expect(sketch).toMatch(/^<div data-work-site-sketch="" data-depth-turn="" data-depth-follow="" aria-hidden="true"[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
+    expect(sketch).not.toMatch(/<path[^>]*data-depth/);
   });
 });
 
@@ -417,7 +419,7 @@ describe('the directory', () => {
     expect(auditHtml(doc, ctx)).toEqual([]);
     // The rendered text is linted as content (the lint keys its content rules on the extension).
     expect(lintSource(text(PAGE), 'content/work.mdx')).toEqual([]);
-    for (const file of ['src/components/work/WorkPage.tsx', 'src/app/work/page.tsx', 'content/work.tsx']) {
+    for (const file of ['src/components/work/WorkPage.tsx', 'src/app/(en)/work/page.tsx', 'content/work.tsx']) {
       expect(lintSource(readFileSync(join(repo, file), 'utf8'), file), file).toEqual([]);
     }
   });
@@ -425,7 +427,7 @@ describe('the directory', () => {
 
 /** The page file of a site path, or null when no page ships there. */
 const pageFile = (path: string) => {
-  const file = join(repo, 'src/app', path, 'page.tsx');
+  const file = join(repo, 'src/app/(en)', path, 'page.tsx');
   return existsSync(file) ? file : null;
 };
 
@@ -449,7 +451,7 @@ describe('every destination resolves', () => {
 });
 
 describe('the route', () => {
-  const route = readFileSync(join(repo, 'src/app/work/page.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/page.tsx'), 'utf8');
 
   it('ships at /work, the navigation target', () => {
     expect(LIVE_ROUTES).toContain('/work');
@@ -459,7 +461,7 @@ describe('the route', () => {
   it('is a plain static page that renders the composition, with its title and description', async () => {
     expect(route).toMatch(/<WorkPage \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(/);
-    const mod = (await import('@/app/work/page')) as {
+    const mod = (await import('@/app/(en)/work/page')) as {
       default: () => ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
@@ -468,5 +470,35 @@ describe('the route', () => {
     expect(mod.metadata.description).toBe(seoEntry('/work').description);
     expect(String(mod.metadata.title)).toMatch(/^Work\b.* \| Mahmoud El Bergui$/);
     expect(withoutCta(html(mod.default()))).toBe(PAGE);
+  });
+});
+
+describe('the parts moved here from Home', () => {
+  const ids = [...PAGE.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]!);
+
+  it('puts "How I test" after the page head and before the first group', () => {
+    const how = PAGE.indexOf('<section data-home-how=""');
+    expect(how).toBeGreaterThan(PAGE.indexOf('<h1 id="work-title"'));
+    expect(how).toBeLessThan(PAGE.indexOf('<section id="experimentation"'));
+    expect(PAGE.match(/data-home-how=""/g)).toHaveLength(1);
+    expect(PAGE).toContain('How I test');
+    expect(PAGE).toContain('id="how-plan"');
+  });
+
+  it('ends the Automation group with the three "I automate." lines, after its cards', () => {
+    const start = PAGE.indexOf('<section id="automation"');
+    const body = PAGE.slice(start, PAGE.indexOf('</section>', start));
+    expect(body).toContain('data-home-automate=""');
+    expect(body.indexOf('data-home-automate')).toBeGreaterThan(body.lastIndexOf('data-work-item='));
+    expect(PAGE.match(/data-home-automate=""/g)).toHaveLength(1);
+    // Not in the Experiments group.
+    const exp = PAGE.slice(PAGE.indexOf('<section id="experimentation"'), start);
+    expect(exp).not.toContain('data-home-automate');
+    expect(text(body)).toContain('I build agents in which code, not the model, has the last word on facts.');
+  });
+
+  it('keeps every id on the page unique', () => {
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 });

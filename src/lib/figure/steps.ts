@@ -1,3 +1,5 @@
+import type { Locale } from '../i18n/locale.ts';
+
 // Position math for StepNav. Pure and total: any number, including NaN, Infinity or a total of 0,
 // gives a valid position. There are always at least one step, and the ends clamp (never wrap).
 
@@ -30,8 +32,8 @@ export function stepTarget(current: number, total: number, direction: 1 | -1): n
   return next < 1 || next > at.total ? null : next;
 }
 
-/** The visible and announced position, for example "3 of 5". */
-export function stepLabel(current: number, total: number): string {
+/** The visible and announced position, for example "3 of 5" ("3 von 5" in German). */
+export function stepLabel(current: number, total: number, o: { locale?: Locale } = {}): string {
   const at = normalizeSteps(current, total);
-  return `${at.current} of ${at.total}`;
+  return `${at.current} ${o.locale === 'de' ? 'von' : 'of'} ${at.total}`;
 }

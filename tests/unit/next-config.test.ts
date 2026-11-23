@@ -71,7 +71,7 @@ describe('next.config', () => {
     // The cap applies to every Server Action, so a new one must be checked against it.
     const { execFileSync } = await import('node:child_process');
     const files = execFileSync('git', ['grep', '-l', '-E', "^[[:space:]]*['\"]use server['\"]", '--', 'src'], { encoding: 'utf8' }).trim().split('\n');
-    expect(files).toEqual(['src/app/contact/actions.ts']);
+    expect(files).toEqual(['src/app/(en)/contact/actions.ts']);
   });
 
   it('hides the X-Powered-By header', async () => {

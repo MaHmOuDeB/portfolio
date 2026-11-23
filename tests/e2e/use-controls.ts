@@ -6,6 +6,10 @@
 import type { Page } from '@playwright/test';
 import { waitForIslands } from './fixtures';
 
+/** The kit's button words in both languages, so a German page's controls are used too. */
+const RESET = ['Reset', 'Zurücksetzen'];
+const STEPS = ['Next', 'Previous', 'Weiter', 'Zurück'];
+
 /**
  * `controlled`: the Figures holding a control this helper uses (a slider, number, option, select,
  * step or Reset); `idle`: the ids of those where no control other than Reset was used.
@@ -18,12 +22,13 @@ export async function useEveryControl(page: Page, o: { reset?: boolean } = {}): 
   const used: Used = { figures: 0, controlled: 0, idle: [], actions: 0, resets: 0 };
   const figures = page.locator('main figure[data-figure]');
   used.figures = await figures.count();
-  const hasControl = await figures.evaluateAll((fs) =>
+  const hasControl = await figures.evaluateAll((fs, names) =>
     fs.map(
       (f) =>
         f.querySelector('input[type="range"], input[type="number"], input[type="radio"], select') !== null ||
-        [...f.querySelectorAll('button')].some((b) => ['Reset', 'Next', 'Previous'].includes(b.textContent?.trim() ?? '')),
+        [...f.querySelectorAll('button')].some((b) => names.includes(b.textContent?.trim() ?? '')),
     ),
+    [...RESET, ...STEPS],
   );
   used.controlled = hasControl.filter(Boolean).length;
   for (let i = 0; i < used.figures; i++) {
@@ -59,7 +64,7 @@ export async function useEveryControl(page: Page, o: { reset?: boolean } = {}): 
         used.actions++;
       }
     }
-    for (const name of ['Next', 'Previous']) {
+    for (const name of STEPS) {
       const step = f.getByRole('button', { name, exact: true });
       if ((await step.count()) > 0 && (await step.first().isEnabled())) {
         await step.first().click();
@@ -70,10 +75,13 @@ export async function useEveryControl(page: Page, o: { reset?: boolean } = {}): 
   }
   if (o.reset !== false) {
     for (let i = 0; i < used.figures; i++) {
-      const reset = figures.nth(i).getByRole('button', { name: 'Reset' });
-      if ((await reset.count()) > 0) {
-        await reset.first().click();
-        used.resets++;
+      for (const name of RESET) {
+        const reset = figures.nth(i).getByRole('button', { name });
+        if ((await reset.count()) > 0) {
+          await reset.first().click();
+          used.resets++;
+          break;
+        }
       }
     }
   }

@@ -1,5 +1,5 @@
 // The Home page as one server composition (HomeSections) and the per-group route that serves it
-// (src/app/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
+// (src/app/(en)/v/[arm]/page.tsx). Every mode and the narrative states are rendered whole, in both
 // groups, and read as a visitor and a screen reader get them, hidden markup included: the hero,
 // the proof row, the cards, the note and the props serialized for the browser's client components
 // (the RSC payload). The route is checked for its static-generation settings, its one snapshot read,
@@ -38,7 +38,7 @@ vi.mock('@/lib/experiment/live', async (original) => {
 
 const live = await import('@/lib/experiment/live');
 const { HomeSections } = await import('@/components/home/HomeSections');
-const route = await import('@/app/v/[arm]/page');
+const route = await import('@/app/(en)/v/[arm]/page');
 const { ExperimentBeacon } = await import('@/components/experiment/ExperimentBeacon');
 const { canonicalOrigin, pageMetadata } = await import('@/lib/seo/metadata');
 const { SITE_SHARING_LINE, seoEntry } = await import('../../../content/seo.ts');
@@ -287,7 +287,7 @@ describe('the route: static per-group pages', () => {
     expect(cls).toContain('md:pb-section');
     expect(cls).not.toContain('pb-section');
     // The test build host draws the same page.
-    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    const host = readFileSync(path.join(ROOT, 'src/app/(en)/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/className="[^"]*\bmd:pb-section\b/);
     expect(host).not.toMatch(/className="(?:[^"]* )?pb-section\b/);
   });
@@ -315,20 +315,20 @@ describe('the route: static per-group pages', () => {
   });
 
   it('uses no request-time API, no persistent layout beacon and no cache components', () => {
-    const source = readFileSync(path.join(ROOT, 'src/app/v/[arm]/page.tsx'), 'utf8');
+    const source = readFileSync(path.join(ROOT, 'src/app/(en)/v/[arm]/page.tsx'), 'utf8');
     expect(source).not.toMatch(/searchParams|next\/headers|cookies\(|headers\(|connection\(|draftMode|export const dynamic\b|noindex|'use cache'/);
     expect(source.match(/getExperimentSnapshot\(/g)).toHaveLength(1);
     expect(source).not.toMatch(/getLiveView/);
     // The beacon lives in the page segment only: no layout or template keeps one across pages.
-    expect(readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8')).not.toMatch(/ExperimentBeacon/);
-    for (const f of ['src/app/v/layout.tsx', 'src/app/v/[arm]/layout.tsx', 'src/app/v/template.tsx', 'src/app/v/[arm]/template.tsx', 'src/app/template.tsx']) {
+    expect(readFileSync(path.join(ROOT, 'src/app/(en)/layout.tsx'), 'utf8')).not.toMatch(/ExperimentBeacon/);
+    for (const f of ['src/app/(en)/v/layout.tsx', 'src/app/(en)/v/[arm]/layout.tsx', 'src/app/(en)/v/template.tsx', 'src/app/(en)/v/[arm]/template.tsx', 'src/app/template.tsx']) {
       expect(existsSync(path.join(ROOT, f)), f).toBe(false);
     }
     expect(readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8')).not.toMatch(/cacheComponents/);
   });
 
   it('the test build host uses the same composition, without a beacon', () => {
-    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    const host = readFileSync(path.join(ROOT, 'src/app/(en)/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/HomeBody/);
     expect(host).not.toMatch(/ExperimentBeacon|<Hero|<LiveNote|<FeaturedCases|<Tools/);
   });
@@ -342,8 +342,11 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
 
   /** The parts in page order, as the page marks them (the header and the footer are the layout's). */
   const BLOCKS = [
-    'data-live-bar', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'data-home-track',
-    'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta',
+    'data-live-bar', 'data-hero', 'data-experience', 'data-home-proof', 'data-home-track', 'data-home-cta',
+  ];
+  /** The parts that moved to /work and /about, or left the page: none of them is on Home. */
+  const GONE = [
+    'data-home-how', 'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-automate',
   ];
   const blockName = (el: El) => {
     const a = BLOCKS.find((n) => attr(el, n) !== undefined)!;
@@ -364,8 +367,7 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     return out.map(blockName);
   };
   const ORDER = [
-    'data-hero', 'data-experience', 'data-home-proof', 'data-home-how', 'track:experiments', 'track:automation',
-    'data-home-questions', 'data-home-shipped', 'data-home-site', 'data-home-faq', 'data-home-cta',
+    'data-hero', 'data-experience', 'data-home-proof', 'track:automation', 'track:experiments', 'data-home-cta',
   ];
 
   it.each(MODELS)('%s: every id is unique, so each card link is named and described by its own text', (_, m) => {
@@ -375,7 +377,7 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
-  it.each(MODELS)('%s: the live bar (once the test has a note), then the eleven parts in order, with one h1', (_, m) => {
+  it.each(MODELS)('%s: the live bar (once the test has a note), then the six parts in order (automation cards above the experiments), with one h1', (_, m) => {
     const h = page(m);
     const started = m.mode === 'not-started' ? 0 : 1;
     expect(parts(h)).toEqual(started ? ['data-live-bar', ...ORDER] : ORDER);
@@ -392,18 +394,18 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
       expect(all(bar, (el) => el.tagName === 'a').map((a) => attr(a, 'href'))).toContain('/experiment');
       expect(h.indexOf('data-live-bar')).toBeLessThan(h.indexOf('data-hero'));
     }
-    const site = section(h, has('data-home-site'))!;
-    expect(all(site, has('data-home-note'))).toHaveLength(0);
+    for (const gone of GONE) expect(h, gone).not.toContain(gone);
+    expect(h.indexOf('data-home-track="automation"')).toBeLessThan(h.indexOf('data-home-track="experiments"'));
     expect(all(doc(h), (el) => el.tagName === 'h1')).toHaveLength(1);
-    expect(squash(text(all(doc(h), (el) => el.tagName === 'h1')[0]!))).toBe('Experimentation and AI automation for product and growth teams');
+    expect(squash(text(all(doc(h), (el) => el.tagName === 'h1')[0]!))).toBe('AI automation and experimentation for product and growth teams');
     // Retired from the page: the two tiles, the sliding tools ribbon, "Your call." and the old slogan.
     expect(h).not.toMatch(/data-home-tiles|data-home-ribbon|data-home-decision|Your call\.|I test what works/);
   });
 
   it.each(MODELS)('%s: every vignette is decorative, untagged and prints no digit', (_, m) => {
     const vigs = all(doc(page(m)), has('data-vignette'));
-    // Three in "How I test", three experiment cards, four automation cards, one in the site band.
-    expect(vigs).toHaveLength(11);
+    // Three experiment cards and four automation cards; "How I test" and the site band are not on Home.
+    expect(vigs).toHaveLength(7);
     for (const v of vigs) {
       expect(attr(v, 'aria-hidden')).toBe('true');
       expect(text(v)).not.toMatch(/Illustration/);
@@ -478,7 +480,8 @@ describe('HomeSections: the whole page in every mode and both groups', () => {
 
   it('names no Excel, no Tableau "as a data source", and Tampermonkey only with its step recorder', () => {
     for (const [m, all] of pageWords()) {
-      expect(all, m).toContain('Methods and tools');
+      // The tools band, "How I test" and the FAQ are not on Home any more.
+      expect(all, m).not.toContain('Methods and tools');
       expect(all, m).not.toMatch(/\bExcel\b|as a data source/i);
       const tm = all.match(/Tampermonkey/g) ?? [];
       expect(tm.length, m).toBeGreaterThan(0);

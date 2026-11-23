@@ -1,17 +1,18 @@
 'use client';
 
-// The four page links (the Menu adds the CV and Contact buttons after them). A client component only for usePathname, which marks the current page.
+// The four page links, labelled and addressed by the server (the Menu adds the CV and Contact buttons after them). A client component only for usePathname, which marks the current page.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cx } from '@/lib/cx';
 import { isCurrent, prefetchFor } from '@/lib/nav';
-import { NAV } from '@/lib/site';
 
-export function NavLinks({ className }: { className?: string }) {
+export type NavItem = { label: string; href: string };
+
+export function NavLinks({ items, className }: { items: readonly NavItem[]; className?: string }) {
   const pathname = usePathname();
   return (
     <ul className={className}>
-      {NAV.map((item) => {
+      {items.map((item) => {
         const current = isCurrent(pathname, item.href);
         return (
           <li key={item.href}>

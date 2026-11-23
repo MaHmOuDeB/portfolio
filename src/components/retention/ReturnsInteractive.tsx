@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { factText } from '@/lib/facts/text';
+import { sentenceText } from '@/lib/retention/sentence';
+import { EN_RETURNS, type ReturnsText } from '@/lib/retention/text';
 import {
   RETURNS_ID,
   RETURNS_PRESETS,
@@ -30,17 +32,22 @@ export type ReturnsInteractiveProps = {
   data: readonly RetailMonth[];
   evidence: ReturnsEvidence;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: ReturnsText;
 };
 
 /** The announcement: the result line's first sentence, as plain text. */
-function resultText(mode: ReturnMode, data: readonly RetailMonth[]): string {
-  const period = comparisonPeriod(data);
-  return mode === 'raw'
-    ? `Counting orders cancelled within ${RULE_HOURS} hours as returns, returned-order value looks like it grew ${factText('retail.returns.yoy_growth_raw')}, ${period}.`
-    : `With orders cancelled within ${RULE_HOURS} hours removed, returned-order value grew about ${factText('retail.returns.yoy_growth_clean')}, ${period}.`;
+function resultText(mode: ReturnMode, data: readonly RetailMonth[], text: ReturnsText): string {
+  const locale = text.kit.locale;
+  return sentenceText(text.lead[mode], {
+    hours: String(RULE_HOURS),
+    growth: factText(mode === 'raw' ? 'retail.returns.yoy_growth_raw' : 'retail.returns.yoy_growth_clean', { locale }),
+    period: comparisonPeriod(data, { locale, words: text.period }),
+    reversal: '',
+  }).trimEnd();
 }
 
-export default function ReturnsInteractive({ data, evidence, faultAfterChange }: ReturnsInteractiveProps) {
+export default function ReturnsInteractive({ data, evidence, faultAfterChange, text = EN_RETURNS }: ReturnsInteractiveProps) {
   const { values, preset, set, reset } = useFigureParams(RETURNS_ID, RETURNS_SCHEMA, RETURNS_PRESETS);
   const [announcement, setAnnouncement] = useState('');
   const [changed, setChanged] = useState(false);
@@ -50,23 +57,25 @@ export default function ReturnsInteractive({ data, evidence, faultAfterChange }:
       mode={mode}
       data={data}
       evidence={evidence}
-      table={returnsTableFrom(data, mode)}
+      table={returnsTableFrom(data, mode, text)}
+      text={text}
       preview={false}
       announcement={announcement}
       faultAfterChange={faultAfterChange}
       changed={changed}
       controls={
         <ReturnsControls
+          text={text}
           mode={mode}
           onMode={(next) => {
             set('mode', next);
             setChanged(true);
-            setAnnouncement(resultText(next, data));
+            setAnnouncement(resultText(next, data, text));
           }}
           onReset={() =>
             instantly(RETURNS_ID, () => {
               reset();
-              setAnnouncement(resultText(RETURNS_PRESETS[preset]!.mode, data));
+              setAnnouncement(resultText(RETURNS_PRESETS[preset]!.mode, data, text));
             })
           }
         />

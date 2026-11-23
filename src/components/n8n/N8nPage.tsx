@@ -5,26 +5,10 @@
 import type { ReactNode } from 'react';
 import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
-import {
-  N8N_ACTIONS,
-  N8N_ARCHITECTURE,
-  N8N_CLOSE,
-  N8N_REPO,
-  N8N_CHECKS,
-  N8N_FLOW,
-  N8N_FLOW_CAPTION,
-  N8N_FLOW_LEAD_IN,
-  N8N_FLOW_TAKEAWAY,
-  N8N_FLOW_TITLE,
-  N8N_GLANCE,
-  N8N_LIMITS,
-  N8N_OUTCOME,
-  N8N_PROBLEM,
-  N8N_TITLE,
-  N8nIntro,
-  N8nQuiet,
-  N8nSources,
-} from '../../../content/n8n';
+import { KIT_TEXT_EN } from '@/components/kit/text';
+import type { Locale } from '@/lib/i18n/locale';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
+import { N8N_REPO, N8N_TITLE, N8nSources, type N8nCopy } from '../../../content/n8n';
 import {
   BUILD_NOTE_SECTIONS,
   BuildNote,
@@ -34,17 +18,26 @@ import {
   Paragraphs,
   TEXT,
 } from '../build-notes/BuildNote';
+import { buildNoteText } from '../build-notes/copy';
 import { NoteShot } from '../build-notes/NoteShot';
+import { keyed, noteSlots } from '../build-notes/slots';
+import { n8nCopy } from './copy';
 
 export { N8N_TITLE };
 export const N8N_SECTIONS = BUILD_NOTE_SECTIONS;
 
 /** The intake and the alerts, each an ordered list of steps joined by hidden connectors. */
-function FlowDiagram() {
+function FlowDiagram({ copy, locale }: { copy: N8nCopy; locale: Locale }) {
   return (
-    <Figure kind="diagram" id="n8n-flow" title={N8N_FLOW_TITLE} caption={N8N_FLOW_CAPTION}>
+    <Figure
+      kind="diagram"
+      id="n8n-flow"
+      title={copy.flow.title}
+      caption={copy.flow.caption}
+      text={locale === 'de' ? KIT_TEXT_DE : KIT_TEXT_EN}
+    >
       <div className="grid max-w-text gap-6">
-        {N8N_FLOW.map((track) => (
+        {copy.flow.tracks.map((track) => (
           <div key={track.id} data-track={track.id}>
             <p aria-hidden="true" className="text-sm font-semibold">
               {track.label}
@@ -72,63 +65,67 @@ function FlowDiagram() {
   );
 }
 
-export function N8nPage(): ReactNode {
-  const checks = N8N_CHECKS.slice(0, 1);
-  const checkDetail = N8N_CHECKS.slice(1);
-  const limits = N8N_LIMITS.filter(([key]) => key !== 'needs');
-  const needs = N8N_LIMITS.filter(([key]) => key === 'needs');
+export function N8nPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = n8nCopy(locale);
+  const text = buildNoteText(locale);
+  const slots = noteSlots(locale);
+  const allChecks = keyed(copy.checks(slots));
+  const checks = allChecks.slice(0, 1);
+  const checkDetail = allChecks.slice(1);
+  const allLimits = keyed(copy.limits());
+  const limits = allLimits.filter(([key]) => key !== 'needs');
+  const needs = allLimits.filter(([key]) => key === 'needs');
+  const code = `${N8N_REPO.base}/tree/${N8N_REPO.commit}`;
   return (
     <BuildNote
       slug="n8n"
-      title={N8N_TITLE}
-      quiet={<N8nQuiet />}
-      intro={<N8nIntro />}
-      actions={N8N_ACTIONS}
-      glance={N8N_GLANCE}
+      locale={locale}
+      title={copy.title}
+      quiet={copy.quiet(slots)}
+      intro={copy.intro()}
+      actions={[{ href: code, label: text.github, icon: 'github', external: true }]}
+      glance={copy.glance(slots)}
       sections={{
-        problem: <Paragraphs items={N8N_PROBLEM} />,
+        problem: <Paragraphs items={keyed(copy.problem())} />,
         architecture: (
           <>
-            <Paragraphs items={N8N_ARCHITECTURE} />
-            <LeadIn>{N8N_FLOW_LEAD_IN}</LeadIn>
+            <Paragraphs items={keyed(copy.architecture())} />
+            <LeadIn label={text.leadIn}>{copy.flow.leadIn}</LeadIn>
             <FigureSheet>
-              <FlowDiagram />
+              <FlowDiagram copy={copy} locale={locale} />
             </FigureSheet>
-            <Takeaway>{N8N_FLOW_TAKEAWAY}</Takeaway>
-            <FigureSheet label="Screenshot">
-              <NoteShot shot="n8nDecision" />
+            <Takeaway label={text.takeaway}>{copy.flow.takeaway}</Takeaway>
+            <FigureSheet label={text.screenshot}>
+              <NoteShot shot="n8nDecision" locale={locale} />
             </FigureSheet>
           </>
         ),
         'how-i-checked-this': (
           <>
             <Paragraphs items={checks} />
-            <MethodDetails summary="The failure cases and what runs on every push">
+            <MethodDetails summary={copy.checksSummary}>
               <Paragraphs items={checkDetail} />
             </MethodDetails>
           </>
         ),
-        outcome: <Paragraphs items={N8N_OUTCOME} />,
+        outcome: <Paragraphs items={keyed(copy.outcome())} />,
         limits: (
           <>
             <div className={TEXT}>
               <NoteList items={limits} />
             </div>
-            <MethodDetails summary="What it needs to run">
+            <MethodDetails summary={copy.needsSummary}>
               <Paragraphs items={needs} />
             </MethodDetails>
           </>
         ),
         sources: (
           <div className={TEXT}>
-            <N8nSources />
+            <N8nSources copy={copy.sources} />
           </div>
         ),
       }}
-      close={{
-        body: <p>{N8N_CLOSE}</p>,
-        links: [{ href: `${N8N_REPO.base}/tree/${N8N_REPO.commit}`, label: 'See the code on GitHub', external: true }],
-      }}
+      close={{ body: <p>{copy.close}</p>, links: [{ href: code, label: text.github, external: true }] }}
     />
   );
 }

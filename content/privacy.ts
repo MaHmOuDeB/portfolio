@@ -18,8 +18,28 @@ export type PrivacyBlock =
   | { launchPlaceholder: string }
   /** This version's date (PRIVACY.updatedOn), in a <time> element. */
   | { updatedOn: true };
-/** `id`, when set, is the heading's anchor (the contact form links to /privacy#contact-form). */
-export type PrivacySection = { heading: string; id?: string; paragraphs: PrivacyBlock[][] };
+/**
+ * `id`, when set, is the heading's anchor (the contact form links to /privacy#contact-form). `extra`
+ * holds paragraphs a translation adds after the section's own, with no English counterpart: only
+ * the German notice has them (it is a translation, and how its language is chosen).
+ */
+export type PrivacySection = { heading: string; id?: string; paragraphs: PrivacyBlock[][]; extra?: PrivacyBlock[][] };
+
+/**
+ * The notice in one language. The German notice (content/de/privacy.ts) is typed by this, keeps the
+ * English sections, anchors, numbers and version date, and says that the English version is binding.
+ * `placeholder.sentence` holds `{question}`; `questions` gives each LAUNCH_FACTS question in the
+ * notice's language (English reads them from LAUNCH_FACTS).
+ */
+export type PrivacyCopy = {
+  title: string;
+  quiet: string;
+  chip: string;
+  navLabel: string;
+  placeholder: { title: string; sentence: string; questions?: Readonly<Record<string, string>> };
+  updatedOn: string;
+  sections: PrivacySection[];
+};
 
 /**
  * The provider facts the notice states, each with where and when it was checked. A fact that is not
@@ -105,12 +125,17 @@ export const LAUNCH_FACTS: readonly LaunchFact[] = [
   },
 ];
 
-const n = (value: number): PrivacyBlock => ({ derived: value, unit: 'count' });
-const PV_MINUTES = n(EXPERIMENT.pvTtlSeconds / 60);
-const HASH_MINUTES = n(EXPERIMENT.rateLimit.keyTtlSeconds / 60);
+/** A count from the pre-registered configuration; both languages print the same ones. */
+export const n = (value: number): PrivacyBlock => ({ derived: value, unit: 'count' });
+export const PV_MINUTES = n(EXPERIMENT.pvTtlSeconds / 60);
+export const HASH_MINUTES = n(EXPERIMENT.rateLimit.keyTtlSeconds / 60);
 
-export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySection[] } = {
+export const PRIVACY_EN: PrivacyCopy = {
   title: 'Privacy',
+  quiet: 'what this site collects, and what it does not.',
+  chip: 'Privacy',
+  navLabel: 'Sections',
+  placeholder: { title: 'Not confirmed yet', sentence: '{question}. I will state it here before the experiment starts.' },
   updatedOn: '2026-11-13',
   sections: [
     {
@@ -275,3 +300,6 @@ export const PRIVACY: { title: 'Privacy'; updatedOn: string; sections: PrivacySe
     },
   ],
 };
+
+/** The English notice under its older name (the English page and its tests read it). */
+export const PRIVACY = PRIVACY_EN;

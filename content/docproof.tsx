@@ -9,118 +9,209 @@
 // site's source, not of a vendored export. Without a captured run the evidence says "Not recorded".
 import type { ReactNode } from 'react';
 import type { GlanceParts } from '@/components/depth/GlanceBlock';
+import type { Items } from '@/components/build-notes/slots';
 import { derivedAttr } from '@/components/kit/Derived';
 import { TextLink } from '@/components/kit/TextLink';
+import type { Locale } from '@/lib/i18n/locale';
 
-const ITEM = 'mt-4 first:mt-0';
+// The words are a `DocproofCopy`: DOCPROOF_EN here, the German twin in content/de/docproof.tsx typed by
+// the same type, so a missing key fails the typecheck. The recorded run itself (VERIFY_RUN: the fact
+// base, the notice, the command and its output) is data as captured and stays English in both
+// languages; only the words around it are copy. Server only: no client file imports it.
+export type DocproofCopy = {
+  /** The h1, in two tones: the name and what it does, then the quiet clause. */
+  h1: string;
+  quiet: string;
+  /** The plain opening under the title (one paragraph). */
+  intro: ReactNode;
+  glance: GlanceParts;
+  problem: Items;
+  architecture: Items;
+  diagram: {
+    title: string;
+    caption: string;
+    /** The stages, in the order a document passes them. */
+    stages: readonly { id: string; name: string; body: string }[];
+  };
+  /** How the tools themselves are checked (one paragraph, inside the row below). */
+  verification: ReactNode;
+  verificationSummary: string;
+  run: {
+    title: string;
+    /** The label of the figure sheet that holds the recorded run. */
+    sheetLabel: string;
+    /** What to look at in the recorded run; its two numbers are the run's own, passed in as elements. */
+    leadIn: (n: { planted: ReactNode; fact: ReactNode }) => ReactNode;
+    takeaway: string;
+    notRecorded: string;
+    labels: { factBase: string; notice: string; output: string };
+    /** The line under the run: its date and the commit, passed in as elements. */
+    recorded: (p: { date: ReactNode; commit: ReactNode }) => ReactNode;
+  };
+  outcome: ReactNode;
+  limits: Items;
+  links: { repo: string; work: string };
+  close: string;
+};
+
 const BUILD = derivedAttr(['build']);
-
-/** The h1, in two tones: the name and what it does, then the quiet clause. */
-export const DOCPROOF_H1 = 'Docproof: agents write,';
-export const DOCPROOF_QUIET = 'checks decide.';
 
 /** The public repository (the README's verify subcommand is the one recorded below). */
 export const DOCPROOF_REPO = 'https://github.com/MaHmOuDeB/docproof';
 
-/** The plain opening under the title. */
-export function DocproofIntro(): ReactNode {
-  return (
+export const DOCPROOF_EN: DocproofCopy = {
+  h1: 'Docproof: agents write,',
+  quiet: 'checks decide.',
+  intro: (
     <p>
       AI writing tools sometimes state things their source never said. Docproof is a tool I designed and built against
       that: AI agents draft and review a document, and ordinary code checks every figure against one approved list of
       facts, and blocks the claims that list rules out, before anything is released.
     </p>
-  );
-}
-
-/** The button under the opening. */
-export const DOCPROOF_ACTIONS = [
-  { href: DOCPROOF_REPO, label: 'See the code on GitHub', icon: 'github', external: true },
-] as const;
-
-/** The 20-second top of the page, under the head: one sentence and the facts (Docproof has no Facts). */
-export const DOCPROOF_GLANCE: GlanceParts = {
-  outcome: 'Agents propose the changes; deterministic checks decide what reaches the reader.',
-  role: 'Designed and built.',
-  methods:
-    'Single fact base, claim verification, multi-agent orchestration (author, auditor, context-free reviewer), rendering checks.',
-  tools: 'Python, Claude Code agents and skills, headless Chrome, GitHub Actions.',
-  when: '2026.',
-  scope: 'Open source (MIT), built in 2026. No users yet.',
-};
-
-/** What the tool removes: a model's drift away from its source, and slow checking by hand. */
-export function DocproofProblem(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
+  ),
+  /** The 20-second top of the page, under the head: one sentence and the facts (Docproof has no Facts). */
+  glance: {
+    outcome: 'Agents propose the changes; deterministic checks decide what reaches the reader.',
+    role: 'Designed and built.',
+    methods:
+      'Single fact base, claim verification, multi-agent orchestration (author, auditor, context-free reviewer), rendering checks.',
+    tools: 'Python, Claude Code agents and skills, headless Chrome, GitHub Actions.',
+    when: '2026.',
+    scope: 'Open source (MIT), built in 2026. No users yet.',
+  },
+  /** What the tool removes: a model's drift away from its source, and slow checking by hand. */
+  problem: [
+    [
+      'drift',
+      <>
         Language models are good at rewriting text and poor at staying true to a source. When a model drafts or edits a
         document, it can drift into claims the source never made, and doing that work by hand is slow.
-      </p>
-      <p className={ITEM}>
+      </>,
+    ],
+    [
+      'split',
+      <>
         Docproof splits the work in two: deterministic tools do the parts that must be exact and can show what they
         changed, and agents with separate roles make the judgement calls. Nothing an agent writes reaches the reader
         without passing the tools’ checks.
-      </p>
-    </>
-  );
-}
-
-/** The parts and the roles, before the diagram. */
-export function DocproofArchitecture(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
+      </>,
+    ],
+  ],
+  /** The parts and the roles, before the diagram. */
+  architecture: [
+    [
+      'tool',
+      <>
         One Markdown file, the fact base, is the only source of truth. It also lists known gaps: things a document must
         never claim. A Python command-line tool builds Word files from structured data, writes surgical edits to a new
         file that leaves everything else byte for byte the same, and typesets designed PDFs with headless Chrome.
-      </p>
-      <p className={ITEM}>
+      </>,
+    ],
+    [
+      'agents',
+      <>
         Claude Code agents work through that tool. An author drafts and edits; a claim auditor checks every claim
         against the fact base and never edits; a context-free reviewer reads the result without the fact base, as a
         stranger would. The orchestrator, a person or a Claude Code command, weighs their findings, applies only the
         true fixes through the tool and runs the checks again.
-      </p>
-    </>
-  );
-}
-
-export const ARCHITECTURE_TITLE = 'Agents propose changes; deterministic checks decide what reaches the reader';
-export const ARCHITECTURE_CAPTION = 'A failed check sends the document back to the orchestrator, never on to the reader.';
-
-/** The diagram's stages, in the order a document passes them. */
-export const ARCHITECTURE_STAGES: readonly { id: string; name: string; body: string }[] = [
-  { id: 'input', name: 'Input', body: 'One fact base in Markdown, with its known gaps, and the document as a Word file.' },
-  {
-    id: 'orchestration',
-    name: 'Orchestration',
-    body: 'An author agent drafts and edits, a claim auditor checks each claim, a context-free reviewer reads it cold, and the orchestrator applies only the true fixes.',
+      </>,
+    ],
+  ],
+  diagram: {
+    title: 'Agents propose changes; deterministic checks decide what reaches the reader',
+    caption: 'A failed check sends the document back to the orchestrator, never on to the reader.',
+    stages: [
+      { id: 'input', name: 'Input', body: 'One fact base in Markdown, with its known gaps, and the document as a Word file.' },
+      {
+        id: 'orchestration',
+        name: 'Orchestration',
+        body: 'An author agent drafts and edits, a claim auditor checks each claim, a context-free reviewer reads it cold, and the orchestrator applies only the true fixes.',
+      },
+      {
+        id: 'checks',
+        name: 'Checks',
+        body: 'Every edit touches only its target, every figure is in the fact base, no known gap is claimed and every word reaches the PDF.',
+      },
+      {
+        id: 'report',
+        name: 'Report',
+        body: 'Pass or fail, naming each failing line, with the PDF and page images to look at.',
+      },
+    ],
   },
-  {
-    id: 'checks',
-    name: 'Checks',
-    body: 'Every edit touches only its target, every figure is in the fact base, no known gap is claimed and every word reaches the PDF.',
+  /** How the tools themselves are checked, and the human step no check replaces. */
+  verification: (
+    <p>
+      The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push
+      that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before
+      and after and fails if anything other than its target changed. The rendered pages are still looked at, by the
+      author agent or whoever runs the tools; no check replaces that.
+    </p>
+  ),
+  verificationSummary: 'How the tools themselves are tested',
+  run: {
+    title: 'A recorded run of the verify check',
+    sheetLabel: 'Recorded run',
+    leadIn: (n) => (
+      <>
+        A made-up garden notice with two planted errors: it says {n.planted} evenings where the facts say{' '}
+        {n.fact}, and it mentions a greenhouse the facts rule out.
+      </>
+    ),
+    takeaway:
+      'The check failed the notice and named both lines. No model was asked whether the text was true; code compared it with the facts.',
+    notRecorded: 'Not recorded.',
+    labels: {
+      factBase: 'The fact base',
+      notice: 'The notice, one paragraph per line',
+      output: 'The command and its output',
+    },
+    recorded: (p) => (
+      <>
+        Recorded on{' '}
+        {p.date}{' '}
+        with docproof at commit {p.commit}, run from its source. The notice is a Word file
+        with the paragraphs above.
+      </>
+    ),
   },
-  {
-    id: 'report',
-    name: 'Report',
-    body: 'Pass or fail, naming each failing line, with the PDF and page images to look at.',
-  },
-];
-
-/** How the tools themselves are checked, and the human step no check replaces. */
-export function DocproofVerification(): ReactNode {
-  return (
-    <>
-      <p>
-        The tools are ordinary code, so they are tested like code: unit tests, and a GitHub Actions run on every push
-        that renders a real PDF in headless Chrome and runs the demo. Each editing command compares the document before
-        and after and fails if anything other than its target changed. The rendered pages are still looked at, by the
-        author agent or whoever runs the tools; no check replaces that.
-      </p>
-    </>
-  );
-}
+  /** What exists, without users or adoption. */
+  outcome: (
+    <p>
+      A public command-line tool and its Claude Code agent definitions, under the MIT licence, with unit tests and
+      continuous integration.
+    </p>
+  ),
+  /** What the checks cannot show. */
+  limits: [
+    [
+      'mechanical',
+      <>
+        The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true
+        number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left
+        to the auditor agent and to the orchestrator.
+      </>,
+    ],
+    ['source', <>A passing run shows only that the document agrees with the fact base, not that the fact base is true.</>],
+    ['users', <>No users yet; this page shows what it does and how it is checked.</>],
+    [
+      'format',
+      <>
+        The tools read and write Word files in their own structure; a document made elsewhere works if it follows that
+        structure, and the editing commands expect it.
+      </>,
+    ],
+    [
+      'models',
+      <>
+        It was tested with Claude models. Other assistants are supported by design, through a plain-text prompt and a
+        JSON reply, but not tested.
+      </>,
+    ],
+  ],
+  links: { repo: 'The Docproof repository', work: 'All my work' },
+  close: 'I build AI tools in which code, not the model, has the last word on facts.',
+};
 
 /** One captured run of `docproof verify`: its inputs, the exact command and the exact output. */
 export type RecordedRun = {
@@ -174,20 +265,8 @@ export const VERIFY_RUN: RecordedRun | null = {
   ].join('\n'),
 };
 
-export const RUN_TITLE = 'A recorded run of the verify check';
-
-/** What to look at in the recorded run; its two numbers are the run's own. */
-export function RunLeadIn(): ReactNode {
-  return (
-    <>
-      A made-up garden notice with two planted errors: it says <span {...BUILD}>4</span> evenings where the facts say{' '}
-      <span {...BUILD}>3</span>, and it mentions a greenhouse the facts rule out.
-    </>
-  );
-}
-
-export const RUN_TAKEAWAY =
-  'The check failed the notice and named both lines. No model was asked whether the text was true; code compared it with the facts.';
+/** The run's two numbers: the planted wrong one and the one the fact base holds. */
+export const RUN_NUMBERS = { planted: '4', fact: '3' } as const;
 
 /** "12.11.2026" for "2026-11-12". */
 function versionDate(iso: string): string {
@@ -195,8 +274,8 @@ function versionDate(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
-/** A recorded block under its visible label, which is also its accessible name. */
-function Block({ id, label, children }: { id: string; label: string; children: string }) {
+/** A recorded block under its visible label, which is also its accessible name. The block is as captured: English. */
+function Block({ id, label, children, lang }: { id: string; label: string; children: string; lang?: 'en' }) {
   const labelId = `verify-run-${id}`;
   return (
     <>
@@ -207,6 +286,7 @@ function Block({ id, label, children }: { id: string; label: string; children: s
         tabIndex={0}
         role="region"
         aria-labelledby={labelId}
+        lang={lang}
         className="mt-2 max-w-figure overflow-x-auto rounded-md border border-hairline-strong bg-surface p-3 text-xs max-sm:whitespace-pre-wrap max-sm:break-words"
       >
         <code {...BUILD}>{children}</code>
@@ -215,27 +295,47 @@ function Block({ id, label, children }: { id: string; label: string; children: s
   );
 }
 
+/** What to look at in the recorded run, with the run's own two numbers. */
+export function RunLeadIn({ copy = DOCPROOF_EN.run }: { copy?: DocproofCopy['run'] }): ReactNode {
+  return copy.leadIn({
+    planted: <span {...BUILD}>{RUN_NUMBERS.planted}</span>,
+    fact: <span {...BUILD}>{RUN_NUMBERS.fact}</span>,
+  });
+}
+
 /** The recorded run with its inputs, or "Not recorded" when no run was captured. */
-export function DocproofRunEvidence({ run }: { run: RecordedRun | null }): ReactNode {
+export function DocproofRunEvidence({
+  run,
+  copy = DOCPROOF_EN.run,
+  locale = 'en',
+}: {
+  run: RecordedRun | null;
+  copy?: DocproofCopy['run'];
+  locale?: Locale;
+}): ReactNode {
+  // The captured blocks are English whatever the page's language: say so to assistive technology.
+  const lang = locale === 'en' ? undefined : 'en';
   return (
     <div className="max-w-figure">
       <h3 id="verify-run-title" className="max-w-text text-xl font-semibold">
-        {RUN_TITLE}
+        {copy.title}
       </h3>
       {run === null ? (
-        <p className="mt-3 max-w-text">Not recorded.</p>
+        <p className="mt-3 max-w-text">{copy.notRecorded}</p>
       ) : (
         <>
-          <Block id="fact-base" label="The fact base">{run.factBase}</Block>
-          <Block id="notice" label="The notice, one paragraph per line">{run.document.join('\n')}</Block>
-          <Block id="output" label="The command and its output">{`$ ${run.command}\n${run.output}`}</Block>
+          <Block id="fact-base" label={copy.labels.factBase} lang={lang}>{run.factBase}</Block>
+          <Block id="notice" label={copy.labels.notice} lang={lang}>{run.document.join('\n')}</Block>
+          <Block id="output" label={copy.labels.output} lang={lang}>{`$ ${run.command}\n${run.output}`}</Block>
           <p className="mt-4 max-w-text text-sm text-muted">
-            Recorded on{' '}
-            <time dateTime={run.recordedOn} {...BUILD}>
-              {versionDate(run.recordedOn)}
-            </time>{' '}
-            with docproof at commit <span {...BUILD}>{run.commit}</span>, run from its source. The notice is a Word file
-            with the paragraphs above.
+            {copy.recorded({
+              date: (
+                <time dateTime={run.recordedOn} {...BUILD}>
+                  {versionDate(run.recordedOn)}
+                </time>
+              ),
+              commit: <span {...BUILD}>{run.commit}</span>,
+            })}
           </p>
         </>
       )}
@@ -243,67 +343,18 @@ export function DocproofRunEvidence({ run }: { run: RecordedRun | null }): React
   );
 }
 
-/** What exists, without users or adoption. */
-export function DocproofOutcome(): ReactNode {
-  return (
-    <p>
-      A public command-line tool and its Claude Code agent definitions, under the MIT licence, with unit tests and
-      continuous integration.
-    </p>
-  );
-}
-
-/** What the checks cannot show. */
-export function DocproofLimits(): ReactNode {
-  const limits: readonly [key: string, body: ReactNode][] = [
-    [
-      'mechanical',
-      <>
-        The checks are mechanical. The verify check passes a number if it appears anywhere in the fact base, so a true
-        number attached to the wrong claim passes too, and it skips dates and years. Judging wording and scope is left
-        to the auditor agent and to the orchestrator.
-      </>,
-    ],
-    ['source', <>A passing run shows only that the document agrees with the fact base, not that the fact base is true.</>],
-    ['users', <>No users yet; this page shows what it does and how it is checked.</>],
-    [
-      'format',
-      <>
-        The tools read and write Word files in their own structure; a document made elsewhere works if it follows that
-        structure, and the editing commands expect it.
-      </>,
-    ],
-    [
-      'models',
-      <>
-        It was tested with Claude models. Other assistants are supported by design, through a plain-text prompt and a
-        JSON reply, but not tested.
-      </>,
-    ],
-  ];
-  return (
-    <ul className="list-disc pl-6">
-      {limits.map(([key, body]) => (
-        <li key={key} className="mt-2 first:mt-0">
-          {body}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** The repository, then back to the Work directory. */
-export function DocproofLinks(): ReactNode {
+export function DocproofLinks({ copy, workHref = '/work' }: { copy: DocproofCopy['links']; workHref?: string }): ReactNode {
   return (
     <ul>
       <li>
         <TextLink href={DOCPROOF_REPO} standalone external>
-          <span>The Docproof repository</span>
+          <span>{copy.repo}</span>
         </TextLink>
       </li>
       <li>
-        <TextLink href="/work" standalone>
-          All my work
+        <TextLink href={workHref} standalone>
+          {copy.work}
         </TextLink>
       </li>
     </ul>

@@ -18,6 +18,7 @@ import { SEO_EXCLUDED_ROUTES, SEO_PAGES } from '../../../content/seo.ts';
 import { WORK_GROUPS } from '../../../content/work.tsx';
 import sitemap from '@/app/sitemap';
 import { CONTACT_HREF, CV_LINK, LIVE_ROUTES, NAV, PRIVACY_HREF } from '@/lib/site';
+import { DE_PAGES } from '@/lib/i18n/pages';
 
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8');
@@ -136,8 +137,14 @@ describe('every list of site paths names only pages that ship', () => {
   it('the sitemap', () => {
     const paths = sitemap().map((e) => new URL(e.url).pathname.replace(/(.)\/$/, '$1'));
     expect(paths.length).toBeGreaterThan(10);
-    expect(paths.filter((p) => !LIVE_ROUTES.includes(p))).toEqual([]);
+    // A German page ships at /de plus its English path, only once its twin is registered.
+    const german = DE_PAGES.map((p) => (p === '/' ? '/de' : `/de${p}`));
+    expect(paths.filter((p) => !LIVE_ROUTES.includes(p) && !german.includes(p))).toEqual([]);
     expect(paths.filter((p) => SEO_EXCLUDED_ROUTES.includes(p))).toEqual([]);
+    for (const p of german) {
+      const file = path.join(process.cwd(), 'src/app', p === '/de' ? 'de' : p.slice(1), 'page.tsx');
+      expect(existsSync(file), p).toBe(true);
+    }
   });
 
   it('the sharing inventory: every page that ships is in it or explicitly left out, and nothing else', () => {
@@ -231,9 +238,10 @@ describe('no client module reaches the raw experiment data', () => {
   });
 
   it('the walk is real: the Live test route reaches the reader and the projection, and a type-only import is not followed', () => {
-    const fromRoute = [...reachable('src/app/experiment/page.tsx').keys()];
+    const fromRoute = [...reachable('src/app/(en)/experiment/page.tsx').keys()];
     expect(fromRoute).toEqual(expect.arrayContaining(['src/lib/experiment/live.ts', 'src/lib/live-page/model.ts']));
     for (const f of SERVER_ONLY) expect(existsSync(path.join(ROOT, f)), f).toBe(true);
-    expect(valueImports('src/components/home/SiteTile.tsx')).not.toContain('src/lib/home/model.ts');
+    // ExperimentsTrack imports the Home model for its type only.
+    expect(valueImports('src/components/home/ExperimentsTrack.tsx')).not.toContain('src/lib/home/model.ts');
   });
 });

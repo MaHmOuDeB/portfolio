@@ -1,9 +1,9 @@
 {
-  "inputHash": "8136f66704dbd9644fe274d9e82aa8c418e5897b7985830b255218339478bdfe",
+  "inputHash": "2aa23924dfbc8b67b6b7dbae5176263af82cf96fabac54afe51849a3efde8954",
   "renderer": "chromium 153.0.8010.12",
   "images": {
     "site.png": {
-      "sha256": "1f9be974bcb53cfaec614d614675792a6aa7111223fde6a8ef80feede9168a52",
+      "sha256": "a35ee27c0483960a5b7666969a291e32c0643112ed51e66ac51727105b6b5458",
       "width": 1200,
       "height": 630
     },
@@ -29,6 +29,36 @@
     },
     "experiment.png": {
       "sha256": "13e1db9ae0dc2d9043a736bad21698ffb76c94b87606b90ffd6939a556ac2b8c",
+      "width": 1200,
+      "height": 630
+    },
+    "de/site.png": {
+      "sha256": "50e5fd13d54f39817e4edd3bbb9d74239d4b9d61804021421502d51d61977ba2",
+      "width": 1200,
+      "height": 630
+    },
+    "de/audible.png": {
+      "sha256": "3e520fe5bf38f6ea5f0a3681eb77d469c23a3640edca6576b9d61f0da4bce7f4",
+      "width": 1200,
+      "height": 630
+    },
+    "de/retention.png": {
+      "sha256": "6446bbd3e75e43ab793234d47474e0249fd59cd6d995ecc6f6c160f3299516fe",
+      "width": 1200,
+      "height": 630
+    },
+    "de/pulse.png": {
+      "sha256": "03a9e01f03cc66f059fc1e4727398386e4694a29613aa5fb36688b01bc4817c0",
+      "width": 1200,
+      "height": 630
+    },
+    "de/lab.png": {
+      "sha256": "18292fdb8eaf8a77b401d59d5a9efcfbd03d260362acbf387a7fb048efa03212",
+      "width": 1200,
+      "height": 630
+    },
+    "de/experiment.png": {
+      "sha256": "a6e3e868d07460ce58e64902527c0d3c9817e81d5df3e5e9d91dfa72b7d8ee7a",
       "width": 1200,
       "height": 630
     }

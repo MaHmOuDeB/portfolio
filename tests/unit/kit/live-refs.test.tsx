@@ -2,7 +2,7 @@
 // them would silently claim 'live'), and the pre-registered values come from the config.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { liveFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
+import { liveFixture } from '@/app/(en)/kitchen-sink/_parts/live-fixtures';
 import { ConfidenceChart } from '@/components/kit/ConfidenceChart';
 import { ProgressLine, UpdatedLabel } from '@/components/kit/LiveLabels';
 import { LiveStateBody } from '@/components/kit/LiveStateBody';

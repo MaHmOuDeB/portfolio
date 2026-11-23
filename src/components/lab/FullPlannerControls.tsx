@@ -23,12 +23,12 @@ import { ResetButton } from '@/components/kit/ResetButton';
 import { Segmented } from '@/components/kit/Segmented';
 import { Slider } from '@/components/kit/Slider';
 import { formatNumber } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
 import {
   DURATION_SCHEMA,
   FULL_PLAN_SCHEMA,
   FULL_PLANNER_REFS,
   PLANNER_NOUN,
-  SIZING_LABELS,
   countText,
   percentText,
   pointsText,
@@ -44,6 +44,7 @@ import {
   type PlannerContext,
 } from '@/lib/lab/full-planner-values';
 import { riseMax, targetRate } from '@/lib/lab/planner-values';
+import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
 import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import type { FullPlannerClientProps } from './FullPlannerClient';
 import type { LabPlannerClientProps } from './LabPlannerClient';
@@ -72,9 +73,9 @@ const BASELINE_PERCENT = {
   step: toPercent(FULL_PLAN_SCHEMA.baseline.step),
 };
 
-const MODE_OPTIONS: readonly { value: MdeMode; label: string }[] = [
-  { value: 'absolute', label: 'Points' },
-  { value: 'relative', label: 'Percent of baseline' },
+const modeOptions = (text: PlannerText): readonly { value: MdeMode; label: string }[] => [
+  { value: 'absolute', label: text.controls.modePoints },
+  { value: 'relative', label: text.controls.modeRelative },
 ];
 
 export type SizingControlsProps = {
@@ -90,16 +91,30 @@ export type SizingControlsProps = {
   onRiseCommit: (risePoints: number) => void;
   onMode: (mode: MdeMode) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: PlannerText;
 };
 
-export function SizingControls({ id, context = 'hypothetical', values, onBaseline, onBaselineCommit, onRise, onRiseCommit, onMode, onReset }: SizingControlsProps) {
+export function SizingControls({
+  id,
+  context = 'hypothetical',
+  values,
+  onBaseline,
+  onBaselineCommit,
+  onRise,
+  onRiseCommit,
+  onMode,
+  onReset,
+  text = EN_PLANNER,
+}: SizingControlsProps) {
   const { baseline } = values;
   const relative = values.mode === 'relative';
   // The slider's value and range in the shown unit; the rise is reported back in whole points.
   const bounds = relative ? relativeSliderBounds(baseline) : { min: FULL_PLAN_SCHEMA.risePoints.min, max: riseMax(baseline), step: FULL_PLAN_SCHEMA.risePoints.step };
   const shown = relative ? relativePercent(baseline, values.risePoints) : values.risePoints;
   const toPoints = (v: number) => (relative ? risePointsFromRelative(baseline, v) : v);
-  const words = SIZING_LABELS[context];
+  const words = text.context[context];
+  const c = text.controls;
   return (
     <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
@@ -110,10 +125,15 @@ export function SizingControls({ id, context = 'hypothetical', values, onBaselin
           value={toPercent(baseline)}
           onChange={(v) => onBaseline(v / 100)}
           onCommit={(v) => onBaselineCommit(v / 100)}
-          valueText={(v) => `${percentText(v / 100)} baseline conversion`}
-          readout={words.baselineHint ? (v) => `${percentText(v / 100)} ${words.baselineHint}` : (v) => percentText(v / 100)}
-          numberLabel={`${words.baseline}, percent`}
+          valueText={(v) => fill(c.baselineValue, { value: percentText(v / 100, text) })}
+          readout={
+            words.baselineHint
+              ? (v) => fill(c.baselineHinted, { value: percentText(v / 100, text), hint: words.baselineHint })
+              : (v) => percentText(v / 100, text)
+          }
+          numberLabel={fill(c.numberPercent, { label: words.baseline })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
       <div className={SLIDER}>
@@ -127,19 +147,23 @@ export function SizingControls({ id, context = 'hypothetical', values, onBaselin
           onCommit={(v) => onRiseCommit(toPoints(v))}
           valueText={(v) => {
             const points = toPoints(v);
-            return `${riseText({ baseline, risePoints: points, mode: values.mode })}, to ${percentText(targetRate(baseline, points))}`;
+            return fill(c.riseTo, {
+              rise: riseText({ baseline, risePoints: points, mode: values.mode }, text),
+              target: percentText(targetRate(baseline, points), text),
+            });
           }}
-          readout={(v) => (relative ? `${relativeText(v)} of baseline` : pointsText(v))}
+          readout={(v) => (relative ? fill(text.ofBaselineShort, { value: relativeText(v, text) }) : pointsText(v, text))}
           // In percent the value is a whole point's share of the baseline (17.2413...): the number
           // input shows it to one decimal, as the readout does. Points are whole numbers already.
           numberText={relative ? (v) => formatNumber(v, 1) : undefined}
-          numberLabel={relative ? `${words.rise}, percent of the baseline` : `${words.rise}, points`}
+          numberLabel={fill(relative ? c.numberRelative : c.numberPoints, { label: words.rise })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
-      <Segmented name={`${id}-mode`} legend="Rise to detect, in" options={MODE_OPTIONS} value={values.mode} onChange={onMode} />
+      <Segmented name={`${id}-mode`} legend={c.modeLegend} options={modeOptions(text)} value={values.mode} onChange={onMode} />
       <div className={CONTROL_ROW_RESET}>
-        <ResetButton id={`${id}-reset`} onReset={onReset} />
+        <ResetButton id={`${id}-reset`} onReset={onReset} label={text.kit.reset} />
       </div>
     </div>
   );
@@ -155,10 +179,13 @@ export type DurationControlsProps = {
   onTraffic: (traffic: number) => void;
   onTrafficCommit: (traffic: number) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: PlannerText;
 };
 
-export function DurationControls({ id, context, label, traffic, onTraffic, onTrafficCommit, onReset }: DurationControlsProps) {
+export function DurationControls({ id, context, label, traffic, onTraffic, onTrafficCommit, onReset, text = EN_PLANNER }: DurationControlsProps) {
   const noun = PLANNER_NOUN[context];
+  const locale = text.kit.locale;
   return (
     <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
@@ -169,13 +196,14 @@ export function DurationControls({ id, context, label, traffic, onTraffic, onTra
           value={traffic}
           onChange={onTraffic}
           onCommit={onTrafficCommit}
-          valueText={(v) => `${formatNumber(v, 0)} ${noun} a day, both groups together`}
-          readout={(v) => `${formatNumber(v, 0)} a day`}
+          valueText={(v) => fill(text.controls.trafficNoun, { n: formatNumber(v, 0, { locale }), noun: text.nouns[noun].other })}
+          readout={(v) => fill(text.controls.perDay, { n: formatNumber(v, 0, { locale }) })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
       <div className={CONTROL_ROW_RESET}>
-        <ResetButton id={`${id}-reset`} onReset={onReset} />
+        <ResetButton id={`${id}-reset`} onReset={onReset} label={text.kit.reset} />
       </div>
     </div>
   );
@@ -192,12 +220,27 @@ export type LabPlannerControlsProps = {
   onTraffic: (traffic: number) => void;
   onTrafficCommit: (traffic: number) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: PlannerText;
 };
 
 /** The Lab's one control row: the rate today, the smallest rise worth acting on, the traffic, Reset. */
-export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, onRise, onRiseCommit, onTraffic, onTrafficCommit, onReset }: LabPlannerControlsProps) {
+export function LabPlannerControls({
+  id,
+  values,
+  onBaseline,
+  onBaselineCommit,
+  onRise,
+  onRiseCommit,
+  onTraffic,
+  onTrafficCommit,
+  onReset,
+  text = EN_PLANNER,
+}: LabPlannerControlsProps) {
+  const locale = text.kit.locale;
   const { baseline } = values;
-  const words = SIZING_LABELS.hypothetical;
+  const words = text.context.hypothetical;
+  const c = text.controls;
   return (
     <div role="group" aria-labelledby={`${id}-title`} data-planner-controls="" className={CONTROL_ROW}>
       <div className={SLIDER}>
@@ -208,10 +251,11 @@ export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, o
           value={toPercent(baseline)}
           onChange={(v) => onBaseline(v / 100)}
           onCommit={(v) => onBaselineCommit(v / 100)}
-          valueText={(v) => `${percentText(v / 100)} ${words.baselineHint}`}
-          readout={(v) => `${percentText(v / 100)} ${words.baselineHint}`}
-          numberLabel={`${words.baseline}, percent`}
+          valueText={(v) => fill(c.baselineHinted, { value: percentText(v / 100, text), hint: words.baselineHint })}
+          readout={(v) => fill(c.baselineHinted, { value: percentText(v / 100, text), hint: words.baselineHint })}
+          numberLabel={fill(c.numberPercent, { label: words.baseline })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
       <div className={SLIDER}>
@@ -225,27 +269,29 @@ export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, o
           value={values.risePoints}
           onChange={onRise}
           onCommit={onRiseCommit}
-          valueText={(v) => upText(baseline, v)}
-          readout={(v) => upText(baseline, v)}
-          numberLabel={`${words.rise}, points`}
+          valueText={(v) => upText(baseline, v, text)}
+          readout={(v) => upText(baseline, v, text)}
+          numberLabel={fill(c.numberPoints, { label: words.rise })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
       <div className={SLIDER}>
         <Slider
           id={`${id}-traffic`}
-          label="Visitors per day"
+          label={words.trafficLabel}
           {...DURATION_SCHEMA.traffic}
           value={values.traffic}
           onChange={onTraffic}
           onCommit={onTrafficCommit}
-          valueText={(v) => `${countText(v, 'visitors')} a day, both groups together`}
-          readout={(v) => `${formatNumber(v, 0)} a day`}
+          valueText={(v) => fill(c.trafficCount, { count: countText(v, 'visitors', text) })}
+          readout={(v) => fill(c.perDay, { n: formatNumber(v, 0, { locale }) })}
           refs={FULL_PLANNER_REFS}
+          text={text.kit.slider}
         />
       </div>
       <div className={CONTROL_ROW_RESET}>
-        <ResetButton id={`${id}-reset`} onReset={onReset} />
+        <ResetButton id={`${id}-reset`} onReset={onReset} label={text.kit.reset} />
       </div>
     </div>
   );
@@ -253,7 +299,7 @@ export function LabPlannerControls({ id, values, onBaseline, onBaselineCommit, o
 
 const noop = () => {};
 
-export function InertLabPlannerControls({ id, values }: { id: string; values: LabPlanValues }) {
+export function InertLabPlannerControls({ id, values, text }: { id: string; values: LabPlanValues; text?: PlannerText }) {
   return (
     <LabPlannerControls
       id={id}
@@ -265,11 +311,22 @@ export function InertLabPlannerControls({ id, values }: { id: string; values: La
       onTraffic={noop}
       onTrafficCommit={noop}
       onReset={noop}
+      text={text}
     />
   );
 }
 
-export function InertSizingControls({ id, context, values }: { id: string; context?: PlannerContext; values: FullPlanValues }) {
+export function InertSizingControls({
+  id,
+  context,
+  values,
+  text,
+}: {
+  id: string;
+  context?: PlannerContext;
+  values: FullPlanValues;
+  text?: PlannerText;
+}) {
   return (
     <SizingControls
       id={id}
@@ -281,10 +338,23 @@ export function InertSizingControls({ id, context, values }: { id: string; conte
       onRiseCommit={noop}
       onMode={noop}
       onReset={noop}
+      text={text}
     />
   );
 }
 
-export function InertDurationControls({ id, context, label, traffic }: { id: string; context: PlannerContext; label: string; traffic: number }) {
-  return <DurationControls id={id} context={context} label={label} traffic={traffic} onTraffic={noop} onTrafficCommit={noop} onReset={noop} />;
+export function InertDurationControls({
+  id,
+  context,
+  label,
+  traffic,
+  text,
+}: {
+  id: string;
+  context: PlannerContext;
+  label: string;
+  traffic: number;
+  text?: PlannerText;
+}) {
+  return <DurationControls id={id} context={context} label={label} traffic={traffic} onTraffic={noop} onTrafficCommit={noop} onReset={noop} text={text} />;
 }

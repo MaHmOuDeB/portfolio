@@ -13,7 +13,10 @@
 import type { DerivedRef } from '@/components/kit/Derived';
 import { formatNumber } from '@/lib/figure/format';
 import type { ParamValues, Presets } from '@/lib/figure/url-state';
+import { fill } from '@/lib/i18n/template';
 import { normalizePlanner, percentText, pointsText, riseMax, targetRate } from './planner-values';
+import { plural } from './text-common';
+import { EN_PLANNER, type PlannerContext, type PlannerNoun, type PlannerText } from './text-planner';
 
 /** The Lab's merged planner's id, and the pair's default duration id; the Retention page passes its own pair. */
 export const FULL_PLANNER_ID = 'planner';
@@ -22,20 +25,9 @@ export const DURATION_ID = 'duration';
 export const MDE_MODES = ['absolute', 'relative'] as const;
 export type MdeMode = (typeof MDE_MODES)[number];
 
-/** Where the planner stands: a hypothetical test (the Lab) or the Retention win-back sizing. */
-export type PlannerContext = 'hypothetical' | 'retention';
+export type { PlannerContext, PlannerNoun };
 /** What the groups are made of, per context. */
-export type PlannerNoun = 'visitors' | 'customers';
 export const PLANNER_NOUN: Record<PlannerContext, PlannerNoun> = { hypothetical: 'visitors', retention: 'customers' };
-
-/**
- * The sizing controls' words per context. The Lab says them in plain words; the Retention page keeps
- * the terms its own text uses.
- */
-export const SIZING_LABELS: Record<PlannerContext, { baseline: string; baselineHint: string; rise: string }> = {
-  hypothetical: { baseline: 'Sign-up rate today', baselineHint: 'of visitors', rise: 'Smallest rise worth acting on' },
-  retention: { baseline: 'Baseline conversion', baselineHint: '', rise: 'Rise to detect' },
-};
 
 /** The link under the Lab's planner: a smaller rise, as a full page load so the island reads it. */
 export const PLANNER_PRESET_RISE = 2;
@@ -80,7 +72,8 @@ export function normalizeLabPlan(v: LabPlanValues): LabPlanValues {
 }
 
 /** The rise's readout on the Lab: "Up 5 points, to 34%". */
-export const upText = (baseline: number, risePoints: number) => `Up ${pointsText(risePoints)}, to ${percentText(targetRate(baseline, risePoints))}`;
+export const upText = (baseline: number, risePoints: number, text: PlannerText = EN_PLANNER) =>
+  fill(text.controls.up, { rise: pointsText(risePoints, text), target: percentText(targetRate(baseline, risePoints), text) });
 
 /** The baseline and the rise jointly valid (the base planner's normalization); an unknown unit is points. */
 export function normalizeFullPlan(v: FullPlanValues): FullPlanValues {
@@ -119,20 +112,24 @@ export function relativeSliderBounds(baseline: number): { min: number; max: numb
 }
 
 /** "17.2%": a percent of the baseline, one decimal at most. */
-export const relativeText = (percent: number) => `${formatNumber(percent, 1)}%`;
+export const relativeText = (percent: number, text: PlannerText = EN_PLANNER) =>
+  fill(text.relativePercent, { value: formatNumber(percent, 1, { locale: text.kit.locale }) });
 
 /** The rise in the chosen unit: "5 points" or "17.2% of the baseline". */
-export function riseText(v: FullPlanValues): string {
+export function riseText(v: FullPlanValues, text: PlannerText = EN_PLANNER): string {
   const n = normalizeFullPlan(v);
-  return n.mode === 'relative' ? `${relativeText(relativePercent(n.baseline, n.risePoints))} of the baseline` : pointsText(n.risePoints);
+  return n.mode === 'relative'
+    ? fill(text.ofBaseline, { value: relativeText(relativePercent(n.baseline, n.risePoints), text) })
+    : pointsText(n.risePoints, text);
 }
 
 /** "1 visitor", "4 customers". */
-export function countText(count: number, noun: PlannerNoun): string {
-  return `${formatNumber(count, 0)} ${count === 1 ? noun.slice(0, -1) : noun}`;
+export function countText(count: number, noun: PlannerNoun, text: PlannerText = EN_PLANNER): string {
+  return `${formatNumber(count, 0, { locale: text.kit.locale })} ${plural(count, text.nouns[noun])}`;
 }
 
 /** "1 week", "4 weeks". */
-export const weeksText = (weeks: number) => `${formatNumber(weeks, 0)} ${weeks === 1 ? 'week' : 'weeks'}`;
+export const weeksText = (weeks: number, text: PlannerText = EN_PLANNER) =>
+  `${formatNumber(weeks, 0, { locale: text.kit.locale })} ${plural(weeks, text.week)}`;
 
 export { percentText, pointsText };

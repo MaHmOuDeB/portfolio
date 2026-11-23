@@ -15,7 +15,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { DURATION_PRESETS, DURATION_SCHEMA, PLANNER_NOUN, durationSentence, normalizeTraffic, type PlannerContext } from '@/lib/lab/full-planner';
-import { PLANNER_COPY } from '../../../content/lab';
+import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
 import { DurationControls } from './FullPlannerControls';
 import { DurationFigureView } from './FullPlannerView';
 
@@ -27,9 +27,11 @@ export type DurationFigureProps = {
   /** Where the island reads the traffic on screen, for the sizing announcement. */
   trafficShownRef: RefObject<number>;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: PlannerText;
 };
 
-export function DurationFigure({ id, context, nPerArm, trafficShownRef, faultAfterChange }: DurationFigureProps) {
+export function DurationFigure({ id, context, nPerArm, trafficShownRef, faultAfterChange, text = EN_PLANNER }: DurationFigureProps) {
   const { values, preset, set, reset } = useFigureParams(id, DURATION_SCHEMA, DURATION_PRESETS);
   const traffic = normalizeTraffic(values.traffic);
   useEffect(() => {
@@ -42,6 +44,7 @@ export function DurationFigure({ id, context, nPerArm, trafficShownRef, faultAft
     <DurationFigureView
       id={id}
       context={context}
+      text={text}
       nPerArm={nPerArm}
       traffic={traffic}
       preview={false}
@@ -52,17 +55,18 @@ export function DurationFigure({ id, context, nPerArm, trafficShownRef, faultAft
         <DurationControls
           id={id}
           context={context}
-          label={PLANNER_COPY[context].trafficLabel}
+          label={text.context[context].trafficLabel}
+          text={text}
           traffic={traffic}
           onTraffic={(next) => set('traffic', normalizeTraffic(next))}
           onTrafficCommit={(next) => {
             setChanged(true);
-            setAnnouncement(durationSentence(nPerArm, next, noun));
+            setAnnouncement(durationSentence(nPerArm, next, noun, text));
           }}
           onReset={() =>
             instantly(id, () => {
               reset();
-              setAnnouncement(durationSentence(nPerArm, DURATION_PRESETS[preset]!.traffic, noun));
+              setAnnouncement(durationSentence(nPerArm, DURATION_PRESETS[preset]!.traffic, noun, text));
             })
           }
         />

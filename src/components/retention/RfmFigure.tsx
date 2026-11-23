@@ -11,17 +11,18 @@
 // - Champions are defined exactly, with the rule's scores printed through <Derived> as constants of
 //   the source code. Their share of spend is high partly by construction.
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
-import { Derived, derivedAttr } from '@/components/kit/Derived';
-import { Fact } from '@/components/kit/Fact';
+import { derivedAttr } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatValue } from '@/lib/facts/format';
 import { pct } from '@/lib/figure/scales';
+import type { Locale } from '@/lib/i18n/locale';
 import { RETENTION, figureProvenance, type RfmSegment } from '@/lib/retention/data';
-import { CHAMPIONS_MIN_SCORE, TOP_SCORE, rfmPlotRows } from '@/lib/retention/rfm';
+import { rfmPlotRows } from '@/lib/retention/rfm';
 import { rfmTable } from '@/lib/retention/tables';
+import { slotsFor } from '../../../content/retention';
+import { retentionCopy } from './copy';
 
 const ID = 'rfm';
-const TITLE = 'Champions account for more spend than their customer share';
 const REFS = ['source:retention'] as const;
 
 /** The label column left of zero, as a share of the axis: room for "Customers 23%" at 320 px. */
@@ -34,14 +35,13 @@ const BAR_H = 12;
 const CUSTOMERS_Y = 25;
 const SPEND_Y = 46;
 
-const Score = ({ value }: { value: number }) => <Derived value={value} unit="count" refs={REFS} />;
-
-function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
+function RfmChart({ rows, locale }: { rows: readonly RfmSegment[]; locale: Locale }) {
+  const c = retentionCopy(locale);
   const bars = rfmPlotRows(rows);
   const n = bars.length;
   const series = [
-    { key: 'customers', word: 'Customers', y: CUSTOMERS_Y, value: (b: (typeof bars)[number]) => b.customers, refs: (b: (typeof bars)[number]) => b.customerRefs },
-    { key: 'spend', word: 'Spend', y: SPEND_Y, value: (b: (typeof bars)[number]) => b.spend, refs: (b: (typeof bars)[number]) => b.spendRefs },
+    { key: 'customers', word: c.rfm.series.customers, y: CUSTOMERS_Y, value: (b: (typeof bars)[number]) => b.customers, refs: (b: (typeof bars)[number]) => b.customerRefs },
+    { key: 'spend', word: c.rfm.series.spend, y: SPEND_Y, value: (b: (typeof bars)[number]) => b.spend, refs: (b: (typeof bars)[number]) => b.spendRefs },
   ] as const;
   const top = (ctx: PlotContext, i: number) => ctx.yPx(i + 0.5);
   const marks = (ctx: PlotContext) => {
@@ -103,22 +103,22 @@ function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
             textAnchor="end"
             dominantBaseline="middle"
           >
-            {`${s.word} ${formatValue(s.value(b), 'share')}`}
+            {`${s.word} ${formatValue(s.value(b), 'share', { locale })}`}
           </text>
         )),
       )}
     </>
   );
-  const shareTick = (v: number) => formatValue(v, 'share');
+  const shareTick = (v: number) => formatValue(v, 'share', { locale });
   return (
     <ChartFrame
       id={`${ID}-chart`}
-      ariaLabel="Share of customers and share of spend for each segment, on one scale from none to all: Champions hold a much larger share of spend than of customers, and Dormant customers the reverse"
+      ariaLabel={c.rfm.ariaLabel}
       x={{
         domain: [-LABEL_SHARE, 1],
         ticks: { wide: [0, 0.25, 0.5, 0.75, 1], narrow: [0, 0.5, 1] },
         format: shareTick,
-        label: 'Share of all customers, or of all spend',
+        label: c.rfm.axis.x,
         refs: REFS,
       }}
       y={{
@@ -126,7 +126,7 @@ function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
         domain: [n + 0.5, 0.5],
         ticks: { wide: [], narrow: [] },
         format: () => '',
-        label: 'Segment',
+        label: c.rfm.axis.y,
         refs: REFS,
       }}
       height={{ narrow: n * BAND, wide: n * BAND }}
@@ -136,33 +136,22 @@ function RfmChart({ rows }: { rows: readonly RfmSegment[] }) {
   );
 }
 
-export function RfmFigure({ rows }: { rows: readonly RfmSegment[] }) {
+export function RfmFigure({ rows, locale = 'en' }: { rows: readonly RfmSegment[]; locale?: Locale }) {
   // The table is the export's, so the rows drawn must be the export's too.
   if (JSON.stringify(rows) !== JSON.stringify(RETENTION.tables.rfm_segments)) throw new Error('rfm: the rows drawn must be the export’s segments');
+  const c = retentionCopy(locale);
+  const p = slotsFor(locale);
   return (
     <Figure
       id={ID}
-      title={TITLE}
+      title={c.rfm.title}
+      text={c.kit}
       provenance={figureProvenance('retention')}
-      table={rfmTable()}
-      result={
-        <>
-          Champions are <Fact id="retention.rfm.champions_customer_share" /> of customers and hold{' '}
-          <Fact id="retention.rfm.champions_revenue_share" /> of spend up to the cutoff, partly by construction: spend
-          is one of the three scores that define them.
-        </>
-      }
-      caption={
-        <>
-          Customers of a UK online gift retailer, from a public dataset, in segments at the September 2011 cutoff. Each
-          customer is scored by rank on recency, frequency and spend. Champions score <Score value={CHAMPIONS_MIN_SCORE} />{' '}
-          or <Score value={TOP_SCORE} /> out of <Score value={TOP_SCORE} /> on each of recency, frequency and spend
-          (roughly the top two-fifths on each), so they are not simply the customers who spent the most. Outlined bars
-          are shares of customers and filled bars shares of spend, on the same scale.
-        </>
-      }
+      table={rfmTable(c.tables)}
+      result={c.rfm.result(p)}
+      caption={c.rfm.caption(p)}
     >
-      <RfmChart rows={rows} />
+      <RfmChart rows={rows} locale={locale} />
     </Figure>
   );
 }

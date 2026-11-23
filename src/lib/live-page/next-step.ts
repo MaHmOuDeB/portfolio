@@ -11,6 +11,7 @@
 // - Every other state, including every state in which counting is open: none.
 // A dated sentence holds `{date}` where the day goes; the page prints it as a `<time>`.
 import type { DerivedRef } from '@/components/kit/Derived';
+import { LIVE_EN } from '../../../content/live';
 import type { LivePageModel } from './model';
 
 export type NextStep = {
@@ -20,11 +21,11 @@ export type NextStep = {
   date?: string;
 };
 
-export const CLOSED_STEP = 'Counting has stopped; later looks change nothing.';
-export const CONFIRMING_STEP =
-  'The test has reached its decision; the result is being confirmed. The first decision is final, so later looks change nothing.';
-export const RESTART_STEP = 'The calibration restarts on {date}.';
-export const AB_START_STEP = 'The A/B test starts on {date}.';
+// The words are the English copy's; the German page maps each sentence to its German twin by value.
+export const CLOSED_STEP = LIVE_EN.next.closed;
+export const CONFIRMING_STEP = LIVE_EN.next.confirming;
+export const RESTART_STEP = LIVE_EN.next.restart;
+export const AB_START_STEP = LIVE_EN.next.abStart;
 
 /** A configured date that is still ahead of the snapshot's own read time. */
 function ahead(iso: string | undefined, readAt: string): iso is string {

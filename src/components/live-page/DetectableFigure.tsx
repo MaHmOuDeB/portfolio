@@ -8,18 +8,20 @@ import { scaleLinear } from 'd3-scale';
 import { ChartFrame, MARK_UNITS } from '@/components/kit/ChartFrame';
 import { Derived, derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
-import { PublishedCountText } from '@/components/home/PublishedCountText';
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber } from '@/lib/figure/format';
 import { niceTicks, pct } from '@/lib/figure/scales';
 import type { FigureRuntime } from '@/lib/figure/states';
 import type { PublishedCount } from '@/lib/home/counts';
+import type { Locale } from '@/lib/i18n/locale';
 import type { LivePagePublic } from '@/lib/live-page/model';
-import { BUILD, provenanceOf } from './Values';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
+import { LIVE_EN } from '../../../content/live';
+import { liveCopy } from './copy';
+import { BUILD, Count, provenanceOf } from './Values';
 
 /** How the line is computed: the caption's second sentence, which the page puts in its method row. */
-export const DETECTABLE_METHOD =
-  'It is computed for one look at n under the confidence sequence’s boundary, not the power of the sequential stopping rule.';
+export const DETECTABLE_METHOD = LIVE_EN.detectable.method;
 
 const HEIGHT = { narrow: 180, wide: 240 } as const;
 const TICKS = { narrow: 4, wide: 6 } as const;
@@ -33,6 +35,7 @@ type Props = {
   /** The current point's views are not the published smaller group's (a suppressed split). */
   hideCurrentSize: boolean;
   runtime?: FigureRuntime;
+  locale?: Locale;
 };
 
 /** The decimals that print every multiple of the tick step exactly. */
@@ -64,7 +67,8 @@ export function detectableX(points: readonly { n: number }[], currentN: number |
   return { domain, ticks: { narrow: withStart(TICKS.narrow), wide: withStart(TICKS.wide) } };
 }
 
-export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, runtime }: Props) {
+export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, runtime, locale = 'en' }: Props) {
+  const t = liveCopy(locale).detectable;
   const d = data.detectable;
   const placeholder = data.source === 'unavailable';
   const baseline = data.config.planningBaselines.primary;
@@ -80,63 +84,51 @@ export function DetectableFigure({ data, refs, phase, smaller, hideCurrentSize, 
   const yTicks = { narrow: niceTicks(domain.y, TICKS.narrow), wide: niceTicks(domain.y, TICKS.wide) };
   const yDigits = Math.max(stepDigits(yTicks.narrow), stepDigits(yTicks.wide));
 
-  const power = <Derived value={Math.round(d.power * 10)} unit="count" refs={BUILD} />;
-  const ten = <Derived value={10} unit="count" refs={BUILD} />;
+  const power = <Derived value={Math.round(d.power * 10)} unit="count" refs={BUILD} locale={locale} />;
+  const ten = <Derived value={10} unit="count" refs={BUILD} locale={locale} />;
   const rate = (
     <data value={baseline} data-planning-rate="" {...derivedAttr(BUILD)}>
-      {formatValue(baseline, 'share')}
+      {formatValue(baseline, 'share', { locale })}
     </data>
   );
-  const caption = (
-    <>
-      The smallest lift this many views per group would detect {power} times in {ten}, assuming{' '}
-      {phase === 'ab' ? <>the planning click rate from the calibration, {rate}</> : <>the planning click rate of {rate}</>}, at one look.
-    </>
-  );
-  const atNow = atCurrent !== null ? <Derived value={atCurrent} unit="pp" decimals={1} refs={both} /> : null;
-  const result = placeholder ? (
-    'No data is shown, so there is no point for the current size.'
-  ) : atNow !== null && currentN !== null ? (
-    <>
-      At the current size, <PublishedCountText value={smaller} refs={refs} /> views in the smaller group, the smallest
-      detectable lift is about {atNow} percentage points.
-    </>
-  ) : atNow !== null ? (
-    <>At the current size the smallest detectable lift is about {atNow} percentage points.</>
-  ) : d.atCurrentNote === 'no-views' ? (
-    'No views are counted yet, so there is no point for the current size.'
-  ) : d.atCurrentNote === 'small-cell' ? (
-    <>
-      While a group has fewer than <Derived value={5} unit="count" refs={BUILD} /> views, the point for the current size is not
-      shown.
-    </>
-  ) : (
-    'At the current size the detectable lift is beyond the range this calculation covers, so no point is shown.'
-  );
+  const caption = t.caption({ power, ten, rate, ab: phase === 'ab' });
+  const atNow = atCurrent !== null ? <Derived value={atCurrent} unit="pp" decimals={1} refs={both} locale={locale} /> : null;
+  const result = placeholder
+    ? t.noData
+    : atNow !== null && currentN !== null
+      ? t.atNowCount({ count: <Count value={smaller} refs={refs} locale={locale} />, lift: atNow })
+      : atNow !== null
+        ? t.atNow(atNow)
+        : d.atCurrentNote === 'no-views'
+          ? t.noViews
+          : d.atCurrentNote === 'small-cell'
+            ? t.smallCell(<Derived value={5} unit="count" refs={BUILD} locale={locale} />)
+            : t.beyond;
 
   return (
     <Figure
       id="live-detectable"
-      title="More views per group, smaller detectable lifts"
+      title={t.title}
       state={runtime === undefined ? undefined : { runtime }}
+      {...(locale === 'de' ? { text: KIT_TEXT_DE } : {})}
       caption={caption}
       provenance={provenanceOf(refs)}
       result={result}
       table={{
-        columns: ['Views per group', 'Smallest detectable lift (points)'],
+        columns: [...t.columns],
         rows: points.map((p) => [p.n, p.effect]),
         formats: ['count', { fixed: 1 }],
-        note: 'Percentage points, for one look at that size.',
+        note: t.note,
         refs: BUILD,
       }}
     >
       <div data-domain={JSON.stringify(domain)}>
         <ChartFrame
           id="live-detectable-chart"
-          ariaLabel={`The smallest detectable lift falls as views per group grow${currentN !== null ? ', with the current size marked' : ''}`}
+          ariaLabel={t.aria(currentN !== null)}
           height={HEIGHT}
-          x={{ domain: domain.x, ticks: xTicks, format: (v) => formatNumber(v, 0), label: 'Views per group', refs: BUILD }}
-          y={{ domain: domain.y, ticks: yTicks, format: (v) => formatNumber(v, yDigits), label: 'Smallest detectable lift (percentage points)', refs: BUILD }}
+          x={{ domain: domain.x, ticks: xTicks, format: (v) => formatNumber(v, 0, { locale }), label: t.xLabel, refs: BUILD }}
+          y={{ domain: domain.y, ticks: yTicks, format: (v) => formatNumber(v, yDigits, { locale }), label: t.yLabel, refs: BUILD }}
           marks={(ctx) => (
             <path
               data-mark=""

@@ -21,6 +21,7 @@ import { EXPERIMENT, type Arm } from '@/experiment.values';
 import { clickEvents, createDwell, createEngagement, createSender, type Sender } from '@/lib/experiment/beacon';
 import { classifyEntry, type EntrySignals } from '@/lib/experiment/entry';
 import { REJECT_REASONS, type BeaconBatch, type BeaconResponse, type ClientReject, type Refusal } from '@/lib/experiment/events';
+import { newViewId } from '@/lib/experiment/view-id';
 
 const ENDPOINT = '/api/e';
 const CARDS = '[data-experiment="cards"]';
@@ -115,7 +116,7 @@ function startView(arm: Arm, ns: string): () => void {
     window.dispatchEvent(new CustomEvent<CountedDetail>('experiment:counted', { detail }));
   };
   const start = (entry: 'entry' | ClientReject): Sender =>
-    createSender({ ns, arm, entry, newId: () => crypto.randomUUID(), post, onCounted });
+    createSender({ ns, arm, entry, newId: newViewId, post, onCounted });
 
   let sender = start(verdict);
   const cleanups: (() => void)[] = [];

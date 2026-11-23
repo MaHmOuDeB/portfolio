@@ -5,7 +5,7 @@
 // tool I built with its two timings. Then the method (what I did myself in view,
 // the rest in details rows one click deeper), the limits, and the sources. The page closes on what
 // it shows about how I work, the next project, and the shared call to action. The prose comes from
-// content/audible.tsx.
+// content/audible.tsx (English) and content/de/audible.tsx (German), picked by `locale`.
 //
 // Layout: prose sits in the readable column (max-w-text); the Figure and the two timings sit in a
 // figure sheet that runs the full rail. Nothing here moves. No result of any real test is on this
@@ -14,35 +14,18 @@
 import type { ReactNode } from 'react';
 import { GlanceBlock } from '@/components/depth/GlanceBlock';
 import { FigureSheet, LeadIn, MethodDetails, NextRow, PageClose, SECTION_H2, SectionNav, Takeaway } from '@/components/frame';
-import { Fact } from '@/components/kit/Fact';
 import { PageCallToAction } from '@/components/shell/PageCallToAction';
 import { CaseHead } from '@/components/work/CaseHead';
 import { factText } from '@/lib/facts/text';
+import type { Locale } from '@/lib/i18n/locale';
 import { CONTACT_HREF } from '@/lib/site';
-import {
-  AUDIBLE_GLANCE,
-  AUDIBLE_SHIP_LEAD_IN,
-  AUDIBLE_SHIP_TAKEAWAY,
-  AudibleAdoption,
-  AudibleAutomation,
-  AudibleChecks,
-  AudibleClose,
-  AudibleData,
-  AudibleIntro,
-  AudibleLimits,
-  AudibleLinks,
-  AudibleMethod,
-  AudibleSetupStats,
-  AudibleShipRule,
-  AudibleTeams,
-  AudibleWhySoMany,
-} from '../../../content/audible';
-import { HOME_SITE } from '../../../content/home.ts';
+import { AUDIBLE_EN, AUDIBLE_SECTION_IDS, blocks, slotsFor, type AudibleSectionId } from '../../../content/audible';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { FrameworkFigure } from './FrameworkFigure';
+import { audibleCopy } from './copy';
 
 /** The words of the h1 after its figure, and the quiet clause that follows them. */
-export const AUDIBLE_HEAD = { lead: 'A/B tests at Audible (Amazon)', quiet: 'from the plan to the recommendation.' } as const;
+export const AUDIBLE_HEAD = AUDIBLE_EN.head;
 
 /**
  * The page's title as a string, for places that cannot render a <Fact> (the sharing card): the h1's
@@ -50,127 +33,102 @@ export const AUDIBLE_HEAD = { lead: 'A/B tests at Audible (Amazon)', quiet: 'fro
  */
 export const AUDIBLE_TITLE = `${factText('profile.audible.experiments')} ${AUDIBLE_HEAD.lead}`;
 
-/** The sections in page order: anchor id, heading and the short label of its in-page link. */
-export const AUDIBLE_SECTIONS = [
-  { id: 'ship-rule', title: 'When to ship: try the rule yourself', link: 'When to ship' },
-  { id: 'why-so-many', title: 'Why so many were adopted', link: 'Why so many?' },
-  { id: 'automation', title: 'Test-account automation', link: 'Automation' },
-  { id: 'method', title: 'Method', link: 'Method' },
-  { id: 'limits', title: 'Limits', link: 'Limits' },
-  { id: 'sources', title: 'Sources and links', link: 'Sources' },
-] as const;
-
-type SectionId = (typeof AUDIBLE_SECTIONS)[number]['id'];
+/** The sections in page order: anchor id, heading and the short label of its in-page link (in English). */
+export const AUDIBLE_SECTIONS = AUDIBLE_SECTION_IDS.map((id) => ({ id, ...AUDIBLE_EN.sections[id] }));
 
 const PROSE = 'mt-4 max-w-text';
-
-/** A ruled section named by its own h2. Its children sit directly in it, so a figure sheet can run the full rail. */
-function Section({ id, children }: { id: SectionId; children: ReactNode }) {
-  const entry = AUDIBLE_SECTIONS.find((s) => s.id === id);
-  if (!entry) throw new Error(`audible: no section ${id}`);
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
-      <h2 id={`${id}-title`} className={`max-w-text ${SECTION_H2}`} data-depth-rise="heading">
-        {entry.title}
-      </h2>
-      {children}
-    </section>
-  );
-}
 
 /** Prose in the readable column. */
 function Prose({ children }: { children: ReactNode }) {
   return <div className={PROSE}>{children}</div>;
 }
 
-export function AudiblePage(): ReactNode {
+export function AudiblePage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const c = audibleCopy(locale);
+  const s = slotsFor(locale);
+  const b = blocks(c, s);
+  const frame = c.frame;
+  /** A ruled section named by its own h2. Its children sit directly in it, so a figure sheet can run the full rail. */
+  const section = (id: AudibleSectionId, children: ReactNode) => (
+    <section id={id} aria-labelledby={`${id}-title`} data-rule="" className="mt-12 pt-12 md:mt-16 md:pt-16">
+      <h2 id={`${id}-title`} className={`max-w-text ${SECTION_H2}`} data-depth-rise="heading">
+        {c.sections[id].title}
+      </h2>
+      {children}
+    </section>
+  );
   return (
     <article aria-labelledby="audible-title">
       <CaseHead
         id="audible-title"
-        chip="Case study"
+        chip={c.chip}
         title={
           <>
-            <Fact id="profile.audible.experiments" /> {AUDIBLE_HEAD.lead},
+            {s.tests} {c.head.lead},
           </>
         }
-        quiet={AUDIBLE_HEAD.quiet}
-        intro={<AudibleIntro />}
-        actions={[{ href: CONTACT_HREF, label: 'Ask me about this work' }]}
+        quiet={c.head.quiet}
+        intro={b.intro()}
+        actions={[{ href: s.href(CONTACT_HREF), label: c.ask }]}
       />
 
-      <GlanceBlock {...AUDIBLE_GLANCE} />
+      <GlanceBlock {...b.glance()} labels={c.glanceLabels} />
 
-      <SectionNav items={AUDIBLE_SECTIONS.map((s) => ({ href: `#${s.id}`, label: s.link }))} />
+      <SectionNav label={frame.sectionNav} items={AUDIBLE_SECTION_IDS.map((id) => ({ href: `#${id}`, label: c.sections[id].link }))} />
 
-      <Section id="ship-rule">
-        <Prose>
-          <AudibleShipRule />
-        </Prose>
-        <LeadIn>{AUDIBLE_SHIP_LEAD_IN}</LeadIn>
-        <FigureSheet>
-          <FrameworkFigure />
-        </FigureSheet>
-        <Takeaway>{AUDIBLE_SHIP_TAKEAWAY}</Takeaway>
-      </Section>
+      {section(
+        'ship-rule',
+        <>
+          <Prose>{b.shipRule()}</Prose>
+          <LeadIn label={frame.leadIn}>{c.shipLeadIn}</LeadIn>
+          <FigureSheet>
+            <FrameworkFigure locale={locale} />
+          </FigureSheet>
+          <Takeaway label={frame.takeaway}>{c.shipTakeaway}</Takeaway>
+        </>,
+      )}
 
-      <Section id="why-so-many">
-        <Prose>
-          <AudibleWhySoMany />
-        </Prose>
-      </Section>
+      {section(
+        'why-so-many',
+        <Prose>{b.whySoMany()}</Prose>,
+      )}
 
-      <Section id="automation">
-        <Prose>
-          <AudibleAutomation />
-        </Prose>
-        <FigureSheet>
-          <AudibleSetupStats />
-        </FigureSheet>
-        <Prose>
-          <AudibleAdoption />
-        </Prose>
-      </Section>
+      {section(
+        'automation',
+        <>
+          <Prose>{b.automation()}</Prose>
+          <FigureSheet>{b.setupStats()}</FigureSheet>
+          <Prose>{b.adoption()}</Prose>
+        </>,
+      )}
 
-      <Section id="method">
-        <Prose>
-          <AudibleMethod />
-        </Prose>
-        <MethodDetails summary="The teams and their metrics">
-          <AudibleTeams />
-        </MethodDetails>
-        {/* The anchor other pages may link to sits on the row's summary, which is always in view. */}
-        <MethodDetails summary={<span id="how-i-checked-this">How I checked this</span>}>
-          <AudibleChecks />
-        </MethodDetails>
-        <MethodDetails summary="Why there are no results here">
-          <AudibleData />
-        </MethodDetails>
-      </Section>
+      {section(
+        'method',
+        <>
+          <Prose>{b.method()}</Prose>
+          <MethodDetails summary={c.summaries.teams}>{b.teams()}</MethodDetails>
+          {/* The anchor other pages may link to sits on the row's summary, which is always in view. */}
+          <MethodDetails summary={<span id="how-i-checked-this">{c.summaries.checked}</span>}>{b.checks()}</MethodDetails>
+          <MethodDetails summary={c.summaries.data}>{b.data()}</MethodDetails>
+        </>,
+      )}
 
-      <Section id="limits">
-        <Prose>
-          <AudibleLimits />
-        </Prose>
-      </Section>
+      {section('limits', <Prose>{b.limits()}</Prose>)}
 
-      <Section id="sources">
-        <Prose>
-          <AudibleLinks />
-        </Prose>
-      </Section>
+      {section('sources', <Prose>{b.links()}</Prose>)}
 
       <PageClose
+        title={frame.pageClose}
         links={[
-          { href: HOME_LINKS.lab, label: HOME_SITE.lab },
-          { href: HOME_LINKS.experiment, label: HOME_SITE.live },
+          { href: s.href(HOME_LINKS.lab), label: c.closeLinks.lab },
+          { href: s.href(HOME_LINKS.experiment), label: c.closeLinks.live },
         ]}
       >
-        <AudibleClose />
+        {b.close()}
       </PageClose>
-      <NextRow next={{ href: HOME_LINKS.retention, label: 'Retention' }} />
+      <NextRow label={frame.nextRow} next={{ href: s.href(HOME_LINKS.retention), label: c.next.label, kicker: c.next.kicker }} />
       <div className="pb-12 md:pb-16" />
-      <PageCallToAction />
+      <PageCallToAction locale={locale} />
     </article>
   );
 }

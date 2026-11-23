@@ -38,7 +38,8 @@ describe('SiteHeader', () => {
   it('puts the four links, CV and Contact in the Menu, in that order', () => {
     const menu = /<nav aria-label="Menu"[\s\S]*?<\/nav>/.exec(MARKUP)![0];
     const texts = [...menu.matchAll(/<a [^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]!.replace(/<[^>]*>/g, ''));
-    expect(texts).toEqual(['Work', 'About', 'Lab', 'Live test', 'CV', 'Contact']);
+    // The two language links close the sheet, after the buttons.
+    expect(texts).toEqual(['Work', 'About', 'Lab', 'Live test', 'CV', 'Contact', 'English', 'Deutsch']);
     expect(menu).toMatch(/href="\/contact"[^>]*>/);
   });
 

@@ -1,6 +1,6 @@
-// The Home page's sections from "How I test" to the dark call to action, rendered on the server: the
-// tabs widget, the two bento tracks with their vignettes, the questions rows, the tools band, the site
-// band, the FAQ and the call to action. Every visitor-facing sentence is pinned here word for word,
+// The Home parts that are rendered on the server and shared with other pages: the tabs widget and the
+// "I automate." row (both on /work), the two bento tracks with their vignettes, the questions rows and
+// the FAQ (both on /about), the site band and the call to action. Every visitor-facing sentence is pinned here word for word,
 // every vignette is decorative and prints no digit, and every figure is a Fact.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -9,8 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { HEADLINES, HOME_CASES } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
-import { LANGUAGES, SHIPPED_TOOLS, TIMELINE } from '../../../content/about';
-import { HOME_TOOLS } from '../../../content/home.ts';
+import { LANGUAGES, TIMELINE } from '../../../content/about';
 import { DOCPROOF_REPO } from '../../../content/docproof';
 import { N8N_REPO } from '../../../content/n8n';
 import { aboutPhoto } from '../../../content/about-photo';
@@ -26,8 +25,7 @@ const { ExperimentsTrack, cardLinePhase } = await import('@/components/home/Expe
 const { FeaturedCases } = await import('@/components/home/FeaturedCases');
 const { AutomationTrack } = await import('@/components/home/AutomationTrack');
 const { QuestionsRows } = await import('@/components/home/QuestionsRows');
-const { ToolsBand } = await import('@/components/home/ToolsBand');
-const { SiteTile } = await import('@/components/home/SiteTile');
+const { AutomateRow } = await import('@/components/home/AutomateRow');
 const { HomeFaq } = await import('@/components/home/HomeFaq');
 const { HomeCallToAction } = await import('@/components/home/HomeCallToAction');
 
@@ -335,9 +333,24 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     expect(all(variants, (el) => has(el, 'data-variant'))).toHaveLength(3);
   });
 
-  it('then one ruled row with the three "I automate." lines, title-less, after the cards', () => {
+  it('holds the four cards only: the "I automate." row lives on the Work page', () => {
+    expect(all(d, (el) => has(el, 'data-home-automate'))).toEqual([]);
+    expect(html).not.toContain('I turn repeated manual steps');
+  });
+
+  it('passes the truth audit and keeps the limits', () => {
+    expect(text(d)).toContain('Tampermonkey with a step recorder');
+    expect(text(d)).not.toMatch(/deployed|in production|\bused by (?!a client)/i);
+    expect(audit(html)).toEqual([]);
+  });
+});
+
+describe('AutomateRow: the three "I automate." lines on the Work page', () => {
+  const html = render(createElement(AutomateRow));
+  const d = doc(html);
+
+  it('is one ruled row with the three lines, title-less', () => {
     const row = one(d, (el) => has(el, 'data-home-automate'));
-    expect(html.indexOf('data-home-automate')).toBeGreaterThan(html.indexOf('/work/marketingws'));
     expect(all(row, (el) => /^h\d$/.test(el.tagName))).toEqual([]);
     const ul = one(row, (el) => el.tagName === 'ul');
     expect(attr(ul, 'role')).toBe('list');
@@ -351,9 +364,8 @@ describe('AutomationTrack: four cards with vignettes, then the three lines', () 
     ]);
   });
 
-  it('passes the truth audit and keeps the limits', () => {
-    expect(text(d)).toContain('Tampermonkey with a step recorder');
-    expect(text(d)).not.toMatch(/deployed|in production|\bused by (?!a client)/i);
+  it('keeps its hairline that draws in as it enters, and passes the truth audit', () => {
+    expect(all(d, (el) => has(el, 'data-depth-draw'))).toHaveLength(1);
     expect(audit(html)).toEqual([]);
   });
 });
@@ -397,122 +409,6 @@ describe('QuestionsRows', () => {
   it('holds no link and no digit', () => {
     expect(all(section, (el) => el.tagName === 'a')).toEqual([]);
     expect(text(section)).not.toMatch(/\d/);
-  });
-});
-
-describe('ToolsBand', () => {
-  const html = render(createElement(ToolsBand));
-  const d = doc(html);
-  const band = one(d, (el) => has(el, 'data-home-shipped'));
-  const groups = all(band, (el) => has(el, 'data-tools-group'));
-
-  it('is a ruled band labelled by its centred chip "Methods and tools", with no ribbon', () => {
-    expect(band.tagName).toBe('section');
-    expect(has(band, 'data-rule')).toBe(true);
-    expect(has(band, 'data-depth-ribbon')).toBe(false);
-    expect(all(band, (el) => has(el, 'data-depth-ribbon'))).toEqual([]);
-    const label = one(band, (el) => has(el, 'data-tools-label'));
-    expect(label.tagName).toBe('p');
-    expect(text(label)).toBe('Methods and tools');
-    expect(attr(band, 'aria-labelledby')).toBe(attr(label, 'id'));
-    expect(classes(label)).toEqual(expect.arrayContaining(['mx-auto', 'max-w-figure', 'text-center']));
-    expect(all(label, (el) => has(el, 'data-chip')).map((c) => text(c))).toEqual(['Methods and tools']);
-  });
-
-  it('holds two groups, side by side from lg and one column below', () => {
-    expect(groups.map((g) => attr(g, 'data-tools-group'))).toEqual(['experiments', 'automation']);
-    const grid = one(band, (el) => has(el, 'data-tools-groups'));
-    expect(classes(grid)).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-2']));
-  });
-
-  it('gives each group its name, its line, a list of chips labelled by the name, and where it was used', () => {
-    for (const [i, g] of groups.entries()) {
-      const data = HOME_TOOLS.groups[i]!;
-      const name = one(g, (el) => has(el, 'data-tools-name'));
-      expect(text(name)).toBe(data.name);
-      expect(classes(name)).toEqual(expect.arrayContaining(['text-sm', 'font-semibold']));
-      const line = one(g, (el) => has(el, 'data-tools-line'));
-      expect(text(line)).toBe(data.line);
-      expect(classes(line)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
-      const ul = one(g, (el) => el.tagName === 'ul');
-      expect(attr(ul, 'role')).toBe('list');
-      expect(attr(ul, 'aria-labelledby')).toBe(attr(name, 'id'));
-      expect(classes(ul)).toContain('flex-wrap');
-      const items = all(ul, (el) => el.tagName === 'li').map((li) => text(li));
-      expect(items).toEqual([...data.items]);
-      expect(all(ul, (el) => has(el, 'data-chip'))).toHaveLength(items.length);
-      const seen = one(g, (el) => has(el, 'data-tools-seen'));
-      expect(text(seen)).toBe(data.seenIn);
-      expect(classes(seen)).toEqual(expect.arrayContaining(['text-xs', 'text-muted']));
-    }
-    expect(groups.map((g) => all(g, (el) => el.tagName === 'li').map((li) => text(li)))).toEqual([
-      ['A/B testing', 'Sample size and power', 'Guardrail metrics', 'SQL', 'Python'],
-      ['Multi-agent pipelines (Claude Code)', 'Automated verification', 'n8n workflows', 'LLM APIs', 'Browser automation'],
-    ]);
-  });
-
-  it('ends in one quiet engineering line after the groups, not chips', () => {
-    const eng = one(band, (el) => has(el, 'data-tools-engineering'));
-    expect(eng.tagName).toBe('p');
-    expect(text(eng)).toBe('Engineering: FastAPI, React and TypeScript, Docker and GitHub Actions, in my public projects.');
-    expect(classes(eng)).toEqual(expect.arrayContaining(['text-sm', 'text-muted']));
-    expect(all(eng, (el) => has(el, 'data-chip'))).toEqual([]);
-    expect(html.indexOf('data-tools-engineering')).toBeGreaterThan(html.lastIndexOf('data-tools-seen'));
-  });
-
-  it('is Home\'s own list, not About\'s, and adds no link, control or heading', () => {
-    // The tool chips only: the band's own name is a chip too, in its label.
-    const groupsEl = one(band, (el) => has(el, 'data-tools-groups'));
-    const chips = all(groupsEl, (el) => has(el, 'data-chip')).map((c) => text(c));
-    expect(chips).toHaveLength(10);
-    expect(chips).not.toEqual(SHIPPED_TOOLS.map((t) => t.tool));
-    expect(all(band, (el) => ['a', 'button', 'input', 'select', 'textarea'].includes(el.tagName))).toEqual([]);
-    expect(all(band, (el) => /^h\d$/.test(el.tagName))).toEqual([]);
-    expect(text(band)).not.toMatch(/Excel|Tableau|as a data source/);
-  });
-
-  it('never ties the AI and automation group to Audible, and passes the truth audit', () => {
-    expect(text(groups[1]!)).not.toMatch(/Audible|Amazon/);
-    expect(audit(html)).toEqual([]);
-  });
-});
-
-describe('SiteTile: the site band', () => {
-  const html = render(createElement(SiteTile));
-  const d = doc(html);
-  const root = one(d, (el) => has(el, 'data-home-site'));
-
-  it('takes no props: the same band for every visitor and every state', () => {
-    expect(SiteTile.length).toBe(0);
-  });
-
-  it('is a white card on the frame: chip "Live test", the two-tone h2, the sentence and two buttons', () => {
-    expect(root.tagName).toBe('section');
-    expect(has(root, 'data-rule')).toBe(true);
-    const tile = one(root, (el) => has(el, 'data-tile'));
-    expect(attr(tile, 'data-tile')).toBe('');
-    expect(text(one(root, (el) => has(el, 'data-chip')))).toBe('Live test');
-    const h2 = one(root, (el) => el.tagName === 'h2');
-    expect(squash(text(h2))).toBe('This site is part of the evidence.');
-    expect(text(one(h2, (el) => has(el, 'data-quiet')))).toBe('part of the evidence.');
-    expect(attr(root, 'aria-labelledby')).toBe(attr(h2, 'id'));
-    expect(text(one(root, (el) => has(el, 'data-home-site-text')))).toBe(
-      'It runs an A/B test on the three experiment cards above. The plan was published before the test started, and the data is public. I built it with coding agents, and every change passes its automated checks before it ships.',
-    );
-    const buttons = all(root, (el) => el.tagName === 'a');
-    expect(buttons.map((a) => text(a))).toEqual(['See the live test', 'Try the Lab']);
-    expect(buttons.map((a) => attr(a, 'href'))).toEqual([HOME_LINKS.experiment, HOME_LINKS.lab]);
-  });
-
-  it('has a tilted sketch of a confidence chart, an illustration with no text in its SVG', () => {
-    const [v] = expectVignettes(root, 1);
-    expect(sketchOf(v!)).toBe('confidence');
-    for (const svg of all(v!, (el) => el.tagName === 'svg')) expect(all(svg, (el) => el.tagName === 'text')).toEqual([]);
-  });
-
-  it('holds no note and types no numeral', () => {
-    expect(all(d, (el) => has(el, 'data-home-note'))).toEqual([]);
-    expect(text(d)).not.toMatch(/\d|more than/);
   });
 });
 

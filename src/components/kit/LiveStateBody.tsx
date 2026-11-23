@@ -33,6 +33,7 @@ import { MIN_PER_GROUP, type FigureBody } from '@/lib/figure/states';
 import { berlinDate } from '@/lib/figure/time';
 import { ConfidenceChart } from './ConfidenceChart';
 import { Derived, derivedAttr, type DerivedRef } from './Derived';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Props = {
   snapshot: LiveSnapshot;
@@ -41,6 +42,8 @@ type Props = {
   id: string;
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
   refs: readonly DerivedRef[];
+  /** The kit's words and the language of its numbers; default English. */
+  text?: KitText;
 };
 
 /** The quick-exit guardrail's window, from the pre-registration. */
@@ -56,31 +59,46 @@ function Num({ refs, children }: { refs: readonly DerivedRef[]; children: ReactN
   );
 }
 
-function When({ iso, refs }: { iso: string; refs: readonly DerivedRef[] }) {
+function When({ iso, refs, locale }: { iso: string; refs: readonly DerivedRef[]; locale: KitText['locale'] }) {
   return (
     <time dateTime={iso} {...derivedAttr(refs)}>
-      {berlinDate(iso)}
+      {berlinDate(iso, { locale })}
     </time>
   );
 }
 
 /** `signed`: the sentence claims a bound's sign, so no bound that is not zero may print "0". */
-function Interval({ lower, upper, refs, signed }: { lower: number; upper: number; refs: readonly DerivedRef[]; signed?: boolean }) {
-  return <Num refs={refs}>{formatIntervalPoints(lower, upper, { awayFromZero: signed })}</Num>;
+function Interval({
+  lower,
+  upper,
+  refs,
+  signed,
+  locale,
+}: {
+  lower: number;
+  upper: number;
+  refs: readonly DerivedRef[];
+  signed?: boolean;
+  locale: KitText['locale'];
+}) {
+  return <Num refs={refs}>{formatIntervalPoints(lower, upper, { awayFromZero: signed, locale })}</Num>;
 }
 
 
 const finite = (...vs: number[]) => vs.every(Number.isFinite);
 const clamp = (v: number) => Math.min(MAX_POINTS, Math.max(-MAX_POINTS, v));
 
-function Guardrail({ snapshot, refs }: { snapshot: LiveSnapshot; refs: readonly DerivedRef[] }) {
+function Guardrail({ snapshot, refs, text }: { snapshot: LiveSnapshot; refs: readonly DerivedRef[]; text: KitText }) {
   const g = snapshot.guardrail;
   if (!g || !finite(g.lower, g.upper, g.limit)) return null;
   const [lower, upper] = [clamp(Math.min(g.lower, g.upper)), clamp(Math.max(g.lower, g.upper))];
   return (
     <p className={`mt-4 ${P}`}>
-      Leaving within <Num refs={refs}>{GUARDRAIL_SECONDS}</Num> seconds, B − A: <Interval lower={lower} upper={upper} refs={refs} />{' '}
-      points; limit <Num refs={refs}>{formatSignedNumber(g.limit, 1)}</Num>.
+      {text.live.guardrail({
+        seconds: <Num refs={refs}>{GUARDRAIL_SECONDS}</Num>,
+        interval: <Interval lower={lower} upper={upper} refs={refs} locale={text.locale} />,
+        limit: <Num refs={refs}>{formatSignedNumber(g.limit, 1, { locale: text.locale })}</Num>,
+      })}
     </p>
   );
 }
@@ -94,47 +112,58 @@ function Lead({ children }: { children: string }) {
   return <span className="font-semibold">{children}</span>;
 }
 
-function NextStep({ snapshot }: { snapshot: LiveSnapshot }) {
-  return snapshot.nextStep ? <> What I&apos;ll do now: {snapshot.nextStep}.</> : null;
+function NextStep({ snapshot, text }: { snapshot: LiveSnapshot; text: KitText }) {
+  return snapshot.nextStep ? <>{text.live.nextStep({ step: snapshot.nextStep })}</> : null;
 }
 
-function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 'inconclusive'; snapshot: LiveSnapshot; refs: readonly DerivedRef[] }) {
-  const m = confidenceModel(snapshot);
+function Outcome({
+  body,
+  snapshot,
+  refs,
+  text,
+}: {
+  body: 'ship-b' | 'stop-for-harm' | 'inconclusive';
+  snapshot: LiveSnapshot;
+  refs: readonly DerivedRef[];
+  text: KitText;
+}) {
+  const t = text.live;
+  const m = confidenceModel(snapshot, { locale: text.locale });
   if (m === null) {
     // No interval may be shown, and the test has ended: no collecting row, no planned end, no
     // promise of a next look. Inconclusive can end this way (the cap came first, or its looks are
     // missing); ship-b and stop-for-harm need an interval, so without one no verdict is claimed.
-    if (body !== 'inconclusive') return <p className={P}>The interval for this look is not available.</p>;
+    if (body !== 'inconclusive') return <p className={P}>{t.unavailable}</p>;
     if (smallerGroup(snapshot) >= MIN_PER_GROUP) {
       return (
         <p className={P}>
-          Inconclusive at the six-month limit.
-          <NextStep snapshot={snapshot} />
+          {t.inconclusiveCap}
+          <NextStep snapshot={snapshot} text={text} />
         </p>
       );
     }
     return (
       <p className={P}>
-        Inconclusive at the six-month limit: fewer than <Derived value={MIN_PER_GROUP} unit="count" refs={refs} /> views
-        per group arrived, so no interval is shown.
-        <NextStep snapshot={snapshot} />
+        {t.inconclusiveFew({ min: <Derived value={MIN_PER_GROUP} unit="count" refs={refs} locale={text.locale} /> })}
+        <NextStep snapshot={snapshot} text={text} />
       </p>
     );
   }
   const { lower, upper } = m.current;
-  const interval = <Interval lower={lower} upper={upper} refs={refs} signed={body !== 'inconclusive'} />;
+  const interval = <Interval lower={lower} upper={upper} refs={refs} signed={body !== 'inconclusive'} locale={text.locale} />;
   if (body === 'ship-b') {
     return (
       <p className={P}>
-        <Lead>Ship B.</Lead> The lower end of the interval is above zero ({interval} points), the quick-exit guardrail is
-        within its limit, and the split check passed.
+        <Lead>{t.shipLead}</Lead>
+        {t.shipRest({ interval })}
       </p>
     );
   }
   if (body === 'stop-for-harm') {
     return (
       <p className={P}>
-        <Lead>Stopped: B did worse.</Lead> The upper end of the interval is below zero ({interval} points).
+        <Lead>{t.stopLead}</Lead>
+        {t.stopRest({ interval })}
       </p>
     );
   }
@@ -145,23 +174,27 @@ function Outcome({ body, snapshot, refs }: { body: 'ship-b' | 'stop-for-harm' | 
   const ruledOut = ceilAt(given !== undefined && Number.isFinite(given) ? Math.max(clamp(given), reach) : reach, digits);
   return (
     <p className={P}>
-      <Lead>Inconclusive at the six-month limit:</Lead> the difference runs from {interval} points, so an effect larger than{' '}
-      <Num refs={refs}>{formatNumber(ruledOut, digits)}</Num> points is ruled out.
-      <NextStep snapshot={snapshot} />
+      <Lead>{t.inconclusiveLead}</Lead>
+      {t.inconclusiveRest({ interval, ruledOut: <Num refs={refs}>{formatNumber(ruledOut, digits, { locale: text.locale })}</Num> })}
+      <NextStep snapshot={snapshot} text={text} />
     </p>
   );
 }
 
-export function LiveStateBody({ snapshot, body, id, refs }: Props) {
+export function LiveStateBody({ snapshot, body, id, refs, text = KIT_TEXT_EN }: Props) {
+  const t = text.live;
+  const locale = text.locale;
   const own = body === 'paused' || body === 'error' || body === 'default' ? contentBody(snapshot) : body;
-  const chart = <ConfidenceChart id={id} snapshot={snapshot} body={body} refs={refs} />;
+  const chart = <ConfidenceChart id={id} snapshot={snapshot} body={body} refs={refs} text={text} />;
   const f = snapshot.freshness;
   const paused =
     body === 'paused' && f.kind === 'paused' ? (
       <p className={`mb-4 ${P}`}>
-        <Status tone="warn">Paused</Status> on <When iso={f.pausedOn} refs={refs} />: {f.reason}.
+        <Status tone="warn">{t.paused}</Status>
+        {t.pausedLine({ when: <When iso={f.pausedOn} refs={refs} locale={locale} />, reason: f.reason })}
       </p>
     ) : null;
+  const count = (n: number) => <Derived value={safeCount(n)} unit="count" refs={refs} locale={locale} />;
 
   let content: ReactNode;
   switch (own) {
@@ -169,42 +202,37 @@ export function LiveStateBody({ snapshot, body, id, refs }: Props) {
       content = (
         <>
           {snapshot.phase === 'ab' && snapshot.abStartedOn ? (
-            <p className={P}>
-              A/B started <When iso={snapshot.abStartedOn} refs={refs} />.
-            </p>
+            <p className={P}>{t.abStarted({ when: <When iso={snapshot.abStartedOn} refs={refs} locale={locale} /> })}</p>
           ) : null}
-          {snapshot.phase === 'calibration' && body !== 'paused' ? (
-            <p className={P}>Calibrating: both groups see the same page.</p>
-          ) : null}
+          {snapshot.phase === 'calibration' && body !== 'paused' ? <p className={P}>{t.calibrating}</p> : null}
           {chart}
         </>
       );
       break;
     case 'calibration':
     case 'ab': {
-      const model = confidenceModel(snapshot);
+      const model = confidenceModel(snapshot, { locale });
       content = (
         <>
           {/* Only a test that is running says so; under a pause the pause sentence stands alone. */}
-          {own === 'calibration' && body !== 'paused' ? <p className={P}>Calibrating: both groups see the same page.</p> : null}
+          {own === 'calibration' && body !== 'paused' ? <p className={P}>{t.calibrating}</p> : null}
           {/* Only a test that is running says so; under a pause the pause sentence stands alone. */}
           {own === 'ab' && body !== 'paused' ? (
             <p className={P}>
               {snapshot.abStartedOn ? (
                 <>
-                  A/B started <When iso={snapshot.abStartedOn} refs={refs} />.{' '}
+                  {t.abStarted({ when: <When iso={snapshot.abStartedOn} refs={refs} locale={locale} /> })}
+                  {' '}
                 </>
               ) : null}
-              {model && !model.includesZero
-                ? 'The test is still running.'
-                : 'The interval still includes zero, so no difference is ruled out yet.'}
+              {model && !model.includesZero ? t.stillRunning : t.includesZeroYet}
             </p>
           ) : null}
           <p className="mt-2 text-sm">
-            <Status tone="ok">SRM passed</Status>
+            <Status tone="ok">{t.srmPassed}</Status>
           </p>
           <div className="mt-4">{chart}</div>
-          {own === 'ab' ? <Guardrail snapshot={snapshot} refs={refs} /> : null}
+          {own === 'ab' ? <Guardrail snapshot={snapshot} refs={refs} text={text} /> : null}
         </>
       );
       break;
@@ -215,9 +243,9 @@ export function LiveStateBody({ snapshot, body, id, refs }: Props) {
       content = (
         <>
           {/* Under a pause the pause is the state, so no verdict is stated; the frozen chart stays. */}
-          {body === 'paused' ? null : <Outcome body={own} snapshot={snapshot} refs={refs} />}
+          {body === 'paused' ? null : <Outcome body={own} snapshot={snapshot} refs={refs} text={text} />}
           <div className={body === 'paused' ? '' : 'mt-4'}>{chart}</div>
-          {confidenceModel(snapshot) ? <Guardrail snapshot={snapshot} refs={refs} /> : null}
+          {confidenceModel(snapshot, { locale }) ? <Guardrail snapshot={snapshot} refs={refs} text={text} /> : null}
         </>
       );
       break;
@@ -225,13 +253,10 @@ export function LiveStateBody({ snapshot, body, id, refs }: Props) {
       content = (
         <>
           <p className={P}>
-            <Status tone="warn">SRM failed</Status>. The split check failed, so no verdict is shown.
+            <Status tone="warn">{t.srmFailed}</Status>
+            {t.srmFailedRest}
           </p>
-          <p className={`mt-2 ${P}`}>
-            Views so far: <Derived value={safeCount(snapshot.nA)} unit="count" refs={refs} /> in A,{' '}
-            <Derived value={safeCount(snapshot.nB)} unit="count" refs={refs} /> in B, where the design expects an even
-            split.
-          </p>
+          <p className={`mt-2 ${P}`}>{t.viewsSoFar({ a: count(snapshot.nA), b: count(snapshot.nB) })}</p>
         </>
       );
       break;
@@ -240,21 +265,13 @@ export function LiveStateBody({ snapshot, body, id, refs }: Props) {
       content = a ? (
         <>
           <p className={P}>
-            Calibration stopped on <When iso={a.on} refs={refs} />: {a.reason}.
-            {a.restartsOn ? (
-              <>
-                {' '}
-                Calibration restarts on <When iso={a.restartsOn} refs={refs} />.
-              </>
-            ) : null}
+            {t.calibrationStopped({ when: <When iso={a.on} refs={refs} locale={locale} />, reason: a.reason })}
+            {a.restartsOn ? t.calibrationRestarts({ when: <When iso={a.restartsOn} refs={refs} locale={locale} /> }) : null}
           </p>
-          <p className={`mt-2 ${P}`}>
-            Views when it stopped: <Derived value={safeCount(snapshot.nA)} unit="count" refs={refs} /> in A,{' '}
-            <Derived value={safeCount(snapshot.nB)} unit="count" refs={refs} /> in B.
-          </p>
+          <p className={`mt-2 ${P}`}>{t.viewsWhenStopped({ a: count(snapshot.nA), b: count(snapshot.nB) })}</p>
         </>
       ) : (
-        <p className={P}>Calibration stopped.</p>
+        <p className={P}>{t.calibrationStoppedPlain}</p>
       );
       break;
     }

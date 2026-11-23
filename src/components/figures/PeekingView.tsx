@@ -16,16 +16,22 @@
 //   reconstructed metadata of the selected schedule and of the daily ghost. The chart's accessible
 //   name is words only; its numbers are in the table and the result line.
 import { line } from 'd3-shape';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { ChartFrame, MARK_UNITS, type PlotContext } from '@/components/kit/ChartFrame';
 import { Derived } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatValue } from '@/lib/facts/format';
 import { formatNumber } from '@/lib/figure/format';
 import { niceTicks, pct } from '@/lib/figure/scales';
+import { fill } from '@/lib/i18n/template';
+import type { Locale } from '@/lib/i18n/locale';
 import { Exhibit, PhonePoint } from '@/components/lab/Exhibit';
 import { PEEK_REFS, computePeek, peekDomains, type PeekView } from '@/lib/lab/peeking';
-import { PEEK_PRESETS, PEEK_TITLE } from '@/lib/lab/peeking-values';
+import { PEEK_PRESETS } from '@/lib/lab/peeking-values';
+import { withWords } from '@/lib/lab/sentence';
+import { labKit, plural } from '@/lib/lab/text-common';
+import { EN_PEEK, type PeekText } from '@/lib/lab/text-peek';
+import { sentenceNodes, sentenceText, type Sentence } from '@/lib/retention/sentence';
 
 /** The Monte Carlo range is a 95% Wilson interval over the runs. */
 const MC_LEVEL = 0.95;
@@ -34,107 +40,98 @@ const Y_TOP = 0.4;
 const Y_TICKS = { wide: [0.1, 0.2, 0.3, 0.4], narrow: [0.2, 0.4] };
 
 type Num = { n: number; unit: 'share' | 'count' | 'decimal'; decimals?: number };
-type Seg = string | Num;
 
 const share = (n: number, decimals = 0): Num => ({ n, unit: 'share', decimals });
 const count = (n: number): Num => ({ n, unit: 'count' });
 const decimal = (n: number): Num => ({ n, unit: 'decimal', decimals: 2 });
 
-const segText = (s: Seg) => (typeof s === 'string' ? s : formatValue(s.n, s.unit, { decimals: s.decimals }));
+/**
+ * A piece of a result, a legend or a method: a sentence of the words, the numbers its slots stand
+ * for, and the plain words its `{name}` placeholders take. Pieces are drawn one after the other, as
+ * children of one element, so the markup is the pieces' own.
+ */
+type Part = { s: Sentence; nums?: Record<string, Num>; words?: Record<string, string> };
 
-function Segments({ segs }: { segs: readonly Seg[] }) {
+const numText = (num: Num, locale: Locale) => formatValue(num.n, num.unit, { decimals: num.decimals, locale });
+
+function partNodes(part: Part, locale: Locale): ReactNode {
+  const values: Record<string, ReactNode> = {};
+  for (const [name, num] of Object.entries(part.nums ?? {})) {
+    values[name] = <Derived value={num.n} unit={num.unit} decimals={num.decimals} refs={PEEK_REFS} locale={locale} />;
+  }
+  return sentenceNodes(withWords(part.s, part.words ?? {}), values);
+}
+
+function partText(part: Part, locale: Locale): string {
+  const values: Record<string, string> = {};
+  for (const [name, num] of Object.entries(part.nums ?? {})) values[name] = numText(num, locale);
+  return sentenceText(withWords(part.s, part.words ?? {}), values);
+}
+
+function Parts({ parts, locale }: { parts: readonly Part[]; locale: Locale }) {
   return (
     <>
-      {segs.map((s, i) =>
-        typeof s === 'string' ? s : <Derived key={i} value={s.n} unit={s.unit} decimals={s.decimals} refs={PEEK_REFS} />,
-      )}
+      {parts.map((part, i) => (
+        <Fragment key={i}>{partNodes(part, locale)}</Fragment>
+      ))}
     </>
   );
 }
 
-const looksWord = (n: number) => (n === 1 ? 'check' : 'checks');
-
 /** How the rate stands against the planned level, as the result line says it. */
-function relation(view: PeekView): string {
+function relation(view: PeekView, text: PeekText): string {
   const { mode, fix } = view.values;
-  if (mode === 'daily' && fix === 'obf') return 'close to or under';
-  if (mode === 'daily' && fix === 'cs') return 'well under';
+  if (mode === 'daily' && fix === 'obf') return text.relation.closeOrUnder;
+  if (mode === 'daily' && fix === 'cs') return text.relation.wellUnder;
   const alpha = view.selected.alpha;
-  return view.mc.lower > alpha ? 'above' : view.mc.upper < alpha ? 'below' : 'about';
+  return view.mc.lower > alpha ? text.relation.above : view.mc.upper < alpha ? text.relation.below : text.relation.about;
 }
 
-const daysWord = (n: number) => (n === 1 ? 'day' : 'days');
-
-/** "found a false winner": the same words in every branch. */
-const found = (view: PeekView): Seg[] => [share(view.selected.falsePositiveRate, 1), ' of ', count(view.selected.runs), ' tests found a false winner'];
-
 /**
- * The result line and the announcement, as one list of words and numbers: the plain verdict first,
- * then the price of a fix. The Monte Carlo range of the rate is in the method row.
+ * The result line and the announcement, as one list of pieces: the plain verdict first, then the price
+ * of a fix. The Monte Carlo range of the rate is in the method row.
  */
-function resultSegments(view: PeekView): Seg[] {
+function resultParts(view: PeekView, text: PeekText): Part[] {
   const { values, selected, cost } = view;
   const alpha = share(selected.alpha);
+  const base = { rate: share(selected.falsePositiveRate, 1), runs: count(selected.runs), alpha };
+  const r = text.result;
   if (values.mode === 'once') {
-    return ['Checked once at the end, after ', count(selected.nPerLook), ' visitors per group, ', ...found(view), `, ${relation(view)} the `, alpha, ' a single check allows.'];
+    return [{ s: r.once, nums: { ...base, nPerLook: count(selected.nPerLook) }, words: { relation: relation(view, text) } }];
   }
   if (values.fix === 'cs') {
     return [
-      'With the always-valid check, ',
-      ...found(view),
-      '. That is well under the ',
-      alpha,
-      ' a single check allows. How far under depends on the setting.',
-      ...(cost?.kind === 'width'
-        ? [' The price: at the last check, its margin of error is about ', share(cost.ratio - 1), " wider than one check's."]
-        : []),
+      { s: r.cs, nums: base },
+      ...(cost?.kind === 'width' ? [{ s: text.cost.width, nums: { ratio: share(cost.ratio - 1) } }] : []),
     ];
   }
   if (values.looks === 1) {
-    return [
-      'With a single check, ',
-      ...found(view),
-      `, ${relation(view)} the `,
-      alpha,
-      ' a single check allows.',
-      ...(values.fix === 'obf' ? [' With one check there is nothing to correct.'] : []),
-    ];
+    return [{ s: r.single, nums: base, words: { relation: relation(view, text) } }, ...(values.fix === 'obf' ? [{ s: r.singleObf }] : [])];
   }
   if (values.fix === 'obf') {
     return [
-      'With stricter early checks, ',
-      ...found(view),
-      ', close to or under the ',
-      alpha,
-      ' a single check allows.',
-      ...(cost?.kind === 'boundary' ? [' The price: at the last check, the bar is about ', share(cost.ratio - 1), ' higher than for one check.'] : []),
+      { s: r.obf, nums: base },
+      ...(cost?.kind === 'boundary' ? [{ s: text.cost.boundary, nums: { ratio: share(cost.ratio - 1) } }] : []),
     ];
   }
-  return ['Checked daily for ', count(selected.looks), ` ${daysWord(selected.looks)}, `, ...found(view), '. Checked once at the end, about ', alpha, ' would.'];
+  return [{ s: r.naive, nums: { ...base, looks: count(selected.looks) }, words: { days: plural(selected.looks, text.day) } }];
 }
 
 /** The announcement: the result line in words, on a committed change only. */
-export function peekAnnouncement(view: PeekView): string {
-  return resultSegments(view).map(segText).join('');
+export function peekAnnouncement(view: PeekView, text: PeekText = EN_PEEK): string {
+  return resultParts(view, text)
+    .map((part) => partText(part, text.kit.locale))
+    .join('');
 }
 
-function criterion(view: PeekView): Seg[] {
+function criterion(view: PeekView, text: PeekText): Part {
   const { mode, fix } = view.values;
   const alpha = view.selected.alpha;
-  if (mode === 'once') {
-    return ['A run counts as a false winner if its p-value (pooled z-test, two-sided) at that one check falls below ', decimal(alpha), '. '];
-  }
-  if (fix === 'obf') {
-    return [
-      "A run counts as a false winner the first time the size of its z statistic reaches the O'Brien-Fleming bar for that check, set for an overall two-sided level of ",
-      decimal(alpha),
-      '. ',
-    ];
-  }
-  if (fix === 'cs') {
-    return ['A run counts as a false winner the first time the ', share(1 - alpha), ' confidence sequence for the difference excludes zero. '];
-  }
-  return ['A run counts as a false winner the first time its p-value (pooled z-test, two-sided) falls below ', decimal(alpha), '. '];
+  const c = text.criterion;
+  if (mode === 'once') return { s: c.once, nums: { alpha: decimal(alpha) } };
+  if (fix === 'obf') return { s: c.obf, nums: { alpha: decimal(alpha) } };
+  if (fix === 'cs') return { s: c.cs, nums: { level: share(1 - alpha) } };
+  return { s: c.naive, nums: { alpha: decimal(alpha) } };
 }
 
 /**
@@ -142,98 +139,49 @@ function criterion(view: PeekView): Seg[] {
  * one look the ghost is a pale dot; when it has the same share as the chosen schedule (looking once,
  * or O'Brien-Fleming, at one look) the ringed dot covers it, and the caption says so.
  */
-function legend(view: PeekView): Seg[] {
+function legend(view: PeekView, text: PeekText): Part {
   const { values, naive, selected } = view;
   const one = values.looks === 1;
   const hidden = one && naive.falsePositiveRate === selected.falsePositiveRate;
+  const l = text.legend;
+  const nums = { looks: count(naive.looks), n: count(naive.nPerLook) };
+  const words = { mark: one ? text.words.dot : text.words.line, checks: plural(naive.looks, text.words.check) };
   if (values.mode === 'once') {
-    if (hidden) {
-      return [
-        'The comparison schedule is ',
-        count(naive.looks),
-        ' daily check of ',
-        count(naive.nPerLook),
-        ' visitors per group with no fix. With one check the comparison schedule gives the same share, so its pale dot sits under the ringed dot. ',
-      ];
-    }
-    return [
-      `The pale ${one ? 'dot' : 'line'} is the comparison schedule: `,
-      count(naive.looks),
-      ` daily ${looksWord(naive.looks)} of `,
-      count(naive.nPerLook),
-      ' visitors per group with no fix. The ringed dot is the one check at the end. ',
-    ];
+    return hidden ? { s: l.onceHidden, nums } : { s: l.once, nums, words };
   }
-  if (values.fix === 'naive') {
-    return [one ? 'The ringed dot is the share of runs flagged at the one check. ' : 'The line is the share of runs flagged so far on each day, and the ringed dot is the last day. '];
-  }
-  if (hidden) {
-    return [
-      'The comparison is the same ',
-      count(naive.looks),
-      ' daily check of ',
-      count(naive.nPerLook),
-      ' visitors per group with no fix; with one check the fix changes nothing, so the pale dot sits under the ringed dot. ',
-    ];
-  }
-  return [
-    `The pale ${one ? 'dot' : 'line'} is the same `,
-    count(naive.looks),
-    ` daily ${looksWord(naive.looks)} of `,
-    count(naive.nPerLook),
-    ` visitors per group with no fix; ${one ? 'the ringed dot uses the fix. ' : 'the dark line uses the fix, and the ringed dot is its last day. '}`,
-  ];
+  if (values.fix === 'naive') return { s: one ? l.naiveOne : l.naiveMany };
+  if (hidden) return { s: l.hidden, nums };
+  return { s: l.other, nums, words: { ...words, tail: one ? l.tailOne : l.tailMany } };
 }
 
 /** The caption under the chart: what is simulated. The rest of the method is in the method row. */
-function captionSegments(view: PeekView): Seg[] {
-  return ['Simulated tests of two identical pages, each with a ', share(view.selected.p), ' sign-up rate.'];
+function captionParts(view: PeekView, text: PeekText): Part[] {
+  return [{ s: text.caption, nums: { p: share(view.selected.p) } }];
 }
 
 /** The method row's text for the setting on screen: the schedule, the criterion, the marks, the runs. */
-function methodSegments(view: PeekView): Seg[] {
+function methodParts(view: PeekView, text: PeekText): Part[] {
   const { values, selected, mc } = view;
   // The check-once comparison the control row no longer offers: one check after the same visitors.
   const once = values.mode === 'once' ? null : computePeek({ ...values, mode: 'once' }).selected;
+  const m = text.method;
+  const level = share(MC_LEVEL);
+  const alpha = share(selected.alpha);
   return [
-    'These are A/A tests: both groups see the same version, so every winner is a false one. ',
-    'Under these simulation assumptions the rate is ',
-    share(selected.falsePositiveRate, 1),
-    ' (',
-    share(MC_LEVEL),
-    ' Monte Carlo range ',
-    share(mc.lower, 1),
-    ' to ',
-    share(mc.upper, 1),
-    `): ${relation(view)} the nominal `,
-    share(selected.alpha),
-    '. ',
-    ...(values.mode === 'once'
-      ? ['Looking once means one check after ', count(selected.nPerLook), ' visitors per group. ']
-      : ['Each day checked adds ', count(selected.nPerLook), ' visitors per group. ']),
-    ...(once
-      ? [
-          'Checked once at the end, after the same ',
-          count(once.nPerLook),
-          ' visitors per group, the simulated rate is ',
-          share(once.falsePositiveRate, 1),
-          '. ',
-        ]
-      : []),
-    ...criterion(view),
-    ...legend(view),
-    'The dotted line marks the nominal ',
-    share(selected.alpha),
-    '. ',
-    count(selected.runs),
-    ' runs from seed ',
-    count(selected.seed),
-    '; the ',
-    share(MC_LEVEL),
-    ' Monte Carlo range is a Wilson interval over the runs: where the rate would settle with far more runs. ',
-    'Each setting is its own simulation, so nearby numbers of days can differ by a few points. ',
-    ...(view.cost ? ["The price of a fix is arithmetic at the last check's sample, not a measured loss of power. "] : []),
-    'Idea credited to Evan Miller, “How Not To Run an A/B Test”.',
+    {
+      s: m.head,
+      nums: { rate: share(selected.falsePositiveRate, 1), level, lower: share(mc.lower, 1), upper: share(mc.upper, 1), alpha },
+      words: { relation: relation(view, text) },
+    },
+    values.mode === 'once'
+      ? { s: m.scheduleOnce, nums: { n: count(selected.nPerLook) } }
+      : { s: m.scheduleDaily, nums: { n: count(selected.nPerLook) } },
+    ...(once ? [{ s: m.onceRate, nums: { n: count(once.nPerLook), rate: share(once.falsePositiveRate, 1) } }] : []),
+    criterion(view, text),
+    legend(view, text),
+    { s: m.tail, nums: { alpha, runs: count(selected.runs), seed: count(selected.seed), level } },
+    ...(view.cost ? [{ s: [m.cost] }] : []),
+    { s: [m.credit] },
   ];
 }
 
@@ -242,13 +190,8 @@ let startView: PeekView | undefined;
 const start = () => (startView ??= computePeek({ ...PEEK_PRESETS.default, mode: 'daily' }));
 
 /** The sentence above the Figure: the one control to move and what to watch. */
-export function PeekLeadIn() {
-  return (
-    <>
-      Both pages here are the same, so every winner is a false winner. Drag the days checked and watch how many of{' '}
-      <Segments segs={[count(start().selected.runs)]} /> tests find one.
-    </>
-  );
+export function PeekLeadIn({ text = EN_PEEK }: { text?: PeekText } = {}) {
+  return <Parts parts={[{ s: text.leadIn, nums: { runs: count(start().selected.runs) } }]} locale={text.kit.locale} />;
 }
 
 /**
@@ -256,25 +199,21 @@ export function PeekLeadIn() {
  * number (the result line shows the contrast of one check and daily checks). The live test's plan
  * uses a confidence sequence, the always-valid check.
  */
-export const PEEK_TAKEAWAY =
-  'I decide how to read a test before it starts. I read it once at the end, or with a method built for daily checks. The price of checking often: a winner needs stronger proof. The live test on this site uses the always-valid check.';
+export const PEEK_TAKEAWAY = EN_PEEK.takeaway;
 
 /** The terms the peeking example uses, each in one sentence, at the top of the method row. */
-function PeekTerms() {
+function PeekTerms({ text }: { text: PeekText }) {
+  const locale = text.kit.locale;
   const alpha = start().selected.alpha;
   const term = (name: string) => <strong className="font-semibold">{name}</strong>;
-  return (
-    <>
-      {term('Peeking')}: checking a running test again and again and stopping the first time it looks significant, which
-      gives chance many tries to produce a false winner. {term('False winner (false positive)')}: a difference the test
-      flags although the two versions are in truth the same; a test read once is set to allow this about{' '}
-      <Segments segs={[count(1), ' time in ', count(Math.round(1 / alpha))]} />, the nominal level.{' '}
-      {term("Stricter early checks (O'Brien-Fleming)")}: a planned schedule of checks in which early checks need much
-      stronger evidence, so the false-winner rate over all checks stays at the planned level.{' '}
-      {term('Always-valid check (confidence sequence)')}: an interval that stays valid however often it is looked at, at
-      the price of being wider than a one-check interval.
-    </>
-  );
+  const n = text.termNames;
+  return sentenceNodes(text.terms, {
+    peeking: term(n.peeking),
+    falseWinner: term(n.falseWinner),
+    odds: <Parts parts={[{ s: text.odds, nums: { one: count(1), n: count(Math.round(1 / alpha)) } }]} locale={locale} />,
+    obf: term(n.obf),
+    cs: term(n.cs),
+  });
 }
 
 /** Look 1, round looks between, and the last look; none crowding either end. */
@@ -285,18 +224,13 @@ function lookTicks(looks: number, count: number): number[] {
   return [1, ...inner.filter((t) => t > 1 && t < looks), looks];
 }
 
-function chartName(view: PeekView): string {
+function chartName(view: PeekView, text: PeekText): string {
   const { looks, mode, fix } = view.values;
-  if (mode === 'once') return 'False winners when checking once at the end, beside daily checks with no fix';
-  if (fix === 'naive') {
-    return looks === 1
-      ? 'False winners at a single check with no fix'
-      : 'False winners so far by day when checking daily with no fix: the share climbs from the first day to the last';
-  }
-  const method = fix === 'obf' ? 'stricter early checks' : 'the always-valid check';
-  return looks === 1
-    ? `False winners at a single check with ${method}, beside the same check with no fix`
-    : `False winners so far by day with ${method}, beside the same daily checks with no fix`;
+  const name = text.chart.name;
+  if (mode === 'once') return name.once;
+  if (fix === 'naive') return looks === 1 ? name.naiveOne : name.naiveMany;
+  const method = name.methods[fix];
+  return fill(looks === 1 ? name.fixOne : name.fixMany, { method });
 }
 
 /**
@@ -307,7 +241,8 @@ function SeamFailure(): never {
   throw new Error('The peeking chart failed after a change (test seam)');
 }
 
-export function PeekChart({ id, view }: { id: string; view: PeekView }) {
+export function PeekChart({ id, view, text = EN_PEEK }: { id: string; view: PeekView; text?: PeekText }) {
+  const locale = text.kit.locale;
   const { values, selected, naive } = view;
   const L = values.looks;
   const { x, y } = peekDomains(view);
@@ -338,19 +273,19 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
     >
       <ChartFrame
         id={`${id}-chart`}
-        ariaLabel={chartName(view)}
+        ariaLabel={chartName(view, text)}
         x={{
           domain: x,
           ticks: { wide: lookTicks(L, 6), narrow: lookTicks(L, 3) },
-          format: (v) => formatNumber(v, 0),
-          label: 'Day',
+          format: (v) => formatNumber(v, 0, { locale }),
+          label: text.chart.axis.x,
           refs: PEEK_REFS,
         }}
         y={{
           domain: y,
           ticks: yTicks,
-          format: (v) => `${formatNumber(v * 100, 0)}%`,
-          label: 'False winners so far',
+          format: (v) => fill(text.percent, { value: formatNumber(v * 100, 0, { locale }) }),
+          label: text.chart.axis.y,
           refs: PEEK_REFS,
         }}
         height={{ narrow: 220, wide: 280 }}
@@ -428,7 +363,7 @@ export function PeekChart({ id, view }: { id: string; view: PeekView }) {
           <line x1={0} x2={24} y1={1} y2={1} stroke="var(--color-muted)" strokeWidth={1} strokeDasharray="2 3" />
         </svg>
         <span>
-          Dotted line: <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} />, the false winners one check at the end allows
+          {sentenceNodes(text.chart.key, { alpha: <Derived value={alpha} unit="share" decimals={0} refs={PEEK_REFS} locale={locale} /> })}
         </span>
       </p>
     </div>
@@ -449,44 +384,49 @@ export type PeekingFigureViewProps = {
   faultAfterChange?: true;
   /** Whether the visitor has committed a change since the island loaded. */
   changed?: boolean;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: PeekText;
 };
 
-export function PeekingFigureView({ id, view, controls, announcement, preview, faultAfterChange, changed }: PeekingFigureViewProps) {
+export function PeekingFigureView({ id, view, controls, announcement, preview, faultAfterChange, changed, text = EN_PEEK }: PeekingFigureViewProps) {
   const { values, selected } = view;
-  const takeaway = PEEK_TAKEAWAY;
+  const locale = text.kit.locale;
+  const takeaway = text.takeaway;
   const figure = (
     <Figure
       id={id}
-      title={PEEK_TITLE}
+      title={text.title}
+      text={labKit(text.kit)}
       provenance="simulated"
       table={view.table}
-      lead={<PhonePoint>{takeaway}</PhonePoint>}
+      lead={<PhonePoint label={text.exhibit.takeaway}>{takeaway}</PhonePoint>}
       controls={controls}
       announcement={announcement}
       preview={preview}
       result={
         <span data-peek-result="" data-looks={values.looks} data-mode={values.mode} data-fix={values.fix} data-rate={selected.falsePositiveRate}>
-          <Segments segs={resultSegments(view)} />
+          <Parts parts={resultParts(view, text)} locale={locale} />
         </span>
       }
-      caption={<Segments segs={captionSegments(view)} />}
+      caption={<Parts parts={captionParts(view, text)} locale={locale} />}
     >
-      <PeekChart id={id} view={view} />
+      <PeekChart id={id} view={view} text={text} />
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
   );
   return (
     <Exhibit
-      summary="How the simulation works"
-      leadIn={<PeekLeadIn />}
+      summary={text.summary}
+      leadIn={<PeekLeadIn text={text} />}
       takeaway={takeaway}
+      labels={text.exhibit}
       method={
         <>
           <p data-method-terms="">
-            <PeekTerms />
+            <PeekTerms text={text} />
           </p>
           <p data-method-text="" data-peek-method="">
-            <Segments segs={methodSegments(view)} />
+            <Parts parts={methodParts(view, text)} locale={locale} />
           </p>
         </>
       }

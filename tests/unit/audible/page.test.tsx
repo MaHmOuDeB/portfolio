@@ -11,7 +11,7 @@ import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { withoutCta } from '../page-cta';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import AudibleRoute, { metadata } from '@/app/work/audible/page';
+import AudibleRoute, { metadata } from '@/app/(en)/work/audible/page';
 import { AUDIBLE_HEAD, AUDIBLE_SECTIONS, AUDIBLE_TITLE, AudiblePage } from '@/components/audible/AudiblePage';
 import { FrameworkFigure } from '@/components/audible/FrameworkFigure';
 import { DECISION_LABEL, FrameworkFigureView, frameworkAnnouncement, frameworkTable } from '@/components/audible/FrameworkView';

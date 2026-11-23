@@ -11,6 +11,8 @@ function pageRoutes(dir: string, segments: string[] = []): string[] {
     if (entry.isDirectory()) {
       // _private folders are not routes; (groups) add no URL segment.
       if (entry.name.startsWith('_')) continue;
+      // The English list: the German tree has its own registry (src/lib/i18n/pages.ts).
+      if (segments.length === 0 && entry.name === 'de') continue;
       const segment = /^\(.*\)$/.test(entry.name) ? [] : [entry.name];
       routes.push(...pageRoutes(path.join(dir, entry.name), [...segments, ...segment]));
     } else if (/^page\.(tsx|ts|jsx|js|mdx)$/.test(entry.name)) {

@@ -41,6 +41,7 @@ import { srmTest } from '../stats/proportions.ts';
 import { mixtureCs } from '../stats/sequential.ts';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from './events.ts';
 import type { ExperimentFlags } from './flags.ts';
+import { STOP_REASONS_EN } from './reasons.ts';
 import type { ClosedMarker, CounterRows, GroupCounts } from './store.ts';
 import { berlinDay, berlinDaysBetween, berlinStartOfDay, plannedEnd } from './time.ts';
 
@@ -151,9 +152,9 @@ export type SnapshotInput = {
 };
 
 const AA_WORDS = {
-  srm: 'the split check failed',
-  'interval-excludes-zero': 'the two identical groups differed',
-  'data-fault': 'the counts failed a consistency check',
+  srm: STOP_REASONS_EN.srm,
+  'interval-excludes-zero': STOP_REASONS_EN['interval-excludes-zero'],
+  'data-fault': STOP_REASONS_EN['data-fault'],
 } as const;
 /** After its views' ids expire, a minute of margin before a day's row is read as final. */
 const LOOK_MARGIN_MS = 60_000;

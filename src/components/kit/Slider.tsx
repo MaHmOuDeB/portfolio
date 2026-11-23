@@ -10,7 +10,9 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSP
 import { derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { cx } from '@/lib/cx';
 import { earlyTyped, hasEntry } from '@/lib/figure/early-entry';
+import { fill as fillTemplate } from '@/lib/i18n/template';
 import { isOnStepGrid, snapToStep, stepFrom } from '@/lib/figure/snap';
+import { EN_SLIDER, type SliderText } from './text';
 
 export type SliderProps = {
   id: string;
@@ -55,6 +57,8 @@ export type SliderProps = {
   /** Where the value comes from, for data-derived on the root: it covers the numbers in aria-valuetext. */
   refs: readonly DerivedRef[];
   disabled?: boolean;
+  /** The number input's default name; default English. */
+  text?: SliderText;
 };
 
 // The keys a range input moves on; releasing one commits the value.
@@ -101,6 +105,7 @@ export function Slider({
   numberLabel,
   refs,
   disabled,
+  text = EN_SLIDER,
 }: SliderProps) {
   const snap = (v: number) => snapToStep(v, min, max, step);
   const current = snap(value);
@@ -278,7 +283,7 @@ export function Slider({
           />
         </div>
         <label htmlFor={numberId} className="sr-only">
-          {numberLabel ?? `${label}, exact value`}
+          {numberLabel ?? fillTemplate(text.exactValue, { label })}
         </label>
         <input
           ref={numberRef}

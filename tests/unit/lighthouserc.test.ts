@@ -4,7 +4,8 @@ import { LIGHTHOUSE_LABEL } from '../../src/lib/live-page/build-meta-shape';
 
 // The Lighthouse CI gate: `npm run lhci` runs one collect of 5 runs per URL against the production
 // build and asserts on the median. It measures the home page in both groups (/?variant=a and
-// /?variant=b; the proxy serves each group's static page and names it in x-arm).
+// /?variant=b; the proxy serves each group's static page and names it in x-arm) and the German Home
+// (/de, one static page, the same budgets and the same 5 runs).
 // lighthouserc.fixture.json measures the Home page's composition in fixed states on the test build's
 // host (KITCHEN_SINK=1): before data, collecting, and enough data in both groups, with the same
 // budgets except SEO (those host pages are noindex by design).
@@ -23,13 +24,13 @@ const config = read('lighthouserc.json');
 const fixture = read('lighthouserc.fixture.json');
 const scripts = read('package.json').scripts;
 
-test('runs 5 times against the home page in each group with the throttling applied for real', () => {
+test('runs 5 times against the home page in each group and the German Home with the throttling applied for real', () => {
   // No `throttling` override: the default slow-4G network and 4x CPU profile.
   expect(config).toEqual({
     ci: {
       collect: {
         startServerCommand: 'npx next start -p 3124',
-        url: ['http://localhost:3124/?variant=a', 'http://localhost:3124/?variant=b'],
+        url: ['http://localhost:3124/?variant=a', 'http://localhost:3124/?variant=b', 'http://localhost:3124/de'],
         numberOfRuns: 5,
         settings: { throttlingMethod: 'devtools' },
       },

@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import GlobalError from '@/app/global-error';
-import ErrorPage from '@/app/error';
-import NotFound, { metadata } from '@/app/not-found';
+import ErrorPage from '@/app/(en)/error';
+import NotFound, { metadata } from '@/app/(en)/not-found';
 import { CONTACT } from '@/lib/site';
 
 // next/font only works under Next's compiler, so the test supplies the class name it would add.

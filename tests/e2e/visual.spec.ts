@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { E2E_CLOCK_AT } from './constants';
 import { test, waitForIslands } from './fixtures';
 
 // Visual baselines. The PNGs live in tests/e2e/__screenshots__/{project}/ and are generated only in
@@ -84,6 +85,10 @@ test.describe('@visual @matrix visual baselines', () => {
   });
 
   test('home and the not-found page, full viewport', async ({ page }) => {
+    // The live note's "Updated" line depends on the reader's clock against the data's time. The
+    // server runs on E2E_CLOCK_AT, so the browser does too; on real time the shot would flip once
+    // the calendar passed the test clock.
+    await page.clock.setFixedTime(new Date(E2E_CLOCK_AT));
     await page.goto('/');
     await settled(page);
     await expect(page).toHaveScreenshot('home.png');

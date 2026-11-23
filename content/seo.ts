@@ -13,14 +13,46 @@ import type { FactId } from '../src/lib/facts/index.ts';
 import { ogAlt, type OgCard } from '../src/lib/seo/og-template.ts';
 import { HEADLINE, SITE } from '../src/lib/site.ts';
 import { factText } from '../src/lib/facts/text.ts';
+import type { Locale } from '../src/lib/i18n/locale.ts';
+
+/**
+ * Every page that has an entry: the English paths, which key the German entries too (content/de/seo.ts
+ * is typed over this list, so a page missing there fails the typecheck). A unit test keeps it equal to
+ * the paths of SEO_PAGES.
+ */
+export const SEO_PATHS = [
+  '/',
+  '/work',
+  '/work/audible',
+  '/work/retention',
+  '/work/pulse',
+  '/work/weather',
+  '/work/docproof',
+  '/work/marketingws',
+  '/work/n8n',
+  '/lab',
+  '/lab/peeking',
+  '/experiment',
+  '/about',
+  '/cv',
+  '/contact',
+  '/privacy',
+] as const;
+
+export type SeoPath = (typeof SEO_PATHS)[number];
 
 export type SeoEntry = {
+  /** The language of the title, the description and the card. */
+  locale: Locale;
+  /** The English path, also for a German entry (its own address is the path under /de). */
   path: string;
   title: string;
   description: string;
   image: string;
   imageAlt: string;
   factIds: readonly FactId[];
+  /** The Home entry's own link-preview title, when it is not the English one. */
+  homeShareTitle?: string;
 };
 
 /**
@@ -37,13 +69,16 @@ export const SEO_EXCLUDED_ROUTES: readonly string[] = ['/exclude', '/demo'];
  * does not import the Home content, so the experiment's copy never reaches a sharing image).
  */
 export const SITE_SHARING_LINE =
-  'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.';
+  'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).';
 
 /** The site card's headline: the hero's line in one tone. */
 export const SITE_SHARING_HEADLINE = `${HEADLINE.lead} ${HEADLINE.quiet}`;
 
-/** The Home page's title in a link preview (og:title, twitter:title). */
-export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead.charAt(0).toLowerCase()}${HEADLINE.lead.slice(1)} ${HEADLINE.quiet}`;
+/**
+ * The Home page's title in a link preview (og:title, twitter:title). The lead keeps its own case: a
+ * lower-cased first letter would print "aI" and would break a German noun.
+ */
+export const HOME_SHARE_TITLE = `${SITE.name}: ${HEADLINE.lead} ${HEADLINE.quiet}`;
 
 /**
  * A case card's headline states its landing page's finding in the page's own words. The cards have their
@@ -93,9 +128,9 @@ export function ogCard(name: string): OgCard {
   return card;
 }
 
-function entry(path: string, title: string, description: string, cardName: string): SeoEntry {
+function entry(path: SeoPath, title: string, description: string, cardName: string): SeoEntry {
   const card = ogCard(cardName);
-  return { path, title, description, image: `/og/${card.name}.png`, imageAlt: ogAlt(card), factIds: card.factIds };
+  return { locale: 'en', path, title, description, image: `/og/${card.name}.png`, imageAlt: ogAlt(card), factIds: card.factIds };
 }
 
 export const SEO_PAGES: readonly SeoEntry[] = [
@@ -187,7 +222,7 @@ export const SEO_PAGES: readonly SeoEntry[] = [
  * the site's name. The document <title> stays the page title.
  */
 export function shareTitle(entry: SeoEntry): string {
-  return entry.path === '/' ? HOME_SHARE_TITLE : `${entry.title} | ${SITE.name}`;
+  return entry.path === '/' ? (entry.homeShareTitle ?? HOME_SHARE_TITLE) : `${entry.title} | ${SITE.name}`;
 }
 
 /** The entry for a path; throws for a path the manifest does not list. */

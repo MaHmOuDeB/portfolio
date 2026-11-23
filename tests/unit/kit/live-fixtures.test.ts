@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FRESHNESS, FRESHNESS_KINDS, liveFixture } from '@/app/kitchen-sink/_parts/live-fixtures';
+import { FRESHNESS, FRESHNESS_KINDS, liveFixture } from '@/app/(en)/kitchen-sink/_parts/live-fixtures';
 import { shownSeries } from '@/lib/figure/cs-band';
 import { DATA_AMOUNTS, LIVE_PHASES, type LivePhase } from '@/lib/figure/states';
 import { srmTest } from '@/lib/stats';

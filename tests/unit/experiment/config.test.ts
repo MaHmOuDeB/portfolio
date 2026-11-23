@@ -5,6 +5,7 @@ import { detectableEffectCs, mixtureCs, optimalTau2, srmTest } from '@/lib/stats
 import { ARMS, EXPERIMENT, FIXTURE_START, TAU2, calibrationStart, notStartedAt, type ExperimentConfig } from '../../../src/experiment.config';
 import { HEADLINES, type HeadlinePart } from '../../../content/experiment/headlines';
 import { preregHash } from '../../../scripts/prereg-hash';
+import { DE_LIVE_REVALIDATE_SECONDS } from '@/components/live-page/LivePage';
 import { COMMANDS_PER_FULL_VIEW, MONTHLY_COMMAND_QUOTA, MONTHLY_PAGE_READ_BUDGET, REFUSED_ENTRIES_PER_DAY, REFUSED_ENTRY_COMMANDS } from './budget';
 
 const ROOT = join(import.meta.dirname, '../../..');
@@ -15,10 +16,10 @@ describe('EXPERIMENT', () => {
     expect(FIXTURE_START).toBe('2026-11-02T00:00:00+01:00');
     expect(EXPERIMENT).toEqual({
       id: 'card-headlines',
-      prereg: { version: 'v1', tag: 'prereg-v1' },
+      prereg: { version: 'v1.1', tag: 'prereg-v1.1' },
       phase: 'calibration',
-      namespace: 'aa-v1',
-      calibration: { startedOn: '2026-11-16T12:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
+      namespace: 'aa-v1.1',
+      calibration: { startedOn: '2026-11-23T00:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
       ab: { startedOn: null, capMonths: 6 },
       alpha: 0.05,
       power: 0.8,
@@ -41,7 +42,7 @@ describe('EXPERIMENT', () => {
   });
 
   it('starts in calibration at the launch date, with the A/B start unset', () => {
-    expect(EXPERIMENT.calibration.startedOn).toBe('2026-11-16T12:00:00+01:00');
+    expect(EXPERIMENT.calibration.startedOn).toBe('2026-11-23T00:00:00+01:00');
     expect(EXPERIMENT.ab.startedOn).toBeNull();
     expect(EXPERIMENT.phase).toBe('calibration');
   });
@@ -55,8 +56,9 @@ describe('the daily ceiling and the command quota', () => {
     expect(atCeiling + MONTHLY_PAGE_READ_BUDGET).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 
-  it('budgets four ISR routes every five minutes, two reads each (4 x 2 x 8,640 = 69,120, rounded up to 70,000)', () => {
-    // Every route that regenerates from the store: the two home pages, data.json and the Live test page.
+  it('budgets five ISR routes: four every five minutes and the German Live test page every ten, two reads each (4 x 2 x 8,640 + 2 x 4,320 = 77,760, rounded up to 78,000)', () => {
+    // Every route that regenerates from the store: the two home pages, data.json, the Live test page
+    // and its German twin. The scan covers all of src/app, so src/app/de/experiment is included.
     const app = join(ROOT, 'src/app');
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
@@ -64,21 +66,23 @@ describe('the daily ceiling and the command quota', () => {
         return statSync(path).isDirectory() ? files(path) : /\.tsx?$/.test(name) ? [path] : [];
       });
     const isr = files(app).filter((f) => /export const revalidate = /.test(readFileSync(f, 'utf8'))).map((f) => f.slice(app.length));
-    expect(isr.sort()).toEqual(['/experiment/data.json/route.ts', '/experiment/page.tsx', '/v/[arm]/page.tsx']);
+    expect(isr.sort()).toEqual(['/(en)/experiment/page.tsx', '/(en)/v/[arm]/page.tsx', '/de/experiment/page.tsx', '/experiment/data.json/route.ts']);
     const routes = 4; // /v/a and /v/b (one file), /experiment/data.json, /experiment
     const regenerationsPerMonth = (30 * 24 * 60 * 60) / EXPERIMENT.revalidateSeconds;
     expect(regenerationsPerMonth).toBe(8_640);
-    const reads = routes * 2 * regenerationsPerMonth;
-    expect(reads).toBe(69_120);
-    expect(MONTHLY_PAGE_READ_BUDGET).toBe(70_000);
+    const deRegenerationsPerMonth = (30 * 24 * 60 * 60) / DE_LIVE_REVALIDATE_SECONDS;
+    expect(deRegenerationsPerMonth).toBe(4_320);
+    const reads = routes * 2 * regenerationsPerMonth + 2 * deRegenerationsPerMonth;
+    expect(reads).toBe(77_760);
+    expect(MONTHLY_PAGE_READ_BUDGET).toBe(78_000);
     expect(MONTHLY_PAGE_READ_BUDGET - reads).toBeGreaterThanOrEqual(0);
     expect(MONTHLY_PAGE_READ_BUDGET - reads).toBeLessThan(1_000);
   });
 
-  it('still fit with the worst-case refused entries every day (200 x 48 x 30 + 70,000 + 500 x 8 x 30 = 478,000)', () => {
+  it('still fit with the worst-case refused entries every day (200 x 48 x 30 + 78,000 + 500 x 8 x 30 = 486,000)', () => {
     const atCeiling = EXPERIMENT.dailyEntryCeiling * COMMANDS_PER_FULL_VIEW * 30;
     const refused = REFUSED_ENTRIES_PER_DAY * REFUSED_ENTRY_COMMANDS * 30;
-    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBe(478_000);
+    expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBe(486_000);
     expect(atCeiling + MONTHLY_PAGE_READ_BUDGET + refused).toBeLessThan(MONTHLY_COMMAND_QUOTA);
   });
 });
@@ -152,7 +156,7 @@ describe('calibrationStart', () => {
 
   it('is the launch date everywhere with the shipped config', () => {
     for (const env of ['production', 'preview', 'development'] as const) {
-      expect(calibrationStart(EXPERIMENT, env)).toBe('2026-11-16T12:00:00+01:00');
+      expect(calibrationStart(EXPERIMENT, env)).toBe('2026-11-23T00:00:00+01:00');
     }
   });
 
@@ -213,7 +217,7 @@ describe('docs/experiment/prereg.md', () => {
       'α = 0.05', 'p < 0.001', '50 per group', 'at least 2 weeks', 'at least 100', '6-month cap',
       '+10 percentage points', '5 seconds', 'half of the cards area', '1 second', 'clicks a featured card',
       '30 minutes', 'completed Berlin day', 'first decision is final', 'Global Privacy Control',
-      'Do Not Track', 'views, not people', '390 to 470', 'aa-v1.1', 'prereg-final', 'prereg-v1.1',
+      'Do Not Track', 'views, not people', '390 to 470', 'aa-v1.1', 'prereg-final', 'prereg-v1.1', 'aa-v1.2', 'prereg-v1.2',
       'Threat model', 'At most 200 counted entry views per Berlin day',
       'any Berlin day that reached the ceiling\nis flagged and does not feed a look', `Pre-registration hash: ${preregHash()}`,
     ];

@@ -31,6 +31,7 @@ import {
 } from './FigureErrorBoundary';
 import { UpdatedLabel } from './LiveLabels';
 import { ProvenanceBadge, type Provenance } from './ProvenanceBadge';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 export { FigureErrorFallback, type FallbackBody, type FigureErrorFallbackProps };
 
@@ -47,6 +48,8 @@ export type FigureProps = {
   children: ReactNode;
   /** Heading level of the title, default 3. */
   titleLevel?: 2 | 3 | 4;
+  /** The kit's words and the language of its numbers; default English. */
+  text?: KitText;
 } & (
   | {
       kind?: 'chart';
@@ -76,7 +79,6 @@ export type FigureProps = {
 );
 
 const TITLE = 'text-xl font-semibold';
-const NO_JS_NOTE = 'Controls need JavaScript.';
 
 function Title({ id, level, children }: { id: string; level: 2 | 3 | 4; children: ReactNode }) {
   const Heading = `h${level}` as const;
@@ -89,6 +91,7 @@ function Title({ id, level, children }: { id: string; level: 2 | 3 | 4; children
 
 export function Figure(p: FigureProps) {
   assertFigureId(p.id);
+  const text = p.text ?? KIT_TEXT_EN;
   const state = p.state ?? {};
   const runtime = state.runtime ?? 'default';
   const titleId = `${p.id}-title`;
@@ -112,9 +115,9 @@ export function Figure(p: FigureProps) {
         {title}
         <div data-figure-body="" className="mt-4">
           {runtime === 'error' ? (
-            <FigureErrorFallback id={p.id} body="diagram" />
+            <FigureErrorFallback id={p.id} body="diagram" text={text.error} locale={text.locale} />
           ) : (
-            <FigureErrorBoundary id={p.id} body="diagram">
+            <FigureErrorBoundary id={p.id} body="diagram" text={text.error} locale={text.locale}>
               {p.children}
             </FigureErrorBoundary>
           )}
@@ -132,8 +135,10 @@ export function Figure(p: FigureProps) {
     preview: p.preview ?? p.children,
     table: p.table,
     tableCaption: typeof p.title === 'string' ? p.title : undefined,
+    text: text.error,
+    locale: text.locale,
   };
-  const caption = fallback.tableCaption ?? 'The numbers in this chart';
+  const caption = fallback.tableCaption ?? text.table.caption;
   const freshness = state.live?.freshness;
   const tableId = `${p.id}-table`;
 
@@ -150,7 +155,7 @@ export function Figure(p: FigureProps) {
           data-js-only=""
           data-figure-controls=""
           role="group"
-          aria-label="Controls"
+          aria-label={text.figure.controls}
           className="mt-4 flex flex-col gap-4 xs:flex-row xs:flex-wrap xs:items-end xs:gap-x-6"
         >
           {p.controls}
@@ -176,16 +181,16 @@ export function Figure(p: FigureProps) {
       <figcaption className="mt-3 text-sm">
         <p className="max-w-text text-muted">{p.caption}</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <ProvenanceBadge kind={p.provenance} />
+          <ProvenanceBadge kind={p.provenance} text={text.badge} />
           {freshness?.kind === 'stale' ? (
-            <UpdatedLabel updatedAt={freshness.updatedAt} renderedAt={freshness.renderedAt} refs={p.table.refs} />
+            <UpdatedLabel updatedAt={freshness.updatedAt} renderedAt={freshness.renderedAt} refs={p.table.refs} text={text} />
           ) : null}
         </div>
         {failed ? null : noJs ? (
           <div data-figure-tables="" className="mt-3">
-            {p.controls ? <p className="text-sm">{NO_JS_NOTE}</p> : null}
+            {p.controls ? <p className="text-sm">{text.figure.controlsNeedJs}</p> : null}
             <div className="mt-2">
-              <DataTable id={tableId} caption={caption} table={p.table} mode="open" />
+              <DataTable id={tableId} caption={caption} table={p.table} mode="open" text={text} />
             </div>
           </div>
         ) : (
@@ -195,7 +200,8 @@ export function Figure(p: FigureProps) {
               caption={caption}
               table={p.table}
               mode="disclosure"
-              noJsNote={p.controls ? NO_JS_NOTE : undefined}
+              noJsNote={p.controls ? text.figure.controlsNeedJs : undefined}
+              text={text}
             />
           </div>
         )}

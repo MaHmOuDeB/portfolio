@@ -4,8 +4,8 @@
   "configPhase": "ab",
   "status": "ab",
   "prereg": {
-    "version": "v1",
-    "tag": "prereg-v1",
+    "version": "v1.1",
+    "tag": "prereg-v1.1",
     "commit": "0123456789abcdef0123456789abcdef01234567",
     "configSha256": "e21dedcac7a27fffb92d9bb1f46d580ff5fe75ea28ea2d012903369493d51c39"
   },

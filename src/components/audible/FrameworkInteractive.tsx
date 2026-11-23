@@ -18,6 +18,7 @@ import { instantly } from '@/components/kit/Figure';
 import { useFigureParams } from '@/components/kit/useFigureParams';
 import { normalizeFramework, type FrameworkValues } from '@/lib/audible/framework';
 import { FRAMEWORK_ID, FRAMEWORK_PRESETS, FRAMEWORK_SCHEMA, paramsToValues } from '@/lib/audible/framework-url';
+import { EN_FRAMEWORK, type FrameworkText } from '@/lib/audible/text';
 import { FrameworkControls } from './FrameworkFigureClient';
 import { FrameworkFigureView, frameworkAnnouncement } from './FrameworkView';
 
@@ -25,6 +26,8 @@ export type FrameworkInteractiveProps = {
   /** The server's preset values. */
   initial: FrameworkValues;
   faultAfterChange?: true;
+  /** The Figure's words; English when absent. */
+  text?: FrameworkText;
 };
 
 /** Frames to wait for the preview to leave and the island's control to exist. */
@@ -47,7 +50,7 @@ function focusedPreviewReset(): Handoff | null {
 const same = (a: FrameworkValues, b: FrameworkValues) =>
   a.primaryLower === b.primaryLower && a.primaryUpper === b.primaryUpper && a.guardrailUpper === b.guardrailUpper;
 
-export default function FrameworkInteractive({ initial, faultAfterChange }: FrameworkInteractiveProps) {
+export default function FrameworkInteractive({ initial, faultAfterChange, text = EN_FRAMEWORK }: FrameworkInteractiveProps) {
   const { values: params, preset, set, reset } = useFigureParams(FRAMEWORK_ID, FRAMEWORK_SCHEMA, FRAMEWORK_PRESETS);
   const values = useMemo(() => {
     const read = paramsToValues(params);
@@ -106,21 +109,23 @@ export default function FrameworkInteractive({ initial, faultAfterChange }: Fram
       announcement={announcement}
       faultAfterChange={faultAfterChange}
       changed={changed}
+      text={text}
       controls={
         <FrameworkControls
+          text={text}
           values={values}
           onBound={(bound, value) => move(bound, value)}
           onCommit={(bound, value) => {
             const next = move(bound, value);
             setChanged(true);
-            setAnnouncement(frameworkAnnouncement(next));
+            setAnnouncement(frameworkAnnouncement(next, text));
           }}
           onReset={() =>
             instantly(FRAMEWORK_ID, () => {
               reset();
               const restored = paramsToValues(FRAMEWORK_PRESETS[preset]!);
               latest.current = restored;
-              setAnnouncement(frameworkAnnouncement(restored));
+              setAnnouncement(frameworkAnnouncement(restored, text));
             })
           }
         />

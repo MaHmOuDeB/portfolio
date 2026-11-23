@@ -977,7 +977,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     const a = analyse(DISK, REPO, pageExtensions);
     expect(show(a.violations)).toEqual([]);
     // the walk is real: it starts at the layout and the proxy and reaches the kit and the shell
-    expect(a.roots).toEqual(expect.arrayContaining(['src/app/layout.tsx', 'src/proxy.ts']));
+    expect(a.roots).toEqual(expect.arrayContaining(['src/app/(en)/layout.tsx', 'src/proxy.ts']));
     expect(a.roots.some((r) => r.endsWith('.dev.tsx'))).toBe(false);
     expect(a.reachable.length).toBeGreaterThan(20);
     expect(a.reachable).toEqual(expect.arrayContaining(['src/components/shell/SiteHeader.tsx', 'src/app/fonts.ts']));
@@ -990,7 +990,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
     // every affected component is in the production graph, and none is activated there.
     const a = analyse(DISK, REPO, pageExtensions);
     expect(show(a.violations)).toEqual([]);
-    expect(a.roots).toEqual(expect.arrayContaining(['src/app/lab/page.tsx', 'src/app/lab/peeking/page.tsx', 'src/app/work/retention/page.tsx']));
+    expect(a.roots).toEqual(expect.arrayContaining(['src/app/(en)/lab/page.tsx', 'src/app/(en)/lab/peeking/page.tsx', 'src/app/(en)/work/retention/page.tsx']));
     expect(a.affected).toEqual(
       expect.arrayContaining([
         'src/components/retention/ReturnsFigure.tsx#ReturnsFigure',
@@ -1020,7 +1020,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('finds the seam components from the source when a route renders them, and accepts their forwarding', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/retention/page.dev.tsx']);
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/(en)/kitchen-sink/retention/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
     expect(a.affected).toEqual(
       expect.arrayContaining([
@@ -1039,7 +1039,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('finds the Lab diagnostics’ seam components from the Lab host, and accepts their forwarding', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/page.dev.tsx']);
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/(en)/kitchen-sink/lab/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
     expect(a.affected).toEqual(
       expect.arrayContaining([
@@ -1058,7 +1058,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('would reject the Lab diagnostics faults host if a production root reached it: one activation per Figure', () => {
-    const host = 'src/app/kitchen-sink/lab/diagnostics/faults/page.dev.tsx';
+    const host = 'src/app/(en)/kitchen-sink/lab/diagnostics/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
     expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
     const lines = readFileSync(join(REPO, host), 'utf8').split('\n');
@@ -1066,7 +1066,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('would reject the faults host if a production root reached it: one activation per Figure it sets', () => {
-    const host = 'src/app/kitchen-sink/retention/faults/page.dev.tsx';
+    const host = 'src/app/(en)/kitchen-sink/retention/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
     expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
     // each violation is the line that sets the seam on that Figure, the cohort Figure among them
@@ -1076,7 +1076,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('finds the full planner’s seam components from the Lab host, and accepts their forwarding', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/page.dev.tsx']);
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/(en)/kitchen-sink/lab/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
     expect(a.affected).toEqual(
       expect.arrayContaining([
@@ -1094,7 +1094,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('would reject the Lab faults host if a production root reached it: one activation per planner it sets', () => {
-    const host = 'src/app/kitchen-sink/lab/faults/page.dev.tsx';
+    const host = 'src/app/(en)/kitchen-sink/lab/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
     expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation'], [host, 'activation']]);
     // the Lab's one planner Figure, and the Retention page's pair, each on the line that sets the seam
@@ -1106,7 +1106,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('finds the peeking Figure’s seam components from its host, and accepts their forwarding', () => {
-    const a = analyse(DISK, REPO, pageExtensions, ['src/app/kitchen-sink/lab/peeking/page.dev.tsx']);
+    const a = analyse(DISK, REPO, pageExtensions, ['src/app/(en)/kitchen-sink/lab/peeking/page.dev.tsx']);
     expect(show(a.violations)).toEqual([]);
     expect(a.affected).toEqual(
       expect.arrayContaining([
@@ -1120,7 +1120,7 @@ describe('the production graph of this repository', { timeout: 30_000 }, () => {
   });
 
   it('would reject the peeking faults host if a production root reached it', () => {
-    const host = 'src/app/kitchen-sink/lab/peeking/faults/page.dev.tsx';
+    const host = 'src/app/(en)/kitchen-sink/lab/peeking/faults/page.dev.tsx';
     const a = analyse(DISK, REPO, pageExtensions, [host]);
     expect(a.violations.map((v) => [v.file, v.rule])).toEqual([[host, 'activation']]);
     const lines = readFileSync(join(REPO, host), 'utf8').split('\n');

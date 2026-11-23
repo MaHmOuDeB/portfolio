@@ -505,13 +505,13 @@ describe('links', () => {
 });
 
 describe('the route and the host', () => {
-  const route = readFileSync(join(repo, 'src/app/work/retention/page.tsx'), 'utf8');
-  const host = readFileSync(join(repo, 'src/app/kitchen-sink/retention/page.dev.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/retention/page.tsx'), 'utf8');
+  const host = readFileSync(join(repo, 'src/app/(en)/kitchen-sink/retention/page.dev.tsx'), 'utf8');
 
   it('the route is a plain static page that renders the composition', async () => {
     expect(route).toMatch(/<RetentionCaseStudy \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(|faultAfterChange/);
-    const mod = (await import('@/app/work/retention/page')) as {
+    const mod = (await import('@/app/(en)/work/retention/page')) as {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };

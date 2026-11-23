@@ -18,6 +18,9 @@ import { ChartFrame, MARK_UNITS } from '@/components/kit/ChartFrame';
 import { Derived, derivedAttr, type DerivedRef } from '@/components/kit/Derived';
 import { Figure } from '@/components/kit/Figure';
 import { formatNumber } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
+import { labKit } from '@/lib/lab/text-common';
+import { sentenceNodes } from '@/lib/retention/sentence';
 import { niceTicks } from '@/lib/figure/scales';
 import type { FigureState } from '@/lib/figure/states';
 import { DEMO_PROMPT_VERSION } from '@/lib/pulse/bus';
@@ -37,8 +40,9 @@ import {
 } from '@/lib/pulse/dashboard';
 import { PULSE_TAXONOMY_REFS } from '@/lib/pulse/names';
 import { STREAM_LIMIT, propertyRefs, type Stream } from '@/lib/pulse/session';
+import { EN_PULSE, type PulseText } from '@/lib/pulse/text';
 
-export const PULSE_FIGURE_TITLE = 'Each dashboard action with a product question behind it sends one event';
+export const PULSE_FIGURE_TITLE = EN_PULSE.title;
 
 const SIMULATED: readonly DerivedRef[] = ['simulated'];
 const BUTTON = `${buttonClass('secondary')} max-xs:w-full`;
@@ -53,33 +57,30 @@ export function RangeText({ range }: { range: RangeValue }) {
 }
 
 /** The result line: which view the dashboard shows. */
-export function PulseResult({ view }: { view: DashboardView }) {
-  return (
-    <>
-      Showing {channelPhrase(view.channel)} over the last <RangeText range={view.range} />.
-    </>
-  );
+export function PulseResult({ view, text = EN_PULSE }: { view: DashboardView; text?: PulseText }) {
+  return <>{sentenceNodes(text.result, { channel: channelPhrase(view.channel, text), range: <RangeText range={view.range} /> })}</>;
 }
 
-const tick = (v: number) => formatNumber(v, 0);
-
 /** One chart: the made-up daily values of the view, as a line. */
-function PulseChart({ view, chart }: { view: DashboardView; chart: (typeof CHARTS)[number] }) {
+function PulseChart({ view, chart, text }: { view: DashboardView; chart: (typeof CHARTS)[number]; text: PulseText }) {
+  const locale = text.kit.locale;
+  const tick = (v: number) => formatNumber(v, 0, { locale });
+  const names = text.charts[chart.key];
   const rows = dashboardRows(view);
   const days = rangeDays(view.range);
   const top = chartTop(chart.key, view);
   return (
     <ChartFrame
       id={`${PULSE_ID}-${chart.key}-chart`}
-      ariaLabel={`Made-up ${chart.label.toLowerCase()} per day for ${channelPhrase(view.channel)}, over the chosen range`}
+      ariaLabel={fill(text.chartName, { chart: names.inline, channel: channelPhrase(view.channel, text) })}
       x={{
         domain: [1, days],
         ticks: { wide: niceTicks([1, days], 6), narrow: niceTicks([1, days], 3) },
         format: tick,
-        label: 'Day of the range',
+        label: text.axis.x,
         refs: SIMULATED,
       }}
-      y={{ domain: [0, top], ticks: { wide: niceTicks([0, top], 4), narrow: niceTicks([0, top], 3) }, format: tick, label: `${chart.label} per day`, refs: SIMULATED }}
+      y={{ domain: [0, top], ticks: { wide: niceTicks([0, top], 4), narrow: niceTicks([0, top], 3) }, format: tick, label: fill(text.axis.y, { chart: names.label }), refs: SIMULATED }}
       height={{ narrow: 160, wide: 180 }}
       marks={(ctx) => (
         <polyline
@@ -97,14 +98,10 @@ function PulseChart({ view, chart }: { view: DashboardView; chart: (typeof CHART
 }
 
 /** The detail under a chart: its total and its busiest day over the rows shown. */
-function ChartDetail({ view, chart }: { view: DashboardView; chart: ChartKey }) {
+function ChartDetail({ view, chart, text }: { view: DashboardView; chart: ChartKey; text: PulseText }) {
   const { total, peak, peakDay } = chartSummary(view, chart);
-  const n = (value: number) => <Derived value={value} unit="count" refs={SIMULATED} />;
-  return (
-    <p>
-      Over the range: {n(total)} in all, and {n(peak)} on the busiest day, day {n(peakDay)}.
-    </p>
-  );
+  const n = (value: number) => <Derived value={value} unit="count" refs={SIMULATED} locale={text.kit.locale} />;
+  return <p>{sentenceNodes(text.dashboard.summary, { total: n(total), peak: n(peak), day: n(peakDay) })}</p>;
 }
 
 export type DashboardHandlers = {
@@ -121,50 +118,53 @@ type DashboardProps = {
   detail?: ChartKey | null;
   /** The island's handlers; the server's preview has none, and its buttons are hidden until it loads. */
   handlers?: DashboardHandlers;
+  /** The Figure's words and the language of its numbers; English when absent. */
+  text?: PulseText;
 };
 
 /** The labelled dashboard: the two charts with their Detail buttons, then the export and saved-view actions. */
-function Dashboard({ view, saved, detail, handlers }: DashboardProps) {
+function Dashboard({ view, saved, detail, handlers, text = EN_PULSE }: DashboardProps) {
+  const d = text.dashboard;
   return (
     <div role="region" aria-labelledby={`${PULSE_ID}-dashboard-title`}>
       <h4 id={`${PULSE_ID}-dashboard-title`} className="text-lg font-semibold">
-        Dashboard
+        {d.title}
       </h4>
       {CHARTS.map((chart) => {
         const open = detail === chart.key;
         return (
           <div key={chart.key} data-pulse-chart={chart.key} className="mt-6">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <h5 className="text-base font-semibold">{chart.label}</h5>
+              <h5 className="text-base font-semibold">{text.charts[chart.key].label}</h5>
               <button
                 type="button"
                 id={`${PULSE_ID}-detail-button-${chart.key}`}
                 data-js-only=""
                 aria-expanded={open}
                 aria-controls={`${PULSE_ID}-detail-${chart.key}`}
-                aria-label={`Detail: ${chart.label}`}
+                aria-label={fill(d.detailLabel, { chart: text.charts[chart.key].label })}
                 className={BUTTON}
                 onClick={handlers ? () => handlers.onDetail(chart.key) : undefined}
               >
-                Detail
+                {d.detail}
               </button>
             </div>
             <div className="mt-2">
-              <PulseChart view={view} chart={chart} />
+              <PulseChart view={view} chart={chart} text={text} />
             </div>
             <div id={`${PULSE_ID}-detail-${chart.key}`} hidden={!open} className="mt-2 max-w-text text-sm">
-              {open ? <ChartDetail view={view} chart={chart.key} /> : null}
+              {open ? <ChartDetail view={view} chart={chart.key} text={text} /> : null}
             </div>
           </div>
         );
       })}
       <div data-js-only="" className="mt-6">
-        <div role="group" aria-label="Dashboard actions" className="flex flex-col gap-3 xs:flex-row xs:flex-wrap">
+        <div role="group" aria-label={d.actions} className="flex flex-col gap-3 xs:flex-row xs:flex-wrap">
           <button type="button" id={`${PULSE_ID}-export`} className={BUTTON} onClick={handlers?.onExport}>
-            Export CSV
+            {d.export}
           </button>
           <button type="button" id={`${PULSE_ID}-save`} className={BUTTON} onClick={handlers?.onSave}>
-            Save view
+            {d.save}
           </button>
           <button
             type="button"
@@ -174,16 +174,14 @@ function Dashboard({ view, saved, detail, handlers }: DashboardProps) {
             className={`${BUTTON} disabled:cursor-not-allowed disabled:border-line disabled:text-muted`}
             onClick={handlers?.onLoad}
           >
-            Load saved view
+            {d.load}
           </button>
         </div>
         <p id={`${PULSE_ID}-load-reason`} className="mt-2 max-w-text text-sm text-muted">
           {saved ? (
-            <>
-              Saved view: {channelLabel(saved.channel)} over the last <RangeText range={saved.range} />.
-            </>
+            <>{sentenceNodes(d.saved, { channel: channelLabel(saved.channel, text), range: <RangeText range={saved.range} /> })}</>
           ) : (
-            <>Save a view first; then Load saved view brings it back.</>
+            <>{d.savePrompt}</>
           )}
         </p>
       </div>
@@ -192,22 +190,22 @@ function Dashboard({ view, saved, detail, handlers }: DashboardProps) {
 }
 
 /** The events this dashboard sent, newest first, with the local demo prompt version. */
-export function PulseStream({ stream = [] }: { stream?: Stream }) {
+export function PulseStream({ stream = [], text = EN_PULSE }: { stream?: Stream; text?: PulseText }) {
+  const t = text.stream;
   return (
     <div role="region" aria-labelledby={`${PULSE_ID}-stream-title`} className="mt-8 border-t border-line pt-6">
       <h4 id={`${PULSE_ID}-stream-title`} className="text-lg font-semibold">
-        Events sent
+        {t.title}
       </h4>
       <p className="mt-2 max-w-text text-sm text-muted">
-        The last <Derived value={STREAM_LIMIT} unit="count" refs={SIMULATED} /> events this dashboard sent, newest first.
+        {sentenceNodes(t.last, { count: <Derived value={STREAM_LIMIT} unit="count" refs={SIMULATED} locale={text.kit.locale} /> })}
       </p>
       <p className="mt-2 max-w-text text-sm text-muted">
-        Local demo prompt version: <code {...derivedAttr(DEMO_PROMPT_VERSION.refs)}>{DEMO_PROMPT_VERSION.value}</code>. It is
-        this copy&apos;s own value, not the original&apos;s.
+        {sentenceNodes(t.prompt, { version: <code {...derivedAttr(DEMO_PROMPT_VERSION.refs)}>{DEMO_PROMPT_VERSION.value}</code> })}
       </p>
       <div data-js-only="" className="mt-4">
         {stream.length === 0 ? (
-          <p className="max-w-text text-sm">No events yet. Viewed Dashboard arrives as soon as the dashboard has loaded.</p>
+          <p className="max-w-text text-sm">{t.empty}</p>
         ) : (
           <ol className="flex flex-col gap-3">
             {stream.map(({ seq, event }) => (
@@ -224,7 +222,7 @@ export function PulseStream({ stream = [] }: { stream?: Stream }) {
         )}
       </div>
       <p data-nojs-only="" className="mt-4 max-w-text text-sm">
-        The list needs JavaScript: without it, this copy sends no events.
+        {t.needsJs}
       </p>
     </div>
   );
@@ -266,28 +264,24 @@ export function PulseFigureView({
   state,
   faultAfterChange,
   changed,
+  text = EN_PULSE,
 }: PulseFigureViewProps) {
   return (
     <Figure
       id={PULSE_ID}
-      title={PULSE_FIGURE_TITLE}
+      title={text.title}
+      text={labKit(text.kit)}
       state={state}
       provenance="simulated"
-      table={dashboardTable(view)}
+      table={dashboardTable(view, text)}
       controls={controls}
       announcement={announcement}
       preview={preview}
-      result={<PulseResult view={view} />}
-      caption={
-        <>
-          A copy of the Pulse dashboard, with its own charts and channels and made-up numbers for a made-up product. Each
-          action that sends an event adds it to the list, newest first. The events stay in this page and are not part of
-          this site&apos;s own experiment.
-        </>
-      }
+      result={<PulseResult view={view} text={text} />}
+      caption={<>{text.caption}</>}
     >
-      <Dashboard view={view} saved={saved} detail={detail} handlers={handlers} />
-      <PulseStream stream={stream} />
+      <Dashboard view={view} saved={saved} detail={detail} handlers={handlers} text={text} />
+      <PulseStream stream={stream} text={text} />
       {faultAfterChange && changed ? <SeamFailure /> : null}
     </Figure>
   );

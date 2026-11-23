@@ -9,10 +9,13 @@
 import type { DerivedRef } from '@/components/kit/Derived';
 import { formatNumber } from '@/lib/figure/format';
 import type { ParamValues, Presets } from '@/lib/figure/url-state';
+import { fill } from '@/lib/i18n/template';
+import { plural } from './text-common';
+import { EN_PEEK, type PeekText } from './text-peek';
 
 export const PEEK_ID = 'peeking';
 /** An interactive Figure's title states the relationship. */
-export const PEEK_TITLE = 'More checks, more false winners';
+export const PEEK_TITLE = EN_PEEK.title;
 
 export const PEEK_SCHEMA = {
   looks: { kind: 'number', min: 1, max: 50, step: 1 },
@@ -39,7 +42,11 @@ export const FIX_OPTIONS = [
 ] as const;
 
 /** The control row's words. */
-export const PEEK_LABELS = { looks: 'Days checked', fix: 'Fix' } as const;
+export const PEEK_LABELS = EN_PEEK.labels;
+
+/** The fix options with their words in a language. */
+export const fixOptions = (text: PeekText = EN_PEEK) =>
+  PEEK_SCHEMA.fix.values.map((value) => ({ value, label: text.fixOptions[value] }));
 
 /** The links under the exhibit: the same setting with each fix, as a full page load so the island reads it. */
 export const PEEK_PRESET_LINKS = [
@@ -47,15 +54,16 @@ export const PEEK_PRESET_LINKS = [
   { href: '?peeking.fix=cs#peeking-at-results', label: 'Try the always-valid check' },
 ] as const;
 
-const visitors = (looks: number) => formatNumber(looks * PEEK_VISITORS_PER_LOOK, 0);
+const visitors = (looks: number, text: PeekText) => formatNumber(looks * PEEK_VISITORS_PER_LOOK, 0, { locale: text.kit.locale });
 
 /** "1 day", "20 days". */
-const daysText = (days: number) => `${formatNumber(days, 0)} ${days === 1 ? 'day' : 'days'}`;
+const daysText = (days: number, text: PeekText) =>
+  fill(plural(days, text.days), { n: formatNumber(days, 0, { locale: text.kit.locale }) });
 
 /** The slider's aria-valuetext: the days checked, and the visitors per group they add up to. */
-export function looksValueText(looks: number): string {
-  return looks === 1 ? `${daysText(1)}, ${visitors(1)} visitors per group` : `${daysText(looks)}, ${visitors(looks)} visitors per group by the last`;
+export function looksValueText(looks: number, text: PeekText = EN_PEEK): string {
+  return fill(looks === 1 ? text.looksOne : text.looksMany, { days: daysText(looks, text), visitors: visitors(looks, text) });
 }
 
 /** The slider's visible unit: the days checked. */
-export const looksReadout = (looks: number) => daysText(looks);
+export const looksReadout = (looks: number, text: PeekText = EN_PEEK) => daysText(looks, text);

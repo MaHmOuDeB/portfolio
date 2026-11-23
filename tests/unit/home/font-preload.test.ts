@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { HOME_FONT_ENTRY, homeFontFiles } from '@/app/kitchen-sink/home/FontPreload';
+import { HOME_FONT_ENTRY, homeFontFiles } from '@/app/(en)/kitchen-sink/home/FontPreload';
 
 const ROOT = path.resolve(__dirname, '../../..');
 
@@ -23,7 +23,7 @@ describe('host font preload', () => {
 
   it("reads the home page's font files from the manifest", () => {
     const files = ['static/media/Inter-s.p.abc.woff2'];
-    expect(homeFontFiles(distWith({ app: { [HOME_FONT_ENTRY]: files, '[project]/src/app/privacy/page': ['x.woff2'] } }))).toEqual(files);
+    expect(homeFontFiles(distWith({ app: { [HOME_FONT_ENTRY]: files, '[project]/src/app/(en)/privacy/page': ['x.woff2'] } }))).toEqual(files);
     expect(homeFontFiles(distWith({ app: {} }))).toEqual([]);
   });
 
@@ -32,7 +32,7 @@ describe('host font preload', () => {
   });
 
   it('every host page renders through HostHome, which renders the preload', () => {
-    const host = readFileSync(path.join(ROOT, 'src/app/kitchen-sink/home/HostHome.tsx'), 'utf8');
+    const host = readFileSync(path.join(ROOT, 'src/app/(en)/kitchen-sink/home/HostHome.tsx'), 'utf8');
     expect(host).toMatch(/<HomeFontPreload \/>/);
   });
 });

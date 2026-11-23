@@ -1,16 +1,20 @@
-// Number formatting for charts and tables: en-GB, U+2212 for minus, and a value that rounds to
+// Number formatting for charts and tables: en-GB (de-DE with `locale: 'de'`), U+2212 for minus, and a value that rounds to
 // zero (including -0) prints with no sign: "0", or its zero decimals ("0.000") when the caller asked
 // for fixed decimals. The fact formatter in src/lib/facts/format.ts serves <Fact> values; this one
 // serves the kit's computed numbers.
+import { INTL, type Locale } from '../i18n/locale.ts';
+
+type Opts = { locale?: Locale };
+
 const MINUS = '−';
 
 // Fraction digits for an explicit `maxDigits`; with none, a value under 1 keeps three significant
 // digits (0.004 stays "0.004", 0.0123 stays "0.0123") and a larger one keeps two decimals.
-function digitsOf(abs: number, min: number, max: number | undefined): string {
+function digitsOf(abs: number, min: number, max: number | undefined, locale: Locale): string {
   if (max === undefined && abs < 1) {
-    return new Intl.NumberFormat('en-GB', { maximumSignificantDigits: 3 }).format(abs);
+    return new Intl.NumberFormat(INTL[locale], { maximumSignificantDigits: 3 }).format(abs);
   }
-  return new Intl.NumberFormat('en-GB', { minimumFractionDigits: min, maximumFractionDigits: max ?? 2 }).format(abs);
+  return new Intl.NumberFormat(INTL[locale], { minimumFractionDigits: min, maximumFractionDigits: max ?? 2 }).format(abs);
 }
 
 function assertFinite(v: number): void {
@@ -19,9 +23,16 @@ function assertFinite(v: number): void {
 
 // Sign and magnitude as printed. Printed digits that are all zero get no sign: a bare "0", or with
 // `keepZeroDigits` the digits themselves ("0.000"), so a fixed-decimals column keeps its decimals.
-function signed(v: number, min: number, max: number | undefined, plus: boolean, keepZeroDigits = false): string {
+function signed(
+  v: number,
+  min: number,
+  max: number | undefined,
+  plus: boolean,
+  locale: Locale,
+  keepZeroDigits = false,
+): string {
   assertFinite(v);
-  const digits = digitsOf(Math.abs(v), min, max);
+  const digits = digitsOf(Math.abs(v), min, max, locale);
   if (!/[1-9]/.test(digits)) return keepZeroDigits ? digits : '0';
   if (v < 0) return `${MINUS}${digits}`;
   return plus ? `+${digits}` : digits;
@@ -37,27 +48,28 @@ function signed(v: number, min: number, max: number | undefined, plus: boolean, 
  * zero, and -0, print the zero digits without a sign ("0.000"); a negative one has U+2212. Rounding
  * is half away from zero, as in every format here.
  */
-export function formatNumber(v: number, maxDigits?: number): string;
-export function formatNumber(v: number, digits: number, o: { fixed?: boolean }): string;
-export function formatNumber(v: number, maxDigits?: number, o: { fixed?: boolean } = {}): string {
-  if (!o.fixed) return signed(v, 0, maxDigits, false);
+export function formatNumber(v: number, maxDigits?: number, o?: Opts): string;
+export function formatNumber(v: number, digits: number, o: Opts & { fixed?: boolean }): string;
+export function formatNumber(v: number, maxDigits?: number, o: Opts & { fixed?: boolean } = {}): string {
+  const locale = o.locale ?? 'en';
+  if (!o.fixed) return signed(v, 0, maxDigits, false, locale);
   if (maxDigits === undefined || !Number.isInteger(maxDigits) || maxDigits < 0 || maxDigits > 20) {
     throw new RangeError(`fixed decimals must be a whole number from 0 to 20, got ${String(maxDigits)}`);
   }
-  return signed(v, maxDigits, maxDigits, false, true);
+  return signed(v, maxDigits, maxDigits, false, locale, true);
 }
 
 /** "+5", "−0.4", "0": a signed difference with up to `maxDigits` decimals, trailing zeros dropped. */
-export function formatSignedNumber(v: number, maxDigits = 1): string {
-  return signed(v, 0, maxDigits, true);
+export function formatSignedNumber(v: number, maxDigits = 1, o: Opts = {}): string {
+  return signed(v, 0, maxDigits, true, o.locale ?? 'en');
 }
 
 /** "+31", "−12", "0": a difference in percentage points with a fixed number of decimals (0 to 6). */
-export function formatSignedPoints(v: number, digits: number): string {
-  return signed(v, digits, digits, true);
+export function formatSignedPoints(v: number, digits: number, o: Opts = {}): string {
+  return signed(v, digits, digits, true, o.locale ?? 'en');
 }
 
-/** "−12 to +31". Each end follows formatSignedPoints, so "−0 to +0" cannot appear. */
-export function formatInterval(lower: number, upper: number, digits: number): string {
-  return `${formatSignedPoints(lower, digits)} to ${formatSignedPoints(upper, digits)}`;
+/** "−12 to +31" ("−12 bis +31" in German). Each end follows formatSignedPoints, so "−0 to +0" cannot appear. */
+export function formatInterval(lower: number, upper: number, digits: number, o: Opts = {}): string {
+  return `${formatSignedPoints(lower, digits, o)} ${o.locale === 'de' ? 'bis' : 'to'} ${formatSignedPoints(upper, digits, o)}`;
 }

@@ -15,18 +15,44 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
-import { FACTS, FACT_DISPLAYS } from '../src/lib/facts/facts.generated.ts';
+import { KIT_TEXT_EN } from '../src/components/kit/text.ts';
+import { SHELL_EN } from '../content/shell.ts';
+import { FACTS, FACT_DISPLAYS, FACT_DISPLAYS_DE } from '../src/lib/facts/facts.generated.ts';
+import { DE_PAGES } from '../src/lib/i18n/pages.ts';
+import { localHrefWith } from '../src/lib/i18n/href.ts';
+import { languageTargets } from '../src/lib/i18n/language.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
-import { ALLOW, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
+import { ALLOW, ALLOW_DE, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
-export type FindingKind = 'stray-number' | 'unknown-fact' | 'bad-derived' | 'denylisted' | 'banned-phrase' | 'email-address';
+export type FindingKind =
+  | 'stray-number'
+  | 'unknown-fact'
+  | 'bad-derived'
+  | 'denylisted'
+  | 'banned-phrase'
+  | 'email-address'
+  | 'wrong-lang'
+  | 'english-leak'
+  | 'bad-link';
 export type Finding = { route: string; kind: FindingKind; detail: string }; // route and detail never contain a deny-list term
 export type AuditContext = {
   route: string;
   factIds: ReadonlySet<string>;
   factDisplays: readonly string[];
   denylist: readonly string[];
+  /** The English paths that have a German twin; the link check reads it (default: the site's list). */
+  pages?: readonly string[];
+  /**
+   * A whole built page, not a fragment: also check `<html lang>` and that a German page has internal
+   * links to examine. The build audit sets it; a unit test that audits a rendered component leaves it off.
+   */
+  document?: boolean;
 };
+
+/** A German page: `/de` or anything under it (never `/design`). */
+export const isGermanRoute = (route: string) => route === '/de' || route.startsWith('/de/');
+/** The fact displays that cover a head number on `route`: the German ones on a German page. */
+export const displaysFor = (route: string): readonly string[] => (isGermanRoute(route) ? FACT_DISPLAYS_DE : FACT_DISPLAYS);
 
 const NUMBER = /\d[\d.,]*/g;
 // Characters that render as nothing: zero-width space, non-joiner and joiner, word joiner, byte-order
@@ -35,6 +61,9 @@ const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
 const stripInvisible = (s: string) => s.replace(INVISIBLE, '');
 // "AI-powered" with a space or any hyphen or dash between the words (U+2010 to U+2015, minus sign).
 const BANNED = /\bAI[\s\-\u2010-\u2015\u2212]*powered\b|\bpassionate\b|\brockstar\b/gi;
+// The German phrases, on German pages only, in every inflection ("KI-gestützte", "leidenschaftlichen",
+// "Rockstars"): "KI" and "gestützt" or "basiert" with a space or any hyphen between them.
+const BANNED_DE = /\bKI[\s\-\u2010-\u2015\u2212]*(?:gestützt|basiert)[a-zäöüß]*|\bleidenschaftlich[a-zäöüß]*|\brockstar[a-zäöüß]*/gi;
 // An e-mail address: a local part, "@", and a domain whose last label is letters. A package or font
 // version ("x@1.2.3"), a CSS at-rule ("@media") or a scoped package name ("/@scope/pkg") does not match.
 const EMAIL = /[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b/g;
@@ -49,8 +78,66 @@ const SCANNED_ATTRS = ['aria-label', 'aria-valuetext', 'aria-description', 'aria
 // like carry URLs and sizes, whose digits are not claims.
 const META_TEXT = new Set(['description', 'og:title', 'og:description', 'og:image:alt', 'twitter:title', 'twitter:description', 'twitter:image:alt']);
 const DERIVED_KEYWORDS = new Set(['simulated', 'live', 'build', ...SOURCE_IDS.map((id) => `source:${id}`)]);
+// Words the English strings share with German on purpose (names, a loan word, and the language menu's own labels).
+const LEAK_EXEMPT = new Set(['English', 'Deutsch', 'LinkedIn', 'final']);
+const MIN_LEAK = 5;
+// Proper names that contain an English shell word ("Privacy"); removed from the text before the leak check only.
+const LEAK_PROPER_NAMES = /Global Privacy Control/g;
+const SENTINEL = '\u0000';
+
+// The text of a ReactNode built by the kit's `seq`: strings, arrays and fragment children.
+function nodeText(node: unknown): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join('');
+  const children = (node as { props?: { children?: unknown } } | null)?.props?.children;
+  return children === undefined ? '' : nodeText(children);
+}
+
+function collectStrings(value: unknown, out: Set<string>): void {
+  if (typeof value === 'string') {
+    // A template's placeholders split it: "{n} characters left" leaves " characters left".
+    for (const part of value.split(/\{[A-Za-z]+\}/)) out.add(part);
+  } else if (typeof value === 'function') {
+    try {
+      // Every field of the argument is a sentinel, so the sentence falls apart around its values.
+      const sentence = nodeText((value as (p: unknown) => unknown)(new Proxy({}, { get: () => SENTINEL })));
+      for (const part of sentence.split(SENTINEL)) out.add(part);
+    } catch {
+      // A sentence that needs a real value is skipped; its plain parts are in the other strings.
+    }
+  } else if (value !== null && typeof value === 'object' && !('props' in value)) {
+    for (const v of Object.values(value)) collectStrings(v, out);
+  }
+}
+
+let leakCache: readonly string[] | undefined;
+/**
+ * The English words that must not reach a German page: every string of the kit's English text and the
+ * shell's English labels, whole phrases of at least five characters, without the words both languages
+ * share. Read from the source objects, so a new English string is covered at once.
+ */
+export function englishLeakStrings(): readonly string[] {
+  if (leakCache === undefined) {
+    const all = new Set<string>();
+    collectStrings(KIT_TEXT_EN, all);
+    collectStrings(SHELL_EN, all);
+    leakCache = [...all]
+      .map((s) => s.trim())
+      .filter((s) => s.length >= MIN_LEAK && /\p{L}{3}/u.test(s) && !LEAK_EXEMPT.has(s))
+      .sort();
+  }
+  return leakCache;
+}
+const leakPatterns = () =>
+  englishLeakStrings().map((s) => ({ s, re: new RegExp(`(?<!\\p{L})${escapeRegExp(s)}(?!\\p{L})`, 'u') }));
+
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const ALLOW_GLOBAL = ALLOW.map((a) => ({
+  ...a,
+  pattern: new RegExp(a.pattern.source, a.pattern.flags.includes('g') ? a.pattern.flags : `${a.pattern.flags}g`),
+}));
+
+const ALLOW_DE_GLOBAL = ALLOW_DE.map((a) => ({
   ...a,
   pattern: new RegExp(a.pattern.source, a.pattern.flags.includes('g') ? a.pattern.flags : `${a.pattern.flags}g`),
 }));
@@ -74,7 +161,8 @@ function displaySpans(text: string, displays: readonly string[]): Span[] {
 }
 
 function allowSpans(text: string, route: string): Span[] {
-  return ALLOW_GLOBAL.filter((a) => a.routes === undefined || a.routes.includes(route)).flatMap((a) =>
+  const entries = isGermanRoute(route) ? [...ALLOW_GLOBAL, ...ALLOW_DE_GLOBAL] : ALLOW_GLOBAL;
+  return entries.filter((a) => a.routes === undefined || a.routes.includes(route)).flatMap((a) =>
     [...text.matchAll(a.pattern)].map((m): Span => [m.index, m.index + m[0].length]),
   );
 }
@@ -117,11 +205,23 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
     for (const i of denyIndexes(text, denylist)) denyHits.add(i);
   };
   const textParts: string[] = [];
+  const german = isGermanRoute(ctx.route);
+  const leaks = german ? leakPatterns() : [];
+  const pages = ctx.pages ?? DE_PAGES;
+  // The one English link a German page may carry: the language menu's, to this page's English twin.
+  const englishTwin = german ? languageTargets(ctx.route, pages).en : undefined;
+  let htmlLang: string | undefined;
+  let linksExamined = 0;
 
   // The deny-list check runs before the early return for marked text.
   const scan = (text: string, where: string, cover: Cover) => {
     checkDenylist(text);
     for (const m of stripInvisible(text).matchAll(BANNED)) add('banned-phrase', `"${m[0]}" in ${where}`);
+    if (german) {
+      for (const m of stripInvisible(text).matchAll(BANNED_DE)) add('banned-phrase', `"${m[0]}" in ${where}`);
+      const leakText = text.replace(LEAK_PROPER_NAMES, ' ');
+      for (const { s, re } of leaks) if (re.test(leakText)) add('english-leak', `"${s}" in ${where}`);
+    }
     if (cover === 'marked') return;
     for (const m of text.matchAll(NUMBER)) {
       const token = m[0].replace(/[.,]+$/, '');
@@ -162,6 +262,20 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
       const el = node as T.Element;
       const attrs = new Map(el.attrs.map((a) => [a.name, a.value]));
       const covered = checkMarkers(attrs) || marked;
+      if (el.tagName === 'html') htmlLang = attrs.get('lang');
+      // The language menu's English link leaves German on purpose: it says so with hreflang and lang
+      // "en", and it points at this page's English twin. Any other English link is checked.
+      const rawHref = el.tagName === 'a' ? attrs.get('href') : undefined;
+      const languageLink =
+        attrs.get('hreflang') === 'en' && attrs.get('lang') === 'en' && rawHref?.split(/[?#]/)[0] === englishTwin;
+      const href = languageLink ? undefined : rawHref;
+      if (german && href !== undefined && href.startsWith('/') && !href.startsWith('//')) {
+        linksExamined += 1;
+        const path = href.split(/[?#]/)[0] ?? href;
+        // A German link must name a registered German page; any other must pass through localHref unchanged.
+        const stays = isGermanRoute(path) ? pages.includes(path === '/de' ? '/' : path.slice(3)) : localHrefWith(pages, 'de', href) === href;
+        if (!stays) add('bad-link', `"${href}" does not stay in German`);
+      }
       for (const name of SCANNED_ATTRS) {
         const value = attrs.get(name);
         if (value !== undefined) scan(value, name, covered ? 'marked' : 'none');
@@ -183,6 +297,11 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   walk(parse(html, { scriptingEnabled: false }), false, false);
   // A term split across nodes (inline markup, React's <!-- --> separators) is caught in the joined
   // text; one that ships outside scanned text (RSC payload, JSON-LD, href slugs) in the raw HTML.
+  if (ctx.document && german && linksExamined === 0) add('bad-link', 'no internal links were examined');
+  const expectedLang = german ? 'de' : 'en';
+  if (ctx.document && !FRAMEWORK_ROUTES.includes(ctx.route) && htmlLang !== expectedLang) {
+    add('wrong-lang', `<html lang="${htmlLang ?? ''}">, expected "${expectedLang}"`);
+  }
   checkDenylist(textParts.join(''));
   checkDenylist(html);
   for (const i of [...denyHits].sort((a, b) => a - b)) add('denylisted', `deny-list term #${i + 1}`);
@@ -240,7 +359,7 @@ function main(): number {
   }
   const factIds = new Set(Object.keys(FACTS));
   const findings: Finding[] = pages.flatMap((p) =>
-    auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: FACT_DISPLAYS, denylist }),
+    auditHtml(readFileSync(join(appDir, p), 'utf8'), { route: routeOf(p), factIds, factDisplays: displaysFor(routeOf(p)), denylist, document: true }),
   );
   // The client scripts are public too; with no deny-list there is nothing to check them for.
   const staticDir = join(process.cwd(), '.next/static');

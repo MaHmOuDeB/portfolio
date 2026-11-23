@@ -4,34 +4,38 @@
 // its place at the end of the adoption caption. The rules between the cells draw in as the row
 // enters (data-depth-trace); the numbers never move. Server-safe.
 import { Fragment } from 'react';
-import { HOME_PROOF, WHY_SO_MANY, type HeadlinePart } from '../../../content/home.ts';
+import type { HeadlinePart } from '../../../content/home.ts';
 import { HOME_LINKS } from '../../../content/home-destinations.ts';
 import { ProofFigure } from '@/components/depth/ProofFigure';
 import { Fact } from '@/components/kit/Fact';
 import { TextLink } from '@/components/kit/TextLink';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import { homeCopy } from './copy';
 import { Parts } from './Parts';
 
 /** A figure's parts: each number a Fact, each word around it a unit. */
-function Figure({ parts }: { parts: readonly HeadlinePart[] }) {
+function Figure({ parts, locale }: { parts: readonly HeadlinePart[]; locale: Locale }) {
   return (
     <>
       {parts.map((part, i) => (
-        <Fragment key={i}>{typeof part === 'string' ? <span data-proof-unit="">{part}</span> : <Fact id={part.fact} />}</Fragment>
+        <Fragment key={i}>{typeof part === 'string' ? <span data-proof-unit="">{part}</span> : <Fact id={part.fact} locale={locale} />}</Fragment>
       ))}
     </>
   );
 }
 
-export function ProofRow() {
+export function ProofRow({ locale = 'en' }: { locale?: Locale } = {}) {
+  const proof = homeCopy(locale).proof;
   return (
-    <section data-home-proof="" data-rule="" data-depth-trace="proof" aria-label="Evidence at a glance">
-      {HOME_PROOF.map((p) => (
-        <ProofFigure key={p.id} side={p.side} figure={<Figure parts={p.figure} />}>
-          <Parts parts={p.caption} />
+    <section data-home-proof="" data-rule="" data-depth-trace="proof" aria-label={proof.label}>
+      {proof.items.map((p) => (
+        <ProofFigure key={p.id} side={p.side} figure={<Figure parts={p.figure} locale={locale} />}>
+          <Parts parts={p.caption} locale={locale} />
           {p.whySoMany ? (
             <>
               {' '}
-              <TextLink href={HOME_LINKS.whySoMany}>{WHY_SO_MANY}</TextLink>
+              <TextLink href={localHref(locale, HOME_LINKS.whySoMany)}>{proof.why}</TextLink>
             </>
           ) : null}
         </ProofFigure>

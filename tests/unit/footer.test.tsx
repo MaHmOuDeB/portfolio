@@ -28,7 +28,7 @@ describe('Footer', () => {
 
   it('repeats the hero line in two tones', () => {
     expect(MARKUP).toMatch(
-      /<p [^>]*>Experimentation and AI automation <span class="text-on-ink-muted">for product and growth teams<\/span><\/p>/,
+      /<p [^>]*>AI automation and experimentation <span class="text-on-ink-muted">for product and growth teams<\/span><\/p>/,
     );
   });
 

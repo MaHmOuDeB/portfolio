@@ -17,17 +17,15 @@
 import { catchError } from 'next/error';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { DataTable, type TableData } from './DataTable';
+import { EN_ERROR, EN_TABLE, type ErrorText, type KitText } from './text';
 
 /** Chart kind without live axes, chart kind with live axes, diagram kind. */
 export type FallbackBody = 'static' | 'live' | 'diagram';
 
-// The fallback sentences. They say where the numbers are, without a status code. The first sentence
-// is the status, so it is set in warn and semibold (a word, with colour only repeating it).
-const SENTENCE: Record<FallbackBody, readonly [status: string, rest: string]> = {
-  static: ['This chart could not load.', ' The numbers are in the table below.'],
-  live: ['This chart could not load.', ' The numbers for both groups are in the table below.'],
-  diagram: ['This diagram could not load.', ' The text around it describes the same steps.'],
-};
+// The fallback sentences (kit text `error`). They say where the numbers are, without a status code.
+// The first sentence is the status, so it is set in warn and semibold (a word, with colour only
+// repeating it).
+const wordsOf = (text: ErrorText, body: FallbackBody) => text[body === 'static' ? 'chart' : body];
 
 export type FigureErrorFallbackProps = {
   id: string;
@@ -38,6 +36,10 @@ export type FigureErrorFallbackProps = {
   table?: TableData;
   /** The table's accessible caption; the Figure passes its title when the title is plain text. */
   tableCaption?: string;
+  /** The fallback's words (kit text `error`); default English. */
+  text?: ErrorText;
+  /** The language of the table's numbers; default English. */
+  locale?: KitText['locale'];
 };
 
 /** Read while the fallback renders: the failed subtree is still in the DOM then. */
@@ -61,7 +63,8 @@ const PreviewGuard = catchError(function PreviewFailed() {
   return null;
 });
 
-export function FigureErrorFallback({ id, body, preview, table, tableCaption }: FigureErrorFallbackProps) {
+export function FigureErrorFallback({ id, body, preview, table, tableCaption, text = EN_ERROR, locale = 'en' }: FigureErrorFallbackProps) {
+  const words = wordsOf(text, body);
   const sentence = useRef<HTMLParagraphElement>(null);
   const [hadFocus] = useState(() => focusIsInside(id));
   useEffect(() => {
@@ -76,12 +79,18 @@ export function FigureErrorFallback({ id, body, preview, table, tableCaption }: 
         </div>
       ) : null}
       <p ref={sentence} role="status" tabIndex={-1} className="mt-3 max-w-text text-base">
-        <span className="font-semibold text-warn">{SENTENCE[body][0]}</span>
-        {SENTENCE[body][1]}
+        <span className="font-semibold text-warn">{words[0]}</span>
+        {words[1]}
       </p>
       {chart && table ? (
         <div className="mt-3">
-          <DataTable id={`${id}-fallback-table`} caption={tableCaption ?? 'The numbers in this chart'} table={table} mode="open" />
+          <DataTable
+            id={`${id}-fallback-table`}
+            caption={tableCaption ?? text.tableCaption}
+            table={table}
+            mode="open"
+            text={{ locale, table: { show: EN_TABLE.show, caption: text.tableCaption } }}
+          />
         </div>
       ) : null}
     </div>

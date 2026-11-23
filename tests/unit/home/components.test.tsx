@@ -245,17 +245,17 @@ describe('Hero', () => {
     const chips = all(hero, (el) => has(el, 'data-chip'));
     expect(text(chips[0]!)).toBe('Open to roles in Germany');
     expect(all(chips[0]!, (el) => attr(el, 'data-chip-dot') === 'ok')).toHaveLength(1);
-    expect(text(h1)).toBe('Experimentation and AI automation for product and growth teams');
+    expect(text(h1)).toBe('AI automation and experimentation for product and growth teams');
     expect(text(one(h1, (el) => has(el, 'data-quiet')))).toBe('for product and growth teams');
     expect(classes(h1)).toEqual(expect.arrayContaining(['text-display-sm', 'xs:text-display', 'md:text-display-lg']));
     const sub = one(hero, (el) => has(el, 'data-hero-sub'));
     expect(text(sub)).toBe(
-      'Analyst in Berlin with nearly two years of A/B testing at Audible (Amazon). I plan and analyse tests that end in a clear recommendation, and build the agents and workflows that take the manual work out.',
+      'Analyst in Berlin. I build the agents and workflows that take the manual work out, and I plan and analyse A/B tests, with nearly two years of them at Audible (Amazon).',
     );
     expect(all(sub, (el) => has(el, 'data-chip') && has(el, 'data-inline')).map((el) => text(el))).toEqual(['agents', 'workflows']);
     // The second chip and the last words stay together: one tail that does not wrap from sm up.
     const tail = one(sub, (el) => has(el, 'data-hero-tail'));
-    expect(text(tail)).toBe('workflows that take the manual work out.');
+    expect(text(tail)).toBe('workflows that take the manual work out');
     expect(html).not.toContain('I test what works');
   });
 

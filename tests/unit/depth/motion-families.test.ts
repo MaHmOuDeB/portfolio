@@ -152,9 +152,9 @@ describe('Turn', () => {
     expect(kf).toMatch(/from\s*\{\s*transform:\s*perspective\(56rem\) rotateY\(-28deg\) rotateX\(10deg\) translateZ\(-120px\);\s*\}/);
     expect(kf).not.toMatch(/\bto\b|100%/);
     expect(families).toMatch(/\[data-depth-turn\]\s*\{[^}]*transform-origin:\s*50% 50%[^}]*animation:\s*depth-turn linear backwards[^}]*animation-range:\s*entry 10% cover 45%/);
-    const { SiteTile } = await import('@/components/home/SiteTile');
-    const html = renderToStaticMarkup(createElement(SiteTile));
-    expect(html).toMatch(/<div data-depth-turn="" data-depth-follow=""[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
+    const { WorkPage } = await import('@/components/work/WorkPage');
+    const html = renderToStaticMarkup(createElement(WorkPage));
+    expect(html).toMatch(/<div data-work-site-sketch="" data-depth-turn="" data-depth-follow=""[^>]*rotateY\(-14deg\)[^>]*><div data-site-sketch=""/);
     expect(html).not.toMatch(/<path[^>]*data-depth/);
   });
 
@@ -200,7 +200,8 @@ describe('Trace', () => {
     const band = renderToStaticMarkup(createElement(ExperienceBand));
     expect(band).toContain('<div data-experience-groups="" data-depth-trace="experience">');
     expect([...band.matchAll(/<span data-experience-rule="" aria-hidden="true"><\/span>/g)]).toHaveLength(2);
-    expect(renderToStaticMarkup(createElement(AutomationTrack))).toContain('<ul role="list" data-depth-trace="row"');
+    const { AutomateRow } = await import('@/components/home/AutomateRow');
+    expect(renderToStaticMarkup(createElement(AutomateRow))).toContain('<ul role="list" data-depth-trace="row"');
   });
 
   it('keeps the static spine and dots in the base style and stops every draw under reduced motion and in print', () => {

@@ -27,6 +27,8 @@ const AB: ExperimentConfig = {
 const DEV: ServerEnv = { vercelEnv: 'development', fakeStore: false };
 const PRODUCTION: ServerEnv = { vercelEnv: 'production', fakeStore: false, kvUrl: 'https://secret-host.upstash.io', kvToken: 'secret-write-token', kvReadOnlyToken: 'secret-read-token' };
 const NOW = new Date('2026-11-20T10:00:00Z');
+/** A day after the configured calibration start, so a test of the shipped config holds whatever start it has. */
+const afterStart = () => new Date(Date.parse(EXPERIMENT.calibration.startedOn!) + 86_400_000);
 
 type G = Partial<GroupCounts>;
 const counts = (g: G = {}): GroupCounts => ({ ...(Object.fromEntries(EVENT_TYPES.map((t) => [t, 0])) as GroupCounts), ...g });
@@ -182,12 +184,12 @@ describe('getExperimentSnapshot: no store', () => {
   it('on Vercel with VERCEL_ENV missing or development rejects instead of showing the fixture', async () => {
     const env: ServerEnv = { vercelEnv: 'development', fakeStore: false, onVercel: true };
     const lines: object[] = [];
-    await expect(getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT, log: (l) => lines.push(l) })).rejects.toThrow(
+    await expect(getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: afterStart, config: EXPERIMENT, log: (l) => lines.push(l) })).rejects.toThrow(
       /misconfigured/,
     );
     expect(lines).toEqual([expect.objectContaining({ evt: 'snapshot', outcome: 'error', reason: 'misconfigured' })]);
     await expect(
-      getExperimentSnapshot({ env: { ...env, vercelEnv: 'preview' }, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT }),
+      getExperimentSnapshot({ env: { ...env, vercelEnv: 'preview' }, mode: 'none', read: null, write: null, now: afterStart, config: EXPERIMENT }),
     ).resolves.toMatchObject({ source: 'fixture' });
   });
 
@@ -500,7 +502,7 @@ describe('the source', () => {
     // and the home page, which projects it at once into the server-only Home model (toHomeModel copies
     // no p-value, chi-square or outcome count; tests/unit/home/page.test.tsx checks the serialized
     // client props). The home page may use it in exactly that one form, and so may the Live test page.
-    const HOME = join(SRC, 'app/v/[arm]/page.tsx');
+    const HOME = join(SRC, 'app/(en)/v/[arm]/page.tsx');
     expect(readFileSync(HOME, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
       'getExperimentSnapshot',
       'getExperimentSnapshot',
@@ -508,13 +510,20 @@ describe('the source', () => {
     expect(readFileSync(HOME, 'utf8')).toContain('toHomeModel(await getExperimentSnapshot(), arm)');
     // The Live test page reads it once and projects it at once, on the server, into the display shape
     // (toLivePageDisplay keeps published cells only; tests/unit/live-page/page.test.tsx checks it).
-    const LIVE_TEST = join(SRC, 'app/experiment/page.tsx');
+    const LIVE_TEST = join(SRC, 'app/(en)/experiment/page.tsx');
     expect(readFileSync(LIVE_TEST, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
       'getExperimentSnapshot',
       'getExperimentSnapshot',
     ]);
     expect(readFileSync(LIVE_TEST, 'utf8')).toContain('toLivePageDisplay(toLivePageModel(await getExperimentSnapshot()');
-    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME, LIVE_TEST]);
+    // Its German twin reads and projects it the same way.
+    const LIVE_TEST_DE = join(SRC, 'app/de/experiment/page.tsx');
+    expect(readFileSync(LIVE_TEST_DE, 'utf8').match(/\bgetExperimentSnapshot\b|\bExperimentSnapshot\b|\bbuildSnapshot\b|experiment\/snapshot['"]/g)).toEqual([
+      'getExperimentSnapshot',
+      'getExperimentSnapshot',
+    ]);
+    expect(readFileSync(LIVE_TEST_DE, 'utf8')).toContain('toLivePageDisplay(toLivePageModel(await getExperimentSnapshot()');
+    const ALLOWED = new Set([join(SRC, 'app/experiment/data.json/route.ts'), HOME, LIVE_TEST, LIVE_TEST_DE]);
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);
@@ -549,7 +558,7 @@ describe('the source', () => {
       .filter((f) => !FIXTURES.includes(f) && /lib\/(home\/(narrative-)?|live-page\/)fixtures['"]/.test(readFileSync(f, 'utf8')))
       .map((f) => relative(SRC, f));
     expect(importers.length).toBeGreaterThan(0);
-    expect(importers.filter((f) => !f.startsWith('app/kitchen-sink/') || /(^|\/)page\.tsx$/.test(f))).toEqual([]);
+    expect(importers.filter((f) => !f.startsWith('app/(en)/kitchen-sink/') || /(^|\/)page\.tsx$/.test(f))).toEqual([]);
   });
 });
 
@@ -581,7 +590,7 @@ describe('before the start instant (the event route\'s rule)', () => {
   });
 
   it('after the start: the calibration note', async () => {
-    const v = await getLiveView('a', deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT }));
+    const v = await getLiveView('a', deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT, now: afterStart }));
     expect(v.testNote).toEqual({ mode: 'calibration' });
   });
 

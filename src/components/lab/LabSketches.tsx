@@ -5,6 +5,9 @@
 // Server-safe.
 import type { CSSProperties, ReactNode } from 'react';
 import { MiniRow, Tag, Vignette } from '@/components/frame';
+import { EN_SKETCH, type SketchText } from '@/lib/lab/text-sketch';
+
+export type SketchProps = { text?: SketchText };
 
 function Sketch({ kind, name, note, children }: { kind: string; name: string; note: string; children: ReactNode }) {
   return (
@@ -31,16 +34,17 @@ function Bar({ w, outlined }: { w: number; outlined?: boolean }) {
 }
 
 /** Sample size: the smaller the rise to detect, the longer the bar of visitors. */
-export function SampleSketch() {
+export function SampleSketch({ text = EN_SKETCH }: SketchProps = {}) {
+  const t = text.sample;
   return (
-    <Sketch kind="sample" name="Visitors" note="per group">
-      <MiniRow label="Small" tag={<Tag>rise</Tag>}>
+    <Sketch kind="sample" name={t.name} note={t.note}>
+      <MiniRow label={t.rows[0]} tag={<Tag>{t.tag}</Tag>}>
         <Bar w={96} />
       </MiniRow>
-      <MiniRow label="Mid">
+      <MiniRow label={t.rows[1]}>
         <Bar w={48} />
       </MiniRow>
-      <MiniRow label="Large">
+      <MiniRow label={t.rows[2]}>
         <Bar w={20} />
       </MiniRow>
     </Sketch>
@@ -48,16 +52,17 @@ export function SampleSketch() {
 }
 
 /** Split check: two groups that should be equal, and are not. */
-export function SplitSketch() {
+export function SplitSketch({ text = EN_SKETCH }: SketchProps = {}) {
+  const t = text.split;
   return (
-    <Sketch kind="split" name="Split" note="half each, as planned">
-      <MiniRow label="A" tag={<Tag tone="tint">more</Tag>}>
+    <Sketch kind="split" name={t.name} note={t.note}>
+      <MiniRow label={t.a} tag={<Tag tone="tint">{t.more}</Tag>}>
         <Bar w={88} />
       </MiniRow>
-      <MiniRow label="B" tag={<Tag>fewer</Tag>}>
+      <MiniRow label={t.b} tag={<Tag>{t.fewer}</Tag>}>
         <Bar w={66} />
       </MiniRow>
-      <MiniRow label="Plan">
+      <MiniRow label={t.plan}>
         <Bar w={77} outlined />
       </MiniRow>
     </Sketch>
@@ -83,18 +88,18 @@ function Curve({ d, level, dot }: { d: string; level?: number; dot: { x: number;
 }
 
 /** Peeking: the share of false winners climbs with every check, away from the planned level. */
-export function PeekSketch() {
+export function PeekSketch({ text = EN_SKETCH }: SketchProps = {}) {
   return (
-    <Sketch kind="peek" name="False winners" note="by daily check">
+    <Sketch kind="peek" name={text.peek.name} note={text.peek.note}>
       <Curve d="M0 86 C 18 62, 34 46, 52 36 S 84 20, 96 14" level={86} dot={{ x: 96, y: 14 }} />
     </Sketch>
   );
 }
 
 /** Exaggeration: the smaller the test, the more a win overstates the effect. */
-export function CurseSketch() {
+export function CurseSketch({ text = EN_SKETCH }: SketchProps = {}) {
   return (
-    <Sketch kind="curse" name="Overstatement" note="small test to large">
+    <Sketch kind="curse" name={text.curse.name} note={text.curse.note}>
       <Curve d="M2 8 C 14 52, 30 74, 52 84 S 86 91, 98 92" dot={{ x: 22, y: 60 }} />
     </Sketch>
   );

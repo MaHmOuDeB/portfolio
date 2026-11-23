@@ -9,7 +9,7 @@ const toml = readFileSync(join(root, '.lychee.toml'), 'utf8');
 const SHELL_LINKS = ['work', 'lab', 'experiment', 'about', 'privacy', 'contact', 'cv'];
 
 function built(path: string): boolean {
-  return existsSync(join(root, 'src', 'app', path, 'page.tsx'));
+  return existsSync(join(root, 'src', 'app', '(en)', path, 'page.tsx'));
 }
 
 // The exclusion is one regex of the form localhost:3123/(a|b|c\\.pdf) inside the TOML string.

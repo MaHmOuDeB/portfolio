@@ -24,14 +24,15 @@ STYLES = {
 }
 
 # Every character the font maps that content uses (the font-file test's list): printable ASCII plus symbols.
-CHARS = [chr(c) for c in range(0x20, 0x7F)] + list(' ×αβ–’…₀₁₂₋−√≈≤≥€£')
+CHARS = [chr(c) for c in range(0x20, 0x7F)] + list(' ×αβ–’…₀₁₂₋−√≈≤≥€£äöüÄÖÜß„“')
 
 # The chart label strings the site renders (zero-line words, tick labels, annotations), with their style.
 STRINGS = {
-    'word': ['no difference', 'no ', 'difference', 'B higher', 'B lower', 'no change', 'no', 'change', 'higher', 'lower'],
+    'word': ['no difference', 'no ', 'difference', 'B higher', 'B lower', 'no change', 'no', 'change', 'higher', 'lower',
+             'kein Unterschied', 'kein ', 'Unterschied', 'B höher', 'B niedriger', 'höher', 'niedriger'],
     'tick': ['0', '−20', '−10', '−5', '+5', '+10', '+20', '+40', '−0.5', '+0.3', '0.0', '1.0', '0%', '25%', '50%', '100%',
              '0.02', '0.1', '1', '10', '50', '1,000', '600,000', '9,400,000', '£1,234', 'Session completion', 'Help requests',
-             'Before the tool', 'With the tool', 'Jan 2010', 'Dec 2011', 'Sep 2011', 'May 2011', 'Mar 2011', 'Group A', 'Group B'],
+             'Before the tool', 'With the tool', 'Vor dem Tool', 'Mit dem Tool', 'Gruppe A', 'Gruppe B', 'Größe', 'Zürich', 'Jan 2010', 'Dec 2011', 'Sep 2011', 'May 2011', 'Mar 2011', 'Group A', 'Group B'],
     'note': ['Limit +1.0', 'Limit −1.0', 'Limit +2.0', 'Partial month', 'Dotted line: nominal 5%', 'Dec 2010 cohort',
              'May 2011 cohort', 'The interval narrows', 'The interval narrows as views grow', 'The estimate settles',
              '1,234 per group', '12,345 per group for a rise of 5 points'],

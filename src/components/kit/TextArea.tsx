@@ -7,6 +7,7 @@ import { cx } from '@/lib/cx';
 import { CharacterCount } from './CharacterCount';
 import type { DerivedRef } from './Derived';
 import { Field, fieldControlClass } from './Field';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Props = {
   id: string;
@@ -21,9 +22,10 @@ type Props = {
   rows?: number;
   defaultValue?: string;
   disabled?: boolean;
+  text?: KitText;
 };
 
-export function TextArea({ id, name, label, hint, error, limit, refs, rows = 8, defaultValue, disabled }: Props) {
+export function TextArea({ id, name, label, hint, error, limit, refs, rows = 8, defaultValue, disabled, text = KIT_TEXT_EN }: Props) {
   const counterId = `${id}-count`;
   return (
     <Field
@@ -32,7 +34,8 @@ export function TextArea({ id, name, label, hint, error, limit, refs, rows = 8, 
       hint={hint}
       error={error}
       counterId={counterId}
-      after={<CharacterCount id={counterId} controlId={id} limit={limit} refs={refs} />}
+      text={text}
+      after={<CharacterCount id={counterId} controlId={id} limit={limit} refs={refs} text={text.count} />}
     >
       {(describedBy) => (
         <textarea

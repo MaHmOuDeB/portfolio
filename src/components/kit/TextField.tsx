@@ -4,6 +4,7 @@
 // bubbles never show and the server's messages are the only ones.
 import { cx } from '@/lib/cx';
 import { Field, fieldControlClass } from './Field';
+import type { KitText } from './text';
 
 type Props = {
   id: string;
@@ -17,11 +18,13 @@ type Props = {
   defaultValue?: string;
   disabled?: boolean;
   spellCheck?: boolean;
+  /** The kit's words for the field parts; default English. */
+  text?: Pick<KitText, 'field'>;
 };
 
-export function TextField({ id, name, label, hint, error, type = 'text', autoComplete, maxLength, defaultValue, disabled, spellCheck }: Props) {
+export function TextField({ id, name, label, hint, error, type = 'text', autoComplete, maxLength, defaultValue, disabled, spellCheck, text }: Props) {
   return (
-    <Field id={id} label={label} hint={hint} error={error}>
+    <Field id={id} label={label} hint={hint} error={error} text={text}>
       {(describedBy) => (
         <input
           id={id}

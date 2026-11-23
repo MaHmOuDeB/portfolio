@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, type Page, type Response } from '@playwright/test';
 import { SEO_EXCLUDED_ROUTES, SEO_PAGES, shareTitle } from '../../content/seo.ts';
+import { DE_PAGES } from '../../src/lib/i18n/pages.ts';
 import { test } from './fixtures';
 
 const ORIGIN = 'https://canonical.invalid';
@@ -105,7 +106,7 @@ test.describe('canonicalAndRobots', () => {
   });
 
   test('/demo is noindex, follow', async ({ page }) => {
-    test.skip(!fs.existsSync(path.resolve('src/app/demo/page.tsx')), 'the /demo page is not on this branch yet');
+    test.skip(!fs.existsSync(path.resolve('src/app/(en)/demo/page.tsx')), 'the /demo page is not on this branch yet');
     await page.goto('/demo');
     const head = await readHead(page);
     expect(head.robots.join(',')).toMatch(/noindex/);
@@ -117,7 +118,11 @@ test.describe('canonicalAndRobots', () => {
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toMatch(/xml/);
     const locs = [...(await response.text()).matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
-    expect(locs).toEqual(SEO_PAGES.map((entry) => `${ORIGIN}${entry.path}`));
+    // Each page, then its German twin when the German registry lists it.
+    const de = new Set<string>(DE_PAGES);
+    expect(locs).toEqual(
+      SEO_PAGES.flatMap((entry) => [`${ORIGIN}${entry.path}`, ...(de.has(entry.path) ? [`${ORIGIN}${entry.path === '/' ? '/de' : `/de${entry.path}`}`] : [])]),
+    );
     for (const loc of locs) {
       expect(loc).not.toMatch(/[?#]|\/api\/|\/v\/|kitchen-sink|data\.json/);
       for (const excluded of SEO_EXCLUDED_ROUTES) expect(new URL(loc!).pathname).not.toBe(excluded);

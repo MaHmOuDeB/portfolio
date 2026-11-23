@@ -15,7 +15,9 @@ import { lazy, type ReactNode } from 'react';
 import { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { Slider } from '@/components/kit/Slider';
-import { CURSE_ID, CURSE_LABELS, CURSE_SCHEMA, DIAGNOSTICS_REFS, powerTimeText, type CurseValues } from '@/lib/lab/diagnostics-values';
+import { fill } from '@/lib/i18n/template';
+import { CURSE_ID, CURSE_SCHEMA, DIAGNOSTICS_REFS, powerTimeText, type CurseValues } from '@/lib/lab/diagnostics-values';
+import { EN_CURSE, type CurseText } from '@/lib/lab/text-curse';
 import type { CurseInteractiveProps } from './CurseInteractive';
 
 const LazyCurse = lazy(() => import('./CurseInteractive'));
@@ -28,7 +30,6 @@ const POWER_PERCENT = {
   max: toPercent(CURSE_SCHEMA.power.max),
   step: toPercent(CURSE_SCHEMA.power.step),
 };
-const powerPercentText = (percent: number) => powerTimeText(percent / 100);
 
 export function CurseIsland(props: CurseInteractiveProps) {
   return <LazyCurse {...props} />;
@@ -40,9 +41,12 @@ export type CurseControlsProps = {
   onChange: (key: keyof CurseValues, value: number) => void;
   onCommit: (key: keyof CurseValues, value: number) => void;
   onReset: () => void;
+  /** The controls' words; English when absent. */
+  text?: CurseText;
 };
 
-export function CurseControls({ values, onChange, onCommit, onReset }: CurseControlsProps) {
+export function CurseControls({ values, onChange, onCommit, onReset, text = EN_CURSE }: CurseControlsProps) {
+  const powerPercentText = (percent: number) => powerTimeText(percent / 100, text);
   return (
     <div
       role="group"
@@ -53,39 +57,43 @@ export function CurseControls({ values, onChange, onCommit, onReset }: CurseCont
       <div className="w-full xs:w-96">
         <Slider
           id={`${CURSE_ID}-power`}
-          label={CURSE_LABELS.power}
+          label={text.labels.power}
           {...POWER_PERCENT}
           value={toPercent(values.power)}
           onChange={(v) => onChange('power', v / 100)}
           onCommit={(v) => onCommit('power', v / 100)}
           valueText={powerPercentText}
           readout={powerPercentText}
-          numberLabel={`${CURSE_LABELS.power}, percent`}
+          numberLabel={fill(text.numberLabel, { label: text.labels.power })}
           refs={DIAGNOSTICS_REFS}
+          text={text.kit.slider}
         />
       </div>
-      <ResetButton onReset={onReset} />
+      <ResetButton onReset={onReset} label={text.kit.reset} />
     </div>
   );
 }
 
 const noop = () => {};
 
-export function InertCurseControls({ values }: { values: CurseValues }) {
-  return <CurseControls values={values} onChange={noop} onCommit={noop} onReset={noop} />;
+export function InertCurseControls({ values, text }: { values: CurseValues; text?: CurseText }) {
+  return <CurseControls values={values} onChange={noop} onCommit={noop} onReset={noop} text={text} />;
 }
 
 export function CurseFigureClient({
   preview,
   faultAfterChange,
+  text,
 }: {
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
   faultAfterChange?: true;
+  /** The Figure's words, handed over for a language other than English only (English is the default). */
+  text?: CurseText;
 }) {
   return (
     <EagerOrIntent ids={[CURSE_ID]} preview={preview}>
-      <CurseIsland faultAfterChange={faultAfterChange} />
+      {text ? <CurseIsland faultAfterChange={faultAfterChange} text={text} /> : <CurseIsland faultAfterChange={faultAfterChange} />}
     </EagerOrIntent>
   );
 }

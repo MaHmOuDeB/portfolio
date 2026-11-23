@@ -8,12 +8,12 @@ import { buttonClass } from '@/components/kit/ButtonLink';
 
 const subscribe = () => () => {};
 
-export function PrintButton({ variant }: { variant: 'primary' | 'secondary' }) {
+export function PrintButton({ variant, label = 'Print this page' }: { variant: 'primary' | 'secondary'; label?: string }) {
   // false on the server and during hydration, true once the client renders: no effect, no extra render.
   const ready = useSyncExternalStore(subscribe, () => true, () => false);
   return (
     <button type="button" hidden={!ready} className={buttonClass(variant)} onClick={() => window.print()}>
-      Print this page
+      {label}
     </button>
   );
 }

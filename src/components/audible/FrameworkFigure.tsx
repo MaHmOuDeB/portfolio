@@ -6,16 +6,25 @@
 // `faultAfterChange` is a test seam, absent in production: it is forwarded unchanged to the island,
 // whose chart then throws after a committed change. Only a test host sets it.
 import { FRAMEWORK_PRESETS, paramsToValues } from '@/lib/audible/framework-url';
+import type { Locale } from '@/lib/i18n/locale';
+import { audibleCopy } from './copy';
 import { FrameworkFigureClient, InertFrameworkControls } from './FrameworkFigureClient';
 import { FrameworkFigureView } from './FrameworkView';
 
-export function FrameworkFigure({ faultAfterChange }: { faultAfterChange?: true } = {}) {
+export function FrameworkFigure({ faultAfterChange, locale = 'en' }: { faultAfterChange?: true; locale?: Locale } = {}) {
   const initial = paramsToValues(FRAMEWORK_PRESETS.default);
-  return (
-    <FrameworkFigureClient
-      initial={initial}
-      preview={<FrameworkFigureView values={initial} controls={<InertFrameworkControls values={initial} />} />}
-      faultAfterChange={faultAfterChange}
+  // The words go to the client only in a language other than English, so the English payload is unchanged.
+  const text = locale === 'en' ? undefined : audibleCopy(locale).framework;
+  const view = (
+    <FrameworkFigureView
+      values={initial}
+      text={text}
+      controls={<InertFrameworkControls values={initial} text={text} />}
     />
+  );
+  return text ? (
+    <FrameworkFigureClient initial={initial} preview={view} faultAfterChange={faultAfterChange} text={text} />
+  ) : (
+    <FrameworkFigureClient initial={initial} preview={view} faultAfterChange={faultAfterChange} />
   );
 }

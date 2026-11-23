@@ -43,7 +43,7 @@ const text = (markup: string) =>
     .replace(/ ([.,:;)])/g, '$1')
     .trim();
 const audit = (markup: string) =>
-  auditHtml(`<!doctype html><html><head><title>t</title></head><body>${markup}</body></html>`, {
+  auditHtml(`<!doctype html><html lang="en"><head><title>t</title></head><body>${markup}</body></html>`, {
     route: '/demo',
     factIds: new Set(Object.keys(FACTS)),
     factDisplays: FACT_DISPLAYS,
@@ -116,10 +116,10 @@ function announcedHeadlines(markup: string): string[] {
 
 describe('the /demo route', () => {
   it('is a thin static page that renders DemoPage, followed but not indexed', async () => {
-    const source = readFileSync(join(repo, 'src/app/demo/page.tsx'), 'utf8');
+    const source = readFileSync(join(repo, 'src/app/(en)/demo/page.tsx'), 'utf8');
     expect(source).toContain('<DemoPage />');
     expect(source).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(|getExperimentSnapshot/);
-    const mod = (await import('@/app/demo/page')) as {
+    const mod = (await import('@/app/(en)/demo/page')) as {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown; robots?: unknown };
     };
@@ -217,7 +217,7 @@ describe('DemoPage', () => {
 
   it('carries no live-test part: no beacon, no cards, no group label, no store read', () => {
     expect(PAGE).not.toMatch(/data-experiment|data-headline-twin|data-phase-label|data-test-note|data-figure/);
-    for (const file of ['src/components/demo/DemoPage.tsx', 'content/demo.tsx', 'src/app/demo/page.tsx']) {
+    for (const file of ['src/components/demo/DemoPage.tsx', 'content/demo.tsx', 'src/app/(en)/demo/page.tsx']) {
       const source = readFileSync(join(repo, file), 'utf8');
       expect(source, file).not.toMatch(/ExperimentBeacon|getExperimentSnapshot|experiment\/live|PhaseLabel|LiveNote|\/api\/e|\/exclude|EXCLUDE_TOKEN/);
     }

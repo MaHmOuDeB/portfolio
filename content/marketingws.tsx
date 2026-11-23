@@ -5,7 +5,42 @@
 // is in words, and the repository links are pinned to the commits the text was checked against.
 import type { ReactNode } from 'react';
 import type { GlanceParts } from '@/components/depth/GlanceBlock';
+import type { Items } from '@/components/build-notes/slots';
 import { TextLink } from '@/components/kit/TextLink';
+
+// The words are a `MarketingwsCopy`: MARKETINGWS_EN here, the German twin in content/de/marketingws.tsx
+// typed by the same type, so a missing key fails the typecheck. The note has no figures, so its copy
+// needs no slots. Server only: no client file imports it.
+export type MarketingwsCopy = {
+  /** The h1, in two tones. The tool flags what it cannot support; it does not guarantee. */
+  h1: string;
+  quiet: string;
+  /** The plain opening under the title (one paragraph). */
+  intro: ReactNode;
+  glance: GlanceParts;
+  problem: Items;
+  /** The service around the steps of the diagram (one paragraph). */
+  architecture: ReactNode;
+  shots: { leadIn: string; takeaway: string };
+  steps: {
+    title: string;
+    caption: string;
+    /** The steps of one request, in order: the diagram's text, which is also its accessible content. */
+    items: readonly { id: string; name: string; text: string }[];
+  };
+  checks: Items;
+  outcome: Items;
+  limits: Items;
+  close: string;
+  links: {
+    repo: string;
+    thesis: (tag: string) => ReactNode;
+    demo: string;
+    /** The sentence that always stands beside the demo link. */
+    groq: string;
+    offline: string;
+  };
+};
 
 /** The public repository, at the commit of its README and code that this note describes. */
 export const MARKETINGWS_REPO = 'https://github.com/MaHmOuDeB/MarketingWS';
@@ -19,186 +54,153 @@ export const MARKETINGWS_DEMO = 'https://marketing-ws.vercel.app/';
 /** The sentence that always stands beside the demo link. */
 export const GROQ_NOTE = "The live demo depends on Groq's free tier.";
 
-const ITEM = 'mt-4 first:mt-0';
-
-/** The h1, in two tones. The tool flags what it cannot support; it does not guarantee. */
-export const MARKETINGWS_H1 = 'MarketingWS: marketing copy from one brief,';
-export const MARKETINGWS_QUIET = 'with a check for invented figures.';
-
-/** The plain opening under the title. */
-export function MarketingwsIntro(): ReactNode {
-  return (
+export const MARKETINGWS_EN: MarketingwsCopy = {
+  h1: 'MarketingWS: marketing copy from one brief,',
+  quiet: 'with a check for invented figures.',
+  intro: (
     <p>
       A language model can write marketing copy in seconds, and it can also invent a discount nobody approved.
       MarketingWS, my Master&apos;s thesis rebuilt in 2026 as a live web app, drafts copy from a brief and turns figures
       and promises the brief does not support into visible placeholders.
     </p>
-  );
-}
-
-/** The button under the opening: the repository at the commit this page describes. */
-export const MARKETINGWS_ACTIONS = [
-  { href: `${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, label: 'See the code on GitHub', icon: 'github', external: true },
-] as const;
-
-/** What to look at in the two screenshots, and what they mean. */
-export const SHOTS_LEAD_IN =
-  'Look for the placeholder in the draft: the brief gave no figure, so the tool left a gap instead of making one up.';
-export const SHOTS_TAKEAWAY =
-  'Where the brief gives no figure, the copy shows a gap for a person to fill, not a number nobody approved.';
-
-export const MARKETINGWS_CLOSE = 'I took a generative AI idea from thesis to a live web app with checks.';
-
-/** The 20-second top of the page: one sentence and the facts (MarketingWS has no Facts). */
-export const MARKETINGWS_GLANCE: GlanceParts = {
-  outcome: 'It drafts from a brief, revises the current draft, and turns figures and promises it cannot support into placeholders.',
-  role: 'Built independently (thesis 2025, rebuild 2026).',
-  methods:
-    'Brief-to-draft generation, revise/translate current draft, code plus model fact check, behavioural evals; thesis evaluated with marketers.',
-  tools: 'Python, FastAPI, Streamlit, Vercel, Groq, OpenAI, Docker.',
-  when: 'Thesis Apr to Nov 2025, rebuild live since Sep 2026.',
-  scope: "Master's thesis (2025), rebuilt in 2026.",
-};
-
-/** What the tool is for. */
-export function MarketingwsProblem(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
+  ),
+  /** The 20-second top of the page: one sentence and the facts (MarketingWS has no Facts). */
+  glance: {
+    outcome: 'It drafts from a brief, revises the current draft, and turns figures and promises it cannot support into placeholders.',
+    role: 'Built independently (thesis 2025, rebuild 2026).',
+    methods:
+      'Brief-to-draft generation, revise/translate current draft, code plus model fact check, behavioural evals; thesis evaluated with marketers.',
+    tools: 'Python, FastAPI, Streamlit, Vercel, Groq, OpenAI, Docker.',
+    when: 'Thesis Apr to Nov 2025, rebuild live since Sep 2026.',
+    scope: "Master's thesis (2025), rebuilt in 2026.",
+  },
+  problem: [
+    [
+      'brief',
+      <>
         Marketing copy starts from a brief: the campaign, the channel, the tone and the audience. A language model can
         draft from it, but it can also add figures and promises the brief never gave it.
-      </p>
-      <p className={ITEM}>
+      </>,
+    ],
+    [
+      'tool',
+      <>
         I built MarketingWS for my Master&apos;s thesis in 2025 and rebuilt it in 2026. The rebuild drafts social posts,
         emails and ads from a brief, revises the current draft with the marketer&apos;s feedback instead of starting
         again, and turns figures and promises it cannot support into placeholders.
-      </p>
-    </>
-  );
-}
-
-/** The service around the steps of the diagram. */
-export function MarketingwsArchitecture(): ReactNode {
-  return (
-    <p>
-      The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting.
-    </p>
-  );
-}
-
-/** The steps of one request, in order: the diagram's text, which is also its accessible content. */
-export const MARKETINGWS_STEPS: readonly { id: string; name: string; text: string }[] = [
-  {
-    id: 'input',
-    name: 'Brief',
-    text: 'Campaign type, platform, tone, audience and language.',
+      </>,
+    ],
+  ],
+  architecture: <p>The rebuild is a FastAPI service with a web app, deployed on Vercel. The model provider is a setting.</p>,
+  shots: {
+    /** What to look at in the two screenshots, and what they mean. */
+    leadIn: 'Look for the placeholder in the draft: the brief gave no figure, so the tool left a gap instead of making one up.',
+    takeaway: 'Where the brief gives no figure, the copy shows a gap for a person to fill, not a number nobody approved.',
   },
-  {
-    id: 'draft',
-    name: 'Draft',
-    text: 'A first draft, a revision of the current draft with feedback, or copy variants from different angles.',
+  steps: {
+    title: 'Every draft is checked against the brief',
+    caption: 'One request, step by step. Translation starts from the current draft rather than writing a new one.',
+    items: [
+      {
+        id: 'input',
+        name: 'Brief',
+        text: 'Campaign type, platform, tone, audience and language.',
+      },
+      {
+        id: 'draft',
+        name: 'Draft',
+        text: 'A first draft, a revision of the current draft with feedback, or copy variants from different angles.',
+      },
+      {
+        id: 'check',
+        name: 'Check',
+        text: "Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features.",
+      },
+      {
+        id: 'translate',
+        name: 'Translate',
+        text: 'On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders.',
+      },
+      {
+        id: 'output',
+        name: 'Output',
+        text: 'The copy, which the marketer can send back with new feedback.',
+      },
+    ],
   },
-  {
-    id: 'check',
-    name: 'Check',
-    text: "Figures and promises that neither the brief nor the marketer's feedback supports become placeholders such as [X%]; a short model review catches invented features.",
-  },
-  {
-    id: 'translate',
-    name: 'Translate',
-    text: 'On request, the current draft in German, French, Spanish, Italian, Portuguese or Dutch, keeping hashtags and placeholders.',
-  },
-  {
-    id: 'output',
-    name: 'Output',
-    text: 'The copy, which the marketer can send back with new feedback.',
-  },
-];
-
-export const STEPS_TITLE = 'Every draft is checked against the brief';
-export const STEPS_CAPTION = 'One request, step by step. Translation starts from the current draft rather than writing a new one.';
-
-/** The tests and the evaluation. */
-export function MarketingwsChecks(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
+  checks: [
+    [
+      'offline',
+      <>
         Offline tests cover the service and its API with the model replaced by stand-ins, so they run in GitHub Actions
         without an API key.
-      </p>
-      <p className={ITEM}>
+      </>,
+    ],
+    [
+      'behaviour',
+      <>
         A separate behavioural evaluation calls the real model: each refinement must change the draft as asked,
         translations must keep placeholders and hashtags, and the copy variants must differ. It costs model calls, so
         it is not part of CI.
-      </p>
-    </>
-  );
-}
-
-/** What exists, and what the thesis evaluation does and does not cover. */
-export function MarketingwsOutcome(): ReactNode {
-  return (
-    <>
-      <p className={ITEM}>
+      </>,
+    ],
+  ],
+  outcome: [
+    [
+      'live',
+      <>
         The rebuild has been live since September 2026. The thesis version is kept in the repository under its own
         tag.
-      </p>
-      <p className={ITEM}>
+      </>,
+    ],
+    [
+      'thesis',
+      <>
         Professional marketers evaluated the thesis version in two rounds. That evaluation does not cover what the
         rebuild added: revising the current draft, translating it, the copy variants and the check.
-      </p>
-    </>
-  );
-}
-
-/** What this tool cannot promise. */
-export function MarketingwsLimits(): ReactNode {
-  const limits: readonly [key: string, body: ReactNode][] = [
-    [
-      'soft-claims',
-      <>The check in code looks for figures and promises; softer claims can slip through the model review.</>,
+      </>,
     ],
+  ],
+  limits: [
+    ['soft-claims', <>The check in code looks for figures and promises; softer claims can slip through the model review.</>],
     [
       'translations',
       <>I have no evaluation of the rebuild&apos;s translations by native readers, so I make no claim about their quality.</>,
     ],
-  ];
-  return (
-    <ul className="list-disc pl-6">
-      {limits.map(([key, body]) => (
-        <li key={key} className="mt-2 first:mt-0">
-          {body}
-        </li>
-      ))}
-    </ul>
-  );
-}
+  ],
+  close: 'I took a generative AI idea from thesis to a live web app with checks.',
+  links: {
+    repo: 'The MarketingWS repository, at the commit this page describes',
+    thesis: (tag) => <>The thesis version, under the tag {tag}</>,
+    demo: 'The live demo, on another site',
+    groq: GROQ_NOTE,
+    offline: "Run locally without an API key, the app starts in an offline demo mode; the repository's README explains how.",
+  },
+};
 
 /** The repository and the thesis tag at their pinned commits, and the live demo with its note. */
-export function MarketingwsLinks(): ReactNode {
+export function MarketingwsLinks({ copy }: { copy: MarketingwsCopy['links'] }): ReactNode {
   return (
     <>
       <ul>
         <li>
           <TextLink href={`${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`} standalone external>
-            <span>The MarketingWS repository, at the commit this page describes</span>
+            <span>{copy.repo}</span>
           </TextLink>
         </li>
         <li>
           <TextLink href={`${MARKETINGWS_REPO}/tree/${MARKETINGWS_THESIS_COMMIT}`} standalone external>
-            <span>The thesis version, under the tag {MARKETINGWS_THESIS_TAG}</span>
+            <span>{copy.thesis(MARKETINGWS_THESIS_TAG)}</span>
           </TextLink>
         </li>
         <li>
           <TextLink href={MARKETINGWS_DEMO} standalone external>
-            <span>The live demo, on another site</span>
+            <span>{copy.demo}</span>
           </TextLink>
-          <p data-demo-note="">{GROQ_NOTE}</p>
+          <p data-demo-note="">{copy.groq}</p>
         </li>
       </ul>
-      <p className="mt-4">
-        Run locally without an API key, the app starts in an offline demo mode; the repository&apos;s README explains how.
-      </p>
+      <p className="mt-4">{copy.offline}</p>
     </>
   );
 }

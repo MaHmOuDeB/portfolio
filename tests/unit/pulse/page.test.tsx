@@ -11,7 +11,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { withoutCta } from '../page-cta';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import PulseRoute, { metadata } from '@/app/work/pulse/page';
+import PulseRoute, { metadata } from '@/app/(en)/work/pulse/page';
 import type { EagerOrIntent } from '@/components/figures/EagerOrIntent';
 import { PulseFigure } from '@/components/pulse/PulseFigure';
 import { PULSE_SECTIONS, PULSE_TITLE, PulsePage } from '@/components/pulse/PulsePage';

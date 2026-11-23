@@ -305,12 +305,12 @@ describe('links', () => {
 });
 
 describe('the route', () => {
-  const route = readFileSync(join(repo, 'src/app/work/weather/page.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/weather/page.tsx'), 'utf8');
 
   it('is a plain static page that renders the composition, and it is live', async () => {
     expect(route).toMatch(/<WeatherPage \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(/);
-    const mod = (await import('@/app/work/weather/page')) as {
+    const mod = (await import('@/app/(en)/work/weather/page')) as {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };

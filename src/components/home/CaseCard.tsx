@@ -8,11 +8,14 @@
 // that width (large text in a narrow card) breaks inside the cell, so neither string can push past
 // the card's edge, where the card clips it. The card ends in its study's sketch (the same in both
 // groups, decorative). Server-safe.
-import { HEADLINES, HOME_CASES, type Study } from '../../../content/home.ts';
+import { HEADLINES, type Study } from '../../../content/home.ts';
 import { LeanCard } from '@/components/depth/LeanCard';
 import type { Arm } from '@/experiment.values';
 import { cx } from '@/lib/cx';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
 import { prefetchFor } from '@/lib/nav';
+import { homeCopy } from './copy';
 import { Parts } from './Parts';
 import { CASE_SKETCHES } from '@/components/frame/sketches';
 
@@ -21,47 +24,56 @@ const ARMS: readonly Arm[] = ['a', 'b'];
 /** The headline area never gets shorter than this many lines, so cards in a row line up. */
 const TITLE_MIN_LINES = 3;
 
-function lookup(study: Study) {
+function lookup(study: Study, locale: Locale) {
+  const copy = homeCopy(locale);
   const headlines = HEADLINES.find((h) => h.study === study);
-  const item = HOME_CASES.find((c) => c.study === study);
+  const item = copy.featured.cases.find((c) => c.study === study);
   if (!headlines || !item) throw new Error(`no featured case study "${study}"`);
-  return { headlines, item };
+  return { headlines, item, fixed: copy.headlines?.find((h) => h.study === study)?.parts, sketches: copy.sketches };
 }
 
-export function CaseCard({ study, headlineArm }: { study: Study; headlineArm: Arm }) {
-  const { headlines, item } = lookup(study);
+export function CaseCard({ study, headlineArm, locale = 'en' }: { study: Study; headlineArm: Arm; locale?: Locale }) {
+  const { headlines, item, fixed, sketches } = lookup(study, locale);
   const Sketch = CASE_SKETCHES[study];
+  // Outside the experiment (a German page) the card has one fixed headline and no click marker.
+  const watched = fixed === undefined ? { 'data-experiment-click': 'card' } : {};
   return (
     <LeanCard
-      href={item.href}
+      href={localHref(locale, item.href)}
       prefetch={prefetchFor(item.href)}
       data-case-card={study}
-      data-experiment-click="card"
+      {...watched}
       data-touch-target=""
       titleMinLines={TITLE_MIN_LINES}
       meta={item.meta}
-      vignette={<Sketch />}
+      vignette={<Sketch text={sketches} />}
       title={
         <span id={`case-${study}-headline`} data-case-headline="" className="grid grid-cols-1 wrap-anywhere">
-          {ARMS.map((arm) => {
-            const shown = arm === headlineArm;
-            return (
-              <span
-                key={arm}
-                data-headline-twin={arm}
-                data-headline-shown={shown ? '' : undefined}
-                aria-hidden={shown ? undefined : 'true'}
-                className={cx('col-start-1 row-start-1', !shown && 'invisible')}
-              >
-                <Parts parts={headlines[arm]} />
-              </span>
-            );
-          })}
+          {fixed !== undefined ? (
+            <span className="col-start-1 row-start-1">
+              <Parts parts={fixed} locale={locale} />
+            </span>
+          ) : (
+            ARMS.map((arm) => {
+              const shown = arm === headlineArm;
+              return (
+                <span
+                  key={arm}
+                  data-headline-twin={arm}
+                  data-headline-shown={shown ? '' : undefined}
+                  aria-hidden={shown ? undefined : 'true'}
+                  className={cx('col-start-1 row-start-1', !shown && 'invisible')}
+                >
+                  <Parts parts={headlines[arm]} />
+                </span>
+              );
+            })
+          )}
         </span>
       }
     >
       <span data-case-description="">
-        <Parts parts={item.description} />
+        <Parts parts={item.description} locale={locale} />
       </span>
     </LeanCard>
   );

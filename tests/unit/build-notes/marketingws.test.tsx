@@ -231,19 +231,19 @@ describe('truth and design', () => {
   });
 
   it('passes the source design lint', () => {
-    for (const file of ['content/marketingws.tsx', 'src/components/marketingws/MarketingwsPage.tsx', 'src/app/work/marketingws/page.tsx']) {
+    for (const file of ['content/marketingws.tsx', 'src/components/marketingws/MarketingwsPage.tsx', 'src/app/(en)/work/marketingws/page.tsx']) {
       expect(lintSource(readFileSync(join(repo, file), 'utf8'), file), file).toEqual([]);
     }
   });
 });
 
 describe('the route', () => {
-  const route = readFileSync(join(repo, 'src/app/work/marketingws/page.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/marketingws/page.tsx'), 'utf8');
 
   it('is a plain static page that renders the composition', async () => {
     expect(route).toMatch(/<MarketingwsPage \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(/);
-    const mod = (await import('@/app/work/marketingws/page')) as {
+    const mod = (await import('@/app/(en)/work/marketingws/page')) as {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };

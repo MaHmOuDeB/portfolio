@@ -4,6 +4,7 @@
 import { formatValue } from '@/lib/facts/format';
 import type { FactId } from '@/lib/facts';
 import type { SourceId, Unit } from '@/lib/facts/types';
+import type { Locale } from '@/lib/i18n/locale';
 
 export type DerivedRef = FactId | `source:${SourceId}` | 'simulated' | 'live' | 'build';
 
@@ -20,6 +21,7 @@ export function Derived({
   decimals,
   suffix,
   scale,
+  locale,
 }: {
   value: number | string;
   unit: Unit;
@@ -27,10 +29,12 @@ export function Derived({
   decimals?: number;
   suffix?: '+';
   scale?: 'k' | 'M';
+  /** The number's language; omitted, English. */
+  locale?: Locale;
 }) {
   return (
     <data value={value} {...derivedAttr(refs)}>
-      {formatValue(value, unit, { decimals, suffix, scale })}
+      {formatValue(value, unit, { decimals, suffix, scale, locale })}
     </data>
   );
 }

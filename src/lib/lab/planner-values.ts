@@ -9,7 +9,11 @@
 // schema is static; the joint cap is applied after it is read, so no shared URL, however hostile,
 // gives an invalid pair.
 import type { DerivedRef } from '@/components/kit/Derived';
+import { formatNumber } from '@/lib/figure/format';
 import type { ParamValues, Presets } from '@/lib/figure/url-state';
+import { fill } from '@/lib/i18n/template';
+import { plural } from './text-common';
+import { EN_PLANNER, type PlannerText } from './text-planner';
 
 export const PLANNER_SCHEMA = {
   baseline: { kind: 'number', min: 0.01, max: 0.98, step: 0.01 },
@@ -57,7 +61,9 @@ export function normalizePlanner(v: PlannerValues): PlannerValues {
   };
 }
 
-/** "29%" */
-export const percentText = (rate: number) => `${Math.round(rate * 100)}%`;
+/** "29%" ("29 %" in German, with a no-break space). */
+export const percentText = (rate: number, text: PlannerText = EN_PLANNER) =>
+  fill(text.percent, { value: formatNumber(Math.round(rate * 100), 0, { locale: text.kit.locale }) });
 /** "5 points" */
-export const pointsText = (points: number) => `${points} ${points === 1 ? 'point' : 'points'}`;
+export const pointsText = (points: number, text: PlannerText = EN_PLANNER) =>
+  fill(plural(points, text.points), { n: formatNumber(points, 0, { locale: text.kit.locale }) });

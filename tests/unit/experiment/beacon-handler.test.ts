@@ -9,7 +9,7 @@ import { createMemoryRedis } from '@/lib/experiment/memory-redis';
 import { ATOMIC_ENTRY_SCRIPT } from '@/lib/experiment/store';
 
 const now = Date.parse('2026-11-20T10:00:00Z');
-const ns = 'aa-v1';
+const ns: string = EXPERIMENT.namespace;
 const pv = '00000000-0000-4000-8000-000000000001';
 const origin = 'https://portfolio.example';
 const entryClaim = keys.claim(ns, pv, 'entry');

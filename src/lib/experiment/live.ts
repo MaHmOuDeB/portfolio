@@ -35,6 +35,7 @@ import { later } from './deps.ts';
 import { EVENT_TYPES, REJECT_REASONS, type RejectReason } from './events.ts';
 import { FlagsUnavailable, NO_FLAGS, readFlags, type ExperimentFlags } from './flags.ts';
 import { freshnessFrom } from './freshness.ts';
+import { STOP_REASONS_EN } from './reasons.ts';
 import { RedisUnavailable, type RedisRest } from './redis-rest.ts';
 import { buildSnapshot, closingMarker, type ExperimentSnapshot, type Held } from './snapshot.ts';
 import { CorruptCounters, readClosed, readCounters, type ClosedMarker, type CounterRows, type GroupCounts } from './store.ts';
@@ -79,20 +80,20 @@ export const READ_TIMEOUT_MS = 2000;
  * "Paused on dd.mm: ". The kit has no state for a held test yet, so a held A/B shows as paused at
  * its fault: counting has stopped there, and the frozen chart stays.
  */
-export const MALFORMED_REASON = 'the experiment settings could not be read, so counting is stopped until I fix them';
+export const MALFORMED_REASON: string = STOP_REASONS_EN.malformed;
 export const HELD_REASON: Record<Held['reason'], string> = {
-  'band-conflict': 'the interval failed a consistency check, so the test stopped at the last clean look',
-  'inconsistent-counts': 'the counts failed a consistency check, so the test stopped at the last clean look',
+  'band-conflict': STOP_REASONS_EN['band-conflict'],
+  'inconsistent-counts': STOP_REASONS_EN['inconsistent-counts'],
 };
 
 /** After "Paused on dd.mm: ". A stored stop never resumes in its namespace, so this must not read as a pause. */
-const STOPPED_FOR_GOOD_REASON = 'I stopped counting for this run and am checking the stored result before showing it';
+const STOPPED_FOR_GOOD_REASON = STOP_REASONS_EN.stoppedForGood;
 /** After "Calibration stopped on dd.mm: ". */
-const NO_NOTE_REASON = 'I no longer have the note explaining why';
-const NOTE_DISAGREES_REASON = 'the day I stored for this stop does not match what I see now, so I am checking it';
+const NO_NOTE_REASON = STOP_REASONS_EN.noNote;
+const NOTE_DISAGREES_REASON = STOP_REASONS_EN.noteDisagrees;
 
-export const NOT_STARTED_REASON = 'the experiment has not started yet, so nothing is counted';
-export const UNAVAILABLE_REASON = 'the live counts could not be read when this page was built, so they show at the next update';
+export const NOT_STARTED_REASON = STOP_REASONS_EN.notStarted;
+export const UNAVAILABLE_REASON = STOP_REASONS_EN.unavailable;
 
 const REFS: Record<ExperimentSnapshot['source'], readonly DerivedRef[]> = {
   store: ['live'],

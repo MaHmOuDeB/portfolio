@@ -17,6 +17,8 @@ import type { FigureBody } from '@/lib/figure/states';
 import { ChartFrame, MARK_UNITS, type PlotContext } from './ChartFrame';
 import type { DerivedRef } from './Derived';
 import { NowRow } from './NowRow';
+import { fill } from '@/lib/i18n/template';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Props = {
   id: string;
@@ -33,6 +35,8 @@ type Props = {
    * Not empty and no digit (ChartFrame throws on one), or it throws.
    */
   ariaLabel?: string;
+  /** The kit's words and the language of its numbers; default English. */
+  text?: KitText;
 };
 
 const HEIGHT = { narrow: 220, wide: 280 } as const;
@@ -84,26 +88,22 @@ function shows(snapshot: LiveSnapshot, body: FigureBody): 'chart' | 'running' | 
  * before it, as the Now row's "last:" says, and no sentence claims the test is running or names a group
  * as higher or lower.
  */
-function ariaLabel(m: ConfidenceModel, own: FigureBody, paused: boolean): string {
+function ariaLabel(m: ConfidenceModel, own: FigureBody, paused: boolean, text: KitText['confidence']): string {
+  const a = text.aria;
   if (paused) {
-    const where = m.includesZero ? 'includes zero' : m.current.lower > 0 ? 'lies above zero' : 'lies below zero';
-    const groups = own === 'calibration' ? 'the two identical groups' : 'the groups, B minus A,';
-    return `The difference between ${groups} as views per group grew until the pause: the last interval ${where}`;
+    const where = m.includesZero ? a.pausedWhere.includesZero : m.current.lower > 0 ? a.pausedWhere.aboveZero : a.pausedWhere.belowZero;
+    return fill(own === 'calibration' ? a.pausedIdentical : a.pausedGroups, { where });
   }
   if (own === 'calibration') {
-    const where = m.includesZero ? 'the current interval includes zero' : 'the current interval does not include zero';
-    return `The difference between the two identical groups as views per group grow: ${where}`;
+    return fill(a.calibration, { where: m.includesZero ? a.calibrationWhere.includes : a.calibrationWhere.excludes });
   }
   const final = own === 'ship-b' || own === 'stop-for-harm' || own === 'inconclusive';
-  const which = final ? 'the final interval' : 'the current interval';
+  const which = final ? a.which.final : a.which.current;
+  const forms = a.runningWhere;
   const where = m.includesZero
-    ? final
-      ? `${which} includes zero`
-      : `${which} still includes zero, so no difference is ruled out yet`
-    : m.current.lower > 0
-      ? `${which} lies above zero: B higher`
-      : `${which} lies below zero: B lower`;
-  return `The difference between the groups, B minus A, as views per group grow: ${where}`;
+    ? fill(final ? forms.includesFinal : forms.includesRunning, { which })
+    : fill(m.current.lower > 0 ? forms.above : forms.below, { which });
+  return fill(a.running, { where });
 }
 
 function Marks({ ctx, m, project }: { ctx: PlotContext; m: ConfidenceModel; project: boolean }) {
@@ -147,7 +147,7 @@ function Marks({ ctx, m, project }: { ctx: PlotContext; m: ConfidenceModel; proj
   );
 }
 
-function Overlays({ ctx, m }: { ctx: PlotContext; m: ConfidenceModel }) {
+function Overlays({ ctx, m, yourView }: { ctx: PlotContext; m: ConfidenceModel; yourView: string }) {
   const view = m.yourViewN;
   const viewFrac = view === undefined ? 0 : ctx.xFrac(view);
   return (
@@ -169,7 +169,7 @@ function Overlays({ ctx, m }: { ctx: PlotContext; m: ConfidenceModel }) {
             className="text-xs fill-muted"
             {...LABEL_HALO}
           >
-            your view
+            {yourView}
           </text>
         </g>
       ) : null}
@@ -188,13 +188,13 @@ function Overlays({ ctx, m }: { ctx: PlotContext; m: ConfidenceModel }) {
   );
 }
 
-export function ConfidenceChart({ id, snapshot, body, refs, layout, height, ariaLabel: label }: Props) {
+export function ConfidenceChart({ id, snapshot, body, refs, layout, height, ariaLabel: label, text = KIT_TEXT_EN }: Props) {
   // Checked before anything is drawn, so a bad override fails in the collecting states too.
   const plotHeights = plotHeight(height);
   const ownLabel = checkedLabel(label);
   const shown = shows(snapshot, body);
   if (shown === 'nothing') return null;
-  const m = shown === 'chart' || shown === 'running' ? confidenceModel(snapshot) : null;
+  const m = shown === 'chart' || shown === 'running' ? confidenceModel(snapshot, { locale: text.locale }) : null;
   // A decided test without an interval draws nothing: a collecting row would read as running.
   if (m === null && shown === 'chart') return null;
   if (m === null) {
@@ -206,6 +206,7 @@ export function ConfidenceChart({ id, snapshot, body, refs, layout, height, aria
           domain={[-1, 1]}
           collecting={{ nSmaller: smallerGroup(snapshot), plannedEnd: snapshot.plannedEnd, plannedEndKind: snapshot.plannedEndKind, due }}
           refs={refs}
+          text={text}
         />
       </div>
     );
@@ -214,23 +215,23 @@ export function ConfidenceChart({ id, snapshot, body, refs, layout, height, aria
     <div data-confidence-chart={id}>
       <ChartFrame
         id={`${id}-chart`}
-        ariaLabel={ownLabel ?? ariaLabel(m, ownBody(snapshot, body), body === 'paused')}
+        ariaLabel={ownLabel ?? ariaLabel(m, ownBody(snapshot, body), body === 'paused', text.confidence)}
         layout={layout}
-        x={{ ...m.x, label: 'Views per group', refs }}
+        x={{ ...m.x, label: text.confidence.xLabel, refs }}
         y={{
           ...m.y,
-          label: 'B − A (percentage points)',
+          label: text.confidence.yLabel,
           refs,
           // The zero-line words sit in the chart's right margin, so they never cover a mark.
-          zeroLabel: 'no difference',
-          aboveLabel: 'B higher',
-          belowLabel: 'B lower',
+          zeroLabel: text.zero.noDifference,
+          aboveLabel: text.zero.higher,
+          belowLabel: text.zero.lower,
         }}
         height={plotHeights}
         marks={(ctx) => <Marks ctx={ctx} m={m} project={shown === 'running'} />}
-        overlays={(ctx) => <Overlays ctx={ctx} m={m} />}
+        overlays={(ctx) => <Overlays ctx={ctx} m={m} yourView={text.confidence.yourView} />}
       />
-      <NowRow domain={m.y.domain} interval={m.current} label={nowLabel(snapshot, body)} refs={refs} />
+      <NowRow domain={m.y.domain} interval={m.current} label={nowLabel(snapshot, body)} refs={refs} text={text} />
     </div>
   );
 }

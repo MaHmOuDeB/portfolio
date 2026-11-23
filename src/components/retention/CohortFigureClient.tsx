@@ -22,6 +22,7 @@ import type { Provenance } from '@/components/kit/ProvenanceBadge';
 import { ResetButton } from '@/components/kit/ResetButton';
 import { StepNav } from '@/components/kit/StepNav';
 import { COHORTS_ID, COHORTS_REFS, cohortAt, monthLabel, type Cohort } from '@/lib/retention/cohorts';
+import { EN_COHORTS, type CohortText } from '@/lib/retention/text';
 import type { CohortInteractiveProps } from './CohortInteractive';
 
 const LazyCohorts = lazy(() => import('./CohortInteractive'));
@@ -35,11 +36,13 @@ export function CohortControls({
   cohort,
   onCohort,
   onReset,
+  text = EN_COHORTS,
 }: {
   rows: readonly Cohort[];
   cohort: string;
   onCohort: (cohort: string) => void;
   onReset: () => void;
+  text?: CohortText;
 }) {
   const { index } = cohortAt(rows, cohort);
   return (
@@ -51,12 +54,13 @@ export function CohortControls({
     >
       <div className="min-w-0">
         <p className="text-sm text-muted">
-          Cohort: <span className="text-ink" {...derivedAttr(COHORTS_REFS)}>{monthLabel(cohort)}</span>
+          {text.picked}<span className="text-ink" {...derivedAttr(COHORTS_REFS)}>{monthLabel(cohort, text.kit.locale)}</span>
         </p>
         <div className="mt-1">
           <StepNav
             id={`${COHORTS_ID}-cohort`}
-            label="Cohort"
+            label={text.nav}
+            text={text.kit.step}
             current={index + 1}
             total={rows.length}
             refs={COHORTS_REFS}
@@ -67,15 +71,15 @@ export function CohortControls({
           />
         </div>
       </div>
-      <ResetButton id={`${COHORTS_ID}-reset`} onReset={onReset} />
+      <ResetButton id={`${COHORTS_ID}-reset`} onReset={onReset} label={text.kit.reset} />
     </div>
   );
 }
 
 const noop = () => {};
 
-export function InertCohortControls({ rows, cohort }: { rows: readonly Cohort[]; cohort: string }) {
-  return <CohortControls rows={rows} cohort={cohort} onCohort={noop} onReset={noop} />;
+export function InertCohortControls({ rows, cohort, text }: { rows: readonly Cohort[]; cohort: string; text?: CohortText }) {
+  return <CohortControls rows={rows} cohort={cohort} onCohort={noop} onReset={noop} text={text} />;
 }
 
 export function CohortFigureClient({
@@ -83,6 +87,7 @@ export function CohortFigureClient({
   provenance,
   preview,
   faultAfterChange,
+  text,
 }: {
   /** The cohort rows the charts plot, the only data the island receives. */
   rows: readonly Cohort[];
@@ -91,10 +96,12 @@ export function CohortFigureClient({
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
   faultAfterChange?: true;
+  /** The Figure's words, handed over for a language other than English only (English is the default). */
+  text?: CohortText;
 }) {
   return (
     <EagerOrIntent ids={[COHORTS_ID]} preview={preview}>
-      <CohortIsland rows={rows} provenance={provenance} faultAfterChange={faultAfterChange} />
+      <CohortIsland rows={rows} provenance={provenance} faultAfterChange={faultAfterChange} text={text} />
     </EagerOrIntent>
   );
 }

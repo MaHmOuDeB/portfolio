@@ -64,7 +64,7 @@ export function ogAlt(card: OgCard): string {
 }
 
 /** The card as a standalone HTML page of exactly 1200 x 630 CSS pixels. */
-export function ogHtml(card: OgCard, theme: OgTheme, fontUrl: string): string {
+export function ogHtml(card: OgCard, theme: OgTheme, fontUrl: string, lang: 'en' | 'de' = 'en'): string {
   const proof = card.proof
     ? `<p class="sub proof"><strong>${escapeHtml(card.proof.strong)}</strong>${escapeHtml(card.proof.rest)}</p>`
     : '';
@@ -87,7 +87,7 @@ export function ogHtml(card: OgCard, theme: OgTheme, fontUrl: string): string {
     '.foot{font-size:24px;color:var(--muted);border-top:1px solid var(--line);padding-top:22px}',
   ].join('\n');
   return [
-    '<!doctype html><html lang="en"><head><meta charset="utf-8">',
+    `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">`,
     `<style>${css}</style></head><body>`,
     '<div class="frame">',
     '<div class="glyph" aria-hidden="true"><b></b><i></i></div>',

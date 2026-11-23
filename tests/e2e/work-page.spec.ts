@@ -49,8 +49,9 @@ test.describe('the Work page', () => {
       await expect(page.getByRole('region', { name: title, exact: true })).toHaveAttribute('id', id);
     }
     const headings = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2, main h3')].map((h) => Number(h.tagName[1])));
-    // h1, the two groups with their four cards, then the site band and the call to action (an h2 each, no h3 under them)
-    expect(headings).toEqual([1, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 2]);
+    // h1, "How I test" (an h2; its tabs are labels), the two groups with their four cards, then the site band and
+    // the call to action (an h2 each, no h3 under them)
+    expect(headings).toEqual([1, 2, 2, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 2]);
     await expect(items(page)).toHaveText(LINKS.map(([, name]) => name));
     expect(await cards(page).evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(LINKS.map(([href]) => href));
     // the main links are exactly the eight cards, the site band's one link to the live test and the call to
@@ -83,6 +84,28 @@ test.describe('the Work page', () => {
     await expect(page.locator('main [data-work-kinds]')).toHaveText(
       'Case studies are analyses with a question and a finding. Build notes are things I built, and how I tested them.',
     );
+  });
+
+  test('"How I test" follows the page head, and the "I automate." lines end the Automation group', async ({ page }) => {
+    await page.goto(ROUTE);
+    const how = page.locator('main [data-home-how]');
+    await expect(how).toHaveCount(1);
+    await expect(how.getByRole('heading', { level: 2 })).toHaveText('Planned before it starts, honest about what it shows.');
+    const order = await page.evaluate(() => {
+      const top = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().top + scrollY;
+      return [top('#work-title'), top('[data-home-how]'), top('#experimentation'), top('#automation'), top('[data-home-automate]'), top('[data-work-site]')];
+    });
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    const automation = page.locator('#automation');
+    await expect(automation.locator('[data-home-automate] li')).toHaveText([
+      'I turn repeated manual steps into tools a whole team can use.',
+      'I build agents in which code, not the model, has the last word on facts.',
+      'I test my workflows against the ways they fail, not only when everything goes right.',
+    ]);
+    await expect(page.locator('#experimentation [data-home-automate]')).toHaveCount(0);
+    // no id is used twice, so every card link and tab keeps its own name
+    const ids = await page.evaluate(() => [...document.querySelectorAll('[id]')].map((el) => el.id));
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
   test('the tile at the end leads to the live test with one link', async ({ page }) => {

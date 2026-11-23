@@ -16,7 +16,7 @@ export const E2E_KV_READ_TOKEN = 'e2e-fake-upstash-read-token-throwaway';
  * before the experiment and never crosses a Berlin midnight. The offset is honoured only by the
  * loopback fake store outside production.
  */
-export const E2E_CLOCK_AT = '2026-11-17T12:00:00+01:00';
+export const E2E_CLOCK_AT = '2026-11-24T12:00:00+01:00';
 
 /** The offset that puts the server clock at E2E_CLOCK_AT now. */
 export function e2eClockOffsetMs(nowMs: number = Date.now()): number {

@@ -130,7 +130,7 @@ describe('the About page', () => {
     const d = about();
     expect(all(d, (el) => el.tagName === 'h1').map(text)).toEqual(['Experimentation and AI automation analyst in Berlin, Germany.']);
     // The page's chip, and beside it the green-dot chip that says I am open to roles.
-    const chips = all(d, (el) => has(el, 'data-chip'));
+    const chips = all(one(d, (el) => has(el, 'data-page-head')), (el) => has(el, 'data-chip'));
     expect(chips.map(text)).toEqual(['About', 'Open to roles']);
     expect(all(chips[1]!, (el) => attr(el, 'data-chip-dot') === 'ok')).toHaveLength(1);
     expect(all(chips[0]!, (el) => has(el, 'data-chip-dot'))).toHaveLength(0);
@@ -190,7 +190,8 @@ describe('the About page', () => {
     const d = about();
     expect(has(one(d, (el) => el.tagName === 'img'), 'data-depth-parallax')).toBe(true);
     // The four section headings rise; the h1 is the LCP element and the call to action's h2 is the ink panel's.
-    const headings = all(d, (el) => el.tagName === 'h2' && has(el, 'id') && attr(el, 'id') !== 'page-cta-title');
+    // (the questions rows and the FAQ, moved from Home, have their own heads, which do not rise)
+    const headings = all(d, (el) => el.tagName === 'h2' && ['timeline-title', 'tools-title', 'languages-title'].includes(attr(el, 'id') ?? ''));
     expect(headings.length).toBe(3);
     for (const h of headings) expect(attr(h, 'data-depth-rise')).toBe('heading');
     expect(has(one(d, (el) => el.tagName === 'h1'), 'data-depth-rise')).toBe(false);
@@ -343,6 +344,32 @@ describe('the About page', () => {
     expect(audit(renderToStaticMarkup(createElement(AboutPage)), '/about')).toEqual([]);
   });
 });
+
+describe('the parts moved to About from Home', () => {
+  it('puts the questions rows after the story and before the Timeline, and the FAQ before the call to action', () => {
+    const html = renderToStaticMarkup(createElement(AboutPage));
+    const q = html.indexOf('<section data-home-questions=""');
+    expect(q).toBeGreaterThan(html.indexOf('data-about-story'));
+    expect(q).toBeLessThan(html.indexOf('<section id="timeline"'));
+    const faq = html.indexOf('<div data-home-faq=""');
+    expect(faq).toBeGreaterThan(html.indexOf('<section id="languages"'));
+    expect(faq).toBeLessThan(html.indexOf('data-page-cta'));
+    expect(html.match(/data-home-questions=""/g)).toHaveLength(1);
+    expect(html.match(/data-home-faq=""/g)).toHaveLength(1);
+  });
+
+  it('keeps every id on the page unique, and the named sections as they were', () => {
+    const html = renderToStaticMarkup(createElement(AboutPage));
+    const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]!);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    expect(ABOUT_SECTIONS.map((s) => s.id)).toEqual(['timeline', 'tools', 'languages']);
+  });
+
+  it('passes the truth audit with the FAQ on the page', () => {
+    expect(audit(renderToStaticMarkup(createElement(AboutPage)), '/about')).toEqual([]);
+  });
+});
+
 
 // ═════════════════════════════════════════ CV ════════════════════════════════════════════════════
 /** Every claim on the CV page, in page order, word for word as it renders (figures as their facts print). */

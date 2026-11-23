@@ -7,7 +7,7 @@ import { LAUNCH_FACTS, PRIVACY, type PrivacyBlock } from '../../content/privacy.
 import { EXPERIMENT } from '../../src/experiment.values.ts';
 import { CONTACT, CONTACT_HREF, SITE } from '../../src/lib/site.ts';
 import { clickEvents } from '../../src/lib/experiment/beacon.ts';
-import PrivacyPage, { metadata } from '../../src/app/privacy/page.tsx';
+import PrivacyPage, { metadata } from '../../src/app/(en)/privacy/page.tsx';
 import { auditHtml } from '../../scripts/truth-audit.ts';
 import { FACTS, FACT_DISPLAYS } from '../../src/lib/facts/facts.generated.ts';
 

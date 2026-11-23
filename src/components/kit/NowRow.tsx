@@ -13,6 +13,7 @@ import { linearFrac, pct } from '@/lib/figure/scales';
 import { MIN_PER_GROUP } from '@/lib/figure/states';
 import { Derived, derivedAttr, type DerivedRef } from './Derived';
 import { ProgressLine } from './LiveLabels';
+import { KIT_TEXT_EN, type KitText } from './text';
 
 type Props = {
   /** The difference axis, in points: the chart's y-domain. */
@@ -28,6 +29,8 @@ type Props = {
   label?: 'now' | 'final' | 'last';
   /** Where the numbers come from: 'live' on the site, 'simulated' in the kitchen sink. */
   refs: readonly DerivedRef[];
+  /** The kit's words and the language of its numbers; default English. */
+  text?: KitText;
 };
 
 const G = glyphGeometry('large');
@@ -50,7 +53,7 @@ function anchorFor(frac: number): 'start' | 'middle' | 'end' {
  * "B higher" at its ends, and the hollow glyph on the zero tick. The glyph is the same 96 px mark as
  * the filled one, drawn in muted (a bar in line would be 1.2:1 against the page).
  */
-function CollectingAxis({ refs }: { refs: readonly DerivedRef[] }) {
+function CollectingAxis({ refs, text }: { refs: readonly DerivedRef[]; text: KitText }) {
   const capY = MID - G.capHeight / 2;
   const half = GLYPH_LENGTH.large / 2;
   const muted = 'var(--color-muted)';
@@ -70,10 +73,10 @@ function CollectingAxis({ refs }: { refs: readonly DerivedRef[] }) {
         0
       </text>
       <text x={0} y={ZERO_LABEL_BASELINE} textAnchor="start" className="text-xs fill-muted">
-        B lower
+        {text.zero.lower}
       </text>
       <text x="100%" y={ZERO_LABEL_BASELINE} textAnchor="end" className="text-xs fill-muted">
-        B higher
+        {text.zero.higher}
       </text>
     </svg>
   );
@@ -85,19 +88,21 @@ function Collecting({
   plannedEndKind,
   due,
   refs,
+  text,
 }: {
+  text: KitText;
   nSmaller: number;
   plannedEnd: string;
   plannedEndKind: 'fixed' | 'earliest';
   due?: boolean;
   refs: readonly DerivedRef[];
 }) {
-  const target = <Derived value={MIN_PER_GROUP} unit="count" refs={refs} />;
-  const rule = <p className="mt-2 text-sm">Estimates appear at {target} views per group, as the pre-registration says.</p>;
+  const target = <Derived value={MIN_PER_GROUP} unit="count" refs={refs} locale={text.locale} />;
+  const rule = <p className="mt-2 text-sm">{text.nowRow.estimatesAppear({ target })}</p>;
   if (nSmaller >= MIN_PER_GROUP && !due) {
     return (
       <div data-now-row="collecting" className="mt-4">
-        <CollectingAxis refs={refs} />
+        <CollectingAxis refs={refs} text={text} />
         {rule}
       </div>
     );
@@ -105,24 +110,24 @@ function Collecting({
   if (nSmaller >= MIN_PER_GROUP) {
     return (
       <div data-now-row="due" className="mt-4">
-        <CollectingAxis refs={refs} />
-        <p className="mt-2 text-sm">{target} views per group are in; the first estimate appears at the next look.</p>
+        <CollectingAxis refs={refs} text={text} />
+        <p className="mt-2 text-sm">{text.nowRow.due({ target })}</p>
       </div>
     );
   }
   return (
     <div data-now-row="collecting" className="mt-4">
-      <CollectingAxis refs={refs} />
+      <CollectingAxis refs={refs} text={text} />
       {rule}
       <div className="mt-2">
-        <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} plannedEndKind={plannedEndKind} refs={refs} />
+        <ProgressLine nSmaller={nSmaller} target={MIN_PER_GROUP} plannedEnd={plannedEnd} plannedEndKind={plannedEndKind} refs={refs} text={text} />
       </div>
     </div>
   );
 }
 
-export function NowRow({ domain, interval, collecting, label = 'now', refs }: Props) {
-  if (collecting) return <Collecting {...collecting} refs={refs} />;
+export function NowRow({ domain, interval, collecting, label = 'now', refs, text = KIT_TEXT_EN }: Props) {
+  if (collecting) return <Collecting {...collecting} refs={refs} text={text} />;
   if (!interval) return null;
   const lower = Math.min(interval.lower, interval.upper);
   const upper = Math.max(interval.lower, interval.upper);
@@ -134,7 +139,7 @@ export function NowRow({ domain, interval, collecting, label = 'now', refs }: Pr
   return (
     <div data-now-row="interval" className="mt-4">
       <p className="text-sm font-semibold">
-        {label}: <span data-num="" {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper)}</span>
+        {text.nowRow.labels[label]}: <span data-num="" {...derivedAttr(refs)}>{formatIntervalPoints(lower, upper, { locale: text.locale })}</span>
       </p>
       <svg aria-hidden="true" focusable="false" width="100%" height={ROW_HEIGHT} className="mt-1 block overflow-visible">
         <line x1={0} x2="100%" y1={MID + 0.5} y2={MID + 0.5} className="stroke-line" />

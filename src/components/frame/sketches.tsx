@@ -5,9 +5,13 @@
 // name; positions and shades live in style values only. The Pulse sketch names three events of the
 // Pulse export, typed against its event names. Server-safe.
 import type { CSSProperties, ReactNode } from 'react';
+import { SKETCH_TEXT_EN, type SketchText } from '../../../content/home.ts';
 import { IntervalMark, MiniRow, Tag, Tick } from './marks';
 import { Vignette } from './Vignette';
 import type { PulseEventName } from '@/lib/pulse/names';
+
+/** Every sketch takes its words as an optional prop (English by default). */
+export type SketchProps = { text?: SketchText };
 
 /** The sketch's own small head: a bold name and a muted note. */
 function Head({ name, note }: { name: string; note: string }) {
@@ -68,13 +72,12 @@ const Link = () => <span className="h-px min-w-3 flex-1 bg-ink" />;
  * Audible: the process, never a result (the results are confidential): four steps of a test, each
  * ticked, with no outcome word.
  */
-export function ProcessSketch() {
+export function ProcessSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="process">
-      <Row mark={<Tick />} name="Sample size" end={<Tag>planned</Tag>} />
-      <Row mark={<Tick />} name="Run time" end={<Tag>set</Tag>} />
-      <Row mark={<Tick />} name="Guardrails" end={<Tag>checked</Tag>} />
-      <Row mark={<Tick />} name="Recommendation" end={<Tag>written</Tag>} />
+      {text.process.rows.map((r) => (
+        <Row key={r.name} mark={<Tick />} name={r.name} end={<Tag>{r.tag}</Tag>} />
+      ))}
     </Sketch>
   );
 }
@@ -83,7 +86,7 @@ const COHORT_ROWS = 5;
 const COHORT_COLS = 8;
 
 /** Retention: a triangle of cohort cells, fading with age (the shade is a made-up shape, not data). */
-export function CohortsSketch() {
+export function CohortsSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   const cells: { key: string; opacity: number }[] = [];
   for (let r = 0; r < COHORT_ROWS; r++) {
     for (let c = 0; c < COHORT_COLS; c++) {
@@ -93,7 +96,7 @@ export function CohortsSketch() {
   }
   return (
     <Sketch kind="cohorts">
-      <Head name="Cohorts" note="share who order again" />
+      <Head name={text.cohorts.name} note={text.cohorts.note} />
       <div className="grid grid-cols-8 gap-0.75">
         {cells.map((cell) => (
           <span key={cell.key} data-cohort-cell="" className="h-4 rounded-sm bg-series-1" style={{ opacity: cell.opacity }} />
@@ -103,22 +106,22 @@ export function CohortsSketch() {
   );
 }
 
-const EVENTS: readonly { name: PulseEventName; tag: string; tint?: boolean }[] = [
-  { name: 'Viewed Dashboard', tag: 'activation' },
-  { name: 'Applied Filter', tag: 'engagement', tint: true },
-  { name: 'Exported Report', tag: 'intent' },
+const EVENTS: readonly { name: PulseEventName; tint?: boolean }[] = [
+  { name: 'Viewed Dashboard' },
+  { name: 'Applied Filter', tint: true },
+  { name: 'Exported Report' },
 ];
 
 /** Pulse: three of its events, each tagged with the kind of question it answers. */
-export function EventsSketch() {
+export function EventsSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="events">
-      <Head name="Events" note="each answers a question" />
+      <Head name={text.events.name} note={text.events.note} />
       <div className="grid gap-1.5">
-        {EVENTS.map((e) => (
+        {EVENTS.map((e, i) => (
           <div key={e.name} data-event={e.name} className="flex h-6.5 items-center justify-between rounded-md border border-hairline px-2">
             <span className="min-w-0">{e.name}</span>
-            <Tag tone={e.tint ? 'tint' : 'plain'}>{e.tag}</Tag>
+            <Tag tone={e.tint ? 'tint' : 'plain'}>{text.events.tags[i]}</Tag>
           </div>
         ))}
       </div>
@@ -149,52 +152,52 @@ export const CASE_SKETCHES = {
 // Automation ----------------------------------------------------------------------------------
 
 /** The test-account tool: the generic mechanism (record, replay, verify), never the tool's own steps. */
-export function StepsSketch() {
+export function StepsSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="steps">
-      <Head name="Steps" note="recorded once, replayed" />
-      <Row mark={<Tick />} name="Record" />
-      <Row mark={<Tick />} name="Replay" />
-      <Row mark={<Tick />} name="Verify" />
+      <Head name={text.steps.name} note={text.steps.note} />
+      {text.steps.rows.map((name) => (
+        <Row key={name} mark={<Tick />} name={name} />
+      ))}
     </Sketch>
   );
 }
 
 /** Docproof: three agents, the auditor blocking one claim. */
-export function AgentsSketch() {
+export function AgentsSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="agents">
-      <Head name="Agents" note="each one checks the last" />
-      <Row mark={<Tick />} name="Author" end={<span className="text-muted">draft</span>} />
-      <Row mark={<Waiting />} name="Claim auditor" end={<Tag tone="tint">blocked: unsupported claim</Tag>} />
-      <Row mark={<Waiting />} name="Reviewer" end={<span className="text-muted">waiting</span>} />
+      <Head name={text.agents.name} note={text.agents.note} />
+      <Row mark={<Tick />} name={text.agents.author} end={<span className="text-muted">{text.agents.draft}</span>} />
+      <Row mark={<Waiting />} name={text.agents.auditor} end={<Tag tone="tint">{text.agents.blocked}</Tag>} />
+      <Row mark={<Waiting />} name={text.agents.reviewer} end={<span className="text-muted">{text.agents.waiting}</span>} />
     </Sketch>
   );
 }
 
 /** n8n: a three-node workflow. */
-export function WorkflowSketch() {
+export function WorkflowSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="workflow">
-      <Head name="Workflow" note="e-invoice intake" />
+      <Head name={text.workflow.name} note={text.workflow.note} />
       <div className="flex items-center pt-3">
-        <Node>Intake</Node>
+        <Node>{text.workflow.nodes[0]}</Node>
         <Link />
-        <Node>Validate</Node>
+        <Node>{text.workflow.nodes[1]}</Node>
         <Link />
-        <Node>Alert</Node>
+        <Node>{text.workflow.nodes[2]}</Node>
       </div>
     </Sketch>
   );
 }
 
 /** MarketingWS: one brief fanning out to three copy variants (shapes, no words). */
-export function VariantsSketch() {
+export function VariantsSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="variants">
-      <Head name="One brief" note="three copy variants" />
+      <Head name={text.variants.name} note={text.variants.note} />
       <div className="flex items-center gap-0">
-        <Node>Brief</Node>
+        <Node>{text.variants.brief}</Node>
         <span className="h-px w-3 shrink-0 bg-ink" />
         <div className="grid min-w-0 flex-1 gap-1.5 border-l border-ink pl-3">
           {[70, 52, 84].map((w) => (
@@ -210,7 +213,7 @@ export function VariantsSketch() {
 }
 
 /** The automation cards' sketches, by card id. */
-export const AUTOMATION_SKETCHES: Record<string, () => ReactNode> = {
+export const AUTOMATION_SKETCHES: Record<string, (props: SketchProps) => ReactNode> = {
   automation: StepsSketch,
   docproof: AgentsSketch,
   n8n: WorkflowSketch,
@@ -220,17 +223,17 @@ export const AUTOMATION_SKETCHES: Record<string, () => ReactNode> = {
 // How I test ----------------------------------------------------------------------------------
 
 /** Plan: the inputs of a sample size, fixed before the start. */
-export function PlanSketch() {
+export function PlanSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="plan">
-      <Head name="Sample size" note="set before the start" />
-      <MiniRow label="Effect" tag={<Tag>smallest</Tag>}>
+      <Head name={text.plan.name} note={text.plan.note} />
+      <MiniRow label={text.plan.rows[0]!.label} tag={<Tag>{text.plan.rows[0]!.tag}</Tag>}>
         <Bar w={34} />
       </MiniRow>
-      <MiniRow label="Power" tag={<Tag>planned</Tag>}>
+      <MiniRow label={text.plan.rows[1]!.label} tag={<Tag>{text.plan.rows[1]!.tag}</Tag>}>
         <Bar w={72} />
       </MiniRow>
-      <MiniRow label="Run" tag={<Tag tone="tint">fixed</Tag>}>
+      <MiniRow label={text.plan.rows[2]!.label} tag={<Tag tone="tint">{text.plan.rows[2]!.tag}</Tag>}>
         <Bar w={56} />
       </MiniRow>
     </Sketch>
@@ -238,14 +241,14 @@ export function PlanSketch() {
 }
 
 /** Read: the primary metric and a guardrail, as intervals. */
-export function ReadSketch() {
+export function ReadSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="read">
-      <Head name="Readout" note="the metric and its guardrail" />
-      <MiniRow label="Metric" tag={<Tag tone="tint">higher</Tag>}>
+      <Head name={text.read.name} note={text.read.note} />
+      <MiniRow label={text.read.rows[0]!.label} tag={<Tag tone="tint">{text.read.rows[0]!.tag}</Tag>}>
         <IntervalMark left={36} width={44} dot={58} />
       </MiniRow>
-      <MiniRow label="Guard" tag={<Tag>intact</Tag>}>
+      <MiniRow label={text.read.rows[1]!.label} tag={<Tag>{text.read.rows[1]!.tag}</Tag>}>
         <IntervalMark left={28} width={34} dot={44} />
       </MiniRow>
     </Sketch>
@@ -253,14 +256,14 @@ export function ReadSketch() {
 }
 
 /** Recommend: the written recommendation. */
-export function RecommendSketch() {
+export function RecommendSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="recommend">
-      <Head name="Recommendation" note="written down" />
-      <p className="mt-2 text-xl font-semibold">Ship it.</p>
+      <Head name={text.recommend.name} note={text.recommend.note} />
+      <p className="mt-2 text-xl font-semibold">{text.recommend.verdict}</p>
       <span className="mt-3 inline-flex h-7 items-center gap-2 rounded-pill bg-ink px-3 text-surface">
         <span className="size-1.75 rounded-pill bg-series-2" />
-        reasons attached
+        {text.recommend.reasons}
       </span>
     </Sketch>
   );
@@ -275,10 +278,10 @@ export const HOW_SKETCHES = {
 // The site band -------------------------------------------------------------------------------
 
 /** A confidence band narrowing around the difference, over a dashed zero line. No text in the SVG. */
-export function ConfidenceSketch() {
+export function ConfidenceSketch({ text = SKETCH_TEXT_EN }: SketchProps = {}) {
   return (
     <Sketch kind="confidence">
-      <Head name="Confidence over time" note="B minus A, with its band" />
+      <Head name={text.confidence.name} note={text.confidence.note} />
       <svg viewBox="0 0 200 90" preserveAspectRatio="none" className="mt-1 h-28 w-full" aria-hidden="true">
         <line x1="0" y1="60" x2="200" y2="60" stroke="var(--color-muted)" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
         <path d="M0 8 C60 22 120 30 200 34 L200 52 C120 58 60 70 0 86 Z" fill="var(--color-series-ghost)" />

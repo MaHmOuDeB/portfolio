@@ -1,36 +1,19 @@
 // The Weather build note: a public dataset rebuilt in 2026 as a tested SQL pipeline. The frame is
-// the build-note outline (../build-notes/BuildNote.tsx); the prose comes from content/weather.tsx;
-// the evidence is the pipeline diagram and the open table of checks by level, whose counts the
-// source adapter reads from the vendored export (src/lib/weather/checks.ts). Static, server only.
+// the build-note outline (../build-notes/BuildNote.tsx); the prose comes from content/weather.tsx
+// (German: content/de/weather.tsx, picked by `locale`); the evidence is the pipeline diagram and the
+// open table of checks by level, whose counts the source adapter reads from the vendored export
+// (src/lib/weather/checks.ts). Static, server only.
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/kit/DataTable';
 import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
+import { Derived } from '@/components/kit/Derived';
 import { ProvenanceBadge } from '@/components/kit/ProvenanceBadge';
-import { checkLevels, weatherProvenance } from '@/lib/weather/checks';
-import {
-  CHECK_LEVEL_COPY,
-  CHECK_LEVELS_TITLE,
-  WEATHER_ARCHITECTURE,
-  WEATHER_CHECKS,
-  WEATHER_CLOSE,
-  WEATHER_GLANCE,
-  WEATHER_H1,
-  WEATHER_LIMITS,
-  WEATHER_OUTCOME,
-  WEATHER_PIPELINE,
-  WEATHER_PIPELINE_CAPTION,
-  WEATHER_PIPELINE_LEAD_IN,
-  WEATHER_PIPELINE_TITLE,
-  WEATHER_PROBLEM,
-  WEATHER_QUIET,
-  WEATHER_REPO,
-  WEATHER_TESTS,
-  WEATHER_TITLE,
-  WeatherIntro,
-  WeatherPipelineTakeaway,
-  WeatherSources,
-} from '../../../content/weather';
+import { KIT_TEXT_EN } from '@/components/kit/text';
+import type { Locale } from '@/lib/i18n/locale';
+import { checkLevels, sparsePlaceThreshold, weatherProvenance } from '@/lib/weather/checks';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
+import { RebuildYear, WEATHER_REPO, WEATHER_TITLE, WeatherSources, type WeatherCopy, type WeatherSlots } from '../../../content/weather';
 import {
   BUILD_NOTE_SECTIONS,
   BuildNote,
@@ -40,17 +23,26 @@ import {
   Paragraphs,
   TEXT,
 } from '../build-notes/BuildNote';
+import { buildNoteText } from '../build-notes/copy';
 import { NoteShot } from '../build-notes/NoteShot';
+import { keyed, noteSlots, numberLocale } from '../build-notes/slots';
+import { weatherCopy } from './copy';
 
 export { WEATHER_TITLE };
 export const WEATHER_SECTIONS = BUILD_NOTE_SECTIONS;
 
 /** The stages as an ordered list, so the diagram is its own text alternative. */
-function PipelineDiagram() {
+function PipelineDiagram({ copy, slots, locale }: { copy: WeatherCopy; slots: WeatherSlots; locale: Locale }) {
   return (
-    <Figure kind="diagram" id="weather-pipeline" title={WEATHER_PIPELINE_TITLE} caption={WEATHER_PIPELINE_CAPTION}>
+    <Figure
+      kind="diagram"
+      id="weather-pipeline"
+      title={copy.pipeline.title}
+      caption={copy.pipeline.caption}
+      text={locale === 'de' ? KIT_TEXT_DE : KIT_TEXT_EN}
+    >
       <ol className="grid max-w-text gap-0">
-        {WEATHER_PIPELINE.map((stage, i) => (
+        {copy.pipeline.stages(slots).map((stage, i) => (
           <li key={stage.id} data-stage={stage.id}>
             {i > 0 ? <DiagramConnector /> : null}
             <div className={stage.nodes.length > 1 ? 'grid gap-3 xs:grid-cols-2' : ''}>
@@ -67,81 +59,91 @@ function PipelineDiagram() {
 }
 
 /** The checks at each level and what a failure does: a sourced table with its heading and badge. */
-function CheckLevelsTable() {
+function CheckLevelsTable({ copy, locale }: { copy: WeatherCopy; locale: Locale }) {
+  const { levels } = copy;
   const table = {
-    columns: ['Level', 'Checks', 'When one fails'],
-    rows: checkLevels().map(({ level, count }) => [CHECK_LEVEL_COPY[level].name, count, CHECK_LEVEL_COPY[level].onFail]),
+    columns: [...levels.columns],
+    rows: checkLevels().map(({ level, count }) => [levels.copy[level].name, count, levels.copy[level].onFail]),
     formats: ['number', 'count', 'number'] as ('number' | 'count')[],
     refs: ['weather.checks.error_count', 'weather.checks.count', 'source:weather'] as const,
   };
+  const kit = locale === 'de' ? KIT_TEXT_DE : KIT_TEXT_EN;
   return (
     <div className="max-w-figure">
       <h3 id="check-levels-heading" className={`${TEXT} text-xl font-semibold`}>
-        {CHECK_LEVELS_TITLE}
+        {levels.title}
       </h3>
       <div className="mt-3">
         <div className="[&_table]:w-full">
-          <DataTable id="check-levels" caption={CHECK_LEVELS_TITLE} table={table} mode="open" />
+          <DataTable id="check-levels" caption={levels.title} table={table} mode="open" text={kit} />
         </div>
       </div>
       <div className="mt-2">
-        <ProvenanceBadge kind={weatherProvenance()} />
+        <ProvenanceBadge kind={weatherProvenance()} text={kit.badge} />
       </div>
     </div>
   );
 }
 
-export function WeatherPage(): ReactNode {
+export function WeatherPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = weatherCopy(locale);
+  const text = buildNoteText(locale);
+  const slots: WeatherSlots = {
+    ...noteSlots(locale),
+    threshold: (
+      <Derived value={sparsePlaceThreshold()} unit="count" refs={['source:weather']} locale={numberLocale(locale)} />
+    ),
+    year: <RebuildYear />,
+  };
   const code = `${WEATHER_REPO.base}/tree/${WEATHER_REPO.commit}`;
   return (
     <BuildNote
       slug="weather"
-      title={WEATHER_H1}
-      quiet={WEATHER_QUIET}
-      intro={<WeatherIntro />}
-      actions={[{ href: code, label: 'See the code on GitHub', icon: 'github', external: true }]}
-      glance={WEATHER_GLANCE}
+      locale={locale}
+      title={copy.h1}
+      quiet={copy.quiet}
+      intro={copy.intro(slots)}
+      actions={[{ href: code, label: text.github, icon: 'github', external: true }]}
+      glance={copy.glance(slots)}
       sections={{
-        problem: <Paragraphs items={WEATHER_PROBLEM} />,
+        problem: <Paragraphs items={keyed(copy.problem(slots))} />,
         architecture: (
           <>
-            <Paragraphs items={WEATHER_ARCHITECTURE} />
-            <LeadIn>{WEATHER_PIPELINE_LEAD_IN}</LeadIn>
+            <Paragraphs items={keyed(copy.architecture(slots))} />
+            <LeadIn label={text.leadIn}>{copy.pipeline.leadIn}</LeadIn>
             <FigureSheet>
-              <PipelineDiagram />
+              <PipelineDiagram copy={copy} slots={slots} locale={locale} />
             </FigureSheet>
-            <Takeaway>
-              <WeatherPipelineTakeaway />
-            </Takeaway>
+            <Takeaway label={text.takeaway}>{copy.pipeline.takeaway(slots)}</Takeaway>
           </>
         ),
         'how-i-checked-this': (
           <>
-            <Paragraphs items={WEATHER_CHECKS} />
-            <FigureSheet label="Screenshot">
-              <NoteShot shot="weatherChecks" />
+            <Paragraphs items={keyed(copy.checks(slots))} />
+            <FigureSheet label={text.screenshot}>
+              <NoteShot shot="weatherChecks" locale={locale} />
             </FigureSheet>
             <FigureSheet>
-              <CheckLevelsTable />
+              <CheckLevelsTable copy={copy} locale={locale} />
             </FigureSheet>
-            <MethodDetails summary="The unit tests">
-              <Paragraphs items={WEATHER_TESTS} />
+            <MethodDetails summary={copy.tests.summary}>
+              <Paragraphs items={keyed(copy.tests.body(slots))} />
             </MethodDetails>
           </>
         ),
-        outcome: <Paragraphs items={WEATHER_OUTCOME} />,
+        outcome: <Paragraphs items={keyed(copy.outcome(slots))} />,
         limits: (
           <div className={TEXT}>
-            <NoteList items={WEATHER_LIMITS} />
+            <NoteList items={keyed(copy.limits(slots))} />
           </div>
         ),
         sources: (
           <div className={TEXT}>
-            <WeatherSources />
+            <WeatherSources copy={copy.sources} />
           </div>
         ),
       }}
-      close={{ body: <p>{WEATHER_CLOSE}</p>, links: [{ href: code, label: 'See the code on GitHub', external: true }] }}
+      close={{ body: <p>{copy.close}</p>, links: [{ href: code, label: text.github, external: true }] }}
     />
   );
 }

@@ -217,12 +217,12 @@ describe('links', () => {
 });
 
 describe('the route', () => {
-  const route = readFileSync(join(repo, 'src/app/work/n8n/page.tsx'), 'utf8');
+  const route = readFileSync(join(repo, 'src/app/(en)/work/n8n/page.tsx'), 'utf8');
 
   it('is a plain static page that renders the composition, and it is live', async () => {
     expect(route).toMatch(/<N8nPage \/>/);
     expect(route).not.toMatch(/revalidate|dynamic|searchParams|cookies\(|headers\(/);
-    const mod = (await import('@/app/work/n8n/page')) as {
+    const mod = (await import('@/app/(en)/work/n8n/page')) as {
       default: () => React.ReactNode;
       metadata: { title?: unknown; description?: unknown };
     };
