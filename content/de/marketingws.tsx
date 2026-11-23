@@ -72,7 +72,7 @@ export const MARKETINGWS_DE: MarketingwsCopy = {
       {
         id: 'translate',
         name: 'Übersetzung',
-        text: 'Auf Wunsch der aktuelle Entwurf auf Deutsch, Französisch, Spanisch, Italienisch, Portugiesisch oder Niederländisch, mit Hashtags und Platzhaltern.',
+        text: 'Auf Wunsch der aktuelle Entwurf auf Deutsch, Französisch, Spanisch, Italienisch, Portugiesisch oder Niederländisch, wobei Hashtags und Platzhalter erhalten bleiben.',
       },
       {
         id: 'output',
@@ -109,7 +109,7 @@ export const MARKETINGWS_DE: MarketingwsCopy = {
     [
       'thesis',
       <>
-        Professionelle Marketingfachleute haben die Version der Masterarbeit in zwei Runden evaluiert. Diese
+        Marketingfachleute aus der Praxis haben die Version der Masterarbeit in zwei Runden evaluiert. Diese
         Evaluation deckt nicht ab, was der Neuaufbau hinzugefügt hat: das Überarbeiten des aktuellen Entwurfs, seine
         Übersetzung, die Textvarianten und die Prüfung.
       </>,

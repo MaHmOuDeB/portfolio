@@ -43,12 +43,12 @@ export const BUILD_NOTE_TEXT_DE: BuildNoteText = {
   shots: {
     marketingwsBrief: {
       alt: 'Das Formular „Brief“ in MarketingWS, ausgefüllt für einen LinkedIn-Beitrag in professionellem Ton, auf Englisch, über ein Fahrradreparatur-Café in der Nachbarschaft, das samstags öffnet, für Studierende und junge Berufstätige in Berlin, mit der Anweisung, freundlich zu sein, keine Emojis zu verwenden und mit den Öffnungszeiten zu enden.',
-      caption: 'Der Brief: ein Kampagnentyp, eine Plattform, ein Ton, eine Sprache und ein paar Zeilen zum Angebot.',
+      caption: 'Das Briefing: ein Kampagnentyp, eine Plattform, ein Ton, eine Sprache und ein paar Zeilen zum Angebot.',
     },
     marketingwsDraft: {
       alt: 'Das Feld „First draft“ in MarketingWS: ein kurzer LinkedIn-Beitrag über das Fahrradreparatur-Café, mit einem Platzhalter, wo eine Prozentzahl stehen würde, mit Hashtags und den Öffnungszeiten am Ende.',
       caption:
-        'Der erste Entwurf, den das Tool geliefert hat. Wo der Brief keine Zahl nennt, lässt der Entwurf einen Platzhalter stehen, statt eine zu erfinden.',
+        'Der erste Entwurf, den das Tool geliefert hat. Wo das Briefing keine Zahl nennt, lässt der Entwurf einen Platzhalter stehen, statt eine zu erfinden.',
       label: 'der erste Entwurf',
     },
     weatherChecks: {
@@ -57,9 +57,9 @@ export const BUILD_NOTE_TEXT_DE: BuildNoteText = {
         'Der Datenqualitätsschritt der Pipeline, die ich auf einem öffentlichen Wetterdatensatz neu aufgebaut habe. Jede Prüfung auf Fehlerstufe besteht; die Warnungen benennen die Sensorfehler, die ich in Quarantäne gestellt habe, und die Orte mit zu wenigen Beobachtungen.',
     },
     n8nDecision: {
-      alt: 'Ausschnitt einer n8n-Workflow-Fläche: Sie prüft die Anfrage, liest und prüft die Rechnungszeile und leitet das Ergebnis dann entweder zum Aktualisieren des Registers oder zu einer Fehlerantwort weiter.',
+      alt: 'Ausschnitt einer n8n-Workflow-Fläche, die die Anfrage prüft, die Rechnungszeile liest und prüft und das Ergebnis dann entweder zum Aktualisieren des Registers oder zu einer Fehlerantwort weiterleitet.',
       caption:
-        'Der Freigabeschritt: Eine Person gibt eine Rechnung frei oder lehnt sie ab, wenn sie einen Blick braucht, und jede andere Antwort ist ein klarer Fehlercode.',
+        'Der Freigabeschritt: Eine Person gibt eine Rechnung, die geprüft werden muss, frei oder lehnt sie ab, und jede andere Antwort ist ein klarer Fehlercode.',
       label: 'die Workflow-Fläche',
     },
   },

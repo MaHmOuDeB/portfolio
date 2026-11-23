@@ -52,7 +52,7 @@ export const N8N_DE: N8nCopy = {
       'intake',
       <>
         Rechnungen kommen per Upload oder aus einem Gmail-Postfach, als XRechnung (CII oder UBL), ZUGFeRD oder
-        Factur-X. Der Eingang prüft Summen, Umsatzsteuer, Daten, Steuer-IDs, die IBAN-Prüfsumme und die Währung,
+        Factur-X. Der Eingang prüft Summen, Umsatzsteuer, Datumsangaben, Steuer-IDs, die IBAN-Prüfsumme und die Währung,
         findet Dubletten auch über Formate hinweg, markiert geänderte Bankdaten und archiviert das Original Byte für
         Byte. Bekannte, einwandfreie Rechnungen werden automatisch freigegeben; die übrigen gehen an eine Person.
       </>,
@@ -72,11 +72,11 @@ export const N8N_DE: N8nCopy = {
         label: 'Eingang von E-Rechnungen',
         steps: [
           { name: 'Eingang', detail: 'Upload-Adresse oder Gmail-Postfach' },
-          { name: 'Lesen und prüfen', detail: 'Summen, Umsatzsteuer, Daten, Steuer-IDs, IBAN, Währung' },
+          { name: 'Lesen und prüfen', detail: 'Summen, Umsatzsteuer, Datumsangaben, Steuer-IDs, IBAN, Währung' },
           { name: 'Vergleichen', detail: 'Dubletten und geänderte Bankdaten' },
           { name: 'Archivieren', detail: 'Das Original, Byte für Byte' },
           [
-            { name: 'Automatisch freigegeben', detail: 'Einwandfreie Rechnungen' },
+            { name: 'Automatisch freigegeben', detail: 'Bekannte, einwandfreie Rechnungen' },
             { name: 'An eine Person', detail: 'Alles andere, zum Freigeben oder Ablehnen' },
           ],
         ],
@@ -103,7 +103,7 @@ export const N8N_DE: N8nCopy = {
       <>
         {s.fact('profile.n8n.automated_tests')} automatisierte Tests decken die Workflows, den Installer, die
         Rechnungslogik, Ende-zu-Ende-Uploads, den E-Mail-Eingang und die Fehlerbenachrichtigungen ab. Der letzte
-        Durchlauf hat alles auf einem frischen n8n installiert, mit Smoke-Tests und einem Abnahmetest, wie ihn ein
+        Durchlauf hat alles auf einem neu aufgesetzten n8n installiert, mit Smoke-Tests und einem Abnahmetest, wie ihn ein
         Auftraggeber durchführen würde.
       </>,
     ],
@@ -127,9 +127,9 @@ export const N8N_DE: N8nCopy = {
     [
       'ships',
       <>
-        Es wird mit einem Installer geliefert, der Prüfungen, einen Probelauf und sichere Wiederholungen hat; einem
+        Das Projekt wird mit einem Installer geliefert, der Prüfungen, einen Probelauf und sichere Wiederholungen hat; einem
         Docker-Compose-Stack mit PostgreSQL, HTTPS über Caddy und einer festgelegten n8n-Version; sowie Skripten für
-        Sicherung, Wiederherstellung und Gesundheitsprüfung. Eine Wiederherstellung nach dem Verlust aller
+        Sicherung, Wiederherstellung und Health-Checks. Eine Wiederherstellung nach dem Verlust aller
         Daten-Volumes wurde verifiziert.
       </>,
     ],
@@ -160,7 +160,7 @@ export const N8N_DE: N8nCopy = {
     [
       'needs',
       <>
-        Es erwartet ein selbst gehostetes n8n, das das zlib-Modul erlaubt (ohne es gehen PDF-Rechnungen an eine
+        Das Projekt erwartet ein selbst gehostetes n8n, das das zlib-Modul erlaubt (ohne es gehen PDF-Rechnungen an eine
         Person), und ein SMTP-Konto.
       </>,
     ],

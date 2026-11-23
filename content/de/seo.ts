@@ -111,7 +111,7 @@ export const SEO_PAGES_DE: SeoPagesDe = {
     card: 'site',
   },
   '/work/n8n': {
-    title: 'E-Rechnungs-Eingang und Fehlerbenachrichtigungen in n8n',
+    title: 'Eingang von E-Rechnungen und Fehlerbenachrichtigungen in n8n',
     description: `Liest und prüft Rechnungen im Format XRechnung und ZUGFeRD, meldet Duplikate und geänderte Bankdaten und schlägt bei Fehlern Alarm. ${factText('profile.n8n.automated_tests', { locale: 'de' })} automatisierte Tests. Ein persönliches Projekt.`,
     card: 'site',
   },

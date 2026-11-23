@@ -35,7 +35,7 @@ export const WEATHER_DE: WeatherCopy = {
     when: '2026 neu aufgebaut.',
     scope: (
       <>
-        Ein persönliches Projekt auf einem öffentlichen Datensatz, {s.year} aus meinem Masterprojekt neu aufgebaut.
+        Ein persönliches Projekt mit einem öffentlichen Datensatz, {s.year} aus meinem Masterprojekt neu aufgebaut.
       </>
     ),
   }),
@@ -43,7 +43,7 @@ export const WEATHER_DE: WeatherCopy = {
     [
       'data',
       <>
-        Die Daten sind eine breite Datei von Kaggle, der {WEATHER_DATASET.name}. Einige ihrer Messwerte können nicht stimmen.
+        Die Daten sind eine breite Datei von Kaggle: das {WEATHER_DATASET.name}. Einige ihrer Messwerte können nicht stimmen.
       </>,
     ],
     [
@@ -76,7 +76,7 @@ export const WEATHER_DE: WeatherCopy = {
     leadIn: 'Folgen Sie einem Messwert von der Datei bis ins Warehouse oder in die Quarantäne.',
     takeaway: (s) => (
       <>
-        Schlechte Messwerte werden weder für wahr gehalten noch weggeworfen: {s.fact('weather.quarantine.rows')} liegen
+        Schlechte Messwerte werden weder ungeprüft übernommen noch weggeworfen: {s.fact('weather.quarantine.rows')} liegen
         in Quarantäne.
       </>
     ),
@@ -194,7 +194,7 @@ export const WEATHER_DE: WeatherCopy = {
       'plausible',
       <>
         Die Prüfungen zeigen, dass die Daten vollständig, konsistent und plausibel sind, nicht dass sie richtig sind:
-        Ein falscher Messwert innerhalb seines Bereichs besteht.
+        Ein falscher Messwert innerhalb seines Bereichs kommt durch.
       </>,
     ],
     [

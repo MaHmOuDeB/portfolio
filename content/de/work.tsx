@@ -88,7 +88,7 @@ export const WORK_DE: WorkCopy = {
         {
           href: HOME_LINKS.n8n,
           chip: 'Persönliches Projekt',
-          title: 'E-Rechnungs-Eingang und Fehlerbenachrichtigungen in n8n',
+          title: 'Eingang von E-Rechnungen und Fehlerbenachrichtigungen in n8n',
           shows: 'Ich kann einen Back-Office-Prozess automatisieren und mit Tests belegen, dass er funktioniert.',
           description: (
             <>

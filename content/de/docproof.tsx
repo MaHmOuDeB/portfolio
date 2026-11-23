@@ -21,7 +21,7 @@ export const DOCPROOF_DE: DocproofCopy = {
     outcome: 'Agenten schlagen die Änderungen vor; deterministische Prüfungen entscheiden, was bei den Lesern ankommt.',
     role: 'Entworfen und gebaut.',
     methods:
-      'Eine einzige Faktenbasis, Prüfung von Behauptungen, Multi-Agenten-Orchestrierung (Autor, Prüfer, kontextfreier Gutachter), Prüfungen der Darstellung.',
+      'Eine einzige Faktenbasis, Prüfung von Behauptungen, Multi-Agenten-Orchestrierung (Autor, Prüfer, kontextfreier Gutachter), Rendering-Prüfungen.',
     tools: 'Python, Claude-Code-Agenten und -Skills, Headless Chrome, GitHub Actions.',
     when: '2026.',
     scope: 'Open Source (MIT), 2026 gebaut. Noch keine Nutzer.',
@@ -38,8 +38,8 @@ export const DOCPROOF_DE: DocproofCopy = {
     [
       'split',
       <>
-        Docproof teilt die Arbeit in zwei: Deterministische Werkzeuge erledigen die Teile, die exakt sein müssen und
-        zeigen können, was sie geändert haben, und Agenten mit getrennten Rollen treffen die Ermessensentscheidungen.
+        Docproof teilt die Arbeit in zwei: Deterministische Werkzeuge erledigen die Teile, die exakt sein müssen, und
+        können zeigen, was sie geändert haben, und Agenten mit getrennten Rollen treffen die Ermessensentscheidungen.
         Nichts, was ein Agent schreibt, erreicht die Leser, ohne die Prüfungen der Werkzeuge zu bestehen.
       </>,
     ],
@@ -50,7 +50,7 @@ export const DOCPROOF_DE: DocproofCopy = {
       <>
         Eine Markdown-Datei, die Faktenbasis, ist die einzige Quelle der Wahrheit. Sie führt auch bekannte Lücken auf:
         Dinge, die ein Dokument nie behaupten darf. Ein Python-Kommandozeilenwerkzeug baut Word-Dateien aus
-        strukturierten Daten, schreibt chirurgische Änderungen in eine neue Datei, die alles andere Byte für Byte
+        strukturierten Daten, schreibt punktgenaue Änderungen in eine neue Datei, die alles andere Byte für Byte
         gleich lässt, und setzt gestaltete PDFs mit Headless Chrome.
       </>,
     ],
@@ -136,7 +136,7 @@ export const DOCPROOF_DE: DocproofCopy = {
       'mechanical',
       <>
         Die Prüfungen sind mechanisch. Die Verify-Prüfung lässt eine Zahl durch, wenn sie irgendwo in der Faktenbasis
-        vorkommt, sodass auch eine richtige Zahl an der falschen Behauptung durchgeht, und sie überspringt Daten und
+        vorkommt, sodass auch eine richtige Zahl an der falschen Behauptung durchgeht, und sie überspringt Datumsangaben und
         Jahreszahlen. Wortwahl und Geltungsbereich zu beurteilen bleibt dem Prüfer-Agenten und dem Orchestrator
         überlassen.
       </>,
@@ -156,7 +156,7 @@ export const DOCPROOF_DE: DocproofCopy = {
     [
       'models',
       <>
-        Es wurde mit Claude-Modellen getestet. Andere Assistenten werden vom Entwurf her unterstützt, über einen
+        Es wurde mit Claude-Modellen getestet. Andere Assistenten werden konzeptionell unterstützt, über einen
         Klartext-Prompt und eine JSON-Antwort, aber nicht getestet.
       </>,
     ],

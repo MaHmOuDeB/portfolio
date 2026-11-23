@@ -21,7 +21,7 @@ import { N8nPage } from '@/components/n8n/N8nPage';
 import { WeatherPage } from '@/components/weather/WeatherPage';
 import { NOTE_SHOTS } from '@/components/build-notes/note-shots';
 import { FACTS, FACT_DISPLAYS_DE } from '@/lib/facts';
-import { checkLevels } from '@/lib/weather/checks';
+import weatherJson from '../../../data/sources/weather.json';
 import { auditHtml } from '../../../scripts/truth-audit.ts';
 import { withoutCta } from '../page-cta';
 import { decode, section, text } from './helpers';
@@ -155,7 +155,7 @@ describe('what stays English', () => {
     expect(table).toContain('Stufe Prüfungen Wenn eine fehlschlägt');
     expect(table).toContain('Fehler');
     expect(table).toContain('Warnung');
-    expect(checkLevels().length).toBe(3);
+    for (const c of weatherJson.tables.checks) expect(prose(PAGES.weather.de)).not.toContain(c.name);
     expect(prose(PAGES.weather.de)).toContain('Öffentliche Daten');
   });
 
@@ -164,6 +164,10 @@ describe('what stays English', () => {
     expect(words).toContain('Textvarianten');
     expect(words).not.toMatch(/Experiment|A\/B/);
     expect(PAGES.marketingws.de).toContain('<p data-demo-note="">Die Live-Demo hängt vom kostenlosen Kontingent von Groq ab.</p>');
+  });
+
+  it('n8n: the h1 carries its soft hyphen for narrow screens', () => {
+    expect(PAGES.n8n.de).toContain('Fehler\u00ADbenachrichtigungen');
   });
 
   it('n8n: the test count is a Fact and the project is no client work', () => {
