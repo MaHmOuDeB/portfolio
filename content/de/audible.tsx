@@ -111,11 +111,11 @@ export const AUDIBLE_DE: AudibleCopy = {
     sources: { title: 'Quellen und Links', link: 'Quellen' },
   },
   shipRule: [
-    'Chapter Club ist ein Lesekreis-Produkt, das ich für dieses Beispiel erfunden habe. Seine Hauptmetrik ist der Sitzungsabschluss, und seine Guardrail-Metrik sind Hilfeanfragen, bei denen ein Anstieg schlecht ist. Eine Guardrail-Metrik (eine Schutzmetrik) darf nicht schlechter werden, damit eine Änderung ausgerollt wird, auch wenn sich die Hauptmetrik verbessert.',
+    'Chapter Club ist ein Lesekreis-Produkt, das ich für dieses Beispiel erfunden habe. Seine Hauptmetrik ist der Sitzungsabschluss, und seine Guardrail-Metrik sind Hilfeanfragen, bei denen ein Anstieg schlecht ist. Eine Guardrail-Metrik (eine Schutzmetrik) darf nicht schlechter werden, wenn eine Änderung ausgerollt werden soll, auch wenn sich die Hauptmetrik verbessert.',
     'Das veranschaulicht den allgemeinen Ansatz; die Teams ließen auch neutrale Ergebnisse zu, solange die Guardrail-Metriken intakt blieben.',
   ],
   shipLeadIn:
-    'Eine Änderung wird ausgerollt, wenn die Hauptzahl steigt und die Sicherheitszahl nicht schlechter wird. Verschieben Sie die Enden der beiden Bereiche und beobachten Sie, wie sich die Entscheidung ändert.',
+    'Eine Änderung wird ausgerollt, wenn die Hauptzahl steigt und die Schutzmetrik nicht schlechter wird. Verschieben Sie die Enden der beiden Bereiche und beobachten Sie, wie sich die Entscheidung ändert.',
   shipTakeaway:
     'Die Entscheidung ergibt sich daraus, wo die Bereiche liegen, nach einer vorab festgelegten Regel, und nicht daraus, was jemand von der Änderung hält.',
   whySoMany: {
@@ -155,23 +155,23 @@ export const AUDIBLE_DE: AudibleCopy = {
     withToolSource: ['Im ganzen Team übernommen, in ', slot('markets'), ' Märkten.'],
   },
   adoption:
-    'Damit das Team es übernimmt, habe ich eine Anleitung zur Installation und Nutzung geschrieben, ein Q&A-Treffen mit Stakeholdern abgehalten und ein Video aufgenommen, das die Nutzung zeigt. Eine Nutzungszahl dazu habe ich nicht.',
+    'Damit das Team es übernimmt, habe ich eine Anleitung zur Installation und Nutzung geschrieben, eine Fragerunde mit Stakeholdern abgehalten und ein Video aufgenommen, das die Nutzung zeigt. Eine Nutzungszahl dazu habe ich nicht.',
   method:
     'Bevor ein Test startete, habe ich seine Stichprobengröße und seine Laufzeit geplant. Nach seinem Ende habe ich die Signifikanztests gemacht und das Ergebnis an den Metriken des Teams gemessen, das ihn durchgeführt hat.',
   summaries: { teams: 'Die Teams und ihre Metriken', checked: 'Wie ich geprüft habe', data: 'Warum hier keine Ergebnisse stehen' },
   teamsFirst: [
     'Während meiner Zeit dort habe ich nacheinander mit ',
     slot('teams'),
-    ' Teams gearbeitet, je nachdem, wie die Teams neu organisiert wurden: Onsite & App Experience, Early Engagement und Emerging Member Experience.',
+    ' Teams gearbeitet, jeweils nach einer Neuorganisation der Teams: Onsite & App Experience, Early Engagement und Emerging Member Experience.',
   ],
   teamsRest: [
-    'Die Kennzahlen-Frameworks gehörten den Teams selbst. Bei Onsite & App Experience war der Umsatz die primäre Metrik und die Hörminuten die sekundäre; bei Early Engagement war es umgekehrt. Beide nutzten Churn und den inkrementellen langfristigen Wert (ILTV) als Guardrail-Metriken: Metriken, die nicht schlechter werden dürfen.',
+    'Die Kennzahlen-Frameworks gehörten den Teams selbst. Bei Onsite & App Experience war der Umsatz die primäre Metrik, und die Hörminuten waren die sekundäre; bei Early Engagement war es umgekehrt. Beide nutzten Churn und den inkrementellen langfristigen Wert (ILTV) als Guardrail-Metriken: Metriken, die nicht schlechter werden dürfen.',
     'Aus der Analyse habe ich eine Empfehlung erstellt, und mein Manager hat der Entscheidung zugestimmt.',
   ],
   checks: [
     'Die Planung von Stichprobengröße und Laufzeit vor jedem Test und die Signifikanztests danach habe ich selbst gemacht.',
     'Ich habe Tests auch aufgesetzt, nicht nur ausgewertet.',
-    'Die Ausrollregel auf dieser Seite ist per Unit-Test geprüft: Jede Kombination von Grenzen ergibt genau eine der vier Entscheidungen, und Grenzen bei null und an der Grenze der Guardrail-Metrik fallen auf die genannte Seite.',
+    'Die Ausrollregel auf dieser Seite ist per Unit-Test geprüft: Jede Kombination von Intervallenden ergibt genau eine der vier Entscheidungen, und Enden, die genau auf null oder auf der Grenze der Guardrail-Metrik liegen, fallen auf die angegebene Seite.',
   ],
   data: 'Die Tests liefen auf den internen Experimentierplattformen von Amazon, in der Audible-App und auf der Website. Ihre Ergebnisse sind nicht öffentlich, deshalb verwendet das Beispiel auf dieser Seite ein erfundenes Produkt.',
   limits: [

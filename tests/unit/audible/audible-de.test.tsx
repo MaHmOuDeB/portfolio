@@ -12,7 +12,7 @@ import GermanAudibleRoute, { metadata } from '@/app/de/work/audible/page';
 import { AudiblePage } from '@/components/audible/AudiblePage';
 import { FrameworkFigure } from '@/components/audible/FrameworkFigure';
 import { FrameworkControls } from '@/components/audible/FrameworkFigureClient';
-import { frameworkAnnouncement, frameworkTable } from '@/components/audible/FrameworkView';
+import { FrameworkResult, frameworkAnnouncement, frameworkTable } from '@/components/audible/FrameworkView';
 import { FRAMEWORK_DEFAULTS, type FrameworkValues } from '@/lib/audible/framework';
 import { FRAMEWORK_ID } from '@/lib/audible/framework-url';
 import { EN_FRAMEWORK } from '@/lib/audible/text';
@@ -149,6 +149,21 @@ describe('the German ship-rule Figure', () => {
     expect(t).toContain('Zurücksetzen');
     expect(t).toContain('genauer Wert');
     expect(html).toContain('value="1.0"');
+  });
+
+  it('words each of the four decisions in German, so a swap of two fails', () => {
+    const cases: [FrameworkValues, string, string][] = [
+      [values, 'ship', 'Ausrollen'],
+      [{ primaryLower: -1, primaryUpper: 3, guardrailUpper: 1 }, 'ship-neutral', 'Darf ausgerollt werden'],
+      [{ primaryLower: -4, primaryUpper: -1, guardrailUpper: 1 }, 'harm', 'Stopp'],
+      [{ primaryLower: 1, primaryUpper: 4, guardrailUpper: 5 }, 'hold', 'Zurückhalten'],
+    ];
+    for (const [v, decision, word] of cases) {
+      const html = renderToString(<FrameworkResult values={v} text={AUDIBLE_DE.framework} />);
+      expect(html, decision).toContain(`data-framework-decision="${decision}"`);
+      expect(text(html), decision).toContain(`${word}: `);
+      expect(text(html).startsWith(word), decision).toBe(true);
+    }
   });
 
   it('announces and tabulates in German, and in English by default', () => {

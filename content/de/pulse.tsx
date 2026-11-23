@@ -28,7 +28,7 @@ const FIGURE_DE: PulseText = {
     trials_started: { label: 'Gestartete Testphasen', inline: 'gestartete Testphasen' },
   },
   controls: { channel: 'Kanal', range: 'Zeitraum' },
-  result: ['Angezeigt: ', slot('channel'), ' in den letzten ', slot('range'), '.'],
+  result: ['Angezeigt: ', slot('channel'), ', Zeitraum ', slot('range'), '.'],
   chartName: 'Erfundene {chart} pro Tag für {channel}, im gewählten Zeitraum',
   axis: { x: 'Tag des Zeitraums', y: '{chart} pro Tag' },
   dashboard: {
@@ -39,7 +39,7 @@ const FIGURE_DE: PulseText = {
     export: 'CSV exportieren',
     save: 'Ansicht speichern',
     load: 'Gespeicherte Ansicht laden',
-    saved: ['Gespeicherte Ansicht: ', slot('channel'), ' in den letzten ', slot('range'), '.'],
+    saved: ['Gespeicherte Ansicht: ', slot('channel'), ', Zeitraum ', slot('range'), '.'],
     savePrompt: 'Speichern Sie zuerst eine Ansicht; dann holt „Gespeicherte Ansicht laden“ sie zurück.',
     summary: ['Im Zeitraum: ', slot('total'), ' insgesamt und ', slot('peak'), ' am aktivsten Tag, Tag ', slot('day'), '.'],
   },
@@ -48,18 +48,18 @@ const FIGURE_DE: PulseText = {
     last: ['Die letzten ', slot('count'), ' Ereignisse, die dieses Dashboard gesendet hat, die neuesten zuerst.'],
     prompt: ['Lokale Demo-Prompt-Version: ', slot('version'), '. Das ist der eigene Wert dieser Kopie, nicht der des Originals.'],
     empty: 'Noch keine Ereignisse. Viewed Dashboard kommt an, sobald das Dashboard geladen ist.',
-    needsJs: 'Die Liste braucht JavaScript: Ohne es sendet diese Kopie keine Ereignisse.',
+    needsJs: 'Die Liste braucht JavaScript: Ohne JavaScript sendet diese Kopie keine Ereignisse.',
   },
   table: { day: 'Tag', note: 'Erfundene Zahlen pro Tag für den gezeigten Kanal und Zeitraum, der älteste Tag zuerst.' },
   caption:
     'Eine Kopie des Pulse-Dashboards, mit eigenen Diagrammen und Kanälen und erfundenen Zahlen für ein erfundenes Produkt. Jede Aktion, die ein Ereignis sendet, fügt es der Liste hinzu, das neueste zuerst. Die Ereignisse bleiben auf dieser Seite und sind nicht Teil des Experiments dieser Website.',
   messages: {
     filter: 'Applied Filter gesendet. Angezeigt: {channel}.',
-    range: 'Changed Date Range gesendet. Angezeigt: die letzten {range}.',
-    detail: 'Viewed Chart Detail gesendet. Die Details zu {chart} sind geöffnet.',
+    range: 'Changed Date Range gesendet. Angezeigt: Zeitraum {range}.',
+    detail: 'Viewed Chart Detail gesendet. Details geöffnet: {chart}.',
     exported: 'Exported Report gesendet. Die CSV-Datei mit den erfundenen Zahlen wird heruntergeladen.',
-    saved: 'Saved View gesendet. Die gespeicherte Ansicht zeigt {channel} in den letzten {range}.',
-    loaded: 'Loaded Saved View gesendet. Angezeigt: {channel} in den letzten {range}.',
+    saved: 'Saved View gesendet. Die gespeicherte Ansicht zeigt {channel}, Zeitraum {range}.',
+    loaded: 'Loaded Saved View gesendet. Angezeigt: {channel}, Zeitraum {range}.',
     reset: 'Dashboard zurückgesetzt. Viewed Dashboard gesendet.',
   },
 };
@@ -132,7 +132,7 @@ export const PULSE_DE: PulseCopy = {
     why: [
       'Autocapture erfasst, was Anwender anklicken, aber nicht, welche Produktfrage ein Klick beantworten soll. Pulse stellt eine bewusste Taxonomie an den Anfang: ',
       slot('events'),
-      ' benannte Ereignisse, jedes an eine bestimmte Produktfrage gebunden. Das Dashboard drumherum ist das Vehikel.',
+      ' benannte Ereignisse, jedes an eine bestimmte Produktfrage gebunden. Das Dashboard um sie herum ist das Vehikel.',
     ],
     stack: 'Ich habe Pulse mit React, TypeScript, Vite, Tailwind CSS und Recharts gebaut und mit dem Unified SDK von Amplitude erfasst.',
     named: [
@@ -145,7 +145,7 @@ export const PULSE_DE: PulseCopy = {
     underneath: 'Autocapture und Session Replay laufen unter den benannten Ereignissen mit.',
   },
   checks: [
-    'Ich habe jede erfasste Interaktion von Hand getestet. TypeScript läuft im Strict-Modus ohne Typfehler, Secrets bleiben aus Git heraus, und jeder Push zu GitHub wird auf Vercel bereitgestellt.',
+    'Ich habe jede erfasste Interaktion von Hand getestet. TypeScript läuft im Strict-Modus ohne Typfehler, Secrets gelangen nicht in Git, und jeder Push zu GitHub wird auf Vercel bereitgestellt.',
     'Auf dieser Seite stammen die Ereignisse aus einem Export von Code und README des Projekts, gebunden an einen Commit und an einen Hash seines Inhalts. Tests prüfen, dass die Kopie des Dashboards nur diese Ereignisse sendet, jedes mit genau seinen Eigenschaften, und dass Zurücksetzen ein neues Viewed Dashboard hinterlässt.',
   ],
   limits: {
@@ -155,12 +155,12 @@ export const PULSE_DE: PulseCopy = {
       'Die Kopie auf dieser Seite verwendet die Ereignisnamen und Eigenschaften wieder, aber nicht das Amplitude-Tracking, die Anwenderidentifikation oder Session Replay des Originals, und ihre Zahlen sind erfunden.',
     ],
     keys: [
-      'Die Eigenschaftsschlüssel stimmen mit denen des Originals überein. Außer bei den Zeiträumen und dem CSV-Format sind ihre Werte eigene, etwa ',
+      'Die Eigenschaftsschlüssel der Kopie stimmen mit denen des Originals überein. Außer bei den Zeiträumen und dem CSV-Format hat die Kopie eigene Werte, etwa ',
       slot('filter'),
       ' und die Prompt-Version,',
       ' ',
       slot('version'),
-      ', und ebenso ihre Diagramme und Kanäle.',
+      ', und ebenso eigene Diagramme und Kanäle.',
     ],
   },
   sources: {
@@ -170,7 +170,7 @@ export const PULSE_DE: PulseCopy = {
     linkedin: 'Mein LinkedIn-Profil',
   },
   close: [
-    'Ich plane das Tracking von den Fragen rückwärts: Jedes der ',
+    'Ich plane das Tracking von den Fragen her: Jedes der ',
     slot('events'),
     ' Ereignisse wurde nach einer Frage benannt, die ein Produktteam stellen würde, und das Dashboard ist nur dazu da, sie zu tragen.',
   ],

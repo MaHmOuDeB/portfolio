@@ -101,7 +101,7 @@ describe('the German Pulse page', () => {
   });
 
   it('prints every number in German, through a fact or a derived value', () => {
-    expect(DE_TEXT).toContain('Angezeigt: alle Kanäle in den letzten 30d');
+    expect(DE_TEXT).toContain('Angezeigt: alle Kanäle, Zeitraum 30d');
     const audit = auditHtml(`<!doctype html><html lang="de"><head><title>t</title></head><body>${DE}</body></html>`, {
       route: '/de/work/pulse',
       factIds: new Set(Object.keys(FACTS)),
@@ -188,10 +188,10 @@ describe('the German dashboard Figure', () => {
       />,
     );
     const t = text(html);
-    expect(t).toContain('Angezeigt: Social Media in den letzten 7d.');
+    expect(t).toContain('Angezeigt: Social Media, Zeitraum 7d.');
     expect(t).toContain('Details');
     expect(t).toContain('CSV exportieren Ansicht speichern Gespeicherte Ansicht laden');
-    expect(t).toContain('Gespeicherte Ansicht: Alle Kanäle in den letzten 30d.');
+    expect(t).toContain('Gespeicherte Ansicht: Alle Kanäle, Zeitraum 30d.');
     expect(t).toMatch(/Im Zeitraum: [\d.]+ insgesamt und [\d.]+ am aktivsten Tag, Tag \d+\./);
     expect(html).toContain('aria-label="Details: Anmeldungen"');
     expect(html).toContain('Erfundene Anmeldungen pro Tag für Social Media, im gewählten Zeitraum');
@@ -204,10 +204,10 @@ describe('the German dashboard Figure', () => {
   it('announces in German with the event names in English, and in English by default', () => {
     const m = messagesFor(PULSE_DE.figure);
     expect(m.filter('all')).toBe('Applied Filter gesendet. Angezeigt: alle Kanäle.');
-    expect(m.range('7d')).toBe('Changed Date Range gesendet. Angezeigt: die letzten 7d.');
-    expect(m.detail('trials_started')).toBe('Viewed Chart Detail gesendet. Die Details zu Gestartete Testphasen sind geöffnet.');
-    expect(m.saved(view)).toBe('Saved View gesendet. Die gespeicherte Ansicht zeigt alle Kanäle in den letzten 30d.');
-    expect(m.loaded({ channel: 'search', range: '90d' })).toBe('Loaded Saved View gesendet. Angezeigt: Suche in den letzten 90d.');
+    expect(m.range('7d')).toBe('Changed Date Range gesendet. Angezeigt: Zeitraum 7d.');
+    expect(m.detail('trials_started')).toBe('Viewed Chart Detail gesendet. Details geöffnet: Gestartete Testphasen.');
+    expect(m.saved(view)).toBe('Saved View gesendet. Die gespeicherte Ansicht zeigt alle Kanäle, Zeitraum 30d.');
+    expect(m.loaded({ channel: 'search', range: '90d' })).toBe('Loaded Saved View gesendet. Angezeigt: Suche, Zeitraum 90d.');
     expect(m.reset()).toBe('Dashboard zurückgesetzt. Viewed Dashboard gesendet.');
     expect(pulseMessages.filter('social')).toBe('Applied Filter sent. Showing Social.');
     expect(pulseMessages.saved(view)).toBe('Saved View sent. The saved view is all channels over the last 30d.');
