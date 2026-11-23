@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/i18n/pages', () => ({
   DE_PAGES: ['/', '/work', '/work/audible', '/work/retention', '/work/pulse', '/lab', '/lab/peeking', '/experiment', '/cv', '/contact'],
 }));
+import { DE_PAGES } from '@/lib/i18n/pages';
 
 import GermanAudibleRoute, { metadata } from '@/app/de/work/audible/page';
 import { AudiblePage } from '@/components/audible/AudiblePage';
@@ -87,7 +88,7 @@ describe('the German Audible page', () => {
       factIds: new Set(Object.keys(FACTS)),
       factDisplays: FACT_DISPLAYS_DE,
       denylist: [],
-      pages: ['/work/audible'],
+      pages: DE_PAGES,
     });
     expect(audit).toEqual([]);
   });

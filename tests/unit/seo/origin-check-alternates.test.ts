@@ -46,8 +46,8 @@ describe('hreflang alternates on the canonical origin', () => {
 
 describe('a build that lost its hreflang alternates', () => {
   it('fails closed while the German registry lists pages, as with no canonical', () => {
-    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 0 }, ['/'])).toBe(true);
-    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 2 }, ['/'])).toBe(false);
-    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 0 }, [])).toBe(false);
+    expect(missingAlternates({ alternates: 0 }, ['/'])).toBe(true);
+    expect(missingAlternates({ alternates: 2 }, ['/'])).toBe(false);
+    expect(missingAlternates({ alternates: 0 }, [])).toBe(false);
   });
 });

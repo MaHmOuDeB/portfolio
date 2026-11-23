@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/i18n/pages', () => ({
   DE_PAGES: ['/', '/work', '/work/audible', '/work/retention', '/work/pulse', '/work/weather', '/lab', '/lab/peeking', '/experiment', '/cv', '/contact'],
 }));
+import { DE_PAGES } from '@/lib/i18n/pages';
 
 import GermanPulseRoute, { metadata } from '@/app/de/work/pulse/page';
 import { PulseFigure } from '@/components/pulse/PulseFigure';
@@ -116,7 +117,7 @@ describe('the German Pulse page', () => {
       factIds: new Set(Object.keys(FACTS)),
       factDisplays: FACT_DISPLAYS_DE,
       denylist: [],
-      pages: ['/work/pulse'],
+      pages: DE_PAGES,
     });
     expect(audit).toEqual([]);
   });

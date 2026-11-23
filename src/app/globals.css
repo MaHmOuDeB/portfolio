@@ -72,6 +72,25 @@
   hyphens: manual;
 }
 
+/*
+ * On a phone, a German compound the browser cannot hyphenate (no dictionary, as in WebKit on Linux)
+ * may break anywhere rather than hold a chip, a label or a cell wider than the screen. Unlike the
+ * body's break-word, "anywhere" also lowers minimum widths, so flex and grid items can shrink. Text
+ * that fits is laid out as before. Only inside main: the header and footer size their columns by
+ * their words, which this would crush. A number, a time, code and a table (which scrolls in its own
+ * frame and sizes its columns by their words) keep the body's break-word: they break only when they
+ * cannot fit at all, as on English pages, and never lower a minimum width.
+ */
+@media (width < 40rem) {
+  main:lang(de) {
+    overflow-wrap: anywhere;
+  }
+
+  main:lang(de) :is([data-num], data, time, code, pre, table) {
+    overflow-wrap: break-word;
+  }
+}
+
 @layer base {
   body {
     background: var(--color-bg);
