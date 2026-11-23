@@ -21,7 +21,7 @@ export const MARKETINGWS_DE: MarketingwsCopy = {
       'Es entwirft Texte aus einem Briefing, überarbeitet den aktuellen Entwurf und macht Zahlen und Versprechen, die es nicht stützen kann, zu Platzhaltern.',
     role: 'Eigenständig gebaut (Masterarbeit 2025, Neuaufbau 2026).',
     methods:
-      'Entwurf aus dem Briefing, Überarbeiten und Übersetzen des aktuellen Entwurfs, Faktenprüfung per Code plus Modell, Verhaltensprüfungen; die Masterarbeit wurde mit Marketingfachleuten evaluiert.',
+      'Entwurf aus dem Briefing, Überarbeiten und Übersetzen des aktuellen Entwurfs, Faktenprüfung per Code plus Modell, Verhaltensprüfungen; die Masterarbeit wurde mit Marketern evaluiert.',
     tools: 'Python, FastAPI, Streamlit, Vercel, Groq, OpenAI, Docker.',
     when: 'Masterarbeit Apr. bis Nov. 2025, Neuaufbau live seit Sept. 2026.',
     scope: 'Masterarbeit (2025), 2026 neu aufgebaut.',
@@ -109,7 +109,7 @@ export const MARKETINGWS_DE: MarketingwsCopy = {
     [
       'thesis',
       <>
-        Marketingfachleute aus der Praxis haben die Version der Masterarbeit in zwei Runden evaluiert. Diese
+        Marketer aus der Praxis haben die Version der Masterarbeit in zwei Runden evaluiert. Diese
         Evaluation deckt nicht ab, was der Neuaufbau hinzugefügt hat: das Überarbeiten des aktuellen Entwurfs, seine
         Übersetzung, die Textvarianten und die Prüfung.
       </>,
