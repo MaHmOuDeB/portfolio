@@ -71,7 +71,7 @@ for (const route of DE_ROUTES) {
   });
 }
 
-test('"Ihre Sprachwahl wird nirgends gespeichert": switching language there and back stores nothing', async ({ page, baseURL }) => {
+test('"Diese Website speichert Ihre Sprachwahl nirgends": switching language there and back stores nothing', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const seen = await record(page);
   await page.goto('/de/privacy#cookies-and-storage');

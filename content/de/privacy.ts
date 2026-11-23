@@ -89,7 +89,7 @@ export const PRIVACY_DE: PrivacyCopy = {
       ],
       extra: [
         [
-          'Ihre Sprachwahl wird nirgends gespeichert: Die Links „English“ und „Deutsch“ führen nur zur selben Seite in der anderen Sprache. Die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, wird nicht ausgewertet; welche Sprache Sie sehen, hängt allein von der Adresse ab.',
+          'Diese Website speichert Ihre Sprachwahl nirgends: kein Cookie und nichts im Speicher Ihres Browsers. Die Links „English“ und „Deutsch“ sind gewöhnliche Links. Die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, wird nicht ausgewertet; welche Sprache Sie sehen, hängt allein von der Adresse ab.',
         ],
       ],
     },
