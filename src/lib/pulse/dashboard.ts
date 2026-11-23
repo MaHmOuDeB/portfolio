@@ -10,6 +10,7 @@
 import type { TableData } from '@/components/kit/DataTable';
 import { niceTicks } from '@/lib/figure/scales';
 import type { Presets } from '@/lib/figure/url-state';
+import { EN_PULSE, type PulseText } from './text';
 
 export const PULSE_ID = 'pulse';
 
@@ -47,19 +48,24 @@ export function rangeDays(range: RangeValue): number {
   return Number.parseInt(range, 10);
 }
 
-export function channelLabel(channel: ChannelValue): string {
+export function channelLabel(channel: ChannelValue, text: PulseText = EN_PULSE): string {
   const found = CHANNELS.find((c) => c.value === channel);
   if (!found) throw new RangeError(`pulse: no channel ${channel}`);
-  return found.label;
+  return text.channels[channel].label;
 }
 
 /** The channel as it reads inside a sentence: "all channels", or the channel's name. */
-export function channelPhrase(channel: ChannelValue): string {
-  return channel === 'all' ? 'all channels' : channelLabel(channel);
+export function channelPhrase(channel: ChannelValue, text: PulseText = EN_PULSE): string {
+  return text.channels[channel].phrase;
 }
 
-export function chartLabel(chart: ChartKey): string {
-  return CHARTS.find((c) => c.key === chart)!.label;
+export function chartLabel(chart: ChartKey, text: PulseText = EN_PULSE): string {
+  return text.charts[chart].label;
+}
+
+/** The channel options of the control, labelled in the words' language. */
+export function channelOptions(text: PulseText = EN_PULSE): readonly { value: ChannelValue; label: string }[] {
+  return CHANNELS.map((c) => ({ value: c.value, label: text.channels[c.value].label }));
 }
 
 type Source = Exclude<ChannelValue, 'all'>;
@@ -115,12 +121,12 @@ export function chartTop(chart: ChartKey, view: DashboardView): number {
   return Math.ceil(max / step) * step;
 }
 
-export function dashboardTable(view: DashboardView): TableData {
+export function dashboardTable(view: DashboardView, text: PulseText = EN_PULSE): TableData {
   return {
-    columns: ['Day', ...CHARTS.map((c) => c.label)],
+    columns: [text.table.day, ...CHARTS.map((c) => text.charts[c.key].label)],
     rows: dashboardRows(view).map((r) => [r.day, r.sign_ups, r.trials_started]),
     formats: ['count', 'count', 'count'],
-    note: 'Made-up numbers per day for the channel and range shown, oldest day first.',
+    note: text.table.note,
     refs: ['simulated'],
   };
 }

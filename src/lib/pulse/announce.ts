@@ -7,20 +7,27 @@
 // again on the next frame, so the text changes and is read. A newer, different message cancels a
 // pending repeat, and `dispose` cancels a pending frame when the island unmounts. Pure and
 // client-safe: the island passes React's setter and requestAnimationFrame with cancelAnimationFrame.
+import { fill } from '@/lib/i18n/template';
 import { channelPhrase, chartLabel, type ChannelValue, type ChartKey, type DashboardView, type RangeValue } from '@/lib/pulse/dashboard';
+import { EN_PULSE, type PulseText } from '@/lib/pulse/text';
 
-const over = (view: DashboardView) => `${channelPhrase(view.channel)} over the last ${view.range}`;
+/** The message each committed action announces, in the words' language. */
+export function messagesFor(text: PulseText) {
+  const m = text.messages;
+  const over = (view: DashboardView) => ({ channel: channelPhrase(view.channel, text), range: view.range });
+  return {
+    filter: (channel: ChannelValue) => fill(m.filter, { channel: channelPhrase(channel, text) }),
+    range: (range: RangeValue) => fill(m.range, { range }),
+    detail: (chart: ChartKey) => fill(m.detail, { chart: chartLabel(chart, text) }),
+    exported: () => m.exported,
+    saved: (view: DashboardView) => fill(m.saved, over(view)),
+    loaded: (view: DashboardView) => fill(m.loaded, over(view)),
+    reset: () => m.reset,
+  } as const;
+}
 
 /** The message each committed action announces. */
-export const pulseMessages = {
-  filter: (channel: ChannelValue) => `Applied Filter sent. Showing ${channelPhrase(channel)}.`,
-  range: (range: RangeValue) => `Changed Date Range sent. Showing the last ${range}.`,
-  detail: (chart: ChartKey) => `Viewed Chart Detail sent. The ${chartLabel(chart)} detail is open.`,
-  exported: () => 'Exported Report sent. The CSV file of the made-up numbers is downloading.',
-  saved: (view: DashboardView) => `Saved View sent. The saved view is ${over(view)}.`,
-  loaded: (view: DashboardView) => `Loaded Saved View sent. Showing ${over(view)}.`,
-  reset: () => 'Dashboard reset. Viewed Dashboard sent.',
-} as const;
+export const pulseMessages = messagesFor(EN_PULSE);
 
 /** How the announcer asks for, and cancels, the next frame. */
 export type FrameScheduler = {

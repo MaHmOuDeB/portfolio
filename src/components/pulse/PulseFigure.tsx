@@ -5,18 +5,21 @@
 //
 // `faultAfterChange` is a test seam, absent in production: it is forwarded unchanged to the island,
 // whose charts then throw after a committed change. Only a test host sets it.
+import type { Locale } from '@/lib/i18n/locale';
 import { PULSE_PRESETS } from '@/lib/pulse/dashboard';
 import { pulseTaxonomy } from '@/lib/pulse/taxonomy';
 import { InertPulseControls, PulseFigureClient } from './PulseFigureClient';
+import { pulseCopy } from './copy';
 import { PulseFigureView } from './PulseView';
 
-export function PulseFigure({ faultAfterChange }: { faultAfterChange?: true } = {}) {
+export function PulseFigure({ faultAfterChange, locale = 'en' }: { faultAfterChange?: true; locale?: Locale } = {}) {
   const view = PULSE_PRESETS.default;
-  return (
-    <PulseFigureClient
-      taxonomy={pulseTaxonomy()}
-      preview={<PulseFigureView view={view} controls={<InertPulseControls view={view} />} />}
-      faultAfterChange={faultAfterChange}
-    />
+  // The words go to the client only in a language other than English, so the English payload is unchanged.
+  const text = locale === 'en' ? undefined : pulseCopy(locale).figure;
+  const preview = <PulseFigureView view={view} text={text} controls={<InertPulseControls view={view} text={text} />} />;
+  return text ? (
+    <PulseFigureClient taxonomy={pulseTaxonomy()} preview={preview} faultAfterChange={faultAfterChange} text={text} />
+  ) : (
+    <PulseFigureClient taxonomy={pulseTaxonomy()} preview={preview} faultAfterChange={faultAfterChange} />
   );
 }

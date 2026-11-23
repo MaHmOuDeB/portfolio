@@ -19,7 +19,9 @@ import { CONTROL_ROW, CONTROL_ROW_RESET } from '../figures/control-row';
 import { Slider } from '@/components/kit/Slider';
 import type { FrameworkValues } from '@/lib/audible/framework';
 import { FRAMEWORK_ID, FRAMEWORK_SCHEMA } from '@/lib/audible/framework-url';
+import { EN_FRAMEWORK, type FrameworkText } from '@/lib/audible/text';
 import { formatSignedPoints } from '@/lib/figure/format';
+import { fill } from '@/lib/i18n/template';
 import type { FrameworkInteractiveProps } from './FrameworkInteractive';
 
 const LazyFramework = lazy(() => import('./FrameworkInteractive'));
@@ -31,16 +33,14 @@ export function FrameworkIsland(props: FrameworkInteractiveProps) {
 type Bound = 'primaryLower' | 'primaryUpper' | 'guardrailUpper';
 
 /**
- * Each slider: its URL key (the element id's suffix), the value it moves, its label, and the hint
- * under it that says in plain words what that end of a range stands for.
+ * Each slider: its URL key (the element id's suffix) and the value it moves; its label and the hint
+ * under it, which says in plain words what that end of a range stands for, come from the words.
  */
-const SLIDERS: readonly { key: keyof typeof FRAMEWORK_SCHEMA; bound: Bound; label: string; hint: string }[] = [
-  { key: 'lower', bound: 'primaryLower', label: 'Session completion, lower end', hint: 'lowest plausible change' },
-  { key: 'upper', bound: 'primaryUpper', label: 'Session completion, upper end', hint: 'highest plausible change' },
-  { key: 'guardrail', bound: 'guardrailUpper', label: 'Help requests, upper end', hint: 'highest plausible change' },
+const SLIDERS: readonly { key: keyof typeof FRAMEWORK_SCHEMA; bound: Bound }[] = [
+  { key: 'lower', bound: 'primaryLower' },
+  { key: 'upper', bound: 'primaryUpper' },
+  { key: 'guardrail', bound: 'guardrailUpper' },
 ];
-
-const points = (v: number) => formatSignedPoints(v, 1);
 
 export type FrameworkControlsProps = {
   /** Normalized values. */
@@ -48,9 +48,12 @@ export type FrameworkControlsProps = {
   onBound: (bound: Bound, value: number) => void;
   onCommit: (bound: Bound, value: number) => void;
   onReset: () => void;
+  /** The control row's words; English when absent. */
+  text?: FrameworkText;
 };
 
-export function FrameworkControls({ values, onBound, onCommit, onReset }: FrameworkControlsProps) {
+export function FrameworkControls({ values, onBound, onCommit, onReset, text = EN_FRAMEWORK }: FrameworkControlsProps) {
+  const points = (v: number) => formatSignedPoints(v, 1, { locale: text.kit.locale });
   return (
     <div
       role="group"
@@ -58,8 +61,9 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
       data-framework-controls=""
       className={CONTROL_ROW}
     >
-      {SLIDERS.map(({ key, bound, label, hint }) => {
+      {SLIDERS.map(({ key, bound }) => {
         const spec = FRAMEWORK_SCHEMA[key];
+        const { label, hint } = text.sliders[key];
         return (
           <div key={key} className="w-full xs:w-72">
             <Slider
@@ -71,16 +75,17 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
               value={values[bound]}
               onChange={(v) => onBound(bound, v)}
               onCommit={(v) => onCommit(bound, v)}
-              valueText={(v) => `${points(v)} percentage points`}
-              readout={(v) => `${points(v)} points, ${hint}`}
+              valueText={(v) => fill(text.valueText, { value: points(v) })}
+              readout={(v) => fill(text.readout, { value: points(v), hint })}
               numberText={(v) => v.toFixed(1)}
               refs={['simulated']}
+              text={text.kit.slider}
             />
           </div>
         );
       })}
       <div className={CONTROL_ROW_RESET}>
-        <ResetButton onReset={onReset} />
+        <ResetButton onReset={onReset} label={text.kit.reset} />
       </div>
     </div>
   );
@@ -88,24 +93,31 @@ export function FrameworkControls({ values, onBound, onCommit, onReset }: Framew
 
 const noop = () => {};
 
-export function InertFrameworkControls({ values }: { values: FrameworkValues }) {
-  return <FrameworkControls values={values} onBound={noop} onCommit={noop} onReset={noop} />;
+export function InertFrameworkControls({ values, text }: { values: FrameworkValues; text?: FrameworkText }) {
+  return <FrameworkControls values={values} onBound={noop} onCommit={noop} onReset={noop} text={text} />;
 }
 
 export function FrameworkFigureClient({
   initial,
   preview,
   faultAfterChange,
+  text,
 }: {
   /** The preset's values, so the island's first render needs no lookup. */
   initial: FrameworkValues;
   /** The server's preset Figure: the static HTML, and what comes back if the island cannot load. */
   preview: ReactNode;
   faultAfterChange?: true;
+  /** The Figure's words, handed over only for a language other than English. */
+  text?: FrameworkText;
 }) {
   return (
     <EagerOrIntent ids={[FRAMEWORK_ID]} preview={preview}>
-      <FrameworkIsland initial={initial} faultAfterChange={faultAfterChange} />
+      {text ? (
+        <FrameworkIsland initial={initial} faultAfterChange={faultAfterChange} text={text} />
+      ) : (
+        <FrameworkIsland initial={initial} faultAfterChange={faultAfterChange} />
+      )}
     </EagerOrIntent>
   );
 }
