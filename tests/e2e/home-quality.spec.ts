@@ -290,10 +290,12 @@ test.describe('Home quality: the real page in both groups across the size matrix
   test('@quality the Lighthouse URLs answer 200 with the matching x-arm', async ({ request }, info) => {
     test.skip(info.project.name !== 'desktop-chromium', 'once');
     const config = JSON.parse(readFileSync(join(ROOT, 'lighthouserc.json'), 'utf8')) as { ci: { collect: { url: string[] } } };
-    expect(config.ci.collect.url.length).toBe(2);
+    // The two group pages, then the German Home, which no group is assigned to.
+    expect(config.ci.collect.url.length).toBe(3);
     for (const url of config.ci.collect.url) {
       const { pathname, search } = new URL(url);
-      const arm = new URLSearchParams(search).get('variant');
+      const arm = new URLSearchParams(search).get('variant') ?? undefined;
+      expect(arm !== undefined || pathname === '/de', url).toBe(true);
       const response = await request.get(`${pathname}${search}`);
       expect(response.status(), url).toBe(200);
       expect(response.headers()['x-arm'], url).toBe(arm);

@@ -35,8 +35,8 @@ for (const route of ['/', '/privacy', '/lab', '/work/retention']) {
     await page.evaluate(() => window.scrollTo(0, 0));
     // Hovering the wordmark is the other trigger of a prefetch, once the link is hydrated: a hover
     // that came earlier could not prefetch, and the check below would pass without testing it.
-    await waitForHydration(page.locator('[data-site-header] a[href="/"]'));
-    await page.locator('[data-site-header] a[href="/"]').hover();
+    await waitForHydration(page.locator('[data-site-header] a[href="/"]:not([hreflang])'));
+    await page.locator('[data-site-header] a[href="/"]:not([hreflang])').hover();
     await page.waitForLoadState('networkidle', { timeout: 10_000 });
     await page.waitForTimeout(1000);
     expect(requests, 'requests for / or its segments').toEqual([]);

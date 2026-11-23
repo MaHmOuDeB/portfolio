@@ -370,8 +370,8 @@ test.describe('a counted visit', () => {
     await page.goto('/privacy');
     from = sent.length;
     // Only a hydrated link navigates on the client; a click before hydration loads / as a new document.
-    await waitForHydration(page.locator('[data-site-header] a[href="/"]'));
-    await page.locator('[data-site-header] a[href="/"]').click();
+    await waitForHydration(page.locator('[data-site-header] a[href="/"]:not([hreflang])'));
+    await page.locator('[data-site-header] a[href="/"]:not([hreflang])').click();
     await expect(page).toHaveURL(/\/$/);
     await expectRefusedEntry(sent, from, 'not_entry');
 
@@ -393,7 +393,7 @@ test.describe('a counted visit', () => {
       (window as unknown as { __sameDocument: boolean }).__sameDocument = true;
     });
     const sameDocument = () => page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument === true);
-    const wordmark = page.locator('[data-site-header] a[href="/"]');
+    const wordmark = page.locator('[data-site-header] a[href="/"]:not([hreflang])');
     // Every next/link on / today leads to a page that does not exist yet, and Next turns a soft
     // navigation that gets a 404 into a full load. So the way out is the App Router instance that
     // next/link itself calls; the way back is the real wordmark link, or Back.

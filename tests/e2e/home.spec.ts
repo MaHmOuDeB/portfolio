@@ -205,7 +205,7 @@ test.describe('counting on the home page', () => {
       (window as unknown as { __sameDocument: boolean }).__sameDocument = true;
     });
     const sameDocument = () => page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument === true);
-    const wordmark = page.locator('[data-site-header] a[href="/"]');
+    const wordmark = page.locator('[data-site-header] a[href="/"]:not([hreflang])');
     const softTo = async (path: string) => {
       await page.evaluate((p) => (window as unknown as { next: { router: { push(h: string): void } } }).next.router.push(p), path);
       await expect(page).toHaveURL(new RegExp(`${path}$`));
