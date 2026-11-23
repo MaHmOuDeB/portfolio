@@ -19,7 +19,7 @@ describe('EXPERIMENT', () => {
       prereg: { version: 'v1.1', tag: 'prereg-v1.1' },
       phase: 'calibration',
       namespace: 'aa-v1.1',
-      calibration: { startedOn: '2026-11-16T12:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
+      calibration: { startedOn: '2026-11-23T00:00:00+01:00', minDays: 14, minAnalysedViews: 100 },
       ab: { startedOn: null, capMonths: 6 },
       alpha: 0.05,
       power: 0.8,
@@ -42,7 +42,7 @@ describe('EXPERIMENT', () => {
   });
 
   it('starts in calibration at the launch date, with the A/B start unset', () => {
-    expect(EXPERIMENT.calibration.startedOn).toBe('2026-11-16T12:00:00+01:00');
+    expect(EXPERIMENT.calibration.startedOn).toBe('2026-11-23T00:00:00+01:00');
     expect(EXPERIMENT.ab.startedOn).toBeNull();
     expect(EXPERIMENT.phase).toBe('calibration');
   });
@@ -156,7 +156,7 @@ describe('calibrationStart', () => {
 
   it('is the launch date everywhere with the shipped config', () => {
     for (const env of ['production', 'preview', 'development'] as const) {
-      expect(calibrationStart(EXPERIMENT, env)).toBe('2026-11-16T12:00:00+01:00');
+      expect(calibrationStart(EXPERIMENT, env)).toBe('2026-11-23T00:00:00+01:00');
     }
   });
 
