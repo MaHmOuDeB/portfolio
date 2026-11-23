@@ -5,29 +5,20 @@
 import type { ReactNode } from 'react';
 import { FigureSheet, LeadIn, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
+import { KIT_TEXT_EN } from '@/components/kit/text';
+import type { Locale } from '@/lib/i18n/locale';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
 import {
-  MARKETINGWS_ACTIONS,
-  MARKETINGWS_CLOSE,
   MARKETINGWS_COMMIT,
-  MARKETINGWS_GLANCE,
-  MARKETINGWS_H1,
-  MARKETINGWS_QUIET,
   MARKETINGWS_REPO,
-  MARKETINGWS_STEPS,
-  MarketingwsArchitecture,
-  MarketingwsChecks,
-  MarketingwsIntro,
-  MarketingwsLimits,
   MarketingwsLinks,
-  MarketingwsOutcome,
-  MarketingwsProblem,
-  SHOTS_LEAD_IN,
-  SHOTS_TAKEAWAY,
-  STEPS_CAPTION,
-  STEPS_TITLE,
+  type MarketingwsCopy,
 } from '../../../content/marketingws';
+import { buildNoteText } from '../build-notes/copy';
+import { keyed } from '../build-notes/slots';
 import { NoteShot } from '../build-notes/NoteShot';
-import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, TEXT } from '../build-notes/BuildNote';
+import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
+import { marketingwsCopy } from './copy';
 
 export const MARKETINGWS_TITLE = 'MarketingWS';
 
@@ -38,11 +29,17 @@ export const MARKETINGWS_SECTIONS = BUILD_NOTE_SECTIONS;
  * One request, step by step: an ordered list of outlined steps, joined by short drawn connectors.
  * The list is the diagram's text and carries its order; the connectors are drawing only.
  */
-function StepsDiagram() {
+function StepsDiagram({ steps, locale }: { steps: MarketingwsCopy['steps']; locale: Locale }) {
   return (
-    <Figure kind="diagram" id="marketingws-steps" title={STEPS_TITLE} caption={STEPS_CAPTION}>
+    <Figure
+      kind="diagram"
+      id="marketingws-steps"
+      title={steps.title}
+      caption={steps.caption}
+      text={locale === 'de' ? KIT_TEXT_DE : KIT_TEXT_EN}
+    >
       <ol data-diagram="marketingws-steps" className="max-w-text">
-        {MARKETINGWS_STEPS.map((step, i) => (
+        {steps.items.map((step, i) => (
           <li key={step.id} data-step={step.id}>
             {i > 0 ? <DiagramConnector /> : null}
             <DiagramStep name={step.name} detail={step.text} />
@@ -53,65 +50,52 @@ function StepsDiagram() {
   );
 }
 
-export function MarketingwsPage(): ReactNode {
+export function MarketingwsPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = marketingwsCopy(locale);
+  const text = buildNoteText(locale);
+  const code = `${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`;
   return (
     <BuildNote
       slug="marketingws"
-      title={MARKETINGWS_H1}
-      quiet={MARKETINGWS_QUIET}
-      intro={<MarketingwsIntro />}
-      actions={MARKETINGWS_ACTIONS}
-      glance={MARKETINGWS_GLANCE}
+      locale={locale}
+      title={copy.h1}
+      quiet={copy.quiet}
+      intro={copy.intro}
+      actions={[{ href: code, label: text.github, icon: 'github', external: true }]}
+      glance={copy.glance}
       sections={{
-        problem: (
-          <div className={TEXT}>
-            <MarketingwsProblem />
-          </div>
-        ),
+        problem: <Paragraphs items={keyed(copy.problem)} />,
         architecture: (
           <>
-            <div className={TEXT}>
-              <MarketingwsArchitecture />
-            </div>
-            <LeadIn>{SHOTS_LEAD_IN}</LeadIn>
-            <FigureSheet label="Screenshot">
+            <div className={TEXT}>{copy.architecture}</div>
+            <LeadIn label={text.leadIn}>{copy.shots.leadIn}</LeadIn>
+            <FigureSheet label={text.screenshot}>
               {/* Side by side from lg, the brief beside the draft it produced; stacked below. */}
               <div data-shot-pair="" className="grid items-start gap-6 lg:grid-cols-[1fr_2.2fr] [&>figure]:mt-0">
-                <NoteShot shot="marketingwsBrief" />
-                <NoteShot shot="marketingwsDraft" />
+                <NoteShot shot="marketingwsBrief" locale={locale} />
+                <NoteShot shot="marketingwsDraft" locale={locale} />
               </div>
             </FigureSheet>
-            <Takeaway>{SHOTS_TAKEAWAY}</Takeaway>
+            <Takeaway label={text.takeaway}>{copy.shots.takeaway}</Takeaway>
             <FigureSheet>
-              <StepsDiagram />
+              <StepsDiagram steps={copy.steps} locale={locale} />
             </FigureSheet>
           </>
         ),
-        'how-i-checked-this': (
-          <div className={TEXT}>
-            <MarketingwsChecks />
-          </div>
-        ),
-        outcome: (
-          <div className={TEXT}>
-            <MarketingwsOutcome />
-          </div>
-        ),
+        'how-i-checked-this': <Paragraphs items={keyed(copy.checks)} />,
+        outcome: <Paragraphs items={keyed(copy.outcome)} />,
         limits: (
           <div className={TEXT}>
-            <MarketingwsLimits />
+            <NoteList items={keyed(copy.limits)} />
           </div>
         ),
         sources: (
           <div className={TEXT}>
-            <MarketingwsLinks />
+            <MarketingwsLinks copy={copy.links} />
           </div>
         ),
       }}
-      close={{
-        body: <p>{MARKETINGWS_CLOSE}</p>,
-        links: [{ href: `${MARKETINGWS_REPO}/tree/${MARKETINGWS_COMMIT}`, label: 'See the code on GitHub', external: true }],
-      }}
+      close={{ body: <p>{copy.close}</p>, links: [{ href: code, label: text.github, external: true }] }}
     />
   );
 }

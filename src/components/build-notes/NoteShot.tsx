@@ -5,17 +5,21 @@
 // exception). A picture with a narrowest width keeps that width in a narrow column and scrolls
 // sideways in its own labelled frame (ShotFrame, a small client module), so its text does not shrink
 // further and the page itself still reflows at 320 px. Server-safe, no hooks.
+import type { Locale } from '@/lib/i18n/locale';
+import { buildNoteText } from './copy';
 import { NOTE_SHOTS, NOTE_SHOT_DIR, type NoteShot as Shot } from './note-shots';
 import { ShotFrame } from './ShotFrame';
 
-export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
+export function NoteShot({ shot, locale = 'en' }: { shot: keyof typeof NOTE_SHOTS; locale?: Locale }) {
   const s: Shot = NOTE_SHOTS[shot];
+  const text = buildNoteText(locale);
+  const words = text.shots[shot];
   const src = `${NOTE_SHOT_DIR}/${s.file}`;
   const captionId = `${shot}-caption`;
   const picture = (
     <img
       src={src}
-      alt={s.alt}
+      alt={words.alt}
       width={s.width}
       height={s.height}
       loading="lazy"
@@ -32,7 +36,7 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
         picture
       )}
       <figcaption id={captionId} className="mt-2 max-w-text text-sm text-muted">
-        {s.caption}
+        {words.caption}
         {s.fullSize ? (
           <>
             {' '}
@@ -41,7 +45,8 @@ export function NoteShot({ shot }: { shot: keyof typeof NOTE_SHOTS }) {
               data-touch-target=""
               className="inline-flex min-h-(--size-target) items-center text-sm text-muted underline decoration-muted hover:text-ink focus-visible:text-ink"
             >
-              Full-size picture of {s.label}
+              {`${text.fullSize} `}
+              {words.label}
             </a>
           </>
         ) : null}

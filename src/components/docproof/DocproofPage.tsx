@@ -7,28 +7,21 @@
 import type { ReactNode } from 'react';
 import { FigureSheet, LeadIn, MethodDetails, Takeaway } from '@/components/frame';
 import { Figure } from '@/components/kit/Figure';
+import { KIT_TEXT_EN } from '@/components/kit/text';
+import { localHref } from '@/lib/i18n/href';
+import type { Locale } from '@/lib/i18n/locale';
+import { KIT_TEXT_DE } from '../../../content/de/kit';
 import {
-  ARCHITECTURE_CAPTION,
-  ARCHITECTURE_STAGES,
-  ARCHITECTURE_TITLE,
-  DOCPROOF_ACTIONS,
-  DOCPROOF_GLANCE,
-  DOCPROOF_H1,
-  DOCPROOF_QUIET,
-  DocproofArchitecture,
-  DocproofIntro,
-  DocproofLimits,
-  DocproofLinks,
-  DocproofOutcome,
-  DocproofProblem,
-  DocproofRunEvidence,
-  DocproofVerification,
   DOCPROOF_REPO,
-  RUN_TAKEAWAY,
+  DocproofLinks,
+  DocproofRunEvidence,
   RunLeadIn,
   VERIFY_RUN,
 } from '../../../content/docproof';
-import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, TEXT } from '../build-notes/BuildNote';
+import { buildNoteText } from '../build-notes/copy';
+import { keyed } from '../build-notes/slots';
+import { BUILD_NOTE_SECTIONS, BuildNote, DiagramConnector, DiagramStep, NoteList, Paragraphs, TEXT } from '../build-notes/BuildNote';
+import { docproofCopy } from './copy';
 
 /** The document title (content/seo.ts); the h1 is DOCPROOF_H1 with its quiet clause. */
 export const DOCPROOF_TITLE = 'Docproof: agents write, checks decide';
@@ -40,11 +33,18 @@ export const DOCPROOF_SECTIONS = [
 ];
 
 /** Input, orchestration, checks and report, as an ordered list of outlined stages. */
-export function DocproofDiagram(): ReactNode {
+export function DocproofDiagram({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const { diagram } = docproofCopy(locale);
   return (
-    <Figure kind="diagram" id="docproof-architecture" title={ARCHITECTURE_TITLE} caption={ARCHITECTURE_CAPTION}>
+    <Figure
+      kind="diagram"
+      id="docproof-architecture"
+      title={diagram.title}
+      caption={diagram.caption}
+      text={locale === 'de' ? KIT_TEXT_DE : KIT_TEXT_EN}
+    >
       <ol data-diagram="docproof-architecture" className="grid max-w-text gap-0">
-        {ARCHITECTURE_STAGES.map((s, i) => (
+        {diagram.stages.map((s, i) => (
           <li key={s.id} data-stage={s.id} className="min-w-0">
             {i > 0 ? <DiagramConnector /> : null}
             <DiagramStep name={s.name} detail={s.body} />
@@ -55,66 +55,54 @@ export function DocproofDiagram(): ReactNode {
   );
 }
 
-export function DocproofPage(): ReactNode {
+export function DocproofPage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
+  const copy = docproofCopy(locale);
+  const text = buildNoteText(locale);
   return (
     <BuildNote
       slug="docproof"
-      title={DOCPROOF_H1}
-      quiet={DOCPROOF_QUIET}
-      intro={<DocproofIntro />}
-      actions={DOCPROOF_ACTIONS}
-      glance={DOCPROOF_GLANCE}
+      locale={locale}
+      title={copy.h1}
+      quiet={copy.quiet}
+      intro={copy.intro}
+      actions={[{ href: DOCPROOF_REPO, label: text.github, icon: 'github', external: true }]}
+      glance={copy.glance}
       lead="how-i-checked-this"
       sections={{
         'how-i-checked-this': (
           <>
-            <LeadIn>
-              <RunLeadIn />
+            <LeadIn label={text.leadIn}>
+              <RunLeadIn copy={copy.run} />
             </LeadIn>
-            <FigureSheet label="Recorded run">
-              <DocproofRunEvidence run={VERIFY_RUN} />
+            <FigureSheet label={copy.run.sheetLabel}>
+              <DocproofRunEvidence run={VERIFY_RUN} copy={copy.run} locale={locale} />
             </FigureSheet>
-            <Takeaway>{RUN_TAKEAWAY}</Takeaway>
-            <MethodDetails summary="How the tools themselves are tested">
-              <DocproofVerification />
-            </MethodDetails>
+            <Takeaway label={text.takeaway}>{copy.run.takeaway}</Takeaway>
+            <MethodDetails summary={copy.verificationSummary}>{copy.verification}</MethodDetails>
           </>
         ),
-        problem: (
-          <div className={TEXT}>
-            <DocproofProblem />
-          </div>
-        ),
+        problem: <Paragraphs items={keyed(copy.problem)} />,
         architecture: (
           <>
-            <div className={TEXT}>
-              <DocproofArchitecture />
-            </div>
+            <Paragraphs items={keyed(copy.architecture)} />
             <FigureSheet>
-              <DocproofDiagram />
+              <DocproofDiagram locale={locale} />
             </FigureSheet>
           </>
         ),
-        outcome: (
-          <div className={TEXT}>
-            <DocproofOutcome />
-          </div>
-        ),
+        outcome: <div className={TEXT}>{copy.outcome}</div>,
         limits: (
           <div className={TEXT}>
-            <DocproofLimits />
+            <NoteList items={keyed(copy.limits)} />
           </div>
         ),
         sources: (
           <div className={TEXT}>
-            <DocproofLinks />
+            <DocproofLinks copy={copy.links} workHref={localHref(locale, '/work')} />
           </div>
         ),
       }}
-      close={{
-        body: <p>I build AI tools in which code, not the model, has the last word on facts.</p>,
-        links: [{ href: DOCPROOF_REPO, label: 'See the code on GitHub', external: true }],
-      }}
+      close={{ body: <p>{copy.close}</p>, links: [{ href: DOCPROOF_REPO, label: text.github, external: true }] }}
     />
   );
 }
