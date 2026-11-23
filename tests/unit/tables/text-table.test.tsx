@@ -33,3 +33,26 @@ describe('TextTable formats', () => {
     expect(() => render({ ...table(), rowDigits: [1] })).toThrow(/TextTable/);
   });
 });
+
+describe('TextTable column language', () => {
+  const t = (): TableData => ({ columns: ['Ereignis', 'Zahl', 'Bedeutung'], rows: [['Viewed Dashboard', 12, 'When it opens']], refs: ['simulated'] });
+
+  it('marks every cell of a column with its language, and no header or other column', () => {
+    const html = renderToStaticMarkup(<TextTable id="t" caption="c" table={t()} lang={['en', undefined, 'en']} />);
+    expect(html.match(/<td[^>]*lang="en"/g)).toHaveLength(2);
+    expect(html).toMatch(/<td[^>]*lang="en"[^>]*>Viewed Dashboard<\/td>/);
+    expect(html).toMatch(/<td[^>]*lang="en"[^>]*>When it opens<\/td>/);
+    expect(html).not.toMatch(/<td[^>]*lang="en"[^>]*>12<\/td>/);
+    expect(html).not.toMatch(/<th[^>]*lang=/);
+  });
+
+  it('prints the same bytes as before when no language is given', () => {
+    const plain = renderToStaticMarkup(<TextTable id="t" caption="c" table={t()} />);
+    expect(plain).not.toContain('lang=');
+    expect(renderToStaticMarkup(<TextTable id="t" caption="c" table={t()} lang={[undefined, undefined, undefined]} />)).toBe(plain);
+  });
+
+  it('throws when lang does not have one entry per column', () => {
+    expect(() => renderToStaticMarkup(<TextTable id="t" caption="c" table={t()} lang={['en']} />)).toThrow(/TextTable/);
+  });
+});

@@ -51,6 +51,8 @@ export function plainTaxonomyTable(table: TableData, note: string = PULSE_EN.tax
 }
 
 const TEXT = 'max-w-text';
+/** The event table's four columns hold the export's own words, which stay English on a German page. */
+const EXPORT_WORDS_LANG = ['en', 'en', 'en', 'en'] as const;
 
 export function PulsePage({ locale = 'en' }: { locale?: Locale } = {}): ReactNode {
   const c = pulseCopy(locale);
@@ -100,7 +102,7 @@ export function PulsePage({ locale = 'en' }: { locale?: Locale } = {}): ReactNod
               id="pulse-events"
               caption={c.taxonomy.caption}
               table={plainTaxonomyTable(taxonomyTable(pulseTaxonomy(), c.taxonomy.table), c.taxonomy.plainNote)}
-              {...(locale === 'en' ? {} : { locale })}
+              {...(locale === 'en' ? {} : { locale, lang: EXPORT_WORDS_LANG })}
             />
           </FigureSheet>
         </>,

@@ -87,6 +87,15 @@ describe('the German Pulse page', () => {
     expect(blocksOf(EN).filter((b) => b.length > 24 && b !== PULSE_EN.glance.tools && german.has(b))).toEqual([]);
   });
 
+  it('marks every cell of the event table as English, since the export words are English, and no header', () => {
+    const table = /<table id="pulse-events"[\s\S]*?<\/table>/.exec(DE)![0];
+    const cells = table.match(/<td[^>]*>/g)!;
+    expect(cells).toHaveLength(SOURCE.tables.events.length * 4);
+    for (const cell of cells) expect(cell).toContain('lang="en"');
+    expect(table).not.toMatch(/<th[^>]*lang=/);
+    expect(/<table id="pulse-events"[\s\S]*?<\/table>/.exec(EN)![0]).not.toContain('lang=');
+  });
+
   it('keeps the event table word for word from the export, with German column names', () => {
     const table = /<table id="pulse-events"[\s\S]*?<\/table>/.exec(DE)![0];
     const t = text(table);
