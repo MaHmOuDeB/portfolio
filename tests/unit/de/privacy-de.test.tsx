@@ -80,7 +80,7 @@ const paragraphShape = (p: PrivacyBlock[]) => p.map(shape).filter((s, i, a) => !
 
 const BINDING = 'Diese Seite ist eine Übersetzung der englischen Fassung. Wo beide voneinander abweichen, ist die englische Fassung maßgeblich.';
 const LANGUAGE =
-  'Diese Website speichert Ihre Sprachwahl nirgends: kein Cookie und nichts im Speicher Ihres Browsers. Die Links „English“ und „Deutsch“ sind gewöhnliche Links. Die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, wird nicht ausgewertet; welche Sprache Sie sehen, hängt allein von der Adresse ab.';
+  'Diese Website speichert Ihre Sprachwahl weder in einem Cookie noch im Speicher Ihres Browsers. Die Links „English“ und „Deutsch“ sind gewöhnliche Links. Diese Website wertet die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, nicht aus; welche Sprache Sie sehen, hängt allein von der Adresse ab.';
 
 describe('the German privacy page', () => {
   it('is titled Datenschutz, with one two-tone h1', () => {
@@ -228,7 +228,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-describe('"Diese Website speichert Ihre Sprachwahl nirgends" and the Accept-Language header is not read', () => {
+describe('"Diese Website speichert Ihre Sprachwahl weder in einem Cookie noch im Speicher Ihres Browsers" and the Accept-Language header is not read', () => {
   it('no source file reads the Accept-Language header or the browser language', () => {
     const files = [...sourceFiles(join(ROOT, 'src')), join(ROOT, 'next.config.ts')];
     const readers = files.filter((f) => /accept-language|navigator\.languages?\b/i.test(readFileSync(f, 'utf8')));

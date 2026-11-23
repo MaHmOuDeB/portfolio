@@ -1,7 +1,7 @@
 import 'server-only';
 import { EXPERIMENT } from '../../src/experiment.values.ts';
 import { CONTACT, CONTACT_HREF, SITE } from '../../src/lib/site.ts';
-import { HASH_MINUTES, n, PV_MINUTES, type PrivacyCopy } from '../privacy.ts';
+import { HASH_MINUTES, n, PRIVACY_EN, PV_MINUTES, type PrivacyCopy } from '../privacy.ts';
 
 // The privacy notice in German: a full translation of content/privacy.ts, typed by PrivacyCopy. The
 // sections, their order, anchors, numbers, links and the version date are the English ones; a test
@@ -37,7 +37,7 @@ export const PRIVACY_DE: PrivacyCopy = {
     },
   },
   // The same version as the English notice: the translation never has a date of its own.
-  updatedOn: '2026-11-13',
+  updatedOn: PRIVACY_EN.updatedOn,
   sections: [
     {
       heading: 'Wer verantwortlich ist',
@@ -54,15 +54,15 @@ export const PRIVACY_DE: PrivacyCopy = {
       id: 'what-a-page-view-sends',
       paragraphs: [
         [
-          'Die englische Startseite führt ein kleines Experiment mit ihren Kartenüberschriften durch. Wenn Sie sie öffnen, sendet das Skript der Seite einige kurze Nachrichten an den eigenen Server dieser Website. Jede Nachricht enthält eine zufällige Kennung, die nur für diesen einen Aufruf erzeugt wird, eine Bezeichnung für die Runde des Experiments, die Gruppe, deren Fassung Ihnen gezeigt wurde, und welches der folgenden Ereignisse eingetreten ist: Die Seite wurde von außerhalb der Website geöffnet; die Karten kamen in den sichtbaren Bereich; Sie haben mit der Seite interagiert oder sind ',
+          'Die englische Startseite führt ein kleines Experiment mit ihren Kartenüberschriften durch. Wenn Sie sie öffnen, sendet das Skript der Seite einige kurze Nachrichten an den eigenen Server dieser Website. Jede Nachricht enthält eine zufällige Kennung, die nur für diesen einen Aufruf erzeugt wird, eine Bezeichnung für die Runde des Experiments, die Gruppe, deren Fassung Ihnen gezeigt wurde, und welches der folgenden Ereignisse eingetreten ist: die Seite wurde von außerhalb der Website geöffnet; die Karten kamen in den sichtbaren Bereich; Sie haben mit der Seite interagiert oder sind ',
           n(EXPERIMENT.guardrail.quickExitSeconds),
-          ' Sekunden geblieben; Sie haben eine hervorgehobene Karte, eine Fallstudie oder das Lab, die Lebenslauf-Seite oder das Lebenslauf-PDF oder einen Kontaktlink (LinkedIn, GitHub oder das Kontaktformular dieser Website) angeklickt.',
+          ' Sekunden geblieben; Sie haben eine ausgewählte Karte, eine Fallstudie oder das Lab, die Lebenslauf-Seite oder das Lebenslauf-PDF oder einen Kontaktlink (LinkedIn, GitHub oder das Kontaktformular dieser Website) angeklickt.',
         ],
         [
           'Wenn der Aufruf nicht zählen kann, sendet das Skript stattdessen eine einzige Nachricht, die den Grund nennt: ein automatisierter Browser, eine über die Seitenadresse gewählte Gruppe oder kein neuer Besuch von außerhalb der Website.',
         ],
         [
-          'Das Skript sendet weder die verweisende Website noch die Adresse eines Links, den Sie anklicken (Ihr Browser sendet mit jeder Anfrage die Seitenadresse und die verweisende Seite, siehe „Ihre IP-Adresse und Ihr Browsertyp“). Der Server bewahrt nur Zählungen je Tag und je Gruppe auf. Er speichert keine Seitenadresse, keine verweisende Website, keine IP-Adresse und keinen Browsertyp. Die Kennung des Aufrufs behält er nur, um jeden Aufruf einmal zu zählen, und löscht sie spätestens ',
+          'Das Skript sendet weder die verweisende Website noch die Adresse eines Links, den Sie anklicken (Ihr Browser sendet mit jeder Anfrage die Seitenadresse und die verweisende Seite, siehe „Ihre IP-Adresse und Ihr Browsertyp“). Was der Server aufbewahrt, sind Zählungen je Tag und je Gruppe. Er speichert keine Seitenadresse, keine verweisende Website, keine IP-Adresse und keinen Browsertyp. Die Kennung des Aufrufs behält er nur, um jeden Aufruf einmal zu zählen, und löscht sie spätestens ',
           PV_MINUTES,
           ' Minuten, nachdem Ihr Browser sie zum ersten Mal gesendet hat, aus der Datenbank.',
         ],
@@ -84,12 +84,12 @@ export const PRIVACY_DE: PrivacyCopy = {
       heading: 'Cookies und Speicher',
       id: 'cookies-and-storage',
       paragraphs: [
-        ['Besucher erhalten von dieser Website keine Cookies, und sie schreibt nichts in ihren Speicher.'],
+        ['Besucher erhalten von dieser Website keine Cookies, und sie schreibt nichts in den Speicher ihrer Browser.'],
         ['Das einzige Cookie, das sie überhaupt setzt, setze ich auf meinen eigenen Geräten über einen privaten Link, um meine eigenen Besuche aus den Zählungen herauszuhalten.'],
       ],
       extra: [
         [
-          'Diese Website speichert Ihre Sprachwahl nirgends: kein Cookie und nichts im Speicher Ihres Browsers. Die Links „English“ und „Deutsch“ sind gewöhnliche Links. Die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, wird nicht ausgewertet; welche Sprache Sie sehen, hängt allein von der Adresse ab.',
+          'Diese Website speichert Ihre Sprachwahl weder in einem Cookie noch im Speicher Ihres Browsers. Die Links „English“ und „Deutsch“ sind gewöhnliche Links. Diese Website wertet die Spracheinstellung, die Ihr Browser mit jeder Anfrage mitsendet, nicht aus; welche Sprache Sie sehen, hängt allein von der Adresse ab.',
         ],
       ],
     },
@@ -116,7 +116,7 @@ export const PRIVACY_DE: PrivacyCopy = {
       id: 'contact-form',
       paragraphs: [
         [
-          'Wenn Sie mir über das Kontaktformular schreiben, sendet Ihr Browser Ihre Eingaben an den Server dieser Website: einen Namen (jeden Namen, mit dem ich Sie ansprechen soll), Ihre E-Mail-Adresse, warum Sie sich melden, einen Betreff und Ihre Nachricht. Außerdem sendet er den Zeitpunkt, zu dem Ihnen das Formular angezeigt wurde, und ein verborgenes Feld, das ein Mensch leer lässt, damit der Server von Bots ausgefüllte Formulare abweisen kann. Wie jede Anfrage enthält sie Ihre IP-Adresse und Ihren Browsertyp (siehe „Ihre IP-Adresse und Ihr Browsertyp“).',
+          'Wenn Sie mir über das Kontaktformular schreiben, sendet Ihr Browser Ihre Eingaben an den Server dieser Website: einen Namen (jeden Namen, mit dem ich Sie ansprechen soll), Ihre E-Mail-Adresse, warum Sie sich melden, einen Betreff und Ihre Nachricht. Außerdem sendet er den Zeitpunkt, zu dem Ihnen das Formular angezeigt wurde, und ein verborgenes Feld, das ein Mensch leer lässt, damit der Server von Bots ausgefüllte Formulare abweisen kann. Wie jede Anfrage enthält auch diese Ihre IP-Adresse und Ihren Browsertyp (siehe „Ihre IP-Adresse und Ihr Browsertyp“).',
         ],
         [
           'Der Server, den Vercel für mich in Frankfurt betreibt, prüft das Formular und gibt es an Resend weiter, das es als reine Text-E-Mail in mein E-Mail-Postfach zustellt, mit Ihrer E-Mail-Adresse als der Adresse, an die ich antworte. Ihr Browser sendet das Formular nur an diese Website, nie an Resend, und die Seite lädt nichts von einer anderen Website.',
@@ -125,7 +125,7 @@ export const PRIVACY_DE: PrivacyCopy = {
           'Diese Website speichert nichts aus dem Formular. Sie legt keine Kopie in einer Datenbank oder einer Datei ab, setzt kein Cookie und schreibt Ihre Eingaben nicht in ihre Protokolle. Wenn die Nachricht nicht gesendet werden kann, sagt die Seite das, und nichts wird aufbewahrt.',
         ],
         [
-          'Um Missbrauch zu begrenzen, hält der Server einen mit einem Schlüssel gebildeten Hashwert Ihrer IP-Adresse (bei IPv6 ihres Netzwerkteils) in seinem Arbeitsspeicher, um zu zählen, wie viele Nachrichten von einer Adresse kommen. Er verwirft den Hashwert, sobald dessen Stunde abgelaufen ist; war der Server pausiert, verwirft er ihn, sobald er weiterläuft, und wenn der Server beendet wird, ist er nicht mehr vorhanden. Der Hashwert wird nie in eine Datenbank, eine Datei oder ein Protokoll geschrieben, und die Adresse selbst wird nie gespeichert. Mit dem Schlüssel ließe sich der Hashwert grundsätzlich auf die Adresse zurückführen, daher behandle ich ihn als personenbezogene Daten, solange er besteht.',
+          'Um Missbrauch zu begrenzen, hält der Server einen mit einem Schlüssel gebildeten Hashwert Ihrer IP-Adresse (bei IPv6 ihres Netzwerkteils) in seinem Arbeitsspeicher, um zu zählen, wie viele Nachrichten von einer Adresse kommen. Er verwirft den Hashwert, sobald dessen Stunde abgelaufen ist; war der Server pausiert, verwirft er ihn, sobald er weiterläuft, und wenn der Server beendet wird, ist der Hashwert nicht mehr vorhanden. Der Hashwert wird nie in eine Datenbank, eine Datei oder ein Protokoll geschrieben, und die Adresse selbst wird nie gespeichert. Mit dem Schlüssel ließe sich der Hashwert grundsätzlich auf die Adresse zurückführen, daher behandle ich ihn als personenbezogene Daten, solange er besteht.',
         ],
         ['Bitte senden Sie mir über das Formular keine Gesundheitsdaten oder andere sensible Informationen.'],
       ],
