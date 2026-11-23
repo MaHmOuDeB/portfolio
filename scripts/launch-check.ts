@@ -33,6 +33,8 @@ import { parse, type DefaultTreeAdapterTypes as T } from 'parse5';
 import { HOME_DESTINATIONS } from '../content/home-destinations.ts';
 import { LAUNCH_FACTS, type LaunchFact } from '../content/privacy.ts';
 import { EXPERIMENT, type ExperimentConfig } from '../src/experiment.values.ts';
+import { localHrefWith } from '../src/lib/i18n/href.ts';
+import { DE_PAGES } from '../src/lib/i18n/pages.ts';
 import { LIVE_ROUTES } from '../src/lib/site.ts';
 import { preregHash } from '../src/lib/experiment/prereg-hash.ts';
 import { bareHostname } from '../src/lib/seo/hostname.ts';
@@ -119,8 +121,8 @@ function defaults(): LaunchDeps {
     deployedChecksLog: readFileSync(join(root, 'docs/experiment/deployed-checks.md'), 'utf8'),
     vercelScope: vercelScopeFrom(root, process.env),
     preregHash: () => preregHash(),
-    destinations: HOME_DESTINATIONS,
-    liveRoutes: LIVE_ROUTES,
+    destinations: [...HOME_DESTINATIONS, ...germanDestinations(HOME_DESTINATIONS)],
+    liveRoutes: [...LIVE_ROUTES, ...germanRoutes()],
   };
 }
 
@@ -134,6 +136,24 @@ function hasId(node: T.ParentNode, id: string): boolean {
     if (el.tagName === 'template' && hasId((el as T.Template).content, id)) return true;
   }
   return false;
+}
+
+/**
+ * The German twin of each site path that has one, fragment and query kept: the addresses the German
+ * Home links to. A path with no German page (a file in public/, an external link) is left out.
+ */
+export function germanDestinations(destinations: readonly string[], pages: readonly string[] = DE_PAGES): string[] {
+  const twins: string[] = [];
+  for (const destination of destinations) {
+    const twin = localHrefWith(pages, 'de', destination);
+    if (twin !== destination) twins.push(twin);
+  }
+  return twins;
+}
+
+/** The German address of every registered page: the routes the German destinations may name. */
+export function germanRoutes(pages: readonly string[] = DE_PAGES): string[] {
+  return pages.map((page) => localHrefWith(pages, 'de', page));
 }
 
 /**

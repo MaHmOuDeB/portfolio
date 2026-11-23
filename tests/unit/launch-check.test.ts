@@ -2,10 +2,11 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EXPERIMENT, type ExperimentConfig } from '../../src/experiment.values.ts';
-import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, destinationsUnmet, main, vercelScopeFrom, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
+import { GITHUB_REPO, GITHUB_SECRETS, GITHUB_VARIABLES, REQUIRED_LOG_CHECKS, VERCEL_SECRETS, destinationsUnmet, germanDestinations, germanRoutes, main, vercelScopeFrom, type LaunchDeps, type RunResult } from '../../scripts/launch-check.ts';
 import type { LaunchFact } from '../../content/privacy.ts';
 import { HOME_DESTINATIONS } from '../../content/home-destinations.ts';
 import { LIVE_ROUTES } from '../../src/lib/site.ts';
+import { DE_PAGES } from '../../src/lib/i18n/pages.ts';
 
 const STARTED = { ...EXPERIMENT, calibration: { ...EXPERIMENT.calibration, startedOn: '2026-11-09T00:00:00+01:00' } } as unknown as ExperimentConfig;
 const HASH = 'a'.repeat(64);
@@ -137,8 +138,8 @@ describe('launch:check', () => {
     expect(d.lines.filter((l) => l.includes('home destination'))).toEqual(['unmet: home destination file missing: /cv.pdf (public/cv.pdf)']);
   });
 
-  it('reads the Home destinations and LIVE_ROUTES by default', () => {
-    const given = deps({ destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
+  it('reads the Home destinations (English and German) and the live routes (English and German) by default', () => {
+    const given = deps({ destinations: [...HOME_DESTINATIONS, ...germanDestinations(HOME_DESTINATIONS)], liveRoutes: [...LIVE_ROUTES, ...germanRoutes()] });
     const status = main(ARGS, given.deps);
     const d = deps();
     delete d.deps.destinations;
@@ -150,6 +151,42 @@ describe('launch:check', () => {
   it('the repository today: every Home destination is a live route (a fragment still needs a build to check)', () => {
     const repo = join(import.meta.dirname, '../..');
     const out = destinationsUnmet({ root: repo, destinations: HOME_DESTINATIONS, liveRoutes: LIVE_ROUTES });
+    expect(out.filter((l) => /not a live route|file missing/.test(l))).toEqual([]);
+    for (const line of out) expect(line).toMatch(/has no built page|fragment missing/);
+  });
+
+  it('derives the German Home destinations with the German address of each registered page, a fragment kept', () => {
+    expect(germanDestinations(['/work/audible#why-so-many', '/work', '/', '/cv.pdf', 'mailto:someone@example.com'], ['/', '/work', '/work/audible'])).toEqual(['/de/work/audible#why-so-many', '/de/work', '/de']);
+    expect(germanDestinations(['/work'], [])).toEqual([]);
+  });
+
+  it('lists the German route of every registered page', () => {
+    expect(germanRoutes(['/', '/work/audible'])).toEqual(['/de', '/de/work/audible']);
+  });
+
+  it('checks the German Home destinations too: a German page that is not built is named, a built one with its fragment passes', () => {
+    built('<main><h1>Audible</h1><section id="why-so-many"></section></main>', 'de/work/audible');
+    const d = deps({ destinations: ['/work/audible#why-so-many', '/de/work/audible#why-so-many', '/de/work/audible#automation', '/de/privacy'], liveRoutes: [...SITE_ROUTES, '/de/work/audible', '/de/privacy'] });
+    expect(main(ARGS, d.deps)).toBe(1);
+    expect(d.lines.filter((l) => l.includes('home destination'))).toEqual([
+      'unmet: home destination fragment missing: /de/work/audible#automation (no element with id "automation" in the built page)',
+    ]);
+  });
+
+  it('by default also checks the German twin of every Home destination against the German pages', () => {
+    const d = deps();
+    delete d.deps.destinations;
+    delete d.deps.liveRoutes;
+    main(ARGS, d.deps);
+    const out = d.lines.filter((l) => l.includes('home destination')).join('\n');
+    // Nothing is built in this temporary site, so the German fragment pages are reported as unbuilt, never as "not a live route".
+    expect(out).toContain('/de/work/audible#why-so-many');
+    expect(out).not.toMatch(/not a live route: \/de/);
+  });
+
+  it('the repository today: every German Home destination is a registered German page', () => {
+    const repo = join(import.meta.dirname, '../..');
+    const out = destinationsUnmet({ root: repo, destinations: germanDestinations(HOME_DESTINATIONS, DE_PAGES), liveRoutes: germanRoutes(DE_PAGES) });
     expect(out.filter((l) => /not a live route|file missing/.test(l))).toEqual([]);
     for (const line of out) expect(line).toMatch(/has no built page|fragment missing/);
   });
