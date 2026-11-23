@@ -12,6 +12,7 @@ vi.mock('@/lib/i18n/pages', () => ({ DE_PAGES: ['/', '/privacy', '/contact'] }))
 
 import { LAUNCH_FACTS, PRIVACY_EN, type PrivacyBlock } from '../../../content/privacy.ts';
 import { PRIVACY_DE } from '../../../content/de/privacy.ts';
+import { CONTACT_DE } from '../../../content/de/contact.ts';
 import { CONTACT } from '../../../src/lib/site.ts';
 import EnglishPrivacyPage from '../../../src/app/(en)/privacy/page.tsx';
 import GermanPrivacyPage, { metadata } from '../../../src/app/de/privacy/page.tsx';
@@ -238,5 +239,10 @@ describe('"Diese Website speichert Ihre Sprachwahl nirgends" and the Accept-Lang
     for (const f of ['src/components/shell/LanguageMenu.tsx', 'src/lib/i18n/language.ts']) {
       expect(readFileSync(join(ROOT, f), 'utf8'), f).not.toMatch(/cookie|localStorage|sessionStorage|indexedDB/i);
     }
+  });
+
+  it('quotes the contact form option exactly as the German form labels it', () => {
+    const label = CONTACT_DE.form.reasons.privacy;
+    expect(JSON.stringify(PRIVACY_DE)).toContain(`„${label}“`);
   });
 });
