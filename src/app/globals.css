@@ -79,14 +79,30 @@
  * that fits is laid out as before. Only inside main: the header and footer size their columns by
  * their words, which this would crush. A number, a time, code and a table (which scrolls in its own
  * frame and sizes its columns by their words) keep the body's break-word: they break only when they
- * cannot fit at all, as on English pages, and never lower a minimum width.
+ * cannot fit at all, as on English pages, and never lower a minimum width. A number inside a part
+ * that breaks anywhere on its own (a pull figure, a proof figure, a headline) keeps that part's rule,
+ * as in English, so it never squeezes the label beside it.
  */
 @media (width < 40rem) {
   main:lang(de) {
     overflow-wrap: anywhere;
   }
 
-  main:lang(de) :is([data-num], data, time, code, pre, table) {
+  main:lang(de)
+    :is([data-num], data, time, code, pre, table):not(
+      :is(
+          [data-section-head] h2,
+          [data-page-head] h1,
+          [data-hero] h1,
+          :is(h1, h2, h3):is([class*="text-display"], [class*="text-h2"]),
+          [data-key-point],
+          [data-section-nav] a > span,
+          [data-next],
+          [data-proof-figure],
+          [data-glance-figure]
+        )
+        *
+    ) {
     overflow-wrap: break-word;
   }
 }
