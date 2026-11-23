@@ -103,7 +103,7 @@ const SmallLabel = () => (
 );
 /** A status word in semibold, as on the Retention page; the word carries the meaning, never a colour. */
 const Status = ({ children }: { children: string }) => (
-  <span data-status="" className="font-semibold whitespace-nowrap">
+  <span data-status="" className="font-semibold sm:whitespace-nowrap">
     {children}
   </span>
 );

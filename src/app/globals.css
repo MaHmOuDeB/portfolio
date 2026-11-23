@@ -2028,8 +2028,11 @@ html[data-js] [data-island="failed"] [data-nojs-only] {
   /* Below lg: the three sheets as a static column, no pose, no lean, no links. It is the end state of
      the fan (the narrow motion block), and the whole layout where that does not run. */
   @media (width < 64rem) {
+    /* The fan's 3D poses can project a sheet a pixel or two past the stage's sides at narrow widths with
+       large text; the stage is rail to rail and holds no control, so its sides clip (the reflow floor). */
     [data-depth-pin] {
       padding-top: calc(var(--spacing) * 8);
+      overflow-x: clip;
     }
 
     [data-depth-stack] {

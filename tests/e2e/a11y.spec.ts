@@ -317,8 +317,9 @@ for (const path of DE_PAGES) {
         overlaps.push(...report.overlaps.map((target) => ({ state, ...target })));
         exempt.push(...report.exempt.map((name) => `${state}: ${name}`));
       }
-      // The English twin's pin says how many inline links may be exempt; their German words differ.
-      const allowed = (INLINE_EXEMPT[path] ?? []).length;
+      // The English twin's pin says how many inline links may be exempt; their German words differ. The German
+      // Home adds one: its static note names the Live test inside its sentence ("... im Live-Test.").
+      const allowed = (INLINE_EXEMPT[path] ?? []).length + (path === '/' ? 1 : 0);
       for (const state of states) {
         const found = exempt.filter((e) => e.startsWith(`${state}: `));
         expect(found.length, `${route}: at most ${allowed} inline exemptions in ${state} (found: ${found.join('; ') || 'none'})`).toBe(allowed);
