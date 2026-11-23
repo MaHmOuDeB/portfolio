@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { bareHostname } from '../src/lib/seo/hostname.ts';
+import { DE_PAGES } from '../src/lib/i18n/pages.ts';
 
 export type BuiltFile = { path: string; text: string };
 
@@ -117,6 +118,11 @@ function builtFiles(dir: string): BuiltFile[] {
 
 type Out = { log: (line: string) => void; error: (line: string) => void };
 
+/** True when the German registry lists pages but the build carries no hreflang alternate: they were lost. */
+export function missingAlternates(counts: { alternates: number }, dePages: readonly string[] = DE_PAGES): boolean {
+  return dePages.length > 0 && counts.alternates === 0;
+}
+
 export function main(argv: readonly string[], out: Out = console): number {
   const value = (flag: string) => {
     const i = argv.indexOf(flag);
@@ -147,6 +153,10 @@ export function main(argv: readonly string[], out: Out = console): number {
   }
   if (sitemapLocations === 0) {
     out.error(`seo origin check: found no sitemap location in ${read}; a production build lists its pages in sitemap.xml`);
+    return 1;
+  }
+  if (missingAlternates({ alternates })) {
+    out.error(`seo origin check: found no hreflang alternate in ${read}; a production build links each page to its German twin`);
     return 1;
   }
   if (problems.length > 0) return 1;

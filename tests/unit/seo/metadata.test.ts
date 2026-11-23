@@ -275,7 +275,7 @@ describe('noTestOriginInProduction', () => {
       const app = path.join(dir, 'server/app');
       fs.mkdirSync(app, { recursive: true });
       fs.writeFileSync(path.join(app, 'lab.html'), page(good).text);
-      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>');
+      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc><xhtml:link rel="alternate" hreflang="de" href="https://site.example.com/de/lab"/></url></urlset>');
       const quiet = { log: () => {}, error: () => {} };
       expect(originCheck(['--canonical', CANONICAL, '--dir', dir], quiet)).toBe(0);
       fs.writeFileSync(path.join(app, 'index.html'), page(good.replaceAll('site.example.com', 'canonical.invalid')).text);
@@ -652,7 +652,7 @@ describe('sharingTemplate', () => {
 describe('seo-origin-check never passes on nothing', () => {
   const CANONICAL = 'site.example.com';
   const head = '<link rel="canonical" href="https://site.example.com/lab"/>';
-  const sitemap = '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>';
+  const sitemap = '<urlset><url><loc>https://site.example.com/lab</loc><xhtml:link rel="alternate" hreflang="de" href="https://site.example.com/de/lab"/></url></urlset>';
 
   function check(files: Record<string, string>) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-origin-empty-'));
@@ -671,7 +671,7 @@ describe('seo-origin-check never passes on nothing', () => {
   it('passes when it checked at least one canonical link and one sitemap location', () => {
     expect(check({ 'lab.html': `<html><head>${head}</head></html>`, 'sitemap.xml.body': sitemap })).toEqual({
       status: 0,
-      lines: ['seo origin check: 2 files, 1 canonical link and 1 sitemap location, only https://site.example.com'],
+      lines: ['seo origin check: 2 files, 1 canonical link and 1 sitemap location, 1 hreflang alternate, only https://site.example.com'],
     });
   });
 

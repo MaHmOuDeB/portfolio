@@ -87,11 +87,11 @@ describe('German pages in the truth audit', () => {
 
   it('rejects an English internal link on a German page', () => {
     const html = doc('de', `${LINKS}<a href="/work">Work</a>`);
-    expect(auditHtml(html, ctx({ pages: ['/work'] }))).toEqual([
+    expect(auditHtml(html, ctx({ pages: ['/', '/work', '/lab'] }))).toEqual([
       { route: '/de/work', kind: 'bad-link', detail: '"/work" does not stay in German' },
     ]);
     const group = doc('de', `${LINKS}<a href="/v/a">Start</a>`);
-    expect(kinds(auditHtml(group, ctx({ pages: ['/work'] })))).toEqual(['bad-link']);
+    expect(kinds(auditHtml(group, ctx({ pages: ['/', '/work', '/lab'] })))).toEqual(['bad-link']);
   });
 
   it('accepts /de links, query and hash, and a link that passes through localHref unchanged', () => {
@@ -99,7 +99,7 @@ describe('German pages in the truth audit', () => {
       'de',
       `${LINKS}<a href="/de?x=1">a</a><a href="/de/lab#peeking">b</a><a href="/cv.pdf">c</a><a href="#top">d</a><a href="https://x.example/">e</a>`,
     );
-    expect(auditHtml(html, ctx({ pages: ['/work'] }))).toEqual([]);
+    expect(auditHtml(html, ctx({ pages: ['/', '/work', '/lab'] }))).toEqual([]);
   });
 
   it('rejects a German page with no internal links to examine', () => {
@@ -146,5 +146,21 @@ describe('the language menu', () => {
     const page = (a: string) => `<!doctype html><html lang="de"><body><a href="/de/work">Projekte</a>${a}</body></html>`;
     expect(auditHtml(page('<a href="/work" hreflang="en" lang="en">English</a>'), ctx({ pages: ['/work'] }))).toEqual([]);
     expect(kinds(auditHtml(page('<a href="/work">Projekte</a>'), ctx({ pages: ['/work'] })))).toEqual(['bad-link']);
+  });
+
+  it('exempts only the language link to this page\'s English twin, with hreflang and lang both "en"', () => {
+    const page = (a: string) => `<!doctype html><html lang="de"><body><a href="/de/work">Projekte</a>${a}</body></html>`;
+    expect(kinds(auditHtml(page('<a href="/lab" hreflang="en" lang="en">English</a>'), ctx({ pages: ['/work', '/lab'] })))).toEqual(['bad-link']);
+    expect(kinds(auditHtml(page('<a href="/work" hreflang="en">English</a>'), ctx({ pages: ['/work'] })))).toEqual(['bad-link']);
+  });
+});
+
+describe('German links', () => {
+  it('rejects a /de link to a page the German registry does not list (a 404)', () => {
+    const html = doc('de', '<a href="/de/work">Projekte</a><a href="/de/nowhere?x=1#a">x</a>');
+    expect(auditHtml(html, ctx({ pages: ['/work'] }))).toEqual([
+      { route: '/de/work', kind: 'bad-link', detail: '"/de/nowhere?x=1#a" does not stay in German' },
+    ]);
+    expect(kinds(auditHtml(doc('de', '<a href="/de">Start</a>'), ctx({ pages: ['/work'] })))).toEqual(['bad-link']);
   });
 });

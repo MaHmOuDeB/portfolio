@@ -62,7 +62,7 @@ describe('scripts run with plain Node', () => {
         path.join(app, 'lab.html'),
         '<html><head><link rel="canonical" href="https://site.example.com/lab"></head><body></body></html>',
       );
-      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc></url></urlset>');
+      fs.writeFileSync(path.join(app, 'sitemap.xml.body'), '<urlset><url><loc>https://site.example.com/lab</loc><xhtml:link rel="alternate" hreflang="de" href="https://site.example.com/de/lab"/></url></urlset>');
       const run = (...args: string[]) =>
         spawnSync('npm', ['run', '--silent', 'seo:origin-check', '--', ...args], { cwd: ROOT, encoding: 'utf8' });
       const clean = run('--canonical', 'site.example.com', '--dir', dir);

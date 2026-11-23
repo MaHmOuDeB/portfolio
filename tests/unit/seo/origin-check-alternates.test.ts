@@ -1,6 +1,6 @@
 // seo:origin-check reads hreflang alternates too: in the pages, the RSC payloads and the sitemap.
 import { describe, expect, it } from 'vitest';
-import { checkedCounts, findOriginProblems, type BuiltFile } from '../../../scripts/seo-origin-check.ts';
+import { checkedCounts, findOriginProblems, missingAlternates, type BuiltFile } from '../../../scripts/seo-origin-check.ts';
 
 const HOST = 'site.example.com';
 const ON = `https://${HOST}`;
@@ -41,5 +41,13 @@ describe('hreflang alternates on the canonical origin', () => {
 
   it('counts the alternates it checked', () => {
     expect(checkedCounts(files(`${ON}/de/work`)).alternates).toBe(2 + 1);
+  });
+});
+
+describe('a build that lost its hreflang alternates', () => {
+  it('fails closed while the German registry lists pages, as with no canonical', () => {
+    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 0 }, ['/'])).toBe(true);
+    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 2 }, ['/'])).toBe(false);
+    expect(missingAlternates({ canonicals: 3, sitemapLocations: 3, alternates: 0 }, [])).toBe(false);
   });
 });

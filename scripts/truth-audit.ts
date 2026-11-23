@@ -20,6 +20,7 @@ import { SHELL_EN } from '../content/shell.ts';
 import { FACTS, FACT_DISPLAYS, FACT_DISPLAYS_DE } from '../src/lib/facts/facts.generated.ts';
 import { DE_PAGES } from '../src/lib/i18n/pages.ts';
 import { localHrefWith } from '../src/lib/i18n/href.ts';
+import { languageTargets } from '../src/lib/i18n/language.ts';
 import { SOURCE_IDS } from '../src/lib/facts/types.ts';
 import { ALLOW, ALLOW_DE, FRAMEWORK_ROUTES } from './truth-audit.allow.ts';
 
@@ -207,6 +208,8 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
   const german = isGermanRoute(ctx.route);
   const leaks = german ? leakPatterns() : [];
   const pages = ctx.pages ?? DE_PAGES;
+  // The one English link a German page may carry: the language menu's, to this page's English twin.
+  const englishTwin = german ? languageTargets(ctx.route, pages).en : undefined;
   let htmlLang: string | undefined;
   let linksExamined = 0;
 
@@ -260,12 +263,17 @@ export function auditHtml(html: string, ctx: AuditContext): Finding[] {
       const attrs = new Map(el.attrs.map((a) => [a.name, a.value]));
       const covered = checkMarkers(attrs) || marked;
       if (el.tagName === 'html') htmlLang = attrs.get('lang');
-      // The language menu's English link leaves German on purpose: it says so with hreflang="en".
-      const href = el.tagName === 'a' && attrs.get('hreflang') !== 'en' ? attrs.get('href') : undefined;
+      // The language menu's English link leaves German on purpose: it says so with hreflang and lang
+      // "en", and it points at this page's English twin. Any other English link is checked.
+      const rawHref = el.tagName === 'a' ? attrs.get('href') : undefined;
+      const languageLink =
+        attrs.get('hreflang') === 'en' && attrs.get('lang') === 'en' && rawHref?.split(/[?#]/)[0] === englishTwin;
+      const href = languageLink ? undefined : rawHref;
       if (german && href !== undefined && href.startsWith('/') && !href.startsWith('//')) {
         linksExamined += 1;
         const path = href.split(/[?#]/)[0] ?? href;
-        const stays = path === '/de' || path.startsWith('/de/') || localHrefWith(pages, 'de', href) === href;
+        // A German link must name a registered German page; any other must pass through localHref unchanged.
+        const stays = isGermanRoute(path) ? pages.includes(path === '/de' ? '/' : path.slice(3)) : localHrefWith(pages, 'de', href) === href;
         if (!stays) add('bad-link', `"${href}" does not stay in German`);
       }
       for (const name of SCANNED_ATTRS) {
