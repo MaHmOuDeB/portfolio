@@ -21,8 +21,8 @@ const PLANNER_DE: PlannerText = {
   kit,
   exhibit,
   nouns: {
-    visitors: { one: 'Besucher', other: 'Besucher', capital: 'Besucher' },
-    customers: { one: 'Kunde', other: 'Kunden', capital: 'Kunden' },
+    visitors: { one: 'Besucher', other: 'Besucher', capital: 'Besucher', dative: { one: 'Besucher', other: 'Besuchern' } },
+    customers: { one: 'Kunde', other: 'Kunden', capital: 'Kunden', dative: { one: 'Kunden', other: 'Kunden' } },
   },
   context: {
     hypothetical: {
@@ -38,7 +38,7 @@ const PLANNER_DE: PlannerText = {
         'Wenn eine Seite ',
         slot('count'),
         ' Besucher pro Tag bekommt, gleichmäßig auf die Gruppen verteilt',
-        ', so lange brauchen beide Gruppen, um die Größe aus dem Rechner oben zu erreichen, in ganzen Wochen, aufgerundet.',
+        ', zeigt dies, wie lange beide Gruppen brauchen, um die Größe aus dem Rechner oben zu erreichen, in ganzen Wochen, aufgerundet.',
       ],
       durationExtra: null,
     },
@@ -47,7 +47,7 @@ const PLANNER_DE: PlannerText = {
       durationTitle: 'Je weniger Kunden pro Tag, desto mehr Wochen dauert es, beide Gruppen zu füllen',
       label: 'Hypothetischer Anstieg',
       trafficLabel: 'Kunden pro Tag insgesamt',
-      baseline: 'Ausgangsrate der Conversion',
+      baseline: 'Ausgangsrate der Konversion',
       baselineHint: '',
       rise: 'Nachzuweisender Anstieg',
       note: [
@@ -64,7 +64,7 @@ const PLANNER_DE: PlannerText = {
         'Wenn ',
         slot('count'),
         ' Kunden pro Tag in den Test kommen, gleichmäßig auf die Gruppen verteilt',
-        ', so lange brauchen beide Gruppen, um die Größe aus dem Rechner oben zu erreichen, in ganzen Wochen, aufgerundet.',
+        ', zeigt dies, wie lange beide Gruppen brauchen, um die Größe aus dem Rechner oben zu erreichen, in ganzen Wochen, aufgerundet.',
       ],
       durationExtra:
         'Das Ergebnis jedes Kunden steht erst fest, wenn sein Zeitfenster für eine erneute Bestellung verstrichen ist, daher läuft der Test nach dem Eintritt des letzten Kunden entsprechend länger.',
@@ -89,7 +89,7 @@ const PLANNER_DE: PlannerText = {
     slot('power'),
     ', wobei sich die ',
     slot('noun'),
-    ' gleichmäßig auf die beiden Gruppen verteilen und das Ergebnis einmal am Ende gelesen wird:',
+    ' gleichmäßig auf die beiden Gruppen verteilen und das Ergebnis einmal am Ende ausgewertet wird:',
     ' ',
     slot('formula'),
     ' ',
@@ -99,7 +99,7 @@ const PLANNER_DE: PlannerText = {
   durationRest:
     'Der Verkehr ist eine Zahl zum Planen, kein Versprechen auf tatsächlichen Verkehr: Er nimmt an, dass jeder von ihnen in den Test kommt und jeden Tag dieselbe Anzahl eintrifft.',
   controls: {
-    baselineValue: '{value} Ausgangsrate der Conversion',
+    baselineValue: '{value} Ausgangsrate der Konversion',
     baselineHinted: '{value} {hint}',
     numberPercent: '{label}, Prozent',
     numberRelative: '{label}, Prozent des Ausgangswerts',
@@ -123,10 +123,10 @@ const PLANNER_DE: PlannerText = {
   tables: {
     columns: ['Eingabe oder Ergebnis', 'Wert'],
     sizing: {
-      baseline: 'Ausgangsrate der Conversion (%)',
+      baseline: 'Ausgangsrate der Konversion (%)',
       rise: 'Nachzuweisender Anstieg (Prozentpunkte)',
       riseRelative: 'Nachzuweisender Anstieg (% des Ausgangswerts)',
-      target: 'Zielrate der Conversion (%)',
+      target: 'Zielrate der Konversion (%)',
     },
     duration: { perDay: '{noun} pro Tag, beide Gruppen zusammen', inAll: '{noun} insgesamt', weeks: 'Wochen, aufgerundet' },
     lab: {
@@ -148,8 +148,8 @@ const PLANNER_DE: PlannerText = {
     methodSummary: 'Wie ich Größe und Wochen berechnet habe',
     termNames: {
       sampleSize: 'Stichprobengröße',
-      mde: 'Minimaler nachweisbarer Effekt',
-      power: 'Teststärke',
+      mde: 'Minimaler nachweisbarer Effekt (MDE)',
+      power: 'Teststärke (Power)',
       alpha: 'Signifikanzniveau',
     },
     terms: [
@@ -201,10 +201,10 @@ const SRM_DE: SrmText = {
   empty: 'Noch keine Besucher, also gibt es nichts zu prüfen.',
   smallNote: 'Bei so wenigen Besuchern ist diese Prüfung nur grob.',
   status: { flagged: 'Markiert', ok: 'Nicht markiert' },
-  odds: [slot('one'), ' Mal in ', slot('n')],
+  odds: [slot('one'), ' von ', slot('n'), ' Fällen'],
   verdict: {
-    flagged: ['Eine faire Münze erzeugt einen so großen oder größeren Abstand ', 'seltener als', ' ', slot('odds'), '.'],
-    ok: ['Eine faire Münze erzeugt einen so großen oder größeren Abstand ', 'mindestens', ' ', slot('odds'), '.'],
+    flagged: ['Eine faire Münze erzeugt einen so großen oder größeren Abstand in ', 'weniger als', ' ', slot('odds'), '.'],
+    ok: ['Eine faire Münze erzeugt einen so großen oder größeren Abstand in ', 'mindestens', ' ', slot('odds'), '.'],
   },
   statText: 'Chi-Quadrat {chi2}, ein Freiheitsgrad, p-Wert {p}',
   below: 'unter {value}',
@@ -235,7 +235,7 @@ const SRM_DE: SrmText = {
   takeaway:
     'Es ist nicht nah genug. Ich mache diese Prüfung, bevor ich irgendein Ergebnis lese. Schlägt sie an, suche ich zuerst, was die Aufteilung gestört hat. Sonst spiegelt ein Gewinner vielleicht nur wider, wer in welcher Gruppe gelandet ist.',
   summary: 'Wie die Aufteilungsprüfung funktioniert',
-  term: 'Aufteilungsprüfung (Abweichung vom geplanten Verhältnis)',
+  term: 'Aufteilungsprüfung (Abweichung vom geplanten Verhältnis, SRM)',
   terms: [
     'Jeder Besucher wird zufällig zugewiesen, wie bei einem fairen Münzwurf.',
     ' ',
@@ -243,7 +243,7 @@ const SRM_DE: SrmText = {
     ': ein Test, ob jede Gruppe den Anteil an Besuchern bekommen hat, den das Design ihr gab; fällt sie durch, liegt der Fehler in der Zuweisung oder in der Zählung, und kein Ergebnis sollte gelesen werden. Das Lab legt den geplanten Anteil auf die Hälfte fest; die Prüfung funktioniert gegen jeden geplanten Anteil.',
   ],
   method: [
-    'Die Prüfung ist ein Chi-Quadrat-Test mit einem Freiheitsgrad auf die Zahlen gegenüber diesem Anteil. Sie markiert die Aufteilung, wenn der p-Wert unter ',
+    'Die Prüfung ist ein Chi-Quadrat-Test mit einem Freiheitsgrad, der die Zahlen mit diesem Anteil vergleicht. Sie markiert die Aufteilung, wenn der p-Wert unter ',
     slot('threshold'),
     ' liegt, einer strengen Schwelle, damit eine Prüfung, die bei jedem Test läuft, selten falschen Alarm auslöst. Eine Markierung ist eine Warnung, die Zuweisung und die Protokollierung zu untersuchen, kein Beweis dafür, was sie verursacht hat. Der Test ist eine Näherung: Bei weniger als ',
     slot('small'),
@@ -322,7 +322,7 @@ const CURSE_DE: CurseText = {
     ', und der Punkt ist Ihre Einstellung. Das sind die Retrodesign-Formeln von Gelman und Carlin; sie nehmen unabhängige Beobachtungen und einen bekannten Standardfehler an, und sie garantieren kein Geschäftsergebnis.',
   ],
   ratioPart: [': Ihre Einstellung ist ein Verhältnis von ', slot('ratio')],
-  presetLink: ['Einen Test ansehen, dimensioniert wie in Prüfung', ' ', slot('check')],
+  presetLink: ['Einen Test ansehen, der wie in Prüfung', ' ', slot('check'), ' dimensioniert ist'],
 };
 
 const PEEK_DE: PeekText = {
@@ -335,10 +335,10 @@ const PEEK_DE: PeekText = {
   day: { one: 'Tag', other: 'Tage' },
   days: { one: '{n} Tag', other: '{n} Tage' },
   looksOne: '{days}, {visitors} Besucher je Gruppe',
-  looksMany: '{days}, {visitors} Besucher je Gruppe am letzten',
+  looksMany: '{days}, {visitors} Besucher je Gruppe bis zum letzten Tag',
   percent: '{value}\u00a0%',
   relation: { closeOrUnder: 'nahe bei oder unter', wellUnder: 'deutlich unter', above: 'über', below: 'unter', about: 'etwa bei' },
-  words: { dot: 'Der blasse Punkt', line: 'Die blasse Linie', check: { one: 'Prüfung', other: 'Prüfungen' } },
+  words: { dot: 'Der blasse Punkt', line: 'Die blasse Linie', check: { one: 'Auswertung', other: 'Auswertungen' } },
   result: {
     once: [
       'Einmal am Ende geprüft, nach ',
@@ -348,7 +348,7 @@ const PEEK_DE: PeekText = {
       ' von ',
       slot('runs'),
       ' Tests einen falschen Gewinner',
-      ', das liegt {relation} ',
+      '; das liegt {relation} den ',
       slot('alpha'),
       ', die eine einzelne Prüfung erlaubt.',
     ],
@@ -368,7 +368,7 @@ const PEEK_DE: PeekText = {
       ' von ',
       slot('runs'),
       ' Tests einen falschen Gewinner',
-      ', das liegt {relation} ',
+      '; das liegt {relation} den ',
       slot('alpha'),
       ', die eine einzelne Prüfung erlaubt.',
     ],
@@ -379,14 +379,14 @@ const PEEK_DE: PeekText = {
       ' von ',
       slot('runs'),
       ' Tests einen falschen Gewinner',
-      ', das liegt nahe bei oder unter ',
+      '; das liegt nahe bei oder unter den ',
       slot('alpha'),
       ', die eine einzelne Prüfung erlaubt.',
     ],
     naive: [
-      'Über ',
+      'Bei täglicher Auswertung über ',
       slot('looks'),
-      ' {days} täglich geprüft, fanden ',
+      ' {days} hinweg fanden ',
       slot('rate'),
       ' von ',
       slot('runs'),
@@ -408,7 +408,7 @@ const PEEK_DE: PeekText = {
       '. ',
     ],
     cs: [
-      'Ein Lauf zählt als falscher Gewinner, sobald die Konfidenzsequenz mit ',
+      'Ein Lauf zählt als falscher Gewinner, sobald die Konfidenzsequenz zum Niveau von ',
       slot('level'),
       ' für den Unterschied erstmals die Null ausschließt. ',
     ],
@@ -448,7 +448,7 @@ const PEEK_DE: PeekText = {
       'Das sind A/A-Tests: Beide Gruppen sehen dieselbe Version, daher ist jeder Gewinner ein falscher. ',
       'Unter diesen Simulationsannahmen beträgt die Rate ',
       slot('rate'),
-      ' (Monte-Carlo-Bereich mit ',
+      ' (Monte-Carlo-Bereich zum Niveau von ',
       slot('level'),
       ': ',
       slot('lower'),
@@ -468,22 +468,22 @@ const PEEK_DE: PeekText = {
       slot('runs'),
       ' Läufe ab Seed ',
       slot('seed'),
-      '; der Monte-Carlo-Bereich mit ',
+      '; der Monte-Carlo-Bereich zum Niveau von ',
       slot('level'),
       ' ist ein Wilson-Intervall über die Läufe: dort, wo sich die Rate mit weit mehr Läufen einpendeln würde. ',
-      'Jede Einstellung ist eine eigene Simulation, daher können benachbarte Tageszahlen um einige Prozentpunkte abweichen. ',
+      'Jede Einstellung ist eine eigene Simulation, daher können die Raten benachbarter Tageszahlen um einige Prozentpunkte abweichen. ',
     ],
     cost: 'Der Preis einer Korrektur ist eine Rechnung zur Stichprobe der letzten Prüfung, kein gemessener Verlust an Teststärke. ',
     credit: 'Die Idee stammt von Evan Miller, „How Not To Run an A/B Test“.',
   },
   leadIn: [
-    'Beide Seiten hier sind gleich, daher ist jeder Gewinner ein falscher Gewinner. Ziehen Sie an den geprüften Tagen und beobachten Sie, wie viele von',
+    'Beide Seiten hier sind gleich, daher ist jeder Gewinner ein falscher Gewinner. Ziehen Sie den Regler für die geprüften Tage und beobachten Sie, wie viele von',
     ' ',
     slot('runs'),
     ' Tests einen finden.',
   ],
   takeaway:
-    'Ich lege vor dem Start fest, wie ich einen Test lese. Ich lese ihn einmal am Ende oder mit einer Methode, die für tägliche Prüfungen gebaut ist. Der Preis häufigen Prüfens: Ein Gewinner braucht stärkere Belege. Der Live-Test auf dieser Website nutzt die immer gültige Prüfung.',
+    'Ich lege vor dem Start fest, wie ich einen Test auswerte. Ich werte ihn einmal am Ende aus oder mit einer Methode, die für tägliche Prüfungen gebaut ist. Der Preis häufigen Prüfens: Ein Gewinner braucht stärkere Belege. Der Live-Test auf dieser Website nutzt die immer gültige Prüfung.',
   summary: 'Wie die Simulation funktioniert',
   termNames: {
     peeking: 'Vorzeitiges Nachsehen (Peeking)',
@@ -495,7 +495,7 @@ const PEEK_DE: PeekText = {
     slot('peeking'),
     ': einen laufenden Test immer wieder ansehen und beim ersten Mal stoppen, wenn er signifikant aussieht, was dem Zufall viele Versuche gibt, einen falschen Gewinner zu erzeugen. ',
     slot('falseWinner'),
-    ': ein Unterschied, den der Test meldet, obwohl die beiden Versionen in Wahrheit gleich sind; ein einmal gelesener Test ist so eingestellt, dass er das etwa',
+    ': ein Unterschied, den der Test meldet, obwohl die beiden Versionen in Wahrheit gleich sind; ein einmal ausgewerteter Test ist so eingestellt, dass er das in etwa',
     ' ',
     slot('odds'),
     ' zulässt, das nominale Niveau.',
@@ -506,7 +506,7 @@ const PEEK_DE: PeekText = {
     slot('cs'),
     ': ein Intervall, das gültig bleibt, wie oft man auch hinsieht, um den Preis, breiter zu sein als ein Intervall einer einzelnen Prüfung.',
   ],
-  odds: [slot('one'), ' Mal in ', slot('n')],
+  odds: [slot('one'), ' von ', slot('n'), ' Fällen'],
   chart: {
     name: {
       once: 'Falsche Gewinner bei einmaliger Prüfung am Ende, neben täglichen Prüfungen ohne Korrektur',
@@ -523,8 +523,8 @@ const PEEK_DE: PeekText = {
     once: {
       columns: ['Prüfung', 'Plan', 'Falsche Gewinner bisher (%)'],
       daily: 'Täglich nachgesehen, ohne Korrektur',
-      end: 'Eine Prüfung am Ende',
-      note: 'Anteile der simulierten Läufe. Einmal prüfen heißt eine einzige Prüfung, gemacht nach so vielen Besuchern, wie der tägliche Plan bei seiner letzten Prüfung hat.',
+      end: 'Eine Auswertung am Ende',
+      note: 'Anteile der simulierten Läufe. Einmal prüfen heißt eine einzige Prüfung, gemacht nach so vielen Besuchern, wie der tägliche Plan bei seiner letzten Auswertung hat.',
     },
     naive: {
       columns: ['Tag', 'Falsche Gewinner bisher, ohne Korrektur (%)'],
@@ -564,7 +564,7 @@ export const LAB_DE: LabCopy = {
         when: 'Während er läuft',
         question: 'Hat jede Gruppe ihren Anteil bekommen?',
         line: 'Die Gruppen sollten jeweils nahe an der Hälfte liegen. Ein größerer Abstand, als der Zufall erlaubt, bedeutet, dass der Aufbau defekt ist. Dann ist kein Ergebnis vertrauenswürdig, so gut es auch aussieht.',
-        label: 'Abweichung vom geplanten Verhältnis',
+        label: 'Abweichung vom geplanten Verhältnis (SRM)',
         trap: 'Jeder Besucher kommt per fairem Münzwurf in Gruppe A oder B. Eine faire Münze landet nahe bei jeweils der Hälfte, aber selten genau bei der Hälfte. Ein viel größerer Abstand heißt, dass etwas kaputt ist, etwa eine Seite, die auf manchen Handys nicht lädt. Dann unterscheiden sich die Gruppen darin, wer in ihnen ist, und nicht nur in der Seite.',
         figure: 'srm',
       },
@@ -583,7 +583,7 @@ export const LAB_DE: LabCopy = {
         question: 'Ist der Gewinn so groß, wie er aussieht?',
         line: 'Ein Test, der für den Effekt zu klein ist, gewinnt nur bei einer glücklichen Messung. Deshalb wirken seine Gewinne größer, als sie sind.',
         label: 'Fluch des Gewinners (Typ-M-Fehler)',
-        trap: 'Eine billige Badezimmerwaage schwankt jeden Tag ein wenig. Schreiben Sie nur die Tage auf, an denen sie einen großen Gewichtsverlust zeigt. Ihre Notizen werden sagen, Sie hätten mehr abgenommen, als es wirklich war. Ein kleiner Test ist diese Waage: Nur seine glücklichsten Messungen überschreiten die Schwelle.',
+        trap: 'Eine billige Badezimmerwaage schwankt jeden Tag ein wenig. Schreiben Sie nur die Tage auf, an denen sie einen großen Gewichtsverlust zeigt. Ihre Notizen werden sagen, Sie hätten mehr abgenommen, als Sie wirklich abgenommen haben. Ein kleiner Test ist diese Waage: Nur seine glücklichsten Messungen überschreiten die Schwelle.',
         figure: 'curse',
       },
     ],
@@ -597,7 +597,7 @@ export const LAB_DE: LabCopy = {
       'Die Aufteilungsprüfung und das Überschätzungsbeispiel nutzen einfache, gängige Formeln. Sie zeigen an, wann man genauer hinsehen sollte. Sie sind kein Urteil über einen echten Test.',
     ],
     close:
-      'Ich dimensioniere einen Test, bevor er startet. Ich prüfe die Aufteilung, bevor ich irgendetwas lese. Ich lege vorher fest, wie oft ich nachsehe. Und ich begegne einem überraschenden Gewinn aus einem kleinen Test mit Misstrauen. Der Live-Test auf dieser Website folgt denselben Regeln mit echten Besuchern. Sein Plan wurde festgehalten, bevor der erste Besucher gezählt wurde. Er prüft seine Aufteilung nach jedem abgeschlossenen Tag. Er nutzt die immer gültige Prüfung, sodass er jeden Tag gelesen werden kann. Bei dem Verkehr dieser Website kann er nur einen großen Effekt erkennen, und der Plan sagt das.',
+      'Ich dimensioniere einen Test, bevor er startet. Ich prüfe die Aufteilung, bevor ich irgendetwas lese. Ich lege vorher fest, wie oft ich nachsehe. Und ich begegne einem überraschenden Gewinn aus einem kleinen Test mit Misstrauen. Der Live-Test auf dieser Website folgt denselben Regeln mit echten Besuchern. Sein Plan wurde festgehalten, bevor der erste Besucher gezählt wurde. Er prüft seine Aufteilung nach jedem abgeschlossenen Tag. Er nutzt die immer gültige Prüfung, sodass er jeden Tag ausgewertet werden kann. Bei dem Verkehr dieser Website kann er nur einen großen Effekt erkennen, und der Plan sagt das.',
     closeLinks: [
       { href: '/experiment', label: 'Den Live-Test ansehen' },
       { href: '/work/audible', label: 'Ansehen, wie ich bei Audible Tests dimensioniert und ausgewertet habe' },

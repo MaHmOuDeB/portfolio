@@ -8,6 +8,7 @@ import { Derived, derivedAttr } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
 import { getFact } from '@/lib/facts';
 import { PLANNER_NOUN, type PlannerContext } from '@/lib/lab/full-planner-values';
+import { plural } from '@/lib/lab/text-common';
 import { PLANNER_ALPHA, PLANNER_POWER } from '@/lib/lab/planner-values';
 import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
 import { sentenceNodes } from '@/lib/retention/sentence';
@@ -110,7 +111,7 @@ export function SizingTerms({ text = EN_PLANNER }: { text?: PlannerText }): Reac
 export function PlannerWeeksMethod({ traffic, text = EN_PLANNER }: { traffic: number; text?: PlannerText }): ReactNode {
   return sentenceNodes(text.lab.weeksMethod, {
     traffic: <Derived value={traffic} unit="count" refs={SIMULATED} locale={text.kit.locale} />,
-    noun: traffic === 1 ? text.nouns.visitors.one : text.nouns.visitors.other,
+    noun: plural(traffic, text.nouns.visitors.dative),
     rest: <DurationCaption context="hypothetical" traffic={traffic} part="rest" text={text} />,
   });
 }

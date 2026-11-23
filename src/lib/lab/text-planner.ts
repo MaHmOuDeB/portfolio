@@ -23,6 +23,8 @@ export type PlannerNounText = {
   other: string;
   /** At the start of a table row ("Visitors"). */
   capital: string;
+  /** After a preposition that takes the dative ("at 100 visitors a day"); English has no case, so it equals one and other. */
+  dative: Plural;
 };
 
 export type PlannerContextText = {
@@ -130,8 +132,8 @@ export const EN_PLANNER: PlannerText = {
   kit: EN_LAB_KIT,
   exhibit: EN_EXHIBIT,
   nouns: {
-    visitors: { one: 'visitor', other: 'visitors', capital: 'Visitors' },
-    customers: { one: 'customer', other: 'customers', capital: 'Customers' },
+    visitors: { one: 'visitor', other: 'visitors', capital: 'Visitors', dative: { one: 'visitor', other: 'visitors' } },
+    customers: { one: 'customer', other: 'customers', capital: 'Customers', dative: { one: 'customer', other: 'customers' } },
   },
   context: {
     hypothetical: {

@@ -206,7 +206,7 @@ export function DurationFigureView({
               count: countText(nPerArm, noun, text),
               all: formatNumber(2 * nPerArm, 0, { locale }),
               traffic: formatNumber(t, 0, { locale }),
-              noun: text.nouns[noun].other,
+              noun: text.nouns[noun].dative.other,
             })}
           </span>{' '}
           <ResultBadge context={context} text={text} />

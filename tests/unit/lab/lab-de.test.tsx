@@ -221,7 +221,7 @@ describe('the islands take their words as props', () => {
         <SizingControls id="winback" context="retention" values={values} onBaseline={noop} onBaselineCommit={noop} onRise={noop} onRiseCommit={noop} onMode={noop} onReset={noop} text={LAB_DE.planner} />,
       ),
     );
-    expect(sizing).toContain('Ausgangsrate der Conversion');
+    expect(sizing).toContain('Ausgangsrate der Konversion');
     expect(sizing).toContain('% des Ausgangswerts');
     expect(sizing).toContain('Prozentpunkten');
     const duration = text(renderToString(<DurationControls id="winback-duration" context="retention" label="Kunden pro Tag insgesamt" traffic={100} onTraffic={noop} onTrafficCommit={noop} onReset={noop} text={LAB_DE.planner} />));
@@ -237,18 +237,18 @@ describe('the islands take their words as props', () => {
     expect(lab).toMatch(/je Gruppe und \d+ Wochen?$/);
     const values = { baseline: 0.29, risePoints: 5, mode: 'absolute' as const };
     expect(pairedSentence(values, 100, 'customers', LAB_DE.planner)).toMatch(/^[\d.]+ Kunden je Gruppe, um einen Anstieg um 5 Prozentpunkte nachzuweisen, von 29 % auf 34 %; beide Gruppen sind in \d+ Wochen? gefüllt, bei 100 Kunden pro Tag$/);
-    expect(durationSentence(1353, 100, 'visitors', LAB_DE.planner)).toMatch(/^\d+ Wochen? bei 100 Besucher pro Tag, um 1\.353 Besucher je Gruppe zu erreichen$/);
+    expect(durationSentence(1353, 100, 'visitors', LAB_DE.planner)).toMatch(/^\d+ Wochen? bei 100 Besuchern pro Tag, um 1\.353 Besucher je Gruppe zu erreichen$/);
     expect(srmResultText({ nA: 5170, nB: 4830 }, undefined, LAB_DE.srm)).toBe(
-      'Markiert: Eine faire Münze erzeugt einen so großen oder größeren Abstand seltener als 1 Mal in 1.000.',
+      'Markiert: Eine faire Münze erzeugt einen so großen oder größeren Abstand in weniger als 1 von 1.000 Fällen.',
     );
     expect(srmResultText({ nA: 0, nB: 0 }, undefined, LAB_DE.srm)).toBe('Noch keine Besucher, also gibt es nichts zu prüfen.');
     expect(srmResultText({ nA: 3, nB: 1 }, undefined, LAB_DE.srm)).toContain('Bei so wenigen Besuchern ist diese Prüfung nur grob.');
     expect(curseResultText({ power: 0.17 }, undefined, LAB_DE.curse)).toMatch(/^Bei dieser Einstellung liegen Ergebnisse, die die Schwelle überschreiten, im Schnitt beim \d,\d-Fachen des echten Effekts\. Davon zeigen [\d,]+ % in die falsche Richtung\.$/);
     expect(curseResultText({ power: 0.99 }, undefined, LAB_DE.curse)).toContain('unter 0,1 %');
     const view = computePeek({ looks: 20, mode: 'daily', fix: 'naive' }, LAB_DE.peek.table);
-    expect(peekAnnouncement(view, LAB_DE.peek)).toMatch(/^Über 20 Tage täglich geprüft, fanden \d+,\d % von [\d.]+ Tests einen falschen Gewinner\. Einmal am Ende geprüft, wären es etwa 5 %\.$/);
+    expect(peekAnnouncement(view, LAB_DE.peek)).toMatch(/^Bei täglicher Auswertung über 20 Tage hinweg fanden \d+,\d % von [\d.]+ Tests einen falschen Gewinner\. Einmal am Ende geprüft, wären es etwa 5 %\.$/);
     expect(looksValueText(1, LAB_DE.peek)).toBe('1 Tag, 100 Besucher je Gruppe');
-    expect(looksValueText(20, LAB_DE.peek)).toBe('20 Tage, 2.000 Besucher je Gruppe am letzten');
+    expect(looksValueText(20, LAB_DE.peek)).toBe('20 Tage, 2.000 Besucher je Gruppe bis zum letzten Tag');
     expect(looksReadout(1, LAB_DE.peek)).toBe('1 Tag');
   });
 

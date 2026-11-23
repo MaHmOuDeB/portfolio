@@ -1,3 +1,4 @@
+import { EN_PLANNER } from '@/lib/lab/text-planner';
 // The full sample-size planner: the sizing model (the base planner's arithmetic plus a display unit
 // for the rise), the duration model, their static URL schemas and what hostile shared URLs become,
 // the relative display on the integer-point grid, the paired eager-loading keys, the Lab's one
@@ -416,6 +417,17 @@ describe('tables and sentences', () => {
     );
     // the traffic is normalized like the duration Figure's own
     expect(pairedSentence(PRESET, Number.NaN)).toBe(pairedSentence(PRESET, 100));
+  });
+
+  it('English has no case: the dative nouns equal the plain forms and the English planner sentences are unchanged', () => {
+    for (const noun of ['visitors', 'customers'] as const) {
+      const n = EN_PLANNER.nouns[noun];
+      expect(n.dative).toEqual({ one: n.one, other: n.other });
+    }
+    // the announcements keep the plural at one a day, as before
+    expect(durationSentence(1353, 1)).toMatch(/^\d+ weeks? at 1 visitors a day to reach 1,353 visitors per group$/);
+    expect(pairedSentence(PRESET, 1)).toMatch(/; both groups fill in \d+ weeks? at 1 visitors a day$/);
+    expect(pairedSentence(PRESET, 1, 'customers')).toMatch(/; both groups fill in \d+ weeks? at 1 customers a day$/);
   });
 });
 

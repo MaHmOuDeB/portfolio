@@ -70,7 +70,7 @@ export function pairedSentence(v: FullPlanValues, traffic: number, noun: Planner
     sentence: fullPlanSentence(v, noun, text),
     weeks: weeksText(weeks, text),
     n: formatNumber(t, 0, { locale: text.kit.locale }),
-    noun: text.nouns[noun].other,
+    noun: text.nouns[noun].dative.other,
   });
 }
 
@@ -100,7 +100,7 @@ export function durationSentence(nPerArm: number, traffic: number, noun: Planner
   return fill(text.announce.duration, {
     weeks: weeksText(durationModel(nPerArm, t).weeks, text),
     n: formatNumber(t, 0, { locale: text.kit.locale }),
-    noun: text.nouns[noun].other,
+    noun: text.nouns[noun].dative.other,
     count: countText(nPerArm, noun, text),
   });
 }
