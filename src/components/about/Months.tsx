@@ -1,6 +1,6 @@
 // A month range as it prints on the About timeline and the CV: "Aug 2023 to Apr 2025" or
 // "Oct 2026 to present" (a word, not a dash), each month in its own <time> (yyyy-mm). German month names
-// come from Intl (long, as the Home FAQ prints them) and the two words from the page's copy. Server-safe, no hooks.
+// come from Intl (short, as the glossary has them; the Home FAQ prints its own long names) and the two words from the page's copy. Server-safe, no hooks.
 import type { ReactNode } from 'react';
 import { INTL, type Locale } from '@/lib/i18n/locale';
 
@@ -18,7 +18,7 @@ function monthText(m: Month, locale: Locale): string {
   const name = NAMES[Number(month) - 1];
   if (!year || !name || !/^\d{4}$/.test(year)) throw new Error(`months: "${m}" is not a yyyy-mm month`);
   if (locale === 'en') return `${name} ${year}`;
-  return new Intl.DateTimeFormat(INTL[locale], { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(Number(year), Number(month) - 1, 1));
+  return new Intl.DateTimeFormat(INTL[locale], { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(Number(year), Number(month) - 1, 1));
 }
 
 function MonthTime({ m, locale }: { m: Month; locale: Locale }) {

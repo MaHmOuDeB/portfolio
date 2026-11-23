@@ -153,6 +153,12 @@ describe('the pieces the About and Work pages reuse', () => {
     expect(faq).toMatch(/<time dateTime="2026-10">Oktober 2026<\/time>/);
   });
 
+  it('names the Mercor role by its English title and the approved German wording, never "Vertrag"', () => {
+    expect(faq).toContain('AI Data Specialist, Business and Analytics Workflows (Contract)');
+    expect(faq).toContain('Erstellung hochwertiger Trainingsdaten für KI-Modelle, mit Business- und Analytics-Expertise: präzise, gut dokumentierte Arbeitsbeispiele.');
+    expect(faq).not.toContain('Vertragsbasis');
+  });
+
   it('writes the languages from the shared list, German at B1', () => {
     const s = languagesSentenceDe();
     expect(s).toContain('Deutsch (B1)');

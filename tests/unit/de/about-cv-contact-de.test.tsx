@@ -34,7 +34,8 @@ process.env.CV_PDF = PDF;
 
 const render = (el: React.ReactElement) => renderToStaticMarkup(el);
 const ids = (m: string) => [...m.matchAll(/\sid="([^"]+)"/g)].map((x) => x[1]).sort();
-const facts = (m: string) => [...m.matchAll(/data-fact="([^"]+)"/g)].map((x) => x[1]);
+// Sorted: German word order may move a Fact within a sentence, but the same Facts must appear the same number of times.
+const facts = (m: string) => [...m.matchAll(/data-fact="([^"]+)"/g)].map((x) => x[1]).sort();
 const claims = (m: string) => [...m.matchAll(/data-cv-claim="([^"]+)"/g)].map((x) => x[1]);
 const hrefs = (m: string) => [...m.matchAll(/<a [^>]*href="([^"]+)"/g)].map((x) => decode(x[1]!));
 const prose = (m: string) => text(m);
@@ -106,6 +107,11 @@ describe('the German About page', () => {
     expect(de).toContain('data-home-questions');
   });
 
+  it('keeps the Mercor title in English', () => {
+    expect(words).toContain('AI Data Specialist, Business and Analytics Workflows (Contract)');
+    expect(words).not.toContain('(Vertrag)');
+  });
+
   it('says Werkstudent, three teams one after another and the tool with its recorder', () => {
     expect(words).toContain('Werkstudent');
     expect(words).toMatch(/nacheinander mit 3 Teams gearbeitet/);
@@ -114,8 +120,9 @@ describe('the German About page', () => {
   });
 
   it('prints months with Intl and "bis" and "heute" inside <time>', () => {
-    expect(de).toContain('<time dateTime="2026-10">Oktober 2026</time> bis heute');
-    expect(de).toContain('<time dateTime="2023-08">August 2023</time> bis <time dateTime="2025-04">April 2025</time>');
+    expect(de).toContain('<time dateTime="2026-10">Okt. 2026</time> bis heute');
+    expect(de).not.toContain('Oktober 2026</time> bis heute');
+    expect(de).toContain('<time dateTime="2023-08">Aug. 2023</time> bis <time dateTime="2025-04">Apr. 2025</time>');
   });
 
   it('keeps German at B1 and never says fluent next to it', () => {
@@ -135,6 +142,13 @@ describe('the German CV page', () => {
   const de = PAGES.cv.de;
   const words = prose(de);
 
+  it('has the three Mercor bullets in the approved German', () => {
+    expect(words).toContain('AI Data Specialist, Business and Analytics Workflows (Contract)');
+    expect(words).toContain('Erstellung hochwertiger Trainingsdaten für KI-Modelle, mit Business- und Analytics-Expertise: präzise, gut dokumentierte Arbeitsbeispiele.');
+    expect(words).toContain('Genauigkeit an erster Stelle: Prüfung und Erläuterung jedes Ergebnisses sowie nachvollziehbare Dokumentation, sodass andere die Arbeit prüfen und wiederholen können.');
+    expect(words).toContain('Arbeit nach strengen Qualitätsstandards, mit Sorgfalt bei Datenschutz und Vertraulichkeit.');
+  });
+
   it('has the same data-cv-claim ids as the English page', () => {
     expect(claims(de)).toEqual(claims(PAGES.cv.en));
     expect(claims(de).length).toBeGreaterThan(20);
@@ -142,7 +156,7 @@ describe('the German CV page', () => {
 
   it('links the English PDF with hreflang en and the German label', () => {
     expect(de).toMatch(/<a href="\/cv\.pdf" hreflang="en" download=""[^>]*>/i);
-    expect(words).toContain('Lebenslauf (PDF, Englisch, 84 KB)');
+    expect(words).toContain('Lebenslauf herunterladen (PDF auf Englisch, 84 KB)');
     expect(PAGES.cv.en).toContain('Download CV (PDF, <data value="84" data-derived="build">84</data> KB)');
     expect(PAGES.cv.en).not.toMatch(/hreflang/i);
   });
@@ -230,7 +244,7 @@ describe('the German contact messages and server', () => {
     };
     expect(readLocale(fd('de'))).toBe('de');
     expect(readLocale(fd('en'))).toBe('en');
-    for (const bad of [undefined, 'DE', 'de ', '//evil', 'https://x', '', 'fr']) expect(readLocale(fd(bad)), String(bad)).toBe('en');
+    for (const bad of [undefined, 'DE', 'de ', '//evil', 'https://x', '', 'fr', '__proto__', 'constructor', 'toString']) expect(readLocale(fd(bad)), String(bad)).toBe('en');
   });
 
   const NOW = 1_700_000_000_000;
@@ -291,7 +305,7 @@ describe('the German contact messages and server', () => {
     expect(await go()).toBe('/contact?sent=1');
     expect(await go('en')).toBe('/contact?sent=1');
     expect(await go('de')).toBe('/de/contact?sent=1');
-    for (const bad of ['DE', 'de ', '//evil', 'https://x', '/de/../x']) expect(await go(bad), bad).toBe('/contact?sent=1');
+    for (const bad of ['DE', 'de ', '//evil', 'https://x', '/de/../x', '__proto__', 'constructor']) expect(await go(bad), bad).toBe('/contact?sent=1');
   });
 });
 

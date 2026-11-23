@@ -9,8 +9,8 @@ import type { AboutCopy, CvCopy, CvEntry } from '../about';
 
 export const ABOUT_DE: AboutCopy = {
   story: [
-    'Ich plane A/B-Tests, sage klar, was sie zeigen, und baue die Automatisierung drumherum.',
-    'Fast zwei Jahre war ich Werkstudent bei Audible (Amazon), vor allem in der Growth-Experimentation, mit etwas Marketing Analytics.',
+    'Ich plane A/B-Tests, sage klar, was sie zeigen, und baue die Automatisierung darum herum.',
+    'Fast zwei Jahre war ich Werkstudent bei Audible (Amazon), hauptsächlich im Bereich Growth-Experimente, dazu etwas Marketing-Analytics.',
     (s) => (
       <>
         Ich habe an {s.fact('profile.audible.experiments')} A/B-Tests im Web und in den mobilen Apps mitgewirkt, die
@@ -26,12 +26,12 @@ export const ABOUT_DE: AboutCopy = {
       </>
     ),
     'Ich habe einen MSc in Data Science der University of Europe for Applied Sciences in Berlin (2025), und seitdem habe ich meine Master-Projekte mit öffentlichen Daten neu aufgebaut und eigene Tools gebaut.',
-    'Bei Audible habe ich außerdem interne KI-Tools gebaut, die ein größeres Team übernommen hat, und SQL-Segmentierungsabfragen für eine einwilligungsbasierte Personalisierung geschrieben, für Mitglieder mit und ohne Einwilligung, nach den Regeln des Digital Markets Act (DMA).',
+    'Bei Audible habe ich außerdem interne KI-Tools gebaut, die ein größeres Team übernommen hat, und SQL-Segmentierungsabfragen für eine Personalisierung, die die Einwilligung beachtet, geschrieben, für Mitglieder mit und ohne Einwilligung, nach den Regeln des Digital Markets Act (DMA).',
   ],
   focus:
-    'Ich arbeite an zwei Dingen, die zusammengehören: Experimente, die in einer klaren Empfehlung enden, und Automatisierung, die die manuelle Arbeit auf dem Weg dorthin abnimmt. Bei Audible waren das A/B-Tests und ein Browser-Tool, das mein Team übernommen hat; seitdem sind es Agenten, Workflows und die Prüfungen drumherum.',
+    'Ich arbeite an zwei Dingen, die zusammengehören: Experimente, die in einer klaren Empfehlung enden, und Automatisierung, die die manuelle Arbeit auf dem Weg dorthin übernimmt. Bei Audible waren das A/B-Tests und ein Browser-Tool, das mein Team übernommen hat; seitdem sind es Agenten, Workflows und die Prüfungen darum herum.',
   timeline: [
-    { range: { from: '2026-10', to: null }, role: 'AI Data Specialist, Business- und Analytics-Workflows (Vertrag)', where: 'Mercor, remote' },
+    { range: { from: '2026-10', to: null }, role: 'AI Data Specialist, Business and Analytics Workflows (Contract)', where: 'Mercor, remote' },
     {
       range: { from: '2023-08', to: '2025-04' },
       role: 'Werkstudent: Marketing Analytics & Growth-Experimentation',
@@ -75,19 +75,19 @@ const REBUILT = 'Persönliches Projekt mit einem öffentlichen Datensatz, 2026 n
 const EXPERIENCE: readonly CvEntry[] = [
   {
     id: 'mercor',
-    title: 'AI Data Specialist, Business- und Analytics-Workflows (Vertrag)',
+    title: 'AI Data Specialist, Business and Analytics Workflows (Contract)',
     where: 'Mercor, Berlin, Deutschland (remote)',
     range: { from: '2026-10', to: null },
     claims: [
       {
         id: 'mercor-data',
-        body: 'Erstelle hochwertige Trainingsdaten für KI-Modelle und nutze dafür Business- und Analytics-Expertise, um genaue, gut dokumentierte Arbeitsbeispiele zu erstellen.',
+        body: 'Erstellung hochwertiger Trainingsdaten für KI-Modelle, mit Business- und Analytics-Expertise: präzise, gut dokumentierte Arbeitsbeispiele.',
       },
       {
         id: 'mercor-accuracy',
-        body: 'Genauigkeit steht an erster Stelle: Ich prüfe und erkläre jedes Ergebnis und dokumentiere die Arbeit, damit andere sie prüfen und wiederholen können.',
+        body: 'Genauigkeit an erster Stelle: Prüfung und Erläuterung jedes Ergebnisses sowie nachvollziehbare Dokumentation, sodass andere die Arbeit prüfen und wiederholen können.',
       },
-      { id: 'mercor-standards', body: 'Arbeite nach strengen Qualitätsstandards und gehe diszipliniert mit Datenschutz und Vertraulichkeit um.' },
+      { id: 'mercor-standards', body: 'Arbeit nach strengen Qualitätsstandards, mit Sorgfalt bei Datenschutz und Vertraulichkeit.' },
     ],
   },
   {
@@ -130,9 +130,8 @@ const EXPERIENCE: readonly CvEntry[] = [
         body: (s) => (
           <>
             Einen manuellen Engpass erkannt und ein Automatisierungstool gebaut (Tampermonkey mit einem Schritt-Rekorder),
-            das die Einrichtung von Testkonten von ca. {s.fact('profile.audible.setup_minutes_before')} auf ca.{' '}
-            {s.fact('profile.audible.setup_minutes_after')} Minuten verkürzt hat (ca. {s.fact('profile.audible.setup_time_cut')}),
-            in {s.fact('profile.audible.markets')} Märkten, und die Übernahme im ganzen Team mit einer Anleitung und einem
+            das die Einrichtung von Testkonten in {s.fact('profile.audible.markets')} Märkten von ca. {s.fact('profile.audible.setup_minutes_before')} auf ca.{' '}
+            {s.fact('profile.audible.setup_minutes_after')} Minuten verkürzt hat (ca. {s.fact('profile.audible.setup_time_cut')}), und die Übernahme im ganzen Team mit einer Anleitung und einem
             Video vorangebracht.
           </>
         ),
@@ -149,7 +148,7 @@ const EXPERIENCE: readonly CvEntry[] = [
         id: 'audible-campaigns',
         body: (s) => (
           <>
-            Content-Kampagnen im CMS in App und Website in {s.fact('profile.audible.markets')} Marktplätzen eingerichtet und
+            Content-Kampagnen im CMS in der App und auf der Website in {s.fact('profile.audible.markets')} Marktplätzen eingerichtet und
             aktualisiert und dabei Titel platziert, die mit dem Content-Curation-Team ausgewählt wurden; die
             Content-Entdeckung und das Merchandising im französischen Markt unterstützt.
           </>
@@ -175,7 +174,7 @@ const EXPERIENCE: readonly CvEntry[] = [
   },
   {
     id: 'geo-engineering',
-    title: 'Praktikant, wissenschaftliche Hilfskraft',
+    title: 'Praktikant, Forschungsassistenz',
     where: 'Geo Engineering, Bremen, Deutschland',
     range: { from: '2021-06', to: '2021-09' },
     claims: [
@@ -193,7 +192,7 @@ export const CV_DE: CvCopy = {
       id: 'summary-tenure',
       body: (s) => (
         <>
-          Analyst für Experimente und Wachstum mit fast zwei Jahren bei Audible (Amazon): an{' '}
+          Analyst für A/B-Testing und Growth mit fast zwei Jahren bei Audible (Amazon): an{' '}
           {s.fact('profile.audible.experiments')} A/B-Tests im Web und in den mobilen Apps mitgewirkt und während meiner
           Zeit dort nacheinander mit {s.fact('profile.audible.teams')} Teams gearbeitet.
         </>
@@ -217,13 +216,13 @@ export const CV_DE: CvCopy = {
   experience: EXPERIENCE,
   skills: [
     {
-      label: 'Tools und Sprachen',
+      label: 'Tools und Programmiersprachen',
       items: 'SQL (DuckDB), Python (pandas, NumPy, scikit-learn, XGBoost, statsmodels), Power BI, Tableau, Excel, Amplitude, REST-APIs, Git/GitHub, Streamlit.',
     },
     {
       label: 'Analyse und Methoden',
       items:
-        'A/B-Testing und Experimentation (Signifikanztests, Stichprobenplanung), Metrikdesign für Experimente (primäre, sekundäre und Guardrail-Metriken), Funnel-, Lifecycle- und Kohortenanalyse der Kundenbindung, RFM-Segmentierung, Vorhersagemodelle (überwachtes ML) und Clustering, CRM-Segmentierung (einwilligungsbasiert), KPI-Definition und Stakeholder-Reporting, Produktanalyse und Event-Tracking.',
+        'A/B-Testing und Experimentation (Signifikanztests, Stichprobenplanung), Metrikdesign für Experimente (primäre, sekundäre und Guardrail-Metriken), Funnel-, Lifecycle- und Kohortenanalyse der Kundenbindung, RFM-Segmentierung, Vorhersagemodelle (überwachtes ML) und Clustering, CRM-Segmentierung (unter Beachtung der Einwilligung), KPI-Definition und Stakeholder-Reporting, Produktanalyse und Event-Tracking.',
     },
     {
       label: 'KI und Automatisierung',
@@ -269,11 +268,11 @@ export const CV_DE: CvCopy = {
           id: 'retention-analysis',
           body: (s) => (
             <>
-              Analysiert: {s.fact('retention.data.clean_rows')} bereinigte Bestellpositionen (
+              {s.fact('retention.data.clean_rows')} bereinigte Bestellpositionen (
               {s.fact('retention.data.customers')} Kunden) aus einem öffentlichen Datensatz eines britischen
-              Online-Händlers: Kohorten-Kundenbindung, RFM-Segmente und ein {s.windowDays()}-Tage-Wiederkaufsmodell, bewertet
+              Online-Händlers analysiert: Kohorten-Kundenbindung, RFM-Segmente und ein {s.windowDays()}-Tage-Wiederkaufsmodell, bewertet
               auf einem späteren Zeitraum (AUC {s.fact('retention.model.gb_auc', 2)} gegenüber{' '}
-              {s.fact('retention.model.rule_auc', 2)} für eine Regel, die zuletzt gekaufte Kunden zuerst nimmt).
+              {s.fact('retention.model.rule_auc', 2)} für eine Regel, die die Kunden mit dem jüngsten Kauf zuerst nimmt).
             </>
           ),
         },
@@ -301,7 +300,7 @@ export const CV_DE: CvCopy = {
           id: 'kpi-dashboard',
           body: (s) => (
             <>
-              Ein statisches KPI-Dashboard (Chart.js) über mit SQL erstellten KPI-Tabellen gebaut; stornierte Bestellungen
+              Ein statisches KPI-Dashboard (Chart.js) über mit SQL erstellten KPI-Tabellen gebaut; rückgängig gemachte Bestellungen
               ausgeschlossen (eine Bestellung und ihre Stornierung), die den Umsatz aufgebläht hatten und den Eindruck
               erweckten, die Retouren seien um {s.fact('retail.returns.yoy_growth_raw')} gewachsen.
             </>
@@ -321,7 +320,7 @@ export const CV_DE: CvCopy = {
             <>
               Ein Dashboard entworfen und gebaut, das die Instrumentierung mit Amplitude zeigt: eine{' '}
               {s.fact('pulse.events.count')}-Event-Taxonomie, in der jedes Event eine Produktfrage beantworten soll
-              (Aktivierung, Nutzung, Kaufabsicht, Kundenbindung), plus Nutzereigenschaften zur Segmentierung.
+              (Aktivierung, Nutzung, Kaufabsicht, Kundenbindung), plus User Properties zur Segmentierung.
             </>
           ),
         },
@@ -356,7 +355,7 @@ export const CV_DE: CvCopy = {
       claims: [
         {
           id: 'docproof-pipeline',
-          body: 'Eine Open-Source-Pipeline (Python-CLI + Claude-Agenten) gebaut, die aus einer strukturierten Faktenbasis Word-Dateien und gestaltete PDFs erzeugt; mit jedem LLM nutzbar (mit Claude-Modellen getestet; GPT und Gemini vom Design her).',
+          body: 'Eine Open-Source-Pipeline (Python-CLI + Claude-Agenten) gebaut, die aus einer strukturierten Faktenbasis Word-Dateien und gestaltete PDFs erzeugt; mit jedem LLM nutzbar (mit Claude-Modellen getestet; GPT und Gemini konzeptionell vorgesehen).',
         },
         {
           id: 'docproof-verification',
@@ -398,7 +397,7 @@ export const CV_DE: CvCopy = {
         },
         {
           id: 'n8n-delivery',
-          body: 'Einen Gmail-Posteingang und ein gemeinsames System für Fehlerbenachrichtigungen ergänzt, mit Ein-Befehl-Installer, Abnahmetest und Docker-Setup (PostgreSQL, HTTPS), dessen Backup nach einer vollständigen Löschung der Daten wiederhergestellt wurde.',
+          body: 'Einen Gmail-Eingang und ein gemeinsames System für Fehlerbenachrichtigungen ergänzt, mit Ein-Befehl-Installer, Abnahmetest und Docker-Setup (PostgreSQL, HTTPS), dessen Backup nach einer vollständigen Löschung der Daten wiederhergestellt wurde.',
         },
         {
           id: 'n8n-tests',
@@ -420,7 +419,7 @@ export const CV_DE: CvCopy = {
     write: 'Schreiben Sie mir',
     print: 'Seite drucken',
     technologies: 'Technologien:',
-    downloadBefore: 'Lebenslauf (PDF, Englisch, ',
+    downloadBefore: 'Lebenslauf herunterladen (PDF auf Englisch, ',
     sections: {
       summary: 'Zusammenfassung',
       experience: 'Berufserfahrung',

@@ -124,7 +124,7 @@ const FAQ_ITEMS: readonly { question: string; answer: readonly FaqPart[] }[] = [
       { month: '2025-11' },
       ' abgeschlossen. Seitdem habe ich meine Masterprojekte mit öffentlichen Daten neu aufgebaut und Docproof, die n8n-Workflow-Bibliothek und diese Website gebaut. Seit ',
       { month: '2026-10' },
-      ' arbeite ich außerdem auf Vertragsbasis bei Mercor und erstelle Trainingsdaten für KI-Modelle.',
+      ' habe ich außerdem bei Mercor die Rolle AI Data Specialist, Business and Analytics Workflows (Contract): Erstellung hochwertiger Trainingsdaten für KI-Modelle, mit Business- und Analytics-Expertise: präzise, gut dokumentierte Arbeitsbeispiele.',
     ],
   },
   {

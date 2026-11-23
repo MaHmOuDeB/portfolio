@@ -28,7 +28,7 @@ export const CONTACT_DE: ContactCopy = {
     sendingAnnounce: 'Ihre Nachricht wird gesendet',
     send: 'Nachricht senden',
     failure: {
-      fast: 'Es wurde nichts gesendet, weil das Formular sehr kurz nach dem Öffnen der Seite abgeschickt wurde. Ihr Text steht noch im Formular, Sie können ihn erneut senden.',
+      fast: 'Es wurde nichts gesendet, weil das Formular sehr kurz nach dem Öffnen der Seite abgeschickt wurde. Ihr Text steht noch im Formular, Sie können ihn also erneut senden.',
       limit: 'Es wurde nichts gesendet: Dieses Formular hat sein Limit vorerst erreicht. Ihr Text steht noch im Formular. Versuchen Sie es später erneut oder schreiben Sie mir über {linkedin}.',
       delivery: 'Es wurde nichts gesendet: Die Nachricht konnte nicht zugestellt werden. Ihr Text steht noch im Formular. Versuchen Sie es später erneut oder schreiben Sie mir über {linkedin}.',
     },
