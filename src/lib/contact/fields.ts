@@ -2,6 +2,8 @@
 // the browser on submit (no round trip for a missing field) and the server on every request. Pure
 // and client-safe. The messages name no number: a limit is "shorter", never a figure.
 
+import { isLocale, type Locale } from '../i18n/locale.ts';
+
 export const FIELD_ORDER = ['name', 'email', 'reason', 'subject', 'message'] as const;
 export type FieldName = (typeof FIELD_ORDER)[number];
 export type ContactValues = Record<FieldName, string>;
@@ -20,16 +22,33 @@ export const REASONS = [
   { value: 'other', label: 'Something else' },
 ] as const;
 
-export const ERRORS = {
+/** The messages of every field, in one language. English is `ERRORS`; the German set is in content/de/contact.ts. */
+export type ErrorMessages = {
+  name: { empty: string; long: string; lineBreak: string; control: string };
+  email: { empty: string; invalid: string; long: string };
+  reason: { empty: string; invalid: string };
+  subject: { empty: string; long: string; lineBreak: string; control: string };
+  message: { empty: string; long: string };
+};
+
+export type ReasonValue = (typeof REASONS)[number]['value'];
+
+export const ERRORS: ErrorMessages = {
   name: { empty: 'Enter your name', long: 'Enter a shorter name', lineBreak: 'Enter your name on one line', control: 'Remove the special characters from your name' },
   email: { empty: 'Enter your e-mail address, so I can reply', invalid: 'Enter a full e-mail address, with an @ and a domain', long: 'Enter a shorter e-mail address' },
   reason: { empty: 'Choose why you are getting in touch', invalid: 'Choose one of the reasons in the list' },
   subject: { empty: 'Enter a subject', long: 'Enter a shorter subject', lineBreak: 'Enter the subject on one line', control: 'Remove the special characters from the subject' },
   message: { empty: 'Enter your message', long: 'Shorten your message to the character limit' },
-} as const;
+};
 
 export function reasonLabel(value: string): string | undefined {
   return REASONS.find((r) => r.value === value)?.label;
+}
+
+/** The language a form was written in: the hidden `locale` field when it is one of ours, else English. */
+export function readLocale(fd: FormData): Locale {
+  const v = fd.get('locale');
+  return isLocale(v) ? v : 'en';
 }
 
 /** Every field as a string (a missing one or a file is empty), with CRLF as LF, as the browser counts. */
@@ -51,12 +70,12 @@ const CONTROL = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u206
 const ADDRESS_PART = String.raw`[^\s@,;:<>()\[\]"\\]+`;
 const ADDRESS = new RegExp(`^${ADDRESS_PART}@[^\\s@,;:<>()\\[\\]"\\\\.]+(?:\\.[^\\s@,;:<>()\\[\\]"\\\\.]+)+$`);
 
-export function validateField(name: FieldName, raw: string): string | undefined {
+export function validateField(name: FieldName, raw: string, errors: ErrorMessages = ERRORS): string | undefined {
   const value = name === 'message' ? raw : raw.trim();
   switch (name) {
     case 'name':
     case 'subject': {
-      const e = ERRORS[name];
+      const e = errors[name];
       if (value === '') return e.empty;
       if (LINE_BREAK.test(value)) return e.lineBreak;
       if (CONTROL.test(value)) return e.control;
@@ -64,23 +83,23 @@ export function validateField(name: FieldName, raw: string): string | undefined 
       return undefined;
     }
     case 'email':
-      if (value === '') return ERRORS.email.empty;
-      if (!ADDRESS.test(value) || CONTROL.test(value)) return ERRORS.email.invalid;
-      if (value.length > CONTACT_LIMITS.email) return ERRORS.email.long;
+      if (value === '') return errors.email.empty;
+      if (!ADDRESS.test(value) || CONTROL.test(value)) return errors.email.invalid;
+      if (value.length > CONTACT_LIMITS.email) return errors.email.long;
       return undefined;
     case 'reason':
-      if (value === '') return ERRORS.reason.empty;
-      return reasonLabel(value) === undefined ? ERRORS.reason.invalid : undefined;
+      if (value === '') return errors.reason.empty;
+      return reasonLabel(value) === undefined ? errors.reason.invalid : undefined;
     case 'message':
-      if (value.trim() === '') return ERRORS.message.empty;
-      return value.replace(/\r\n/g, '\n').length > CONTACT_LIMITS.message ? ERRORS.message.long : undefined;
+      if (value.trim() === '') return errors.message.empty;
+      return value.replace(/\r\n/g, '\n').length > CONTACT_LIMITS.message ? errors.message.long : undefined;
   }
 }
 
-export function validate(values: ContactValues): FieldErrors {
+export function validate(values: ContactValues, messages: ErrorMessages = ERRORS): FieldErrors {
   const errors: FieldErrors = {};
   for (const name of FIELD_ORDER) {
-    const error = validateField(name, values[name]);
+    const error = validateField(name, values[name], messages);
     if (error !== undefined) errors[name] = error;
   }
   return errors;

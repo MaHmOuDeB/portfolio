@@ -7,6 +7,10 @@
 // and moves focus to the status block that answers. Nothing is kept in the browser: no cookie, no
 // storage, no draft.
 import { startTransition, useActionState, useEffect, useRef, useState, type FocusEvent, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import type { ContactFormCopy } from '../../../content/contact';
+import type { CountText, FieldText, KitText } from '@/components/kit/text';
+import type { Locale } from '@/lib/i18n/locale';
+import { aroundPlaceholder } from '@/components/kit/text';
 import { SelectField } from '@/components/kit/SelectField';
 import { SubmitButton } from '@/components/kit/SubmitButton';
 import { TextArea } from '@/components/kit/TextArea';
@@ -17,47 +21,29 @@ import { revealRing } from '@/lib/focus/reveal-ring';
 import { CONTACT_LIMITS, FIELD_ORDER, HONEYPOT_FIELD, REASONS, readValues, validate, validateField, type FieldErrors, type FieldName } from '@/lib/contact/fields';
 import type { ContactState } from '@/lib/contact/handle';
 import { CONTACT } from '@/lib/site';
+import type { ErrorMessages } from '@/lib/contact/fields';
 import { STATUS_ID, StatusBlock } from './StatusBlock';
 
 const IDLE: ContactState = { status: 'idle' };
-const NOT_SENT = 'Message not sent';
 
 /** The id of a field's control: the error summary links to it. */
 export const fieldId = (name: FieldName) => `contact-${name}`;
-
-const LABELS: Record<FieldName, string> = {
-  name: 'Name',
-  email: 'E-mail address',
-  reason: 'Why are you getting in touch?',
-  subject: 'Subject',
-  message: 'Message',
-};
 
 function errorsOf(state: ContactState): FieldErrors {
   return state.status === 'invalid' ? state.errors : {};
 }
 
-function LinkedIn() {
+/** A sentence with one placeholder, filled with an element: the text before it, the element, the text after. */
+function withLink(template: string, key: string, link: ReactNode): ReactNode {
+  const [before, after] = aroundPlaceholder(template, key);
   return (
-    <TextLink href={CONTACT.linkedin} external>
-      LinkedIn
-    </TextLink>
+    <>
+      {before}
+      {link}
+      {after}
+    </>
   );
 }
-
-const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
-  delivery: (
-    <p>
-      Nothing was sent: the message could not be delivered. Your text is still in the form. Try again later, or message me on <LinkedIn />.
-    </p>
-  ),
-  limit: (
-    <p>
-      Nothing was sent: this form has reached its limit for now. Your text is still in the form. Try again later, or message me on <LinkedIn />.
-    </p>
-  ),
-  fast: <p>Nothing was sent, because the form was sent very soon after the page opened. Your text is still in the form, so you can send it again.</p>,
-};
 
 /** A focused field whose ring does not fit on screen is scrolled to the nearest edge (see revealRing). */
 function onFieldFocus(event: FocusEvent<HTMLFormElement>) {
@@ -68,7 +54,43 @@ function onFieldFocus(event: FocusEvent<HTMLFormElement>) {
  * `notSentTitle` is the document title while a message has not gone (the page passes it from
  * src/lib/contact/title.ts, which this client module does not import: it reads the server's metadata).
  */
-export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notSentTitle: string }) {
+export function ContactForm({
+  issuedAt,
+  notSentTitle,
+  locale,
+  copy,
+  messages,
+  kit,
+  privacyHref,
+}: {
+  issuedAt: number;
+  notSentTitle: string;
+  locale: Locale;
+  /** The form's words in the page's language (a server component passes them: a client file imports no dictionary). */
+  copy: ContactFormCopy;
+  /** The browser's validation messages, the same set the server answers with. */
+  messages: ErrorMessages;
+  /** The kit's three slices the fields print (error word, empty option, character count). */
+  kit: { field: FieldText; select: string; count: CountText };
+  /** The privacy notice's address in the page's language. */
+  privacyHref: string;
+}) {
+  // The fields read only these slices of the kit text; the rest of a KitText holds functions, which
+  // cannot cross from the server, so the object is built here with just the slices.
+  const kitText = { locale, ...kit } as unknown as KitText;
+  const NOT_SENT = copy.notSent;
+  const privacy = aroundPlaceholder(copy.privacy, 'link');
+  const linkedin = (
+    <TextLink href={CONTACT.linkedin} external>
+      {copy.linkedin}
+    </TextLink>
+  );
+  const FAILURE: Record<'fast' | 'limit' | 'delivery', ReactNode> = {
+    delivery: <p>{withLink(copy.failure.delivery, 'linkedin', linkedin)}</p>,
+    limit: <p>{withLink(copy.failure.limit, 'linkedin', linkedin)}</p>,
+    fast: <p>{copy.failure.fast}</p>,
+  };
+  const LABELS = copy.labels;
   const [state, formAction, pending] = useActionState(sendContact, IDLE);
   // The errors on show: the server's after a response, the browser's after a submit it stopped. Each
   // field's own error clears as soon as the field becomes valid; the summary (and the title) keep the
@@ -97,7 +119,7 @@ export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notS
     event.preventDefault();
     if (pending) return;
     const data = new FormData(event.currentTarget);
-    const errors = validate(readValues(data));
+    const errors = validate(readValues(data), messages);
     if (Object.keys(errors).length > 0) {
       setShown({ from: state, errors, summary: errors, attempt: shown.attempt + 1 });
       return;
@@ -109,7 +131,7 @@ export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notS
   function onInput(event: FormEvent<HTMLFormElement>) {
     const target = event.target as HTMLInputElement;
     const name = target.name as FieldName;
-    if (shown.errors[name] === undefined || validateField(name, target.value.replace(/\r\n/g, '\n')) !== undefined) return;
+    if (shown.errors[name] === undefined || validateField(name, target.value.replace(/\r\n/g, '\n'), messages) !== undefined) return;
     const errors = { ...shown.errors };
     delete errors[name];
     setShown({ ...shown, errors });
@@ -134,7 +156,7 @@ export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notS
       {errorNames.length > 0 ? (
         <StatusBlock ref={status} tone="warn" word={NOT_SENT} className="mt-12">
           <div onClick={onSummaryClick}>
-            <p>Check these fields:</p>
+            <p>{copy.checkFields}</p>
             {/* role="list": WebKit drops the list role from a list drawn without bullets. */}
             <ul role="list" className="mt-2">
               {errorNames.map((name) => (
@@ -161,51 +183,55 @@ export function ContactForm({ issuedAt, notSentTitle }: { issuedAt: number; notS
         aria-describedby={notSent ? STATUS_ID : undefined}
         className={notSent ? 'mt-8' : 'mt-12'}
       >
-        <p className="text-sm text-muted">All fields are required.</p>
+        <p className="text-sm text-muted">{copy.required}</p>
         <input type="hidden" name="issuedAt" value={stamp} />
+        {locale !== 'en' ? <input type="hidden" name="locale" value={locale} /> : null}
         {/* One gap between every field and before the button, so the rhythm is even down the form. */}
         <div className="mt-6 flex flex-col gap-8">
           <TextField
             id={fieldId('name')}
             name="name"
             label={LABELS.name}
-            hint="I use this name when I reply. Any name is fine."
+            hint={copy.hints.name}
             autoComplete="name"
             maxLength={CONTACT_LIMITS.name}
             defaultValue={values?.name}
             error={shown.errors.name}
+            text={kitText}
           />
           <TextField
             id={fieldId('email')}
             name="email"
             type="email"
             label={LABELS.email}
-            hint="I reply to this address."
+            hint={copy.hints.email}
             autoComplete="email"
             spellCheck={false}
             maxLength={CONTACT_LIMITS.email}
             defaultValue={values?.email}
             error={shown.errors.email}
+            text={kitText}
           />
-          <SelectField id={fieldId('reason')} name="reason" label={LABELS.reason} options={REASONS} defaultValue={values?.reason} error={shown.errors.reason} />
-          <TextField id={fieldId('subject')} name="subject" label={LABELS.subject} autoComplete="off" maxLength={CONTACT_LIMITS.subject} defaultValue={values?.subject} error={shown.errors.subject} />
-          <TextArea id={fieldId('message')} name="message" label={LABELS.message} limit={CONTACT_LIMITS.message} refs={['build']} defaultValue={values?.message} error={shown.errors.message} />
+          <SelectField id={fieldId('reason')} name="reason" label={LABELS.reason} options={REASONS.map((r) => ({ value: r.value, label: copy.reasons[r.value] }))} defaultValue={values?.reason} error={shown.errors.reason} text={kitText} />
+          <TextField id={fieldId('subject')} name="subject" label={LABELS.subject} autoComplete="off" maxLength={CONTACT_LIMITS.subject} defaultValue={values?.subject} error={shown.errors.subject} text={kitText} />
+          <TextArea id={fieldId('message')} name="message" label={LABELS.message} limit={CONTACT_LIMITS.message} refs={['build']} defaultValue={values?.message} error={shown.errors.message} text={kitText} />
         </div>
         {/* A person never sees or reaches this field; a bot that fills it is told the message went. */}
         <div className="sr-only" aria-hidden="true" inert>
-          <label htmlFor="contact-hp">Leave this field empty</label>
+          <label htmlFor="contact-hp">{copy.honeypot}</label>
           <input id="contact-hp" name={HONEYPOT_FIELD} type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
         </div>
         <div className="mt-8">
-          <SubmitButton pending={pending} pendingLabel="Sending…">
-            Send message
+          <SubmitButton pending={pending} pendingLabel={copy.sending}>
+            {copy.send}
           </SubmitButton>
           <span className="sr-only" aria-live="polite">
-            {pending ? 'Sending your message' : ''}
+            {pending ? copy.sendingAnnounce : ''}
           </span>
           <p className="mt-4 text-sm text-muted">
-            I receive your message by e-mail: Resend, in the USA, delivers it to my Gmail inbox, and this site stores nothing. More, including your rights, in the{' '}
-            <TextLink href="/privacy#contact-form">privacy notice</TextLink>.
+            {privacy[0].trimEnd()}{' '}
+            <TextLink href={privacyHref}>{copy.privacyLink}</TextLink>
+            {privacy[1]}
           </p>
         </div>
       </form>

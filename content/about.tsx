@@ -7,15 +7,76 @@
 // each one). The teams are the ones I worked with over my time at Audible, one after another, and
 // the markets figure belongs to the automation tool and the campaign work.
 import type { ReactNode } from 'react';
+import type { FactId } from '@/lib/facts';
+import { SITE } from '@/lib/site';
 import { Derived } from '@/components/kit/Derived';
 import { Fact } from '@/components/kit/Fact';
 import type { MonthRange } from '@/components/about/Months';
+import { aboutPhoto } from './about-photo.ts';
 import { WINDOW_DAYS } from '@/lib/retention/rfm';
+
+// ── Copy types ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What a figure in German copy is written with: the page's language is in the slot, so a German
+ * sentence holds a function of the slots where an English one holds the element itself.
+ */
+export type Slots = {
+  fact: (id: FactId, decimals?: number) => ReactNode;
+  windowDays: () => ReactNode;
+};
+/** A piece of copy: a node, or a function of the slots. */
+export type Body = ReactNode | ((slots: Slots) => ReactNode);
+
+/** The page-level words of the About page. */
+export type AboutUi = {
+  chip: string;
+  open: string;
+  title: string;
+  quiet: string;
+  readCv: string;
+  /** The section titles by section id. */
+  sections: { timeline: string; tools: string; languages: string };
+  photoAlt: string;
+  /** The words of a month range: "to" and "present". */
+  months: { to: string; present: string };
+};
+
+/** The page-level words of the CV page. */
+export type CvUi = {
+  chip: string;
+  role: string;
+  city: string;
+  write: string;
+  print: string;
+  technologies: string;
+  /** The text of the PDF button before its size. */
+  downloadBefore: string;
+  sections: { summary: string; experience: string; skills: string; education: string; languages: string; projects: string };
+  months: { to: string; present: string };
+};
+
+export type AboutCopy = {
+  story: readonly Body[];
+  focus: string;
+  timeline: readonly { range: MonthRange; role: string; where: string }[];
+  tools: readonly { tool: string; where: string }[];
+  ui: AboutUi;
+};
+
+export type CvCopy = {
+  summary: readonly CvClaim[];
+  experience: readonly CvEntry[];
+  skills: readonly { label: string; items: string }[];
+  education: readonly CvEntry[];
+  projects: readonly CvEntry[];
+  ui: CvUi;
+};
 
 // ── About ───────────────────────────────────────────────────────────────────────────────────────
 
 /** The story, one sentence per entry. */
-export const ABOUT_STORY: readonly ReactNode[] = [
+export const ABOUT_STORY: readonly Body[] = [
   <>I plan A/B tests, say plainly what they show and build the automation around them.</>,
   <>
     For nearly two years I was a working student at Audible (Amazon), mainly in growth experimentation with some
@@ -86,7 +147,7 @@ export { LANGUAGES } from './languages.ts';
 // ── CV ──────────────────────────────────────────────────────────────────────────────────────────
 
 /** One claim of the CV: a summary sentence or a bullet. The id names it in the tests. */
-export type CvClaim = { id: string; body: ReactNode };
+export type CvClaim = { id: string; body: Body };
 
 export type CvEntry = {
   id: string;
@@ -94,7 +155,7 @@ export type CvEntry = {
   /** A site page about the entry, if there is one. */
   href?: string;
   /** Employer or school and place; for a project, what kind of project it is. */
-  where: ReactNode;
+  where: Body;
   range?: MonthRange;
   claims: readonly CvClaim[];
   /** Plain lines without a bullet (coursework, a minor). */
@@ -445,3 +506,41 @@ export const CV_PROJECTS: readonly CvEntry[] = [
     technologies: 'n8n, JavaScript (Node.js), REST APIs & webhooks, Gmail API (OAuth2), Docker, PostgreSQL, GitHub Actions.',
   },
 ];
+
+// ── The English copy objects ────────────────────────────────────────────────────────────────────
+
+export const ABOUT_EN: AboutCopy = {
+  story: ABOUT_STORY,
+  focus: ABOUT_FOCUS,
+  timeline: TIMELINE,
+  tools: SHIPPED_TOOLS,
+  ui: {
+    chip: 'About',
+    open: 'Open to roles',
+    title: 'Experimentation and AI automation analyst',
+    quiet: 'in Berlin, Germany.',
+    readCv: 'Read my CV',
+    sections: { timeline: 'Timeline', tools: 'Tools, and where I used them', languages: 'Languages' },
+    photoAlt: aboutPhoto.alt,
+    months: { to: 'to', present: 'present' },
+  },
+};
+
+export const CV_EN: CvCopy = {
+  summary: CV_SUMMARY,
+  experience: CV_EXPERIENCE,
+  skills: CV_SKILLS,
+  education: CV_EDUCATION,
+  projects: CV_PROJECTS,
+  ui: {
+    chip: 'CV',
+    role: SITE.role,
+    city: SITE.city,
+    write: 'Write to me',
+    print: 'Print this page',
+    technologies: 'Technologies:',
+    downloadBefore: 'Download CV (PDF, ',
+    sections: { summary: 'Summary', experience: 'Experience', skills: 'Skills', education: 'Education', languages: 'Languages', projects: 'Projects' },
+    months: { to: 'to', present: 'present' },
+  },
+};

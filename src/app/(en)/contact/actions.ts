@@ -1,16 +1,20 @@
 'use server';
 
 // The contact form's Server Action. A plain POST without JavaScript and a fetch with it both land
-// here: a sent message redirects (303) to /contact?sent=1, and anything else returns the state the
+// here: a sent message redirects (303) to /contact?sent=1 (/de/contact?sent=1 for the German form), and anything else returns the state the
 // form re-renders with, values kept, in the response body (never in the address). The limiter lives
 // in this module, so its key is drawn once per server instance; a refusal logs one fixed line.
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { addressFrom } from '@/lib/contact/address';
+import { readLocale } from '@/lib/contact/fields';
 import { handleContact, type ContactState } from '@/lib/contact/handle';
 import { createContactLimiter } from '@/lib/contact/limiter';
 import { contactConfig, contactGlobalLimit, deliver } from '@/lib/contact/send';
 import { serverEnv } from '@/lib/env';
+
+// Where a sent message goes: a constant per language, never built from the request.
+const SENT_TARGET = { en: '/contact?sent=1', de: '/de/contact?sent=1' } as const;
 
 const limiter = createContactLimiter({ globalLimit: contactGlobalLimit(serverEnv()) });
 
@@ -23,6 +27,6 @@ export async function sendContact(_previous: ContactState, formData: FormData): 
     // Only the fixed refusal lines, never a value.
     log: (line) => console.warn(line),
   });
-  if (state.status === 'sent') redirect('/contact?sent=1');
+  if (state.status === 'sent') redirect(SENT_TARGET[readLocale(formData)]);
   return state;
 }

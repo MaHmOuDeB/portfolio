@@ -9,9 +9,9 @@
 // content type included) and `rsc: 1` added. So a request counts as a form POST only when its body is
 // a form and neither header is there.
 import type { Metadata } from 'next';
+import { contactCopy } from '@/components/contact/copy';
+import type { Locale } from '@/lib/i18n/locale';
 import { withSiteName } from '@/lib/seo/metadata';
-
-const DESCRIPTION = 'Send me a message about a role, an interview or a project.';
 
 function isDocumentFormPost(headers: Pick<Headers, 'get'>): boolean {
   if (headers.get('rsc') !== null || headers.get('next-action') !== null) return false;
@@ -20,18 +20,20 @@ function isDocumentFormPost(headers: Pick<Headers, 'get'>): boolean {
 }
 
 /** The page's own title, without the site's name: the one the manifest (content/seo.ts) lists. */
-export const CONTACT_TITLE = 'Contact';
+export const CONTACT_TITLE = contactCopy('en').titles.page;
 
 /** The title of a state of the page, as the form and the sent block set it: "Message sent: Contact". */
-export function contactStateTitle(state: 'sent' | 'not-sent'): string {
-  return withSiteName(`${state === 'sent' ? 'Message sent' : 'Message not sent'}: ${CONTACT_TITLE}`);
+export function contactStateTitle(state: 'sent' | 'not-sent', locale: Locale = 'en'): string {
+  const t = contactCopy(locale).titles;
+  return withSiteName(`${state === 'sent' ? t.sent : t.notSent}: ${t.page}`);
 }
 
 /** The bare title for a request: the page's own, or the state's, without the site's name. */
-export function contactTitle(headers: Pick<Headers, 'get'>, sent: boolean): string {
-  return sent ? `Message sent: ${CONTACT_TITLE}` : isDocumentFormPost(headers) ? `Message not sent: ${CONTACT_TITLE}` : CONTACT_TITLE;
+export function contactTitle(headers: Pick<Headers, 'get'>, sent: boolean, locale: Locale = 'en'): string {
+  const t = contactCopy(locale).titles;
+  return sent ? `${t.sent}: ${t.page}` : isDocumentFormPost(headers) ? `${t.notSent}: ${t.page}` : t.page;
 }
 
-export function contactMetadata(headers: Pick<Headers, 'get'>, sent: boolean): Metadata {
-  return { title: withSiteName(contactTitle(headers, sent)), description: DESCRIPTION };
+export function contactMetadata(headers: Pick<Headers, 'get'>, sent: boolean, locale: Locale = 'en'): Metadata {
+  return { title: withSiteName(contactTitle(headers, sent, locale)), description: contactCopy(locale).titles.description };
 }
