@@ -9,7 +9,7 @@
 // markup as before. A one-line announcement is a `Template`, filled with plain text.
 import type { Template } from '@/lib/i18n/template';
 import { slot, type Sentence } from '@/lib/retention/sentence';
-import { EN_EXHIBIT, EN_LAB_KIT, type ExhibitLabels, type LabKit, type Plural } from './text-common';
+import { EN_EXHIBIT, EN_LAB_KIT, plural, type ExhibitLabels, type LabKit, type Plural } from './text-common';
 
 /** What the groups are made of: visitors in a hypothetical test, customers on Retention. */
 export type PlannerNoun = 'visitors' | 'customers';
@@ -127,6 +127,13 @@ export type PlannerText = {
     weeksMethod: Sentence;
   };
 };
+
+/**
+ * The noun after "at <n> ... a day". German picks the dative by count ("1 Besucher", "100 Besuchern"); English keeps
+ * the plural it has always printed, so its output does not change.
+ */
+export const trafficNoun = (text: PlannerText, noun: PlannerNoun, n: number): string =>
+  text.kit.locale === 'de' ? plural(n, text.nouns[noun].dative) : text.nouns[noun].dative.other;
 
 export const EN_PLANNER: PlannerText = {
   kit: EN_LAB_KIT,

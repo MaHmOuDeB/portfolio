@@ -36,7 +36,7 @@ import {
   type PlannerContext,
 } from '@/lib/lab/full-planner';
 import { labKit, plural } from '@/lib/lab/text-common';
-import { EN_PLANNER, type PlannerText } from '@/lib/lab/text-planner';
+import { EN_PLANNER, trafficNoun, type PlannerText } from '@/lib/lab/text-planner';
 import { sentenceNodes } from '@/lib/retention/sentence';
 import { Exhibit, PhonePoint } from './Exhibit';
 import { DurationCaption, PlannerWeeksMethod, SizingContextNote, SizingMethod, SizingTerms } from './PlannerCopy';
@@ -206,7 +206,7 @@ export function DurationFigureView({
               count: countText(nPerArm, noun, text),
               all: formatNumber(2 * nPerArm, 0, { locale }),
               traffic: formatNumber(t, 0, { locale }),
-              noun: text.nouns[noun].dative.other,
+              noun: trafficNoun(text, noun, t),
             })}
           </span>{' '}
           <ResultBadge context={context} text={text} />

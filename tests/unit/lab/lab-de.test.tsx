@@ -238,6 +238,10 @@ describe('the islands take their words as props', () => {
     const values = { baseline: 0.29, risePoints: 5, mode: 'absolute' as const };
     expect(pairedSentence(values, 100, 'customers', LAB_DE.planner)).toMatch(/^[\d.]+ Kunden je Gruppe, um einen Anstieg um 5 Prozentpunkte nachzuweisen, von 29 % auf 34 %; beide Gruppen sind in \d+ Wochen? gefüllt, bei 100 Kunden pro Tag$/);
     expect(durationSentence(1353, 100, 'visitors', LAB_DE.planner)).toMatch(/^\d+ Wochen? bei 100 Besuchern pro Tag, um 1\.353 Besucher je Gruppe zu erreichen$/);
+    // One visitor a day takes the singular in German; English keeps its existing words.
+    expect(durationSentence(1353, 1, 'visitors', LAB_DE.planner)).toContain('bei 1 Besucher pro Tag');
+    expect(pairedSentence(values, 1, 'visitors', LAB_DE.planner)).toContain('bei 1 Besucher pro Tag');
+    expect(durationSentence(1353, 1)).toContain('at 1 visitors a day');
     expect(srmResultText({ nA: 5170, nB: 4830 }, undefined, LAB_DE.srm)).toBe(
       'Markiert: Eine faire Münze erzeugt einen so großen oder größeren Abstand in weniger als 1 von 1.000 Fällen.',
     );

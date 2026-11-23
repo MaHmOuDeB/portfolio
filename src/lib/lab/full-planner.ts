@@ -21,7 +21,7 @@ import {
   type PlannerNoun,
 } from './full-planner-values';
 import { PLANNER_POWER, planModel } from './planner';
-import { EN_PLANNER, type PlannerText } from './text-planner';
+import { EN_PLANNER, trafficNoun, type PlannerText } from './text-planner';
 
 export * from './full-planner-values';
 
@@ -70,7 +70,7 @@ export function pairedSentence(v: FullPlanValues, traffic: number, noun: Planner
     sentence: fullPlanSentence(v, noun, text),
     weeks: weeksText(weeks, text),
     n: formatNumber(t, 0, { locale: text.kit.locale }),
-    noun: text.nouns[noun].dative.other,
+    noun: trafficNoun(text, noun, t),
   });
 }
 
@@ -100,7 +100,7 @@ export function durationSentence(nPerArm: number, traffic: number, noun: Planner
   return fill(text.announce.duration, {
     weeks: weeksText(durationModel(nPerArm, t).weeks, text),
     n: formatNumber(t, 0, { locale: text.kit.locale }),
-    noun: text.nouns[noun].dative.other,
+    noun: trafficNoun(text, noun, t),
     count: countText(nPerArm, noun, text),
   });
 }
