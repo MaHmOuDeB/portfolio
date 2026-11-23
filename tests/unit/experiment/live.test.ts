@@ -27,6 +27,8 @@ const AB: ExperimentConfig = {
 const DEV: ServerEnv = { vercelEnv: 'development', fakeStore: false };
 const PRODUCTION: ServerEnv = { vercelEnv: 'production', fakeStore: false, kvUrl: 'https://secret-host.upstash.io', kvToken: 'secret-write-token', kvReadOnlyToken: 'secret-read-token' };
 const NOW = new Date('2026-11-20T10:00:00Z');
+/** A day after the configured calibration start, so a test of the shipped config holds whatever start it has. */
+const afterStart = () => new Date(Date.parse(EXPERIMENT.calibration.startedOn!) + 86_400_000);
 
 type G = Partial<GroupCounts>;
 const counts = (g: G = {}): GroupCounts => ({ ...(Object.fromEntries(EVENT_TYPES.map((t) => [t, 0])) as GroupCounts), ...g });
@@ -182,12 +184,12 @@ describe('getExperimentSnapshot: no store', () => {
   it('on Vercel with VERCEL_ENV missing or development rejects instead of showing the fixture', async () => {
     const env: ServerEnv = { vercelEnv: 'development', fakeStore: false, onVercel: true };
     const lines: object[] = [];
-    await expect(getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT, log: (l) => lines.push(l) })).rejects.toThrow(
+    await expect(getExperimentSnapshot({ env, mode: 'none', read: null, write: null, now: afterStart, config: EXPERIMENT, log: (l) => lines.push(l) })).rejects.toThrow(
       /misconfigured/,
     );
     expect(lines).toEqual([expect.objectContaining({ evt: 'snapshot', outcome: 'error', reason: 'misconfigured' })]);
     await expect(
-      getExperimentSnapshot({ env: { ...env, vercelEnv: 'preview' }, mode: 'none', read: null, write: null, now: () => NOW, config: EXPERIMENT }),
+      getExperimentSnapshot({ env: { ...env, vercelEnv: 'preview' }, mode: 'none', read: null, write: null, now: afterStart, config: EXPERIMENT }),
     ).resolves.toMatchObject({ source: 'fixture' });
   });
 
@@ -588,7 +590,7 @@ describe('before the start instant (the event route\'s rule)', () => {
   });
 
   it('after the start: the calibration note', async () => {
-    const v = await getLiveView('a', deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT }));
+    const v = await getLiveView('a', deps({ env: DEV, mode: 'none', read: null, config: EXPERIMENT, now: afterStart }));
     expect(v.testNote).toEqual({ mode: 'calibration' });
   });
 
