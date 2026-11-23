@@ -30,14 +30,14 @@ export const LIVE_DE: LiveCopy = {
   keyPoints: {
     tested: {
       title: 'Was getestet wird',
-      body: 'Die drei ausgewählten Karten auf der englischen Startseite. Gruppe A: Überschriften, die das Thema nennen. Gruppe B: Überschriften, die das Ergebnis nennen. Mehr unterscheidet sich nicht.',
+      body: 'Die drei ausgewählten Karten auf der englischen Startseite. Gruppe A: Überschriften, die das Thema nennen. Gruppe B: Überschriften, die das Ergebnis nennen. Sonst unterscheidet sich nichts.',
       calibrationExtra: ' Der Vergleich beginnt nach der Kalibrierung; währenddessen sehen beide Gruppen die Überschriften von Gruppe A.',
     },
     standing: {
       title: 'Wo der Test steht',
       inconclusive:
         'Bei „ohne klares Ergebnis“ gebe ich das endgültige Intervall als den Bereich der Effekte an, die zu den Daten passen, nie als „kein Effekt“.',
-      decided: 'Die erste Entscheidung ist endgültig, daher ändern spätere Blicke nichts.',
+      decided: 'Die erste Entscheidung ist endgültig, daher ändern spätere Auswertungen nichts.',
       notRunning: 'Die Karte oben nennt die Einzelheiten.',
       calibration:
         'Die Kalibrierung ist ein Probelauf: Beide Gruppen sehen dieselben Überschriften, damit sich Zählung und Aufteilung prüfen lassen, bevor der eigentliche Vergleich beginnt.',
@@ -68,11 +68,11 @@ export const LIVE_DE: LiveCopy = {
   },
   result: {
     range: 'der Bereich der Unterschiede zwischen den Gruppen, mit dem die Daten vereinbar sind',
-    hollow: (range) => `Das leere Zeichen steht für den Balken: ${range}.`,
+    hollow: (range) => `Die nicht ausgefüllte Markierung steht für den Balken: ${range}.`,
     calibrationBar: (range) =>
       `Der Balken ist ${range}. In der Kalibrierung sehen beide Gruppen dieselbe Seite, daher sollte der Balken die Null einschließen.`,
     bar: (range, open) =>
-      `Der Balken ist ${range}. Liegt er ganz auf der Seite „B höher“, liegt B vorn; über null hinweg gibt es ${open ? 'noch ' : ''}keine klare Antwort.`,
+      `Der Balken ist ${range}. Liegt er ganz auf der Seite „B höher“, liegt B vorn; schließt er die Null ein, gibt es ${open ? 'noch ' : ''}keine klare Antwort.`,
     collecting: (target) =>
       seq('Es wird kein Schätzwert gezeichnet, bevor jede Gruppe ', target, ' Aufrufe hat. Diese Schwelle wurde vor dem Start festgelegt.'),
   },
@@ -80,7 +80,7 @@ export const LIVE_DE: LiveCopy = {
     meaning:
       'Präregistriert heißt: Das Design, die Zahlen, mit denen ich plane, und die Entscheidungsregel wurden festgelegt und veröffentlicht, bevor ein Besucher gezählt wurde, sodass sie sich nach einem Blick auf die Ergebnisse nicht unbemerkt ändern lassen.',
     fixes:
-      'Die Präregistrierung legt das Design, die Zahlen, mit denen ich plane, die Entscheidungsregel und mein Vorgehen bei jedem Ausgang fest. Ihre Hypothese: „Ausgewählte Fallstudien-Karten, die das Ergebnis nennen, bekommen mehr Klicks als Karten, die das Thema nennen.“',
+      'Die Präregistrierung legt das Design, die Zahlen, mit denen ich plane, die Entscheidungsregel und mein Vorgehen bei jedem Ausgang fest. Ihre Hypothese (aus dem Englischen übersetzt): „Ausgewählte Fallstudienkarten, die das Ergebnis nennen, bekommen mehr Klicks als Karten, die das Thema nennen.“',
     planning: (p) =>
       seq(
         'Ich habe den Test auf ',
@@ -93,7 +93,7 @@ export const LIVE_DE: LiveCopy = {
         p.lift,
         ' Prozentpunkte. Selbst ein Anstieg von ',
         p.small,
-        ' Punkten würde nur in etwa ',
+        ' Prozentpunkten würde nur in etwa ',
         p.one,
         ' von ',
         p.twenty,
@@ -109,13 +109,13 @@ export const LIVE_DE: LiveCopy = {
         p.low,
         ' bis ',
         p.high,
-        ' Einstiegsaufrufe (neue Besucher auf der Startseite) je Gruppe. Das ist ein Planungswert, kein Ziel.',
+        ' Einstiegsaufrufe (Aufrufe, mit denen ein Besuch auf der Startseite beginnt) je Gruppe. Das ist ein Planungswert, kein Ziel.',
       ),
     views: 'Der Test zählt Aufrufe, nicht Personen: Eine Person kann mehrfach zählen, auch in beiden Gruppen.',
     short: (p) => seq('Präregistrierung ', p.version, ', Design-Hash ', p.hash, '.'),
-    readLink: 'Die Präregistrierung unter ihrem Tag lesen',
+    readLink: 'Die Präregistrierung unter ihrem Git-Tag lesen',
     recordSummary: 'Eintrag der Präregistrierung',
-    record: (p) => seq('Präregistrierung ', p.version, ', Tag ', p.tag, ', Design-Hash ', p.hash, '.'),
+    record: (p) => seq('Präregistrierung ', p.version, ', Git-Tag ', p.tag, ', Design-Hash ', p.hash, '.'),
     build: (p) => seq('Diese Seite wurde aus dem Commit ', p.commit, ' gebaut.'),
   },
   health: {
@@ -124,7 +124,7 @@ export const LIVE_DE: LiveCopy = {
     split: {
       lead: (p) =>
         seq(
-          'Die Aufteilungsprüfung fragt, ob die beiden Gruppen den Anteil an Aufrufen bekommen haben, den der Zufall ihnen geben würde (Abweichung vom geplanten Verhältnis, SRM). Schlägt sie fehl, liegt die Aufteilung weiter von gleichmäßig entfernt, als der Zufall plausibel erklären würde; dann könnte etwas Aufrufe zwischen den Gruppen verschoben haben, und es wird kein Ergebnis gezeigt. Weil an jedem abgeschlossenen Tag geprüft wird, liegt die Chance auf eine falsche Markierung über den gesamten Lauf bei etwa ',
+          'Die Aufteilungsprüfung fragt, ob die beiden Gruppen den Anteil an Aufrufen bekommen haben, den der Zufall ihnen geben würde (Abweichung vom geplanten Verhältnis, SRM). Schlägt sie fehl, weicht die Aufteilung stärker von einer gleichmäßigen ab, als der Zufall plausibel erklären würde; dann könnte etwas Aufrufe zwischen den Gruppen verschoben haben, und es wird kein Ergebnis gezeigt. Weil an jedem abgeschlossenen Tag geprüft wird, liegt die Wahrscheinlichkeit eines Fehlalarms über den gesamten Lauf bei etwa ',
           p.one,
           `${NB}% bis `,
           p.three,
@@ -184,14 +184,14 @@ export const LIVE_DE: LiveCopy = {
     commands: 'Befehle',
     scriptSummary: 'Wie das Skript kleine Zählungen behandelt',
     script1:
-      'Das Skript nutzt nur die Standardbibliothek von Python und importiert nichts von dieser Website. Es rechnet die Aufteilungsprüfung, beide Intervalle über die täglichen Blicke, die Entscheidung und den nachweisbaren Effekt nach und prüft die Veröffentlichungsregeln. Jede Prüfung stimmt mit dem veröffentlichten Wert auf ein Hundertmillionstel überein, oder das Skript meldet sie als fehlgeschlagen; eine Prüfung, die die veröffentlichten Daten nicht entscheiden können, wird als unbestimmt gemeldet, mit ihrem Grund.',
+      'Das Skript nutzt nur die Standardbibliothek von Python und importiert nichts von dieser Website. Es rechnet die Aufteilungsprüfung, beide Intervalle über die täglichen Auswertungen, die Entscheidung und den nachweisbaren Effekt nach und prüft die Veröffentlichungsregeln. Jede Prüfung stimmt mit dem veröffentlichten Wert auf ein Hundertmillionstel überein, oder das Skript meldet sie als fehlgeschlagen; eine Prüfung, die die veröffentlichten Daten nicht entscheiden können, wird als unbestimmt gemeldet, mit ihrem Grund.',
     script2: (small) =>
       seq(
         'Hängt eine Prüfung von einer Zählung ab, die als „',
         small,
         '“ gezeigt wird, probiert das Skript jeden Wert durch, den die Zelle haben kann. Die Prüfung gilt als bestanden, wenn alle das veröffentlichte Ergebnis liefern, als fehlgeschlagen, wenn keiner es liefert, und sonst als unbestimmt. Das Skript gibt diese Werte nie aus. Seine eigenen Tests lassen es auf gespeicherten Kopien veröffentlichter Daten laufen, die der Code der Website aus bekannten Zählungen erzeugt hat.',
       ),
-    fixture: 'Dieser Build hat keinen Speicher, daher sind die Zahlen auf dieser Seite ein Platzhalter und keine Besucher.',
+    fixture: 'Dieser Build hat keinen Datenspeicher, daher sind die Zahlen auf dieser Seite ein Platzhalter und keine Besucher.',
     local: 'Dieser Build liest einen lokalen Testspeicher, daher sind seine Zahlen simuliert und keine Besucher.',
     readScript: 'Das Skript lesen',
   },
@@ -205,8 +205,8 @@ export const LIVE_DE: LiveCopy = {
     stepsLabel: 'Die Schritte des Tests',
     steps: { calibration: 'Kalibrierung', ab: 'A/B-Test', decision: 'Entscheidung' },
     done: 'Erledigt',
-    stepWord: { now: 'Jetzt', paused: 'Pausiert', stopped: 'Gestoppt', closed: 'Geschlossen', reached: 'Erreicht' },
-    decisionWords: { 'ship-b': 'B ausrollen', 'stop-for-harm': 'Abbruch wegen Schaden', inconclusive: 'Ohne klares Ergebnis an der Grenze' },
+    stepWord: { now: 'Jetzt', paused: 'Pausiert', stopped: 'Gestoppt', closed: 'Abgeschlossen', reached: 'Erreicht' },
+    decisionWords: { 'ship-b': 'B ausrollen', 'stop-for-harm': 'Abbruch wegen Schaden', inconclusive: 'Ohne klares Ergebnis an der Zeitgrenze' },
     stateWords: {
       'not-started': 'Nicht gestartet',
       'closure-check': 'Gespeichertes Ergebnis wird geprüft',
@@ -259,7 +259,7 @@ export const LIVE_DE: LiveCopy = {
     outcome: {
       'ship-b': 'B ausrollen.',
       'stop-for-harm': 'Abbruch wegen Schaden.',
-      inconclusive: 'Ohne klares Ergebnis an der Grenze; das belegt nicht, dass es keinen Effekt gibt.',
+      inconclusive: 'Ohne klares Ergebnis an der Zeitgrenze; das belegt nicht, dass es keinen Effekt gibt.',
     },
     laterSplit: ' Eine spätere Aufteilungsprüfung ist fehlgeschlagen; die festgehaltene Entscheidung bleibt unverändert.',
     closedNoDecision: 'Die Zählung ist abgeschlossen; in diesem Datenstand ist keine Entscheidung festgehalten.',
@@ -280,16 +280,16 @@ export const LIVE_DE: LiveCopy = {
     },
   },
   next: {
-    closed: 'Die Zählung ist beendet; spätere Blicke ändern nichts.',
+    closed: 'Die Zählung ist beendet; spätere Auswertungen ändern nichts.',
     confirming:
-      'Der Test hat seine Entscheidung erreicht; das Ergebnis wird bestätigt. Die erste Entscheidung ist endgültig, daher ändern spätere Blicke nichts.',
+      'Der Test hat seine Entscheidung erreicht; das Ergebnis wird bestätigt. Die erste Entscheidung ist endgültig, daher ändern spätere Auswertungen nichts.',
     restart: 'Am {date} startet die Kalibrierung neu.',
     abStart: 'Am {date} startet der A/B-Test.',
   },
   reasons: {
     malformed: 'Die Experiment-Einstellungen konnten nicht gelesen werden, daher ist die Zählung gestoppt, bis ich sie korrigiere',
-    'band-conflict': 'Das Intervall hat eine Konsistenzprüfung nicht bestanden, daher wurde der Test beim letzten sauberen Blick gestoppt',
-    'inconsistent-counts': 'Die Zählungen haben eine Konsistenzprüfung nicht bestanden, daher wurde der Test beim letzten sauberen Blick gestoppt',
+    'band-conflict': 'Das Intervall hat eine Konsistenzprüfung nicht bestanden, daher wurde der Test bei der letzten sauberen Auswertung gestoppt',
+    'inconsistent-counts': 'Die Zählungen haben eine Konsistenzprüfung nicht bestanden, daher wurde der Test bei der letzten sauberen Auswertung gestoppt',
     stoppedForGood: 'Ich habe die Zählung für diesen Lauf gestoppt und prüfe das gespeicherte Ergebnis, bevor ich es zeige',
     noNote: 'Mir liegt die Notiz mit der Begründung nicht mehr vor',
     noteDisagrees: 'Der Tag, den ich für diesen Stopp gespeichert habe, passt nicht zu dem, was ich jetzt sehe, daher prüfe ich ihn',
@@ -315,14 +315,14 @@ export const LIVE_DE: LiveCopy = {
     caption:
       'Jede Stufe behält, was die vorherige durchgelassen hat. Die ersten beiden Summen werden nicht veröffentlicht, weil eine Summe eine Zählung verraten könnte, die nur als kleiner als fünf gezeigt wird.',
     method:
-      'Das Beacon auf der englischen Startseite (ein kleines Signal, das die Seite beim Laden sendet) sendet Ereignisse, und der Server entscheidet, welche davon zählen. Das sind empfangene Beacons, keine Besucher: Eine Person kann viele senden. Von Bots, die nie JavaScript ausführen, oder von Besuchern, deren Browser das Signal Global Privacy Control oder Do Not Track sendet, kommt nichts, daher gehen sie in keine Zählung ein.',
+      'Der Beacon auf der englischen Startseite (ein kleines Signal, das die Seite beim Laden sendet) sendet Ereignisse, und der Server entscheidet, welche davon zählen. Das sind empfangene Beacons, keine Besucher: Eine Person kann viele senden. Von Bots, die nie JavaScript ausführen, oder von Besuchern, deren Browser das Signal Global Privacy Control oder Do Not Track sendet, kommt nichts, daher gehen sie in keine Zählung ein.',
     noCounts: 'Es werden keine Zählungen gezeigt: Diese Seite hat keine Daten.',
     reasons: {
-      bot: ['Bekannte Bots', 'Ein Bot als User-Agent oder ein per Automatisierung gesteuerter Browser'],
+      bot: ['Bekannte Bots', 'Der User-Agent eines Bots oder ein per Automatisierung gesteuerter Browser'],
       internal: ['Automatisierte Test- und Lighthouse-Läufe', 'Anfragen mit dem eigenen Test-Header der Website'],
       self: ['Meine eigenen Geräte', 'Browser, die ich auf der Ausschlussseite ausgenommen habe'],
       forced: ['Erzwungene Demo-Aufrufe', 'Eine in der Adresse angeforderte Gruppe'],
-      not_entry: ['Kein Einstiegsaufruf', 'Ein Aufruf, der keine neue Ankunft auf der Startseite ist'],
+      not_entry: ['Kein Einstiegsaufruf', 'Ein Aufruf, mit dem kein Besuch auf der Startseite beginnt'],
       rate_limited: ['Über dem Ratenlimit', 'Zu viele Anfragen von einer Netzwerkadresse in einer Minute'],
       ceiling: ['Nach der Tagesgrenze', 'Einstiege nach Erreichen der Tagesgrenze'],
     },
@@ -334,7 +334,7 @@ export const LIVE_DE: LiveCopy = {
       'Jede Zeile zählt Einstiege, die aus einem Grund abgewiesen wurden, mit zwei Ausnahmen: „Über dem Ratenlimit“ zählt höchstens einen je Netzwerkadresse und Minute, und „Nach der Tagesgrenze“ zählt einen für jeden Tag, an dem die Grenze erreicht wurde. Ist ein Tag voll, werden Einstiege, die gezählt worden wären, abgewiesen, ohne unter irgendeinem Grund gezählt zu werden. Die Zeilen sind keine verlorenen Besucher und ergeben keine Summe: Ein Besucher kann unter mehreren Gründen auftauchen, und manche Besuche erreichen den Server gar nicht.',
   },
   detectable: {
-    method: 'Sie wird für einen Blick bei n unter der Grenze der Konfidenzsequenz berechnet, nicht als Teststärke der sequenziellen Stoppregel.',
+    method: 'Sie wird für eine einzige Auswertung bei n unter der Grenze der Konfidenzsequenz berechnet, nicht als Teststärke der sequenziellen Stoppregel.',
     caption: (p) =>
       seq(
         'Der kleinste Anstieg, den so viele Aufrufe je Gruppe in ',
@@ -343,19 +343,19 @@ export const LIVE_DE: LiveCopy = {
         p.ten,
         ' Fällen erkennen würden, unter der Annahme ',
         p.ab ? seq('der Planungs-Klickrate aus der Kalibrierung, ', p.rate) : seq('der Planungs-Klickrate von ', p.rate),
-        ', bei einem Blick.',
+        ', bei einer einzigen Auswertung.',
       ),
     noData: 'Es werden keine Daten gezeigt, daher gibt es keinen Punkt für die aktuelle Größe.',
     atNowCount: (p) =>
-      seq('Bei der aktuellen Größe, ', p.count, ' Aufrufe in der kleineren Gruppe, liegt der kleinste nachweisbare Anstieg bei etwa ', p.lift, ' Prozentpunkten.'),
+      seq('Bei der aktuellen Größe von ', p.count, ' Aufrufen in der kleineren Gruppe liegt der kleinste nachweisbare Anstieg bei etwa ', p.lift, ' Prozentpunkten.'),
     atNow: (lift) => seq('Bei der aktuellen Größe liegt der kleinste nachweisbare Anstieg bei etwa ', lift, ' Prozentpunkten.'),
     noViews: 'Es sind noch keine Aufrufe gezählt, daher gibt es keinen Punkt für die aktuelle Größe.',
     smallCell: (five) => seq('Solange eine Gruppe weniger als ', five, ' Aufrufe hat, wird der Punkt für die aktuelle Größe nicht gezeigt.'),
     beyond:
       'Bei der aktuellen Größe liegt der nachweisbare Anstieg außerhalb des Bereichs, den diese Berechnung abdeckt, daher wird kein Punkt gezeigt.',
     title: 'Mehr Aufrufe je Gruppe, kleinere nachweisbare Anstiege',
-    columns: ['Aufrufe je Gruppe', 'Kleinster nachweisbarer Anstieg (Punkte)'],
-    note: 'Prozentpunkte, für einen Blick bei dieser Größe.',
+    columns: ['Aufrufe je Gruppe', 'Kleinster nachweisbarer Anstieg (Prozentpunkte)'],
+    note: 'Prozentpunkte, für eine einzige Auswertung bei dieser Größe.',
     aria: (marked) =>
       `Der kleinste nachweisbare Anstieg sinkt, wenn die Aufrufe je Gruppe wachsen${marked ? ', die aktuelle Größe ist markiert' : ''}`,
     xLabel: 'Aufrufe je Gruppe',
@@ -363,13 +363,13 @@ export const LIVE_DE: LiveCopy = {
   },
   results: {
     caption:
-      'B minus A in Prozentpunkten ausgewerteter Aufrufe, unter der Konfidenzsequenz, die gültig bleibt, wie oft man auch nachsieht. Jeder Blick ist ein abgeschlossener Berliner Tag.',
+      'B minus A in Prozentpunkten ausgewerteter Aufrufe, unter der Konfidenzsequenz, die gültig bleibt, wie oft man auch nachsieht. Jede Auswertung umfasst einen abgeschlossenen Berliner Tag.',
     seriesCaption: 'Ausgewertete Aufrufe je Gruppe bisher',
     seriesColumns: ['Gruppe', 'Ausgewertete Aufrufe'],
     groups: { a: 'A', b: 'B' },
-    seriesNote: 'Noch kein Blick wird gezeichnet: die bisher ausgewerteten Aufrufe je Gruppe.',
+    seriesNote: 'Es wird noch keine Auswertung gezeichnet: die bisher ausgewerteten Aufrufe je Gruppe.',
     columns: ['Aufrufe Gruppe A', 'Aufrufe Gruppe B', 'Unteres Ende', 'Schätzwert', 'Oberes Ende'],
-    note: 'Ausgewertete Aufrufe je Gruppe und B minus A in Prozentpunkten, eine Zeile je gezeichnetem Blick.',
+    note: 'Ausgewertete Aufrufe je Gruppe und B minus A in Prozentpunkten, eine Zeile je gezeichneter Auswertung.',
     closedConfirmed: 'Die Zählung ist abgeschlossen, ohne dass ein Schätzwert zu zeigen wäre.',
     beingConfirmed: 'Das Ergebnis wird bestätigt, daher wird kein Schätzwert gezeigt.',
     paused: 'Die Zählung ist pausiert, daher wird kein Schätzwert gezeigt.',
@@ -395,6 +395,6 @@ export const LIVE_DE: LiveCopy = {
       none: 'Noch kein Schätzwert',
       noneShown: 'Es wird kein Schätzwert gezeigt',
     },
-    noEstimateCaption: 'Der Unterschied zwischen den Gruppen, B minus A, in Prozentpunkten, mit dem leeren Zeichen anstelle eines Intervalls.',
+    noEstimateCaption: 'Der Unterschied zwischen den Gruppen, B minus A, in Prozentpunkten, mit der nicht ausgefüllten Markierung anstelle eines Intervalls.',
   },
 };
