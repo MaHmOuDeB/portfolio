@@ -2,10 +2,11 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { SEO_PAGES } from '../../content/seo.ts';
+import { DE_PAGES } from '../../src/lib/i18n/pages';
 import { LIVE_ROUTES } from '../../src/lib/site';
 import { test, waitForIslands } from './fixtures';
 import { markSlow } from './slow';
-import { pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
+import { INLINE_EXEMPT, pinnedExemptions, touchTargetReport, unpinnedExemptions } from './touch-targets';
 
 // Forced groups exercise the public home route; a direct group path intentionally returns 404.
 const routes = [...new Set([...LIVE_ROUTES.filter((route) => route !== '/'), '/', '/?variant=a', '/?variant=b', '/no-such-page', '/kitchen-sink', '/kitchen-sink/live'])];
@@ -248,6 +249,121 @@ for (const route of REFLOW_ROUTES) for (const scale of [1.5, 2]) {
     });
     expect(bounds.left).toBeGreaterThanOrEqual(0);
     expect(bounds.right).toBeLessThanOrEqual(bounds.width);
+  });
+}
+
+// Every German page, on the two desktop engines only (the German pages share every component with the
+// English ones, so the phone and tablet projects add no new cover). The same four checks as the English
+// matrix: axe and structure (the Menu open too), the 44 px targets, no sideways scroll at 320 px (and
+// at 400% zoom), and the 150% and 200% root text sizes. The German pages have no per-route pins of their
+// own: a link inside a sentence may be exempt from the 44 px rule only as often as the English twin's pin
+// allows (two on Home, one on Contact, none elsewhere).
+const GERMAN_PROJECTS = ['desktop-chromium', 'desktop-webkit'];
+const de = (path: string) => (path === '/' ? '/de' : `/de${path}`);
+const SKIP_DE = 'Zum Inhalt springen';
+
+for (const path of DE_PAGES) {
+  const route = de(path);
+  test.describe(`accessibility ${route}`, () => {
+    test.setTimeout(120_000);
+    test.beforeEach(({}, testInfo) => {
+      test.skip(!GERMAN_PROJECTS.includes(testInfo.project.name), 'the German pages are covered on the two desktop engines');
+    });
+
+    test('@matrix axe and page structure, in German', async ({ page }, testInfo) => {
+      await open(page, route);
+      await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+      await expect(page.locator('h1')).toHaveCount(1);
+      for (const role of ['banner', 'main', 'contentinfo'] as const) await expect(page.getByRole(role)).toHaveCount(1);
+      const scan = async () => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        try {
+          return await new AxeBuilder({ page })
+            .options({ resultTypes: ['violations'] })
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
+        } finally {
+          await page.emulateMedia({ reducedMotion: null });
+        }
+      };
+      const scans = [{ state: 'default', result: await scan() }];
+      if (await openMenu(page)) scans.push({ state: 'menu-open', result: await scan() });
+      await testInfo.attach('axe-findings', { body: JSON.stringify(scans, null, 2), contentType: 'application/json' });
+      const names = await page.getByRole('navigation').evaluateAll((els) => els.map((el) => {
+        const ids = el.getAttribute('aria-labelledby')?.split(/\s+/) ?? [];
+        return el.getAttribute('aria-label') ?? ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
+      }));
+      expect(names.length).toBeGreaterThan(0);
+      expect(new Set(names).size, 'navigation landmark names must not repeat').toBe(names.length);
+      const violations = scans.flatMap(({ state, result }) => result.violations.map(({ id, nodes }) => ({ state, id, selectors: nodes.map(({ target }) => target) })));
+      testInfo.annotations.push({ type: 'axe-violations', description: String(violations.length) });
+      expect(violations).toEqual([]);
+    });
+
+    test('@matrix touch targets in their visible interactive state, in German', async ({ page }) => {
+      await open(page, route);
+      await page.getByRole('link', { name: SKIP_DE }).focus();
+      const small = [];
+      const overlaps = [];
+      const exempt: string[] = [];
+      const states: string[] = [];
+      for (const state of ['default', 'menu-open'] as const) {
+        if (state === 'menu-open') {
+          if (!(await openMenu(page))) break;
+          await page.getByRole('link', { name: SKIP_DE }).focus();
+        }
+        states.push(state);
+        const report = await touchTargetReport(page);
+        small.push(...report.small.map((target) => ({ state, ...target })));
+        overlaps.push(...report.overlaps.map((target) => ({ state, ...target })));
+        exempt.push(...report.exempt.map((name) => `${state}: ${name}`));
+      }
+      // The English twin's pin says how many inline links may be exempt; their German words differ.
+      const allowed = (INLINE_EXEMPT[path] ?? []).length;
+      for (const state of states) {
+        const found = exempt.filter((e) => e.startsWith(`${state}: `));
+        expect(found.length, `${route}: at most ${allowed} inline exemptions in ${state} (found: ${found.join('; ') || 'none'})`).toBe(allowed);
+      }
+      expect(small, `${route}: every pointer target must be at least 44 by 44 CSS px`).toEqual([]);
+      expect(overlaps, `${route}: a link in running text never overlaps another target`).toEqual([]);
+    });
+
+    test('@matrix reflow, including the 400% CSS viewport proxy, in German', async ({ page }) => {
+      await open(page, route);
+      for (const height of [800, 180]) {
+        await page.setViewportSize({ width: 320, height });
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), { message: `${route}: reflow at 320x${height}` }).toBe(true);
+      }
+    });
+
+    for (const scale of [1.5, 2]) {
+      test(`reflows at 320 CSS px with root text at ${scale * 100}%, in German`, async ({ page }) => {
+        await page.setViewportSize({ width: 320, height: 800 });
+        await open(page, route);
+        const [before, after] = await page.evaluate(async (factor) => {
+          const root = document.documentElement;
+          const initial = Number.parseFloat(getComputedStyle(root).fontSize);
+          root.style.setProperty('font-size', `${factor * 100}%`, 'important');
+          await document.fonts.ready;
+          return [initial, Number.parseFloat(getComputedStyle(root).fontSize)];
+        }, scale);
+        expect(after).toBeCloseTo(before * scale);
+        const overflow = () => page.evaluate(() => {
+          const root = document.documentElement;
+          return root.scrollWidth - root.clientWidth;
+        });
+        await expect.poll(overflow, { message: `${route}, Menu closed` }).toBe(0);
+        const menu = page.locator('[data-menu]');
+        await menu.locator('summary').press('Enter');
+        await expect(menu).toHaveAttribute('open', '');
+        await expect.poll(overflow, { message: `${route}, Menu open` }).toBe(0);
+        const bounds = await menu.locator('nav').evaluate((el) => {
+          const { left, right } = el.getBoundingClientRect();
+          return { left, right, width: document.documentElement.clientWidth };
+        });
+        expect(bounds.left).toBeGreaterThanOrEqual(0);
+        expect(bounds.right).toBeLessThanOrEqual(bounds.width);
+      });
+    }
   });
 }
 
