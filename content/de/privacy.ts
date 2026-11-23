@@ -193,7 +193,7 @@ export const PRIVACY_DE: PrivacyCopy = {
           'Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO), Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) und Widerspruch (Art. 21 DSGVO). Sie können sich außerdem bei einer Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum Beispiel bei der Berliner Beauftragten für Datenschutz und Informationsfreiheit.',
         ],
         [
-          'Um diese Rechte auszuüben, schreiben Sie mir über das Kontaktformular (wählen Sie „Datenschutz oder Auskunftsanfrage“) oder auf LinkedIn. Nennen Sie mir bei einer Nachricht, die Sie über das Formular gesendet haben, die E-Mail-Adresse, die Sie verwendet haben, damit ich sie finde; ich antworte an diese Adresse.',
+          'Um diese Rechte auszuüben, schreiben Sie mir über das Kontaktformular (wählen Sie „Datenschutz- oder Datenanfrage“) oder auf LinkedIn. Nennen Sie mir bei einer Nachricht, die Sie über das Formular gesendet haben, die E-Mail-Adresse, die Sie verwendet haben, damit ich sie finde; ich antworte an diese Adresse.',
         ],
         [
           'Sie können der Verarbeitung auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO jederzeit widersprechen (Art. 21 DSGVO). Für das Experiment ist der einfachste Weg, dass Ihr Browser Global Privacy Control oder Do Not Track sendet; andernfalls schicken Sie mir eine Nachricht auf LinkedIn oder über das Kontaktformular.',

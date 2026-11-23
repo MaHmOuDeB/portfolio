@@ -26,7 +26,7 @@ export const ABOUT_DE: AboutCopy = {
       </>
     ),
     'Ich habe einen MSc in Data Science der University of Europe for Applied Sciences in Berlin (2025), und seitdem habe ich meine Master-Projekte mit öffentlichen Daten neu aufgebaut und eigene Tools gebaut.',
-    'Bei Audible habe ich außerdem interne KI-Tools gebaut, die ein größeres Team übernommen hat, und SQL-Segmentierungsabfragen für eine Personalisierung, die die Einwilligung beachtet, geschrieben, für Mitglieder mit und ohne Einwilligung, nach den Regeln des Digital Markets Act (DMA).',
+    'Bei Audible habe ich außerdem interne KI-Tools gebaut, die ein größeres Team übernommen hat, und SQL-Segmentierungsabfragen für eine Personalisierung geschrieben, die die Einwilligung beachtet: für Mitglieder mit und ohne Einwilligung, nach den Regeln des Digital Markets Act (DMA).',
   ],
   focus:
     'Ich arbeite an zwei Dingen, die zusammengehören: Experimente, die in einer klaren Empfehlung enden, und Automatisierung, die die manuelle Arbeit auf dem Weg dorthin übernimmt. Bei Audible waren das A/B-Tests und ein Browser-Tool, das mein Team übernommen hat; seitdem sind es Agenten, Workflows und die Prüfungen darum herum.',

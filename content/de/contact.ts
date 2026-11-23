@@ -19,7 +19,7 @@ export const CONTACT_DE: ContactCopy = {
       job: 'Stellenangebot',
       interview: 'Gespräch oder Recruiting',
       project: 'Frage zu einem Projekt',
-      privacy: 'Datenschutz oder Auskunftsanfrage',
+      privacy: 'Datenschutz- oder Datenanfrage',
       other: 'Etwas anderes',
     },
     notSent: 'Nachricht nicht gesendet',

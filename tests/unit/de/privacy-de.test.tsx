@@ -197,7 +197,7 @@ describe('the German privacy page', () => {
     expect(links.map((a) => attr(a, 'href'))).toEqual(['/de/contact', CONTACT.linkedin]);
     expect(text(links[0]!)).toBe('Kontaktformular');
     for (const el of all) expect(['img', 'iframe', 'script', 'link'].includes(el.tagName), el.tagName).toBe(false);
-    expect(sectionText('your-rights')).toContain('„Datenschutz oder Auskunftsanfrage“');
+    expect(sectionText('your-rights')).toContain('„Datenschutz- oder Datenanfrage“');
   });
 
   it('has a German question for every provider fact, should a placeholder ever show', () => {
